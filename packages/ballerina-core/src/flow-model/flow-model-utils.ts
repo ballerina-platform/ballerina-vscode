@@ -93,3 +93,29 @@ export function traverseNode(node: FlowNode, visitor: BaseVisitor, parent?: Flow
         endVisitFn.bind(visitor)(node, parent);
     }
 }
+
+/**
+ * Builds an AGENT_TOOL flow node that wraps the given node (a function / connection / resource action) as an
+ * `@ai:AgentTool`. Consumed by `getSourceCode` → `AgentToolBuilder` (replaces the former `genTool` RPC): the tool
+ * signature rides as node properties (`functionName`, `parameters`); the wrapped node + connection ride in
+ * `codedata.data`.
+ */
+export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, description: string, connection: string,
+                                   toolParameters?: unknown): FlowNode {
+    return {
+        id: "0",
+        metadata: { label: "Agent Tool", description: "" },
+        codedata: { node: "AGENT_TOOL", isNew: true, data: { node: wrappedNode, connection, description } },
+        properties: {
+            functionName: {
+                metadata: { label: "Name", description: "Name of the tool" },
+                valueType: "IDENTIFIER",
+                value: toolName,
+                optional: false,
+                editable: true,
+                advanced: false,
+            },
+            ...(toolParameters ? { parameters: toolParameters } : {}),
+        },
+    } as unknown as FlowNode;
+}

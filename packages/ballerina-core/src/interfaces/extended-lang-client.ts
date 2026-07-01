@@ -1973,15 +1973,6 @@ export interface McpToolsResponse {
     errorMsg?: string;
 }
 
-export interface AIGentToolsRequest {
-    filePath: string;
-    flowNode: FlowNode;
-    toolName: string;
-    description: string;
-    connection: string;
-    toolParameters?: ToolParameters;
-}
-
 export interface AIGentToolsResponse {
     artifacts?: ProjectStructureArtifactResponse[];
     textEdits: {
@@ -2228,7 +2219,6 @@ export interface BIInterface extends BaseLangClientInterface {
     getModels: (params: AIModelsRequest) => Promise<AIModelsResponse>;
     getTools: (params: AIToolsRequest) => Promise<AIToolsResponse>;
     getMcpTools: (params: McpToolsRequest) => Promise<McpToolsResponse>;
-    genTool: (params: AIGentToolsRequest) => Promise<AIGentToolsResponse>;
     getPackageVersion: (params: AIGetPackageVersionRequest) => Promise<AIGetPackageVersionResponse>;
 }
 

@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
+import { buildAgentToolNode, EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
@@ -171,13 +171,11 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 }
             }
 
-            const toolResponse = await rpcClient.getAIAgentRpcClient().genTool({
-                toolName: data.toolName,
-                description: data.description,
+            // AGENT_TOOL node (AgentToolBuilder) replaces the genTool RPC: tool signature as properties, the wrapped
+            // node + connection in codedata.data.
+            const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath.current,
-                flowNode,
-                connection,
-                toolParameters: data.toolParameters,
+                flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters),
             });
 
             if (!toolResponse) {

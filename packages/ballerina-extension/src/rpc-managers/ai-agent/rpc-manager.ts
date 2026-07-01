@@ -22,9 +22,9 @@ import {
     AIAgentRequest,
     AIAgentResponse,
     AIAgentToolsUpdateRequest,
-    AIGentToolsRequest,
     AIGentToolsResponse,
     GenAgentToolRequest,
+    buildAgentToolNode,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -129,23 +129,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
             try {
                 const res: McpToolsResponse = await context.langClient.getMcpTools(params);
                 resolve(res);
-            } catch (error) {
-                console.log(error);
-            }
-        });
-    }
-
-    async genTool(params: AIGentToolsRequest): Promise<AIGentToolsResponse> {
-        // HACK: set description to empty string if it is not provided
-        if (!params.description) {
-            params.description = "";
-        }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const response: AIGentToolsResponse = await context.langClient.genTool(params);
-                const artifacts = await updateSourceCode({ textEdits: response.textEdits });
-                resolve({ artifacts, textEdits: response.textEdits });
             } catch (error) {
                 console.log(error);
             }
@@ -380,15 +363,11 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 }
             }
 
-            // Create a new tool
-            const codeEdits = await StateMachine.langClient()
-                .genTool({
-                    filePath: toolsPath,
-                    flowNode: flowNode,
-                    toolName: toolName,
-                    description: "",
-                    connection: connectionName
-                });
+            // Create a new tool via the AGENT_TOOL node (AgentToolBuilder); replaces the genTool RPC.
+            const codeEdits = await StateMachine.langClient().getSourceCode({
+                filePath: toolsPath,
+                flowNode: buildAgentToolNode(flowNode, toolName, "", connectionName),
+            });
             await updateSourceCode({ textEdits: codeEdits.textEdits });
         } catch (error) {
             console.error(`Failed to create tool: ${error}`);
@@ -429,15 +408,12 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 flowNode = existingFunctionFlowNode.flowNode;
             }
 
-            // Create a new tool
-            const codeEdits = await StateMachine.langClient()
-                .genTool({
-                    filePath: toolsPath,
-                    flowNode: flowNode,
-                    toolName: toolName,
-                    description: tool.description,
-                    connection: tool.selectedCodeData.parentSymbol || "",
-                });
+            // Create a new tool via the AGENT_TOOL node (AgentToolBuilder); replaces the genTool RPC.
+            const codeEdits = await StateMachine.langClient().getSourceCode({
+                filePath: toolsPath,
+                flowNode: buildAgentToolNode(flowNode, toolName, tool.description,
+                    tool.selectedCodeData.parentSymbol || ""),
+            });
             await updateSourceCode({ textEdits: codeEdits.textEdits });
             await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
