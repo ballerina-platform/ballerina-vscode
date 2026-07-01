@@ -537,6 +537,7 @@ export type NodeKind =
     | "AGENT_CALL"
     | "AGENT_ID_AUTH_CONFIG"
     | "AGENT_RUN"
+    | "AGENT_TOOL"
     | "ASSIGN"
     | "AUTOMATION"
     | "BODY"

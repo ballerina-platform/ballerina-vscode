@@ -105,7 +105,6 @@ under the License.
             <!--agents manager-->
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.NodeTemplateTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.SourceGeneratorTest"/>
-            <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GenToolsTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAgentOrgTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllAgentsTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllModelsTest"/>
