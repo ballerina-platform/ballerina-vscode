@@ -153,7 +153,7 @@ public class SourceBuilder {
             case NEW_CONNECTION, MODEL_PROVIDER, EMBEDDING_PROVIDER, VECTOR_STORE, KNOWLEDGE_BASE,
                  DATA_LOADER, CHUNKER, CLASS_INIT, DATA_MAPPER_DEFINITION,
                  FUNCTION_DEFINITION, NP_FUNCTION, NP_FUNCTION_DEFINITION, AUTOMATION,
-                 AGENT, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT -> true;
+                 AGENT, AGENT_TOOL, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT -> true;
             default -> false;
         };
     }
@@ -168,7 +168,7 @@ public class SourceBuilder {
                 case FUNCTION_DEFINITION, NP_FUNCTION, NP_FUNCTION_DEFINITION, ACTIVITY,
                      ACTIVITY_CREATION -> FUNCTIONS_BAL;
                 case AUTOMATION -> AUTOMATION_BAL;
-                case AGENT, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT -> AGENTS_BAL;
+                case AGENT, AGENT_TOOL, MEMORY, SHORT_TERM_MEMORY_STORE, MCP_TOOL_KIT -> AGENTS_BAL;
                 default -> null;
             };
             if (defaultFile == null) {

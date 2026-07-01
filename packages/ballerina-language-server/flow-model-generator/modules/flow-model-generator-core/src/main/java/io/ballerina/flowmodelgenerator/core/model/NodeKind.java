@@ -85,6 +85,7 @@ public enum NodeKind {
     AGENT_TYPE,
     AGENT_CALL,
     AGENT_RUN,
+    AGENT_TOOL,
     CLASS_INIT,
     AGENTS,
 
