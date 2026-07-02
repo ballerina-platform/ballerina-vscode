@@ -101,7 +101,7 @@ export function traverseNode(node: FlowNode, visitor: BaseVisitor, parent?: Flow
  * `codedata.data`.
  */
 export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, description: string, connection: string,
-                                   toolParameters?: unknown): FlowNode {
+    toolParameters?: unknown): FlowNode {
     return {
         id: "0",
         metadata: { label: "Agent Tool", description: "" },
@@ -116,6 +116,29 @@ export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, desc
                 advanced: false,
             },
             ...(toolParameters ? { parameters: toolParameters } : {}),
+        },
+    } as unknown as FlowNode;
+}
+
+export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
+    description: string): FlowNode {
+    return {
+        id: "0",
+        metadata: { label: "Agent Tool", description: "" },
+        codedata: {
+            node: "AGENT_TOOL",
+            isNew: true,
+            data: { toolKind: "AGENT_CALL", agentVarName, includeContext, description },
+        },
+        properties: {
+            functionName: {
+                metadata: { label: "Name", description: "Name of the tool" },
+                valueType: "IDENTIFIER",
+                value: toolName,
+                optional: false,
+                editable: true,
+                advanced: false,
+            },
         },
     } as unknown as FlowNode;
 }
