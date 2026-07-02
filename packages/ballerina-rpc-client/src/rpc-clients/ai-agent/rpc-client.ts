@@ -32,6 +32,7 @@ import {
     AIToolResponse,
     AIToolsRequest,
     AIToolsResponse,
+    AIGentToolsResponse,
     configureDefaultModelProvider,
     createAIAgent,
     DefaultProviderKind,

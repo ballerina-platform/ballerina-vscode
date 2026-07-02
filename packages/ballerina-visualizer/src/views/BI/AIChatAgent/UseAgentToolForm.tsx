@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode } from "@wso2/ballerina-core";
+import { buildAgentCallToolNode, FlowNode } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -127,12 +127,11 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                 .replace(/```[\s\S]*?```/g, "")
                 .replace(/\n/g, " ")
                 .trim();
-            await rpcClient.getAIAgentRpcClient().genAgentTool({
+            // AGENT_TOOL node (AgentToolBuilder, AGENT_CALL kind) replaces the genAgentTool RPC: the tool signature +
+            // `<agent>.run(...)` body are generated from the agent variable + context flag in codedata.data.
+            await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath,
-                agentVarName,
-                includeContext: includeContextRef.current,
-                toolName,
-                description,
+                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description),
             });
             const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
             if (updatedAgentNode) {
