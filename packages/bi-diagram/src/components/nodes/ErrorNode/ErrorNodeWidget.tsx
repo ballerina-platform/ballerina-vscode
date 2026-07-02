@@ -25,8 +25,6 @@ import {
     WHILE_NODE_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BG_COLOR,
-    NODE_BG_HOVER_COLOR,
-    NODE_HOVER_GLOW,
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
@@ -142,11 +140,9 @@ export namespace NodeStyles {
                         : ThemeColors.OUTLINE_VARIANT};
         border-radius: 8px;
         background-color: ${(props: NodeStyleProp) =>
-            props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : props.hovered && !props.disabled ? NODE_BG_HOVER_COLOR : NODE_BG_COLOR};
+            props?.isActiveBreakpoint ? NODE_BG_BREAKPOINT_COLOR : NODE_BG_COLOR};
         width: ${WHILE_NODE_WIDTH}px;
         height: ${WHILE_NODE_WIDTH}px;
-        box-shadow: ${(props: NodeStyleProp) => props.hovered && !props.disabled ? NODE_HOVER_GLOW : 'none'};
-        transition: box-shadow 0.1s ease, background-color 0.1s ease, border-color 0.1s ease;
     `;
 
     export const Hr = styled.hr`

@@ -24,7 +24,6 @@ import {
     IF_NODE_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BG_COLOR,
-    NODE_BG_HOVER_COLOR,
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
@@ -210,8 +209,6 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
                             fill={
                                 isActiveBreakpoint
                                     ? NODE_BG_BREAKPOINT_COLOR
-                                    : isHovered && !disabled && !readOnly
-                                    ? NODE_BG_HOVER_COLOR
                                     : NODE_BG_COLOR
                             }
                             stroke={
