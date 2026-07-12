@@ -1031,6 +1031,12 @@ export type BISearchNodesResponse = {
 export type SearchNodesQueryParams = {
     kind?: NodeKind;
     exactMatch?: string;
+    typeMatch?: "exact" | "subtype";
+    typeOrg?: string;
+    typePackage?: string;
+    typeModule?: string;
+    typeName?: string;
+    typeVersion?: string;
 }
 
 export type BIGetEnclosedFunctionRequest = {

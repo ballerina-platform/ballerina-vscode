@@ -172,22 +172,44 @@ function enrichModelProviderField(formField: FormField, property: Property): voi
 
 const NEW_CONNECTION_SEARCH_KIND = "NEW_CONNECTION";
 
+function getConnectionTypeQuery(property: Property): Record<string, string> {
+    const connection = property.codedata?.data?.connection as {
+        org?: string;
+        packageName?: string;
+        module?: string;
+        object?: string;
+        version?: string;
+    } | undefined;
+    if (connection?.module && connection?.object) {
+        return {
+            typeMatch: "exact",
+            ...(connection.org && { typeOrg: connection.org }),
+            ...(connection.packageName && { typePackage: connection.packageName }),
+            typeModule: connection.module,
+            typeName: connection.object,
+            ...(connection.version && { typeVersion: connection.version }),
+        };
+    }
+    return {};
+}
+
 // Render a client-connection param (LS marks it via codedata.data.connection) as the connection-select editor.
 function enrichClientConnectionField(formField: FormField, property: Property): void {
     if (!property.codedata?.data?.connection || !formField.editable) {
         return;
     }
-    const connectionType = property.types?.find((t) => t.ballerinaType)?.ballerinaType;
+    const typeQuery = getConnectionTypeQuery(property);
+    const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
     const expressionMode = isInlineExpressionValue(formField.value);
     formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
     formField.types = [
-        { fieldType: "ACTION_EXPRESSION", ballerinaType: connectionType, selected: !expressionMode },
+        { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: !expressionMode },
         { fieldType: "EXPRESSION", selected: expressionMode },
     ] as InputType[];
     formField.codedata = {
         ...(formField.codedata || {}),
         searchNodesKind: NEW_CONNECTION_SEARCH_KIND,
-        connectionType,
+        ...typeQuery,
     };
 }
 
