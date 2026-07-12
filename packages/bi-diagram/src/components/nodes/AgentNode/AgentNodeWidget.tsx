@@ -605,21 +605,21 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     ];
 
     const toolMenuItems = (tool: ToolData): Item[] => [
-        {
+        ...(agentNode?.onSelectTool || agentNode?.onSelectMcpToolkit ? [{
             id: "edit",
             label: "Edit",
             onClick: () => onToolClick(tool),
-        },
-        {
+        }] : []),
+        ...(agentNode?.goToTool ? [{
             id: "view",
             label: "View",
             onClick: () => onImplementTool(tool),
-        },
-        {
+        }] : []),
+        ...(agentNode?.onDeleteTool ? [{
             id: "delete",
             label: "Delete",
             onClick: () => onDeleteTool(tool),
-        },
+        }] : []),
     ];
 
     const memoryMenuItems: Item[] = [
@@ -1235,7 +1235,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </Popover>
 
                 {/* Add "Add new tool" button below all tools — hidden in read-only mode */}
-                {!readOnly && <g
+                {!readOnly && agentNode?.onAddTool && <g
                     transform={`translate(-11, ${tools.length > 0
                         ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                         : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP

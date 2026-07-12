@@ -20,7 +20,17 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import { removeMcpServerFromAgentNode, findAgentNodeFromAgentCallNode, findFlowNode, removeAgentNode, confirmAgentCallDeletion, goToAgentFromRunNode } from "../AIChatAgent/utils";
+import {
+    confirmAgentCallDeletion,
+    findAgentNodeFromAgentCallNode,
+    findFlowNode,
+    findFlowNodeByModuleVarName,
+    goToAgentFromRunNode,
+    refreshNodeLineRangeFromArtifacts,
+    removeAgentNode,
+    removeMcpServerFromAgentNode,
+    removeToolFromAgentNode,
+} from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram, setTraceAnimationActive, setTraceAnimationInactive } from "@wso2/bi-diagram";
 import {
@@ -52,6 +62,7 @@ import {
     AIPanelPrompt,
     LinePosition,
     EditorDisplayMode,
+    ToolData,
 } from "@wso2/ballerina-core";
 
 import {
@@ -84,6 +95,7 @@ import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, F
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
+import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 
 const Container = styled.div`
     width: 100%;
@@ -948,6 +960,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnCloseSidePanel = () => {
+        if (agentEditor.view !== "NONE") {
+            agentEditor.close();
+        }
         resetNodeSelectionStates();
         // Cancel draft and return to previous flow model
         if (hasDraft) {
@@ -2843,8 +2858,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setUpdatedExpressionField(undefined);
     };
 
-    const handleOnChatWithAgent = (agentCallNode: FlowNode) => {
-        const agentVarName = agentCallNode.properties?.connection?.value as string;
+    const handleOnChatWithAgent = (agentNode: FlowNode) => {
+        const agentVarName = (agentNode.codedata?.node === "AGENT"
+            ? agentNode.properties?.variable?.value
+            : agentNode.properties?.connection?.value) as string;
         if (!agentVarName || !model?.fileName) {
             console.error('Cannot start inline agent chat: missing agent variable name or file path');
             return;
@@ -2852,9 +2869,55 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         rpcClient.getBIDiagramRpcClient().startInlineAgentChat({
             agentVarName,
             filePath: model.fileName,
-            agentNode: agentCallNode,
+            agentNode,
         });
     };
+
+    const agentEditor = useAgentEditorController({
+        projectPath,
+        filePath: model?.fileName,
+        onModelSelect: (node) => {
+            selectedNodeRef.current = node;
+            showEditForm.current = true;
+            setSelectedConnectionKind("MODEL_PROVIDER");
+            setSidePanelView(SidePanelView.CONNECTION_CONFIG);
+            setShowSidePanel(true);
+        },
+        onRefresh: () => debouncedGetFlowModel(),
+        onSelectionChange: (node) => {
+            selectedNodeRef.current = node;
+            setSelectedNodeId(node?.id);
+        },
+        onLoadingChange: setShowProgressIndicator,
+        onChat: handleOnChatWithAgent,
+    });
+
+    // Bridge the controller's view to this host's shared side-panel switch.
+    const prevAgentViewRef = useRef<AgentEditorView>("NONE");
+    useEffect(() => {
+        const panelMap: Record<Exclude<AgentEditorView, "NONE">, SidePanelView> = {
+            MEMORY: SidePanelView.AGENT_MEMORY_MANAGER,
+            ADD_TOOL: SidePanelView.ADD_TOOL,
+            NEW_TOOL_CUSTOM: SidePanelView.NEW_TOOL_CUSTOM,
+            NEW_TOOL_CONNECTION: SidePanelView.NEW_TOOL_FROM_CONNECTION,
+            NEW_TOOL_FUNCTION: SidePanelView.NEW_TOOL_FROM_FUNCTION,
+            NEW_TOOL_AGENT: SidePanelView.NEW_TOOL_FROM_AGENT,
+            NEW_TOOL_AGENT_FORM: SidePanelView.NEW_TOOL_FROM_AGENT_FORM,
+            ADD_MCP: SidePanelView.ADD_MCP_SERVER,
+            EDIT_MCP: SidePanelView.EDIT_MCP_SERVER,
+        };
+        const view = agentEditor.view;
+        if (view !== "NONE") {
+            setSidePanelView(panelMap[view]);
+            setShowSidePanel(true);
+        } else if (prevAgentViewRef.current !== "NONE") {
+            setShowSidePanel(false);
+            setSidePanelView(SidePanelView.NODE_LIST);
+            setSelectedNodeId(undefined);
+            selectedNodeRef.current = undefined;
+        }
+        prevAgentViewRef.current = view;
+    }, [agentEditor.view]);
 
     const updateNodeWithConnection = async (selectedNode: FlowNode) => {
         if (selectedNode.codedata.node === "KNOWLEDGE_BASE") {
@@ -2950,10 +3013,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 description: draftDescription,
             },
             selectedNodeId,
-            // Agent editing happens in the agent focus diagram; the main-flow agent-call node is
-            // read-only and only offers "Chat" + navigation to the focus view.
             agentNode: {
-                onChatWithAgent: isChatAgentFlow ? undefined : handleOnChatWithAgent,
+                ...agentEditor.diagramCallbacks,
+                onChatWithAgent: isChatAgentFlow ? undefined : agentEditor.diagramCallbacks.onChatWithAgent,
             },
             suggestions: {
                 fetching: fetchingAiSuggestions,
@@ -3073,6 +3135,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSelectConnectorPopup={handleOnSelectConnectorConfiguration}
                 onNavigateToPanel={handleOnNavigateToPanel}
                 errorMessage={errorMessage}
+                agentEditor={agentEditor}
                 // Devant specific callbacks
                 onImportDevantConn={handleClickImportDevantConn}
                 onLinkDevantProject={(platformExtState?.isExtInstalled && !platformExtState?.selectedContext?.project) ? onLinkDevantProject : undefined}
