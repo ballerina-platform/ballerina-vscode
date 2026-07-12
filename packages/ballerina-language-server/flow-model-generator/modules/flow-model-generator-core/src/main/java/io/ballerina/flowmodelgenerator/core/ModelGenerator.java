@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -29,6 +30,7 @@ import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
@@ -107,8 +109,14 @@ public class ModelGenerator {
     );
     private static final String NODE_KIND_FILTER = "kind";
     private static final String EXACT_MATCH_FILTER = "exactMatch";
-    // Narrows a connection search (e.g. kind=NEW_CONNECTION) to variables of one client type (e.g. "calendar:Client").
-    private static final String CONNECTION_TYPE_FILTER = "connectionType";
+    private static final String TYPE_MATCH_FILTER = "typeMatch";
+    private static final String TYPE_MATCH_EXACT = "exact";
+    private static final String TYPE_MATCH_SUBTYPE = "subtype";
+    private static final String TYPE_ORG_FILTER = "typeOrg";
+    private static final String TYPE_PACKAGE_FILTER = "typePackage";
+    private static final String TYPE_MODULE_FILTER = "typeModule";
+    private static final String TYPE_NAME_FILTER = "typeName";
+    private static final String TYPE_VERSION_FILTER = "typeVersion";
 
     public ModelGenerator(Project project, SemanticModel model, Path filePath, WorkspaceManager workspaceManager) {
         this.semanticModel = model;
@@ -313,7 +321,7 @@ public class ModelGenerator {
      *
      * @param document the document to search in
      * @param position the line position (nullable - if null, uses moduleSymbols, else visibleSymbols)
-     * @param queryMap the map containing query parameters (kind, exactMatch)
+     * @param queryMap the map containing query parameters (kind, exactMatch, type* filters)
      * @return List of FlowNodes that match the search criteria
      */
     public List<FlowNode> searchNodes(Document document, LinePosition position, Map<String, String> queryMap) {
@@ -325,6 +333,7 @@ public class ModelGenerator {
         // Extract filter parameters
         String kindFilter = queryMap != null ? queryMap.get(NODE_KIND_FILTER) : null;
         String exactMatchFilter = queryMap != null ? queryMap.get(EXACT_MATCH_FILTER) : null;
+        Optional<TypeConstraint> typeConstraint = TypeConstraint.from(queryMap);
 
         // Apply symbol-level filters first (exactMatch)
         Stream<Symbol> stream = symbols.stream()
@@ -336,6 +345,9 @@ public class ModelGenerator {
                     ? exactMatchFilter.substring(5)
                     : exactMatchFilter;
             stream = stream.filter(symbol -> symbol.nameEquals(fieldName));
+        }
+        if (typeConstraint.isPresent()) {
+            stream = stream.filter(symbol -> matchesTypeConstraint(symbol, typeConstraint.get()));
         }
         List<Symbol> filteredSymbols = stream.toList();
 
@@ -373,6 +385,96 @@ public class ModelGenerator {
             }
         }
         return flowNodesList;
+    }
+
+    private boolean matchesTypeConstraint(Symbol symbol, TypeConstraint constraint) {
+        Optional<TypeSymbol> optType = getSymbolType(symbol);
+        if (optType.isEmpty()) {
+            return false;
+        }
+        TypeSymbol candidateType = optType.get();
+        if (TYPE_MATCH_SUBTYPE.equals(constraint.match())) {
+            return resolveTypeConstraint(constraint)
+                    .map(target -> CommonUtils.subTypeOf(candidateType, target))
+                    .orElseGet(() -> matchesExactType(candidateType, constraint));
+        }
+        return matchesExactType(candidateType, constraint);
+    }
+
+    private Optional<TypeSymbol> getSymbolType(Symbol symbol) {
+        return switch (symbol.kind()) {
+            case VARIABLE -> Optional.of(((VariableSymbol) symbol).typeDescriptor());
+            case CLASS_FIELD -> Optional.of(((ClassFieldSymbol) symbol).typeDescriptor());
+            default -> Optional.empty();
+        };
+    }
+
+    private boolean matchesExactType(TypeSymbol typeSymbol, TypeConstraint constraint) {
+        TypeSymbol rawType = CommonUtils.getRawType(typeSymbol);
+        Optional<ModuleID> moduleId = rawType.getModule().map(module -> module.id());
+        Optional<String> typeName = rawType.getName();
+        if (moduleId.isEmpty() || typeName.isEmpty() || !typeName.get().equals(constraint.typeName())) {
+            return false;
+        }
+        ModuleID id = moduleId.get();
+        if (constraint.org() != null && !constraint.org().equals(id.orgName())) {
+            return false;
+        }
+        if (constraint.packageName() != null && !constraint.packageName().equals(id.packageName())) {
+            return false;
+        }
+        if (constraint.moduleName() != null && !constraint.moduleName().equals(id.moduleName())) {
+            return false;
+        }
+        return constraint.version() == null
+                || constraint.version().isBlank()
+                || constraint.version().equals(id.version());
+    }
+
+    private Optional<TypeSymbol> resolveTypeConstraint(TypeConstraint constraint) {
+        if (constraint.org() == null || constraint.moduleName() == null) {
+            return Optional.empty();
+        }
+        return semanticModel.types()
+                .typesInModule(constraint.org(), constraint.moduleName(),
+                        constraint.version() == null ? "" : constraint.version())
+                .flatMap(types -> Optional.ofNullable(types.get(constraint.typeName())))
+                .flatMap(symbol -> {
+                    if (symbol instanceof TypeDefinitionSymbol typeDefinitionSymbol) {
+                        return Optional.of(typeDefinitionSymbol.typeDescriptor());
+                    }
+                    if (symbol instanceof TypeSymbol typeSymbol) {
+                        return Optional.of(typeSymbol);
+                    }
+                    return Optional.empty();
+                });
+    }
+
+    private record TypeConstraint(String org, String packageName, String moduleName, String typeName, String version,
+                                  String match) {
+
+        private static Optional<TypeConstraint> from(Map<String, String> queryMap) {
+            if (queryMap == null) {
+                return Optional.empty();
+            }
+            String typeName = queryMap.get(TYPE_NAME_FILTER);
+            if (typeName == null || typeName.isBlank()) {
+                return Optional.empty();
+            }
+            String match = queryMap.getOrDefault(TYPE_MATCH_FILTER, TYPE_MATCH_EXACT);
+            return Optional.of(new TypeConstraint(
+                    blankToNull(queryMap.get(TYPE_ORG_FILTER)),
+                    blankToNull(queryMap.get(TYPE_PACKAGE_FILTER)),
+                    blankToNull(queryMap.get(TYPE_MODULE_FILTER)),
+                    typeName,
+                    blankToNull(queryMap.get(TYPE_VERSION_FILTER)),
+                    TYPE_MATCH_SUBTYPE.equals(match) ? TYPE_MATCH_SUBTYPE : TYPE_MATCH_EXACT
+            ));
+        }
+
+        private static String blankToNull(String value) {
+            return value == null || value.isBlank() ? null : value;
+        }
     }
 
     /**
