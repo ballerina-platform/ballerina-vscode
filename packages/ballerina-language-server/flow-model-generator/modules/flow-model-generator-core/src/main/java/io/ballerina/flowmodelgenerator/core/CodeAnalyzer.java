@@ -2864,6 +2864,10 @@ public class CodeAnalyzer extends NodeVisitor {
                     .object(name)
                     .symbol(NewConnectionBuilder.INIT_SYMBOL);
 
+        if (kind == NodeKind.AGENT || kind == NodeKind.AGENT_TYPE) {
+            nodeBuilder.codedata().packageName(packageName).version(functionData.version());
+        }
+
         if (kind == NodeKind.MCP_TOOL_KIT && isAiMcpBaseToolKit(classSymbol)) {
             Map<String, Object> classDefinitionData = getClassDefinitionCodedata(classSymbol);
             if (classDefinitionData != null) {

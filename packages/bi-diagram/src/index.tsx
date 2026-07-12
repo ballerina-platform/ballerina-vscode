@@ -27,6 +27,7 @@ export { AIModelIcon } from "./components/AIModelIcon";
 // types
 export type { FlowNodeStyle, DraftNodeConfig } from "./utils/types";
 export type { GetHelperPaneFunction, TraceAnimationState, TraceAnimationEntry, AnimationPhase } from "./components/DiagramContext";
+export type { AgentNodeActions } from "./components/AgentNodeActions";
 
 export { setTraceAnimationActive, setTraceAnimationInactive, useTraceAnimation } from "./components/DiagramContext";
 

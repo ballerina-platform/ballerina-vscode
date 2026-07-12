@@ -23,7 +23,8 @@ import {
     SubPanel,
     SubPanelView,
     FUNCTION_TYPE,
-    EditorConfig
+    EditorConfig,
+    ToolData,
 } from "@wso2/ballerina-core";
 import { HelperView } from "../HelperView";
 import FlowNodeForm from "../Forms/FlowNodeForm";
@@ -35,6 +36,8 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
+import { AgentEditorPanelContent } from "../AIChatAgent/AgentEditorPanelContent";
+import { AgentEditorController } from "../AIChatAgent/useAgentEditorController";
 
 const Container = styled.div`
     display: flex;
@@ -63,9 +66,20 @@ export enum SidePanelView {
     KNOWLEDGE_BASES = "KNOWLEDGE_BASES",
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
     NEW_AGENT = "NEW_AGENT",
+    ADD_TOOL = "ADD_TOOL",
+    NEW_TOOL = "NEW_TOOL",
+    NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
+    NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
+    NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
+    NEW_TOOL_FROM_AGENT = "NEW_TOOL_FROM_AGENT",
+    NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
+    ADD_MCP_SERVER = "ADD_MCP_SERVER",
+    EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
+    AGENT_TOOL = "AGENT_TOOL",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
+    AGENT_MEMORY_MANAGER = "AGENT_MEMORY_MANAGER",
     AGENT_CONFIG = "AGENT_CONFIG",
     AGENT_LIST = "AGENT_LIST",
     ERROR = "ERROR",
@@ -95,6 +109,7 @@ interface PanelManagerProps {
     progressMessage?: string;
     progressTitle?: string;
     errorMessage?: string;
+    agentEditor?: AgentEditorController;
 
     // Action handlers
     onClose: () => void;
@@ -207,6 +222,7 @@ export function PanelManager(props: PanelManagerProps) {
         onSelectNewConnection,
         onSelectConnectorPopup,
         onUpdateNodeWithConnection,
+        agentEditor,
         onNavigateToPanel,
         errorMessage,
         onImportDevantConn,
@@ -512,6 +528,17 @@ export function PanelManager(props: PanelManagerProps) {
                     />
                 );
 
+            case SidePanelView.AGENT_MEMORY_MANAGER:
+            case SidePanelView.ADD_TOOL:
+            case SidePanelView.NEW_TOOL_CUSTOM:
+            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+            case SidePanelView.ADD_MCP_SERVER:
+            case SidePanelView.EDIT_MCP_SERVER:
+                return agentEditor ? <AgentEditorPanelContent controller={agentEditor} /> : null;
+
             case SidePanelView.CONNECTION_CONFIG:
                 return (
                     <ConnectionConfig
@@ -606,6 +633,14 @@ export function PanelManager(props: PanelManagerProps) {
 
     const onBackCallback = (() => {
         switch (sidePanelView) {
+            case SidePanelView.NEW_TOOL_CUSTOM:
+            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.ADD_MCP_SERVER:
+                return () => setSidePanelView(SidePanelView.ADD_TOOL);
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+                return () => setSidePanelView(SidePanelView.NEW_TOOL_FROM_AGENT);
             case SidePanelView.CONNECTION_SELECT:
             case SidePanelView.CONNECTION_CREATE:
                 return onBack;
@@ -616,9 +651,33 @@ export function PanelManager(props: PanelManagerProps) {
         }
     })();
 
+    const agentPanelTitle = (() => {
+        switch (sidePanelView) {
+            case SidePanelView.AGENT_MEMORY_MANAGER:
+                return "Configure Memory";
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+                return "Use Agent";
+            case SidePanelView.ADD_MCP_SERVER:
+                return "Add MCP Server";
+            case SidePanelView.EDIT_MCP_SERVER:
+                return "Edit MCP Server";
+            case SidePanelView.ADD_TOOL:
+            case SidePanelView.NEW_TOOL_CUSTOM:
+            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+                return "Add Tool";
+            default:
+                return undefined;
+        }
+    })();
+
     return (
         <PanelContainer
-            title={showProgressSpinner && progressTitle ? progressTitle : getContainerTitle(sidePanelView, selectedNode, selectedClientName, selectedConnectionKind)}
+            title={showProgressSpinner && progressTitle
+                ? progressTitle
+                : agentPanelTitle ?? getContainerTitle(sidePanelView, selectedNode, selectedClientName,
+                    selectedConnectionKind)}
             show={showSidePanel}
             onClose={onClose}
             onBack={onBackCallback}

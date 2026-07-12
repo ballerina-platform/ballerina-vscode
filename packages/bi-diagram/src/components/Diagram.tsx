@@ -48,6 +48,9 @@ import { AgentCallNodeModel } from "./nodes/AgentCallNode/AgentCallNodeModel";
 import { AgentTypeNodeModel } from "./nodes/AgentTypeNode/AgentTypeNodeModel";
 import { AgentNodeModel } from "./nodes/AgentNode/AgentNodeModel";
 import { PopupOverlay } from "./PopupOverlay";
+import { AgentNodeActions } from "./AgentNodeActions";
+
+export type { AgentNodeActions } from "./AgentNodeActions";
 
 export interface DiagramProps {
     model: Flow;
@@ -66,18 +69,7 @@ export interface DiagramProps {
     draftNode?: DraftNodeConfig;
     selectedNodeId?: string;
     // agent node callbacks
-    agentNode?: {
-        onModelSelect?: (node: FlowNode) => void;
-        onAddTool?: (node: FlowNode) => void;
-        onAddMcpServer?: (node: FlowNode) => void;
-        onSelectTool?: (tool: ToolData, node: FlowNode) => void;
-        onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
-        onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
-        goToTool?: (tool: ToolData, node: FlowNode) => void;
-        onSelectMemoryManager?: (node: FlowNode) => void;
-        onDeleteMemoryManager?: (node: FlowNode) => void;
-        onChatWithAgent?: (node: FlowNode) => void;
-    };
+    agentNode?: AgentNodeActions;
     // ai nodes callbacks
     aiNodes?: {
         onModelSelect: (node: FlowNode) => void;
@@ -392,20 +384,7 @@ export function Diagram(props: DiagramProps) {
         goToAgent: goToAgent,
         draftNode: draftNode,
         selectedNodeId: selectedNodeId,
-        // Fill any editing callbacks the host omits (e.g. the main flow only passes onChatWithAgent)
-        // with no-ops so widgets can call them unconditionally.
-        agentNode: {
-            onModelSelect: () => { },
-            onAddTool: () => { },
-            onAddMcpServer: () => { },
-            onSelectTool: () => { },
-            onSelectMcpToolkit: () => { },
-            onDeleteTool: () => { },
-            goToTool: () => { },
-            onSelectMemoryManager: () => { },
-            onDeleteMemoryManager: () => { },
-            ...agentNode,
-        },
+        agentNode,
         aiNodes: aiNodes,
         suggestions: suggestions,
         project: project,

@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
+import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
@@ -109,6 +110,13 @@ public class AgentBuilder extends CallBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         if (context == null || context.codedata() == null) {
             throw new IllegalArgumentException("Context or codedata cannot be null");
+        }
+        Codedata codedata = context.codedata();
+        if (codedata.packageName() == null && codedata.module() != null) {
+            String packageName = codedata.module().split("\\.", 2)[0];
+            codedata = new Codedata.Builder<>(null).from(codedata).packageName(packageName).build();
+            context = new TemplateContext(context.workspaceManager(), context.filePath(), context.position(),
+                    codedata, context.lsClientLogger());
         }
         if (context.codedata().org().equals(BALLERINA)) {
             functionKind = FunctionData.Kind.CLASS_INIT;

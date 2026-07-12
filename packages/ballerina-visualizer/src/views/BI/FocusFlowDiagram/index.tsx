@@ -43,22 +43,16 @@ import {
     UpdatedArtifactsResponse,
     NodePosition,
     LinePosition,
-    ToolData,
     NodeMetadata,
-    MACHINE_VIEW,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { MemoryManagerConfig } from "../AIChatAgent/MemoryManagerConfig";
-import { AddTool } from "../AIChatAgent/AddTool";
-import { NewTool, NewToolSelectionMode } from "../AIChatAgent/NewTool";
-import { UseAgentTool } from "../AIChatAgent/UseAgentTool";
-import { UseAgentToolForm } from "../AIChatAgent/UseAgentToolForm";
-import { AddMcpServer } from "../AIChatAgent/AddMcpServer";
-import { findFlowNode, findFlowNodeByModuleVarName, goToAgentFromRunNode, refreshNodeLineRangeFromArtifacts, removeToolFromAgentNode, findAgentNodeFromAgentCallNode } from "../AIChatAgent/utils";
+import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
+import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { goToAgentFromRunNode, findAgentNodeFromAgentCallNode } from "../AIChatAgent/utils";
 import { buildAgentRenderNode } from "./agent";
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
@@ -104,19 +98,8 @@ export interface BIFocusFlowDiagramProps {
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition) => void;
 }
 
-// Side panels shown for the AGENT focus view (in addition to the shared connection panel).
-type AgentPanel =
-    | "NONE"
-    | "FORM"
-    | "MEMORY"
-    | "ADD_TOOL"
-    | "NEW_TOOL_CUSTOM"
-    | "NEW_TOOL_CONNECTION"
-    | "NEW_TOOL_FUNCTION"
-    | "NEW_TOOL_AGENT"
-    | "NEW_TOOL_AGENT_FORM"
-    | "ADD_MCP"
-    | "EDIT_MCP";
+// Host-owned panels; memory/tool/MCP panels belong to useAgentEditorController.
+type AgentPanel = "NONE" | "FORM";
 
 export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const { projectPath, filePath, view, onUpdate, onReady, embedded } = props;
@@ -131,11 +114,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     // model/memory/tools all operate on it directly. The diagram renders a single node derived
     // from it for display only (see ./agent.buildAgentRenderNode).
     const agentDeclRef = useRef<FlowNode>();
-    const memoryNodeRef = useRef<FlowNode>();
     const agentFormNodeRef = useRef<FlowNode>();
-    const selectedToolRef = useRef<ToolData>();
-    // Agent picked in the select step, used by the form step.
-    const selectedAgentToolName = useRef<string>("");
     // The focused agent view shows just the node; the edit form opens only when the user clicks it.
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
     // Set when a model provider is created from the open form; consumed to skip the one reload that
@@ -457,23 +436,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         return overrides;
     };
 
-    // Closing/saving any agent panel returns to just the node. No manual refetch here: a save writes
-    // source which fires onProjectContentUpdated -> getAgentModel; a plain close changes nothing, so
-    // the diagram must NOT reload.
     const handleCloseAgentPanel = () => {
-        memoryNodeRef.current = undefined;
         setShowConnectionPanel(false);
         setAgentPanel("NONE");
-    };
-
-    // Memory save closes the panel and refetches over the agent's post-save position. The new memory/store vars are
-    // declared above the agent, shifting it, so the auto-reload's stored position is stale and misses the node;
-    // refetching with the explicit position keeps the diagram in sync.
-    const handleAgentMemorySaved = (agentPosition?: NodePosition) => {
-        handleCloseAgentPanel();
-        if (agentPosition) {
-            void (isAgentType ? getAgentTypeModel(agentPosition) : getAgentModel(agentPosition));
-        }
     };
 
     const handleEditAgentModel = (_node: FlowNode) => {
@@ -513,214 +478,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } finally {
             setShowProgressIndicator(false);
             handleCloseAgentPanel();
-        }
-    };
-
-    // Built-in ai:Agent stores memory under the fixed `memory` constructor arg; a custom AGENT_TYPE agent stores it
-    // under the wired init param (LS-detected `memoryParam`). Fall back to "memory" when unset.
-    const getMemoryPropertyKey = (): string =>
-        (agentDeclRef.current?.metadata?.data as NodeMetadata)?.memoryParam || "memory";
-
-    const handleSelectAgentMemory = async (_node: FlowNode) => {
-        const agentDecl = agentDeclRef.current;
-        if (!agentDecl) {
-            return;
-        }
-        setShowConnectionPanel(false);
-        const memoryKey = getMemoryPropertyKey();
-        const memoryValue = (agentDecl.properties as any)?.[memoryKey]?.value;
-        let existingMemoryNode: FlowNode | undefined;
-        if (typeof memoryValue === "string" && memoryValue.trim() && memoryValue.trim() !== "()") {
-            const startLine = agentDecl.codedata?.lineRange?.startLine;
-            const linePosition: LinePosition | undefined = startLine
-                ? { line: startLine.line, offset: startLine.offset }
-                : undefined;
-            const memoryNodes = await findFlowNode(rpcClient, filePath, linePosition, {
-                kind: "MEMORY",
-                exactMatch: memoryValue.trim(),
-            });
-            existingMemoryNode = memoryNodes && memoryNodes.length > 0 ? memoryNodes[0] : undefined;
-        }
-        memoryNodeRef.current = existingMemoryNode;
-        setAgentPanel("MEMORY");
-    };
-
-    const handleDeleteAgentMemory = async (_node: FlowNode) => {
-        const agentDecl = agentDeclRef.current;
-        if (!agentDecl) {
-            return;
-        }
-        setShowProgressIndicator(true);
-        try {
-            const memoryKey = getMemoryPropertyKey();
-            const agentVarName = agentDecl.properties?.variable?.value as string;
-            const memoryVar = (agentDecl.properties as any)?.[memoryKey]?.value;
-            const updatedAgent = structuredClone(agentDecl);
-            if (typeof memoryVar === "string" && memoryVar.trim() && memoryVar.trim() !== "()") {
-                const memoryNode = await findFlowNodeByModuleVarName(memoryVar.trim(), rpcClient);
-                if (memoryNode) {
-                    const memoryFilePath = (
-                        await rpcClient
-                            .getVisualizerRpcClient()
-                            .joinProjectPath({ segments: [memoryNode.codedata.lineRange.fileName] })
-                    ).filePath;
-                    const deleteResponse = await rpcClient
-                        .getBIDiagramRpcClient()
-                        .deleteFlowNode({ filePath: memoryFilePath, flowNode: memoryNode });
-                    // Deleting the memory variable shifts subsequent lines, so the agent's original line range is now
-                    // stale; re-writing on it would duplicate the agent. Refresh from the returned artifacts first.
-                    refreshNodeLineRangeFromArtifacts(updatedAgent, deleteResponse?.artifacts, agentVarName);
-                }
-            }
-            (updatedAgent.properties as any)[memoryKey].value = "()";
-            const agentFilePath = (
-                await rpcClient
-                    .getVisualizerRpcClient()
-                    .joinProjectPath({ segments: [updatedAgent.codedata.lineRange.fileName] })
-            ).filePath;
-            const agentResponse = await rpcClient
-                .getBIDiagramRpcClient()
-                .getSourceCode({ filePath: agentFilePath, flowNode: updatedAgent });
-            // The auto-refresh refetches over the stored visualizer position, which is now stale (deleting the memory
-            // variable shifted the agent up) and would miss the node. Refetch explicitly over the agent's new position.
-            const newPos = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position;
-            if (newPos) {
-                await (isAgentType ? getAgentTypeModel(newPos) : getAgentModel(newPos));
-            }
-        } catch (error) {
-            console.error(">>> agent focus: error deleting memory", error);
-        } finally {
-            setShowProgressIndicator(false);
-        }
-    };
-
-    // ---------- Tools ----------
-
-    const handleAddTool = (_node: FlowNode) => {
-        setShowConnectionPanel(false);
-        setAgentPanel("ADD_TOOL");
-    };
-
-    const handleAddMcpServer = (_node: FlowNode) => {
-        setShowConnectionPanel(false);
-        selectedToolRef.current = undefined;
-        setAgentPanel("ADD_MCP");
-    };
-
-    const handleSelectMcpToolkit = (tool: ToolData, _node: FlowNode) => {
-        selectedToolRef.current = tool;
-        setShowConnectionPanel(false);
-        setAgentPanel("EDIT_MCP");
-    };
-
-    // Resolves a tool's @ai:AgentTool function via a targeted getFunctionNode lookup in the agent's own
-    // file (agent tools are written alongside the agent). Avoids the project-wide getProjectComponents scan.
-    const resolveToolFunction = async (toolName: string) => {
-        const agentFileName = agentDeclRef.current?.codedata?.lineRange?.fileName || "agents.bal";
-        const response = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
-            functionName: toolName,
-            fileName: agentFileName,
-            projectPath,
-        });
-        const lineRange = response?.functionDefinition?.codedata?.lineRange;
-        if (!lineRange) {
-            return null;
-        }
-        const { filePath: documentUri } = await rpcClient
-            .getVisualizerRpcClient()
-            .joinProjectPath({ segments: [lineRange.fileName] });
-        return { documentUri, lineRange };
-    };
-
-    // Tool ⋮ → Edit: open the tool's Agent Tool form (FunctionForm auto-detects the @ai:AgentTool annotation).
-    const handleSelectTool = async (tool: ToolData, _node: FlowNode) => {
-        if (!tool?.name) {
-            return;
-        }
-        setShowProgressIndicator(true);
-        try {
-            const resolved = await resolveToolFunction(tool.name);
-            if (!resolved) {
-                console.error(">>> agent focus: tool function not found for edit", tool.name);
-                return;
-            }
-            await rpcClient.getVisualizerRpcClient().openView({
-                type: EVENT_TYPE.OPEN_VIEW,
-                location: {
-                    documentUri: resolved.documentUri,
-                    identifier: tool.name,
-                    view: MACHINE_VIEW.BIFunctionForm,
-                },
-            });
-        } finally {
-            setShowProgressIndicator(false);
-        }
-    };
-
-    // Tool circle click / ⋮ → View: open that tool function's flow diagram (MCP toolkits are handled by
-    // handleSelectMcpToolkit, so they never reach here).
-    const handleGoToTool = async (tool: ToolData, _node: FlowNode) => {
-        if (!tool?.name) {
-            return;
-        }
-        setShowProgressIndicator(true);
-        try {
-            const resolved = await resolveToolFunction(tool.name);
-            if (!resolved) {
-                console.error(">>> agent focus: tool function not found", tool.name);
-                return;
-            }
-            await handleOpenView({
-                documentUri: resolved.documentUri,
-                position: {
-                    startLine: resolved.lineRange.startLine.line,
-                    startColumn: resolved.lineRange.startLine.offset,
-                    endLine: resolved.lineRange.endLine.line,
-                    endColumn: resolved.lineRange.endLine.offset,
-                },
-            });
-        } finally {
-            setShowProgressIndicator(false);
-        }
-    };
-
-    const handleDeleteTool = async (tool: ToolData, _node: FlowNode) => {
-        const agentDecl = agentDeclRef.current;
-        if (!agentDecl) {
-            return;
-        }
-        setShowProgressIndicator(true);
-        try {
-            const updatedAgent = await removeToolFromAgentNode(agentDecl, tool.name);
-            if (updatedAgent) {
-                const agentFilePath = (
-                    await rpcClient
-                        .getVisualizerRpcClient()
-                        .joinProjectPath({ segments: [agentDecl.codedata.lineRange.fileName] })
-                ).filePath;
-                await rpcClient
-                    .getBIDiagramRpcClient()
-                    .getSourceCode({ filePath: agentFilePath, flowNode: updatedAgent });
-            }
-            const resolved = await resolveToolFunction(tool.name);
-            if (resolved) {
-                await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
-                    filePath: resolved.documentUri,
-                    component: {
-                        name: tool.name,
-                        filePath: resolved.documentUri,
-                        startLine: resolved.lineRange.startLine.line,
-                        startColumn: resolved.lineRange.startLine.offset,
-                        endLine: resolved.lineRange.endLine.line,
-                        endColumn: resolved.lineRange.endLine.offset,
-                        resources: [],
-                    },
-                });
-            }
-        } catch (error) {
-            console.error(">>> agent focus: error deleting tool", error);
-        } finally {
-            setShowProgressIndicator(false);
         }
     };
 
@@ -1226,14 +983,26 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         });
     }, [model, projectPath, completions, filteredCompletions, debouncedRetrieveCompletions, rpcClient, selectedNode]);
 
-    // Any agent panel open — the agent edit/config form (agentPanel) or the model-provider/connection
-    // config panel (showConnectionPanel). Drives the diagram backdrop; clicking it closes the open panel.
-    const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel;
+    const agentEditor = useAgentEditorController({
+        projectPath,
+        filePath,
+        onModelSelect: isAgentType ? handleEditAgentTypeModel : handleEditAgentModel,
+        onRefresh: (position) => { void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position)); },
+        onLoadingChange: setShowProgressIndicator,
+        onChat: isAgentType ? handleOnChatWithAgent : undefined,
+        onAgentCreated: () => { suppressAgentReloadRef.current = true; },
+        resolveAgentNode: (node) => agentDeclRef.current ?? node,
+    });
+
+    // Open when the host form/connection panel or a controller sub-panel is active; click backdrop to close.
+    const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
     const handleOverlayClick = () => {
         if (showConnectionPanel) {
             handleCloseConnectionPanel();
-        } else {
+        } else if (agentPanel !== "NONE") {
             handleCloseAgentPanel();
+        } else {
+            agentEditor.close();
         }
     };
 
@@ -1292,19 +1061,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 visible: isAgentPanelOpen,
                 onClickOverlay: handleOverlayClick,
             },
-            agentNode: {
-                onModelSelect: handleEditAgentModel,
-                onAddTool: handleAddTool,
-                onAddMcpServer: handleAddMcpServer,
-                onSelectTool: handleSelectTool,
-                onSelectMcpToolkit: handleSelectMcpToolkit,
-                onDeleteTool: handleDeleteTool,
-                goToTool: handleGoToTool,
-                onSelectMemoryManager: handleSelectAgentMemory,
-                onDeleteMemoryManager: handleDeleteAgentMemory,
-            },
+            agentNode: agentEditor.diagramCallbacks,
         }),
-        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen]
+        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
+            agentEditor.diagramCallbacks]
     );
 
     const agentTypeDiagramProps = useMemo(
@@ -1326,22 +1086,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 visible: isAgentPanelOpen,
                 onClickOverlay: handleOverlayClick,
             },
-            // The simplified node edits the model provider, and — when the class wires an ai:Memory param — memory via
-            // the same Configure Memory panel as the built-in agent. Tool affordances aren't rendered.
-            agentNode: {
-                onModelSelect: handleEditAgentTypeModel,
-                onAddTool: noop,
-                onAddMcpServer: noop,
-                onSelectTool: noop,
-                onSelectMcpToolkit: noop,
-                onDeleteTool: noop,
-                goToTool: noop,
-                onSelectMemoryManager: handleSelectAgentMemory,
-                onDeleteMemoryManager: handleDeleteAgentMemory,
-                onChatWithAgent: handleOnChatWithAgent,
-            },
+            // AgentTypeNodeWidget reads only model/memory/chat; tool callbacks are ignored.
+            agentNode: agentEditor.diagramCallbacks,
         }),
-        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen]
+        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
+            agentEditor.diagramCallbacks]
     );
 
     const diagramProps = isAgentType ? agentTypeDiagramProps : isAgent ? agentDiagramProps : memoizedDiagramProps;
@@ -1373,27 +1122,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (showConnectionPanel) {
             return "Configure Model Provider Connection";
         }
-        switch (agentPanel) {
-            case "FORM":
-                return isAgentType
-                    ? agentTypeFormMode === "MODEL" ? "Configure Model Provider" : "Configure Agent"
-                    : "Edit Agent";
-            case "MEMORY":
-                return "Configure Memory";
-            case "ADD_TOOL":
-            case "NEW_TOOL_CUSTOM":
-            case "NEW_TOOL_CONNECTION":
-            case "NEW_TOOL_FUNCTION":
-                return "Add Tool";
-            case "NEW_TOOL_AGENT_FORM":
-                return "Use Agent";
-            case "ADD_MCP":
-                return "Add MCP Server";
-            case "EDIT_MCP":
-                return "Edit MCP Server";
-            default:
-                return undefined;
+        if (agentPanel === "FORM") {
+            return isAgentType
+                ? agentTypeFormMode === "MODEL" ? "Configure Model Provider" : "Configure Agent"
+                : "Edit Agent";
         }
+        return agentEditor.view !== "NONE" ? getAgentEditorPanelTitle(agentEditor) : undefined;
     })();
 
     const agentPanelOnBack: (() => void) | undefined = (() => {
@@ -1406,17 +1140,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             }
             return undefined;
         }
-        switch (agentPanel) {
-            case "NEW_TOOL_CUSTOM":
-            case "NEW_TOOL_CONNECTION":
-            case "NEW_TOOL_FUNCTION":
-            case "ADD_MCP":
-                return () => setAgentPanel("ADD_TOOL");
-            case "NEW_TOOL_AGENT_FORM":
-                return () => setAgentPanel("NEW_TOOL_AGENT");
-            default:
-                return undefined;
+        if (agentPanel === "FORM") {
+            return undefined;
         }
+        const backViews: AgentEditorView[] =
+            ["NEW_TOOL_CUSTOM", "NEW_TOOL_CONNECTION", "NEW_TOOL_FUNCTION", "ADD_MCP", "NEW_TOOL_AGENT_FORM"];
+        return backViews.includes(agentEditor.view) ? agentEditor.back : undefined;
     })();
 
     const renderAgentPanelContent = () => {
@@ -1453,128 +1182,49 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 </>
             );
         }
-        switch (agentPanel) {
-            case "FORM":
-                if (isAgent && agentFormNodeRef.current) {
-                    return (
-                        <FlowNodeForm
-                            key={agentFormKey}
-                            fileName={model?.fileName || ""}
-                            node={agentFormNodeRef.current}
-                            nodeFormTemplate={agentFormNodeRef.current}
-                            targetLineRange={agentFormNodeRef.current.codedata?.lineRange as any}
-                            projectPath={projectPath}
-                            editForm={true}
-                            onSubmit={handleSubmitAgentForm}
-                            submitText={showProgressIndicator ? "Saving..." : "Save"}
-                            showProgressIndicator={showProgressIndicator}
-                            disableSaveButton={showProgressIndicator}
-                            fieldOverrides={{ model: { hidden: true }, type: { hidden: true } }}
-                        />
-                    );
-                }
-                if (isAgentType && agentFormNodeRef.current) {
-                    return (
-                        <FlowNodeForm
-                            key={agentFormKey}
-                            fileName={model?.fileName || ""}
-                            node={agentTypeFormNode}
-                            nodeFormTemplate={agentTypeFormNode}
-                            targetLineRange={agentFormNodeRef.current.codedata?.lineRange as any}
-                            projectPath={projectPath}
-                            editForm={true}
-                            onSubmit={handleSubmitAgentForm}
-                            submitText={showProgressIndicator ? "Saving..." : "Save"}
-                            showProgressIndicator={showProgressIndicator}
-                            disableSaveButton={showProgressIndicator}
-                            fieldOverrides={buildAgentTypeFieldOverrides(agentFormNodeRef.current, agentTypeFormMode)}
-                            injectedComponents={agentTypePromptInjection}
-                            hideInfoBanner={Boolean(agentTypePromptInjection)}
-                            onConnectionCreated={() => { suppressAgentTypeReloadRef.current = true; }}
-                        />
-                    );
-                }
-                return null;
-            case "MEMORY":
-                return agentDeclRef.current ? (
-                    <MemoryManagerConfig
-                        agentNode={agentDeclRef.current}
-                        memoryNode={memoryNodeRef.current as FlowNode}
-                        memoryPropertyKey={getMemoryPropertyKey()}
-                        onSave={handleAgentMemorySaved}
+        if (agentPanel === "FORM") {
+            if (isAgent && agentFormNodeRef.current) {
+                return (
+                    <FlowNodeForm
+                        key={agentFormKey}
+                        fileName={model?.fileName || ""}
+                        node={agentFormNodeRef.current}
+                        nodeFormTemplate={agentFormNodeRef.current}
+                        targetLineRange={agentFormNodeRef.current.codedata?.lineRange as any}
+                        projectPath={projectPath}
+                        editForm={true}
+                        onSubmit={handleSubmitAgentForm}
+                        submitText={showProgressIndicator ? "Saving..." : "Save"}
+                        showProgressIndicator={showProgressIndicator}
+                        disableSaveButton={showProgressIndicator}
+                        fieldOverrides={{ model: { hidden: true }, type: { hidden: true } }}
                     />
-                ) : null;
-            case "ADD_TOOL":
-                return agentDeclRef.current ? (
-                    <AddTool
-                        agentNode={agentDeclRef.current}
-                        onCreateCustomTool={() => setAgentPanel("NEW_TOOL_CUSTOM")}
-                        onUseConnection={() => setAgentPanel("NEW_TOOL_CONNECTION")}
-                        onUseFunction={() => setAgentPanel("NEW_TOOL_FUNCTION")}
-                        onUseAgent={() => setAgentPanel("NEW_TOOL_AGENT")}
-                        onUseMcpServer={() => setAgentPanel("ADD_MCP")}
-                        onSave={handleCloseAgentPanel}
+                );
+            }
+            if (isAgentType && agentFormNodeRef.current) {
+                return (
+                    <FlowNodeForm
+                        key={agentFormKey}
+                        fileName={model?.fileName || ""}
+                        node={agentTypeFormNode}
+                        nodeFormTemplate={agentTypeFormNode}
+                        targetLineRange={agentFormNodeRef.current.codedata?.lineRange as any}
+                        projectPath={projectPath}
+                        editForm={true}
+                        onSubmit={handleSubmitAgentForm}
+                        submitText={showProgressIndicator ? "Saving..." : "Save"}
+                        showProgressIndicator={showProgressIndicator}
+                        disableSaveButton={showProgressIndicator}
+                        fieldOverrides={buildAgentTypeFieldOverrides(agentFormNodeRef.current, agentTypeFormMode)}
+                        injectedComponents={agentTypePromptInjection}
+                        hideInfoBanner={Boolean(agentTypePromptInjection)}
+                        onConnectionCreated={() => { suppressAgentTypeReloadRef.current = true; }}
                     />
-                ) : null;
-            case "NEW_TOOL_CUSTOM":
-            case "NEW_TOOL_CONNECTION":
-            case "NEW_TOOL_FUNCTION":
-                return agentDeclRef.current ? (
-                    <NewTool
-                        agentNode={agentDeclRef.current}
-                        mode={
-                            agentPanel === "NEW_TOOL_CUSTOM"
-                                ? NewToolSelectionMode.CUSTOM_TOOL
-                                : agentPanel === "NEW_TOOL_CONNECTION"
-                                    ? NewToolSelectionMode.CONNECTION
-                                    : NewToolSelectionMode.FUNCTION
-                        }
-                        onSave={handleCloseAgentPanel}
-                        onBack={() => setAgentPanel("ADD_TOOL")}
-                        onSetBackOverride={noop}
-                    />
-                ) : null;
-            case "NEW_TOOL_AGENT":
-                return agentDeclRef.current ? (
-                    <UseAgentTool
-                        agentNode={agentDeclRef.current}
-                        onSelectAgent={(agentVarName: string) => {
-                            selectedAgentToolName.current = agentVarName;
-                            setAgentPanel("NEW_TOOL_AGENT_FORM");
-                        }}
-                        onAgentCreated={() => { suppressAgentReloadRef.current = true; }}
-                        onBack={() => setAgentPanel("ADD_TOOL")}
-                        onClose={handleCloseAgentPanel}
-                    />
-                ) : null;
-            case "NEW_TOOL_AGENT_FORM":
-                return agentDeclRef.current ? (
-                    <UseAgentToolForm
-                        agentNode={agentDeclRef.current}
-                        agentVarName={selectedAgentToolName.current}
-                        onSave={handleCloseAgentPanel}
-                    />
-                ) : null;
-            case "ADD_MCP":
-                return agentDeclRef.current ? (
-                    <AddMcpServer
-                        agentNode={agentDeclRef.current}
-                        onSave={handleCloseAgentPanel}
-                        onBack={() => setAgentPanel("ADD_TOOL")}
-                    />
-                ) : null;
-            case "EDIT_MCP":
-                return agentDeclRef.current ? (
-                    <AddMcpServer
-                        editMode={true}
-                        name={selectedToolRef.current?.name}
-                        agentNode={agentDeclRef.current}
-                        onSave={handleCloseAgentPanel}
-                    />
-                ) : null;
-            default:
-                return null;
+                );
+            }
+            return null;
         }
+        return agentEditor.view !== "NONE" ? <AgentEditorPanelContent controller={agentEditor} /> : null;
     };
 
     return (
@@ -1597,7 +1247,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 <PanelContainer
                     title={agentPanelTitle}
                     show={true}
-                    onClose={showConnectionPanel ? handleCloseConnectionPanel : handleCloseAgentPanel}
+                    onClose={showConnectionPanel ? handleCloseConnectionPanel
+                        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.close()}
                     onBack={agentPanelOnBack}
                 >
                     {renderAgentPanelContent()}
