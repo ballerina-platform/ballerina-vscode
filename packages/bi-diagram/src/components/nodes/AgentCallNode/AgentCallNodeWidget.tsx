@@ -416,14 +416,6 @@ const TitleArrow = styled.span`
     vertical-align: 1px;
 `;
 
-const AgentRow = styled.div`
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 4px 6px 8px;
-`;
-
 const AgentName = styled.div`
     flex: 1;
     min-width: 0;
@@ -434,6 +426,36 @@ const AgentName = styled.div`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const AgentRow = styled.div<{ clickable: boolean }>`
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0;
+    padding: 6px 6px 6px 10px;
+    border-radius: 6px;
+    cursor: ${(props: { clickable: boolean }) => (props.clickable ? "pointer" : "default")};
+    transition: background-color 0.15s ease;
+
+    &::before {
+        content: "";
+        position: absolute;
+        top: -8px;
+        left: 0;
+        right: 0;
+        border-top: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+    }
+
+    &:hover {
+        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "rgba(0, 0, 0, 0.18)" : "transparent")};
+    }
+
+    &:hover [data-agent-name] {
+        opacity: ${(props: { clickable: boolean }) => (props.clickable ? 1 : 0.7)};
+    }
 `;
 
 export const ViewAgentButton = styled.div`
@@ -829,12 +851,14 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     </div>
 
                     {agentVarName && (
-                        <AgentRow style={{ borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT}`, padding: "12px 4px" }}>
-                            <AgentName onClick={handleOnClick}>{agentVarName}</AgentName>
+                        <AgentRow
+                            clickable={canViewAgent}
+                            onClick={canViewAgent ? handleViewAgentClick : undefined}
+                        >
+                            <AgentName data-agent-name>{agentVarName}</AgentName>
                             {canViewAgent && (
                                 <Tooltip content="View agent">
                                     <NodeStyles.MenuButton
-                                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
                                         appearance="icon"
                                         onClick={handleViewAgentClick}
                                     >
@@ -852,7 +876,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                 width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
                 height={model.node.viewState?.ch}
                 viewBox={`0 0 300 ${containerHeight}`}
-                style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
+                style={{ marginLeft: "-10px", position: "relative", zIndex: 1, cursor: "default" }}
             >
                 {/* ai agent model circle */}
                 <g style={{ opacity: isModelActive ? 1 : 0.55, transition: "opacity 0.4s ease-out" }}>
