@@ -17,7 +17,6 @@
  */
 /** @jsxImportSource @emotion/react */
 import React, { ReactNode, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
@@ -42,7 +41,7 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
@@ -487,18 +486,15 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const isSelected = selectedNodeId === model.node.id;
 
     const [isBoxHovered, setIsBoxHovered] = useState(false);
-    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+    const [toolMenuPos, setToolMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [agentIdHovered, setAgentIdHovered] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(menuPos);
+    const isMenuOpen = Boolean(anchorEl);
     const hasBreakpoint = model.hasBreakpoint();
     const isActiveBreakpoint = model.isActiveBreakpoint();
     const [aiColor, setAiColor] = useState<string>(() => getAIColor());
     const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
-    const getMenuPos = (el: HTMLElement): { top: number; left: number } => {
-        const rect = el.getBoundingClientRect();
-        return { top: rect.bottom, left: rect.left };
-    };
     const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
     const syncPulseAnimation = getSyncPulseAnimation(cyanColor);
     const boxSyncPulseAnimation = getBoxSyncPulseAnimation(cyanColor);
@@ -527,7 +523,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const onNodeClick = () => {
         onClick && onClick(model.node);
         onNodeSelect && onNodeSelect(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const handleViewAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
@@ -538,12 +534,12 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
     const onGoToSource = () => {
         goToSource && goToSource(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const deleteNode = () => {
         onDeleteNode && onDeleteNode(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const handleOnMenuClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
@@ -551,23 +547,27 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
             return;
         }
         event.stopPropagation();
-        setMenuPos(getMenuPos(event.currentTarget as HTMLElement));
+        setAnchorEl(event.currentTarget);
     };
 
     const handleOnContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
-        const target = menuButtonElement || event.currentTarget;
-        setMenuPos(getMenuPos(target as HTMLElement));
+        setAnchorEl(menuButtonElement || event.currentTarget);
+    };
+
+    const handleOnMenuClose = () => {
+        setAnchorEl(null);
+        setIsBoxHovered(false);
     };
 
     const onAddBreakpoint = () => {
         addBreakpoint && addBreakpoint(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const onRemoveBreakpoint = () => {
         removeBreakpoint && removeBreakpoint(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const handleThemeChange = () => {
@@ -578,7 +578,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
     const onChatWithAgent = () => {
         agentNode?.onChatWithAgent?.(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const menuItems: Item[] = [
@@ -756,33 +756,28 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 </NodeStyles.MenuButton>
                             </NodeStyles.ActionButtonGroup>
                         </NodeStyles.Row>
-                        {isMenuOpen && menuPos && createPortal(
-                            <div
-                                style={{
-                                    position: "fixed",
-                                    top: menuPos.top,
-                                    left: menuPos.left,
-                                    zIndex: 1300,
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                                    borderRadius: 0,
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                            >
-                                <Menu>
-                                    <>
-                                        {menuItems.map((item) => (
-                                            <MenuItem key={item.id} item={item} />
-                                        ))}
-                                        <BreakpointMenu
-                                            hasBreakpoint={hasBreakpoint}
-                                            onAddBreakpoint={onAddBreakpoint}
-                                            onRemoveBreakpoint={onRemoveBreakpoint}
-                                        />
-                                    </>
-                                </Menu>
-                            </div>,
-                            document.body
-                        )}
+                        <Popover
+                            open={isMenuOpen}
+                            anchorEl={anchorEl}
+                            handleClose={handleOnMenuClose}
+                            sx={{
+                                padding: 0,
+                                borderRadius: 0,
+                            }}
+                        >
+                            <Menu>
+                                <>
+                                    {menuItems.map((item) => (
+                                        <MenuItem key={item.id} item={item} />
+                                    ))}
+                                    <BreakpointMenu
+                                        hasBreakpoint={hasBreakpoint}
+                                        onAddBreakpoint={onAddBreakpoint}
+                                        onRemoveBreakpoint={onRemoveBreakpoint}
+                                    />
+                                </>
+                            </Menu>
+                        </Popover>
                     </NodeStyles.Row>
 
                     <div style={{ width: "100%", opacity: 0.55, borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT}`, flex: 1, overflow: "hidden", padding: "8px 2px" }}>
@@ -1130,4 +1125,3 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         </NodeStyles.Node>
     );
 }
-
