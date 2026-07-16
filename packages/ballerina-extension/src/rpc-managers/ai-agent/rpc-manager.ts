@@ -48,6 +48,8 @@ import {
     AIGetPackageVersionResponse,
     DefaultProviderKind,
     DIRECTORY_MAP,
+    EVENT_TYPE,
+    MACHINE_VIEW,
     isPathInside,
     isSamePath,
     PROJECT_KIND
@@ -56,7 +58,7 @@ import { existsSync } from "fs";
 import path from "path";
 import vscode from "vscode";
 import { URI, Utils } from "vscode-uri";
-import { StateMachine } from "../../stateMachine";
+import { openView, StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { isLibraryProject } from "../../utils/config";
@@ -231,6 +233,16 @@ export class AiAgentRpcManager implements AIAgentAPI {
             params.name
         );
         StateMachine.updateProjectInfo(refreshedProjectInfo, { silent: true });
+
+        StateMachine.setReadyMode();
+        openView(EVENT_TYPE.OPEN_VIEW, {
+            view: MACHINE_VIEW.AgentDefinitionDesigner,
+            documentUri: artifact.path,
+            position: artifact.position,
+            identifier: params.name,
+            projectPath,
+            artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
+        });
 
         return { artifacts: [artifact], textEdits: response.textEdits, projectPath };
     }

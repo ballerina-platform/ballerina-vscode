@@ -74,6 +74,15 @@ function ensureTrailingNewline(content: string): string {
     return trimmed.endsWith('\n') ? trimmed : trimmed + '\n';
 }
 
+// Writes to disk without notifying the LS. Avoids a per-file didOpen that re-resolves the workspace.
+export function writeBallerinaFileSilent(filePath: string, content: string) {
+    const dir = dirname(filePath);
+    if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(filePath, ensureTrailingNewline(content));
+}
+
 export function writeBallerinaFileDidOpenTemp(filePath: string, content: string) {
     // Replace the selection with:
     const dir = dirname(filePath);
