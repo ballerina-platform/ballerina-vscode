@@ -64,6 +64,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
     private static final String CATEGORY_TYPES = "Types";
     private static final String CATEGORY_CONNECTIONS = "Connections";
     private static final String CATEGORY_AGENTS = "Agents";
+    private static final String CATEGORY_AGENT_DEFINITIONS = "Agent Definitions";
     private static final String CATEGORY_VARIABLES = "Variables";
     private static final String CATEGORY_WORKFLOWS = "Workflows";
     private static final String CATEGORY_DEFAULT = "Others";
@@ -81,6 +82,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.TYPE.name(), CATEGORY_TYPES),
             Map.entry(Type.CONNECTION.name(), CATEGORY_CONNECTIONS),
             Map.entry(Type.AGENT.name(), CATEGORY_AGENTS),
+            Map.entry(Type.AGENT_DEFINITION.name(), CATEGORY_AGENT_DEFINITIONS),
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
@@ -146,6 +148,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
         TYPE,
         CONNECTION,
         AGENT,
+        AGENT_DEFINITION,
         VARIABLE,
         WORKFLOW,
         ACTIVITY

@@ -20,6 +20,7 @@
 import {
     BallerinaDiagnosticsRequest,
     BallerinaDiagnosticsResponse,
+    ARTIFACT_TYPE,
     CommandResponse,
     CommandsRequest,
     CommandsResponse,
@@ -40,6 +41,7 @@ import {
     SettingsTomlValues,
     ShowErrorMessageRequest,
     SyntaxTree,
+    VISIBILITY,
     TypeResponse,
     WorkspaceFileRequest,
     WorkspaceRootResponse,
@@ -84,6 +86,7 @@ import {
     openPublishDescriptionInEditor,
     selectSampleDownloadPath
 } from "./utils";
+import { syncPackageKeyword, updatePackageDetails } from "./package-toml";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
 export class CommonRpcManager implements CommonRPCAPI {
@@ -309,7 +312,7 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async showInformationModal(params: ShowInfoModalRequest): Promise<string> {
-        return window.showInformationMessage(params?.message, {modal: true, detail: params?.detail}, ...(params?.items || []));
+        return window.showInformationMessage(params?.message, { modal: true, detail: params?.detail }, ...(params?.items || []));
     }
 
     async showQuickPick(params: ShowQuickPickRequest): Promise<QuickPickItem> {
@@ -588,6 +591,10 @@ export class CommonRpcManager implements CommonRPCAPI {
             break;
         }
 
+        if (artifactType === 'library') {
+            await this.syncAgentDefinitionKeyword(projectPath);
+        }
+
         const result = await this.packAndPushToCentral(projectPath);
         this.showPublishResult(result);
         return result;
@@ -651,17 +658,7 @@ export class CommonRpcManager implements CommonRPCAPI {
 
         try {
             const tomlContent = await fs.promises.readFile(ballerinaTomlPath, 'utf-8');
-            const packageSection = this.getPackageSectionBoundaries(tomlContent);
-            const updatedPackageSection = this.upsertPackageFields(
-                packageSection.content,
-                details
-            );
-
-            const updatedToml = tomlContent.slice(0, packageSection.start)
-                + updatedPackageSection
-                + tomlContent.slice(packageSection.end);
-
-            await fs.promises.writeFile(ballerinaTomlPath, updatedToml, 'utf-8');
+            await fs.promises.writeFile(ballerinaTomlPath, updatePackageDetails(tomlContent, details), 'utf-8');
             return true;
         } catch (error) {
             console.error('Failed to update Ballerina.toml package metadata:', error);
@@ -669,62 +666,37 @@ export class CommonRpcManager implements CommonRPCAPI {
         }
     }
 
-    private getPackageSectionBoundaries(content: string): { content: string; start: number; end: number } {
-        const packageHeaderRegex = /^\s*\[package\]\s*$/m;
-        const packageHeaderMatch = packageHeaderRegex.exec(content);
-
-        if (!packageHeaderMatch || packageHeaderMatch.index === undefined) {
-            const start = content.length;
-            const prefix = content.endsWith('\n') || content.length === 0 ? '' : '\n';
-            return {
-                content: `${prefix}[package]\n`,
-                start,
-                end: start
-            };
+    private async syncAgentDefinitionKeyword(projectPath: string): Promise<void> {
+        const hasPublicAgentDefinition = await this.hasPublicAgentDefinition(projectPath);
+        if (hasPublicAgentDefinition === undefined) {
+            console.warn('Skipping Type/Agent keyword synchronization: unable to read project artifacts.');
+            return;
         }
 
-        const sectionStart = packageHeaderMatch.index;
-        const nextSectionRegex = /^\s*\[[^\]]+\]\s*$/gm;
-        nextSectionRegex.lastIndex = sectionStart + packageHeaderMatch[0].length;
-        const nextSectionMatch = nextSectionRegex.exec(content);
-        const sectionEnd = nextSectionMatch ? nextSectionMatch.index : content.length;
-
-        return {
-            content: content.slice(sectionStart, sectionEnd),
-            start: sectionStart,
-            end: sectionEnd
-        };
+        const ballerinaTomlPath = path.join(projectPath, 'Ballerina.toml');
+        try {
+            const tomlContent = await fs.promises.readFile(ballerinaTomlPath, 'utf-8');
+            const updatedToml = syncPackageKeyword(tomlContent, 'Type/Agent', hasPublicAgentDefinition);
+            if (updatedToml === tomlContent) {
+                return;
+            }
+            await fs.promises.writeFile(ballerinaTomlPath, updatedToml, 'utf-8');
+        } catch (error) {
+            // Publishing remains available when the manifest cannot be safely updated. In
+            // particular, never remove a keyword after an incomplete or invalid TOML read.
+            console.warn('Failed to synchronize the Type/Agent package keyword:', error);
+        }
     }
 
-    private upsertPackageFields(packageSection: string, details: PublishPackageInfo): string {
-        let updatedSection = packageSection;
-        updatedSection = this.upsertTomlField(updatedSection, 'org', details.orgName);
-        updatedSection = this.upsertTomlField(updatedSection, 'name', details.packageName);
-        updatedSection = this.upsertTomlField(updatedSection, 'version', details.version);
-        if (!updatedSection.endsWith('\n')) {
-            updatedSection = `${updatedSection}\n`;
+    private async hasPublicAgentDefinition(projectPath: string): Promise<boolean | undefined> {
+        try {
+            const artifacts = await StateMachine.langClient().getProjectArtifacts({ projectPath });
+            return Object.values(artifacts?.artifacts?.[ARTIFACT_TYPE.AgentDefinitions] ?? {})
+                .some((artifact) => artifact.visibility === VISIBILITY.PUBLIC);
+        } catch (error) {
+            console.warn('Failed to inspect agent definitions before publishing:', error);
+            return undefined;
         }
-        return updatedSection;
-    }
-
-    private upsertTomlField(section: string, fieldName: string, fieldValue: string): string {
-        const escapedValue = fieldValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const fieldRegex = new RegExp(`^\\s*${escapedFieldName}\\s*=\\s*.*$`, 'm');
-        const fieldLine = `${fieldName} = "${escapedValue}"`;
-
-        if (fieldRegex.test(section)) {
-            return section.replace(fieldRegex, fieldLine);
-        }
-
-        const headerLineBreak = section.indexOf('\n');
-        if (headerLineBreak === -1) {
-            return `${section}\n${fieldLine}\n`;
-        }
-
-        return section.slice(0, headerLineBreak + 1)
-            + `${fieldLine}\n`
-            + section.slice(headerLineBreak + 1);
     }
 
     private async packAndPushToCentral(projectPath: string): Promise<PublishToCentralResponse> {

@@ -59,7 +59,11 @@ public class SourceGeneratorTest extends AbstractLSTest {
                 {Path.of("agent_call_source_with_variables.json")},
                 {Path.of("agent_model_source_ballerina.json")},
                 {Path.of("agent_model_source_default.json")},
-                {Path.of("memory_manager_source.json")}
+                {Path.of("memory_manager_source.json")},
+                {Path.of("custom_agent_tool_source.json")},
+                {Path.of("custom_agent_definition_tool_source.json")},
+                {Path.of("agent_definition_builtin_agent_tool_source.json")},
+                {Path.of("agent_definition_custom_agent_tool_source.json")}
         };
     }
 

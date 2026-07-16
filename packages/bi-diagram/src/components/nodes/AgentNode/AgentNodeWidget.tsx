@@ -804,7 +804,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             <NodeStyles.IconBox onClick={onNodeClick}>
                                 <NodeIcon type={model.node.codedata.node} size={24} />
                                 <NodeStyles.PackageBadge>
-                                    <Icon name="bi-box" iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
+                                    <Icon name="package" isCodicon={true} iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
                                 </NodeStyles.PackageBadge>
                             </NodeStyles.IconBox>
                         ) : (

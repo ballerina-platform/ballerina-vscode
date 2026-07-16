@@ -122,10 +122,11 @@ interface ArtifactFormProps {
     changeOptionalFieldTitle?: string;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
     hideSaveButton?: boolean;
+    hideInfoBanner?: boolean;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
-    footerActionButton?: boolean; // Render save button as a full-width footer action button
+    footerActionButton?: boolean;
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -159,6 +160,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         changeOptionalFieldTitle,
         onChange,
         hideSaveButton,
+        hideInfoBanner,
         customDiagnosticFilter,
         onValidityChange,
         recordsOnly,
@@ -1102,6 +1104,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
+                    hideInfoBanner={hideInfoBanner}
                     footerActionButton={footerActionButton}
                     onValidityChange={onValidityChange}
                 />

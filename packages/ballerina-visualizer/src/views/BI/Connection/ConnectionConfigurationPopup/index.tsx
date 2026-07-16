@@ -253,10 +253,24 @@ export function ConnectionConfigurationPopup(props: ConnectionConfigurationPopup
 export interface ConnectionConfigurationFormProps extends Omit<ConnectionConfigurationPopupProps, 'onBack'> {
     loading?: boolean;
     devantExpressionEditor?: ExpressionEditorDevantProps;
+    onSaveConfiguredConnection?: (node: FlowNode) => Promise<void>;
+    footerActionButton?: boolean;
 }
 
 export function ConnectionConfigurationForm(props: ConnectionConfigurationFormProps) {
-    const { selectedConnector, fileName, target, onClose, filteredCategories = [], loading, devantExpressionEditor, customValidator, overrideFlowNode } = props;
+    const {
+        selectedConnector,
+        fileName,
+        target,
+        onClose,
+        filteredCategories = [],
+        loading,
+        devantExpressionEditor,
+        customValidator,
+        overrideFlowNode,
+        onSaveConfiguredConnection,
+        footerActionButton,
+    } = props;
     const { rpcClient } = useRpcContext();
 
     const [pullingStatus, setPullingStatus] = useState<PullingStatus | undefined>(undefined);
@@ -357,6 +371,15 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
         console.log(">>> on form submit", node);
         if (selectedNodeRef.current) {
             setSavingFormStatus(SavingFormStatus.SAVING);
+            if (onSaveConfiguredConnection) {
+                try {
+                    await onSaveConfiguredConnection(node);
+                } catch (error) {
+                    console.error(">>> Error updating agent definition connection", error);
+                    setSavingFormStatus(SavingFormStatus.ERROR);
+                }
+                return;
+            }
             const visualizerLocation = await rpcClient.getVisualizerLocation();
             let connectionsFilePath = visualizerLocation.documentUri || visualizerLocation.projectPath;
 
@@ -517,7 +540,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
                                 updatedExpressionField={updatedExpressionField}
                                 resetUpdatedExpressionField={handleResetUpdatedExpressionField}
                                 isPullingConnector={savingFormStatus === SavingFormStatus.SAVING}
-                                footerActionButton={true}
+                                footerActionButton={footerActionButton ?? true}
                                 devantExpressionEditor={devantExpressionEditor}
                                 customValidator={customValidator}
                             />
@@ -530,4 +553,3 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
 }
 
 export default ConnectionConfigurationPopup;
-

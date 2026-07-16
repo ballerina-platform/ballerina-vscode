@@ -49,8 +49,8 @@ export const Section = styled.div`
     gap: 12px;
 `;
 
-export const SectionTitle = styled(Typography)`
-    font-size: 14px;
+export const SectionTitle = styled(Typography)<{ $compactTypography?: boolean }>`
+    font-size: ${(props: { $compactTypography?: boolean }) => props.$compactTypography ? "13px" : "14px"};
     font-weight: 600;
     color: ${ThemeColors.ON_SURFACE};
     margin: 0;
@@ -154,8 +154,8 @@ export const FilterButtons = styled.div`
     align-items: center;
 `;
 
-export const FilterButton = styled.button<{ active?: boolean }>`
-    font-size: 12px;
+export const FilterButton = styled.button<{ active?: boolean; $compactTypography?: boolean }>`
+    font-size: ${(props: { $compactTypography?: boolean }) => props.$compactTypography ? "13px" : "12px"};
     padding: 6px 12px;
     height: 28px;
     border-radius: 4px;

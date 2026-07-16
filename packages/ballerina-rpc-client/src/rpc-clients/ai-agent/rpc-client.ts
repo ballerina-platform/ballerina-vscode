@@ -24,6 +24,9 @@ import {
     AIAgentRequest,
     AIAgentResponse,
     AIAgentToolsUpdateRequest,
+    AIGentToolsResponse,
+    CreateLibraryAgentDefinitionRequest,
+    CreateLibraryAgentDefinitionResponse,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -33,8 +36,11 @@ import {
     AIToolsRequest,
     AIToolsResponse,
     configureDefaultModelProvider,
+    createLibraryAgentDefinition,
     createAIAgent,
     DefaultProviderKind,
+    genAgentDefinition,
+    GenAgentDefinitionRequest,
     getAiModuleOrg,
     getAllAgents,
     getAllMemoryManagers,
@@ -96,6 +102,15 @@ export class AiAgentRpcClient implements AIAgentAPI {
     getMcpTools(params: McpToolsRequest): Promise<McpToolsResponse> {
         return this._messenger.sendRequest(getMcpTools, HOST_EXTENSION, params);
     }
+
+    genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
+        return this._messenger.sendRequest(genAgentDefinition, HOST_EXTENSION, params);
+    }
+
+    createLibraryAgentDefinition(params: CreateLibraryAgentDefinitionRequest): Promise<CreateLibraryAgentDefinitionResponse> {
+        return this._messenger.sendRequest(createLibraryAgentDefinition, HOST_EXTENSION, params);
+    }
+
 
     fixMissingImports(): Promise<void> {
         return this._messenger.sendRequest(fixMissingImports, HOST_EXTENSION);

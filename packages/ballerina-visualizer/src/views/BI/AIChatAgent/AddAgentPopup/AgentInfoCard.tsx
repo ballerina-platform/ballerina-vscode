@@ -16,18 +16,24 @@
  * under the License.
  */
 
+import { ReactNode } from "react";
 import styled from "@emotion/styled";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 
-const Card = styled.div`
+const Card = styled.div<{ radius?: number; clickable?: boolean }>`
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 12px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    border-radius: 8px;
+    border-radius: ${(p: { radius?: number }) => p.radius ?? 8}px;
     background-color: ${ThemeColors.SURFACE_DIM};
+    cursor: ${(p: { clickable?: boolean }) => (p.clickable ? "pointer" : "default")};
+    transition: border-color 0.1s ease;
+    &:hover {
+        border-color: ${(p: { clickable?: boolean }) => (p.clickable ? ThemeColors.PRIMARY : ThemeColors.OUTLINE_VARIANT)};
+    }
 `;
 
 const IconWrap = styled.div`
@@ -37,7 +43,7 @@ const IconWrap = styled.div`
     width: 48px;
     height: 48px;
     border-radius: 8px;
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    background-color: var(--vscode-editorHoverWidget-statusBarBackground);
     flex-shrink: 0;
 
     & > img,
@@ -78,11 +84,16 @@ interface AgentInfoCardProps {
     label: string;
     description?: string;
     icon?: string;
+    action?: ReactNode;
+    borderRadius?: number;
+    onClick?: () => void;
 }
 
-export function AgentInfoCard({ label, description, icon }: AgentInfoCardProps) {
+// Header card for the Configure Agent form: agent icon + name + description. Mirrors the connector configure
+// popup's card; the icon resolves from the package's Central icon, falling back to the bot icon.
+export function AgentInfoCard({ label, description, icon, action, borderRadius, onClick }: AgentInfoCardProps) {
     return (
-        <Card>
+        <Card radius={borderRadius} clickable={Boolean(onClick)} onClick={onClick}>
             <IconWrap>
                 <ConnectorIcon
                     url={icon}
@@ -93,6 +104,7 @@ export function AgentInfoCard({ label, description, icon }: AgentInfoCardProps) 
                 <Name variant="h3">{label}</Name>
                 {description && <Description>{description}</Description>}
             </Content>
+            {action}
         </Card>
     );
 }

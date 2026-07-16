@@ -34,10 +34,19 @@ interface Props extends AddConnectionPopupProps {
     handleApiSpecConnection?: () => void;
     handleSelectConnector: (connector: AvailableNode, filteredCategories: Category[]) => void;
     DevantServicesSection?: React.ComponentType<{ searchText: string }>;
+    selectionOnly?: boolean;
 }
 
 export function AddConnectionPopupContent(props: Props) {
-    const { fileName, target, handleDatabaseConnection, handleApiSpecConnection, handleSelectConnector, DevantServicesSection } = props;
+    const {
+        fileName,
+        target,
+        handleDatabaseConnection,
+        handleApiSpecConnection,
+        handleSelectConnector,
+        DevantServicesSection,
+        selectionOnly = false,
+    } = props;
     const { rpcClient } = useRpcContext();
     const { platformExtState, loginToDevant, handleLinkWorkspace, platformRpcClient } = usePlatformExtContext();
 
@@ -263,7 +272,7 @@ export function AddConnectionPopupContent(props: Props) {
     
     return (
         <>
-            {platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn && (
+            {!selectionOnly && platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn && (
                 <>
                     {!platformExtState?.hasPossibleComponent ? (
                         <IntroText>
@@ -285,7 +294,7 @@ export function AddConnectionPopupContent(props: Props) {
                     }
                 </>
             )}
-            {(platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project) ? (
+            {!selectionOnly && ((platformExtState?.isLoggedIn && platformExtState?.selectedContext?.project) ? (
                 <IntroText>
                     To establish your connection, first define a connector. You may create a custom connector using an
                     API specification. Alternatively, you can select one of the pre-built
@@ -299,7 +308,7 @@ export function AddConnectionPopupContent(props: Props) {
                     connectors below. You will then be guided to provide the required details to complete the connection
                     setup.
                 </IntroText>
-            )}
+            ))}
 
             <SearchContainer>
                 <StyledSearchBox
@@ -310,7 +319,7 @@ export function AddConnectionPopupContent(props: Props) {
                 />
             </SearchContainer>
 
-            {(connectorOptions.showApiSpec || connectorOptions.showDatabase) && (
+            {!selectionOnly && (connectorOptions.showApiSpec || connectorOptions.showDatabase) && (
                 <Section>
                     <SectionTitle variant="h4">Create New Connector</SectionTitle>
                     <CreateConnectorOptions>
@@ -372,26 +381,31 @@ export function AddConnectionPopupContent(props: Props) {
                 </Section>
             )}
 
-            {DevantServicesSection && <DevantServicesSection searchText={searchText} />}
+            {!selectionOnly && DevantServicesSection && <DevantServicesSection searchText={searchText} />}
 
             <Section>
                 <SectionHeader>
-                    <SectionTitle variant="h4">Pre-built Connectors</SectionTitle>
+                    <SectionTitle variant="h4" $compactTypography={selectionOnly}>
+                        {selectionOnly ? "Available Connectors" : "Pre-built Connectors"}
+                    </SectionTitle>
                     <FilterButtons>
                         <FilterButton
                             active={filterType === "All"}
+                            $compactTypography={selectionOnly}
                             onClick={() => setFilterType("All")}
                         >
                             All
                         </FilterButton>
                         <FilterButton
                             active={filterType === "Standard"}
+                            $compactTypography={selectionOnly}
                             onClick={() => setFilterType("Standard")}
                         >
                             Standard
                         </FilterButton>
                         <FilterButton
                             active={filterType === "Organization"}
+                            $compactTypography={selectionOnly}
                             onClick={() => setFilterType("Organization")}
                         >
                             Organization
@@ -450,10 +464,21 @@ export function AddConnectionPopupContent(props: Props) {
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", padding: "24px" }}>
                         {filterType === "Organization" ? (
                             <>
-                                <BodyTinyInfo style={{ textAlign: "center" }}>
+                                <BodyTinyInfo
+                                    style={{
+                                        textAlign: "center",
+                                        fontSize: selectionOnly ? "13px" : undefined,
+                                    }}
+                                >
                                     No connectors found in your organization. You can create and publish connectors to Ballerina Central.
                                 </BodyTinyInfo>
-                                <BodyTinyInfo style={{ textAlign: "center", color: 'var(--vscode-descriptionForeground)' }}>
+                                <BodyTinyInfo
+                                    style={{
+                                        textAlign: "center",
+                                        color: 'var(--vscode-descriptionForeground)',
+                                        fontSize: selectionOnly ? "13px" : undefined,
+                                    }}
+                                >
                                     Learn how to{' '}
                                     <span
                                         style={{
@@ -470,7 +495,13 @@ export function AddConnectionPopupContent(props: Props) {
                                 </BodyTinyInfo>
                             </>
                         ) : (
-                            <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT }}>
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: ThemeColors.ON_SURFACE_VARIANT,
+                                    fontSize: selectionOnly ? "13px" : undefined,
+                                }}
+                            >
                                 No connectors found.
                             </Typography>
                         )}
@@ -480,4 +511,3 @@ export function AddConnectionPopupContent(props: Props) {
         </>
     );
 }
-

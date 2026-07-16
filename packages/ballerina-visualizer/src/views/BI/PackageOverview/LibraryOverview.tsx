@@ -506,6 +506,14 @@ const SECTIONS: SectionConfig[] = [
         addTooltip: "Add New Agent",
     },
     {
+        key: DIRECTORY_MAP.AGENT_DEFINITIONS,
+        title: "Agent Definitions",
+        icon: "bi-ai-agent",
+        description: "Reusable agent definitions in your library.",
+        addLabel: "Add an Agent Definition",
+        addTooltip: "Add New Agent Definition",
+    },
+    {
         key: DIRECTORY_MAP.CONFIGURABLE,
         title: "Configurations",
         icon: "bi-config",
@@ -672,6 +680,11 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: { view: MACHINE_VIEW.AddAgent },
                 isPopup: true,
+            });
+        } else if (key === DIRECTORY_MAP.AGENT_DEFINITIONS) {
+            rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: { view: MACHINE_VIEW.AddAgentDefinition },
             });
         } else if (key === DIRECTORY_MAP.TYPE) {
             rpcClient.getVisualizerRpcClient().openView({

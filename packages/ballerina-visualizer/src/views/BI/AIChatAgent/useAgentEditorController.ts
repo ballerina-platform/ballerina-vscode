@@ -176,16 +176,20 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!resolved) {
             return;
         }
+        const toolPosition = {
+            startLine: resolved.lineRange.startLine.line, startColumn: resolved.lineRange.startLine.offset,
+            endLine: resolved.lineRange.endLine.line, endColumn: resolved.lineRange.endLine.offset,
+        };
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: form ? {
-                documentUri: resolved.documentUri, identifier: tool.name, view: MACHINE_VIEW.BIFunctionForm,
+                documentUri: resolved.documentUri,
+                identifier: tool.name,
+                position: toolPosition,
+                view: MACHINE_VIEW.AIAgentToolForm,
             } : {
                 documentUri: resolved.documentUri,
-                position: {
-                    startLine: resolved.lineRange.startLine.line, startColumn: resolved.lineRange.startLine.offset,
-                    endLine: resolved.lineRange.endLine.line, endColumn: resolved.lineRange.endLine.offset,
-                },
+                position: toolPosition,
             },
         });
     }, [resolveToolFunction, rpcClient]);

@@ -30,6 +30,12 @@ interface AddMcpServerProps {
     editMode?: boolean;
     name?: string;
     agentNode: FlowNode;
+    existingNode?: FlowNode;
+    agentDefinition?: {
+        filePath: string;
+        classLineRange: LineRange;
+        reservedNames?: string[];
+    };
     onSave?: () => void;
     onBack?: () => void;
 }
@@ -43,8 +49,15 @@ const TOOLKIT_NAME_FIELD_KEY = "toolKitName";
 const normalizeExpressionValue = (value: unknown): string =>
     typeof value === "string" ? removeQuotes(value) : "";
 
+const uniqueName = (base: string, reserved: Set<string>): string => {
+    if (!reserved.has(base)) return base;
+    let i = 1;
+    while (reserved.has(`${base}${i}`)) i++;
+    return `${base}${i}`;
+};
+
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentNode, onSave, editMode = false } = props;
+    const { agentNode, agentDefinition, onSave, editMode = false } = props;
     const { rpcClient } = useRpcContext();
 
     const [serverUrl, setServerUrl] = useState("");
@@ -98,8 +111,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         return moduleNodes;
     };
 
-    const setupEditMode = async (variables: FlowNode[]) => {
-        const mcpToolKitVariable = variables?.find(
+    const setupEditMode = async (variables: FlowNode[] = []) => {
+        const mcpToolKitVariable = props.existingNode ?? variables?.find(
             (v) => v.codedata?.node === "MCP_TOOL_KIT" && v.properties.variable?.value === props.name
         );
         if (!mcpToolKitVariable) return;
@@ -123,7 +136,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         const visualizerLocation = await rpcClient.getVisualizerLocation();
         projectPathUriRef.current = visualizerLocation.projectPath;
 
-        const moduleNodes = await fetchModuleNodes();
+        const moduleNodes = editMode && !props.existingNode ? await fetchModuleNodes() : undefined;
 
         await fetchAgentNode();
         agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNodeRef.current?.codedata?.lineRange?.fileName] })).filePath;
@@ -137,13 +150,18 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         mcpToolKitNodeTemplateRef.current = template;
 
         if (editMode) {
-            await setupEditMode(moduleNodes.flowModel.variables);
+            await setupEditMode(moduleNodes?.flowModel?.variables);
         } else {
+            const reserved = agentDefinition?.reservedNames;
+            const variableProp = (template.properties as any)?.[RESULT_FIELD_KEY];
+            if (reserved?.length && variableProp && typeof variableProp.value === "string") {
+                variableProp.value = uniqueName(variableProp.value, new Set(reserved));
+            }
             mcpToolKitNodeRef.current = template;
         }
 
         setIsLoading(false);
-    }, [editMode, rpcClient]);
+    }, [editMode, props.existingNode, rpcClient]);
 
     const fetchToolsFromServer = useCallback(async (
         url: string,
@@ -414,12 +432,59 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const handleSave = async (node?: FlowNode) => {
         setIsSaving(true);
         try {
-            await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                agentFlowNode: agentNodeRef.current,
-                selectedTools: Array.from(selectedMcpTools),
-                updatedNode: node,
-                toolScopes: showScopes && Object.keys(toolScopes).length > 0 ? toolScopes : undefined,
-            });
+            if (!node) {
+                return;
+            }
+
+            if (selectedMcpTools.size === 0) {
+                node.properties["permittedTools"].value = `()`;
+            } else if ("permittedTools" in node.properties) {
+                node.properties["permittedTools"].value = `[${Array.from(selectedMcpTools).map(tool => `"${tool}"`).join(", ")}]`;
+            }
+
+            const filteredScopes: Record<string, string[]> = {};
+            if (showScopes && Object.keys(toolScopes).length > 0 && selectedMcpTools.size > 0) {
+                for (const tool of selectedMcpTools) {
+                    const scopes = toolScopes[tool];
+                    if (scopes && scopes.length > 0) {
+                        filteredScopes[tool] = scopes;
+                    }
+                }
+            }
+
+            if (Object.keys(filteredScopes).length > 0) {
+                (node.properties as any)["toolScopes"] = {
+                    metadata: { label: "Tool Scopes" },
+                    valueType: "EXPRESSION",
+                    value: JSON.stringify(filteredScopes),
+                    optional: true,
+                    editable: true,
+                    advanced: true,
+                    hidden: true,
+                    codedata: {
+                        kind: "INCLUDED_FIELD",
+                        originalName: "toolScopes"
+                    }
+                };
+            } else {
+                delete (node.properties as any)["toolScopes"];
+            }
+
+            if (agentDefinition) {
+                await rpcClient.getBIDiagramRpcClient().upsertClassOwnedNode({
+                    filePath: agentDefinition.filePath,
+                    flowNode: node,
+                    classLineRange: agentDefinition.classLineRange,
+                    wiring: { kind: "INNER_AGENT_TOOLS" },
+                });
+            } else {
+                await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                    agentFlowNode: agentNodeRef.current,
+                    selectedTools: Array.from(selectedMcpTools),
+                    updatedNode: node,
+                    toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                });
+            }
             
             try {
                 await rpcClient.getAIAgentRpcClient().fixMissingImports();
@@ -490,8 +555,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         },
         toolKitName: {
             advanced: true,
+            editable: !editMode,
+        },
+        variable: {
+            editable: !editMode,
         }
-    }), [requiresAuth]);
+    }), [requiresAuth, editMode]);
 
     return (
         <Container>

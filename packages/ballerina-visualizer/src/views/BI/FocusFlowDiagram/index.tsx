@@ -343,7 +343,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const buildAgentTypeFieldOverrides = (node: FlowNode, mode: "ALL" | "MODEL") => {
         const modelParam = (node.metadata?.data as NodeMetadata)?.agentInfo?.modelProvider?.propertyKey;
-        const overrides: Record<string, { hidden?: boolean }> = { type: { hidden: true } };
+        const overrides: Record<string, { hidden?: boolean; label?: string; documentation?: string }> = {
+            type: { hidden: true },
+        };
         if (mode === "MODEL") {
             Object.keys(node.properties || {}).forEach((key) => {
                 overrides[key] = { hidden: key !== modelParam };
@@ -354,6 +356,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         } else if (modelParam) {
             overrides[modelParam] = { hidden: true };
         }
+        overrides.variable = { ...overrides.variable, label: "Agent Name", documentation: "Name of the agent" };
         return overrides;
     };
 
@@ -1059,7 +1062,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         submitText={showProgressIndicator ? "Saving..." : "Save"}
                         showProgressIndicator={showProgressIndicator}
                         disableSaveButton={showProgressIndicator}
-                        fieldOverrides={{ model: { hidden: true }, type: { hidden: true } }}
+                        fieldOverrides={{
+                            model: { hidden: true },
+                            type: { hidden: true },
+                            variable: { label: "Agent Name", documentation: "Name of the agent" },
+                        }}
                     />
                 );
             }

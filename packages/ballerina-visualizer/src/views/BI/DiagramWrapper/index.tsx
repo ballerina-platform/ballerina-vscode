@@ -113,13 +113,14 @@ function servicePositionWithinArtifact(artifactPos: NodePosition | undefined, sv
 export interface DiagramWrapperProps {
     projectPath: string;
     filePath?: string;
+    artifactType?: DIRECTORY_MAP;
     view?: FocusFlowDiagramView;
     breakpointState?: number;
     syntaxTree?: STNode;
 }
 
 export function DiagramWrapper(param: DiagramWrapperProps) {
-    const { projectPath, filePath, view, breakpointState, syntaxTree } = param;
+    const { projectPath, filePath, artifactType, view, breakpointState, syntaxTree } = param;
     const { rpcClient } = useRpcContext();
 
     const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
@@ -409,15 +410,19 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             return;
         }
 
+        const isAgentTool = parentCodedata?.sourceCode?.includes("@ai:AgentTool");
         const context: VisualizerLocation = {
             view:
                 view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION
                     ? MACHINE_VIEW.BINPFunctionForm
-                    : parentMetadata?.isServiceFunction ?
-                        MACHINE_VIEW.ServiceFunctionForm : MACHINE_VIEW.BIFunctionForm,
+                    : isAgentTool
+                        ? MACHINE_VIEW.AIAgentToolForm
+                        : parentMetadata?.isServiceFunction ?
+                            MACHINE_VIEW.ServiceFunctionForm : MACHINE_VIEW.BIFunctionForm,
             identifier: parentMetadata?.label || "",
             documentUri: fileUri,
-            position: position || currentPosition
+            position: position || currentPosition,
+            artifactType,
         };
         rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
     };
@@ -634,20 +639,22 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         }
 
         if (isAgentFocus) {
-            return (
-                <ActionButton
-                    appearance="secondary"
-                    onClick={handleAgentFocusChat}
-                    tooltip="Generate a chat service for this agent"
-                >
-                    <Icon
-                        name="comment-discussion"
-                        isCodicon={true}
-                        sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }}
-                    />
-                    Chat
-                </ActionButton>
-            );
+            // Chat button temporarily hidden. Keep the functionality (handleAgentFocusChat) intact.
+            // return (
+            //     <ActionButton
+            //         appearance="secondary"
+            //         onClick={handleAgentFocusChat}
+            //         tooltip="Generate a chat service for this agent"
+            //     >
+            //         <Icon
+            //             name="comment-discussion"
+            //             isCodicon={true}
+            //             sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }}
+            //         />
+            //         Chat
+            //     </ActionButton>
+            // );
+            return null;
         }
 
         if (isResource && serviceType === "http") {
@@ -679,7 +686,8 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
-        if (parentMetadata && !isResource && !isRemote && !isInitFunction) {
+        if (parentMetadata && !isResource && !isRemote &&
+            (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION)) {
             return (
                 <ActionButton id="bi-edit" appearance="secondary" onClick={() => handleEdit(fileName, currentPosition)}>
                     <Icon

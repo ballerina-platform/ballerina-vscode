@@ -20,6 +20,11 @@
 import {
     AIChatRequest,
     AddFieldRequest,
+    AddInitParameterRequest,
+    ClassOwnedNodeDeleteRequest,
+    ClassOwnedNodeRequest,
+    ClassOwnedNodeSourceRequest,
+    ClassInitParameterModifierRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
@@ -2096,6 +2101,77 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             try {
                 const res: SourceEditResponse = await StateMachine.langClient().addClassField(params);
                 await updateSourceCode({ textEdits: res.textEdits, description: 'Class Field Creation' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().addClassInitParameter(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Add Input' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: BIModuleNodesResponse = await StateMachine.langClient().getClassOwnedNodes(params);
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().upsertClassOwnedNode(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Class-Owned Node Update' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().removeClassOwnedNode(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Class-Owned Node Removal' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().updateClassInitParameter(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Update Input' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().removeClassInitParameter(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Remove Input' });
                 resolve(res);
             } catch (error) {
                 console.log(error);

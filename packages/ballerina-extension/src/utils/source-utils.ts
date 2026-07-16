@@ -46,10 +46,12 @@ export interface UpdateSourceCodeRequest {
     skipPayloadCheck?: boolean; // This is used to skip the payload check because the payload data might become empty as a result of a change. Example: Deleting a component.
     isRenameOperation?: boolean; // This is used to identify if the update is a rename operation.
     skipUpdateViewOnTomlUpdate?: boolean; // This is used to skip updating the view on toml updates in certain scenarios.
+    waitForArtifactNotifications?: boolean; // Set to false when the caller will refresh and read artifacts directly.
 }
 
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
     const skipUndoRedoStack = updateSourceCodeRequest.artifactData?.artifactType === "CONFIGURABLE";
+    const waitForArtifactNotifications = updateSourceCodeRequest.waitForArtifactNotifications !== false;
     try {
         let tomlFilesUpdated = false;
         StateMachine.setEditMode();
@@ -160,7 +162,7 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
             // Capture IDs of newly added artifacts so we can re-apply isNew on the formatted edit notification.
             const handler = ArtifactNotificationHandler.getInstance();
             let newArtifactIds: Set<string> | undefined;
-            const rawEditNotification = new Promise<void>((resolve) => {
+            const rawEditNotification = waitForArtifactNotifications ? new Promise<void>((resolve) => {
                 let timeoutId: ReturnType<typeof setTimeout>;
                 const unsub = handler.subscribe(
                     ArtifactsUpdated.method, updateSourceCodeRequest.artifactData,
@@ -174,8 +176,11 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                         }
                     }
                 );
-                timeoutId = setTimeout(() => { unsub(); resolve(); }, 10000);
-            });
+                timeoutId = setTimeout(() => {
+                    unsub();
+                    resolve();
+                }, 10000);
+            }) : Promise.resolve();
 
             // Apply all changes at once
             await workspace.applyEdit(workspaceEdit);
@@ -222,6 +227,11 @@ export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCode
                         documentIdentifier: { uri: fileUriString },
                     });
                 }
+            }
+
+            if (!waitForArtifactNotifications) {
+                StateMachine.setReadyMode();
+                return [];
             }
 
             return new Promise((resolve, reject) => {
@@ -320,4 +330,3 @@ export async function injectImportIfMissing(importStatement: string, filePath: s
         await vscode.workspace.applyEdit(workspaceEdit);
     }
 }
-

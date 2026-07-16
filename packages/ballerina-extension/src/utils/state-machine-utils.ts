@@ -30,14 +30,15 @@ import path from "path";
 
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {
     const haveTreeData = !!StateMachine.context().projectStructure;
-    const isServiceClassFunction = await checkForServiceClassFunctions(documentUri, position, projectPath);
-    if (isServiceClassFunction || path.relative(projectPath || '', documentUri).startsWith("tests")) {
+    const classMemberArtifactType = await getClassMemberArtifactType(documentUri, position, projectPath);
+    if (classMemberArtifactType || path.relative(projectPath || '', documentUri).startsWith("tests")) {
         return {
             location: {
                 view: MACHINE_VIEW.BIDiagram,
                 documentUri: documentUri,
                 position: position,
                 identifier: StateMachine.context()?.identifier,
+                artifactType: classMemberArtifactType,
             },
             dataMapperDepth: 0
         };
@@ -49,20 +50,26 @@ export async function getView(documentUri: string, position: NodePosition, proje
     }
 }
 
-async function checkForServiceClassFunctions(documentUri: string, position: NodePosition, projectPath: string) {
+async function getClassMemberArtifactType(documentUri: string, position: NodePosition, projectPath: string) {
     const currentProjectArtifacts = StateMachine.context().projectStructure;
     if (currentProjectArtifacts) {
         const project = currentProjectArtifacts.projects.find(project => isSamePath(project.projectPath, projectPath));
-        for (const dir of project.directoryMap[DIRECTORY_MAP.TYPE]) {
-            if (dir.path === documentUri && isPositionWithinBlock(position, dir.position)) {
+        if (!project) {
+            return;
+        }
+        const classArtifacts = [
+            ...(project.directoryMap[DIRECTORY_MAP.TYPE] ?? []),
+            ...(project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITIONS] ?? [])
+        ];
+        for (const dir of classArtifacts) {
+            if (isSamePath(dir.path, documentUri) && isPositionWithinBlock(position, dir.position)) {
                 const req = getSTByRangeReq(documentUri, position);
                 const node = await StateMachine.langClient().getSTByRange(req) as SyntaxTreeResponse;
                 if (node.parseSuccess && (STKindChecker.isObjectMethodDefinition(node.syntaxTree) || STKindChecker.isResourceAccessorDefinition(node.syntaxTree))) {
-                    return true;
+                    return dir.type as DIRECTORY_MAP;
                 }
             }
         }
-        return false;
     }
 }
 
@@ -318,7 +325,7 @@ function findViewByArtifact(
 ): HistoryEntry {
     const currentDocumentUri = documentUri;
     const artifactUri = dir.path;
-    if (artifactUri === currentDocumentUri && isPositionWithinRange(position, dir.position)) {
+    if (isSamePath(artifactUri, currentDocumentUri) && isPositionWithinRange(position, dir.position)) {
         switch (dir.type) {
             case DIRECTORY_MAP.SERVICE:
                 if (dir.moduleName === "graphql") {
@@ -415,6 +422,19 @@ function findViewByArtifact(
                             ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
                             : FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE,
                         artifactType: DIRECTORY_MAP.AGENT,
+                    },
+                    dataMapperDepth: 0
+                };
+            case DIRECTORY_MAP.AGENT_DEFINITION:
+                // An agent class definition opens the Agent Definition Designer (class-shaped view); its inner
+                // ai:Agent is edited from a dedicated row, keeping definition vs instance editing distinct.
+                return {
+                    location: {
+                        view: MACHINE_VIEW.AgentDefinitionDesigner,
+                        documentUri: currentDocumentUri,
+                        position: dir.position,
+                        identifier: dir.name,
+                        artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
                     },
                     dataMapperDepth: 0
                 };

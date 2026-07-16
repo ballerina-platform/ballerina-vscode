@@ -735,32 +735,31 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (toolsArg != null && toolsArg.kind() == SyntaxKind.LIST_CONSTRUCTOR) {
             List<ToolData> toolsData = new ArrayList<>();
-            ListConstructorExpressionNode listCtrExprNode = (ListConstructorExpressionNode) toolsArg;
-            for (Node node : listCtrExprNode.expressions()) {
-                if (node.kind() != SyntaxKind.SIMPLE_NAME_REFERENCE) {
-                    continue;
-                }
-                SimpleNameReferenceNode simpleNameReferenceNode = (SimpleNameReferenceNode) node;
-                Optional<Symbol> nodeSymbol = semanticModel.symbol(node);
-                if (nodeSymbol.isEmpty()) {
-                    String toolName = simpleNameReferenceNode.name().text();
-                    toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), null));
-                    continue;
-                }
-
-                Symbol symbol = nodeSymbol.get();
-                String toolName = simpleNameReferenceNode.name().text();
-                boolean isMcpToolKit = nodeSymbol
-                        .filter(newSymbol -> symbol.kind() == SymbolKind.VARIABLE)
-                        .map(newSymbol -> ((VariableSymbol) symbol).typeDescriptor())
-                        .filter(typeSymbol -> isMcpToolKitAiClass(typeSymbol) || isGeneratedMcpToolKit(typeSymbol))
-                        .isPresent();
-                if (isMcpToolKit) {
-                    toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER));
-                } else {
-                    toolName = simpleNameReferenceNode.name().text();
-                    String toolType = isAgentDelegationTool(symbol) ? AGENT_TOOL_TYPE : null;
-                    toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), toolType));
+            for (Node element : ((ListConstructorExpressionNode) toolsArg).expressions()) {
+                // `self.<name>` class-method / MCP-toolkit field (agent definitions).
+                if (element instanceof FieldAccessExpressionNode fieldAccess) {
+                    if (!(fieldAccess.fieldName() instanceof SimpleNameReferenceNode fieldName)) {
+                        continue;
+                    }
+                    String toolName = fieldName.name().text();
+                    if (isMcpToolKitExpression(fieldAccess)) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER));
+                        continue;
+                    }
+                    MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
+                    String icon = method == null ? "" : AiUtils.getToolDisplayIcon(method);
+                    String type = method != null && isAgentDelegationTool(method) ? AGENT_TOOL_TYPE : null;
+                    toolsData.add(new ToolData(toolName, icon, "", type));
+                } else if (element instanceof SimpleNameReferenceNode nameRef) {
+                    // Module-level tool reference.
+                    String toolName = nameRef.name().text();
+                    Symbol symbol = semanticModel.symbol(element).orElse(null);
+                    if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
+                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER));
+                    } else {
+                        String type = symbol != null && isAgentDelegationTool(symbol) ? AGENT_TOOL_TYPE : null;
+                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type));
+                    }
                 }
             }
             agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
@@ -926,18 +925,6 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         return null;
-    }
-
-    private boolean isMcpToolKitAiClass(TypeSymbol typeSymbol) {
-        // Enables backward-compatible rendering of the MCP tool in the UI
-        return typeSymbol.getModule().isPresent() && (typeSymbol.nameEquals(MCP_TOOL_KIT)
-                && typeSymbol.getModule().get().id().moduleName().equals(AI_AGENT));
-    }
-
-    private boolean isGeneratedMcpToolKit(TypeSymbol typeSymbol) {
-        return typeSymbol instanceof TypeReferenceTypeSymbol referenceTypeSymbol
-                && referenceTypeSymbol.typeDescriptor() instanceof ClassSymbol classSymbol
-                && isAiMcpBaseToolKit(classSymbol);
     }
 
     private boolean isWorkflowOperation(FunctionSymbol functionSymbol, String operationName) {
@@ -3210,6 +3197,12 @@ public class CodeAnalyzer extends NodeVisitor {
                     .editable()
                     .stepOut()
                     .addProperty(Property.VARIABLE_KEY);
+            // An agent constructed as a class field (`self.agent = check new (...)` in init) must round-trip as an
+            // assignment, not a `final ... = check new` declaration. SERVICE_INIT_SCOPE drives that in AgentBuilder.
+            if (nodeBuilder instanceof AgentBuilder
+                    && assignmentStatementNode.varRef() instanceof FieldAccessExpressionNode) {
+                nodeBuilder.properties().scope(Property.SERVICE_INIT_SCOPE);
+            }
         }
         endNode(assignmentStatementNode);
     }
@@ -4209,6 +4202,28 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
         return "";
+    }
+
+    private boolean isMcpToolKitExpression(ExpressionNode expressionNode) {
+        if (AiUtils.isMcpToolKitSymbol(semanticModel.symbol(expressionNode).orElse(null))) {
+            return true;
+        }
+        return semanticModel.typeOf(expressionNode)
+                .map(AiUtils::isMcpToolKitType)
+                .orElse(false);
+    }
+
+    // Resolves the class method backing a `self.<tool>` field-access tool (so its @display is readable;
+    // semanticModel.symbol on the field access yields a VariableSymbol that carries no annotations).
+    private Optional<MethodSymbol> resolveToolMethod(FieldAccessExpressionNode fieldAccess, String toolName) {
+        Node parent = fieldAccess.parent();
+        while (parent != null && !(parent instanceof ClassDefinitionNode)) {
+            parent = parent.parent();
+        }
+        if (parent != null && semanticModel.symbol(parent).orElse(null) instanceof ClassSymbol classSymbol) {
+            return Optional.ofNullable(classSymbol.methods().get(toolName));
+        }
+        return Optional.empty();
     }
 
     private String getToolDescription(String toolName) {

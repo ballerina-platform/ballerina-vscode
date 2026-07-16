@@ -154,6 +154,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [selectedNodeId, setSelectedNodeId] = useState<string>();
     const [importingConn, setImportingConn] = useState<ConnectionListItem>();
     const [projectOrg, setProjectOrg] = useState<string>("");
+    const visualizerLocationRef = useRef<VisualizerLocation>();
     const [entrypointContext, setEntrypointContext] = useState<{ serviceName?: string; functionName?: string }>();
     const [isUserAuthenticated, setIsUserAuthenticated] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
@@ -283,6 +284,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         });
 
         rpcClient.getVisualizerLocation().then((location) => {
+            visualizerLocationRef.current = location;
             setProjectOrg(location.org);
         });
 
@@ -693,6 +695,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             // Get visualizer location and pass position to onReady + set entrypoint context
                             rpcClient.getVisualizerLocation().then((location: VisualizerLocation) => {
                                 console.log(">>> Visualizer location", location?.position);
+                                visualizerLocationRef.current = location;
                                 onReady(model.flowModel.fileName, parentMetadata, location?.position, parentCodedata);
                                 let serviceName = '';
                                 for (const candidate of [location.parentIdentifier, location.identifier]) {
@@ -1883,6 +1886,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (NODES_TO_SKIP_ARTIFACT.includes(updatedNode?.codedata?.node)) {
             skipArtifact = true;
         }
+        const artifactData = !skipArtifact ? getArtifactData(editorConfig) : undefined;
 
         rpcClient
             .getBIDiagramRpcClient()
@@ -1891,7 +1895,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 flowNode: nodeToSubmit,
                 isFunctionNodeUpdate: editorConfig?.displayMode !== EditorDisplayMode.NONE,
                 isHelperPaneChange: options?.isChangeFromHelperPane,
-                artifactData: !skipArtifact ? getArtifactData(editorConfig) : undefined,
+                artifactData,
 
             })
             .then(async (response) => {
@@ -1978,6 +1982,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
 
     function getArtifactData(editorConfig?: EditorConfig) {
+        const currentArtifactType = visualizerLocationRef.current?.artifactType;
+        if (
+            currentArtifactType === DIRECTORY_MAP.AGENT_DEFINITION ||
+            currentArtifactType === DIRECTORY_MAP.TYPE
+        ) {
+            return { artifactType: currentArtifactType };
+        }
+
         // When editorConfig is absent, derive the artifact type from the EVENT_START node's metadata.
         //   kind="Function" + label="main" → AUTOMATION
         //   kind="Function" + other label  → FUNCTION

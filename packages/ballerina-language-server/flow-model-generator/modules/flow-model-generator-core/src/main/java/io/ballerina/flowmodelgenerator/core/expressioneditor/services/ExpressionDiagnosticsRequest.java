@@ -40,8 +40,10 @@ import java.util.stream.Collectors;
  */
 public class ExpressionDiagnosticsRequest extends DiagnosticsRequest {
 
-    private static final DiagnosticErrorCode CANNOT_INFER_OBJECT_TYPE_CODE =
-            DiagnosticErrorCode.CANNOT_INFER_OBJECT_TYPE_FROM_LHS;
+    // Artifacts of the synthetic `__reserved__` wrapper at a class-field position, not real expression errors.
+    private static final Set<String> IGNORED_DIAGNOSTIC_CODES = Set.of(
+            DiagnosticErrorCode.CANNOT_INFER_OBJECT_TYPE_FROM_LHS.diagnosticId(),
+            DiagnosticErrorCode.INVALID_NON_PRIVATE_MUTABLE_FIELD_IN_ISOLATED_OBJECT.diagnosticId());
 
     public ExpressionDiagnosticsRequest(ExpressionEditorContext context) {
         super(context);
@@ -60,7 +62,7 @@ public class ExpressionDiagnosticsRequest extends DiagnosticsRequest {
                 context.workspaceManager().semanticModel(context.filePath());
         return semanticModel.map(model -> model.diagnostics(lineRange).stream()
                 .filter(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR
-                        && !CANNOT_INFER_OBJECT_TYPE_CODE.diagnosticId().equals(diagnostic.diagnosticInfo().code()))
+                        && !IGNORED_DIAGNOSTIC_CODES.contains(diagnostic.diagnosticInfo().code()))
                 .map(CommonUtils::transformBallerinaDiagnostic)
                 .collect(Collectors.toSet())).orElseGet(Set::of);
     }

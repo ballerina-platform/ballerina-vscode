@@ -179,6 +179,11 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
+    AddInitParameterRequest,
+    ClassOwnedNodeDeleteRequest,
+    ClassOwnedNodeRequest,
+    ClassOwnedNodeSourceRequest,
+    ClassInitParameterModifierRequest,
     FunctionModelRequest,
     FunctionModelResponse,
     TypeDataWithReferences,
@@ -188,6 +193,8 @@ import {
     AIModelsRequest,
     AIToolsRequest,
     AIToolsResponse,
+    AIGentToolsResponse,
+    GenAgentDefinitionRequest,
     ICPEnabledRequest,
     ICPEnabledResponse,
     WorkflowManagementRequest,
@@ -456,6 +463,12 @@ enum EXTENDED_APIS {
     BI_GET_FUNCTION_FROM_SOURCE = 'serviceDesign/getFunctionFromSource',
     BI_UPDATE_CLASS_FIELD = 'serviceDesign/updateClassField',
     BI_ADD_CLASS_FIELD = 'serviceDesign/addField',
+    BI_ADD_CLASS_INIT_PARAMETER = 'serviceDesign/addClassInitParameter',
+    BI_GET_CLASS_OWNED_NODES = 'flowDesignService/getClassOwnedNodes',
+    BI_UPSERT_CLASS_OWNED_NODE = 'flowDesignService/upsertClassOwnedNode',
+    BI_REMOVE_CLASS_OWNED_NODE = 'flowDesignService/removeClassOwnedNode',
+    BI_UPDATE_CLASS_INIT_PARAMETER = 'serviceDesign/updateClassInitParameter',
+    BI_REMOVE_CLASS_INIT_PARAMETER = 'serviceDesign/removeClassInitParameter',
     BI_DESIGN_MODEL = 'designModelService/getDesignModel',
     BI_UPDATE_IMPORTS = 'expressionEditor/importModule',
     BI_ADD_FUNCTION = 'expressionEditor/functionCallTemplate',
@@ -474,6 +487,7 @@ enum EXTENDED_APIS {
     BI_AI_GET_TOOLS = 'agentManager/getTools',
     BI_AI_GET_TOOL = 'agentManager/getTool',
     BI_AI_GET_MCP_TOOLS = 'agentManager/getMcpTools',
+    BI_AI_GEN_AGENT_DEFINITION = 'agentManager/genAgentDefinition',
     BI_AI_GET_PACKAGE_VERSION = 'agentManager/getPackageVersion',
     BI_GET_SEMANTIC_DIFF = 'copilotAgentService/getSemanticDiff',
     BI_IS_ICP_ENABLED = 'icpService/isIcpEnabled',
@@ -1386,6 +1400,30 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_ADD_CLASS_FIELD, params);
     }
 
+    async addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_ADD_CLASS_INIT_PARAMETER, params);
+    }
+
+    async getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
+        return this.sendRequest<BIModuleNodesResponse>(EXTENDED_APIS.BI_GET_CLASS_OWNED_NODES, params);
+    }
+
+    async upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPSERT_CLASS_OWNED_NODE, params);
+    }
+
+    async removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_OWNED_NODE, params);
+    }
+
+    async updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPDATE_CLASS_INIT_PARAMETER, params);
+    }
+
+    async removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_INIT_PARAMETER, params);
+    }
+
     async getHttpResourceModel(params: HttpResourceModelRequest): Promise<HttpResourceModelResponse> {
         return this.sendRequest<HttpResourceModelResponse>(EXTENDED_APIS.BI_SERVICE_GET_RESOURCE, params);
     }
@@ -1493,6 +1531,11 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
     async getMcpTools(params: McpToolsRequest): Promise<McpToolsResponse> {
         return this.sendRequest<McpToolsResponse>(EXTENDED_APIS.BI_AI_GET_MCP_TOOLS, params);
     }
+
+    async genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
+        return this.sendRequest<AIGentToolsResponse>(EXTENDED_APIS.BI_AI_GEN_AGENT_DEFINITION, params);
+    }
+
 
     async getPackageVersion(params: AIGetPackageVersionRequest): Promise<AIGetPackageVersionResponse> {
         return this.sendRequest<AIGetPackageVersionResponse>(EXTENDED_APIS.BI_AI_GET_PACKAGE_VERSION, params);

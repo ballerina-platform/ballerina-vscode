@@ -29,7 +29,6 @@ import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
-import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
@@ -37,7 +36,6 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
-import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyNode;
@@ -101,7 +99,6 @@ public class AgentsGenerator {
     private static final String INIT = "init";
     private static final String AGENT_FILE = "agents.bal";
     public static final String AGENT = "Agent";
-    public static final String RUN = "run";
     private static final String HTTP_MODULE = "http";
     private static final List<String> HTTP_REMOTE_METHOD_SKIP_LIST = List.of("get", "put", "post", "head",
             "delete", "patch", "options");
@@ -377,6 +374,71 @@ public class AgentsGenerator {
             }
             sourceBuilder.acceptImport(id.orgName(), id.moduleName());
         });
+    }
+
+    /**
+     * Generates an empty custom agent class definition (a class including {@code *ai:FixedReturnAgentType}) from a
+     * name + description, written to {@code <name>.bal} in the project root. The role/instructions/tools start empty;
+     * they are authored afterwards from the agent-definition focus diagram.
+     */
+    public JsonElement genAgentDefinition(String name, String description, Path filePath,
+                                          WorkspaceManager workspaceManager) {
+        // AGENT + isNew routes the SourceBuilder to (create if needed and) write at the end of agents.bal.
+        Codedata codedata = new Codedata.Builder<>(null).node(NodeKind.AGENT).isNew().build();
+        FlowNode flowNode = new FlowNode(null, null, codedata, false, null, null, null, 0);
+        SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
+        sourceBuilder.acceptImport(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE);
+
+        sourceBuilder.token().name(buildAgentClassSource(name, description));
+        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
+        return gson.toJsonTree(sourceBuilder.build());
+    }
+
+    private static String buildAgentClassSource(String name, String description) {
+        String body = """
+                public isolated class %s {
+                    *ai:FixedReturnAgentType;
+
+                    private final ai:Agent agent;
+
+                    # Initializes the agent
+                    # + model - The AI model provider to use
+                    # + memory - The memory implementation to use
+                    public function init(ai:ModelProvider model, ai:Memory? memory = ()) returns error? {
+                        self.agent = check new (
+                            systemPrompt = {
+                                role: string ``,
+                                instructions: string ``
+                            },
+                            model = model,
+                            memory = memory,
+                            tools = []
+                        );
+                    }
+
+                    public isolated function run(string|ai:Prompt query,
+                            string sessionId = "sessionId",
+                            ai:Context context = new) returns string|ai:Error {
+                        return self.agent.run(query, sessionId, context);
+                    }
+
+                    public isolated function trace(string|ai:Prompt query,
+                            string sessionId = "sessionId",
+                            ai:Context context = new) returns ai:Trace|ai:Error {
+                        return self.agent.run(query, sessionId, context);
+                    }
+                }""".formatted(name);
+        return buildClassDoc(description) + body;
+    }
+
+    // A class doc-comment from the (possibly multi-line) description; each line prefixed with "# ".
+    private static String buildClassDoc(String description) {
+        String text = (description == null || description.isBlank()) ? "An AI agent." : description.strip();
+        StringBuilder sb = new StringBuilder();
+        for (String line : text.split("\\R", -1)) {
+            sb.append("# ").append(line).append(System.lineSeparator());
+        }
+        return sb.toString();
     }
 
     private boolean isToolAnnotated(FunctionSymbol functionSymbol) {

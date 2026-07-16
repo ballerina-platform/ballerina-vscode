@@ -20,7 +20,18 @@
 import {
     addBreakpointToSource,
     addClassField,
+    addClassInitParameter,
+    getClassOwnedNodes,
+    upsertClassOwnedNode,
+    removeClassOwnedNode,
+    updateClassInitParameter,
+    removeClassInitParameter,
     AddFieldRequest,
+    AddInitParameterRequest,
+    ClassOwnedNodeDeleteRequest,
+    ClassOwnedNodeRequest,
+    ClassOwnedNodeSourceRequest,
+    ClassInitParameterModifierRequest,
     addFunction,
     AddFunctionRequest,
     addProjectToWorkspace,
@@ -244,6 +255,12 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getServiceClassModel, (args: ModelFromCodeRequest) => rpcManger.getServiceClassModel(args));
     messenger.onRequest(updateClassField, (args: ClassFieldModifierRequest) => rpcManger.updateClassField(args));
     messenger.onRequest(addClassField, (args: AddFieldRequest) => rpcManger.addClassField(args));
+    messenger.onRequest(addClassInitParameter, (args: AddInitParameterRequest) => rpcManger.addClassInitParameter(args));
+    messenger.onRequest(getClassOwnedNodes, (args: ClassOwnedNodeRequest) => rpcManger.getClassOwnedNodes(args));
+    messenger.onRequest(upsertClassOwnedNode, (args: ClassOwnedNodeSourceRequest) => rpcManger.upsertClassOwnedNode(args));
+    messenger.onRequest(removeClassOwnedNode, (args: ClassOwnedNodeDeleteRequest) => rpcManger.removeClassOwnedNode(args));
+    messenger.onRequest(updateClassInitParameter, (args: ClassInitParameterModifierRequest) => rpcManger.updateClassInitParameter(args));
+    messenger.onRequest(removeClassInitParameter, (args: ClassInitParameterModifierRequest) => rpcManger.removeClassInitParameter(args));
     messenger.onRequest(updateServiceClass, (args: ServiceClassSourceRequest) => rpcManger.updateServiceClass(args));
     messenger.onRequest(createGraphqlClassType, (args: UpdateTypeRequest) => rpcManger.createGraphqlClassType(args));
     messenger.onRequest(getRecordConfig, (args: GetRecordConfigRequest) => rpcManger.getRecordConfig(args));

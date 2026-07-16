@@ -26,6 +26,7 @@ import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
@@ -39,6 +40,7 @@ import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
+import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
@@ -182,6 +184,8 @@ public class AiUtils {
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
     public static final String AI_PROMPT_TYPE = "ai:Prompt";
+
+    private static final String MCP_TOOL_KIT = "McpToolKit";
 
     static {
         versionToFeatures.put("1.0.0",
@@ -1499,9 +1503,17 @@ public class AiUtils {
                         .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
     }
 
+    // The @display iconPath of a tool method (empty when absent). Used to render class-method tool icons.
+    public static String getToolDisplayIcon(MethodSymbol method) {
+        String icon = readDisplayAnnotation(method).icon();
+        return icon == null ? "" : icon;
+    }
+
+    // The label + iconPath of a method's @display annotation (each null when absent).
     private static DisplayInfo readDisplayAnnotation(MethodSymbol method) {
         for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
-            if (annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) && annot.attachmentValue().isPresent()
+            if (annot.typeDescriptor() != null && annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
+                    && annot.attachmentValue().isPresent()
                     && unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> map) {
                 return new DisplayInfo(constantString(map.get(DISPLAY_LABEL)), constantString(map.get(DISPLAY_ICON)));
             }
@@ -1512,6 +1524,38 @@ public class AiUtils {
     private record DisplayInfo(String label, String icon) {
     }
 
+    // Whether the symbol is a variable/field whose type is an MCP toolkit (declared or generated).
+    public static boolean isMcpToolKitSymbol(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return false;
+        }
+        return isMcpToolKitType(typeSymbol);
+    }
+
+    public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
+        return isMcpToolKitAiClass(typeSymbol) || isGeneratedMcpToolKit(typeSymbol);
+    }
+
+    private static boolean isMcpToolKitAiClass(TypeSymbol typeSymbol) {
+        return typeSymbol.nameEquals(MCP_TOOL_KIT) && typeSymbol.getModule()
+                .map(module -> CommonUtils.isAiModule(module.id().orgName(), module.id().packageName()))
+                .orElse(false);
+    }
+
+    private static boolean isGeneratedMcpToolKit(TypeSymbol typeSymbol) {
+        TypeSymbol rawType = CommonUtils.getRawType(typeSymbol);
+        return rawType instanceof ClassSymbol classSymbol
+                && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+    }
+
+    // Reads the agent metadata the ai compiler plugin records under the `agentMetadata` field of the class's @display
+    // annotation into an AgentInfo (semantic API, so it resolves cross-repo for Central agents). Empty when there is
+    // no @display annotation carrying an `agentMetadata` field (e.g. a class with no plugin-recorded metadata).
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
         for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
             if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) || annot.attachmentValue().isEmpty()

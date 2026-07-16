@@ -155,6 +155,9 @@ namespace S {
         align-items: center;
         z-index: 10;
         width: 100%;
+        padding: 16px 0 0;
+        background: var(--vscode-editor-background);
+        border-top: 1px solid var(--vscode-panel-border);
     `;
 
     export const FooterActionButton = styled(Button)`

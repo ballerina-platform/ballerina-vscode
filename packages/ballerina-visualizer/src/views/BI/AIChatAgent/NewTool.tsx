@@ -25,6 +25,7 @@ import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { addToolToAgentNode, findFlowNodeByModuleVarName, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
+import { AgentToolForm } from "./AgentToolForm";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -230,17 +231,25 @@ export function NewTool(props: NewToolProps): JSX.Element {
     return (
         <>
             {ready && !savingForm && (
-                <AIAgentSidePanel
-                    agentNode={agentNode}
-                    projectPath={projectPath.current}
-                    onSubmit={handleOnSubmit}
-                    mode={mode}
-                    onViewChange={(_view, navigateBack) => {
-                        onSetBackOverride?.(navigateBack || null);
-                    }}
-                    onAgentToolCreated={handleAgentToolCreated}
-                    onCancel={onBack}
-                />
+                mode === NewToolSelectionMode.CUSTOM_TOOL ? (
+                    <AgentToolForm
+                        filePath={agentFilePath.current}
+                        projectPath={projectPath.current}
+                        onSave={handleAgentToolCreated}
+                        onBack={onBack}
+                    />
+                ) : (
+                    <AIAgentSidePanel
+                        agentNode={agentNode}
+                        projectPath={projectPath.current}
+                        onSubmit={handleOnSubmit}
+                        mode={mode}
+                        onViewChange={(_view, navigateBack) => {
+                            onSetBackOverride?.(navigateBack || null);
+                        }}
+                        onCancel={onBack}
+                    />
+                )
             )}
             {(!ready || savingForm) && (
                 <LoaderContainer>

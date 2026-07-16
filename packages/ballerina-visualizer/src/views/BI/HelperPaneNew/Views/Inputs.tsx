@@ -82,6 +82,10 @@ const InputItem = ({ item, onItemSelect, onMoreIconClick }: InputItemProps) => {
     );
 };
 
+const isParameterCompletion = (completion: CompletionItem) =>
+    completion.kind === "variable" &&
+    completion.labelDetails?.description?.includes("Parameter");
+
 export const Inputs = (props: InputsPageProps) => {
     const { targetLineRange, onChange, filteredCompletions, currentValue, handleRetrieveCompletions, inputMode } = props;
     const [searchValue, setSearchValue] = useState<string>("");
@@ -143,13 +147,10 @@ export const Inputs = (props: InputsPageProps) => {
     }, [targetLineRange, breadCrumbSteps, completionContext])
 
     const dropdownItems = useMemo(() => {
-        // If we're at the root level, only show parameters
+        // At root, show only function/init parameters — the values supplied when the agent is created.
+        // Class fields (self.*) live under Variables.
         if (isAtRoot()) {
-            return filteredCompletions.filter(
-                (completion) =>
-                    completion.kind === "variable" &&
-                    completion.labelDetails?.description?.includes("Parameter")
-            );
+            return filteredCompletions.filter(isParameterCompletion);
         }
 
         // If we're navigating inside an object, show fields and variables

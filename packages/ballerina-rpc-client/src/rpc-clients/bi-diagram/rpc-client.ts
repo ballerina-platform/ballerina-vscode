@@ -20,6 +20,11 @@
 import {
     AIChatRequest,
     AddFieldRequest,
+    AddInitParameterRequest,
+    ClassOwnedNodeDeleteRequest,
+    ClassOwnedNodeRequest,
+    ClassOwnedNodeSourceRequest,
+    ClassInitParameterModifierRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
@@ -140,6 +145,12 @@ import {
     WorkspacesResponse,
     addBreakpointToSource,
     addClassField,
+    addClassInitParameter,
+    getClassOwnedNodes,
+    upsertClassOwnedNode,
+    removeClassOwnedNode,
+    updateClassInitParameter,
+    removeClassInitParameter,
     addFunction,
     addProjectToWorkspace,
     buildProject,
@@ -495,6 +506,30 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     addClassField(params: AddFieldRequest): Promise<SourceEditResponse> {
         return this._messenger.sendRequest(addClassField, HOST_EXTENSION, params);
+    }
+
+    addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(addClassInitParameter, HOST_EXTENSION, params);
+    }
+
+    getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
+        return this._messenger.sendRequest(getClassOwnedNodes, HOST_EXTENSION, params);
+    }
+
+    upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(upsertClassOwnedNode, HOST_EXTENSION, params);
+    }
+
+    removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(removeClassOwnedNode, HOST_EXTENSION, params);
+    }
+
+    updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(updateClassInitParameter, HOST_EXTENSION, params);
+    }
+
+    removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(removeClassInitParameter, HOST_EXTENSION, params);
     }
 
     updateServiceClass(params: ServiceClassSourceRequest): Promise<UpdatedArtifactsResponse> {

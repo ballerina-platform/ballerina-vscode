@@ -379,6 +379,8 @@ export enum DIRECTORY_MAP {
     ACTIVITY = "ACTIVITY",
     AGENTS = "agents",
     AGENT = "AGENT",
+    AGENT_DEFINITIONS = "agentDefinitions",
+    AGENT_DEFINITION = "AGENT_DEFINITION",
     AUTOMATION = "AUTOMATION",
     CONFIGURABLE = "CONFIGURABLE",
     CONNECTION = "CONNECTION",
@@ -424,6 +426,7 @@ export type ProjectDirectoryMap = {
     [DIRECTORY_MAP.DATA_MAPPER]: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.NP_FUNCTION]: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.AGENTS]: ProjectStructureArtifactResponse[];
+    [DIRECTORY_MAP.AGENT_DEFINITIONS]: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.LOCAL_CONNECTORS]: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.WORKFLOW]?: ProjectStructureArtifactResponse[];
     [DIRECTORY_MAP.ACTIVITY]?: ProjectStructureArtifactResponse[];

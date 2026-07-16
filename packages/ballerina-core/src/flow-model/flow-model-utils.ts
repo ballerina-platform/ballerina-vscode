@@ -95,21 +95,38 @@ export function traverseNode(node: FlowNode, visitor: BaseVisitor, parent?: Flow
     }
 }
 
+/**
+ * When set, the generated `@ai:AgentTool` method is written *inside* the given agent-definition class (and wired
+ * into its inner `tools = [...]`) instead of at module level. `filePath` is the class file (absolute).
+ */
+export interface AgentToolHostClass {
+    className: string;
+    filePath: string;
+}
+
 export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, description: string, connection: string,
-    toolParameters?: ToolParameters): FlowNode {
+    toolParameters?: ToolParameters, hostClass?: AgentToolHostClass): FlowNode {
     const auth = wrappedNode.codedata.data?.auth;
     const data: AgentToolData = {
         node: wrappedNode,
         connection,
         description,
         ...(typeof auth === "string" ? { auth } : {}),
+        ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
     };
     return createAgentToolNode(toolName, data, toolParameters ? { parameters: toolParameters } : {});
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
-    description: string): FlowNode {
-    const data: AgentToolData = { toolKind: "AGENT_CALL", agentVarName, includeContext, description };
+    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string): FlowNode {
+    const data: AgentToolData = {
+        toolKind: "AGENT_CALL",
+        agentVarName,
+        includeContext,
+        description,
+        ...(agentReceiver ? { agentReceiver } : {}),
+        ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
+    };
     return createAgentToolNode(toolName, data);
 }
 

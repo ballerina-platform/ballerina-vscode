@@ -93,10 +93,13 @@ interface AddToolProps {
     onUseAgent?: () => void;
     onSave?: () => void;
     onBack?: () => void;
+    // MCP generation still writes module-level toolkits, so definition hosts can hide that path.
+    hideMcpServer?: boolean;
 }
 
 export function AddTool(props: AddToolProps): JSX.Element {
-    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent } = props;
+    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent,
+        hideMcpServer } = props;
 
     const handleCreateCustomTool = () => {
         onCreateCustomTool?.();
@@ -164,18 +167,20 @@ export function AddTool(props: AddToolProps): JSX.Element {
                     </OptionDescription>
                 </OptionCard>
 
-                <OptionCard onClick={handleUseMcpServer}>
-                    <OptionHeader>
-                        <OptionIcon>
-                            <Icon name="bi-mcp" />
-                        </OptionIcon>
-                        <OptionTitle>Use MCP Server</OptionTitle>
-                    </OptionHeader>
-                    <OptionDescription>
-                        Connect to a Model Context Protocol (MCP) server to access pre-built tools and resources.
-                        MCP servers provide standardized access to external systems and data sources.
-                    </OptionDescription>
-                </OptionCard>
+                {!hideMcpServer && (
+                    <OptionCard onClick={handleUseMcpServer}>
+                        <OptionHeader>
+                            <OptionIcon>
+                                <Icon name="bi-mcp" />
+                            </OptionIcon>
+                            <OptionTitle>Use MCP Server</OptionTitle>
+                        </OptionHeader>
+                        <OptionDescription>
+                            Connect to a Model Context Protocol (MCP) server to access pre-built tools and resources.
+                            MCP servers provide standardized access to external systems and data sources.
+                        </OptionDescription>
+                    </OptionCard>
+                )}
 
                 <OptionCard onClick={handleCreateCustomTool}>
                     <OptionHeader>

@@ -55,7 +55,9 @@ import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.AddInitParameterRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ClassInitParameterModifierRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
@@ -919,6 +921,99 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 TextEdit fieldEdit = new TextEdit(Utils.toRange(lineRange),
                         ServiceClassUtil.buildObjectFiledString(request.field()));
                 edits.add(fieldEdit);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /**
+     * Add a constructor-injected input to a class: a field, an {@code init} parameter, and the wiring assignment.
+     *
+     * @param request Add init-parameter request
+     * @return {@link CommonSourceResponse} of the common source response
+     */
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> addClassInitParameter(AddInitParameterRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                ModulePartNode modulePartNode = syntaxTree.rootNode();
+                TextDocument textDocument = syntaxTree.textDocument();
+                LineRange lineRange = request.codedata().getLineRange();
+                int start = textDocument.textPositionFrom(lineRange.startLine());
+                int end = textDocument.textPositionFrom(lineRange.endLine());
+                NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, end - start), true);
+                if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildAddInitParameterEdits(classDefinitionNode,
+                        request.field(), textDocument, modulePartNode);
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /**
+     * Update a constructor-injected input in place (field declaration + {@code init} parameter + assignment).
+     *
+     * @param request Class init-parameter modifier request
+     * @return {@link CommonSourceResponse} of the common source response
+     */
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> updateClassInitParameter(ClassInitParameterModifierRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildUpdateInitParameterEdits(fieldNode, request.field());
+                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+            } catch (Throwable e) {
+                return new CommonSourceResponse(e);
+            }
+        });
+    }
+
+    /**
+     * Remove a constructor-injected input (field declaration + {@code init} parameter + assignment).
+     *
+     * @param request Class init-parameter modifier request
+     * @return {@link CommonSourceResponse} of the common source response
+     */
+    @JsonRequest
+    public CompletableFuture<CommonSourceResponse> removeClassInitParameter(ClassInitParameterModifierRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<Document> document = this.workspaceManager.document(filePath);
+                if (document.isEmpty()) {
+                    return new CommonSourceResponse();
+                }
+                SyntaxTree syntaxTree = document.get().syntaxTree();
+                TextDocument textDocument = syntaxTree.textDocument();
+                NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
+                    return new CommonSourceResponse();
+                }
+                List<TextEdit> edits = ServiceClassUtil.buildRemoveInitParameterEdits(fieldNode, textDocument);
                 return new CommonSourceResponse(Map.of(request.filePath(), edits));
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);

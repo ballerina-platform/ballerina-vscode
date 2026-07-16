@@ -31,9 +31,26 @@ public class FunctionReturnType extends Value {
     private Map<String, HttpResponse> schema;
     private boolean hasError;
     private boolean isGraphqlId;
+    private Value documentation;
 
     public FunctionReturnType(Value value) {
         super(value);
+    }
+
+    public Value getDocumentation() {
+        if (documentation == null) {
+            documentation = new Value.ValueBuilder()
+                    .types(List.of(PropertyType.types(Value.FieldType.TEXT)))
+                    .enabled(true)
+                    .optional(true)
+                    .editable(true)
+                    .build();
+        }
+        return documentation;
+    }
+
+    public void setDocumentation(Value documentation) {
+        this.documentation = documentation;
     }
 
     public List<HttpResponse> getResponses() {
