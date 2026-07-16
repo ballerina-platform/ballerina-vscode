@@ -62,6 +62,7 @@ export type AddAgentView = "gallery" | "configure" | "create" | "createDefinitio
 export interface AddAgentPopupContentProps {
     projectPath: string;
     onClose?: () => void;
+    onAgentDefinitionCreated?: () => void;
     view: AddAgentView;
     onViewChange: (view: AddAgentView) => void;
     pendingAgent?: AvailableNode;
@@ -84,6 +85,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const {
         projectPath,
         onClose,
+        onAgentDefinitionCreated,
         view,
         onViewChange,
         pendingAgent,
@@ -273,7 +275,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     if (view === "createDefinition") {
         return (
             <AgentDefinitionFormContainer>
-                <AgentDefinitionForm projectPath={projectPath} />
+                <AgentDefinitionForm projectPath={projectPath} onCreated={onAgentDefinitionCreated} />
             </AgentDefinitionFormContainer>
         );
     }

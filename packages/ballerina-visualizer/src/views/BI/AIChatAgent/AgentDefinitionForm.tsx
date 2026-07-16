@@ -342,7 +342,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
         setCreating(true);
         try {
             if (destination === "library") {
-                const response = await rpcClient.getAIAgentRpcClient().createLibraryAgentDefinition({
+                await rpcClient.getAIAgentRpcClient().createLibraryAgentDefinition({
                     sourceProjectPath: projectPath,
                     name: name.trim(),
                     description: description.trim(),
@@ -352,7 +352,6 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                     orgHandle: sanitizeOrgHandle(library.orgName),
                     version: library.version || undefined,
                 });
-                await openDefinition(response.artifacts, response.projectPath);
             } else {
                 const { filePath } = await rpcClient
                     .getVisualizerRpcClient()

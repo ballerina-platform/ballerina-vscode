@@ -147,6 +147,7 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                         <AddAgentPopupContent
                             projectPath={props.projectPath}
                             onClose={handleClosePopup}
+                            onAgentDefinitionCreated={isPopup ? onClose : undefined}
                             view={view}
                             onViewChange={changeView}
                             pendingAgent={pendingAgent}
