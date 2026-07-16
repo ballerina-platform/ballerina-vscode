@@ -1,0 +1,88 @@
+{
+  "source": "agent_custom_definition/agents.bal",
+  "description": "Generate and wire a custom tool inside an agent definition",
+  "diagram": {
+    "id": "custom-agent-definition-tool",
+    "metadata": {
+      "label": "Agent Tool",
+      "description": ""
+    },
+    "codedata": {
+      "node": "AGENT_TOOL",
+      "isNew": true,
+      "data": {
+        "toolKind": "CUSTOM",
+        "hostClassName": "CustomAgent"
+      }
+    },
+    "returning": false,
+    "properties": {
+      "functionName": {
+        "valueType": "IDENTIFIER",
+        "value": "lookup",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "functionNameDescription": {
+        "valueType": "DOC_TEXT",
+        "value": "Looks up a value.",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "type": {
+        "valueType": "TYPE",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "typeDescription": {
+        "valueType": "DOC_TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "parameters": {
+        "valueType": "REPEATABLE_PROPERTY",
+        "value": {},
+        "optional": false,
+        "editable": false,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_custom_definition/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 11,
+            "character": 5
+          },
+          "end": {
+            "line": 11,
+            "character": 5
+          }
+        },
+        "newText": "\n    # Looks up a value.\n    @ai:AgentTool\n    isolated function lookup() {\n    }"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 8,
+            "character": 21
+          },
+          "end": {
+            "line": 8,
+            "character": 21
+          }
+        },
+        "newText": "self.lookup"
+      }
+    ]
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "source": "agent_1/agents.bal",
+  "description": "Generate a custom agent tool through AgentToolBuilder",
+  "diagram": {
+    "id": "custom-agent-tool",
+    "metadata": {
+      "label": "Agent Tool",
+      "description": ""
+    },
+    "codedata": {
+      "node": "AGENT_TOOL",
+      "isNew": true,
+      "data": {
+        "toolKind": "CUSTOM",
+        "auth": "{\"baseAuthUrl\":\"\\\"https://auth.example.com\\\"\",\"isPkceEnabled\":\"true\",\"scopes\":\"[string `read`]\"}"
+      }
+    },
+    "returning": false,
+    "properties": {
+      "functionName": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name of the tool"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "lookup",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "functionNameDescription": {
+        "metadata": {
+          "label": "Description",
+          "description": "Description of the tool"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "Looks up a value.",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Return Type",
+          "description": "Type of the return value"
+        },
+        "valueType": "TYPE",
+        "value": "string",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "typeDescription": {
+        "metadata": {
+          "label": "Description",
+          "description": "Description of the return value"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "The matching value.",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "parameters": {
+        "metadata": {
+          "label": "Parameters",
+          "description": "Function parameters"
+        },
+        "valueType": "REPEATABLE_PROPERTY",
+        "value": {
+          "query": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "Function parameter"
+            },
+            "valueType": "FIXED_PROPERTY",
+            "value": {
+              "type": {
+                "valueType": "TYPE",
+                "value": "string",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "variable": {
+                "valueType": "IDENTIFIER",
+                "value": "query",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "parameterDescription": {
+                "valueType": "DOC_TEXT",
+                "value": "The lookup query.",
+                "optional": true,
+                "editable": true,
+                "advanced": false
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false
+          }
+        },
+        "optional": false,
+        "editable": false,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_1/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "# Looks up a value.\n# + query - The lookup query.\n# + return - The matching value.\n@ai:AgentTool {\n    auth: {\n        baseAuthUrl: \"https://auth.example.com\",\n        isPkceEnabled: true,\n        scopes: [string `read`]\n    }\n}\nisolated function lookup(string query) returns string {\n}"
+      }
+    ]
+  }
+}

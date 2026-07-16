@@ -25,6 +25,7 @@ import io.ballerina.flowmodelgenerator.core.AgentChatServiceGenerator;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.McpClient;
 import io.ballerina.flowmodelgenerator.extension.request.AddAgentChatServiceRequest;
+import io.ballerina.flowmodelgenerator.extension.request.GenAgentDefinitionRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAiModuleOrgRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAllAgentsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAllMemoryManagersRequest;
@@ -37,6 +38,7 @@ import io.ballerina.flowmodelgenerator.extension.request.GetToolsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.McpToolsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SecureSocketConfig;
 import io.ballerina.flowmodelgenerator.extension.response.AddAgentChatServiceResponse;
+import io.ballerina.flowmodelgenerator.extension.response.GenToolResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAgentsResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAiModuleOrgResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetConnectorActionsResponse;
@@ -287,6 +289,23 @@ public class AgentsManagerService implements ExtendedLanguageServerService {
                 response.setError(new RuntimeException("Failed to get MCP tools: " + errorMsg, e));
                 return response;
             }
+        });
+    }
+
+    @JsonRequest
+    public CompletableFuture<GenToolResponse> genAgentDefinition(GenAgentDefinitionRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            GenToolResponse response = new GenToolResponse();
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                AgentsGenerator agentsGenerator = new AgentsGenerator();
+                response.setTextEdits(agentsGenerator.genAgentDefinition(request.name(), request.description(),
+                        filePath, this.workspaceManager));
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+            return response;
         });
     }
 

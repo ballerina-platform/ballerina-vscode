@@ -36,8 +36,12 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
@@ -52,6 +56,7 @@ import io.ballerina.flowmodelgenerator.core.model.ExtendedDiagram;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
@@ -141,6 +146,12 @@ public class ModelGenerator {
         int end = textDocument.textPositionFrom(lineRange.endLine());
         NonTerminalNode canvasNode = modulePartNode.findNode(TextRange.from(start, end - start), true);
 
+        // A custom agent class definition has no flow of its own; narrow the canvas to its inner ai:Agent
+        // construction (`self.agent = check new (...)`) so the AGENT focus diagram renders that agent.
+        if (canvasNode instanceof ClassDefinitionNode classDefinitionNode) {
+            canvasNode = narrowToInnerAgent(classDefinitionNode, canvasNode);
+        }
+
         // Obtain the connections visible at the module-level
         List<FlowNode> moduleConnections =
                 semanticModel.visibleSymbols(document, canvasNode.lineRange().startLine()).stream()
@@ -188,6 +199,55 @@ public class ModelGenerator {
         // Generate the flow model
         Diagram diagram = new Diagram(filePath.toString(), codeAnalyzer.getFlowNodes(), moduleConnections);
         return gson.toJsonTree(diagram);
+    }
+
+    // Returns the `self.<agent-field> = check new (...)` assignment that constructs the inner ai:Agent of a custom
+    // agent class definition, or the fallback node when the class isn't a custom agent / has no such assignment.
+    private NonTerminalNode narrowToInnerAgent(ClassDefinitionNode classDefinitionNode, NonTerminalNode fallback) {
+        Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)
+                || !(isAiFixedReturnAgent(classSymbol) || isAiInferredReturnAgent(classSymbol))) {
+            return fallback;
+        }
+        for (Node member : classDefinitionNode.members()) {
+            if (!(member instanceof FunctionDefinitionNode function)
+                    || !function.functionName().text().equals("init")
+                    || !(function.functionBody() instanceof FunctionBodyBlockNode body)) {
+                continue;
+            }
+            for (StatementNode statement : body.statements()) {
+                if (statement instanceof AssignmentStatementNode assignment) {
+                    if (!isInnerAgentAssignment(assignment, classSymbol)) {
+                        continue;
+                    }
+                    ExpressionNode expr = assignment.expression();
+                    if (expr instanceof CheckExpressionNode check) {
+                        expr = check.expression();
+                    }
+                    if (expr instanceof ImplicitNewExpressionNode) {
+                        return assignment;
+                    }
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private boolean isInnerAgentAssignment(AssignmentStatementNode assignment, ClassSymbol classSymbol) {
+        String variableReference = assignment.varRef().toSourceCode().replaceAll("\\s", "");
+        if (!variableReference.startsWith("self.")) {
+            return false;
+        }
+        ClassFieldSymbol fieldSymbol = classSymbol.fieldDescriptors()
+                .get(variableReference.substring("self.".length()));
+        if (fieldSymbol == null) {
+            return false;
+        }
+        TypeSymbol fieldType = fieldSymbol.typeDescriptor();
+        if (fieldType instanceof TypeReferenceTypeSymbol typeReference) {
+            fieldType = typeReference.typeDescriptor();
+        }
+        return fieldType instanceof ClassSymbol resolvedClassSymbol && isAgentClass(resolvedClassSymbol);
     }
 
     public JsonElement getModuleNodes() {
@@ -249,6 +309,36 @@ public class ModelGenerator {
         variablesList.sort(FLOW_NODE_COMPARATOR);
 
         ExtendedDiagram diagram = new ExtendedDiagram(filePath.toString(), List.of(), connectionsList, variablesList);
+        return gson.toJsonTree(diagram);
+    }
+
+    public JsonElement getClassOwnedNodes(LineRange classLineRange) {
+        Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
+        SyntaxTree syntaxTree = document.syntaxTree();
+        ModuleInfo moduleInfo = ModuleInfo.from(document.module().descriptor());
+        ModulePartNode modulePartNode = syntaxTree.rootNode();
+        TextDocument textDocument = syntaxTree.textDocument();
+        int start = textDocument.textPositionFrom(classLineRange.startLine());
+        int end = textDocument.textPositionFrom(classLineRange.endLine());
+        NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, Math.max(0, end - start)), true);
+        if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
+            return gson.toJsonTree(new ExtendedDiagram(filePath.toString(), List.of(), List.of(), List.of()));
+        }
+
+        Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)) {
+            return gson.toJsonTree(new ExtendedDiagram(filePath.toString(), List.of(), List.of(), List.of()));
+        }
+
+        List<FlowNode> nodes = classSymbol.fieldDescriptors().entrySet().stream()
+                .flatMap(entry -> buildFlowNode(entry.getValue()).stream()
+                        .map(flowNode -> normalizeClassOwnedNode(flowNode, entry.getKey(), entry.getValue(),
+                                moduleInfo)))
+                .filter(flowNode -> flowNode.codedata().node() == NodeKind.MCP_TOOL_KIT
+                        || flowNode.codedata().node() == NodeKind.NEW_CONNECTION)
+                .sorted(FLOW_NODE_COMPARATOR)
+                .toList();
+        ExtendedDiagram diagram = new ExtendedDiagram(filePath.toString(), List.of(), List.of(), nodes);
         return gson.toJsonTree(diagram);
     }
 
@@ -314,6 +404,38 @@ public class ModelGenerator {
             return gson.toJsonTree(diagram);
         }
         return null;
+    }
+
+    private FlowNode normalizeClassOwnedNode(FlowNode flowNode, String fieldName, ClassFieldSymbol fieldSymbol,
+                                             ModuleInfo moduleInfo) {
+        Map<String, Property> properties = new HashMap<>(flowNode.properties());
+        Property variable = properties.get(Property.VARIABLE_KEY);
+        if (variable != null && variable.value() instanceof String value && value.startsWith("self.")) {
+            properties.put(Property.VARIABLE_KEY, Property.Builder.copyFrom(variable)
+                    .value(value.substring("self.".length()))
+                    .build());
+        } else if (variable == null) {
+            properties.put(Property.VARIABLE_KEY, new Property.Builder<>(null)
+                    .metadata().label(Property.VARIABLE_NAME).description(Property.VARIABLE_DOC).stepOut()
+                    .type(Property.ValueType.IDENTIFIER)
+                    .value(fieldName)
+                    .editable()
+                    .codedata().kind(Property.ValueType.IDENTIFIER.name()).stepOut()
+                    .build());
+        }
+        if (flowNode.codedata().node() == NodeKind.NEW_CONNECTION && properties.get(Property.TYPE_KEY) == null
+                && fieldSymbol != null) {
+            properties.put(Property.TYPE_KEY, new Property.Builder<>(null)
+                    .metadata().label(Property.TYPE_LABEL).description(Property.TYPE_LABEL).stepOut()
+                    .type(Property.ValueType.TYPE)
+                    .value(CommonUtils.getTypeSignature(fieldSymbol.typeDescriptor(), moduleInfo))
+                    .editable()
+                    .hidden()
+                    .codedata().kind(Property.ValueType.TYPE.name()).stepOut()
+                    .build());
+        }
+        return new FlowNode(flowNode.id(), flowNode.metadata(), flowNode.codedata(), flowNode.returning(),
+                flowNode.branches(), properties, flowNode.diagnostics(), flowNode.flags());
     }
 
     /**

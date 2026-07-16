@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2025, WSO2 LLC. (http://www.wso2.com)
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
  *
  *  WSO2 LLC. licenses this file to you under the Apache License,
  *  Version 2.0 (the "License"); you may not use this file except
@@ -16,18 +16,19 @@
  *  under the License.
  */
 
-package io.ballerina.flowmodelgenerator.extension.agentsmanager;
+package io.ballerina.servicemodelgenerator.extension;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.flowmodelgenerator.extension.request.FlowModelSourceGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
+import io.ballerina.servicemodelgenerator.extension.model.Field;
+import io.ballerina.servicemodelgenerator.extension.model.request.AddInitParameterRequest;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
@@ -38,47 +39,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests for the source generator of agent.
+ * Tests for the constructor-injected input source generator (addClassInitParameter), covering the field type's
+ * import handling: insertion, reuse of an existing import, and a collision-free alias.
  *
  * @since 1.0.0
  */
-public class SourceGeneratorTest extends AbstractLSTest {
+public class AddInitParameterTest extends AbstractLSTest {
 
-    private static final Type textEditListType = new TypeToken<Map<String, List<TextEdit>>>() {
+    private static final Type TEXT_EDIT_LIST_TYPE = new TypeToken<Map<String, List<TextEdit>>>() {
     }.getType();
-
-    @DataProvider(name = "data-provider")
-    @Override
-    protected Object[] getConfigsList() {
-        return new Object[][]{
-                {Path.of("agent_source.json")},
-                {Path.of("agent_source_ballerina.json")},
-                {Path.of("agent_source_hide_td.json")},
-                {Path.of("agent_source_with_backticks.json")},
-                {Path.of("agent_source_with_variables.json")},
-                {Path.of("agent_call_source_ballerina.json")},
-                {Path.of("agent_model_source_ballerina.json")},
-                {Path.of("agent_model_source_default.json")},
-                {Path.of("memory_manager_source.json")},
-                {Path.of("custom_agent_tool_source.json")},
-                {Path.of("custom_agent_definition_tool_source.json")},
-                {Path.of("agent_definition_builtin_agent_tool_source.json")},
-                {Path.of("agent_definition_custom_agent_tool_source.json")}
-        };
-    }
 
     @Override
     @Test(dataProvider = "data-provider")
     public void test(Path config) throws IOException {
         Path configJsonPath = configDir.resolve(config);
-        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        BufferedReader bufferedReader = Files.newBufferedReader(configJsonPath);
+        TestConfig testConfig = gson.fromJson(bufferedReader, TestConfig.class);
+        bufferedReader.close();
 
-        FlowModelSourceGeneratorRequest request =
-                new FlowModelSourceGeneratorRequest(sourceDir.resolve(testConfig.source()).toAbsolutePath().toString(),
-                        testConfig.diagram());
-        JsonObject jsonMap = getResponseAndCloseFile(request, testConfig.source()).getAsJsonObject("textEdits");
+        AddInitParameterRequest request = new AddInitParameterRequest(
+                sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(),
+                testConfig.field(), testConfig.codedata());
+        JsonObject jsonMap = getResponse(request).getAsJsonObject("textEdits");
 
-        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, textEditListType);
+        Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
 
         boolean assertFailure = false;
 
@@ -105,7 +89,8 @@ public class SourceGeneratorTest extends AbstractLSTest {
 
         if (assertFailure) {
             TestConfig updatedConfig =
-                    new TestConfig(testConfig.source(), testConfig.description(), testConfig.diagram(), newMap);
+                    new TestConfig(testConfig.filePath(), testConfig.description(), testConfig.codedata(),
+                            testConfig.field(), newMap);
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -113,30 +98,35 @@ public class SourceGeneratorTest extends AbstractLSTest {
 
     @Override
     protected String getResourceDir() {
-        return "agents_manager";
+        return "add_init_parameter";
     }
 
     @Override
     protected Class<? extends AbstractLSTest> clazz() {
-        return SourceGeneratorTest.class;
+        return AddInitParameterTest.class;
+    }
+
+    @Override
+    protected String getServiceName() {
+        return "serviceDesign";
     }
 
     @Override
     protected String getApiName() {
-        return "getSourceCode";
+        return "addClassInitParameter";
     }
 
     /**
      * Represents the test configuration for the source generator test.
      *
-     * @param source      The source file name
-     * @param description The description of the test
-     * @param diagram     The diagram to generate the source code
-     * @param output      The expected output source code
+     * @param filePath    The path to the source file.
+     * @param description The description of the test.
+     * @param codedata    The codedata locating the target class.
+     * @param field       The input to be added.
+     * @param output      The expected output.
      */
-    private record TestConfig(String source, String description, JsonElement diagram,
+    private record TestConfig(String filePath, String description, Codedata codedata, Field field,
                               Map<String, List<TextEdit>> output) {
-
         public String description() {
             return description == null ? "" : description;
         }

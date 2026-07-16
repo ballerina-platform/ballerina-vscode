@@ -256,14 +256,32 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
     public Optional<Artifact> transform(ClassDefinitionNode classDefinitionNode) {
         Artifact.Builder typeBuilder = new Artifact.Builder(classDefinitionNode)
                 .name(classDefinitionNode.className().text())
-                .type(Artifact.Type.TYPE)
                 .visibility(determineVisibility(classDefinitionNode));
+
+        Optional<ClassSymbol> agentDefinition = getAgentDefinition(classDefinitionNode);
+        if (agentDefinition.isPresent()) {
+            typeBuilder.type(Artifact.Type.AGENT_DEFINITION).icon(agentDefinition.get());
+        } else {
+            typeBuilder.type(Artifact.Type.TYPE);
+        }
 
         classDefinitionNode.members().forEach(member -> {
             member.apply(this).ifPresent(typeBuilder::child);
         });
 
         return Optional.of(typeBuilder.build());
+    }
+
+    private Optional<ClassSymbol> getAgentDefinition(ClassDefinitionNode classDefinitionNode) {
+        try {
+            ClassSymbol classSymbol = (ClassSymbol) semanticModel.symbol(classDefinitionNode).orElseThrow();
+            if (isAiFixedReturnAgent(classSymbol) || isAiInferredReturnAgent(classSymbol)) {
+                return Optional.of(classSymbol);
+            }
+        } catch (Throwable e) {
+            // Ignore — not an agent definition.
+        }
+        return Optional.empty();
     }
 
     @Override

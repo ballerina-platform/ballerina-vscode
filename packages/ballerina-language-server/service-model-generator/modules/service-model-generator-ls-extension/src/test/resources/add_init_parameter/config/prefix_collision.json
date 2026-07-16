@@ -1,0 +1,106 @@
+{
+  "filePath": "prefix_collision.bal",
+  "description": "Alias the connector import when the default prefix collides with another module",
+  "codedata": {
+    "lineRange": {
+      "fileName": "prefix_collision.bal",
+      "startLine": {
+        "line": 2,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 4,
+        "offset": 1
+      }
+    }
+  },
+  "field": {
+    "isPrivate": true,
+    "isFinal": true,
+    "codedata": {
+      "lineRange": {
+        "fileName": "prefix_collision.bal",
+        "startLine": {
+          "line": 0,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 0,
+          "offset": 0
+        }
+      }
+    },
+    "type": {
+      "imports": {
+        "calendar": "ballerinax/googleapis.calendar"
+      },
+      "metadata": {
+        "label": "Client Type",
+        "description": "The client type"
+      },
+      "value": "calendar:Client",
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    },
+    "name": {
+      "metadata": {
+        "label": "Input Name",
+        "description": "The input name"
+      },
+      "value": "calendarClient",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "defaultValue": {
+      "metadata": {
+        "label": "Default Value",
+        "description": "The default value"
+      },
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enabled": true,
+    "editable": false,
+    "optional": false,
+    "advanced": false,
+    "hidden": false,
+    "isGraphqlId": false
+  },
+  "output": {
+    "prefix_collision.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 30
+          },
+          "end": {
+            "line": 0,
+            "character": 30
+          }
+        },
+        "newText": "\nimport ballerinax/googleapis.calendar as calendar2;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 37
+          },
+          "end": {
+            "line": 2,
+            "character": 37
+          }
+        },
+        "newText": "\n    private final calendar2:Client calendarClient;\n\n    public function init(calendar2:Client calendarClient) returns error? {\n        self.calendarClient = calendarClient;\n    }"
+      }
+    ]
+  }
+}
