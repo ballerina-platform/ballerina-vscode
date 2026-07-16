@@ -1,0 +1,93 @@
+{
+  "filePath": "reuse_existing_import.bal",
+  "description": "Reuse an existing connector import (no duplicate) when adding a client input",
+  "codedata": {
+    "lineRange": {
+      "fileName": "reuse_existing_import.bal",
+      "startLine": {
+        "line": 2,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 4,
+        "offset": 1
+      }
+    }
+  },
+  "field": {
+    "isPrivate": true,
+    "isFinal": true,
+    "codedata": {
+      "lineRange": {
+        "fileName": "reuse_existing_import.bal",
+        "startLine": {
+          "line": 0,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 0,
+          "offset": 0
+        }
+      }
+    },
+    "type": {
+      "imports": {
+        "calendar": "ballerinax/googleapis.calendar"
+      },
+      "metadata": {
+        "label": "Client Type",
+        "description": "The client type"
+      },
+      "value": "calendar:Client",
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    },
+    "name": {
+      "metadata": {
+        "label": "Input Name",
+        "description": "The input name"
+      },
+      "value": "calendarClient",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "defaultValue": {
+      "metadata": {
+        "label": "Default Value",
+        "description": "The default value"
+      },
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enabled": true,
+    "editable": false,
+    "optional": false,
+    "advanced": false,
+    "hidden": false,
+    "isGraphqlId": false
+  },
+  "output": {
+    "reuse_existing_import.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 37
+          },
+          "end": {
+            "line": 2,
+            "character": 37
+          }
+        },
+        "newText": "\n    private final calendar:Client calendarClient;\n\n    public function init(calendar:Client calendarClient) returns error? {\n        self.calendarClient = calendarClient;\n    }"
+      }
+    ]
+  }
+}

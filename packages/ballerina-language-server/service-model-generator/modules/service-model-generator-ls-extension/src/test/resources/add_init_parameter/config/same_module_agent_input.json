@@ -1,0 +1,116 @@
+{
+  "filePath": "same_module_agent_input.bal",
+  "description": "Add a same-module concrete agent input without an import",
+  "codedata": {
+    "lineRange": {
+      "fileName": "same_module_agent_input.bal",
+      "startLine": {
+        "line": 10,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 18,
+        "offset": 1
+      }
+    }
+  },
+  "field": {
+    "isPrivate": true,
+    "isFinal": true,
+    "codedata": {
+      "lineRange": {
+        "fileName": "same_module_agent_input.bal",
+        "startLine": {
+          "line": 0,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 0,
+          "offset": 0
+        }
+      }
+    },
+    "type": {
+      "metadata": {
+        "label": "Agent Type",
+        "description": "The injected agent dependency type"
+      },
+      "value": "CalendarAssistantAgent",
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    },
+    "name": {
+      "metadata": {
+        "label": "Input Name",
+        "description": "The input name"
+      },
+      "value": "calendarAssistantAgent",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "defaultValue": {
+      "metadata": {
+        "label": "Default Value",
+        "description": "The default value"
+      },
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enabled": true,
+    "editable": false,
+    "optional": false,
+    "advanced": false,
+    "hidden": false,
+    "isGraphqlId": false
+  },
+  "output": {
+    "same_module_agent_input.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 10,
+            "character": 33
+          },
+          "end": {
+            "line": 10,
+            "character": 33
+          }
+        },
+        "newText": "\n    private final CalendarAssistantAgent calendarAssistantAgent;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 15,
+            "character": 47
+          },
+          "end": {
+            "line": 15,
+            "character": 47
+          }
+        },
+        "newText": ", CalendarAssistantAgent calendarAssistantAgent"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 15,
+            "character": 65
+          },
+          "end": {
+            "line": 15,
+            "character": 65
+          }
+        },
+        "newText": "\n        self.calendarAssistantAgent = calendarAssistantAgent;"
+      }
+    ]
+  }
+}

@@ -696,6 +696,41 @@ public final class Utils {
         });
     }
 
+    public static void updateFunctionAndReturnDocs(FunctionDefinitionNode functionDef, Function function) {
+        Optional<MetadataNode> metadata = functionDef.metadata();
+        if (metadata.isEmpty()) {
+            return;
+        }
+        Optional<Node> docString = metadata.get().documentationString();
+        if (docString.isEmpty() || docString.get().kind() != SyntaxKind.MARKDOWN_DOCUMENTATION) {
+            return;
+        }
+        function.getDocumentation().setValue(getFunctionDesc(functionDef));
+        function.getParameters().forEach(parameter -> {
+            if (!parameter.getName().getValue().equals(GRAPHQL_CONTEXT)
+                    && !parameter.getName().getValue().equals(GRAPHQL_FIELD)) {
+                parameter.getDocumentation().setValue(getParamDesc(functionDef, parameter.getName().getValue()));
+            }
+        });
+        if (Objects.nonNull(function.getReturnType())) {
+            function.getReturnType().getDocumentation().setValue(getReturnDesc(functionDef));
+        }
+    }
+
+    private static String getReturnDesc(FunctionDefinitionNode funcDefNode) {
+        Optional<MetadataNode> metadata = funcDefNode.metadata();
+        Optional<Node> docString = metadata.get().documentationString();
+        MarkdownDocumentationNode docNode = (MarkdownDocumentationNode) docString.get();
+        StringBuilder returnDoc = new StringBuilder();
+        for (Node documentationLine : docNode.documentationLines()) {
+            if (documentationLine.kind() == SyntaxKind.MARKDOWN_RETURN_PARAMETER_DOCUMENTATION_LINE) {
+                NodeList<Node> nodes = ((MarkdownParameterDocumentationLineNode) documentationLine).documentElements();
+                nodes.stream().forEach(node -> returnDoc.append(node.toSourceCode()));
+            }
+        }
+        return returnDoc.toString().stripTrailing();
+    }
+
     private static String getFunctionDesc(FunctionDefinitionNode funcDefNode) {
         Optional<MetadataNode> metadata = funcDefNode.metadata();
         Optional<Node> docString = metadata.get().documentationString();
@@ -851,7 +886,21 @@ public final class Utils {
                 docEdits = formatted.isEmpty() ? docEdits : docEdits + NEW_LINE + formatted;
             }
         }
+        FunctionReturnType returnType = function.getReturnType();
+        if (Objects.nonNull(returnType) && Objects.nonNull(returnType.getDocumentation())
+                && returnType.getDocumentation().getValue() != null) {
+            String formatted = getFormattedReturnDesc(returnType.getDocumentation().getValue());
+            docEdits = formatted.isEmpty() ? docEdits : docEdits + NEW_LINE + formatted;
+        }
         return docEdits;
+    }
+
+    public static String getFormattedReturnDesc(String desc) {
+        if (desc.isBlank()) {
+            return "";
+        }
+        String[] docs = desc.trim().split(NEW_LINE);
+        return "# + return - " + String.join(" ", docs);
     }
 
     public static String getFormattedDesc(String desc) {

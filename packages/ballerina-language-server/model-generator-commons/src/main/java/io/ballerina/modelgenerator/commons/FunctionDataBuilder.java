@@ -617,8 +617,10 @@ public class FunctionDataBuilder {
                     }
                     if (functionKind == FunctionData.Kind.CLASS_INIT || isConnector(functionKind)
                             || isAiClassKind(functionKind)) {
-                        return CommonUtils.getClassType(moduleInfo.moduleName(),
-                                parentSymbol.getName().orElse("Client"));
+                        String className = parentSymbol.getName().orElse("Client");
+                        // Same module as the file: emit unqualified, matching the suppressed self-import.
+                        return isSameAsUserModule() ? className
+                                : CommonUtils.getClassType(moduleInfo.moduleName(), className);
                     }
                     return getTypeSignature(typeSymbol, true);
                 }).orElse("");
@@ -1174,10 +1176,15 @@ public class FunctionDataBuilder {
     }
 
     private String getImportStatement(ModuleInfo moduleInfo) {
-        if (isCurrentModule && moduleInfo.equals(userModuleInfo)) {
+        if (isSameAsUserModule()) {
             return null;
         }
         return CommonUtils.getImportStatement(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName());
+    }
+
+    // Same module as the file being edited — suppress both the import and the module-qualified prefix.
+    private boolean isSameAsUserModule() {
+        return isCurrentModule && moduleInfo.equals(userModuleInfo);
     }
 
     private String getImportStatements(TypeSymbol typeSymbol) {

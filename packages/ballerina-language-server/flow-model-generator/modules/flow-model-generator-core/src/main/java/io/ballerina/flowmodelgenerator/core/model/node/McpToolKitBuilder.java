@@ -94,6 +94,7 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String MINIMUM_COMPATIBLE_AI_VERSION = "1.6.0";
     private static final String CONNECTIONS_BAL = "connections.bal";
     public static final String MCP_CLASS_DEFINITION = "mcpClassDefinition";
+    public static final String AGENT_DEFINITION_MCP_TOOL_KIT = "agentDefinitionMcpToolKit";
     private static final Gson gson = new Gson();
     private static final String NEW_LINE = System.lineSeparator();
 
@@ -251,11 +252,15 @@ public class McpToolKitBuilder extends NodeBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
 
-        Path connectionsFilePath =
-                sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath).resolve(CONNECTIONS_BAL);
+        Map<String, Object> data = sourceBuilder.flowNode.codedata().data();
+        boolean agentDefinitionMcpToolKit = data != null && data.containsKey(AGENT_DEFINITION_MCP_TOOL_KIT);
+        Path connectionsFilePath = agentDefinitionMcpToolKit
+                ? sourceBuilder.filePath
+                : sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath).resolve(CONNECTIONS_BAL);
         Range defaultRange = getDefaultLineRange(sourceBuilder, connectionsFilePath);
 
-        if ((sourceBuilder.flowNode.codedata().isNew() == null || !sourceBuilder.flowNode.codedata().isNew())) {
+        if (!agentDefinitionMcpToolKit
+                && (sourceBuilder.flowNode.codedata().isNew() == null || !sourceBuilder.flowNode.codedata().isNew())) {
             connectionsFilePath = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath)
                     .resolve(sourceBuilder.flowNode.codedata().lineRange().fileName());
             LineRange lineRange = sourceBuilder.flowNode.codedata().lineRange();
@@ -286,7 +291,6 @@ public class McpToolKitBuilder extends NodeBuilder {
             String sourceCode = generateMcpToolKitClassSource(toolKitName, permittedTools, toolScopesMap);
 
             // Check if class definition data exists in codedata
-            Map<String, Object> data = sourceBuilder.flowNode.codedata().data();
             Map<Path, List<TextEdit>> classTextEdits = null;
             if (data != null && data.containsKey(MCP_CLASS_DEFINITION)) {
                 Object classDefinitionCodedata = data.get(MCP_CLASS_DEFINITION);
