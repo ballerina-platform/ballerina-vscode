@@ -32,6 +32,7 @@ import type {
     Imports,
     DropdownType,
     InputType,
+    CodeData,
 } from "@wso2/ballerina-core";
 import { getPrimaryInputType, isTemplateType, isDropDownType } from "@wso2/ballerina-core";
 
@@ -131,6 +132,7 @@ export function convertNodePropertyToFormField(
     enrichModelProviderField(formField, property);
     enrichClientConnectionField(formField, property);
     enrichMemoryField(formField, property);
+    enrichAgentField(formField, property);
     return formField;
 }
 
@@ -221,6 +223,25 @@ function enrichMemoryField(formField: FormField, property: Property): void {
         return;
     }
     applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND);
+}
+
+const AGENT_PARAM_DATA_KEY = "agent";
+
+// Render an agent-typed init param (marked by the LS) as a type-filtered agent select.
+function enrichAgentField(formField: FormField, property: Property): void {
+    const agent = property.codedata?.data?.[AGENT_PARAM_DATA_KEY] as CodeData | undefined;
+    if (!agent || !formField.editable || !agent.node) {
+        return;
+    }
+    const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
+    applyExpressionToggle(formField, ballerinaType, agent.node, {
+        typeMatch: "subtype",
+        ...(agent.org && { typeOrg: agent.org }),
+        ...(agent.packageName && { typePackage: agent.packageName }),
+        ...(agent.module && { typeModule: agent.module }),
+        ...(agent.object && { typeName: agent.object }),
+        ...(agent.version && { typeVersion: agent.version }),
+    });
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {

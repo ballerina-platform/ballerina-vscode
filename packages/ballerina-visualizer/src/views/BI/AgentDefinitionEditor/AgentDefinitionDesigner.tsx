@@ -532,7 +532,7 @@ interface AgentDefinitionAgentToolFormProps {
     projectPath: string;
     classLineRange: LineRange;
     hostClass: AgentToolHostClass;
-    onSave: () => void;
+    onSave: (tool: ToolData) => void;
     onCancel: () => void;
 }
 
@@ -613,7 +613,7 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
                     `self.${inputName}`),
                 artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION },
             });
-            onSave();
+            onSave({ name: toolName, type: "Agent" });
         } catch (error) {
             console.error(">>> agent definition: error creating agent tool", error);
         } finally {
@@ -714,6 +714,12 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const refreshVersionRef = useRef(0);
     const refreshRef = useRef<(posOverride?: NodePosition) => Promise<void>>();
     const requestRefreshRef = useRef<(() => void)>();
+    // State updates are asynchronous, but post-save readiness checks must inspect the latest nested-agent
+    // model synchronously. Keep the rendered tool list mirrored here for that purpose.
+    const agentToolsRef = useRef<ToolData[]>([]);
+    // A source write is authoritative, while the nested AGENT model can lag behind it. Keep newly written tools
+    // visible until that model confirms them, so its stale first response cannot erase the new card.
+    const pendingToolsRef = useRef<Map<string, ToolData>>(new Map());
     // Suppresses content-update refreshes during a multi-edit op (e.g. tool delete), so the UI never
     // renders the transient invalid source between the edits. Preserve, rather than drop, the update signal so a
     // refresh still runs once the operation completes.
@@ -764,6 +770,39 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         await loadConnections(model, refreshVersion);
     };
     refreshRef.current = refresh;
+
+    const updateAgentTools = (tools: ToolData[]) => {
+        agentToolsRef.current = tools;
+        setAgentTools(tools);
+    };
+
+    const markToolPending = (tool?: string | ToolData) => {
+        const pendingTool = typeof tool === "string" ? { name: tool } : tool;
+        if (!pendingTool?.name) return;
+        pendingToolsRef.current.set(pendingTool.name, pendingTool);
+        const existingTool = agentToolsRef.current.find((item) => item.name === pendingTool.name);
+        if (existingTool) {
+            updateAgentTools(agentToolsRef.current.map((item) => item.name === pendingTool.name
+                ? { ...item, ...pendingTool }
+                : item));
+        } else {
+            updateAgentTools([...agentToolsRef.current, pendingTool]);
+        }
+    };
+
+    // Class updates become visible before getFlowModel has necessarily rebuilt the nested AGENT node. In
+    // particular, the first tool changes `tools = []` to `tools = [self.tool]`; retry that independent model
+    // until it reports the tool rather than leaving the Tools section stale until a manual page refresh.
+    const refreshAfterToolWrite = async (toolName?: string) => {
+        const attempts = toolName ? 8 : 1;
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            await refreshRef.current?.();
+            if (!toolName || !pendingToolsRef.current.has(toolName)) {
+                return;
+            }
+            await new Promise<void>((resolve) => window.setTimeout(resolve, 200));
+        }
+    };
 
     const resolveClassPosition = async (): Promise<NodePosition | undefined> => {
         const className = classNameRef.current;
@@ -846,7 +885,22 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             }
             if (refreshVersion === undefined || refreshVersion === refreshVersionRef.current) {
                 setAgentNode(agentDecl);
-                setAgentTools(extractTools(agentDecl));
+                const fetchedTools = extractTools(agentDecl);
+                for (const fetchedTool of fetchedTools) {
+                    const pendingTool = pendingToolsRef.current.get(fetchedTool.name);
+                    // An agent-as-tool is not fully resolved until the analyzer reports its Agent type. Without
+                    // this check, the first partially rebuilt model replaces the optimistic agent icon with the
+                    // generic function icon.
+                    if (!pendingTool?.type || pendingTool.type === fetchedTool.type) {
+                        pendingToolsRef.current.delete(fetchedTool.name);
+                    }
+                }
+                const pendingTools = Array.from(pendingToolsRef.current.values());
+                const pendingByName = new Map(pendingTools.map((tool) => [tool.name, tool]));
+                const resolvedTools = fetchedTools.map((tool) => ({ ...tool, ...pendingByName.get(tool.name) }));
+                const missingPendingTools = pendingTools.filter((tool) =>
+                    !fetchedTools.some((fetchedTool) => fetchedTool.name === tool.name));
+                updateAgentTools([...resolvedTools, ...missingPendingTools]);
             }
         } catch (error) {
             console.error(">>> agent definition: error loading agent node", error);
@@ -1099,18 +1153,25 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setEditingMcpNode(undefined);
     };
 
-    const handleToolSaved = () => {
+    const handleToolSaved = (toolName?: string) => {
         handleCloseToolPanel();
         setAgentToolPopupOpen(false);
-        requestRefreshRef.current?.();
+        markToolPending(toolName);
+        void refreshAfterToolWrite(toolName);
     };
 
-    const finishMultiEditRefresh = () => {
+    const handleAgentToolSaved = (tool: ToolData) => {
+        handleCloseToolPanel();
+        setAgentToolPopupOpen(false);
+        markToolPending(tool);
+        void refreshAfterToolWrite(tool.name);
+    };
+
+    const finishMultiEditRefresh = (toolName?: string) => {
         suppressRefreshRef.current = false;
-        if (refreshPendingRef.current) {
-            refreshPendingRef.current = false;
-            requestRefreshRef.current?.();
-        }
+        refreshPendingRef.current = false;
+        markToolPending(toolName);
+        void refreshAfterToolWrite(toolName);
     };
 
     const openAgentToolPopup = () => {
@@ -1142,6 +1203,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         // Two edits (tool method + fixMissingImports) leave the source briefly inconsistent; suppress
         // refreshes until both land, then refresh once so the new tool renders without a manual reload.
         suppressRefreshRef.current = true;
+        let toolCreated = false;
         try {
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
@@ -1167,20 +1229,22 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION }
             });
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            toolCreated = true;
         } catch (error) {
             console.error(">>> agent definition: error creating tool", error);
         } finally {
             setIsSaving(false);
             handleCloseToolPanel();
-            finishMultiEditRefresh();
+            finishMultiEditRefresh(toolCreated ? data.toolName : undefined);
         }
     };
 
     // Removes the @ai:AgentTool class method, then unwires self.<tool> from the inner tools=[...].
     // The method (below init) is deleted first so the agent's line range stays valid for the re-emit.
     const handleDeleteTool = async (tool: ToolData) => {
-        const previousTools = agentTools;
-        setAgentTools((tools) => tools.filter((t) => t.name !== tool.name));
+        const previousTools = agentToolsRef.current;
+        pendingToolsRef.current.delete(tool.name);
+        updateAgentTools(previousTools.filter((existingTool) => existingTool.name !== tool.name));
         setIsSaving(true);
         // Delete is two edits (remove method, then unwire self.<tool>); the source is briefly invalid
         // between them. Suppress refreshes until both land so role/instructions don't flicker.
@@ -1218,7 +1282,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             }
         } catch (error) {
             console.error(">>> agent definition: error deleting tool", error);
-            setAgentTools(previousTools);
+            updateAgentTools(previousTools);
         } finally {
             setIsSaving(false);
             finishMultiEditRefresh();
@@ -1790,7 +1854,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         projectPath={projectPath}
                         classLineRange={agentClassModel.codedata.lineRange}
                         hostClass={{ className: agentClassModel.name, filePath: classFilePath }}
-                        onSave={handleToolSaved}
+                        onSave={handleAgentToolSaved}
                         onCancel={() => setAgentToolPopupOpen(false)}
                     />
                 )}

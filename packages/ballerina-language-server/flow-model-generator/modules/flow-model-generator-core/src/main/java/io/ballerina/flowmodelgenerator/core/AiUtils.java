@@ -1245,6 +1245,8 @@ public class AiUtils {
     public record AgentToolData(String name, String path, String description, String type) {
     }
     private static final String CONNECTION_DATA_KEY = "connection";
+    // Frontend reads the agent codedata at `property.codedata.data.agent` (an agent-typed init param select).
+    private static final String AGENT_PARAM_DATA_KEY = "agent";
     private static final String AGENT_DESCRIPTION_KEY = "description";
     static final String AGENT_SYSTEM_PROMPT_KEY = "systemPrompt";
     static final String AGENT_TOOLS_KEY = "tools";
@@ -1283,6 +1285,9 @@ public class AiUtils {
                                               Function<ExpressionNode, Object> modelIconResolver,
                                               Function<ExpressionNode, Object> memoryDataResolver) {
         markClientConnectionParams(nodeBuilder, classSymbol);
+
+        // Render init params typed as an agent (ai:Agent / a custom agent class) as an agent select.
+        markAgentParams(nodeBuilder, classSymbol);
 
         AgentInfo info = resolveAgentInfo(classSymbol, project);
         Map<String, Object> agentInfo = new HashMap<>();
@@ -1789,6 +1794,87 @@ public class AiUtils {
         );
     }
 
+    // Stamp agent-typed init params (built-in ai:Agent or a custom *ai:FixedReturnAgentType /
+    // *ai:InferredReturnAgentType class) with the agent's codedata so the frontend renders an agent select filtered
+    // to that type. Template path — resolves the class from the node codedata.
+    public static void markAgentParams(NodeBuilder nodeBuilder, Codedata codedata, Project project) {
+        if (codedata == null || codedata.object() == null) {
+            return;
+        }
+        resolveClass(codedata, project).ifPresent(classSymbol -> markAgentParams(nodeBuilder, classSymbol));
+    }
+
+    // Analysis path — the class symbol is already resolved.
+    private static void markAgentParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol) {
+        Optional<MethodSymbol> initMethodOpt = classSymbol.initMethod();
+        if (initMethodOpt.isEmpty()) {
+            return;
+        }
+        List<ParameterSymbol> params = initMethodOpt.get().typeDescriptor().params().orElse(List.of());
+        Map<String, Property> builtProps = nodeBuilder.properties().build();
+        for (ParameterSymbol param : params) {
+            if (param.getName().isEmpty()) {
+                continue;
+            }
+            Optional<ClassSymbol> agentClass = getAgentClass(param.typeDescriptor());
+            if (agentClass.isEmpty()) {
+                continue;
+            }
+            String key = ParamUtils.removeLeadingSingleQuote(param.getName().get());
+            Property property = builtProps.get(key);
+            if (property == null) {
+                continue;
+            }
+            PropertyCodedata agentCodedata = buildAgentParamCodedata(agentClass.get(), property.codedata());
+            if (agentCodedata == null) {
+                continue;
+            }
+            builtProps.put(key, copyPropertyWithCodedata(property, agentCodedata));
+        }
+    }
+
+    // The agent ClassSymbol for a type: built-in ai:Agent, or a class including a fixed/inferred return agent arm.
+    private static Optional<ClassSymbol> getAgentClass(TypeSymbol typeSymbol) {
+        TypeSymbol raw = typeSymbol instanceof TypeReferenceTypeSymbol typeRef ? typeRef.typeDescriptor() : typeSymbol;
+        if (raw instanceof ClassSymbol classSymbol
+                && (CommonUtils.isAgentClass(classSymbol)
+                || CommonUtils.isAiFixedReturnAgent(classSymbol)
+                || CommonUtils.isAiInferredReturnAgent(classSymbol))) {
+            return Optional.of(classSymbol);
+        }
+        return Optional.empty();
+    }
+
+    // The agent's Codedata stashed under the param codedata's `data.agent`. node = AGENT for the built-in ai:Agent,
+    // AGENT_TYPE for a custom agent class — the frontend uses it as the searchNodes kind and the create-new template.
+    private static PropertyCodedata buildAgentParamCodedata(ClassSymbol agentClass, PropertyCodedata existing) {
+        Optional<ModuleSymbol> module = agentClass.getModule();
+        Optional<String> className = agentClass.getName();
+        if (module.isEmpty() || className.isEmpty()) {
+            return null;
+        }
+        ModuleInfo moduleInfo = ModuleInfo.from(module.get().id());
+        NodeKind nodeKind = CommonUtils.isAgentClass(agentClass) ? NodeKind.AGENT : NodeKind.AGENT_TYPE;
+        Codedata agent = new Codedata.Builder<>(null)
+                .node(nodeKind)
+                .org(moduleInfo.org())
+                .module(moduleInfo.moduleName())
+                .packageName(moduleInfo.packageName())
+                .object(className.get())
+                .symbol(INIT_METHOD_NAME)
+                .version(moduleInfo.version())
+                .build();
+        PropertyCodedata.Builder<Object> builder = new PropertyCodedata.Builder<>(null);
+        if (existing != null) {
+            builder.kind(existing.kind())
+                    .originalName(existing.originalName())
+                    .dependentProperty(existing.dependentProperty())
+                    .lineRange(existing.lineRange());
+        }
+        return builder.addData(AGENT_PARAM_DATA_KEY, agent).build();
+    }
+
+    // Finds the class named codedata.object in the project (or a workspace sibling matching codedata's org/package).
     private static Optional<ClassSymbol> resolveClass(Codedata codedata, Project project) {
         String className = codedata.object();
         for (Project candidate : getProjectsForModule(codedata.org(), codedata.packageName(), project)) {

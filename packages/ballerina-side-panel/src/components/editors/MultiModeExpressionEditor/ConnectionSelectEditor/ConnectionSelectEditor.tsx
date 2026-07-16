@@ -176,8 +176,12 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     }, [value]);
 
     const showCreateNew = !!onCreateConnection && !!searchNodesKind && field.editable && !field.actionCallback;
-    const connectorCodeData = field.codedata?.data?.connection as CodeData | undefined;
-    const createNewLabel = connectorCodeData?.module && connectorCodeData?.object
+    // The backing codedata for the create-new flow: an agent type or a connector.
+    const agentCodeData = field.codedata?.data?.agent as CodeData | undefined;
+    const connectorCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
+    const createNewLabel = agentCodeData?.object
+        ? agentCodeData.object // e.g. "CalendarAssistantAgent" -> "Create New CalendarAssistantAgent"
+        : connectorCodeData?.module && connectorCodeData?.object
         ? `${humanizeKind(connectorCodeData.module.split(".").pop() ?? "")} ${connectorCodeData.object}`
         : humanizeKind(searchNodesKind);
 

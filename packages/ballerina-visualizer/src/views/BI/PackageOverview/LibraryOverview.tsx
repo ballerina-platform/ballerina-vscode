@@ -176,15 +176,15 @@ const SectionCardTopRow = styled.div`
     gap: 8px;
 `;
 
-const SectionCardIconWrapper = styled.div`
+const SectionCardIconWrapper = styled.div<{ $size?: number }>`
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     > div:first-child {
-        width: 24px;
-        height: 24px;
-        font-size: 24px;
+        width: ${(props: { $size?: number }) => props.$size ?? 24}px;
+        height: ${(props: { $size?: number }) => props.$size ?? 24}px;
+        font-size: ${(props: { $size?: number }) => props.$size ?? 24}px;
     }
 `;
 
@@ -286,16 +286,16 @@ const ArtifactCardInner = styled.div`
     align-items: center;
 `;
 
-const ArtifactCardIconContainer = styled.div`
+const ArtifactCardIconContainer = styled.div<{ $size?: number }>`
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: ${ThemeColors.ON_SURFACE};
     > div:first-child {
-        width: 24px;
-        height: 24px;
-        font-size: 24px;
+        width: ${(props: { $size?: number }) => props.$size ?? 24}px;
+        height: ${(props: { $size?: number }) => props.$size ?? 24}px;
+        font-size: ${(props: { $size?: number }) => props.$size ?? 24}px;
     }
 `;
 
@@ -458,6 +458,8 @@ interface SectionConfig {
     key: DIRECTORY_MAP;
     title: string;
     icon: string;
+    isCodicon?: boolean;
+    iconScale?: number;
     description: string;
     addLabel: string;
     addTooltip: string;
@@ -508,7 +510,9 @@ const SECTIONS: SectionConfig[] = [
     {
         key: DIRECTORY_MAP.AGENT_DEFINITIONS,
         title: "Agent Definitions",
-        icon: "bi-ai-agent",
+        icon: "symbol-class",
+        isCodicon: true,
+        iconScale: 1.1,
         description: "Reusable agent definitions in your library.",
         addLabel: "Add an Agent Definition",
         addTooltip: "Add New Agent Definition",
@@ -536,13 +540,14 @@ const SECTIONS: SectionConfig[] = [
 
 interface ArtifactCardProps {
     icon: React.ReactNode;
+    iconSize?: number;
     title: string;
     query: string;
     isPublic?: boolean;
     onClick: () => void;
 }
 
-function ArtifactCard({ icon, title, query, isPublic, onClick }: ArtifactCardProps) {
+function ArtifactCard({ icon, iconSize, title, query, isPublic, onClick }: ArtifactCardProps) {
     const highlightedTitle = useMemo(() => {
         if (!query) return <>{title}</>;
         const idx = title.toLowerCase().indexOf(query);
@@ -563,7 +568,7 @@ function ArtifactCard({ icon, title, query, isPublic, onClick }: ArtifactCardPro
             aria-label={`Open ${title}`}
         >
             <ArtifactCardInner>
-                <ArtifactCardIconContainer>{icon}</ArtifactCardIconContainer>
+                <ArtifactCardIconContainer $size={iconSize}>{icon}</ArtifactCardIconContainer>
                 {isPublic && (
                     <PublicBadge title="Public">
                         <Codicon name="globe" iconSx={{ fontSize: 13 }} />
@@ -574,6 +579,18 @@ function ArtifactCard({ icon, title, query, isPublic, onClick }: ArtifactCardPro
                 </ArtifactCardContent>
             </ArtifactCardInner>
         </ArtifactCardRoot>
+    );
+}
+
+function SectionIcon({ section, size = 24 }: { section: SectionConfig; size?: number }) {
+    const iconSize = Math.round(size * (section.iconScale ?? 1));
+    return (
+        <Icon
+            name={section.icon}
+            isCodicon={section.isCodicon}
+            sx={{ width: iconSize, height: iconSize, display: "flex", alignItems: "center", justifyContent: "center" }}
+            iconSx={{ fontSize: iconSize }}
+        />
     );
 }
 
@@ -778,12 +795,13 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     const renderArtifactCard = (
         item: ProjectStructureArtifactResponse,
         sectionKey: DIRECTORY_MAP,
-        icon: string,
+        section: SectionConfig,
         query: string
     ) => (
         <CardWrapper key={item.id}>
             <ArtifactCard
-                icon={<Icon name={icon} />}
+                icon={<SectionIcon section={section} />}
+                iconSize={Math.round(24 * (section.iconScale ?? 1))}
                 title={item.name}
                 query={query}
                 isPublic={item.visibility === VISIBILITY.PUBLIC}
@@ -810,71 +828,71 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     if (activeSection) {
         return (
             <LibraryWrapper>
-            <ArtifactsPanel>
-                <LibraryHeader>
-                    <LibraryHeaderLeft>
-                        <Button appearance="icon" onClick={handleBack} buttonSx={{ padding: "2px 6px" }}>
-                            <Codicon name="arrow-left" />
-                        </Button>
-                        <Icon name={activeSection.icon} sx={{ fontSize: 18, width: 18, height: 18 }} />
-                        <LibraryHeaderTitle variant="h2">{activeSection.title}</LibraryHeaderTitle>
-                    </LibraryHeaderLeft>
-                    <LibraryHeaderRight>
-                        <SearchBar>
-                            <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
-                            <SearchInput
-                                ref={sectionSearchRef}
-                                type="text"
-                                placeholder={`Search ${activeSection.title.toLowerCase()}`}
-                                value={sectionSearch}
-                                onChange={(e) => setSectionSearch(e.target.value)}
-                                autoFocus
-                            />
-                            {isSectionSearching && (
-                                <SearchClearButton
-                                    type="button"
-                                    aria-label="Clear search"
-                                    onClick={() => { setSectionSearch(""); sectionSearchRef.current?.focus(); }}
-                                >
-                                    <Codicon name="close" iconSx={{ fontSize: 12 }} />
-                                </SearchClearButton>
-                            )}
-                        </SearchBar>
-                        <Button
-                            appearance="primary"
-                            onClick={() => handleAdd(activeSection.key)}
-                        >
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add {activeSection.addLabel.replace(/^Add an? /, "")}
-                        </Button>
-                    </LibraryHeaderRight>
-                </LibraryHeader>
-
-                <SectionDetailContent>
-                    <CardGrid>
-                        {sectionDetailItems.map((item) =>
-                            renderArtifactCard(item, activeSection.key, activeSection.icon, sectionQuery)
-                        )}
-                        {sectionAllItems.length === 0 && (
-                            <AddArtifactCard
-                                type="button"
+                <ArtifactsPanel>
+                    <LibraryHeader>
+                        <LibraryHeaderLeft>
+                            <Button appearance="icon" onClick={handleBack} buttonSx={{ padding: "2px 6px" }}>
+                                <Codicon name="arrow-left" />
+                            </Button>
+                            <SectionIcon section={activeSection} size={18} />
+                            <LibraryHeaderTitle variant="h2">{activeSection.title}</LibraryHeaderTitle>
+                        </LibraryHeaderLeft>
+                        <LibraryHeaderRight>
+                            <SearchBar>
+                                <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
+                                <SearchInput
+                                    ref={sectionSearchRef}
+                                    type="text"
+                                    placeholder={`Search ${activeSection.title.toLowerCase()}`}
+                                    value={sectionSearch}
+                                    onChange={(e) => setSectionSearch(e.target.value)}
+                                    autoFocus
+                                />
+                                {isSectionSearching && (
+                                    <SearchClearButton
+                                        type="button"
+                                        aria-label="Clear search"
+                                        onClick={() => { setSectionSearch(""); sectionSearchRef.current?.focus(); }}
+                                    >
+                                        <Codicon name="close" iconSx={{ fontSize: 12 }} />
+                                    </SearchClearButton>
+                                )}
+                            </SearchBar>
+                            <Button
+                                appearance="primary"
                                 onClick={() => handleAdd(activeSection.key)}
                             >
-                                <ArtifactCardInner>
-                                    <ArtifactCardIconContainer>
-                                        <Codicon name="add" iconSx={{ fontSize: 24, width: 24, height: 24 }} />
-                                    </ArtifactCardIconContainer>
-                                    <ArtifactCardContent>
-                                        <ArtifactCardTitle>{activeSection.addLabel}</ArtifactCardTitle>
-                                    </ArtifactCardContent>
-                                </ArtifactCardInner>
-                            </AddArtifactCard>
-                        )}
-                        {isSectionSearching && sectionDetailItems.length === 0 && sectionAllItems.length > 0 && (
-                            <NoResultsLabel>No matching {activeSection.title.toLowerCase()}</NoResultsLabel>
-                        )}
-                    </CardGrid>
-                </SectionDetailContent>
-            </ArtifactsPanel>
+                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add {activeSection.addLabel.replace(/^Add an? /, "")}
+                            </Button>
+                        </LibraryHeaderRight>
+                    </LibraryHeader>
+
+                    <SectionDetailContent>
+                        <CardGrid>
+                            {sectionDetailItems.map((item) =>
+                                renderArtifactCard(item, activeSection.key, activeSection, sectionQuery)
+                            )}
+                            {sectionAllItems.length === 0 && (
+                                <AddArtifactCard
+                                    type="button"
+                                    onClick={() => handleAdd(activeSection.key)}
+                                >
+                                    <ArtifactCardInner>
+                                        <ArtifactCardIconContainer>
+                                            <Codicon name="add" iconSx={{ fontSize: 24, width: 24, height: 24 }} />
+                                        </ArtifactCardIconContainer>
+                                        <ArtifactCardContent>
+                                            <ArtifactCardTitle>{activeSection.addLabel}</ArtifactCardTitle>
+                                        </ArtifactCardContent>
+                                    </ArtifactCardInner>
+                                </AddArtifactCard>
+                            )}
+                            {isSectionSearching && sectionDetailItems.length === 0 && sectionAllItems.length > 0 && (
+                                <NoResultsLabel>No matching {activeSection.title.toLowerCase()}</NoResultsLabel>
+                            )}
+                        </CardGrid>
+                    </SectionDetailContent>
+                </ArtifactsPanel>
             </LibraryWrapper>
         );
     }
@@ -886,107 +904,107 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     return (
         <LibraryWrapper>
             <ArtifactsPanel constrainHeight>
-            <LibraryHeader>
-                <LibraryHeaderLeft>
-                    <LibraryHeaderTitle variant="h2">Artifacts</LibraryHeaderTitle>
-                </LibraryHeaderLeft>
-                <LibraryHeaderRight>
-                    {!isLibraryEmpty && (
-                        <SearchBar>
-                            <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
-                            <SearchInput
-                                ref={overviewSearchRef}
-                                type="text"
-                                placeholder="Search across all sections"
-                                value={overviewSearch}
-                                onChange={(e) => setOverviewSearch(e.target.value)}
-                            />
-                            {isOverviewSearching && (
-                                <SearchClearButton
-                                    type="button"
-                                    aria-label="Clear search"
-                                    onClick={() => { setOverviewSearch(""); overviewSearchRef.current?.focus(); }}
-                                >
-                                    <Codicon name="close" iconSx={{ fontSize: 12 }} />
-                                </SearchClearButton>
-                            )}
-                        </SearchBar>
-                    )}
-                    {!isLibraryEmpty && (
-                        <Button appearance="primary" onClick={handleAddArtifacts}>
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
-                        </Button>
-                    )}
-                </LibraryHeaderRight>
-            </LibraryHeader>
+                <LibraryHeader>
+                    <LibraryHeaderLeft>
+                        <LibraryHeaderTitle variant="h2">Artifacts</LibraryHeaderTitle>
+                    </LibraryHeaderLeft>
+                    <LibraryHeaderRight>
+                        {!isLibraryEmpty && (
+                            <SearchBar>
+                                <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
+                                <SearchInput
+                                    ref={overviewSearchRef}
+                                    type="text"
+                                    placeholder="Search across all sections"
+                                    value={overviewSearch}
+                                    onChange={(e) => setOverviewSearch(e.target.value)}
+                                />
+                                {isOverviewSearching && (
+                                    <SearchClearButton
+                                        type="button"
+                                        aria-label="Clear search"
+                                        onClick={() => { setOverviewSearch(""); overviewSearchRef.current?.focus(); }}
+                                    >
+                                        <Codicon name="close" iconSx={{ fontSize: 12 }} />
+                                    </SearchClearButton>
+                                )}
+                            </SearchBar>
+                        )}
+                        {!isLibraryEmpty && (
+                            <Button appearance="primary" onClick={handleAddArtifacts}>
+                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
+                            </Button>
+                        )}
+                    </LibraryHeaderRight>
+                </LibraryHeader>
 
-            {/* Global search results */}
-            {isOverviewSearching && (
-                <SearchResultsContent>
-                    {searchGroups.length > 0 ? (
-                        searchGroups.map(({ section, filteredItems, allItems }) => (
-                            <SearchResultGroup key={section.key}>
-                                <SearchResultGroupHeader>
-                                    <Icon name={section.icon} sx={{ fontSize: 16, width: 16, height: 16 }} />
-                                    <SearchResultGroupTitle>{section.title}</SearchResultGroupTitle>
-                                    <SearchResultGroupCount>
-                                        {filteredItems.length}/{allItems.length}
-                                    </SearchResultGroupCount>
-                                </SearchResultGroupHeader>
-                                <CardGrid>
-                                    {filteredItems.map((item) =>
-                                        renderArtifactCard(item, section.key, section.icon, overviewQuery)
-                                    )}
-                                </CardGrid>
-                            </SearchResultGroup>
-                        ))
+                {/* Global search results */}
+                {isOverviewSearching && (
+                    <SearchResultsContent>
+                        {searchGroups.length > 0 ? (
+                            searchGroups.map(({ section, filteredItems, allItems }) => (
+                                <SearchResultGroup key={section.key}>
+                                    <SearchResultGroupHeader>
+                                        <SectionIcon section={section} size={16} />
+                                        <SearchResultGroupTitle>{section.title}</SearchResultGroupTitle>
+                                        <SearchResultGroupCount>
+                                            {filteredItems.length}/{allItems.length}
+                                        </SearchResultGroupCount>
+                                    </SearchResultGroupHeader>
+                                    <CardGrid>
+                                        {filteredItems.map((item) =>
+                                            renderArtifactCard(item, section.key, section, overviewQuery)
+                                        )}
+                                    </CardGrid>
+                                </SearchResultGroup>
+                            ))
+                        ) : (
+                            <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
+                        )}
+                    </SearchResultsContent>
+                )}
+
+                {/* Overview: section cards (non-empty only) or empty state */}
+                {!isOverviewSearching && (
+                    isLibraryEmpty ? (
+                        <LibraryEmptyState>
+                            <Typography variant="h3" sx={{ marginBottom: "8px" }}>
+                                Your library is empty
+                            </Typography>
+                            <Typography
+                                variant="body1"
+                                sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
+                            >
+                                Start by adding reusable artifacts to your library
+                            </Typography>
+                            <Button appearance="primary" onClick={handleAddArtifacts}>
+                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
+                            </Button>
+                        </LibraryEmptyState>
                     ) : (
-                        <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
-                    )}
-                </SearchResultsContent>
-            )}
-
-            {/* Overview: section cards (non-empty only) or empty state */}
-            {!isOverviewSearching && (
-                isLibraryEmpty ? (
-                    <LibraryEmptyState>
-                        <Typography variant="h3" sx={{ marginBottom: "8px" }}>
-                            Your library is empty
-                        </Typography>
-                        <Typography
-                            variant="body1"
-                            sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
-                        >
-                            Start by adding reusable artifacts to your library
-                        </Typography>
-                        <Button appearance="primary" onClick={handleAddArtifacts}>
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
-                        </Button>
-                    </LibraryEmptyState>
-                ) : (
-                    <OverviewContent>
-                        <SectionCardGrid>
-                            {nonEmptySections.map(({ section, allItems }) => (
-                                <SectionCard
-                                    key={section.key}
-                                    id={`section-${section.key}`}
-                                    type="button"
-                                    onClick={() => handleSectionOpen(section)}
-                                >
-                                    <SectionCardTopRow>
-                                        <SectionCardIconWrapper>
-                                            <Icon name={section.icon} />
-                                        </SectionCardIconWrapper>
-                                        <SectionCardName>{section.title}</SectionCardName>
-                                        <SectionCountBadge>{allItems.length}</SectionCountBadge>
-                                    </SectionCardTopRow>
-                                    <SectionCardDescription>{section.description}</SectionCardDescription>
-                                </SectionCard>
-                            ))}
-                        </SectionCardGrid>
-                    </OverviewContent>
-                )
-            )}
+                        <OverviewContent>
+                            <SectionCardGrid>
+                                {nonEmptySections.map(({ section, allItems }) => (
+                                    <SectionCard
+                                        key={section.key}
+                                        id={`section-${section.key}`}
+                                        type="button"
+                                        onClick={() => handleSectionOpen(section)}
+                                    >
+                                        <SectionCardTopRow>
+                                            <SectionCardIconWrapper $size={Math.round(24 * (section.iconScale ?? 1))}>
+                                                <SectionIcon section={section} />
+                                            </SectionCardIconWrapper>
+                                            <SectionCardName>{section.title}</SectionCardName>
+                                            <SectionCountBadge>{allItems.length}</SectionCountBadge>
+                                        </SectionCardTopRow>
+                                        <SectionCardDescription>{section.description}</SectionCardDescription>
+                                    </SectionCard>
+                                ))}
+                            </SectionCardGrid>
+                        </OverviewContent>
+                    )
+                )}
             </ArtifactsPanel>
 
             {/* README — separate container, hidden when searching */}

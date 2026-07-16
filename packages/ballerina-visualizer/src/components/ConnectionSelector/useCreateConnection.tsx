@@ -24,6 +24,7 @@ import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { useModalStack } from "../../Context";
 
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
+const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
 import { ConnectionCreateWizard, getConnectionKindDisplayName } from "./ConnectionCreateWizard";
@@ -108,6 +109,25 @@ export function useCreateConnection(
     };
 
     return (kind: string, onCreated: (variableName: string) => void, connectorCodeData?: CodeData) => {
+        if (connectorCodeData?.node === "AGENT" || connectorCodeData?.node === "AGENT_TYPE") {
+            // Instantiate the required agent type in a centered sub-modal, mirroring Create Memory. onCreated sets
+            // the field value in place; nested model/memory selects stack as further sub-modals.
+            const modalId = "create-agent";
+            const handleAgentCreated = (variableName: string) => {
+                handleCreated(variableName, onCreated);
+                closeModal(modalId);
+            };
+            addModal(
+                <Suspense fallback={<LoaderContainer><RelativeLoader /></LoaderContainer>}>
+                    <CreateAgentForm agentCodeData={connectorCodeData} onCreated={handleAgentCreated} />
+                </Suspense>,
+                modalId,
+                `Create ${connectorCodeData.object ?? "Agent"}`,
+                600,
+                600
+            );
+            return;
+        }
         if (connectorCodeData) {
             createGenericConnection(connectorCodeData, onCreated);
             return;

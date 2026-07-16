@@ -62,6 +62,7 @@ import {
     DropdownType,
     isDropDownType,
     InputType,
+    CodeData,
 } from "@wso2/ballerina-core";
 import {
     HelperPaneVariableInfo,

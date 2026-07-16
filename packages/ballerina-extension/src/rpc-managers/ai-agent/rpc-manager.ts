@@ -72,6 +72,18 @@ interface EntryPosition {
 }
 
 export class AiAgentRpcManager implements AIAgentAPI {
+    /**
+     * Agent declarations and generated tools are written to agents.bal. The language server
+     * resolves that file while producing edits, so it must exist before a generation request.
+     */
+    private async ensureAgentsFile(projectPath: string): Promise<string> {
+        const agentsFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+        if (!existsSync(agentsFilePath)) {
+            await writeBallerinaFileDidOpen(agentsFilePath, "");
+        }
+        return agentsFilePath;
+    }
+
     async getAllAgents(params: AINodesRequest): Promise<AINodesResponse> {
         return new Promise(async (resolve) => {
             const context = StateMachine.context();
@@ -151,6 +163,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
         return new Promise(async (resolve) => {
             const context = StateMachine.context();
             try {
+                await this.ensureAgentsFile(path.dirname(params.filePath));
                 const response: AIGentToolsResponse = await context.langClient.genAgentDefinition(params);
                 const artifacts = await updateSourceCode({ textEdits: response.textEdits });
                 resolve({ artifacts, textEdits: response.textEdits });
@@ -199,6 +212,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
 
         const projectInfo = await this.waitForWorkspacePackage(workspacePath, projectPath);
         StateMachine.updateProjectInfo(projectInfo, { silent: true });
+        await this.ensureAgentsFile(projectPath);
 
         const response = await context.langClient.genAgentDefinition({
             filePath: path.join(projectPath, "Ballerina.toml"),
@@ -286,7 +300,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             try {
 
                 const projectPath = context.projectPath;
-                const filePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+                const filePath = await this.ensureAgentsFile(projectPath);
                 let selectedModel = "";
                 // Create the tools first
                 if (params.newTools.length > 0) {
@@ -366,7 +380,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             const context = StateMachine.context();
             try {
                 const projectPath = context.projectPath;
-                const filePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+                const filePath = await this.ensureAgentsFile(projectPath);
                 // Create the tools if there are any
                 if (params.newTools.length > 0) {
                     for (const tool of params.newTools) {
@@ -407,7 +421,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             const projectPath = StateMachine.context().projectPath;
             const toolName = tool.toolName;
             const connectionName = tool.connectionName;
-            const toolsPath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+            const toolsPath = await this.ensureAgentsFile(projectPath);
             let flowNode: FlowNode; // REMOTE_ACTION_CALL| FUNCTION_DEFINITION
 
             if (tool.toolType === "Connector") {
@@ -485,7 +499,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
         try {
             const projectPath = StateMachine.context().projectPath;
             const toolName = tool.toolName;
-            const toolsPath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+            const toolsPath = await this.ensureAgentsFile(projectPath);
             let flowNode: FlowNode; // REMOTE_ACTION_CALL| FUNCTION_DEFINITION
             const selectedCodeData = tool.selectedCodeData;
 

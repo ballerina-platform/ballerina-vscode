@@ -166,7 +166,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                 {isLibrary &&
                     <ButtonCard
                         id="agent-definition"
-                        icon={<Icon name="bi-ai-agent" />}
+                        icon={<Icon name="symbol-class" isCodicon={true} />}
                         title="Agent Definition"
                         onClick={() => handleClick(DIRECTORY_MAP.AGENT_DEFINITION)}
                     />
