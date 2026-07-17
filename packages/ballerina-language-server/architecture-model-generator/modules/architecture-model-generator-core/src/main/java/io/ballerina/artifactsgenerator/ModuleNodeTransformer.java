@@ -92,6 +92,10 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         String functionName = functionDefinitionNode.functionName().text();
 
         Optional<Symbol> functionSymbol = semanticModel.symbol(functionDefinitionNode);
+        if (functionDefinitionNode.kind() == SyntaxKind.FUNCTION_DEFINITION
+                && functionSymbol.isPresent() && CommonUtils.isAgentToolFunction(functionSymbol.get())) {
+            return Optional.empty();
+        }
         if (functionName.equals(MAIN_FUNCTION_NAME)) {
             functionBuilder
                     .name(AUTOMATION_FUNCTION_NAME)

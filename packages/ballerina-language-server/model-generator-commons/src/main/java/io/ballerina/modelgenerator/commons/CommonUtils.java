@@ -20,6 +20,8 @@ package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -134,6 +136,7 @@ public class CommonUtils {
     private static final String UNKNOWN_TYPE = "Unknown Type";
     private static final String AI = "ai";
     private static final String AGENT = "Agent";
+    private static final String AGENT_TOOL = "AgentTool";
     public static final String CONNECTOR_TYPE = "connectorType";
     public static final String PERSIST = "persist";
     public static final String PERSIST_MODEL_FILE = "persistModelFile";
@@ -1079,6 +1082,25 @@ public class CommonUtils {
 
     public static boolean isAiModelModule(String org, String module) {
         return BALLERINAX_ORG_NAME.equals(org) && (AI.equals(module) || AI_MODULE_NAMES.contains(module));
+    }
+
+    public static boolean isAgentToolFunction(Symbol symbol) {
+        if (!(symbol instanceof FunctionSymbol functionSymbol)) {
+            return false;
+        }
+        for (AnnotationAttachmentSymbol annotAttachment : functionSymbol.annotAttachments()) {
+            AnnotationSymbol annotationSymbol = annotAttachment.typeDescriptor();
+            Optional<ModuleSymbol> optModule = annotationSymbol.getModule();
+            if (optModule.isEmpty()) {
+                continue;
+            }
+            ModuleID id = optModule.get().id();
+            if (isAiModule(id.orgName(), id.packageName())
+                    && annotationSymbol.getName().filter(AGENT_TOOL::equals).isPresent()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean isAgentClass(Symbol symbol) {
