@@ -212,7 +212,7 @@ import {
     validateProjectPath,
     getSuggestedProjectDefaults
 } from "../../utils/bi";
-import { writeBallerinaFileDidOpen } from "../../utils/modification";
+import { writeBallerinaFileDidOpen, writeBallerinaFileDidOpenTemp } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { getView } from "../../utils/state-machine-utils";
 import { isLibraryProject } from "../../utils/config";
@@ -350,6 +350,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         console.log(">>> requesting bi source code from ls", params);
         try {
+            this.ensureTargetFileExists(params.filePath);
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
             console.log(">>> bi source code from ls", model);
 
@@ -385,6 +386,16 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
             return { artifacts: [], error: errorMessage };
         }
+    }
+
+    private ensureTargetFileExists(filePath: string) {
+        if (!filePath || !filePath.endsWith(".bal") || fs.existsSync(filePath)) {
+            return;
+        }
+        if (!fs.existsSync(path.dirname(filePath))) {
+            return;
+        }
+        writeBallerinaFileDidOpenTemp(filePath, "");
     }
 
     private capitalizeFirstLetter(name: string): string {
