@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, getPrimaryInputType, ServiceClassSourceRequest, buildAgentToolNode, buildAgentCallToolNode, Property, DIRECTORY_MAP, LineRange, AvailableNode, AgentToolHostClass } from "@wso2/ballerina-core";
+import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, ServiceClassSourceRequest, buildAgentToolNode, buildAgentCallToolNode, Property, DIRECTORY_MAP, LineRange, AvailableNode, AgentToolHostClass } from "@wso2/ballerina-core";
 import { Codicon, Typography, ProgressRing, ThemeColors, View, Icon, Overlay, LinkButton } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import styled from "@emotion/styled";
@@ -949,14 +949,14 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             fields.push({
                 key: "documentation",
                 label: "Description",
-                type: getPrimaryInputType(docProperty?.types)?.fieldType || "string",
+                type: "DOC_TEXT",
                 optional: docProperty.optional,
                 editable: docProperty.editable,
                 advanced: docProperty.advanced,
                 enabled: docProperty.enabled,
                 documentation: "The description of the agent definition",
                 value: docProperty.value || "",
-                types: docProperty?.types,
+                types: [{ fieldType: "DOC_TEXT", selected: true }],
                 lineRange: docProperty.codedata?.lineRange
             });
         }
