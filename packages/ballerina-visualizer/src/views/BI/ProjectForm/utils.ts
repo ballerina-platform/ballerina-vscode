@@ -144,6 +144,29 @@ export const sanitizePackageName = (name: string): string => {
         .replace(/_{2,}/g, "_"); // Convert multiple consecutive underscores to single underscore
 };
 
+// Convert any input into a PascalCase identifier suitable for a Ballerina class/type name.
+export const toPascalCase = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // split camelCase/PascalCase boundaries
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join("")
+        .replace(/^[0-9]+/, ""); // identifiers cannot start with a digit
+};
+
+// Derive a lowercase snake_case package name from any input (e.g. "TestAgent" -> "test_agent").
+export const toSnakeCasePackageName = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase boundary
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // acronym boundary (HTTPClient -> HTTP_Client)
+        .replace(/[^a-zA-Z0-9]+/g, "_") // separators -> underscore
+        .toLowerCase()
+        .replace(/_{2,}/g, "_")
+        .replace(/^_+/, "")
+        .replace(/_+$/, "");
+};
+
 // Reserved organization names
 const RESERVED_ORG_NAMES = ["ballerina", "ballerinax", "wso2"];
 

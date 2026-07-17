@@ -356,7 +356,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             <IntroText>
                 {dependencyMode
                     ? "Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created."
-                    : "To add an agent, define a custom agent for this project or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
+                    : "To add an agent, create a one-off agent for this project, create a reusable agent definition that can be shared across projects, or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
             </IntroText>
 
             <SearchContainer>
@@ -376,11 +376,13 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
                         </AgentOptionIcon>
                         <AgentOptionContent>
-                            <AgentOptionTitle>{dependencyMode ? "Generic ai:Agent" : "Create Agent"}</AgentOptionTitle>
+                            <AgentOptionTitle>
+                                {dependencyMode ? "Generic ai:Agent" : "Create Agent"}
+                            </AgentOptionTitle>
                             <AgentOptionDescription>
                                 {dependencyMode
                                     ? "Use a flexible agent input when the concrete agent is supplied by the caller."
-                                    : "Create your own agent for this project"}
+                                    : "Create a one-off agent for this project only."}
                             </AgentOptionDescription>
                         </AgentOptionContent>
                         <ArrowIcon>
@@ -400,7 +402,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             <AgentOptionContent>
                                 <AgentOptionTitle>Create Agent Definition</AgentOptionTitle>
                                 <AgentOptionDescription>
-                                    Build a reusable agent template you can instantiate many times and share with others
+                                    Create an agent template that can be shared and used to create multiple agents with the same configuration.
                                 </AgentOptionDescription>
                             </AgentOptionContent>
                             <ArrowIcon>

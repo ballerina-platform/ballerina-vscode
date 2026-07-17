@@ -32,7 +32,7 @@ import {
     RadioOption,
     RadioTitle,
 } from "../ProjectForm/styles";
-import { sanitizeOrgHandle, sanitizePackageName, validateComponentName, validateOrgName, validatePackageName } from "../ProjectForm/utils";
+import { sanitizeOrgHandle, toPascalCase, toSnakeCasePackageName, validateComponentName, validateOrgName, validatePackageName } from "../ProjectForm/utils";
 
 type DefinitionDestination = "library" | "current";
 
@@ -73,6 +73,17 @@ const SubmitButton = styled(Button)`
     display: flex !important;
     justify-content: center;
     align-items: center;
+`;
+
+const NameField = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+`;
+
+const NameHint = styled.div`
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
 `;
 
 const LibraryDetails = styled.div`
@@ -241,7 +252,8 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
         version: "",
     });
 
-    const isValidName = /^[A-Z][a-zA-Z0-9]*$/.test(name.trim());
+    const normalizedName = toPascalCase(name);
+    const isValidName = normalizedName.length > 0;
 
     useEffect(() => {
         let cancelled = false;
@@ -276,7 +288,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
             setLibrary((current) => ({
                 ...current,
                 name: value,
-                packageName: libraryPackageNameTouched ? current.packageName : sanitizePackageName(value),
+                packageName: libraryPackageNameTouched ? current.packageName : toSnakeCasePackageName(value),
             }));
         }
     };
@@ -314,9 +326,10 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
 
     const openDefinition = async (
         artifacts: ProjectStructureArtifactResponse[] | undefined,
-        definitionProjectPath: string
+        definitionProjectPath: string,
+        definitionName: string
     ) => {
-        const artifact = artifacts?.find((item) => item.name === name.trim()) ?? artifacts?.[0];
+        const artifact = artifacts?.find((item) => item.name === definitionName) ?? artifacts?.[0];
         if (!artifact?.path) {
             return;
         }
@@ -325,7 +338,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
             location: {
                 documentUri: artifact.path,
                 position: artifact.position,
-                identifier: name.trim(),
+                identifier: definitionName,
                 projectPath: definitionProjectPath,
                 artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
                 view: MACHINE_VIEW.AgentDefinitionDesigner,
@@ -344,7 +357,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
             if (destination === "library") {
                 await rpcClient.getAIAgentRpcClient().createLibraryAgentDefinition({
                     sourceProjectPath: projectPath,
-                    name: name.trim(),
+                    name: normalizedName,
                     description: description.trim(),
                     libraryName: library.name,
                     packageName: library.packageName,
@@ -358,10 +371,10 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                     .joinProjectPath({ segments: ["Ballerina.toml"] });
                 const response = await rpcClient.getAIAgentRpcClient().genAgentDefinition({
                     filePath,
-                    name: name.trim(),
+                    name: normalizedName,
                     description: description.trim(),
                 });
-                await openDefinition(response.artifacts, projectPath);
+                await openDefinition(response.artifacts, projectPath, normalizedName);
             }
             onCreated?.();
         } catch {
@@ -376,8 +389,9 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
         : name.trim().length === 0
             ? "Name is required"
             : !isValidName
-                ? "Use a PascalCase identifier (e.g. CustomerSupportAgent)"
+                ? "Name must contain at least one letter"
                 : "";
+    const showNamePreview = isValidName && normalizedName !== name.trim();
 
     return (
         <FormLayout>
@@ -385,17 +399,24 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                 <IntroText>
                     Create a reusable agent template that you can share with others and instantiate across projects.
                 </IntroText>
-                <TextField
-                    label="Name"
-                    required
-                    placeholder="e.g., CustomerSupportAgent"
-                    description="A unique name for the agent definition"
-                    value={name}
-                    errorMsg={nameError}
-                    onTextChange={handleNameChange}
-                    onBlur={() => setNameTouched(true)}
-                    sx={{ width: "100%" }}
-                />
+                <NameField>
+                    <TextField
+                        label="Name"
+                        required
+                        placeholder="e.g., CustomerSupportAgent"
+                        description="A unique name for the agent definition"
+                        value={name}
+                        errorMsg={nameError}
+                        onTextChange={handleNameChange}
+                        onBlur={() => setNameTouched(true)}
+                        sx={{ width: "100%" }}
+                    />
+                    {showNamePreview && (
+                        <NameHint>
+                            Will be created as: <strong>{normalizedName}</strong>
+                        </NameHint>
+                    )}
+                </NameField>
                 <TextField
                     label="Description"
                     placeholder="e.g., An agent that provides customer support."
