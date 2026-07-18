@@ -698,7 +698,6 @@ export function AgentTypeNodeWidget(props: AgentTypeNodeWidgetProps) {
     );
 }
 
-// remove leading/trailing quotes and the `string \`...\`` template wrapper
 function stripWrappingQuotes(str: string): string {
     if (str.startsWith("string `") && str.endsWith("`")) {
         return str.slice("string `".length, -1);

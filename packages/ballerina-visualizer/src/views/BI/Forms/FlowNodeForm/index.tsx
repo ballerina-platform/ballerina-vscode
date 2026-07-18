@@ -517,7 +517,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (node.codedata.node === "IF") {
             return;
         }
-        // Open the expr:// doc lazily (it forces a workspace recompile), so dropdown-only opens aren't blocked.
         formOpenedRef.current = false;
         initForm(node);
 
@@ -547,7 +546,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             });
     };
 
-    // Opens the expr:// form document on first demand (expression-editor focus or diagnostics). Idempotent.
     const ensureFormOpened = () => {
         if (!formOpenedRef.current) {
             formOpenedRef.current = true;
@@ -1616,7 +1614,6 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
-        // Agents are object instances, not data — skip the heavy data-mapper visualizable check.
         if (node.codedata.node === "AGENT_TYPE" || node.codedata.node === "AGENT") {
             return;
         }

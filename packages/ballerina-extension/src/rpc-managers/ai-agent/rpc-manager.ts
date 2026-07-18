@@ -363,7 +363,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 }
             }
 
-            // Create a new tool via the AGENT_TOOL node (AgentToolBuilder); replaces the genTool RPC.
             const codeEdits = await StateMachine.langClient().getSourceCode({
                 filePath: toolsPath,
                 flowNode: buildAgentToolNode(flowNode, toolName, "", connectionName),
@@ -408,7 +407,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 flowNode = existingFunctionFlowNode.flowNode;
             }
 
-            // Create a new tool via the AGENT_TOOL node (AgentToolBuilder); replaces the genTool RPC.
             const codeEdits = await StateMachine.langClient().getSourceCode({
                 filePath: toolsPath,
                 flowNode: buildAgentToolNode(flowNode, toolName, tool.description,

@@ -144,14 +144,11 @@ export const DEFAULT_MODEL_PROVIDER_ITEM = {
     codedata: { module: "ai", node: "MODEL_PROVIDER" } as any,
 };
 
-// A bare identifier value points at an existing provider (dropdown mode); anything else is an inline expression.
-// The default model provider expression is treated as a selectable value, not an inline expression.
 function isInlineExpressionValue(value: unknown): boolean {
     if (value === DEFAULT_MODEL_PROVIDER_EXPR) return false;
     return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
 }
 
-// Render an editable ai:ModelProvider field as the connection-select editor (dropdown + Select/Expression toggle).
 function enrichModelProviderField(formField: FormField, property: Property): void {
     const isModelProvider = property.types?.some((t) => t.ballerinaType === AI_MODEL_PROVIDER_TYPE);
     if (!isModelProvider || !formField.editable) {
@@ -193,7 +190,6 @@ function getConnectionTypeQuery(property: Property): Record<string, string> {
     return {};
 }
 
-// Render a client-connection param (LS marks it via codedata.data.connection) as the connection-select editor.
 function enrichClientConnectionField(formField: FormField, property: Property): void {
     if (!property.codedata?.data?.connection || !formField.editable) {
         return;
@@ -216,8 +212,6 @@ function enrichClientConnectionField(formField: FormField, property: Property): 
 const AI_MEMORY_TYPE = "ai:Memory";
 const MEMORY_SEARCH_KIND = "MEMORY";
 
-// Render an editable ai:Memory field as the connection-select editor (dropdown of existing memory variables +
-// Create New). Mirrors enrichModelProviderField; the "Create New Memory" action is handled by useCreateConnection.
 function enrichMemoryField(formField: FormField, property: Property): void {
     const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
     if (!isMemory || !formField.editable) {

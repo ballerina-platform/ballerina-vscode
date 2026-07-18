@@ -23,7 +23,6 @@ import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOve
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { useModalStack } from "../../Context";
 
-// Lazy-imported to break the import cycle (CreateMemoryForm -> FlowNodeForm -> useCreateConnection).
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
@@ -37,9 +36,6 @@ const readCreatedVariable = (node: FlowNode): string | undefined => {
     return props?.model?.value ?? props?.modelProvider?.value;
 };
 
-// Returns a handler for connection-select fields' "Create New" action. Prefers a side-panel overlay
-// (Select -> Create, with back navigation); falls back to a centered modal where no overlay host exists.
-// `onConnectionCreated` fires once a connection is written, letting the host react (e.g. suppress a reload).
 export function useCreateConnection(
     fileName?: string,
     targetLineRange?: LineRange,
@@ -54,7 +50,6 @@ export function useCreateConnection(
         onCreated(variableName);
     };
 
-    // Standard connector creation, pre-scoped to this field's connector; new var read from the created artifact.
     const createGenericConnection = async (connectorCodeData: CodeData, onCreated: (variableName: string) => void) => {
         const title = "Create Connection";
         const dummyNode = { codedata: {}, properties: {} } as unknown as FlowNode;
@@ -118,9 +113,6 @@ export function useCreateConnection(
             return;
         }
         if (kind === "MEMORY") {
-            // ai:Memory isn't a generic ConnectionKind. Open the lean memory-creation form in a centered
-            // sub-modal (consistent with how model providers/clients create here); its store sub-creation
-            // stacks as a further sub-modal. onCreated sets the field value in place (same as other kinds).
             const modalId = "create-memory";
             const handleMemoryCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);

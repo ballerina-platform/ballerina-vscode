@@ -19,7 +19,6 @@
 import { AgentData, FlowNode, MemoryData, NodeMetadata, ToolData } from "@wso2/ballerina-core";
 import { parseToolsString } from "../AIChatAgent/utils";
 
-// Strip Ballerina string wrappers (string-template backticks, plain backticks, double quotes).
 function unwrap(value: unknown): string {
     if (typeof value !== "string") {
         return "";
@@ -35,8 +34,6 @@ function unwrap(value: unknown): string {
     return v.trim();
 }
 
-// Best-effort role/instructions extraction from a raw `systemPrompt` record literal,
-// used only when the analyzed AGENT node didn't surface role/instructions directly.
 function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions: string } {
     const result = { role: "", instructions: "" };
     if (typeof systemPrompt !== "string") {
@@ -127,7 +124,6 @@ export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[
         },
         branches: [],
         flags: agentNode.flags ?? 0,
-        // Leaf node: prevents InitVisitor from appending a trailing EMPTY "end" node + link.
         returning: true,
     } as FlowNode;
 }

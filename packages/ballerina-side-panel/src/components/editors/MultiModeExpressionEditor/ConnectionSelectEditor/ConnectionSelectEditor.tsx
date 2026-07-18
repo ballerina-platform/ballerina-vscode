@@ -24,7 +24,6 @@ import { FormField } from "../../../Form/types";
 import { ConnectionIconSelect, ConnectionSelectItem } from "../../ConnectionIconSelect";
 import { useFormContext } from "../../../../context";
 
-// "MODEL_PROVIDER" -> "Model Provider"
 function humanizeKind(kind: string): string {
     return kind
         .split("_")
@@ -78,7 +77,6 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     const { targetLineRange, fileName, onCreateConnection } = useFormContext();
 
     const searchNodesKind = field.codedata?.searchNodesKind;
-    // Narrows the search and keys the cache so different client types sharing "NEW_CONNECTION" don't collide.
     const typeQuery: SearchNodesQueryParams = {
         ...(field.codedata?.typeMatch && { typeMatch: field.codedata.typeMatch }),
         ...(field.codedata?.typeOrg && { typeOrg: field.codedata.typeOrg }),
@@ -156,12 +154,10 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     };
 
     useEffect(() => {
-        // Parent already provided the list (initialItems) — skip the redundant mount fetch.
         if (itemsPreloaded) return;
         fetchItems();
     }, [searchNodesKind, typeCacheKey, fileName, filterKey]);
 
-    // Auto-select the first static item when the field opens with no value (new form).
     useEffect(() => {
         if (!value && staticItems.length > 0) {
             onChange(staticItems[0].value, staticItems[0].value.length);
@@ -179,10 +175,7 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
         fetchItems();
     }, [value]);
 
-    // Suppress the generic create-new action when the field supplies its own (e.g. the memory `store` field, which
-    // has a dedicated create flow via actionCallback/actionLabel) — otherwise both render as duplicate buttons.
     const showCreateNew = !!onCreateConnection && !!searchNodesKind && field.editable && !field.actionCallback;
-    // The backing connector codedata for the create-new flow.
     const connectorCodeData = field.codedata?.data?.connection as CodeData | undefined;
     const createNewLabel = connectorCodeData?.module && connectorCodeData?.object
         ? `${humanizeKind(connectorCodeData.module.split(".").pop() ?? "")} ${connectorCodeData.object}`
