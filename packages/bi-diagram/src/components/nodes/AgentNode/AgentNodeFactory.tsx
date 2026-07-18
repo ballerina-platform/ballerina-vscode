@@ -24,12 +24,12 @@ import { AgentNodeWidget } from "./AgentNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
 
 export class AgentNodeFactory extends AbstractReactFactory<AgentNodeModel, DiagramEngine> {
-    constructor() {
-        super(NodeTypes.AGENT_NODE);
+    constructor(private readonly nodeType: NodeTypes.AGENT_NODE | NodeTypes.AGENT_TYPE_NODE = NodeTypes.AGENT_NODE) {
+        super(nodeType);
     }
 
     generateModel(event: GenerateModelEvent): AgentNodeModel {
-        return new AgentNodeModel(event.initialConfig);
+        return new AgentNodeModel(event.initialConfig, this.nodeType);
     }
 
     generateReactWidget(event: GenerateWidgetEvent<AgentNodeModel>) {
