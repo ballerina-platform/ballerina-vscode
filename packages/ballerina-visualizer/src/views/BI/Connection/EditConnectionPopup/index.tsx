@@ -333,8 +333,6 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         });
     };
 
-    // This popup is reused for custom AgentType agents (routed here from the Agents sidebar). When the
-    // edited node is an agent, use agent wording instead of "connection"; connections keep their labels.
     const isAgent = connection?.codedata?.node === "AGENT_TYPE";
 
     const getViewTitle = () => {
@@ -517,4 +515,3 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
 }
 
 export default EditConnectionPopup;
-

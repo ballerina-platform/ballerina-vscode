@@ -91,7 +91,6 @@ export const Section = styled.div`
     gap: 12px;
 `;
 
-// Pre-built agents section: fills the remaining popup height so the loader / empty state center vertically.
 export const ResultsSection = styled(Section)`
     flex: 1;
 `;
@@ -212,4 +211,3 @@ export const AgentsGrid = styled.div`
     gap: 12px;
     margin-top: 8px;
 `;
-

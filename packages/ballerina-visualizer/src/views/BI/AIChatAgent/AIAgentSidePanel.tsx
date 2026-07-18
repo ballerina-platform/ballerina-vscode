@@ -318,8 +318,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const getNodeRequest: BIAvailableNodesRequest = {
                 position: targetRef.current.startLine,
                 filePath: agentFilePath.current,
-                // TODO: This is currently disabled because it hides nodes that are actually tool compatible
-                // due to some inconsistencies in how the compatibility is determined.
                 // Need to revisit the logic and ensure it's consistent before enabling this filter
                 // queryMap: {
                 //     "checkAgentToolCompatibility": "true"

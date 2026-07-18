@@ -296,8 +296,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
             const updatedAgentNode = cloneDeep(agentNode);
 
-            // Creating the memory variable shifts file lines; refresh the agent's line range from the returned
-            // artifacts before re-writing it, so the edit replaces the agent instead of duplicating it.
             if (memoryFilePath === agentFilePath.current) {
                 refreshNodeLineRangeFromArtifacts(
                     updatedAgentNode,
@@ -317,9 +315,6 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                 flowNode: updatedAgentNode,
             });
 
-            // The focus diagram's auto-reload refetches over the stored visualizer position, which is now stale (the
-            // new memory/store vars shifted the agent). Hand the agent's post-save position to onSave so the caller
-            // can refetch the correct node.
             const savedAgentPosition = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position;
             onSave?.(savedAgentPosition);
         } catch (error) {

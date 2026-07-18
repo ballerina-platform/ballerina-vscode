@@ -405,9 +405,6 @@ function findViewByArtifact(
                     dataMapperDepth: 0
                 };
             case DIRECTORY_MAP.AGENT:
-                // The built-in ai:Agent (module "ai") opens the rich focus diagram; custom AgentType classes
-                // (including *ai:FixedReturnAgent / *ai:InferredReturnAgent) open the simplified AGENT_TYPE focus
-                // diagram (agent box + conditional model-provider circle).
                 return {
                     location: {
                         view: MACHINE_VIEW.BIDiagram,

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -33,7 +33,6 @@ const LoaderContainer = styled.div`
     height: 100%;
 `;
 
-// Mirrors the tool-source pill used by the function/connection tool form (AIAgentSidePanel).
 const ImplementationBadge = styled.div`
     display: inline-flex;
     align-items: center;
@@ -127,8 +126,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                 .replace(/```[\s\S]*?```/g, "")
                 .replace(/\n/g, " ")
                 .trim();
-            // AGENT_TOOL node (AgentToolBuilder, AGENT_CALL kind) replaces the genAgentTool RPC: the tool signature +
-            // `<agent>.run(...)` body are generated from the agent variable + context flag in codedata.data.
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath,
                 flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description),

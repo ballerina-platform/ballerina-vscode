@@ -22,7 +22,6 @@ import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { BALLERINA, GET_DEFAULT_MODEL_PROVIDER } from "../../../constants";
 
-// Shared variable name for the default WSO2 model provider, reused across agents.
 export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
 const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
 
@@ -67,7 +66,6 @@ export function toCamelCase(name: string): string {
     const words = name.trim().split(/[\s_]+/).filter(Boolean);
     if (words.length === 0) return "";
     const firstWord = words[0];
-    // Lowercase leading acronyms: "HR" -> "hr", "HTMLParser" -> "htmlParser"
     const leadingUpper = firstWord.match(/^[A-Z]+/);
     let lowerFirst: string;
     if (leadingUpper && leadingUpper[0].length === firstWord.length) {
@@ -82,7 +80,6 @@ export function toCamelCase(name: string): string {
 
 export function toBaseName(name: string): string {
     const camel = toCamelCase(name);
-    // Strip known suffixes to avoid e.g. "salesAgentAgent"
     const lower = camel.toLowerCase();
     for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
         if (lower.endsWith(suffix) && lower.length > suffix.length) {
@@ -96,8 +93,6 @@ export interface CreatedBuiltInAgent {
     agentVarName: string;
     modelVarName: string;
     baseName: string;
-    // True when the shared WSO2 default model provider was used. The caller is responsible for
-    // invoking configureDefaultModelProvider() at the point that fits its flow.
     usedDefaultModelProvider: boolean;
 }
 
@@ -116,7 +111,6 @@ export const ensureModelProvider = async (
     let modelVarName: string;
 
     if (aiModuleOrg === BALLERINA) {
-        // Reuse the shared WSO2 model provider if it already exists.
         modelVarName = AI_WSO2_MODEL_PROVIDER;
         const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: projectPath,
@@ -176,8 +170,6 @@ export const createBuiltInAgent = async (
 
     const agentNodeTemplate = await fetchAgentNodeTemplate(rpcClient, projectPath);
     const agentVarName = `${baseName}Agent`;
-    // The friendly role/instructions fields back the (hidden) systemPrompt record; PROMPT-typed values
-    // are wrapped into string templates by the LS during source generation.
     agentNodeTemplate.properties.role.value = agentName;
     agentNodeTemplate.properties.instructions.value = "";
     agentNodeTemplate.properties.model.value = modelVarName;
@@ -384,7 +376,6 @@ export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rp
     return;
 };
 
-// Opens the focus diagram of the agent variable an AGENT_RUN node calls.
 export const resolveAgentLocation = async (
     agentRunNode: FlowNode,
     rpcClient: BallerinaRpcClient
@@ -733,8 +724,6 @@ export const getEndOfFileLineRange = async (
     fileName: string,
     rpcClient: BallerinaRpcClient
 ): Promise<LineRange> => {
-    // Resolve the absolute path first so it's available even if the file doesn't exist yet (the end-of-file
-    // lookup throws for a missing file, but callers still need the absolute path to create/write it).
     const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
     try {
         // Get the end of file position using the BIDiagram RPC client
@@ -750,7 +739,6 @@ export const getEndOfFileLineRange = async (
         };
     } catch (error) {
         console.error(`Error getting end of file line range for ${fileName}:`, error);
-        // File likely doesn't exist yet — return the absolute path at position 0,0 so it can be created.
         return {
             fileName: filePath,
             startLine: { line: 0, offset: 0 },

@@ -32,7 +32,6 @@ const FieldWrapper = styled.div`
     margin-bottom: 8px;
 `;
 
-// Strip surrounding quotes / the `string `...`` template wrapper.
 function stripWrappingQuotes(str: string): string {
     if (str.startsWith("string `") && str.endsWith("`")) {
         return str.slice("string `".length, -1);
@@ -78,8 +77,6 @@ interface AgentPromptDisplayProps {
     instructions?: string;
 }
 
-// Read-only Role + Instructions for a custom agent (AGENT_TYPE). These keys aren't node properties,
-// so updateNodeProperties ignores them on save.
 export function AgentPromptDisplay({ role, instructions }: AgentPromptDisplayProps) {
     const { form } = useFormContext();
     const values: Record<string, string> = {

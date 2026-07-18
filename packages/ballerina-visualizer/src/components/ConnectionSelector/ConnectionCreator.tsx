@@ -41,8 +41,6 @@ export function ConnectionCreator(props: ConnectionCreatorProps): JSX.Element {
     const shouldShowInfo = useMemo(() => specialConfig.shouldShowInfo?.(connectionSymbol) ?? false, [specialConfig, connectionSymbol]);
 
     const { rpcClient } = useRpcContext();
-    // Use the full-width footer save button only in popups. Overlays (side panels) render inside a
-    // PanelOverlayProvider, so a present context means we're NOT in a popup and keep the compact button.
     const isInPopup = !useContext(PanelOverlayContext);
     const [connectionFields, setConnectionFields] = useState<FormField[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);

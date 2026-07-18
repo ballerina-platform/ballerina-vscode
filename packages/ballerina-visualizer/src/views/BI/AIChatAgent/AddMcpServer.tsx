@@ -79,7 +79,6 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const projectPathUriRef = useRef<string>("");
 
     const fetchAgentNode = async () => {
-        // The agent declaration node is supplied directly by the focus diagram — no call-node lookup.
         agentNodeRef.current = agentNode;
     };
 

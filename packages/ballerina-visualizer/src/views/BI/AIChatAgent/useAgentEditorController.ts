@@ -33,7 +33,6 @@ export type AgentEditorView =
     | "NONE" | "MEMORY" | "ADD_TOOL" | "NEW_TOOL_CUSTOM" | "NEW_TOOL_CONNECTION"
     | "NEW_TOOL_FUNCTION" | "NEW_TOOL_AGENT" | "NEW_TOOL_AGENT_FORM" | "ADD_MCP" | "EDIT_MCP";
 
-// Host policy the controller delegates to: model editing, refresh, and node resolution differ per surface.
 export interface AgentEditorHost {
     projectPath: string;
     filePath?: string;
@@ -43,7 +42,6 @@ export interface AgentEditorHost {
     onLoadingChange?(loading: boolean): void;
     onChat?(node: FlowNode): void;
     onAgentCreated?(): void;
-    // Focus view renders a synthetic display node, so it maps back to the real declaration; flow uses identity.
     resolveAgentNode?(node: FlowNode): FlowNode;
 }
 
@@ -155,7 +153,6 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     const response = await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
                         filePath: path, flowNode: memoryVar,
                     });
-                    // Deleting the memory var shifts the agent; refresh its range or the rewrite duplicates it.
                     refreshNodeLineRangeFromArtifacts(updated, response?.artifacts, name);
                 }
             }

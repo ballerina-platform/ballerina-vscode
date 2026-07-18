@@ -129,7 +129,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [fileName, setFileName] = useState("");
     const [serviceType, setServiceType] = useState("");
     const [serviceName, setServiceName] = useState("");
-    // For the AGENT focus view: the agent's variable name (e.g. "libraryAgent"), shown as the title.
     const [agentName, setAgentName] = useState("");
     const [basePath, setBasePath] = useState("");
     const [listener, setListener] = useState("");

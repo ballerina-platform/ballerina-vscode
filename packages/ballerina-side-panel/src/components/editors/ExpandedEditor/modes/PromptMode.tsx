@@ -340,7 +340,6 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
 
     const isEditorEmpty = !value || !value.trim();
 
-    // Read-only: render the formatted markdown view, no toolbar/enhance.
     if (readOnly) {
         return (
             <ConditionalEditorContainer isEnhanced={false}>

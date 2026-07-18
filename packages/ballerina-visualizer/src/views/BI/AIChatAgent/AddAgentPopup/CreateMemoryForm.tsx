@@ -25,20 +25,13 @@ import { getAiModuleOrg, getEndOfFileLineRange, getNodeTemplate } from "../utils
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { LoaderWrapper } from "./styles";
 
-// Memory declarations are written to the project's dedicated agents file (same as the agent declaration).
 const MEMORY_FILE_NAME = "agents.bal";
-// The default, non-deprecated memory implementation. Its store is optional (in-memory by default), so the user
-// can just Save; a persistent store is created via the store field's "Create New" (a nested sub-modal).
 const SHORT_TERM_MEMORY = "ShortTermMemory";
 
 interface CreateMemoryFormProps {
-    // Receives the created memory variable name so the caller can select it in the originating field.
     onCreated: (variableName: string) => void;
 }
 
-// Lean Short Term Memory creation form, rendered in a sub-modal from an ai:Memory field's "Create New Memory".
-// Kept separate from the focus-diagram MemoryManagerConfig, which is wired to PanelContainer/usePanelOverlay/an
-// existing agent node and so doesn't fit a centered popup.
 export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
     const { rpcClient } = useRpcContext();
     const [template, setTemplate] = useState<FlowNode>();
@@ -91,13 +84,11 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
         setSubmitting(true);
         try {
             const node = cloneDeep(updatedNode);
-            // Re-resolve end-of-file: creating a store (if the user did) shifts the file.
             const endOfFile = await getEndOfFileLineRange(MEMORY_FILE_NAME, rpcClient);
             node.codedata.lineRange = endOfFile as any;
             const response = await rpcClient
                 .getBIDiagramRpcClient()
                 .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
-            // Prefer the user-entered variable name; fall back to the newly created artifact.
             const createdName =
                 (node.properties?.variable?.value as string) ||
                 response?.artifacts?.find((artifact) => artifact.isNew)?.name;
@@ -131,7 +122,6 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
             disableSaveButton={submitting}
             footerActionButton
             fieldOverrides={{
-                // Render the (optional) store as a connection select with its own "Create New" (nested sub-modal).
                 store: {
                     type: "ACTION_EXPRESSION",
                     types: [

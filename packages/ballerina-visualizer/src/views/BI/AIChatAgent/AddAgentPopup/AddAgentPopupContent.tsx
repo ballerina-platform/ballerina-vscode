@@ -52,11 +52,9 @@ import {
     StyledSearchBox,
 } from "./styles";
 
-// Pre-built agent declarations are written to the project's dedicated agents file.
 const AGENT_FILE_NAME = "agents.bal";
 
 type AgentFilter = "All" | "Project" | "Organization";
-// "create" = custom agent form inline; "configure" = initialize a selected pre-built agent.
 export type AddAgentView = "gallery" | "configure" | "create";
 
 export interface AddAgentPopupContentProps {
@@ -64,12 +62,10 @@ export interface AddAgentPopupContentProps {
     onClose?: () => void;
     view: AddAgentView;
     onViewChange: (view: AddAgentView) => void;
-    // When opened from inside a flow: skip the focus-diagram redirect and call onAgentCreated instead.
     inFlow?: boolean;
     onAgentCreated?: (agentVarName: string) => void;
 }
 
-// Maps a UI filter tab to the backend AgentSearchCommand `source` parameter.
 const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
     All: "all",
     Project: "local",
@@ -83,7 +79,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [filterType, setFilterType] = useState<AgentFilter>("All");
     const [agents, setAgents] = useState<AvailableNode[]>([]);
     const [isSearching, setIsSearching] = useState<boolean>(false);
-    // "Project" agents come from sibling projects in the workspace, so the tab is only relevant in a workspace.
     const [isWorkspace, setIsWorkspace] = useState<boolean>(false);
 
     useEffect(() => {
@@ -98,7 +93,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 );
             })
             .catch(() => {
-                // Treat detection failures as a single project (hide the Project tab).
             });
         return () => {
             cancelled = true;
@@ -109,10 +103,8 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [agentFilePath, setAgentFilePath] = useState<string>("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    // The pre-built agent selected from the gallery, configured in the "configure" view.
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
 
-    // Load agent template for the "configure" and "create" views. Reset otherwise.
     useEffect(() => {
         if ((view !== "configure" && view !== "create") || (view === "configure" && !pendingAgent)) {
             setAgentNode(undefined);
@@ -126,9 +118,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 let template: FlowNode;
                 if (view === "configure") {
-                    // Resolve the target file (agents.bal) first and use it as the template context: passing the
-                    // project directory breaks symbol resolution (no unique result name) and crashes same-package
-                    // creation (documentId on a directory). The file may not exist yet — the LS tolerates that.
                     template = await getNodeTemplate(
                         rpcClient,
                         pendingAgent!.codedata,
@@ -139,7 +128,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         throw new Error("No agent node template returned");
                     }
                 } else {
-                    // "create" view: load the built-in ai:Agent template.
                     template = await fetchAgentNodeTemplate(rpcClient, projectPath);
                 }
                 template.codedata.lineRange = endOfFile as any;
@@ -156,8 +144,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         };
     }, [view, pendingAgent, rpcClient, projectPath]);
 
-    // Fetches the gallery agent list. An empty query returns the default (in-memory cached) view;
-    // a non-empty query triggers a local + central search for the selected source.
     const runSearch = (text: string, filter: AgentFilter) => {
         setIsSearching(true);
         rpcClient
@@ -181,7 +167,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     const debouncedSearch = debounce((text: string) => runSearch(text, filterType), 1100);
 
-    // Initial open and tab switches fetch immediately; typing in the search box is debounced.
     useEffect(() => {
         if (view !== "gallery") {
             return;
@@ -210,8 +195,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         try {
             const node = cloneDeep(updatedNode);
 
-            // Pre-built agent (configure view): the user supplies the model via the form, so its value
-            // is kept as-is.
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             node.codedata.lineRange = endOfFile as any;
 
@@ -225,21 +208,16 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
             const agentVarName = String(node.properties?.variable?.value ?? "");
 
-            // In-flow: don't navigate away. Close the popup and let the caller refresh the agent list.
             if (inFlow) {
                 onAgentCreated?.(agentVarName);
                 return;
             }
 
-            // Redirect to the focused agent view for the newly created agent instead of going home.
             const agentArtifact =
                 sourceResponse?.artifacts?.find((artifact) => artifact.isNew && artifact.name === agentVarName) ||
                 sourceResponse?.artifacts?.find((artifact) => artifact.name === agentVarName);
 
             if (agentArtifact?.path && agentArtifact?.position) {
-                // Pass only documentUri + position and let getView classify the artifact: a custom AgentType
-                // class (module !== "ai") resolves to the AGENT_TYPE focus diagram, the built-in to AGENT.
-                // Passing an explicit focus view would desync the post-save VIEW_UPDATE (see agent focus spec).
                 await rpcClient.getVisualizerRpcClient().openView({
                     type: EVENT_TYPE.OPEN_VIEW,
                     location: {
@@ -257,14 +235,12 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         }
     };
 
-    // Initialize a pre-built agent: open the class-init config form for the selected agent's codedata.
     const handleSelectAgent = (agent: AvailableNode) => {
         setPendingAgent(agent);
         onViewChange("configure");
     };
 
     const handleCreateNew = () => {
-        // No-op for now. Wire up later.
     };
 
     if (view === "create") {
@@ -295,11 +271,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     }
 
     if (view === "configure") {
-        // Pre-built agent: show the model field so the user can supply the ModelProvider; the
-        // predetermined result type is hidden.
         const fieldOverrides = { type: { hidden: true } };
-        // Show the agent identity (icon + name + description) in a header card, and strip the description from the
-        // form node so it isn't duplicated below the card (mirrors the connector configure popup).
         const formNode = agentNode ? cloneDeep(agentNode) : undefined;
         if (formNode?.metadata?.description) {
             delete formNode.metadata.description;

@@ -92,7 +92,6 @@ export interface DiagramContextState {
     onConnectionSelect?: (connectionName: string) => void;
     goToSource: (node: FlowNode) => void;
     openView: (location: VisualizerLocation) => void;
-    // Open the focus diagram of the agent an AGENT_RUN node calls.
     goToAgent?: (node: FlowNode) => void;
     draftNode?: {
         override: boolean;
