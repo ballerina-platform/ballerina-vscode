@@ -52,9 +52,6 @@ public class AgentBuilder extends CallBuilder {
     public static final String DESCRIPTION = "Create new agent";
     public static final String BALLERINA = "ballerina";
 
-    // Config fields hidden from the AGENT node form because they are configured separately: tools are managed via
-    // the tools panel, memory via the memory manager, and the raw systemPrompt record is hidden in favour of the
-    // friendly Role + Instructions fields. The model field is visible and rendered as a connection select.
     public static final Set<String> CONFIG_PARAMS_TO_HIDE =
             Set.of(AgentCallBuilder.SYSTEM_PROMPT, TOOLS, AgentCallBuilder.MEMORY);
 
@@ -78,7 +75,6 @@ public class AgentBuilder extends CallBuilder {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         FlowNode flowNode = sourceBuilder.flowNode;
 
-        // Reconstruct the systemPrompt record from the friendly Role + Instructions fields (mirrors AGENT_CALL).
         if (flowNode.getProperty(AgentCallBuilder.ROLE).isPresent()
                 || flowNode.getProperty(AgentCallBuilder.INSTRUCTIONS).isPresent()) {
             AgentCallBuilder.writeSystemPromptFromRoleInstructions(flowNode, flowNode);
