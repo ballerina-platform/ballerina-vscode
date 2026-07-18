@@ -97,7 +97,6 @@ const Container = styled.div`
     height: calc(100vh - 50px);
 `;
 
-// Stacking context above the side panel (z 2000) so the popup backdrop covers the whole screen.
 const AddAgentPopupLayer = styled.div`
     position: relative;
     z-index: 2100;
@@ -2757,7 +2756,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         onChat: handleOnChatWithAgent,
     });
 
-    // Bridge the controller's view to this host's shared side-panel switch.
     const prevAgentViewRef = useRef<AgentEditorView>("NONE");
     useEffect(() => {
         const panelMap: Record<Exclude<AgentEditorView, "NONE">, SidePanelView> = {

@@ -924,7 +924,6 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
         }
 
         if (targetedArtifactType === DIRECTORY_MAP.AGENT) {
-            // Agents are stored under the "agents" key, not the "AGENT" artifactType.
             targetedArtifactType = DIRECTORY_MAP.AGENTS;
         }
 

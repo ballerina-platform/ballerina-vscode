@@ -67,7 +67,6 @@ public class ArtifactsTest extends AbstractLSTest {
                 "graphql.json",
                 // TODO: Include this after discussing how to integrate submodules into the artifacts tree
                 "persist.json",
-                // TODO: Capture expected snapshot for the custom *ai:FixedReturnAgentType fixture.
                 "agent_type.json"
         };
     }

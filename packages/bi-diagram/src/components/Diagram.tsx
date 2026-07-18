@@ -98,10 +98,7 @@ export interface DiagramProps {
         serviceName?: string;
         functionName?: string;
     };
-    // Set only by the agent focus-flow diagram, so its single-node centering never affects the
-    // normal flow diagram.
     isAgentFocusView?: boolean;
-    // When true, renders Controls with position:absolute (inside a popup) instead of position:fixed.
     embedded?: boolean;
 }
 
@@ -140,7 +137,6 @@ export function Diagram(props: DiagramProps) {
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
-    // In embedded agent focus view, hide until centering completes to avoid visible jump.
     const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
@@ -293,10 +289,6 @@ export function Diagram(props: DiagramProps) {
             diagramEngine.getModel().removeLayer(overlayLayer);
         }
 
-        // Agent focus view renders a lone agent node (built-in AGENT_CALL or custom AGENT_TYPE). Center the agent
-        // card (width = 2 * lw) on the diagram center line (x = 0), letting the model/tools branch out to the right;
-        // the shared reset/centering below then horizontally centers the card in the canvas.
-        // Gated on isAgentFocusView so it never affects the normal flow diagram.
         const isSingleAgentNode =
             isAgentFocusView && nodes.length === 1 &&
             (nodes[0].getType() === NodeTypes.AGENT_CALL_NODE ||
@@ -324,7 +316,6 @@ export function Diagram(props: DiagramProps) {
                 const zoom = diagramModel.getZoomLevel() / 100;
                 const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
                 const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
-                // Card center is at diagram x=0 (node placed at x=-lw), so offsetX = canvasWidth/2.
                 const offsetX = canvasWidth / 2;
                 const offsetY = canvasHeight / 2 - 40 - (agentNode.getY() + cardHeight / 2) * zoom;
                 diagramModel.setOffset(offsetX, offsetY);

@@ -110,7 +110,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const agentDeclRef = useRef<FlowNode>();
     const agentFormNodeRef = useRef<FlowNode>();
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
-    // Prevent creation-triggered reloads from discarding unsaved form state.
     const suppressAgentTypeReloadRef = useRef(false);
     const suppressAgentReloadRef = useRef(false);
     const [agentFormKey, setAgentFormKey] = useState(0);
@@ -178,8 +177,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const target = targetRef.current;
             fetchNodes(toNode, target, false);
         });
-        // Unsubscribe on unmount so a left-behind focus diagram doesn't react to content updates from another
-        // view (e.g. the Add Agent popup creating a memory/store) and call getAgentTypeModel with no position.
         return () => {
             unsubscribeContentUpdated();
         };
@@ -192,8 +189,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         [rpcClient]
     );
 
-    // Coalesces multiple content-updated notifications from one save (e.g. delete writes twice) into
-    // a single refetch, so the focus view doesn't reload more than once per change.
     const debouncedGetAgentModel = useCallback(
         debounce(() => {
             getAgentModel();
@@ -266,10 +261,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             });
     };
 
-    // ---------- AGENT focus view ----------
 
-    // posOverride: refetch over a known position instead of the stored visualizer location, which goes stale after a
-    // webview edit shifts the agent (the auto-refresh path doesn't re-resolve it). See handleDeleteAgentMemory.
     const getAgentModel = async (posOverride?: NodePosition) => {
         if (suppressAgentReloadRef.current) {
             suppressAgentReloadRef.current = false;
@@ -286,9 +278,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             }
             embeddedPositionRef.current = pos;
 
-            // A single getFlowModel call over the declaration's line range returns both the AGENT node
-            // (built via the standard flow-model path, so it carries the LS-injected tool/model/memory
-            // metadata) and the module connections — replacing the separate searchNodes + getModuleNodes.
             const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
                 filePath,
                 startLine: { line: pos.startLine, offset: pos.startColumn },
@@ -297,9 +286,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const fetchedFlow = response?.flowModel;
             const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === "AGENT");
             if (!agentDecl) {
-                // Usually a transient stale-position reload: an in-progress edit (e.g. creating a memory store, which
-                // is declared above the agent) shifts the agent, so the stored position no longer hits it. Keep the
-                // current model and any open panel — don't tear down the user's side panel — and let it re-resolve.
                 console.error(">>> agent focus: AGENT node not found in flow model", { filePath, pos });
                 return;
             }
@@ -309,8 +295,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
             const connections = fetchedFlow?.connections || [];
             const renderNode = buildAgentRenderNode(agentDecl, connections);
-            // Use the absolute document path (the node's lineRange.fileName is relative, which the
-            // LS would resolve against filesystem root -> EROFS on save).
             const fileName = filePath;
             const flow: Flow = { fileName, nodes: [renderNode], connections };
             setModel(flow);
@@ -326,12 +310,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
     };
 
-    // ---------- AGENT_TYPE focus view ----------
 
-    // Renders the AGENT_TYPE node directly (no AGENT_CALL transform). It carries the LS-resolved model
-    // metadata + modelProviderParam, which drive the model-provider circle in the simplified widget.
     const getAgentTypeModel = async (posOverride?: NodePosition) => {
-        // Skip exactly one reload after creating a model provider from the open form (preserves the selection).
         if (suppressAgentTypeReloadRef.current) {
             suppressAgentTypeReloadRef.current = false;
             return;
@@ -340,7 +320,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onUpdate();
         try {
             const location = await rpcClient.getVisualizerLocation();
-            // posOverride wins over the stored location, which is stale after a delete shifts the agent up.
             const pos = posOverride ?? embeddedPositionRef.current ?? location?.position;
             if (!pos) {
                 console.error(">>> agent-type focus: no position in visualizer location", location);
@@ -355,9 +334,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const fetchedFlow = response?.flowModel;
             const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === "AGENT_TYPE");
             if (!agentDecl) {
-                // Usually a transient stale-position reload: an in-progress edit (e.g. creating a memory store, which
-                // is declared above the agent) shifts the agent, so the stored position no longer hits it. Keep the
-                // current model and any open panel — don't tear down the user's side panel — and let it re-resolve.
                 console.error(">>> agent-type focus: AGENT_TYPE node not found", { filePath, pos });
                 return;
             }
@@ -371,7 +347,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 id: agentDecl.id || "agent-type-focus-node",
                 branches: [],
                 flags: agentDecl.flags ?? 0,
-                // Leaf node: prevents InitVisitor from appending a trailing EMPTY "end" node + link.
                 returning: true,
             };
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
@@ -388,7 +363,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
     };
 
-    // Box click -> full init form with the model param hidden (it's edited via the circle).
     const handleEditAgentTypeForm = (_node: FlowNode) => {
         if (!agentDeclRef.current) {
             return;
@@ -398,7 +372,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setAgentPanel("FORM");
     };
 
-    // Model-circle click -> the same form scoped to just the model-provider param.
     const handleEditAgentTypeModel = (_node: FlowNode) => {
         if (!agentDeclRef.current) {
             return;
@@ -408,7 +381,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setAgentPanel("FORM");
     };
 
-    // ALL: hide the model param (shown as the circle). MODEL: show only the model param.
     const buildAgentTypeFieldOverrides = (node: FlowNode, mode: "ALL" | "MODEL") => {
         const modelParam = (node.metadata?.data as NodeMetadata)?.agentInfo?.modelProvider?.propertyKey;
         const overrides: Record<string, { hidden?: boolean }> = { type: { hidden: true } };
@@ -456,7 +428,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (!updatedNode) {
             return;
         }
-        // A save must always reflect in the diagram, so never let a pending suppression swallow its reload.
         suppressAgentTypeReloadRef.current = false;
         setShowProgressIndicator(true);
         try {
@@ -643,7 +614,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             id: node.codedata,
         }).then((response) => {
             const nodesWithCustomForms = ["IF", "FORK"];
-            // if node doesn't have properties. don't show edit form
             if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
                 setShowProgressIndicator(false);
                 showEditForm.current = false;
@@ -884,7 +854,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         setShowConnectionPanel(false);
         selectedNodeRef.current = undefined;
         if (isAgent) {
-            // Refresh is driven by onProjectContentUpdated only when a save actually wrote source.
             setAgentPanel("NONE");
         } else {
             getFlowModel();
@@ -982,7 +951,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
     });
 
-    // Open when the host form/connection panel or a controller sub-panel is active; click backdrop to close.
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
     const handleOverlayClick = () => {
         if (showConnectionPanel) {
@@ -1030,9 +998,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         () => ({
             model: flowModel,
             onNodeSelect: handleEditAgentForm,
-            // onAddNode/onDeleteNode must be defined or Diagram forces the node read-only
-            // (Diagram.tsx readOnly = !onAddNode || !onDeleteNode || !onNodeSelect). The agent
-            // focus view has no flow to add into, so these are intentional no-ops.
             onAddNode: noop,
             onDeleteNode: noop,
             goToSource: handleOnGoToSource,
@@ -1041,10 +1006,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             projectPath,
             breakpointInfo,
             readOnly: showProgressIndicator,
-            // Enables the single agent node's centering in Diagram.tsx (focus view only).
             isAgentFocusView: true,
             embedded,
-            // Dim backdrop above the canvas (behind the form) while a panel is open; click to close.
             overlay: {
                 visible: isAgentPanelOpen,
                 onClickOverlay: handleOverlayClick,
@@ -1069,12 +1032,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             readOnly: showProgressIndicator,
             isAgentFocusView: true,
             embedded,
-            // Dim backdrop above the canvas (behind the form) while a panel is open; click to close.
             overlay: {
                 visible: isAgentPanelOpen,
                 onClickOverlay: handleOverlayClick,
             },
-            // AgentTypeNodeWidget reads only model/memory/chat; tool callbacks are ignored.
             agentNode: agentEditor.diagramCallbacks,
         }),
         [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
@@ -1094,7 +1055,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         return node;
     })();
 
-    // Read-only role/instructions at the top of the Configure Agent form (not the model-only form).
     const agentTypePromptInjection = (() => {
         if (agentTypeFormMode !== "ALL") {
             return undefined;

@@ -154,8 +154,6 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
 
             setCurrentStep(1);
 
-            // Write the agent declaration to agents.bal, re-fetching end-of-file in case it
-            // shifted since the template was loaded (e.g. a concurrent edit).
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             const node = cloneDeep(updatedNode);
             delete (node.properties as Record<string, Property>)[BASE_PATH_KEY];

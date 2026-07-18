@@ -364,7 +364,6 @@ export interface FormProps {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
-    // Enables the "Create New" link on connection-select fields; resolves with the new variable name.
     onCreateConnection?: (kind: string, onCreated: (variableName: string) => void) => void;
 }
 

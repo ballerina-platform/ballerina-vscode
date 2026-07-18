@@ -302,8 +302,6 @@ public class FunctionDataBuilder {
             }
         }
 
-        // Resolve workspace-sibling packages locally first; they aren't in Central, so the Central path below
-        // would just fail after a slow network round-trip.
         Optional<Package> workspacePackage = resolveWorkspacePackage();
         if (workspacePackage.isPresent()) {
             this.resolvedPackage(workspacePackage.get());
@@ -316,7 +314,6 @@ public class FunctionDataBuilder {
         this.resolvedPackage(resolvedPackage);
     }
 
-    // The workspace child package matching moduleInfo, if any. Best-effort; empty on failure.
     private Optional<Package> resolveWorkspacePackage() {
         if (moduleInfo == null) {
             return Optional.empty();

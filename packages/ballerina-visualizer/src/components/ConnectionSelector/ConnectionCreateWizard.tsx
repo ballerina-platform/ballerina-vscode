@@ -34,7 +34,6 @@ interface ConnectionCreateWizardProps {
     onCreated: (variableName: string) => void;
 }
 
-// Pick a connection type, then configure it; surfaces the created variable name via onCreated.
 export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.Element {
     const { connectionKind, fileName, targetLineRange, onCreated } = props;
     const { rpcClient } = useRpcContext();
@@ -60,13 +59,8 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
         }
     };
 
-    // ConnectionCreator sets the new variable name on the throwaway node's model property; read it back.
-    // Kinds whose variable isn't model/modelProvider (e.g. a memory store, under `store`) fall back to the
-    // newly created artifact's name.
     const handleSave = (selectedNode: FlowNode, artifacts?: ProjectStructureArtifactResponse[]) => {
         const properties = selectedNode?.properties as Record<string, { value?: string }> | undefined;
-        // Use || (not ??): the throwaway node seeds model.value = "" (empty string), which ?? wouldn't skip,
-        // so a store (whose var isn't under model/modelProvider) would never reach the artifact fallback.
         const varName =
             properties?.model?.value ||
             properties?.modelProvider?.value ||

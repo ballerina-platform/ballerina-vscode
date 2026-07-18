@@ -491,7 +491,6 @@ public class CodeAnalyzer extends NodeVisitor {
         ExpressionNode expressionNode = remoteMethodCallActionNode.expression();
         MethodSymbol functionSymbol = (MethodSymbol) symbol.get();
         ClassSymbol classSymbol = optClassSymbol.get();
-        // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType, so this ordering matters.
         if (isAgentClass(classSymbol)) {
             startNode(NodeKind.AGENT_CALL, expressionNode.parent());
             populateAgentMetaData(expressionNode, classSymbol);
@@ -594,10 +593,6 @@ public class CodeAnalyzer extends NodeVisitor {
         }
     }
 
-    // Stamps read-only display metadata (system prompt / tools / model) onto a custom agent's AGENT_RUN node by
-    // resolving its declaration's constructor (for the model value) and reading the agentMetadata field of the
-    // class's @display annotation or, as a fallback, the agent class body. Mirrors populateAgentMetaData but for
-    // custom (non-built-in) agents.
     private void populateAgentRunMetaData(ExpressionNode expressionNode, ClassSymbol classSymbol) {
         SeparatedNodeList<FunctionArgumentNode> argumentNodes = getAgentInstanceNewExpr(expressionNode)
                 .flatMap(ImplicitNewExpressionNode::parenthesizedArgList)
@@ -606,8 +601,6 @@ public class CodeAnalyzer extends NodeVisitor {
         AiUtils.applyAgentRunMetadata(nodeBuilder, classSymbol, argumentNodes, project, this::getModelIconUrl);
     }
 
-    // Resolves the agent instance's `new` expression from the `.run()` receiver — either a class field
-    // (`self.agent`) initialized in `init`, or a variable whose declaration holds the `new` expression.
     private Optional<ImplicitNewExpressionNode> getAgentInstanceNewExpr(ExpressionNode expressionNode) {
         if (isClassField(expressionNode)) {
             FieldAccessExpressionNode fieldAccess = (FieldAccessExpressionNode) expressionNode;
@@ -819,9 +812,6 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         AiUtils.addAgentMetadata(nodeBuilder, agentInfo);
 
-        // The remaining setup (AGENT_CALL-style properties + agent codedata reference) only applies to the
-        // agent->run() call node. The AGENT declaration node reuses just the metadata above; its own
-        // properties are set separately, so skip this to avoid clobbering them.
         if (!includeCallProperties) {
             return;
         }
@@ -912,7 +902,6 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         AgentBuilder.hideAgentConfigProperties(nodeBuilder);
-        // Role + Instructions are required on the AGENT node (see AgentBuilder).
         AgentCallBuilder.setAdditionalAgentProperties(nodeBuilder, agentData, false);
     }
 
@@ -2901,9 +2890,6 @@ public class CodeAnalyzer extends NodeVisitor {
 
         if (kind == NodeKind.AGENT) {
             applyAgentRoleInstructionFields(argumentNodes);
-            // Inject the same rich metadata (tools/model/memory/agent with icons) the AGENT_CALL node gets,
-            // so the standalone agent declaration renders model/tool/memory icons too. Only the metadata is
-            // reused (includeCallProperties = false) to avoid overwriting the declaration's own properties.
             if (newExpressionNode instanceof ImplicitNewExpressionNode implicitAgentExpr) {
                 genAgentData(implicitAgentExpr, classSymbol, new HashMap<>(), false);
             }
@@ -2950,7 +2936,6 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private NodeKind resolveNodeKind(ClassSymbol classSymbol) {
-        // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType, so this ordering matters.
         if (isAgentClass(classSymbol)) {
             return NodeKind.AGENT;
         }
@@ -3399,7 +3384,6 @@ public class CodeAnalyzer extends NodeVisitor {
                         .orElse(false)) {
             startNode(NodeKind.DATA_MAPPER_CALL, functionCallExpressionNode.parent());
         } else if (isAgentClass(symbol.get())) {
-            // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType, so this ordering matters.
             startNode(NodeKind.AGENT_CALL, functionCallExpressionNode.parent());
         } else if (isAiFixedReturnAgent(symbol.get()) || isAiInferredReturnAgent(symbol.get())) {
             startNode(NodeKind.AGENT_RUN, functionCallExpressionNode.parent());
@@ -3695,9 +3679,6 @@ public class CodeAnalyzer extends NodeVisitor {
             }
             ModuleID id = optModule.get().id();
             String iconType = symbolName.orElse("");
-            // The generic `ai:ModelProvider` interface name maps to no provider icon. Fall back to the module
-            // (e.g. "ai.anthropic"), which the frontend icon map also recognizes, so providers referenced via
-            // the interface type resolve to their bundled SVG logo instead of the remote CDN image.
             if (iconType.isEmpty() || iconType.equals(MODEL_PROVIDER_INTERFACE_NAME)) {
                 iconType = id.packageName();
             }
@@ -3711,9 +3692,6 @@ public class CodeAnalyzer extends NodeVisitor {
         return new ModelData(expressionNode.toSourceCode().strip(), null, null);
     }
 
-    // Resolves a custom-agent (AGENT_TYPE) memory init argument to the memory metadata shown on the node. Mirrors the
-    // built-in agent's memory extraction in genAgentData: an explicit `new ai:Foo(size)` yields the type + size; a
-    // variable reference yields the variable's type name. Anything else (or unresolved) yields null -> no memory card.
     private MemoryManagerData getMemoryData(ExpressionNode memory) {
         if (memory == null) {
             return null;
@@ -4256,7 +4234,6 @@ public class CodeAnalyzer extends NodeVisitor {
         return "";
     }
 
-    // True when the tool function's body delegates to another agent's run() — i.e. an agent-as-tool wrapper.
     private boolean isAgentDelegationTool(Symbol functionSymbol) {
         Optional<Location> location = functionSymbol.getLocation();
         if (location.isEmpty()) {

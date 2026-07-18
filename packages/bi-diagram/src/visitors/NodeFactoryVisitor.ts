@@ -708,7 +708,6 @@ export class NodeFactoryVisitor implements BaseVisitor {
         this.addSuggestionsButton(node);
     }
 
-    // AGENT_RUN (custom agent .run()) reuses the built-in AgentCall node/widget — they render identically.
     beginVisitAgentRun(node: FlowNode, parent?: FlowNode): void {
         this.beginVisitAgentCall(node, parent);
     }

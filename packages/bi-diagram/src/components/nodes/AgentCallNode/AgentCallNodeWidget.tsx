@@ -475,7 +475,6 @@ export const ViewAgentButton = styled.div`
     }
 `;
 
-// Extra height reserved for the agent name row (divider + row + bottom padding).
 const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 
 const NODE_TITLE = (
@@ -632,7 +631,6 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const nodeRole = sanitizedAgent?.role || '';
     const nodeInstructions = sanitizedAgent?.instructions || '';
 
-    // Guard: only animate if the trace's entrypoint matches the current flow diagram's service/function.
     const entrypointMatches = traceAnimation && (() => {
         if (entrypointContext) {
             const traceService = traceAnimation.entrypointServiceName ?? '';
@@ -808,7 +806,6 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
                     <div style={{ width: "100%", opacity: 0.55, borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT}`, flex: 1, overflow: "hidden", padding: "8px 2px" }}>
                         {sanitizedAgent?.role && sanitizedAgent?.instructions ? (
-                            // Only show the system prompt when both role and instructions are present.
                             <>
                                 <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick} style={{ marginBottom: 6 }}>
                                     <NodeStyles.Role>

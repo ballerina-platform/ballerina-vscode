@@ -52,7 +52,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
     const { agentNode: agentNodeProp, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
-    // The agent declaration node is supplied directly by the focus diagram — no call-node lookup.
     const agentNode = agentNodeProp ?? null;
     const [savingForm, setSavingForm] = useState<boolean>(false);
     const [ready, setReady] = useState<boolean>(false);
@@ -171,8 +170,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 }
             }
 
-            // AGENT_TOOL node (AgentToolBuilder) replaces the genTool RPC: tool signature as properties, the wrapped
-            // node + connection in codedata.data.
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath.current,
                 flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters),
@@ -202,7 +199,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 }
             }
 
-            // If artifact not found, re-fetch the agent node by its variable name to get the correct line range
             if (!agentArtifactFound) {
                 const agentVarName = agentNode?.properties?.variable?.value;
                 if (typeof agentVarName === "string") {

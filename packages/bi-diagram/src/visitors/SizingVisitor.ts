@@ -327,7 +327,6 @@ export class SizingVisitor implements BaseVisitor {
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
-    // AGENT_RUN reuses the AgentCall node/widget, so it sizes identically.
     endVisitAgentRun(node: FlowNode, parent?: FlowNode): void {
         this.endVisitAgentCall(node, parent);
     }
@@ -336,18 +335,13 @@ export class SizingVisitor implements BaseVisitor {
         if (!this.validateNode(node)) return;
         const halfNodeWidth = NODE_WIDTH / 2;
         const containerLeftWidth = halfNodeWidth;
-        // Reserve room to the right for the model-provider circle and any tool circles.
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-        // Grow the box to fit the memory affordance (button/card) and the doc-comment description block (divider +
-        // up to 4 clamped lines) when present.
         const nodeMetadata = node.metadata.data as NodeMetadata;
         const agentInfo = nodeMetadata?.agentInfo;
         const memoryHeight = agentInfo?.memory?.propertyKey ? 52 : 0;
-        // The system prompt (role + 3 clamped instruction lines) reserves a bit more than the description block.
         const hasPrompt = Boolean(agentInfo?.systemPrompt?.role && agentInfo?.systemPrompt?.instructions);
         const descriptionHeight = hasPrompt ? 115 : agentInfo?.description ? 95 : 0;
         const boxHeight = NODE_HEIGHT + memoryHeight + descriptionHeight;
-        // Base height matches AGENT_CALL (no add-tool button since read-only), then grows per tool.
         const toolCount = (agentInfo?.tools || []).length;
         const baseHeight = NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP;
         const toolsHeight = toolCount * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);

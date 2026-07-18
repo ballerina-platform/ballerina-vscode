@@ -1361,16 +1361,11 @@ public class AiUtils {
         if (!isWorkspaceClass(classSymbol, project)) {
             return AgentInfo.EMPTY;
         }
-        // Workspace (user-owned) agent without the annotation: tools + model/memory resolve semantically; the system
-        // prompt is a string literal in the class body, so it's read from source (allowed for workspace classes).
         return new AgentInfo(workspaceSystemPrompt(classSymbol, project), toolMethodsOf(classSymbol),
                 initParamOfType(classSymbol, MODEL_PROVIDER_INTERFACE_NAME).orElse(null),
                 initParamOfType(classSymbol, MEMORY_INTERFACE_NAME).orElse(null));
     }
 
-    // The role/instructions from the inner ai:Agent's `systemPrompt = {...}` mapping in the workspace agent class's
-    // init body. Source-only (string literals have no semantic form); reached only for workspace (user-owned)
-    // classes, where reading the source is allowed.
     private static SystemPromptData workspaceSystemPrompt(ClassSymbol classSymbol, Project project) {
         Optional<Location> location = classSymbol.initMethod().flatMap(MethodSymbol::getLocation);
         Optional<ModuleID> module = classSymbol.getModule().map(ModuleSymbol::id);
@@ -1392,8 +1387,6 @@ public class AiUtils {
         return null;
     }
 
-    // From a node inside the init method, walk up to the body and return the `systemPrompt = {...}` mapping passed to
-    // the inner agent's `(check) new (...)`, or null if not found.
     private static MappingConstructorExpressionNode findSystemPromptMapping(NonTerminalNode node) {
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
             node = node.parent();
@@ -1421,7 +1414,6 @@ public class AiUtils {
         return null;
     }
 
-    // Parses role/instructions from a `{role: "...", instructions: ...}` mapping (strips quotes / backticks).
     private static SystemPromptData toSystemPrompt(MappingConstructorExpressionNode mapping) {
         String role = null;
         String instructions = null;
@@ -1442,9 +1434,6 @@ public class AiUtils {
         return role != null || instructions != null ? new SystemPromptData(role, instructions) : null;
     }
 
-    // Whether the class belongs to a workspace package (the current project or a workspace sibling) rather than a
-    // resolved Central/distribution dependency. Only workspace (user-owned) classes may be inspected when the
-    // annotation is absent.
     private static boolean isWorkspaceClass(ClassSymbol classSymbol, Project project) {
         Optional<ModuleID> moduleId = classSymbol.getModule().map(ModuleSymbol::id);
         if (moduleId.isEmpty()) {
@@ -1457,7 +1446,6 @@ public class AiUtils {
                         && packageName.equals(p.currentPackage().packageName().value()));
     }
 
-    // The current project plus any workspace sibling whose package matches the given org/package name.
     private static List<Project> getProjectsForModule(String org, String packageName, Project project) {
         List<Project> projects = new ArrayList<>();
         projects.add(project);
@@ -1476,12 +1464,10 @@ public class AiUtils {
                 }
             }
         } catch (Throwable t) {
-            // Best-effort: fall back to the current project only.
         }
         return projects;
     }
 
-    // The first init param typed as the given ai interface (ModelProvider / Memory), as a WiredParam (name + index).
     private static Optional<WiredParam> initParamOfType(ClassSymbol classSymbol, String interfaceName) {
         Optional<MethodSymbol> initMethodOpt = classSymbol.initMethod();
         if (initMethodOpt.isEmpty()) {
@@ -1497,8 +1483,6 @@ public class AiUtils {
         return Optional.empty();
     }
 
-    // The agent's tools, read semantically from its @ai:AgentTool methods (label/icon from each method's @display).
-    // The workspace fallback only — MCP toolkits / module-level function tools aren't captured (the annotation does).
     private static List<AgentToolData> toolMethodsOf(ClassSymbol classSymbol) {
         List<AgentToolData> tools = new ArrayList<>();
         for (MethodSymbol method : classSymbol.methods().values()) {
@@ -1512,14 +1496,12 @@ public class AiUtils {
         return tools;
     }
 
-    // Whether the symbol carries the ballerina/ai annotation with the given name (e.g. AgentTool).
     private static boolean hasAiAnnotation(MethodSymbol method, String annotName) {
         return method.annotAttachments().stream().anyMatch(annot -> annot.typeDescriptor().nameEquals(annotName)
                 && annot.typeDescriptor().getModule().map(ModuleSymbol::id)
                         .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
     }
 
-    // The label + iconPath of a method's @display annotation (each null when absent).
     private static DisplayInfo readDisplayAnnotation(MethodSymbol method) {
         for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
             if (annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) && annot.attachmentValue().isPresent()
@@ -1533,9 +1515,6 @@ public class AiUtils {
     private record DisplayInfo(String label, String icon) {
     }
 
-    // Reads the agent metadata the ai compiler plugin records under the `agentMetadata` field of the class's @display
-    // annotation into an AgentInfo (semantic API, so it resolves cross-repo for Central agents). Empty when there is
-    // no @display annotation carrying an `agentMetadata` field (e.g. a class with no plugin-recorded metadata).
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
         for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
             if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) || annot.attachmentValue().isEmpty()
@@ -1549,8 +1528,6 @@ public class AiUtils {
         return Optional.empty();
     }
 
-    // Builds an AgentInfo from the annotation's value map: tools + system prompt directly, and the model/memory
-    // param NAMES resolved to their init-param index (WiredParam) so the value/icon can be read from the declaration.
     private static AgentInfo buildAgentInfo(ClassSymbol classSymbol, Map<?, ?> root) {
         List<AgentToolData> tools = new ArrayList<>();
         if (unwrapConstant(root.get(AGENT_METADATA_TOOLS)) instanceof List<?> toolList) {
@@ -1570,7 +1547,6 @@ public class AiUtils {
         return new AgentInfo(parseSystemPrompt(root.get(AGENT_METADATA_SYSTEM_PROMPT)), tools, model, memory);
     }
 
-    // The role + instructions of a SystemPrompt record, or null when absent / empty.
     private static SystemPromptData parseSystemPrompt(Object value) {
         if (unwrapConstant(value) instanceof Map<?, ?> map) {
             String role = constantString(map.get(SYSTEM_PROMPT_ROLE));
@@ -1582,13 +1558,11 @@ public class AiUtils {
         return null;
     }
 
-    // The underlying string of a (possibly wrapped) constant value, or null when absent / blank.
     private static String constantString(Object value) {
         Object unwrapped = unwrapConstant(value);
         return unwrapped != null && !unwrapped.toString().isBlank() ? unwrapped.toString() : null;
     }
 
-    // The `parameterName` field of a ParameterInfo record (modelProvider / memory), or null when absent.
     private static String parseParameterName(Object value) {
         if (unwrapConstant(value) instanceof Map<?, ?> map) {
             Object name = unwrapConstant(map.get(PARAMETER_NAME_FIELD));
@@ -1599,9 +1573,6 @@ public class AiUtils {
         return null;
     }
 
-    // Maps a ToolMetadata record onto the frontend's tool convention: name = the tool name (the @display label is
-    // ignored), MCP toolkits carry the "MCP Server" type + the ballerina/mcp icon, function tools carry their
-    // @display icon (frontend falls back to the bi-function glyph when the icon path doesn't resolve).
     private static AgentToolData parseToolMetadata(Map<?, ?> toolMap) {
         Object nameVal = unwrapConstant(toolMap.get(TOOL_NAME_FIELD));
         if (nameVal == null || nameVal.toString().isBlank()) {
@@ -1620,9 +1591,6 @@ public class AiUtils {
         return new AgentToolData(displayName, icon, null, isMcp ? MCP_SERVER_TYPE : null);
     }
 
-    // Unwrap one level of constant-value wrapping to the underlying value. Record fields are wrapped as the public
-    // ConstantValue, but the compiler does NOT recurse into array elements — those stay as the internal
-    // BLangConstantValue (e.g. each entry of the tools array), so both wrappers must be handled.
     private static Object unwrapConstant(Object value) {
         if (value instanceof ConstantValue constant) {
             return constant.value();
@@ -1633,7 +1601,6 @@ public class AiUtils {
         return value;
     }
 
-    // The init parameter with the given name as a WiredParam (name + positional index), or empty if not found.
     private static Optional<WiredParam> resolveInitParamByName(ClassSymbol classSymbol, String paramName) {
         if (paramName == null) {
             return Optional.empty();
@@ -1695,7 +1662,6 @@ public class AiUtils {
                 .ifPresent(classSymbol -> markClientConnectionParams(nodeBuilder, classSymbol));
     }
 
-    // Stamp client-typed init params with the connector codedata so the frontend renders a connection select.
     private static void markClientConnectionParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol) {
         Optional<MethodSymbol> initMethodOpt = classSymbol.initMethod();
         if (initMethodOpt.isEmpty()) {
@@ -1724,7 +1690,6 @@ public class AiUtils {
         }
     }
 
-    // The client ClassSymbol for a type, i.e. a concrete class with the `client` qualifier (else empty).
     private static Optional<ClassSymbol> getClientClass(TypeSymbol typeSymbol) {
         TypeSymbol raw = typeSymbol instanceof TypeReferenceTypeSymbol typeRef ? typeRef.typeDescriptor() : typeSymbol;
         if (raw instanceof ClassSymbol classSymbol && classSymbol.qualifiers().contains(Qualifier.CLIENT)) {
@@ -1733,7 +1698,6 @@ public class AiUtils {
         return Optional.empty();
     }
 
-    // The connector's Codedata stashed under the param codedata's `data.connection`.
     private static PropertyCodedata buildConnectorCodedata(ClassSymbol clientClass, PropertyCodedata existing) {
         Optional<ModuleSymbol> module = clientClass.getModule();
         Optional<String> className = clientClass.getName();
@@ -1761,7 +1725,6 @@ public class AiUtils {
         return builder.addData(CONNECTION_DATA_KEY, connector).build();
     }
 
-    // Copy of the property with the connection codedata, dropping the param's type import (not needed here).
     private static Property copyPropertyWithCodedata(Property property, PropertyCodedata codedata) {
         return new Property(
                 property.metadata(),
@@ -1785,7 +1748,6 @@ public class AiUtils {
         );
     }
 
-    // Finds the class named codedata.object in the project (or a workspace sibling matching codedata's org/package).
     private static Optional<ClassSymbol> resolveClass(Codedata codedata, Project project) {
         String className = codedata.object();
         for (Project candidate : getProjectsForModule(codedata.org(), codedata.packageName(), project)) {
@@ -1800,10 +1762,8 @@ public class AiUtils {
                     }
                 }
             } catch (Throwable t) {
-                // Try the next candidate.
             }
         }
-        // Workspace lookup missed — agent is a Central/local-repo dependency. Use the BALA cache.
         try {
             Optional<SemanticModel> centralModel =
                     PackageUtil.getSemanticModel(codedata.org(), codedata.packageName());
@@ -1816,12 +1776,10 @@ public class AiUtils {
                 }
             }
         } catch (Throwable t) {
-            // Best-effort: leave the param as a plain expression editor.
         }
         return Optional.empty();
     }
 
-    // The class doc-comment description (stripped, non-empty), if any.
     private static Optional<String> getCustomAgentDescription(ClassSymbol classSymbol) {
         return classSymbol.documentation()
                 .flatMap(Documentation::description)
@@ -1829,7 +1787,6 @@ public class AiUtils {
                 .filter(description -> !description.isEmpty());
     }
 
-    // Whether the type is the ballerina/ai:<interfaceName> object interface.
     private static boolean isAiInterfaceType(TypeSymbol typeSymbol, String interfaceName) {
         if (typeSymbol instanceof TypeReferenceTypeSymbol typeRef
                 && typeRef.definition().nameEquals(interfaceName)) {
@@ -1841,7 +1798,6 @@ public class AiUtils {
         return false;
     }
 
-    // The instantiation argument bound to the given wired param (named or positional).
     private static ExpressionNode getArgumentForParam(SeparatedNodeList<FunctionArgumentNode> argumentNodes,
                                                       WiredParam param) {
         if (argumentNodes == null) {
