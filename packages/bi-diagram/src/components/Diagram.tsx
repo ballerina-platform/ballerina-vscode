@@ -45,7 +45,6 @@ import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, J
 import { BreakpointVisitor } from "../visitors/BreakpointVisitor";
 import { BaseNodeModel } from "./nodes/BaseNode";
 import { AgentCallNodeModel } from "./nodes/AgentCallNode/AgentCallNodeModel";
-import { AgentTypeNodeModel } from "./nodes/AgentTypeNode/AgentTypeNodeModel";
 import { AgentNodeModel } from "./nodes/AgentNode/AgentNodeModel";
 import { PopupOverlay } from "./PopupOverlay";
 import { AgentNodeActions } from "./AgentNodeActions";
@@ -295,7 +294,7 @@ export function Diagram(props: DiagramProps) {
                 nodes[0].getType() === NodeTypes.AGENT_TYPE_NODE ||
                 nodes[0].getType() === NodeTypes.AGENT_NODE);
         if (isSingleAgentNode) {
-            const agentNode = nodes[0] as AgentCallNodeModel | AgentTypeNodeModel | AgentNodeModel;
+            const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
             const { lw, y } = agentNode.node.viewState;
             agentNode.setPosition(-lw, y);
         }
@@ -311,7 +310,7 @@ export function Diagram(props: DiagramProps) {
                 if (!canvas) {
                     return false;
                 }
-                const agentNode = nodes[0] as AgentCallNodeModel | AgentTypeNodeModel | AgentNodeModel;
+                const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
                 const diagramModel = diagramEngine.getModel();
                 const zoom = diagramModel.getZoomLevel() / 100;
                 const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
