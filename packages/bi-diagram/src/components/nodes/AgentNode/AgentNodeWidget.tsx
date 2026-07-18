@@ -32,6 +32,7 @@ import {
     NODE_HEIGHT,
     NODE_PADDING,
     NODE_WIDTH,
+    NodeTypes,
 } from "../../../resources/constants";
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
@@ -148,6 +149,25 @@ export namespace NodeStyles {
         }
     `;
 
+    export const IconBox = styled.div`
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        margin-right: 4px;
+    `;
+
+    export const PackageBadge = styled.div`
+        position: absolute;
+        right: -7px;
+        bottom: -7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    `;
+
     export const Title = styled(StyledText)`
         height: 18px !important;
         max-width: ${NODE_WIDTH - 80}px;
@@ -231,6 +251,27 @@ export namespace NodeStyles {
     export const InstructionsPlaceholder = styled(Instructions)`
         opacity: 0.5;
         font-style: italic;
+    `;
+
+    export const DescriptionBlock = styled.div<{ readOnly: boolean }>`
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        width: 100%;
+        min-height: 0;
+        overflow: hidden;
+        padding: 4px 4px 12px;
+        cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
+        z-index: 2;
+    `;
+
+    export const AgentDescription = styled(Instructions)`
+        padding: 0;
+    `;
+
+    export const Divider = styled.div`
+        width: 100%;
+        border-top: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
     `;
 
     export const InstructionsRow = styled.div<{ readOnly: boolean }>`
@@ -399,6 +440,23 @@ interface AgentNodeWidgetProps {
     onClick?: (node: FlowNode) => void;
 }
 
+type AgentNodePresentation = {
+    isTypeDefinition: boolean;
+    showMemory: boolean;
+    showModelCircle: boolean;
+    toolsReadOnly: boolean;
+};
+
+function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
+    const isTypeDefinition = model.getType() === NodeTypes.AGENT_TYPE_NODE;
+    return {
+        isTypeDefinition,
+        showMemory: !isTypeDefinition || Boolean(agentInfo?.memory?.propertyKey),
+        showModelCircle: !isTypeDefinition || Boolean(agentInfo?.modelProvider?.propertyKey),
+        toolsReadOnly: isTypeDefinition,
+    };
+}
+
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick } = props;
     const { onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId, entrypointContext } = useDiagramContext();
@@ -417,8 +475,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const isMenuOpen = Boolean(anchorEl);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
-    const hasBreakpoint = model.hasBreakpoint();
-    const isActiveBreakpoint = model.isActiveBreakpoint();
     const [aiColor, setAiColor] = useState<string>(() => getAIColor());
     const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
     const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
@@ -589,6 +645,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         setAnchorEl(null);
     };
 
+    const nodeMetadata = model?.node.metadata.data as NodeMetadata;
+    const agentInfo = nodeMetadata?.agentInfo;
+    const presentation = getAgentNodePresentation(model, agentInfo);
+    const { isTypeDefinition, showMemory, showModelCircle, toolsReadOnly } = presentation;
+    const hasBreakpoint = !isTypeDefinition && model.hasBreakpoint();
+    const isActiveBreakpoint = !isTypeDefinition && model.isActiveBreakpoint();
+
     const menuItems: Item[] = [
         ...(agentNode?.onChatWithAgent ? [{
             id: "chat",
@@ -601,7 +664,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             onClick: () => onNodeClick(),
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
-        { id: "delete", label: "Delete", onClick: () => deleteNode() },
+        ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
 
     const toolMenuItems = (tool: ToolData): Item[] => [
@@ -631,22 +694,24 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         { id: "delete", label: "Delete", onClick: () => onMemoryManagerDeleteClick() },
     ];
 
-    const disabled = model.node.suggested;
+    const disabled = !isTypeDefinition && model.node.suggested;
     const nodeTitle = "AI Agent";
     const hasError = nodeHasError(model.node);
-    const nodeMetadata = model?.node.metadata.data as NodeMetadata;
-    const agentInfo = nodeMetadata?.agentInfo;
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
     const tools = agentInfo?.tools || [];
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
+    const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
+    const description = agentInfo?.description;
+    const isPrebuilt = isTypeDefinition && Boolean(model.node.codedata?.org);
+    const modelPropertyKey = agentInfo?.modelProvider?.propertyKey ?? "model";
     const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
     const nodeRole = sanitizedAgent?.role || '';
     const nodeInstructions = sanitizedAgent?.instructions || '';
 
-    const isTraceMatch = traceAnimation && (() => {
+    const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
         if (entrypointContext) {
             const traceService = traceAnimation.entrypointServiceName ?? '';
             const traceFunction = traceAnimation.entrypointFunctionName ?? '';
@@ -697,9 +762,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     if (tools.length > 0) {
         containerHeight += tools.length * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
     }
+    if (isTypeDefinition) {
+        containerHeight = model.node.viewState?.ch || NODE_HEIGHT;
+    }
 
     return (
-        <NodeStyles.Node data-testid="agent-node" readOnly={readOnly}>
+        <NodeStyles.Node data-testid={isTypeDefinition ? "agent-type-node" : "agent-node"} readOnly={readOnly}>
             <NodeStyles.Box
                 disabled={disabled}
                 hovered={isBoxHovered}
@@ -709,12 +777,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 isSelected={isSelected}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
-                onClick={!readOnly ? handleOnClick : undefined}
+                onClick={!readOnly ? (isTypeDefinition ? onNodeClick : handleOnClick) : undefined}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                 title="Configure Agent"
             >
-                {/* Overlay for Agent Box pulsing transition */}
-                <div
+                {!isTypeDefinition && <div
                     css={css`
                         position: absolute;
                         top: -1px; left: -1px; right: -1px; bottom: -1px;
@@ -726,7 +793,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         pointer-events: none;
                         z-index: 1;
                     `}
-                />
+                />}
 
                 {hasBreakpoint && (
                     <div
@@ -745,14 +812,23 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
                 <NodeStyles.Column style={{ height: `${model.node.viewState?.ch}px` }}>
                     <NodeStyles.Row readOnly={readOnly}>
-                        <NodeStyles.Icon onClick={handleOnClick}>
-                            <NodeIcon type={model.node.codedata.node} size={24} />
-                        </NodeStyles.Icon>
+                        {isPrebuilt ? (
+                            <NodeStyles.IconBox onClick={onNodeClick}>
+                                <NodeIcon type={model.node.codedata.node} size={24} />
+                                <NodeStyles.PackageBadge>
+                                    <Icon name="bi-box" iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
+                                </NodeStyles.PackageBadge>
+                            </NodeStyles.IconBox>
+                        ) : (
+                            <NodeStyles.Icon onClick={isTypeDefinition ? onNodeClick : handleOnClick}>
+                                <NodeIcon type={model.node.codedata.node} size={24} />
+                            </NodeStyles.Icon>
+                        )}
                         <NodeStyles.Row readOnly={readOnly}>
-                            <NodeStyles.Header onClick={handleOnClick}>
+                            <NodeStyles.Header onClick={isTypeDefinition ? onNodeClick : handleOnClick}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80}px` }}>
                                     <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
-                                    {model.node.properties?.credential?.value && (
+                                    {!isTypeDefinition && model.node.properties?.credential?.value && (
                                         <NodeStyles.AgentIdBadge
                                             title=""
                                             onMouseEnter={() => setAgentIdHovered(true)}
@@ -797,17 +873,17 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     {menuItems.map((item) => (
                                         <MenuItem key={item.id} item={item} />
                                     ))}
-                                    <BreakpointMenu
+                                    {!isTypeDefinition && <BreakpointMenu
                                         hasBreakpoint={hasBreakpoint}
                                         onAddBreakpoint={onAddBreakpoint}
                                         onRemoveBreakpoint={onRemoveBreakpoint}
-                                    />
+                                    />}
                                 </>
                             </Menu>
                         </Popover>
                     </NodeStyles.Row>
 
-                    <NodeStyles.MemoryContainer>
+                    {showMemory && <NodeStyles.MemoryContainer>
                         <NodeStyles.Row readOnly={readOnly}>
                             {memory ? (
                                 <NodeStyles.MemoryCard
@@ -857,9 +933,46 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </>
                             </Menu>
                         </Popover>
-                    </NodeStyles.MemoryContainer>
+                    </NodeStyles.MemoryContainer>}
 
-                    {
+                    {isTypeDefinition ? (
+                        (hasPrompt || description) && (
+                            <>
+                                {!showMemory && <NodeStyles.Divider />}
+                                <NodeStyles.DescriptionBlock readOnly={readOnly} onClick={onNodeClick}>
+                                    {hasPrompt ? (
+                                        <>
+                                            <NodeStyles.Role>
+                                                <ReactMarkdown
+                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                                    unwrapDisallowed={true}
+                                                >
+                                                    {sanitizedAgent?.role}
+                                                </ReactMarkdown>
+                                            </NodeStyles.Role>
+                                            <NodeStyles.Instructions>
+                                                <ReactMarkdown
+                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                                    unwrapDisallowed={true}
+                                                >
+                                                    {sanitizedAgent?.instructions}
+                                                </ReactMarkdown>
+                                            </NodeStyles.Instructions>
+                                        </>
+                                    ) : (
+                                        <NodeStyles.AgentDescription>
+                                            <ReactMarkdown
+                                                disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                                unwrapDisallowed={true}
+                                            >
+                                                {description}
+                                            </ReactMarkdown>
+                                        </NodeStyles.AgentDescription>
+                                    )}
+                                </NodeStyles.DescriptionBlock>
+                            </>
+                        )
+                    ) : (
                         sanitizedAgent?.role ? (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
                                 <NodeStyles.Role>
@@ -876,9 +989,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <NodeStyles.RolePlaceholder>Define agent's role</NodeStyles.RolePlaceholder>
                             </NodeStyles.Row>
                         )
-                    }
+                    )}
 
-                    {
+                    {!isTypeDefinition && (
                         sanitizedAgent?.instructions ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
                                 <NodeStyles.Instructions>
@@ -897,19 +1010,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </NodeStyles.InstructionsPlaceholder>
                             </NodeStyles.InstructionsRow>
                         )
-                    }
+                    )}
                 </NodeStyles.Column>
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
             </NodeStyles.Box>
 
-            <svg
+            {(!isTypeDefinition || showModelCircle || tools.length > 0) && <svg
                 width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
                 height={model.node.viewState?.ch}
                 viewBox={`0 0 300 ${containerHeight}`}
                 style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
             >
-                {/* ai agent model circle */}
-                <g>
+                {showModelCircle && <g>
                     <circle
                         cx="80"
                         cy="24"
@@ -955,12 +1067,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         fill={ThemeColors.ON_SURFACE}
                         style={{ pointerEvents: "none" }}
                     >
-                        {model.node.properties?.model?.value === "check ai:getDefaultModelProvider()"
+                        {model.node.properties?.[modelPropertyKey]?.value === "check ai:getDefaultModelProvider()"
                             ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
-                    {/* Base Line */}
                     <line
                         x1="0"
                         y1="25"
@@ -975,7 +1086,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
                         }}
                     />
-                    {/* Pulsing Overlay Line */}
                     <line
                         x1="0"
                         y1="25"
@@ -994,24 +1104,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             animation: ${flowDashAnimation} 1s linear infinite;
                         `}
                     />
-                </g>
+                </g>}
 
-                {/* circles for tools */}
                 {tools.map((tool: ToolData, index: number) => {
-                    const isToolActive = activeToolNames.includes(tool.name);
+                    const isToolActive = !toolsReadOnly && activeToolNames.includes(tool.name);
                     return (
                         <g
                             key={index}
                             transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                                 })`}
-                            onClick={() => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
+                            opacity={toolsReadOnly ? 0.55 : undefined}
+                            onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
                             onContextMenu={(e) => {
-                                if (!readOnly) {
+                                if (!readOnly && !toolsReadOnly) {
                                     e.preventDefault();
                                     handleToolMenuClick(e as any, tool);
                                 }
                             }}
-                            css={css`
+                            css={toolsReadOnly ? css`
+                                cursor: not-allowed;
+                            ` : css`
                             cursor: ${readOnly ? "default" : "pointer"};
                             &:hover circle:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
@@ -1032,7 +1144,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             }
                         `}
                         >
-                            {/* Base Tool Circle */}
+                            {toolsReadOnly && <title>This tool is packaged with the agent and cannot be edited</title>}
                             <circle
                                 cx="80"
                                 cy="24"
@@ -1046,7 +1158,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transition: stroke 0.4s ease-out;
                                 `}
                             />
-                            {/* Pulsing Overlay Tool Circle */}
                             <circle
                                 cx="80"
                                 cy="24"
@@ -1102,10 +1213,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <title>{tool.name}</title>
                             </text>
 
-                            {/* Tool menu button */}
-                            {!readOnly && (
+                            {!readOnly && !toolsReadOnly && (
                                 <>
-                                    {/* Transparent overlay for hover detection */}
                                     <foreignObject
                                         x="60"
                                         y="0"
@@ -1154,7 +1263,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </>
                             )}
 
-                            {/* Base Tool Line */}
                             <line
                                 x1="0"
                                 y1="25"
@@ -1169,7 +1277,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
                                 }}
                             />
-                            {/* Pulsing Overlay Tool Line */}
                             <line
                                 x1="0"
                                 y1="25"
@@ -1189,8 +1296,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 `}
                             />
 
-                            {/* Tool tooltip */}
-                            <foreignObject
+                            {!toolsReadOnly && <foreignObject
                                 x="110"
                                 y="-10"
                                 width="150"
@@ -1216,13 +1322,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 >
                                     Click to view {tool.name}
                                 </div>
-                            </foreignObject>
+                            </foreignObject>}
                         </g>
                     );
                 })}
 
-                {/* Tool Menu Popover */}
-                <Popover
+                {!toolsReadOnly && <Popover
                     open={isToolMenuOpen}
                     anchorEl={toolAnchorEl}
                     handleClose={handleToolMenuClose}
@@ -1235,10 +1340,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         {selectedTool &&
                             toolMenuItems(selectedTool).map((item) => <MenuItem key={item.id} item={item} />)}
                     </Menu>
-                </Popover>
+                </Popover>}
 
-                {/* Add "Add new tool" button below all tools — hidden in read-only mode */}
-                {!readOnly && agentNode?.onAddTool && <g
+                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
                     transform={`translate(-11, ${tools.length > 0
                         ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                         : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
@@ -1273,7 +1377,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         />
                     </svg>
 
-                    {/* Custom tooltip */}
                     <foreignObject x="25" y="-10" width="100" height="30" style={{ pointerEvents: "none" }}>
                         <div
                             className="custom-tooltip"
@@ -1368,7 +1471,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         </React.Fragment>
                     ))}
                 </defs>
-            </svg>
+            </svg>}
             <ThemeListener onThemeChange={handleThemeChange} />
         </NodeStyles.Node>
     );
