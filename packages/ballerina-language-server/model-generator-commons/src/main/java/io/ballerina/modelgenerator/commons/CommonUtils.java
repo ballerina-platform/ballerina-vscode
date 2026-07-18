@@ -125,6 +125,7 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String MCP_BASE_TOOL_KIT_TYPE_NAME = "McpBaseToolKit";
+    private static final String BASE_AGENT_TYPE_NAME = "BaseAgent";
     private static final String FIXED_RETURN_AGENT_TYPE_NAME = "FixedReturnAgentType";
     private static final String INFERRED_RETURN_AGENT_TYPE_NAME = "InferredReturnAgentType";
     public static final String BALLERINA_ORG_NAME = "ballerina";
@@ -1103,6 +1104,13 @@ public class CommonUtils {
         return classSymbol != null && hasAiTypeInclusion(classSymbol, INFERRED_RETURN_AGENT_TYPE_NAME);
     }
 
+    public static boolean isAiAgentType(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && (hasAiAgentTypeInclusion(classSymbol, BASE_AGENT_TYPE_NAME)
+                || hasAiAgentTypeInclusion(classSymbol, FIXED_RETURN_AGENT_TYPE_NAME)
+                || hasAiAgentTypeInclusion(classSymbol, INFERRED_RETURN_AGENT_TYPE_NAME));
+    }
+
     public static boolean isAiKnowledgeBase(Symbol symbol) {
         ClassSymbol classSymbol = getClassSymbol(symbol);
         return classSymbol != null && hasAiTypeInclusion(classSymbol, KNOWLEDGE_BASE_TYPE_NAME);
@@ -1326,6 +1334,17 @@ public class CommonUtils {
                 .map(Optional::get)
                 .anyMatch(moduleId -> (BALLERINA_ORG_NAME.equals(moduleId.id().orgName())) &&
                         AI.equals(moduleId.id().moduleName()));
+    }
+
+    private static boolean hasAiAgentTypeInclusion(ClassSymbol classSymbol, String includedTypeName) {
+        return classSymbol.typeInclusions().stream()
+                .filter(typeSymbol -> typeSymbol instanceof TypeReferenceTypeSymbol)
+                .map(typeSymbol -> (TypeReferenceTypeSymbol) typeSymbol)
+                .filter(typeRef -> typeRef.definition().nameEquals(includedTypeName))
+                .map(TypeSymbol::getModule)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .anyMatch(moduleSymbol -> isAiModule(moduleSymbol.id().orgName(), moduleSymbol.id().moduleName()));
     }
 
     private static boolean hasBallerinaxAiTypeInclusion(ClassSymbol classSymbol, String includedTypeName) {
@@ -1704,4 +1723,3 @@ public class CommonUtils {
     }
 
 }
-
