@@ -66,6 +66,23 @@ export type FlowNode = {
 
 export type FlowNodeDiffState = "added" | "removed" | "modified";
 
+export type AgentToolData = Record<string, CodeDataValue> & (
+    {
+        node: FlowNode;
+        connection: string;
+        description: string;
+        auth?: string;
+        toolKind?: never;
+    } | {
+        toolKind: "AGENT_CALL";
+        agentVarName: string;
+        includeContext: boolean;
+        description: string;
+        node?: never;
+        connection?: never;
+    }
+);
+
 export type FunctionNode = {
     id: string;
     metadata: Metadata;
@@ -244,7 +261,7 @@ export type InputType =
 export type Property = {
     metadata: Metadata;
     diagnostics?: Diagnostic;
-    value: string | string[] | ELineRange | NodeProperties | Property[];
+    value: string | string[] | ELineRange | NodeProperties | Property[] | Record<string, ValueTypeConstraint>;
     advanceProperties?: NodeProperties;
     optional: boolean;
     editable: boolean;
@@ -305,8 +322,10 @@ export type CodeData = {
     kind?: string;
     originalName?: string;
     dependentProperty?: string[];
-    data?: { [key: string]: CodeData | string };
+    data?: { [key: string]: CodeDataValue };
 };
+
+export type CodeDataValue = CodeData | string | boolean | FlowNode;
 
 export type Branch = {
     label: string;
