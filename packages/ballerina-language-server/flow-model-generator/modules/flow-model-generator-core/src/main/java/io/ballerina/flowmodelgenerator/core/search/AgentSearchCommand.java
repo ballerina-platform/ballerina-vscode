@@ -31,8 +31,6 @@ import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
-import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
-import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.flowmodelgenerator.core.LocalIndexCentral;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
@@ -57,7 +55,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Handles the search command for agents. Supports four source types:
@@ -85,12 +82,6 @@ public class AgentSearchCommand extends SearchCommand {
     private static final String SOURCE_ALL = "all";
     private static final String SOURCE_ORGANIZATION = "organization";
     private static final String SOURCE_LOCAL = "local";
-
-    // Agent type checking constants
-    private static final Set<String> AGENT_TYPE_NAMES = Set.of("BaseAgent", "FixedReturnAgentType");
-    private static final String BALLERINA_ORG = "ballerina";
-    private static final String BALLERINAX_ORG = "ballerinax";
-    private static final String AI_MODULE = "ai";
 
     private List<Item> cachedDefaultAgents;
     private List<AvailableNode> cachedCentralAgents;
@@ -157,18 +148,14 @@ public class AgentSearchCommand extends SearchCommand {
             return agents;
         }
 
-        List<Item> stores = agentCategory.items();
-        List<Item> matchingStores = stores.stream()
+        List<Item> matchingAgents = agentCategory.items().stream()
                 .filter(item -> item instanceof AvailableNode availableNode &&
                         (orgName == null || availableNode.codedata().org().equalsIgnoreCase(orgName)) &&
                         (query == null || availableNode.metadata().label().toLowerCase(Locale.ROOT)
                                 .contains(query.toLowerCase(Locale.ROOT))))
                 .toList();
 
-        stores.clear();
-        stores.addAll(matchingStores);
-
-        return List.of(agentCategory);
+        return List.of(new Category(agentCategory.metadata(), matchingAgents));
     }
 
     // Curated pre-built agents bundled with the LS; the default popup view, no network.
@@ -371,7 +358,7 @@ public class AgentSearchCommand extends SearchCommand {
                 }
 
                 ClassSymbol classSymbol = (ClassSymbol) symbol;
-                if (!isAgentSubtype(classSymbol)) {
+                if (!CommonUtils.isAiAgentType(classSymbol)) {
                     continue;
                 }
 
@@ -385,29 +372,6 @@ public class AgentSearchCommand extends SearchCommand {
         }
 
         return localAgents;
-    }
-
-    /**
-     * Checks if a class symbol includes an agent type (BaseAgent or FixedReturnAgentType) from the
-     * ballerina/ai or ballerinax/ai module.
-     *
-     * @param classSymbol the class symbol to check
-     * @return true if the class is an agent subtype
-     */
-    private static boolean isAgentSubtype(ClassSymbol classSymbol) {
-        return classSymbol.typeInclusions().stream()
-                .filter(typeSymbol -> typeSymbol instanceof TypeReferenceTypeSymbol)
-                .map(typeSymbol -> (TypeReferenceTypeSymbol) typeSymbol)
-                .filter(typeRef -> typeRef.definition().getName().map(AGENT_TYPE_NAMES::contains).orElse(false))
-                .map(TypeSymbol::getModule)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .anyMatch(moduleSymbol -> {
-                    ModuleID moduleId = moduleSymbol.id();
-                    return (BALLERINA_ORG.equals(moduleId.orgName()) ||
-                            BALLERINAX_ORG.equals(moduleId.orgName())) &&
-                            AI_MODULE.equals(moduleId.moduleName());
-                });
     }
 
     private static AvailableNode buildLocalAgentNode(ClassSymbol classSymbol, ModuleSymbol moduleSymbol) {

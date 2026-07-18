@@ -294,50 +294,20 @@ public class PackageUtil {
      */
     public static Optional<SemanticModel> getSemanticModelFromWorkspace(Project project, String org,
                                                                         String packageName, String moduleName) {
-        BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-        Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+        Optional<Project> workspaceProject = findWorkspaceProject(project, org, packageName, moduleName);
         if (workspaceProject.isEmpty()) {
             return Optional.empty();
         }
-        List<Project> childProjects = compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get());
-        for (Project childProject : childProjects) {
-            Package currentPackage = childProject.currentPackage();
-            String currentPackageName = currentPackage.packageName().value();
-            boolean orgMatches = currentPackage.packageOrg().value().equals(org);
-            boolean nameMatches = currentPackageName.equals(packageName) || currentPackageName.equals(moduleName);
-            if (!orgMatches || !nameMatches) {
-                continue;
-            }
-
-            ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-            if (moduleName == null || moduleName.isEmpty() || packageName.equals(moduleName)) {
-                return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
-            }
-            for (Module mod : currentPackage.modules()) {
-                if (mod.moduleName().toString().equals(moduleName)) {
-                    moduleId = mod.moduleId();
-                    break;
-                }
-            }
-            return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
-        }
-        return Optional.empty();
+        return findModule(workspaceProject.get().currentPackage(), packageName, moduleName)
+                .map(module -> getCompilation(workspaceProject.get()).getSemanticModel(module.moduleId()));
     }
 
-    /**
-     * Finds a workspace-sibling package matching the given org and package/module name.
-     * <p>
-     * Use this to skip a Central round-trip when the target package lives next door in the same
-     * workspace. The match accepts either {@code packageName} or {@code moduleName} on the sibling's
-     * package name so callers can pass whichever they have.
-     *
-     * @param project     the current project used to discover the workspace
-     * @param org         the target package's organization
-     * @param packageName the target package name (may be {@code null} if only {@code moduleName} is known)
-     * @param moduleName  the target module name (may be {@code null} if only {@code packageName} is known)
-     * @return the matching workspace sibling's {@link Package}, or empty if none found / not in a workspace
-     */
     public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName) {
+        return findWorkspaceProject(project, org, packageName, moduleName).map(Project::currentPackage);
+    }
+
+    public static Optional<Project> findWorkspaceProject(Project project, String org, String packageName,
                                                          String moduleName) {
         if (project == null || org == null) {
             return Optional.empty();
@@ -353,11 +323,23 @@ public class PackageUtil {
                 String currentPackageName = currentPackage.packageName().value();
                 if (currentPackage.packageOrg().value().equals(org)
                         && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
-                    return Optional.of(currentPackage);
+                    return Optional.of(childProject);
                 }
             }
-        } catch (Throwable t) {
-            // Best-effort: callers fall back to Central resolution.
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<Module> findModule(Package currentPackage, String packageName, String moduleName) {
+        if (moduleName == null || moduleName.isEmpty() || Objects.equals(packageName, moduleName)) {
+            return Optional.of(currentPackage.getDefaultModule());
+        }
+        for (Module module : currentPackage.modules()) {
+            if (module.moduleName().toString().equals(moduleName)) {
+                return Optional.of(module);
+            }
         }
         return Optional.empty();
     }

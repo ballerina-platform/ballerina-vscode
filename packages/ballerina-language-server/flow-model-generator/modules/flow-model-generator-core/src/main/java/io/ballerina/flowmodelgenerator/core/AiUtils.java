@@ -1236,37 +1236,20 @@ public class AiUtils {
         return false;
     }
 
-    // ===== Custom agent (AGENT_TYPE) node metadata =====
-
-    // Frontend metadata keys consumed by the simplified AGENT_TYPE node widget.
     public static final String AGENT_DESCRIPTION_KEY = "agentDescription";
     public static final String MODEL_PROVIDER_PARAM_KEY = "modelProviderParam";
     public static final String MEMORY_PARAM_KEY = "memoryParam";
     public static final String TOOLS_METADATA_KEY = "tools";
 
-    /**
-     * A tool entry for the custom agent's read-only tools display. Mirrors the {@code ToolData} shape expected by the
-     * frontend ({@code NodeMetadata.tools}).
-     *
-     * @param name        the tool's display name
-     * @param path        the icon URL (null falls back to the bi-function glyph on the frontend)
-     * @param description the tool description
-     * @param type        the tool type (e.g. "MCP Server"), or null for a plain function tool
-     */
     public record AgentToolData(String name, String path, String description, String type) {
     }
-    // Frontend reads the connector codedata at `property.codedata.data.connection`.
     private static final String CONNECTION_DATA_KEY = "connection";
     private static final String MODEL_METADATA_KEY = "model";
     private static final String MODEL_PROVIDER_INTERFACE_NAME = "ModelProvider";
     private static final String MEMORY_METADATA_KEY = "memory";
     private static final String MEMORY_INTERFACE_NAME = "Memory";
     private static final String INIT_METHOD_NAME = "init";
-    // The ai compiler plugin records a custom agent's metadata (tools, system prompt, and the init param names that
-    // supply the model provider / memory) under the `agentMetadata` field of the class's @display annotation.
     private static final String AGENT_METADATA_FIELD = "agentMetadata";
-    // The @ai:AgentTool annotation (workspace fallback: marks an agent's tool methods) + the @display annotation
-    // that carries each tool's UI label / icon (and, on the class, the agentMetadata field above).
     private static final String AGENT_TOOL_ANNOT = "AgentTool";
     private static final String DISPLAY_ANNOT = "display";
     private static final String DISPLAY_LABEL = "label";
@@ -1277,15 +1260,12 @@ public class AiUtils {
     private static final String AGENT_METADATA_SYSTEM_PROMPT = "systemPrompt";
     private static final String SYSTEM_PROMPT_ROLE = "role";
     private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
-    // The metadata key the frontend reads for the read-only role/instructions (NodeMetadata.agent), shared with the
-    // built-in AGENT_CALL node.
     private static final String AGENT_DATA_KEY = "agent";
     private static final String PARAMETER_NAME_FIELD = "parameterName";
     private static final String TOOL_NAME_FIELD = "name";
     private static final String TOOL_KIND_FIELD = "kind";
     private static final String TOOL_ICON_FIELD = "icon";
     private static final String MCP_TOOLKIT_KIND = "MCP_TOOLKIT";
-    // Mirrors CodeAnalyzer's tool convention so the frontend renders MCP toolkits like the built-in agent does.
     private static final String MCP_SERVER_TYPE = "MCP Server";
     private static final String MCP_ICON = CommonUtils.generateIcon(BALLERINA, "mcp", "0.4.2");
 
@@ -1385,30 +1365,11 @@ public class AiUtils {
         }
     }
 
-    /**
-     * A custom agent's metadata, resolved from a single source: the {@code agentMetadata} field of the class's
-     * {@code @display} annotation when present (works for both workspace and Central agents), else — for workspace
-     * agents only — semantic inspection of the agent class. A Central dependency without the annotation resolves to
-     * {@link #EMPTY} (its class body is never
-     * read). The model/memory params are the {@code init} params that supply each dependency; the actual value/icon
-     * is resolved separately from the declaration's arguments.
-     *
-     * @param systemPrompt the agent role + instructions (null unless the annotation provides them)
-     * @param tools        the agent's tools (empty if none / not resolvable)
-     * @param modelParam   the {@code init} param supplying the model provider (null if none)
-     * @param memoryParam  the {@code init} param supplying the memory (null if none)
-     */
     private record AgentInfo(SystemPromptData systemPrompt, List<AgentToolData> tools, WiredParam modelParam,
                              WiredParam memoryParam) {
         private static final AgentInfo EMPTY = new AgentInfo(null, List.of(), null, null);
     }
 
-    /**
-     * An agent's system prompt, mirroring the frontend {@code AgentData} shape ({@code NodeMetadata.agent}).
-     *
-     * @param role         the agent role
-     * @param instructions the agent instructions
-     */
     private record SystemPromptData(String role, String instructions) {
     }
 

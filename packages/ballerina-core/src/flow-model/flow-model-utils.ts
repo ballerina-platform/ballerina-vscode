@@ -16,9 +16,10 @@
  * under the License.
  */
 
-import { FlowNode } from "../interfaces/bi";
+import { AgentToolData, CodeData, FlowNode } from "../interfaces/bi";
 
 import { Flow } from "../interfaces/bi";
+import { ToolParameters } from "../rpc-types/ai-agent/interfaces";
 import { BaseVisitor } from "./BaseVisitor";
 
 const metaNodes = ["viewState", "position", "parent"];
@@ -94,18 +95,19 @@ export function traverseNode(node: FlowNode, visitor: BaseVisitor, parent?: Flow
     }
 }
 
-/**
- * Builds an AGENT_TOOL flow node that wraps the given node (a function / connection / resource action) as an
- * `@ai:AgentTool`. Consumed by `getSourceCode` → `AgentToolBuilder` (replaces the former `genTool` RPC): the tool
- * signature rides as node properties (`functionName`, `parameters`); the wrapped node + connection ride in
- * `codedata.data`.
- */
 export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, description: string, connection: string,
-    toolParameters?: unknown): FlowNode {
+    toolParameters?: ToolParameters): FlowNode {
+    const auth = wrappedNode.codedata.data?.auth;
+    const data: AgentToolData = {
+        node: wrappedNode,
+        connection,
+        description,
+        ...(typeof auth === "string" ? { auth } : {}),
+    };
     return {
         id: "0",
         metadata: { label: "Agent Tool", description: "" },
-        codedata: { node: "AGENT_TOOL", isNew: true, data: { node: wrappedNode, connection, description } },
+        codedata: createAgentToolCodeData(data),
         properties: {
             functionName: {
                 metadata: { label: "Name", description: "Name of the tool" },
@@ -117,19 +119,18 @@ export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, desc
             },
             ...(toolParameters ? { parameters: toolParameters } : {}),
         },
-    } as unknown as FlowNode;
+        branches: [],
+        returning: false,
+    };
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
     description: string): FlowNode {
+    const data: AgentToolData = { toolKind: "AGENT_CALL", agentVarName, includeContext, description };
     return {
         id: "0",
         metadata: { label: "Agent Tool", description: "" },
-        codedata: {
-            node: "AGENT_TOOL",
-            isNew: true,
-            data: { toolKind: "AGENT_CALL", agentVarName, includeContext, description },
-        },
+        codedata: createAgentToolCodeData(data),
         properties: {
             functionName: {
                 metadata: { label: "Name", description: "Name of the tool" },
@@ -140,5 +141,11 @@ export function buildAgentCallToolNode(toolName: string, agentVarName: string, i
                 advanced: false,
             },
         },
-    } as unknown as FlowNode;
+        branches: [],
+        returning: false,
+    };
+}
+
+function createAgentToolCodeData(data: AgentToolData): CodeData {
+    return { node: "AGENT_TOOL", isNew: true, data };
 }

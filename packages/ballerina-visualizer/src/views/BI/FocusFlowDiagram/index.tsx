@@ -98,33 +98,22 @@ export interface BIFocusFlowDiagramProps {
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition) => void;
 }
 
-// Host-owned panels; memory/tool/MCP panels belong to useAgentEditorController.
 type AgentPanel = "NONE" | "FORM";
 
 export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const { projectPath, filePath, view, onUpdate, onReady, embedded } = props;
-    // Tracks the agent position in embedded mode (where getVisualizerLocation returns the parent view's location).
     const embeddedPositionRef = useRef<NodePosition | undefined>(props.position);
     const { rpcClient } = useRpcContext();
     const isAgent = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT;
-    // Custom AgentType classes render a simplified node (box + conditional model-provider circle).
     const isAgentType = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE;
 
-    // AGENT focus view: the declaration node (agentDeclRef) is the edit target for everything —
-    // model/memory/tools all operate on it directly. The diagram renders a single node derived
-    // from it for display only (see ./agent.buildAgentRenderNode).
     const agentDeclRef = useRef<FlowNode>();
     const agentFormNodeRef = useRef<FlowNode>();
-    // The focused agent view shows just the node; the edit form opens only when the user clicks it.
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
-    // Set when a model provider is created from the open form; consumed to skip the one reload that
-    // creation triggers (which would remount the form and drop the unsaved selection). Saving clears it.
+    // Prevent creation-triggered reloads from discarding unsaved form state.
     const suppressAgentTypeReloadRef = useRef(false);
-    // Skips the one reload triggered when an agent is created from the "Use Agent" tool flow.
     const suppressAgentReloadRef = useRef(false);
-    // Bumped on each agent model fetch so the edit form remounts with fresh values.
     const [agentFormKey, setAgentFormKey] = useState(0);
-    // AGENT_TYPE box click shows the whole init form; model-circle click scopes it to the model param.
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
     const [model, setModel] = useState<Flow>();
@@ -656,7 +645,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const nodesWithCustomForms = ["IF", "FORK"];
             // if node doesn't have properties. don't show edit form
             if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
-                console.log(">>> Node doesn't have properties. Don't show edit form", response.flowNode);
                 setShowProgressIndicator(false);
                 showEditForm.current = false;
                 return;
