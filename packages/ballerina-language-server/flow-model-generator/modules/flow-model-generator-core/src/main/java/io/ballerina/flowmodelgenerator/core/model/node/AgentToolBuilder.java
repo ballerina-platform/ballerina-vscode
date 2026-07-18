@@ -120,41 +120,27 @@ public class AgentToolBuilder extends NodeBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         FlowNode toolNode = sourceBuilder.flowNode;
-        Map<String, Object> data = toolNode.codedata() != null ? toolNode.codedata().data() : null;
-        if (data == null) {
-            throw new IllegalStateException("Agent tool node is missing codedata.data");
-        }
-
-        FlowNode wrappedNode = data.get(WRAPPED_NODE_KEY) != null
-                ? gson.fromJson(gson.toJsonTree(data.get(WRAPPED_NODE_KEY)), FlowNode.class) : null;
-        ToolKind kind = ToolKind.resolve(data, wrappedNode);
-        if (kind != ToolKind.AGENT_CALL && wrappedNode == null) {
-            throw new IllegalStateException("Agent tool node is missing the wrapped node in codedata.data");
-        }
+        AgentToolData data = AgentToolData.from(toolNode);
 
         String toolName = sourceBuilder.getProperty(Property.FUNCTION_NAME_KEY)
                 .map(property -> property.value().toString())
                 .orElseThrow(() -> new IllegalStateException("Tool name (functionName) is required"));
         Property toolParams = sourceBuilder.getProperty(Property.PARAMETERS_KEY).orElse(null);
-        String connection = data.get(CONNECTION_KEY) != null ? data.get(CONNECTION_KEY).toString() : "";
-        String agentVarName = data.get(AGENT_VAR_NAME_KEY) != null ? data.get(AGENT_VAR_NAME_KEY).toString() : "";
-        boolean includeContext = Boolean.parseBoolean(String.valueOf(data.get(INCLUDE_CONTEXT_KEY)));
-        String description = data.get(DESCRIPTION_KEY) != null ? data.get(DESCRIPTION_KEY).toString() : "";
-        if (kind == ToolKind.AGENT_CALL && description.isBlank()) {
-            description = "Delegates a query to the " + agentVarName + " agent.";
+        if (data.kind() == ToolKind.AGENT_CALL && data.description().isBlank()) {
+            data = data.withDefaultDescription();
         }
 
         SemanticModel semanticModel = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
                 .orElse(null);
-        // Agent-call has no wrapped node, so it writes through the tool node (AGENT_TOOL + isNew → agents.bal).
-        FlowNode genNode = wrappedNode != null ? wrappedNode : toolNode;
+        FlowNode genNode = data.wrappedNode() != null ? data.wrappedNode() : toolNode;
         SourceBuilder sb = new SourceBuilder(genNode, sourceBuilder.workspaceManager, sourceBuilder.filePath);
-        String iconPath = wrappedNode != null && wrappedNode.metadata() != null ? wrappedNode.metadata().icon() : "";
+        String iconPath = data.wrappedNode() != null && data.wrappedNode().metadata() != null
+                ? data.wrappedNode().metadata().icon() : "";
 
-        ToolGenContext context = new ToolGenContext(sb, wrappedNode, connection, description, toolName, toolParams,
-                semanticModel, sourceBuilder.workspaceManager, sourceBuilder.filePath, iconPath, agentVarName,
-                includeContext);
-        return generate(kind, context);
+        ToolGenContext context = new ToolGenContext(sb, data.wrappedNode(), data.connection(), data.description(), toolName,
+                toolParams, semanticModel, sourceBuilder.workspaceManager, sourceBuilder.filePath, iconPath,
+                data.agentVarName(), data.includeContext(), data.auth());
+        return generate(data.kind(), context);
     }
 
     private static Map<Path, List<TextEdit>> generate(ToolKind kind, ToolGenContext ctx) {
@@ -214,16 +200,13 @@ public class AgentToolBuilder extends NodeBuilder {
         }
     }
 
-    // TODO: The agent tool annotation form is currently in the extension side, need to move to LS
     private static void emitAnnotation(ToolGenContext ctx) {
-        Map<String, Object> data = ctx.wrappedNode != null ? ctx.wrappedNode.codedata().data() : null;
-        if (data == null || !data.containsKey("auth")) {
+        if (ctx.auth.isBlank()) {
             ctx.sb.token().name("@ai:AgentTool").name(System.lineSeparator());
             return;
         }
 
-        String authStr = data.get("auth").toString();
-        JsonObject authConfig = gson.fromJson(authStr, JsonObject.class);
+        JsonObject authConfig = gson.fromJson(ctx.auth, JsonObject.class);
 
         StringBuilder sb = new StringBuilder();
         sb.append("@ai:AgentTool {").append(System.lineSeparator());
@@ -234,7 +217,6 @@ public class AgentToolBuilder extends NodeBuilder {
             String key = entry.getKey();
             String value = entry.getValue().getAsString();
 
-            // Skip fields with empty or default values
             if (value == null || value.isEmpty() || value.equals("()") || value.trim().matches("\\{\\s*}")) {
                 continue;
             }
@@ -389,11 +371,13 @@ public class AgentToolBuilder extends NodeBuilder {
 
         abstract Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo);
 
-        // An explicit codedata.data.toolKind wins; otherwise the wrapped node's kind selects the handler.
-        static ToolKind resolve(Map<String, Object> data, FlowNode wrappedNode) {
-            Object explicit = data.get(TOOL_KIND_KEY);
-            if (explicit != null) {
-                return ToolKind.valueOf(explicit.toString());
+        static ToolKind resolve(String explicitKind, FlowNode wrappedNode) {
+            if (explicitKind != null) {
+                try {
+                    return ToolKind.valueOf(explicitKind);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalStateException("Unsupported agent tool kind: " + explicitKind, e);
+                }
             }
             if (wrappedNode == null) {
                 throw new IllegalStateException("Cannot determine the agent tool kind: no toolKind, no wrapped node");
@@ -404,6 +388,73 @@ public class AgentToolBuilder extends NodeBuilder {
                 case RESOURCE_ACTION_CALL -> RESOURCE;
                 default -> throw new IllegalStateException("Unsupported node kind to generate tool");
             };
+        }
+    }
+
+    private record AgentToolData(ToolKind kind, FlowNode wrappedNode, String connection, String description,
+                                 String agentVarName, boolean includeContext, String auth) {
+
+        static AgentToolData from(FlowNode toolNode) {
+            Map<String, Object> data = toolNode.codedata() != null ? toolNode.codedata().data() : null;
+            if (data == null) {
+                throw new IllegalStateException("Agent tool node is missing codedata.data");
+            }
+
+            FlowNode wrappedNode = readWrappedNode(data);
+            ToolKind kind = ToolKind.resolve(nullableString(data, TOOL_KIND_KEY), wrappedNode);
+            if (kind != ToolKind.AGENT_CALL && wrappedNode == null) {
+                throw new IllegalStateException("Agent tool node is missing codedata.data.node");
+            }
+
+            String agentVarName = kind == ToolKind.AGENT_CALL
+                    ? requiredString(data, AGENT_VAR_NAME_KEY) : "";
+            boolean includeContext = kind == ToolKind.AGENT_CALL && requiredBoolean(data, INCLUDE_CONTEXT_KEY);
+            return new AgentToolData(kind, wrappedNode, optionalString(data, CONNECTION_KEY),
+                    optionalString(data, DESCRIPTION_KEY), agentVarName, includeContext,
+                    optionalString(data, "auth"));
+        }
+
+        AgentToolData withDefaultDescription() {
+            return new AgentToolData(kind, wrappedNode, connection,
+                    "Delegates a query to the " + agentVarName + " agent.", agentVarName, includeContext, auth);
+        }
+
+        private static FlowNode readWrappedNode(Map<String, Object> data) {
+            Object node = data.get(WRAPPED_NODE_KEY);
+            if (node == null) {
+                return null;
+            }
+            try {
+                return gson.fromJson(gson.toJsonTree(node), FlowNode.class);
+            } catch (RuntimeException e) {
+                throw new IllegalStateException("Agent tool codedata.data.node must be a flow node", e);
+            }
+        }
+
+        private static String optionalString(Map<String, Object> data, String key) {
+            String value = nullableString(data, key);
+            return value == null ? "" : value;
+        }
+
+        private static String nullableString(Map<String, Object> data, String key) {
+            Object value = data.get(key);
+            return value == null ? null : value.toString();
+        }
+
+        private static String requiredString(Map<String, Object> data, String key) {
+            String value = optionalString(data, key);
+            if (value.isBlank()) {
+                throw new IllegalStateException("Agent tool codedata.data." + key + " is required");
+            }
+            return value;
+        }
+
+        private static boolean requiredBoolean(Map<String, Object> data, String key) {
+            Object value = data.get(key);
+            if (value instanceof Boolean booleanValue) {
+                return booleanValue;
+            }
+            throw new IllegalStateException("Agent tool codedata.data." + key + " must be a boolean");
         }
     }
 
@@ -955,11 +1006,12 @@ public class AgentToolBuilder extends NodeBuilder {
         private final String iconPath;
         private final String agentVarName;
         private final boolean includeContext;
+        private final String auth;
 
         private ToolGenContext(SourceBuilder sb, FlowNode wrappedNode, String connection, String description,
                                String toolName, Property toolParams, SemanticModel semanticModel,
                                WorkspaceManager workspaceManager, Path filePath, String iconPath, String agentVarName,
-                               boolean includeContext) {
+                               boolean includeContext, String auth) {
             this.sb = sb;
             this.wrappedNode = wrappedNode;
             this.connection = connection;
@@ -972,6 +1024,7 @@ public class AgentToolBuilder extends NodeBuilder {
             this.iconPath = iconPath;
             this.agentVarName = agentVarName;
             this.includeContext = includeContext;
+            this.auth = auth;
         }
 
         private boolean hasDescription() {
