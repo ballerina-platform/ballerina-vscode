@@ -21,16 +21,10 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
-import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
-import io.ballerina.compiler.api.symbols.TypeSymbol;
-import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
-import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
@@ -48,7 +42,6 @@ import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
-import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
@@ -57,8 +50,6 @@ import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.NameUtil;
-import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
-import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -77,7 +68,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static io.ballerina.flowmodelgenerator.core.AgentsGenerator.TARGET_TYPE;
-import static io.ballerina.flowmodelgenerator.core.Constants.BALLERINA;
+import static io.ballerina.flowmodelgenerator.core.AgentsGenerator.resolveAgentRunReturnType;
+import static io.ballerina.flowmodelgenerator.core.AgentsGenerator.resolveHostModule;
 
 /**
  * Builds an {@code @ai:AgentTool} wrapper function exposing a function, connection action, or another agent as a
@@ -134,9 +126,9 @@ public class AgentToolBuilder extends NodeBuilder {
         String iconPath = data.wrappedNode() != null && data.wrappedNode().metadata() != null
                 ? data.wrappedNode().metadata().icon() : "";
 
-        ToolGenContext context = new ToolGenContext(sb, data.wrappedNode(), data.connection(), data.description(), toolName,
-                toolParams, semanticModel, sourceBuilder.workspaceManager, sourceBuilder.filePath, iconPath,
-                data.agentVarName(), data.includeContext(), data.auth());
+        ToolGenContext context = new ToolGenContext(sb, data.wrappedNode(), data.connection(), data.description(),
+                toolName, toolParams, semanticModel, sourceBuilder.workspaceManager, sourceBuilder.filePath,
+                iconPath, data.agentVarName(), data.includeContext(), data.auth());
         return generate(data.kind(), context);
     }
 
@@ -855,65 +847,6 @@ public class AgentToolBuilder extends NodeBuilder {
                 .map(val -> Property.convertToProperty(val).toSourceCode())
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
-    }
-
-    private static String resolveAgentRunReturnType(SemanticModel semanticModel, String agentVarName,
-                                                    ModuleInfo hostModule, SourceBuilder sourceBuilder) {
-        if (semanticModel == null) {
-            return "string";
-        }
-        for (Symbol symbol : semanticModel.moduleSymbols()) {
-            if (symbol.kind() != SymbolKind.VARIABLE || !agentVarName.equals(symbol.getName().orElse(""))) {
-                continue;
-            }
-            TypeSymbol type = CommonUtils.getRawType(((VariableSymbol) symbol).typeDescriptor());
-            if (type.kind() != SymbolKind.CLASS || CommonUtils.isAgentClass(type)) {
-                return "string";
-            }
-            MethodSymbol runMethod = ((ClassSymbol) type).methods().get(RUN);
-            if (runMethod == null) {
-                return "string";
-            }
-            Optional<TypeSymbol> optReturn = runMethod.typeDescriptor().returnTypeDescriptor();
-            if (optReturn.isEmpty()) {
-                return "string";
-            }
-            acceptTypeImports(optReturn.get(), hostModule, sourceBuilder);
-            String signature = CommonUtils.getTypeSignature(semanticModel, optReturn.get(), true, hostModule);
-            if (signature.isBlank() || signature.equals("anydata") || signature.equals("()")) {
-                return "string";
-            }
-            return signature;
-        }
-        return "string";
-    }
-
-    private static ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
-        try {
-            workspaceManager.loadProject(filePath);
-            return workspaceManager.module(filePath).map(module -> ModuleInfo.from(module.descriptor())).orElse(null);
-        } catch (WorkspaceDocumentException | EventSyncException e) {
-            return null;
-        }
-    }
-
-    private static void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
-        if (typeSymbol instanceof UnionTypeSymbol union) {
-            union.memberTypeDescriptors().forEach(member -> acceptTypeImports(member, hostModule, sourceBuilder));
-            return;
-        }
-        typeSymbol.getModule().ifPresent(moduleSymbol -> {
-            ModuleID id = moduleSymbol.id();
-            if (id.orgName().equals(BALLERINA) && id.moduleName().startsWith("lang.")) {
-                return;
-            }
-            boolean sameModule = hostModule != null && id.orgName().equals(hostModule.org())
-                    && id.moduleName().equals(hostModule.moduleName());
-            if (sameModule) {
-                return;
-            }
-            sourceBuilder.acceptImport(id.orgName(), id.moduleName());
-        });
     }
 
     private static Path addIsolateKeyword(SemanticModel semanticModel, String name, Path filePath,

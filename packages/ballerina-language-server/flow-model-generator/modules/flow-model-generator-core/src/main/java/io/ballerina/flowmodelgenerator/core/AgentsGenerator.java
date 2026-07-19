@@ -332,7 +332,7 @@ public class AgentsGenerator {
         SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
         sourceBuilder.acceptImport(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE);
 
-        String returnType = resolveAgentRunReturnType(agentVarName, hostModule, sourceBuilder);
+        String returnType = resolveAgentRunReturnType(semanticModel, agentVarName, hostModule, sourceBuilder);
 
         String desc = (description == null || description.isBlank())
                 ? "Delegates a query to the " + agentVarName + " agent." : description;
@@ -379,7 +379,7 @@ public class AgentsGenerator {
         return gson.toJsonTree(sourceBuilder.build());
     }
 
-    private ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
+    public static ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
         try {
             workspaceManager.loadProject(filePath);
             return workspaceManager.module(filePath).map(module -> ModuleInfo.from(module.descriptor())).orElse(null);
@@ -388,7 +388,8 @@ public class AgentsGenerator {
         }
     }
 
-    private String resolveAgentRunReturnType(String agentVarName, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+    public static String resolveAgentRunReturnType(SemanticModel semanticModel, String agentVarName,
+                                                   ModuleInfo hostModule, SourceBuilder sourceBuilder) {
         if (semanticModel == null) {
             return "string";
         }
@@ -418,7 +419,7 @@ public class AgentsGenerator {
         return "string";
     }
 
-    private void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+    private static void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
         if (typeSymbol instanceof UnionTypeSymbol union) {
             union.memberTypeDescriptors().forEach(member -> acceptTypeImports(member, hostModule, sourceBuilder));
             return;
