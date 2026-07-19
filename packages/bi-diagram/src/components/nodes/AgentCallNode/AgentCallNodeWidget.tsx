@@ -42,7 +42,7 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
@@ -500,11 +500,9 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
     const [isBoxHovered, setIsBoxHovered] = useState(false);
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-    const [toolMenuPos, setToolMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [agentIdHovered, setAgentIdHovered] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(anchorEl);
+    const isMenuOpen = Boolean(menuPos);
     const hasBreakpoint = model.hasBreakpoint();
     const isActiveBreakpoint = model.isActiveBreakpoint();
     const [aiColor, setAiColor] = useState<string>(() => getAIColor());
@@ -565,18 +563,13 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
             return;
         }
         event.stopPropagation();
-        setAnchorEl(event.currentTarget);
+        setMenuPos(getMenuPos(event.currentTarget as HTMLElement));
     };
 
     const handleOnContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
         const target = menuButtonElement || event.currentTarget;
         setMenuPos(getMenuPos(target as HTMLElement));
-    };
-
-    const handleOnMenuClose = () => {
-        setMenuPos(null);
-        setIsBoxHovered(false);
     };
 
     const onAddBreakpoint = () => {

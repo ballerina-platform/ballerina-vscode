@@ -1,18 +1,1 @@
-[
-  {
-    "metadata": {
-      "label": "Calendar Assistant",
-      "description": "A Ballerina AI agent that inspects and schedules Google Calendar events through natural-language queries."
-    },
-    "codedata": {
-      "node": "AGENT_TYPE",
-      "org": "danasherniles",
-      "module": "calendarassistant",
-      "packageName": "calendarassistant",
-      "object": "CalendarAssistantAgent",
-      "symbol": "init",
-      "version": "0.1.0"
-    },
-    "enabled": true
-  }
-]
+[]

@@ -4248,7 +4248,7 @@ public class CodeAnalyzer extends NodeVisitor {
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
             node = node.parent();
         }
-        return node instanceof FunctionDefinitionNode funcDef && delegatesToAgentRun(funcDef.functionBody());
+        return node != null && delegatesToAgentRun(((FunctionDefinitionNode) node).functionBody());
     }
 
     private boolean delegatesToAgentRun(Node node) {

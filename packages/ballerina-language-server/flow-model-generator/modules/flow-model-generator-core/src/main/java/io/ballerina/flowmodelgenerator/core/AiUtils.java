@@ -1282,7 +1282,8 @@ public class AiUtils {
 
         AgentInfo info = resolveAgentInfo(classSymbol, project);
         Map<String, Object> agentInfo = new HashMap<>();
-        getCustomAgentDescription(classSymbol).ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
+        getCustomAgentDescription(classSymbol)
+                .ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
         addSystemPromptMetadata(agentInfo, info.systemPrompt());
         if (info.modelParam() != null) {
             applyWiredParam(nodeBuilder, argumentNodes, info.modelParam(), agentInfo, MODEL_PROVIDER_METADATA_KEY,
@@ -1303,7 +1304,8 @@ public class AiUtils {
                                              Function<ExpressionNode, Object> modelResolver) {
         AgentInfo info = resolveAgentInfo(classSymbol, project);
         Map<String, Object> agentInfo = new HashMap<>();
-        getCustomAgentDescription(classSymbol).ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
+        getCustomAgentDescription(classSymbol)
+                .ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
         addSystemPromptMetadata(agentInfo, info.systemPrompt());
         if (!info.tools().isEmpty()) {
             agentInfo.put(AGENT_TOOLS_KEY, info.tools());
@@ -1348,11 +1350,7 @@ public class AiUtils {
     private record SystemPromptData(String role, String instructions) {
     }
 
-    /**
-     * Resolves a custom agent's metadata. Annotation-first (cross-repo); the class is inspected only when it belongs
-     * to a workspace package (mode 1 — user-owned source). A Central dependency (mode 2) without the annotation is
-     * never introspected.
-     */
+    // Annotation first; falls back to inspecting the class only when it is workspace-owned source.
     private static AgentInfo resolveAgentInfo(ClassSymbol classSymbol, Project project) {
         Optional<AgentInfo> fromAnnotation = readAgentMetadata(classSymbol);
         if (fromAnnotation.isPresent()) {
@@ -1391,8 +1389,7 @@ public class AiUtils {
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
             node = node.parent();
         }
-        if (!(node instanceof FunctionDefinitionNode init)
-                || !(init.functionBody() instanceof FunctionBodyBlockNode body)) {
+        if (node == null || !(((FunctionDefinitionNode) node).functionBody() instanceof FunctionBodyBlockNode body)) {
             return null;
         }
         for (StatementNode stmt : body.statements()) {
