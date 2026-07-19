@@ -21,6 +21,11 @@ package io.ballerina.flowmodelgenerator.extension.request;
 /**
  * A request to generate an {@code @ai:AgentTool} wrapper that delegates to another agent's {@code run} method.
  *
+ * @param filePath       path of the file to generate the tool in
+ * @param agentVarName   variable name of the agent to delegate to
+ * @param includeContext whether to pass the agent context to the run method
+ * @param toolName       name of the generated tool
+ * @param description    description of the generated tool
  * @since 1.0.0
  */
 public record GenAgentToolRequest(String filePath, String agentVarName, boolean includeContext, String toolName,
