@@ -72,8 +72,8 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
-    private static final String FIXED_RETURN_AGENT_TYPE_NAME = "FixedReturnAgent";
-    private static final String INFERRED_RETURN_AGENT_TYPE_NAME = "InferredReturnAgent";
+    private static final String FIXED_RETURN_AGENT_TYPE_NAME = "FixedReturnAgentType";
+    private static final String INFERRED_RETURN_AGENT_TYPE_NAME = "InferredReturnAgentType";
 
     private static final String WSO2_MODEL_PROVIDER = "Wso2ModelProvider";
     private static final String WSO2_EMBEDDING_PROVIDER = "Wso2EmbeddingProvider";
@@ -264,15 +264,19 @@ public class CommonUtils {
         if (symbol instanceof ClassSymbol classSymbol) {
             return classSymbol;
         }
-        TypeReferenceTypeSymbol typeDescriptorSymbol;
+        TypeSymbol typeDescriptor;
         if (symbol instanceof VariableSymbol variableSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) variableSymbol.typeDescriptor();
+            typeDescriptor = variableSymbol.typeDescriptor();
         } else if (symbol instanceof ParameterSymbol parameterSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) parameterSymbol.typeDescriptor();
+            typeDescriptor = parameterSymbol.typeDescriptor();
         } else {
             return null;
         }
-        return (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
+        if (typeDescriptor instanceof TypeReferenceTypeSymbol typeRef
+                && typeRef.typeDescriptor() instanceof ClassSymbol classSymbol) {
+            return classSymbol;
+        }
+        return null;
     }
 
     public static boolean isAgentClass(Symbol symbol) {
