@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentToolData, CodeData, FlowNode } from "../interfaces/bi";
+import { AgentToolData, FlowNode, Property } from "../interfaces/bi";
 
 import { Flow } from "../interfaces/bi";
 import { ToolParameters } from "../rpc-types/ai-agent/interfaces";
@@ -104,33 +104,20 @@ export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, desc
         description,
         ...(typeof auth === "string" ? { auth } : {}),
     };
-    return {
-        id: "0",
-        metadata: { label: "Agent Tool", description: "" },
-        codedata: createAgentToolCodeData(data),
-        properties: {
-            functionName: {
-                metadata: { label: "Name", description: "Name of the tool" },
-                valueType: "IDENTIFIER",
-                value: toolName,
-                optional: false,
-                editable: true,
-                advanced: false,
-            },
-            ...(toolParameters ? { parameters: toolParameters } : {}),
-        },
-        branches: [],
-        returning: false,
-    };
+    return createAgentToolNode(toolName, data, toolParameters ? { parameters: toolParameters } : {});
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
     description: string): FlowNode {
     const data: AgentToolData = { toolKind: "AGENT_CALL", agentVarName, includeContext, description };
+    return createAgentToolNode(toolName, data);
+}
+
+function createAgentToolNode(toolName: string, data: AgentToolData, extraProperties: FlowNode["properties"] = {}): FlowNode {
     return {
         id: "0",
         metadata: { label: "Agent Tool", description: "" },
-        codedata: createAgentToolCodeData(data),
+        codedata: { node: "AGENT_TOOL", isNew: true, data },
         properties: {
             functionName: {
                 metadata: { label: "Name", description: "Name of the tool" },
@@ -139,13 +126,10 @@ export function buildAgentCallToolNode(toolName: string, agentVarName: string, i
                 optional: false,
                 editable: true,
                 advanced: false,
-            },
+            } as Property,
+            ...extraProperties,
         },
         branches: [],
         returning: false,
     };
-}
-
-function createAgentToolCodeData(data: AgentToolData): CodeData {
-    return { node: "AGENT_TOOL", isNew: true, data };
 }
