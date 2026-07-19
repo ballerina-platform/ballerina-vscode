@@ -149,22 +149,35 @@ function isInlineExpressionValue(value: unknown): boolean {
     return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
 }
 
+// Toggles a field between an action-expression (pick/create a node) and a free-form expression,
+// wiring the ACTION_EXPRESSION/EXPRESSION type pair and the search kind used to look up nodes.
+function applyExpressionToggle(
+    formField: FormField,
+    ballerinaType: string | undefined,
+    searchNodesKind: string,
+    codedataExtras: Record<string, unknown> = {}
+): void {
+    const expressionMode = isInlineExpressionValue(formField.value);
+    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
+    formField.types = [
+        { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: !expressionMode },
+        { fieldType: "EXPRESSION", selected: expressionMode },
+    ] as InputType[];
+    formField.codedata = {
+        ...(formField.codedata || {}),
+        searchNodesKind,
+        ...codedataExtras,
+    };
+}
+
 function enrichModelProviderField(formField: FormField, property: Property): void {
     const isModelProvider = property.types?.some((t) => t.ballerinaType === AI_MODEL_PROVIDER_TYPE);
     if (!isModelProvider || !formField.editable) {
         return;
     }
-    const expressionMode = isInlineExpressionValue(formField.value);
-    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
-    formField.types = [
-        { fieldType: "ACTION_EXPRESSION", ballerinaType: AI_MODEL_PROVIDER_TYPE, selected: !expressionMode },
-        { fieldType: "EXPRESSION", selected: expressionMode },
-    ] as InputType[];
-    formField.codedata = {
-        ...(formField.codedata || {}),
-        searchNodesKind: MODEL_PROVIDER_SEARCH_KIND,
+    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, MODEL_PROVIDER_SEARCH_KIND, {
         staticItems: [DEFAULT_MODEL_PROVIDER_ITEM],
-    };
+    });
 }
 
 const NEW_CONNECTION_SEARCH_KIND = "NEW_CONNECTION";
@@ -196,17 +209,7 @@ function enrichClientConnectionField(formField: FormField, property: Property): 
     }
     const typeQuery = getConnectionTypeQuery(property);
     const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
-    const expressionMode = isInlineExpressionValue(formField.value);
-    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
-    formField.types = [
-        { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: !expressionMode },
-        { fieldType: "EXPRESSION", selected: expressionMode },
-    ] as InputType[];
-    formField.codedata = {
-        ...(formField.codedata || {}),
-        searchNodesKind: NEW_CONNECTION_SEARCH_KIND,
-        ...typeQuery,
-    };
+    applyExpressionToggle(formField, ballerinaType, NEW_CONNECTION_SEARCH_KIND, typeQuery);
 }
 
 const AI_MEMORY_TYPE = "ai:Memory";
@@ -217,13 +220,7 @@ function enrichMemoryField(formField: FormField, property: Property): void {
     if (!isMemory || !formField.editable) {
         return;
     }
-    const expressionMode = isInlineExpressionValue(formField.value);
-    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
-    formField.types = [
-        { fieldType: "ACTION_EXPRESSION", ballerinaType: AI_MEMORY_TYPE, selected: !expressionMode },
-        { fieldType: "EXPRESSION", selected: expressionMode },
-    ] as InputType[];
-    formField.codedata = { ...(formField.codedata || {}), searchNodesKind: MEMORY_SEARCH_KIND };
+    applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND);
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {
