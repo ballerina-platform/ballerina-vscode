@@ -320,65 +320,6 @@ public class AgentsGenerator {
         return gson.toJsonTree(functionNames).getAsJsonArray();
     }
 
-    /**
-     * Generates an {@code @ai:AgentTool} wrapper that delegates to {@code agentVarName}'s {@code run} method.
-     */
-    public JsonElement genAgentTool(String agentVarName, boolean includeContext, String toolName,
-                                    String description, Path filePath, WorkspaceManager workspaceManager) {
-        ModuleInfo hostModule = resolveHostModule(filePath, workspaceManager);
-
-        Codedata codedata = new Codedata.Builder<>(null).node(NodeKind.AGENT).isNew().build();
-        FlowNode flowNode = new FlowNode(null, null, codedata, false, null, null, null, 0);
-        SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
-        sourceBuilder.acceptImport(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE);
-
-        String returnType = resolveAgentRunReturnType(semanticModel, agentVarName, hostModule, sourceBuilder);
-
-        String desc = (description == null || description.isBlank())
-                ? "Delegates a query to the " + agentVarName + " agent." : description;
-        sourceBuilder.token().descriptionDoc(desc);
-        sourceBuilder.token().parameterDoc("query", "The request to send to the " + agentVarName + " agent.");
-        sourceBuilder.token().returnDoc("The response from the " + agentVarName + " agent.");
-
-        String paramList = includeContext ? "ai:Context context, string query" : "string query";
-        String runArgs = includeContext ? "query, context = context" : "query";
-
-        sourceBuilder.token().name("@ai:AgentTool").name(System.lineSeparator());
-        sourceBuilder.token().keyword(SyntaxKind.ISOLATED_KEYWORD).keyword(SyntaxKind.FUNCTION_KEYWORD);
-        sourceBuilder.token().name(toolName).keyword(SyntaxKind.OPEN_PAREN_TOKEN);
-        sourceBuilder.token().name(paramList);
-        sourceBuilder.token().keyword(SyntaxKind.CLOSE_PAREN_TOKEN);
-        sourceBuilder.token()
-                .keyword(SyntaxKind.RETURNS_KEYWORD)
-                .name(returnType)
-                .keyword(SyntaxKind.PIPE_TOKEN)
-                .keyword(SyntaxKind.ERROR_KEYWORD);
-
-        sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
-        sourceBuilder.token()
-                .name(returnType)
-                .keyword(SyntaxKind.PIPE_TOKEN)
-                .keyword(SyntaxKind.ERROR_KEYWORD)
-                .name("response")
-                .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .name(agentVarName)
-                .keyword(SyntaxKind.DOT_TOKEN)
-                .name(RUN)
-                .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
-                .name(runArgs)
-                .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
-                .endOfStatement();
-        sourceBuilder.token()
-                .keyword(SyntaxKind.RETURN_KEYWORD)
-                .name("response")
-                .endOfStatement();
-        sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
-
-        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
-        return gson.toJsonTree(sourceBuilder.build());
-    }
-
     public static ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
         try {
             workspaceManager.loadProject(filePath);
