@@ -44,30 +44,18 @@ import {
 } from "../../../resources/constants";
 import { Button, Icon, Item, Menu, MenuItem, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
-import { AgentData, FlowNode, ToolData } from "../../../utils/types";
+import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-const getSyncPulseAnimation = (color: string) => keyframes`
-    0% { filter: drop-shadow(0 0 2px color-mix(in srgb, ${color} 30%, transparent)); }
-    100% { filter: drop-shadow(0 0 8px color-mix(in srgb, ${color} 60%, transparent)) drop-shadow(0 0 12px color-mix(in srgb, ${color} 30%, transparent)); }
-`;
-
-const getBoxSyncPulseAnimation = (color: string) => keyframes`
-    0% { box-shadow: 0 0 3px color-mix(in srgb, ${color} 20%, transparent); }
-    100% { box-shadow: 0 0 10px color-mix(in srgb, ${color} 50%, transparent), 0 0 20px color-mix(in srgb, ${color} 20%, transparent); }
-`;
-
-const flowDashAnimation = keyframes`
-    to { stroke-dashoffset: -12; }
-`;
+import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -1143,33 +1131,3 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     );
 }
 
-// sanitize a string for use as an SVG/HTML id attribute
-function sanitizeId(name: string): string {
-    return name.replace(/[^A-Za-z0-9_-]/g, "_");
-}
-
-// sanitize agent instructions and role
-// remove leading and trailing quotes
-// remove suffix "string `" and prefix "`"
-function stripWrappingQuotes(str: string): string {
-    // Handle `string \`...\`` template format — backticks are the definitive wrapper, no further stripping needed
-    if (str.startsWith('string `') && str.endsWith('`')) {
-        return str.slice('string `'.length, -1);
-    }
-    // Only strip quotes if wrapped in a single matching pair (not multiple like """...""")
-    if (
-        ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'")))
-        && !(str.startsWith('""') || str.startsWith("''"))
-    ) {
-        return str.slice(1, -1);
-    }
-    return str;
-}
-
-function sanitizeAgentData(data: AgentData): AgentData {
-    return {
-        ...data,
-        role: data.role ? stripWrappingQuotes(data.role) : data.role,
-        instructions: data.instructions ? stripWrappingQuotes(data.instructions) : data.instructions,
-    };
-}

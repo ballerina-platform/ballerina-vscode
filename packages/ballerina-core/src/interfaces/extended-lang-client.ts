@@ -1923,21 +1923,6 @@ export interface McpToolsResponse {
     errorMsg?: string;
 }
 
-export interface AIGentToolsResponse {
-    artifacts?: ProjectStructureArtifactResponse[];
-    textEdits: {
-        [key: string]: TextEdit[];
-    };
-}
-
-export interface GenAgentToolRequest {
-    filePath: string;
-    agentVarName: string;
-    includeContext: boolean;
-    toolName: string;
-    description: string;
-}
-
 export interface AIGetPackageVersionRequest {
     projectPath: string;
     org: string;

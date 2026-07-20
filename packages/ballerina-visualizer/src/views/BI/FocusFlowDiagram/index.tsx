@@ -52,7 +52,7 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { goToAgentFromRunNode, findAgentNodeFromAgentCallNode } from "../AIChatAgent/utils";
+import { goToAgent } from "../AIChatAgent/utils";
 import { buildAgentRenderNode } from "./agent";
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
@@ -262,9 +262,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
 
-    const getAgentModel = async (posOverride?: NodePosition) => {
-        if (suppressAgentReloadRef.current) {
-            suppressAgentReloadRef.current = false;
+    const getAgentFocusModel = async (kind: "AGENT" | "AGENT_TYPE", posOverride?: NodePosition) => {
+        const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
+        const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
+        if (suppressRef.current) {
+            suppressRef.current = false;
             return;
         }
         setShowProgressIndicator(true);
@@ -273,7 +275,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const location = await rpcClient.getVisualizerLocation();
             const pos = posOverride ?? embeddedPositionRef.current ?? location?.position;
             if (!pos) {
-                console.error(">>> agent focus: no position in visualizer location", location);
+                console.error(`>>> ${logLabel}: no position in visualizer location`, location);
                 return;
             }
             embeddedPositionRef.current = pos;
@@ -284,9 +286,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 endLine: { line: pos.endLine, offset: pos.endColumn },
             });
             const fetchedFlow = response?.flowModel;
-            const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === "AGENT");
+            const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === kind);
             if (!agentDecl) {
-                console.error(">>> agent focus: AGENT node not found in flow model", { filePath, pos });
+                console.error(`>>> ${logLabel}: ${kind} node not found`, { filePath, pos });
                 return;
             }
             agentDeclRef.current = agentDecl;
@@ -294,61 +296,15 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setAgentFormKey((key) => key + 1);
 
             const connections = fetchedFlow?.connections || [];
-            const renderNode = buildAgentRenderNode(agentDecl, connections);
-            const fileName = filePath;
-            const flow: Flow = { fileName, nodes: [renderNode], connections };
-            setModel(flow);
-
-            const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
-            setBreakpointInfo(breakpointResponse);
-            onReady(fileName, undefined, pos);
-        } catch (error) {
-            console.error(">>> agent focus: error building model", error);
-        } finally {
-            setShowProgressIndicator(false);
-            onReady(undefined, undefined, undefined);
-        }
-    };
-
-
-    const getAgentTypeModel = async (posOverride?: NodePosition) => {
-        if (suppressAgentTypeReloadRef.current) {
-            suppressAgentTypeReloadRef.current = false;
-            return;
-        }
-        setShowProgressIndicator(true);
-        onUpdate();
-        try {
-            const location = await rpcClient.getVisualizerLocation();
-            const pos = posOverride ?? embeddedPositionRef.current ?? location?.position;
-            if (!pos) {
-                console.error(">>> agent-type focus: no position in visualizer location", location);
-                return;
-            }
-            embeddedPositionRef.current = pos;
-            const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
-                filePath,
-                startLine: { line: pos.startLine, offset: pos.startColumn },
-                endLine: { line: pos.endLine, offset: pos.endColumn },
-            });
-            const fetchedFlow = response?.flowModel;
-            const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === "AGENT_TYPE");
-            if (!agentDecl) {
-                console.error(">>> agent-type focus: AGENT_TYPE node not found", { filePath, pos });
-                return;
-            }
-            agentDeclRef.current = agentDecl;
-            agentFormNodeRef.current = agentDecl;
-            setAgentFormKey((key) => key + 1);
-
-            const connections = fetchedFlow?.connections || [];
-            const renderNode: FlowNode = {
-                ...agentDecl,
-                id: agentDecl.id || "agent-type-focus-node",
-                branches: [],
-                flags: agentDecl.flags ?? 0,
-                returning: true,
-            };
+            const renderNode: FlowNode = kind === "AGENT"
+                ? buildAgentRenderNode(agentDecl, connections)
+                : {
+                    ...agentDecl,
+                    id: agentDecl.id || "agent-type-focus-node",
+                    branches: [],
+                    flags: agentDecl.flags ?? 0,
+                    returning: true,
+                };
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
             setModel(flow);
 
@@ -356,12 +312,16 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setBreakpointInfo(breakpointResponse);
             onReady(filePath, undefined, pos);
         } catch (error) {
-            console.error(">>> agent-type focus: error building model", error);
+            console.error(`>>> ${logLabel}: error building model`, error);
         } finally {
             setShowProgressIndicator(false);
             onReady(undefined, undefined, undefined);
         }
     };
+
+    const getAgentModel = (posOverride?: NodePosition) => getAgentFocusModel("AGENT", posOverride);
+
+    const getAgentTypeModel = (posOverride?: NodePosition) => getAgentFocusModel("AGENT_TYPE", posOverride);
 
     const handleEditAgentTypeForm = (_node: FlowNode) => {
         if (!agentDeclRef.current) {
@@ -672,29 +632,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
     };
 
-    const handleGoToAgent = async (node: FlowNode) => {
-        if (node.codedata?.node === "AGENT_CALL") {
-            const agentNode = await findAgentNodeFromAgentCallNode(node, rpcClient);
-            if (!agentNode) return;
-            const declRange = agentNode.codedata?.lineRange;
-            if (!declRange) return;
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [declRange.fileName] });
-            await rpcClient.getVisualizerRpcClient().openView({
-                type: EVENT_TYPE.OPEN_VIEW,
-                location: {
-                    documentUri: filePath,
-                    position: {
-                        startLine: declRange.startLine.line,
-                        startColumn: declRange.startLine.offset,
-                        endLine: declRange.endLine.line,
-                        endColumn: declRange.endLine.offset,
-                    },
-                },
-            });
-        } else {
-            goToAgentFromRunNode(node, rpcClient);
-        }
-    };
+    const handleGoToAgent = (node: FlowNode) => goToAgent(node, rpcClient);
 
     const handleOnChatWithAgent = (agentDeclNode: FlowNode) => {
         const agentVarName = agentDeclNode.properties?.variable?.value as string;
@@ -994,10 +932,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const noop = () => { };
 
-    const agentDiagramProps = useMemo(
+    const agentFocusDiagramProps = useMemo(
         () => ({
             model: flowModel,
-            onNodeSelect: handleEditAgentForm,
+            onNodeSelect: isAgentType ? handleEditAgentTypeForm : handleEditAgentForm,
             onAddNode: noop,
             onDeleteNode: noop,
             goToSource: handleOnGoToSource,
@@ -1015,34 +953,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             agentNode: agentEditor.diagramCallbacks,
         }),
         [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            agentEditor.diagramCallbacks]
+            agentEditor.diagramCallbacks, isAgentType]
     );
 
-    const agentTypeDiagramProps = useMemo(
-        () => ({
-            model: flowModel,
-            onNodeSelect: handleEditAgentTypeForm,
-            onAddNode: noop,
-            onDeleteNode: noop,
-            goToSource: handleOnGoToSource,
-            openView: handleOpenView,
-            goToAgent: handleGoToAgent,
-            projectPath,
-            breakpointInfo,
-            readOnly: showProgressIndicator,
-            isAgentFocusView: true,
-            embedded,
-            overlay: {
-                visible: isAgentPanelOpen,
-                onClickOverlay: handleOverlayClick,
-            },
-            agentNode: agentEditor.diagramCallbacks,
-        }),
-        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            agentEditor.diagramCallbacks]
-    );
-
-    const diagramProps = isAgentType ? agentTypeDiagramProps : isAgent ? agentDiagramProps : memoizedDiagramProps;
+    const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
 
     const agentTypeFormNode = (() => {
         if (!agentFormNodeRef.current || agentTypeFormMode !== "MODEL") {

@@ -21,10 +21,9 @@ import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import {
-    findAgentNodeFromAgentCallNode,
     findFlowNode,
     findFlowNodeByModuleVarName,
-    goToAgentFromRunNode,
+    goToAgent,
     refreshNodeLineRangeFromArtifacts,
     removeToolFromAgentNode,
 } from "../AIChatAgent/utils";
@@ -2686,29 +2685,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
     };
 
-    const handleGoToAgent = async (node: FlowNode) => {
-        if (node.codedata?.node === "AGENT_CALL") {
-            const agentNode = await findAgentNodeFromAgentCallNode(node, rpcClient);
-            if (!agentNode) return;
-            const declRange = agentNode.codedata?.lineRange;
-            if (!declRange) return;
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [declRange.fileName] });
-            await rpcClient.getVisualizerRpcClient().openView({
-                type: EVENT_TYPE.OPEN_VIEW,
-                location: {
-                    documentUri: filePath,
-                    position: {
-                        startLine: declRange.startLine.line,
-                        startColumn: declRange.startLine.offset,
-                        endLine: declRange.endLine.line,
-                        endColumn: declRange.endLine.offset,
-                    },
-                },
-            });
-        } else {
-            goToAgentFromRunNode(node, rpcClient);
-        }
-    };
+    const handleGoToAgent = (node: FlowNode) => goToAgent(node, rpcClient);
 
     const handleSubPanel = (subPanel: SubPanel) => {
         setSubPanel(subPanel);
