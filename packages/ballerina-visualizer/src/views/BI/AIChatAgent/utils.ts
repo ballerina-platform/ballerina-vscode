@@ -435,6 +435,30 @@ export const goToAgentFromRunNode = async (agentRunNode: FlowNode, rpcClient: Ba
     });
 };
 
+export const goToAgent = async (node: FlowNode, rpcClient: BallerinaRpcClient) => {
+    if (node.codedata?.node === "AGENT_CALL") {
+        const agentNode = await findAgentNodeFromAgentCallNode(node, rpcClient);
+        if (!agentNode) return;
+        const declRange = agentNode.codedata?.lineRange;
+        if (!declRange) return;
+        const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [declRange.fileName] });
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                documentUri: filePath,
+                position: {
+                    startLine: declRange.startLine.line,
+                    startColumn: declRange.startLine.offset,
+                    endLine: declRange.endLine.line,
+                    endColumn: declRange.endLine.offset,
+                },
+            },
+        });
+    } else {
+        goToAgentFromRunNode(node, rpcClient);
+    }
+};
+
 export const removeToolFromAgentNode = async (agentNode: FlowNode, toolName: string) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
