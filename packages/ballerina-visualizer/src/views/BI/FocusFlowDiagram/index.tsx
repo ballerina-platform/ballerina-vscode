@@ -52,7 +52,7 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { goToAgent } from "../AIChatAgent/utils";
+import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation } from "../AIChatAgent/utils";
 import { buildAgentRenderNode } from "./agent";
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
@@ -637,6 +637,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const handleGoToAgent = (node: FlowNode) => goToAgent(node, rpcClient);
 
+    const handleGoToAgentDefinition = (node: FlowNode) => {
+        goToAgentDefinitionFromInstance(node, rpcClient);
+    };
+
+    const handleGetAgentDefinitionLocation = (node: FlowNode) =>
+        resolveAgentDefinitionLocation(node, rpcClient);
+
     const handleOnChatWithAgent = (agentDeclNode: FlowNode) => {
         const agentVarName = agentDeclNode.properties?.variable?.value as string;
         const filePath = model?.fileName || agentDeclNode.codedata?.lineRange?.fileName;
@@ -944,6 +951,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             goToSource: handleOnGoToSource,
             openView: handleOpenView,
             goToAgent: handleGoToAgent,
+            goToAgentDefinition: handleGoToAgentDefinition,
+            getAgentDefinitionLocation: handleGetAgentDefinitionLocation,
             projectPath,
             breakpointInfo,
             readOnly: showProgressIndicator,

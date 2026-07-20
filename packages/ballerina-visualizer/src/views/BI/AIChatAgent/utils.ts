@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AvailableNode, CodeData, ConfigVariable, EVENT_TYPE, FlowNode, LinePosition, LineRange, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams } from "@wso2/ballerina-core";
+import { AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, EVENT_TYPE, FlowNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -457,6 +457,40 @@ export const goToAgent = async (node: FlowNode, rpcClient: BallerinaRpcClient) =
     } else {
         goToAgentFromRunNode(node, rpcClient);
     }
+};
+
+// Resolve the definition of the class an AGENT_TYPE instance was created from; undefined if outside the workspace.
+export const resolveAgentDefinitionLocation = async (
+    instanceNode: FlowNode,
+    rpcClient: BallerinaRpcClient
+): Promise<VisualizerLocation | undefined> => {
+    const className = instanceNode?.codedata?.object;
+    if (!className) return undefined;
+    const moduleName = instanceNode?.codedata?.module;
+    const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
+    for (const project of structure?.projects ?? []) {
+        const defs = project.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITIONS] ?? [];
+        const match =
+            defs.find((a) => a.name === className && (!moduleName || !a.moduleName || a.moduleName === moduleName)) ??
+            defs.find((a) => a.name === className);
+        if (match?.path && match.position) {
+            return {
+                view: MACHINE_VIEW.AgentDefinitionDesigner,
+                documentUri: match.path,
+                position: match.position,
+                projectPath: project.projectPath,
+                identifier: match.name,
+                artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
+            };
+        }
+    }
+    return undefined;
+};
+
+export const goToAgentDefinitionFromInstance = async (instanceNode: FlowNode, rpcClient: BallerinaRpcClient) => {
+    const location = await resolveAgentDefinitionLocation(instanceNode, rpcClient);
+    if (!location) return;
+    await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location });
 };
 
 export const removeToolFromAgentNode = async (agentNode: FlowNode, toolName: string) => {

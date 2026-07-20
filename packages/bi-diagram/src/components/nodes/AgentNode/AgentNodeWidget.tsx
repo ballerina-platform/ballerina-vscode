@@ -34,7 +34,7 @@ import {
     NODE_WIDTH,
     NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
@@ -447,12 +447,16 @@ function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadat
 
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId, entrypointContext } = useDiagramContext();
+    const {
+        onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId,
+        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
+    } = useDiagramContext();
     const traceAnimation = useTraceAnimation();
 
     const isSelected = selectedNodeId === model.node.id;
 
     const [isBoxHovered, setIsBoxHovered] = useState(false);
+    const [canViewDefinition, setCanViewDefinition] = useState(false);
     const [agentIdHovered, setAgentIdHovered] = useState(false);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [toolAnchorEl, setToolAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
@@ -475,6 +479,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
     }, [model.node.suggested]);
 
+    // Only show the definition affordance when its class can be resolved in this workspace.
+    useEffect(() => {
+        let active = true;
+        if (model.getType() !== NodeTypes.AGENT_TYPE_NODE || !getAgentDefinitionLocation || !model.node.codedata?.object) {
+            setCanViewDefinition(false);
+            return () => { active = false; };
+        }
+        getAgentDefinitionLocation(model.node)
+            .then((location) => active && setCanViewDefinition(Boolean(location)))
+            .catch(() => active && setCanViewDefinition(false));
+        return () => { active = false; };
+    }, [getAgentDefinitionLocation, model, model.node.codedata?.object]);
+
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
             return;
@@ -490,6 +507,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         onClick && onClick(model.node);
         onNodeSelect && onNodeSelect(model.node);
         setAnchorEl(null);
+    };
+
+    const handleViewDefinitionClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+        event.stopPropagation();
+        goToAgentDefinition?.(model.node);
     };
 
     const onModelEditClick = () => {
@@ -837,6 +859,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             </NodeStyles.Header>
                             <NodeStyles.ActionButtonGroup>
                                 {hasError && <DiagnosticsPopUp node={model.node} />}
+                                {isTypeDefinition && canViewDefinition && (
+                                    <Tooltip content="View agent definition">
+                                        <NodeStyles.MenuButton appearance="icon" onClick={handleViewDefinitionClick}>
+                                            <Icon name="bi-function-flow" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
+                                        </NodeStyles.MenuButton>
+                                    </Tooltip>
+                                )}
                                 <NodeStyles.MenuButton
                                     ref={setMenuButtonElement}
                                     buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
@@ -1464,4 +1493,3 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         </NodeStyles.Node>
     );
 }
-

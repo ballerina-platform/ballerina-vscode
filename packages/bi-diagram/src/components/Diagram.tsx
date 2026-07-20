@@ -65,6 +65,8 @@ export interface DiagramProps {
     goToSource?: (node: FlowNode) => void;
     openView?: (location: VisualizerLocation) => void;
     goToAgent?: (node: FlowNode) => void;
+    goToAgentDefinition?: (node: FlowNode) => void;
+    getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: DraftNodeConfig;
     selectedNodeId?: string;
     // agent node callbacks
@@ -114,6 +116,8 @@ export function Diagram(props: DiagramProps) {
         goToSource,
         openView,
         goToAgent,
+        goToAgentDefinition,
+        getAgentDefinitionLocation,
         draftNode,
         selectedNodeId,
         agentNode,
@@ -372,6 +376,8 @@ export function Diagram(props: DiagramProps) {
         goToSource: goToSource,
         openView: openView,
         goToAgent: goToAgent,
+        goToAgentDefinition: goToAgentDefinition,
+        getAgentDefinitionLocation: getAgentDefinitionLocation,
         draftNode: draftNode,
         selectedNodeId: selectedNodeId,
         agentNode,
