@@ -635,10 +635,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const nodeTitle = "AI Agent";
     const hasError = nodeHasError(model.node);
     const nodeMetadata = model?.node.metadata.data as NodeMetadata;
-    const nodeModelIconUrl = nodeMetadata?.model?.path;
-    const tools = nodeMetadata?.tools || [];
+    const agentInfo = nodeMetadata?.agentInfo;
+    const modelProvider = agentInfo?.modelProvider?.presentation;
+    const memory = agentInfo?.memory?.presentation;
+    const nodeModelIconUrl = modelProvider?.path;
+    const tools = agentInfo?.tools || [];
 
-    const sanitizedAgent = nodeMetadata?.agent ? sanitizeAgentData(nodeMetadata.agent) : undefined;
+    const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
     const nodeRole = sanitizedAgent?.role || '';
     const nodeInstructions = sanitizedAgent?.instructions || '';
@@ -806,7 +809,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
                     <NodeStyles.MemoryContainer>
                         <NodeStyles.Row readOnly={readOnly}>
-                            {nodeMetadata?.memory ? (
+                            {memory ? (
                                 <NodeStyles.MemoryCard
                                     readOnly={readOnly}
                                     onClick={onMemoryManagerClick}
@@ -817,7 +820,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         <div style={{ flex: 1 }}>
                                             <NodeStyles.MemoryTitle>Memory</NodeStyles.MemoryTitle>
                                             <NodeStyles.MemoryMeta>
-                                                {(nodeMetadata?.memory?.type || "MessageWindowChatMemory").replace(/^ai:/, "")}
+                                                {(memory.type || "MessageWindowChatMemory").replace(/^ai:/, "")}
                                             </NodeStyles.MemoryMeta>
                                         </div>
                                         <NodeStyles.MenuButton
@@ -954,7 +957,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         {model.node.properties?.model?.value === "check ai:getDefaultModelProvider()"
                             ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                            : getAIModuleIcon(nodeMetadata?.model?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
+                            : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
                     {/* Base Line */}
