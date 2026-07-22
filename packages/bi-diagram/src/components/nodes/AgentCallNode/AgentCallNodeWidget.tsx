@@ -622,10 +622,12 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const agentVarName = typeof model.node.properties?.connection?.value === "string"
         ? (model.node.properties.connection.value as string).trim() : "";
     const canViewAgent = Boolean(goToAgent) && agentVarName.length > 0;
-    const nodeModelIconUrl = nodeMetadata?.model?.path;
-    const tools = nodeMetadata?.tools || [];
+    const agentInfo = nodeMetadata?.agentInfo;
+    const modelProvider = agentInfo?.modelProvider?.presentation;
+    const nodeModelIconUrl = modelProvider?.path;
+    const tools = agentInfo?.tools || [];
 
-    const sanitizedAgent = nodeMetadata?.agent ? sanitizeAgentData(nodeMetadata.agent) : undefined;
+    const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
     const nodeRole = sanitizedAgent?.role || '';
     const nodeInstructions = sanitizedAgent?.instructions || '';
@@ -830,15 +832,14 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                     </NodeStyles.Instructions>
                                 </NodeStyles.InstructionsRow>
                             </>
-                        ) : nodeMetadata?.agentDescription ? (
-                            // No (complete) system prompt: fall back to the class description.
+                        ) : agentInfo?.description ? (
                             <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
                                 <NodeStyles.Instructions>
                                     <ReactMarkdown
                                         disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
                                         unwrapDisallowed={true}
                                     >
-                                        {nodeMetadata.agentDescription}
+                                        {agentInfo.description}
                                     </ReactMarkdown>
                                 </NodeStyles.Instructions>
                             </NodeStyles.InstructionsRow>
@@ -914,9 +915,9 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         style={{ pointerEvents: "none" }}
                     >
                         {model.node.properties?.model?.value === "check ai:getDefaultModelProvider()"
-                            || nodeMetadata?.model?.name === "check ai:getDefaultModelProvider()"
+                            || modelProvider?.name === "check ai:getDefaultModelProvider()"
                             ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                            : getAIModuleIcon(nodeMetadata?.model?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
+                            : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
                     {/* Base Line */}

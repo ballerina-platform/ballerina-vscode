@@ -694,6 +694,7 @@ public class CodeAnalyzer extends NodeVisitor {
         ExpressionNode modelArg = null;
         ExpressionNode systemPromptArg = null;
         ExpressionNode memory = null;
+        Map<String, Object> agentInfo = new HashMap<>();
 
         for (FunctionArgumentNode arg : argList.get().arguments()) {
             if (arg instanceof NamedArgumentNode namedArgumentNode) {
@@ -769,25 +770,28 @@ public class CodeAnalyzer extends NodeVisitor {
                     toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), toolType));
                 }
             }
-            nodeBuilder.metadata().addData("tools", toolsData);
+            agentInfo.put(AiUtils.AGENT_TOOLS_KEY, toolsData);
         }
 
         if (systemPromptArg != null && systemPromptArg.kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
             parseSystemPromptFields((MappingConstructorExpressionNode) systemPromptArg, agentData);
 
-            Map<String, String> simpleAgentData = agentData.entrySet().stream()
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            e -> e.getValue().value()
-                    ));
-
-            nodeBuilder.metadata().addData("agent", simpleAgentData);
+            Map<String, String> systemPrompt = new HashMap<>();
+            for (String field : List.of("role", "instructions")) {
+                AiUtils.AgentPropertyValue value = agentData.get(field);
+                if (value != null) {
+                    systemPrompt.put(field, value.value());
+                }
+            }
+            if (!systemPrompt.isEmpty()) {
+                agentInfo.put(AiUtils.AGENT_SYSTEM_PROMPT_KEY, systemPrompt);
+            }
         }
 
         if (memory == null) {
             String defaultMemoryManagerName = getDefaultMemoryManagerName(classSymbol);
             if (!defaultMemoryManagerName.isEmpty()) {
-                nodeBuilder.metadata().addData("memory",
+                AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY,
                         new MemoryManagerData(defaultMemoryManagerName, AiUtils.MEMORY_DEFAULT_VALUE));
             }
         } else if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
@@ -797,22 +801,23 @@ public class CodeAnalyzer extends NodeVisitor {
             if (arguments.size() == 1) {
                 size = arguments.get(0).toSourceCode();
             }
-            nodeBuilder.metadata().addData("memory",
+            AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY,
                     new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size));
         } else if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
             Optional<TypeSymbol> optSymbolType = semanticModel.typeOf(memory);
-            optSymbolType.ifPresent(typeSymbol -> nodeBuilder.metadata()
-                    .addData("memory",
-                            new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
-                                    AiUtils.MEMORY_DEFAULT_VALUE)));
+            optSymbolType.ifPresent(typeSymbol -> AiUtils.addPresentationMetadata(agentInfo,
+                    AiUtils.MEMORY_METADATA_KEY,
+                    new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
+                            AiUtils.MEMORY_DEFAULT_VALUE)));
         }
 
         if (modelArg != null) {
             ModelData modelUrl = getModelIconUrl(modelArg);
             if (modelUrl != null) {
-                nodeBuilder.metadata().addData("model", modelUrl);
+                AiUtils.addPresentationMetadata(agentInfo, AiUtils.MODEL_PROVIDER_METADATA_KEY, modelUrl);
             }
         }
+        AiUtils.addAgentMetadata(nodeBuilder, agentInfo);
 
         // The remaining setup (AGENT_CALL-style properties + agent codedata reference) only applies to the
         // agent->run() call node. The AGENT declaration node reuses just the metadata above; its own

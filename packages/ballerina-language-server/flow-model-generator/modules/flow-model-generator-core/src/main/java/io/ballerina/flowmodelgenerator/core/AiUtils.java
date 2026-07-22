@@ -1236,17 +1236,19 @@ public class AiUtils {
         return false;
     }
 
-    public static final String AGENT_DESCRIPTION_KEY = "agentDescription";
-    public static final String MODEL_PROVIDER_PARAM_KEY = "modelProviderParam";
-    public static final String MEMORY_PARAM_KEY = "memoryParam";
-    public static final String TOOLS_METADATA_KEY = "tools";
+    public static final String AGENT_INFO_KEY = "agentInfo";
 
     public record AgentToolData(String name, String path, String description, String type) {
     }
     private static final String CONNECTION_DATA_KEY = "connection";
-    private static final String MODEL_METADATA_KEY = "model";
+    private static final String AGENT_DESCRIPTION_KEY = "description";
+    static final String AGENT_SYSTEM_PROMPT_KEY = "systemPrompt";
+    static final String AGENT_TOOLS_KEY = "tools";
+    static final String MODEL_PROVIDER_METADATA_KEY = "modelProvider";
+    static final String MEMORY_METADATA_KEY = "memory";
+    private static final String PROPERTY_KEY = "propertyKey";
+    private static final String PRESENTATION_KEY = "presentation";
     private static final String MODEL_PROVIDER_INTERFACE_NAME = "ModelProvider";
-    private static final String MEMORY_METADATA_KEY = "memory";
     private static final String MEMORY_INTERFACE_NAME = "Memory";
     private static final String INIT_METHOD_NAME = "init";
     private static final String AGENT_METADATA_FIELD = "agentMetadata";
@@ -1260,7 +1262,6 @@ public class AiUtils {
     private static final String AGENT_METADATA_SYSTEM_PROMPT = "systemPrompt";
     private static final String SYSTEM_PROMPT_ROLE = "role";
     private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
-    private static final String AGENT_DATA_KEY = "agent";
     private static final String PARAMETER_NAME_FIELD = "parameterName";
     private static final String TOOL_NAME_FIELD = "name";
     private static final String TOOL_KIND_FIELD = "kind";
@@ -1269,87 +1270,55 @@ public class AiUtils {
     private static final String MCP_SERVER_TYPE = "MCP Server";
     private static final String MCP_ICON = CommonUtils.generateIcon(BALLERINA, "mcp", "0.4.2");
 
-    /**
-     * A custom agent init parameter that is wired to one of the inner {@code ai:Agent}'s named arguments (e.g. its
-     * model provider or memory).
-     *
-     * @param name  the parameter name (also the node's property key)
-     * @param index the parameter's positional index in the init signature
-     */
     public record WiredParam(String name, int index) {
 
     }
 
-    /**
-     * Populates the metadata for a custom agent (AGENT_TYPE) declaration node: the class doc-comment description, the
-     * client-connection params, and — when the agent has a model provider / memory init param (resolved via
-     * {@link #resolveAgentInfo}) — the corresponding param (which drives the editable circle / memory affordance,
-     * hides the field in the box form, and carries the resolved icon / memory data) plus the tools.
-     *
-     * @param modelIconResolver resolves the instantiation's model argument to the icon metadata object (or null)
-     * @param memoryDataResolver resolves the instantiation's memory argument to the memory metadata object (or null)
-     */
     public static void applyAgentTypeMetadata(NodeBuilder nodeBuilder, ClassSymbol classSymbol,
                                               SeparatedNodeList<FunctionArgumentNode> argumentNodes, Project project,
                                               Function<ExpressionNode, Object> modelIconResolver,
                                               Function<ExpressionNode, Object> memoryDataResolver) {
-        getCustomAgentDescription(classSymbol)
-                .ifPresent(description -> nodeBuilder.metadata().addData(AGENT_DESCRIPTION_KEY, description));
-
-        // Render init params typed as a client connection (e.g. calendar:Client) as a connection select.
         markClientConnectionParams(nodeBuilder, classSymbol);
 
         AgentInfo info = resolveAgentInfo(classSymbol, project);
-        addSystemPromptMetadata(nodeBuilder, info.systemPrompt());
+        Map<String, Object> agentInfo = new HashMap<>();
+        getCustomAgentDescription(classSymbol).ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
+        addSystemPromptMetadata(agentInfo, info.systemPrompt());
         if (info.modelParam() != null) {
-            applyWiredParam(nodeBuilder, argumentNodes, info.modelParam(), MODEL_PROVIDER_PARAM_KEY,
-                    MODEL_METADATA_KEY, modelIconResolver);
+            applyWiredParam(nodeBuilder, argumentNodes, info.modelParam(), agentInfo, MODEL_PROVIDER_METADATA_KEY,
+                    modelIconResolver);
         }
         if (info.memoryParam() != null) {
-            applyWiredParam(nodeBuilder, argumentNodes, info.memoryParam(), MEMORY_PARAM_KEY,
-                    MEMORY_METADATA_KEY, memoryDataResolver);
+            applyWiredParam(nodeBuilder, argumentNodes, info.memoryParam(), agentInfo, MEMORY_METADATA_KEY,
+                    memoryDataResolver);
         }
         if (!info.tools().isEmpty()) {
-            nodeBuilder.metadata().addData(TOOLS_METADATA_KEY, info.tools());
+            agentInfo.put(AGENT_TOOLS_KEY, info.tools());
         }
+        addAgentMetadata(nodeBuilder, agentInfo);
     }
 
-    /**
-     * Populates read-only display metadata for a custom agent's {@code .run()} call (AGENT_RUN node): the agent's
-     * system prompt (role/instructions), tools, and model provider — mirroring the built-in AGENT_CALL node, but
-     * rendered dimmed/read-only. Resolved via {@link #resolveAgentInfo} (annotation-first; workspace-class
-     * inspection as fallback).
-     *
-     * @param argumentNodes the agent <i>declaration's</i> constructor arguments (the model is supplied there, not at
-     *                      the run site), used to resolve the model icon
-     * @param modelResolver resolves the declaration's model argument to the icon metadata object (or null)
-     */
     public static void applyAgentRunMetadata(NodeBuilder nodeBuilder, ClassSymbol classSymbol,
                                              SeparatedNodeList<FunctionArgumentNode> argumentNodes, Project project,
                                              Function<ExpressionNode, Object> modelResolver) {
         AgentInfo info = resolveAgentInfo(classSymbol, project);
-
-        getCustomAgentDescription(classSymbol)
-                .ifPresent(description -> nodeBuilder.metadata().addData(AGENT_DESCRIPTION_KEY, description));
-
-        addSystemPromptMetadata(nodeBuilder, info.systemPrompt());
+        Map<String, Object> agentInfo = new HashMap<>();
+        getCustomAgentDescription(classSymbol).ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
+        addSystemPromptMetadata(agentInfo, info.systemPrompt());
         if (!info.tools().isEmpty()) {
-            nodeBuilder.metadata().addData(TOOLS_METADATA_KEY, info.tools());
+            agentInfo.put(AGENT_TOOLS_KEY, info.tools());
         }
         if (info.modelParam() != null && modelResolver != null) {
             ExpressionNode arg = getArgumentForParam(argumentNodes, info.modelParam());
             if (arg != null) {
                 Object resolved = modelResolver.apply(arg);
-                if (resolved != null) {
-                    nodeBuilder.metadata().addData(MODEL_METADATA_KEY, resolved);
-                }
+                addPresentationMetadata(agentInfo, MODEL_PROVIDER_METADATA_KEY, resolved);
             }
         }
+        addAgentMetadata(nodeBuilder, agentInfo);
     }
 
-    // Stamps the agent's role/instructions (NodeMetadata.agent) when available, shared by the AGENT_TYPE and AGENT_RUN
-    // paths. No-op when the system prompt is absent.
-    private static void addSystemPromptMetadata(NodeBuilder nodeBuilder, SystemPromptData systemPrompt) {
+    private static void addSystemPromptMetadata(Map<String, Object> agentInfo, SystemPromptData systemPrompt) {
         if (systemPrompt == null) {
             return;
         }
@@ -1361,7 +1330,13 @@ public class AiUtils {
             agentData.put(SYSTEM_PROMPT_INSTRUCTIONS, systemPrompt.instructions());
         }
         if (!agentData.isEmpty()) {
-            nodeBuilder.metadata().addData(AGENT_DATA_KEY, agentData);
+            agentInfo.put(AGENT_SYSTEM_PROMPT_KEY, agentData);
+        }
+    }
+
+    static void addAgentMetadata(NodeBuilder nodeBuilder, Map<String, Object> agentInfo) {
+        if (!agentInfo.isEmpty()) {
+            nodeBuilder.metadata().addData(AGENT_INFO_KEY, agentInfo);
         }
     }
 
@@ -1677,26 +1652,34 @@ public class AiUtils {
         return Optional.empty();
     }
 
-    // Stamps a wired init param onto the node: the param-key metadata (drives the widget affordance), the resolved
-    // metadata for the value passed at this instantiation site, and hides the field from the box form.
     private static void applyWiredParam(NodeBuilder nodeBuilder, SeparatedNodeList<FunctionArgumentNode> argumentNodes,
-                                        WiredParam wired, String paramMetadataKey, String valueMetadataKey,
+                                        WiredParam wired, Map<String, Object> agentInfo, String dependencyMetadataKey,
                                         Function<ExpressionNode, Object> valueResolver) {
         String paramKey = ParamUtils.removeLeadingSingleQuote(wired.name());
-        nodeBuilder.metadata().addData(paramMetadataKey, paramKey);
+        Map<String, Object> dependency = new HashMap<>();
+        dependency.put(PROPERTY_KEY, paramKey);
 
         ExpressionNode arg = getArgumentForParam(argumentNodes, wired);
         if (arg != null && valueResolver != null) {
             Object resolved = valueResolver.apply(arg);
             if (resolved != null) {
-                nodeBuilder.metadata().addData(valueMetadataKey, resolved);
+                dependency.put(PRESENTATION_KEY, resolved);
             }
         }
+        agentInfo.put(dependencyMetadataKey, dependency);
 
         Property property = nodeBuilder.properties().build().get(paramKey);
         if (property != null) {
             addPropertyFromTemplate(nodeBuilder, paramKey, property, null, true);
         }
+    }
+
+    static void addPresentationMetadata(Map<String, Object> agentInfo, String dependencyMetadataKey,
+                                        Object presentation) {
+        if (presentation == null) {
+            return;
+        }
+        agentInfo.put(dependencyMetadataKey, Map.of(PRESENTATION_KEY, presentation));
     }
 
     /**

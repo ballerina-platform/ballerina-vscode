@@ -107,11 +107,15 @@ export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[
             .map((name: string) => ({ name }));
     }
 
-    // Prefer the rich metadata the LS injects on the AGENT node (tools/model/memory with resolved icons);
-    // fall back to the property-derived view-model for older LS builds that don't populate it.
     const lsData = agentNode.metadata?.data as NodeMetadata | undefined;
-    const hasLsData = !!(lsData && (lsData.agent || lsData.model || lsData.memory || (lsData.tools && lsData.tools.length)));
-    const data: NodeMetadata = hasLsData ? (lsData as NodeMetadata) : { agent, model, memory, tools };
+    const data: NodeMetadata = lsData?.agentInfo ? lsData : {
+        agentInfo: {
+            systemPrompt: agent,
+            modelProvider: model ? { presentation: model } : undefined,
+            memory: memory ? { presentation: memory } : undefined,
+            tools,
+        },
+    };
 
     return {
         ...agentNode,

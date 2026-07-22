@@ -410,7 +410,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     // ALL: hide the model param (shown as the circle). MODEL: show only the model param.
     const buildAgentTypeFieldOverrides = (node: FlowNode, mode: "ALL" | "MODEL") => {
-        const modelParam = (node.metadata?.data as NodeMetadata)?.modelProviderParam;
+        const modelParam = (node.metadata?.data as NodeMetadata)?.agentInfo?.modelProvider?.propertyKey;
         const overrides: Record<string, { hidden?: boolean }> = { type: { hidden: true } };
         if (mode === "MODEL") {
             Object.keys(node.properties || {}).forEach((key) => {
@@ -1099,7 +1099,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         if (agentTypeFormMode !== "ALL") {
             return undefined;
         }
-        const agent = (agentFormNodeRef.current?.metadata?.data as NodeMetadata | undefined)?.agent;
+        const agent = (agentFormNodeRef.current?.metadata?.data as NodeMetadata | undefined)?.agentInfo?.systemPrompt;
         if (!agent || (!agent.role && !agent.instructions)) {
             return undefined;
         }

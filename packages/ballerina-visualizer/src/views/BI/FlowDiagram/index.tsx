@@ -747,17 +747,19 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
                 flowModel.nodes.forEach((node: FlowNode) => {
                     const nodeMetadata = node?.metadata?.data as NodeMetadata;
-                    if (node?.codedata?.node === "AGENT_CALL" && nodeMetadata?.model?.name === modelVarName) {
-                        setModelType(nodeMetadata.model, modelProviderName);
+                    const modelProvider = nodeMetadata?.agentInfo?.modelProvider?.presentation;
+                    if (node?.codedata?.node === "AGENT_CALL" && modelProvider?.name === modelVarName) {
+                        setModelType(modelProvider, modelProviderName);
                     } else if (node?.codedata?.node === "ERROR_HANDLER" && Array.isArray(node.branches)) {
                         node.branches.forEach((branch) => {
                             (branch.children ?? []).forEach((child) => {
                                 const childMetadata = child?.metadata?.data as NodeMetadata;
+                                const childModelProvider = childMetadata?.agentInfo?.modelProvider?.presentation;
                                 if (
                                     child.codedata.node === "AGENT_CALL" &&
-                                    childMetadata?.model?.name === modelVarName
+                                    childModelProvider?.name === modelVarName
                                 ) {
-                                    setModelType(childMetadata.model, modelProviderName);
+                                    setModelType(childModelProvider, modelProviderName);
                                 }
                             });
                         });

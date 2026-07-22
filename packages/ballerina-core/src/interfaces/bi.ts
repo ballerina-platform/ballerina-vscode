@@ -108,16 +108,11 @@ export type NodeMetadata = {
     isAgentTool?: boolean;
     connectorType?: string;
     isIsolatedFunction?: boolean;
-    tools?: ToolData[];
     model?: ToolData;
-    memory?: MemoryData;
-    agent?: AgentData;
     paramsToHide?: string[]; // List of properties keys to to hide from forms
     module?: string;
     type?: string;
-    modelProviderParam?: string; // AGENT_TYPE: init param key wired to the model provider (drives the circle)
-    memoryParam?: string; // AGENT_TYPE: init param key wired to the inner agent's memory (drives the memory affordance)
-    agentDescription?: string; // AGENT_TYPE: the custom agent class's doc-comment description
+    agentInfo?: AgentNodeInfo;
 };
 
 export type ParentMetadata = {
@@ -140,6 +135,24 @@ export type ToolData = {
 export type AgentData = {
     role?: string;
     instructions?: string;
+};
+
+export type AgentNodeInfo = {
+    description?: string;
+    systemPrompt?: AgentData;
+    tools?: ToolData[];
+    modelProvider?: AgentModelProviderInfo;
+    memory?: AgentMemoryInfo;
+};
+
+export type AgentModelProviderInfo = {
+    propertyKey?: string;
+    presentation?: ToolData;
+};
+
+export type AgentMemoryInfo = {
+    propertyKey?: string;
+    presentation?: MemoryData;
 };
 
 export type MemoryData = {
