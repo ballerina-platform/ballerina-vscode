@@ -70,11 +70,7 @@ const WarningMessage = styled.div`
 interface MemoryConfigProps {
     memoryNode: FlowNode;
     agentNode: FlowNode;
-    // The agent property key that holds the memory value. The built-in ai:Agent uses "memory" (default); a custom
-    // AGENT_TYPE agent passes its LS-detected wired init param key here.
     memoryPropertyKey?: string;
-    // Receives the agent's post-save position so the caller can refetch the (shifted) node instead of relying on its
-    // stale stored position.
     onSave?: (agentPosition?: NodePosition) => void;
 }
 
@@ -152,8 +148,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             return;
         }
 
-        // Get the memory type from agent metadata
-        let currentMemoryType = (agentNode.metadata?.data as NodeMetadata)?.memory?.type as string;
+        let currentMemoryType = (agentNode.metadata?.data as NodeMetadata)?.agentInfo?.memory?.presentation?.type as string;
 
         // Remove "ai:" prefix if present
         if (currentMemoryType?.startsWith("ai:")) {

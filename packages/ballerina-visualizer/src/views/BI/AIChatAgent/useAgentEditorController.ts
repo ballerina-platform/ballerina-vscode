@@ -62,9 +62,8 @@ export interface AgentEditorController {
     back(): void;
 }
 
-// Custom agents wire memory under an LS-detected init param, not the fixed `memory` arg.
 const memoryKeyOf = (node?: FlowNode): string =>
-    (node?.metadata?.data as NodeMetadata)?.memoryParam || "memory";
+    (node?.metadata?.data as NodeMetadata)?.agentInfo?.memory?.propertyKey || "memory";
 
 export function useAgentEditorController(host: AgentEditorHost): AgentEditorController {
     const { rpcClient } = useRpcContext();

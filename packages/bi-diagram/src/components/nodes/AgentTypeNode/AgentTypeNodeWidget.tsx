@@ -316,14 +316,16 @@ export function AgentTypeNodeWidget(props: AgentTypeNodeWidgetProps) {
     const isSelected = selectedNodeId === model.node.id;
     const hasError = nodeHasError(model.node);
     const nodeMetadata = model.node.metadata?.data as NodeMetadata;
-    const showModelCircle = Boolean(nodeMetadata?.modelProviderParam);
-    const nodeModelIconUrl = nodeMetadata?.model?.path;
-    const showMemory = Boolean(nodeMetadata?.memoryParam);
-    const memory = nodeMetadata?.memory;
-    const sanitizedAgent = nodeMetadata?.agent ? sanitizeAgentData(nodeMetadata.agent) : undefined;
+    const agentInfo = nodeMetadata?.agentInfo;
+    const modelProvider = agentInfo?.modelProvider?.presentation;
+    const showModelCircle = Boolean(agentInfo?.modelProvider?.propertyKey);
+    const nodeModelIconUrl = modelProvider?.path;
+    const showMemory = Boolean(agentInfo?.memory?.propertyKey);
+    const memory = agentInfo?.memory?.presentation;
+    const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
-    const description = nodeMetadata?.agentDescription;
-    const tools: ToolData[] = nodeMetadata?.tools || [];
+    const description = agentInfo?.description;
+    const tools: ToolData[] = agentInfo?.tools || [];
 
     const title = "AI Agent";
     const isPrebuilt = !!model.node.codedata?.org;
@@ -632,7 +634,7 @@ export function AgentTypeNodeWidget(props: AgentTypeNodeWidgetProps) {
                             <foreignObject x="68" y="12" width="44" height="44" style={{ pointerEvents: "none" }}>
                                 {model.node.properties?.model?.value === "check ai:getDefaultModelProvider()"
                                     ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                                    : getAIModuleIcon(nodeMetadata?.model?.type) ??
+                                    : getAIModuleIcon(modelProvider?.type) ??
                                     (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                             </foreignObject>
                         </>
