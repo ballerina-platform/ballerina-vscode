@@ -369,7 +369,21 @@ public class ConnectionActionProvider {
         if (project != null && isProjectModule(moduleInfo, project.currentPackage().descriptor())) {
             return Optional.of(project.currentPackage());
         }
+        // Workspace-sibling packages aren't in Central; resolve them locally before the Central fallback.
+        Optional<Package> workspacePackage = resolveWorkspacePackage(moduleInfo, project);
+        if (workspacePackage.isPresent()) {
+            return workspacePackage;
+        }
         return PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
+    }
+
+    // The workspace child package matching moduleInfo, if any. Best-effort; empty on failure.
+    private Optional<Package> resolveWorkspacePackage(ModuleInfo moduleInfo, Project project) {
+        if (moduleInfo == null) {
+            return Optional.empty();
+        }
+        return PackageUtil.findWorkspacePackage(project, moduleInfo.org(), moduleInfo.packageName(),
+                moduleInfo.moduleName());
     }
 
     private boolean isProjectModule(ModuleInfo moduleInfo, PackageDescriptor packageDescriptor) {

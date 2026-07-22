@@ -1,0 +1,14 @@
+[package]
+org = "org"
+name = "proj"
+version = "0.1.0"
+distribution = "2201.13.4"
+
+[build-options]
+observabilityIncluded = true
+
+[[dependency]]
+org = "ballerina"
+name = "ai"
+version = "1.11.3"
+repository = "local"

@@ -81,6 +81,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedReturnAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiInferredReturnAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
@@ -105,6 +107,8 @@ public class ModelGenerator {
     );
     private static final String NODE_KIND_FILTER = "kind";
     private static final String EXACT_MATCH_FILTER = "exactMatch";
+    // Narrows a connection search (e.g. kind=NEW_CONNECTION) to variables of one client type (e.g. "calendar:Client").
+    private static final String CONNECTION_TYPE_FILTER = "connectionType";
 
     public ModelGenerator(Project project, SemanticModel model, Path filePath, WorkspaceManager workspaceManager) {
         this.semanticModel = model;
@@ -668,6 +672,7 @@ public class ModelGenerator {
     private boolean isClassOrObject(TypeSymbol typeSymbol) {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
+                    isAiFixedReturnAgent(typeSymbol) || isAiInferredReturnAgent(typeSymbol) ||
                     isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol)) {
                 return true;
             }

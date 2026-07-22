@@ -81,6 +81,8 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE
 import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistDatabaseIcon;
 import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistModelFilePath;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedReturnAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiInferredReturnAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiEmbeddingProvider;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiModelProvider;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
@@ -588,21 +590,21 @@ public class AvailableNodesGenerator {
                     .map(moduleSymbol -> ModuleInfo.from(moduleSymbol.id()))
                     .orElse(null);
 
-            // Create and set the resolved package for the function
-            Optional<Package> resolvedPackage = moduleInfo != null ?
-                    PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()) :
-                    Optional.empty();
-
-            Optional<String> persistIcon = isPersistClient(classSymbol, semanticModel)
-                    ? getPersistDatabaseIcon(classSymbol) : Optional.empty();
+            boolean persistClient = isPersistClient(classSymbol, semanticModel);
+            Optional<String> persistIcon = persistClient ? getPersistDatabaseIcon(classSymbol) : Optional.empty();
             List<Item> methods = ConnectionActionProvider.getInstance().getActions(classSymbol, parentSymbolName,
                     pkg.project(), semanticModel, checkAgentToolCompatibility);
 
             Metadata.Builder<?> metadataBuilder = new Metadata.Builder<>(null)
                     .label(parentSymbolName);
-            if (isPersistClient(classSymbol, semanticModel)) {
+            if (persistClient) {
                 persistIcon.ifPresent(metadataBuilder::icon);
                 metadataBuilder.addData(CONNECTOR_TYPE, PERSIST);
+                // Only the persist path uses resolvedPackage; skip the costly Central lookup otherwise.
+                Optional<Package> resolvedPackage = moduleInfo != null
+                        ? PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(),
+                                moduleInfo.version())
+                        : Optional.empty();
                 getPersistModelFilePath(
                         resolvedPackage.map(p -> p.project().sourceRoot())
                                 .orElse(pkg.project().sourceRoot()),
@@ -623,7 +625,10 @@ public class AvailableNodesGenerator {
     private Optional<Category> getAgent(Symbol symbol) {
         return getCategory(symbol, classSymbol -> {
             try {
-                return isAgentClass(classSymbol);
+                // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType.
+                return isAgentClass(classSymbol)
+                        || isAiFixedReturnAgent(classSymbol)
+                        || isAiInferredReturnAgent(classSymbol);
             } catch (Exception e) {
                 return false;
             }

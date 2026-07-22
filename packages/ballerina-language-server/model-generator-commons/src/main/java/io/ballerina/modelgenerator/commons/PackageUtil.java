@@ -324,6 +324,44 @@ public class PackageUtil {
         return Optional.empty();
     }
 
+    /**
+     * Finds a workspace-sibling package matching the given org and package/module name.
+     * <p>
+     * Use this to skip a Central round-trip when the target package lives next door in the same
+     * workspace. The match accepts either {@code packageName} or {@code moduleName} on the sibling's
+     * package name so callers can pass whichever they have.
+     *
+     * @param project     the current project used to discover the workspace
+     * @param org         the target package's organization
+     * @param packageName the target package name (may be {@code null} if only {@code moduleName} is known)
+     * @param moduleName  the target module name (may be {@code null} if only {@code packageName} is known)
+     * @return the matching workspace sibling's {@link Package}, or empty if none found / not in a workspace
+     */
+    public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName) {
+        if (project == null || org == null) {
+            return Optional.empty();
+        }
+        try {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+            if (workspaceProject.isEmpty()) {
+                return Optional.empty();
+            }
+            for (Project childProject : compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get())) {
+                Package currentPackage = childProject.currentPackage();
+                String currentPackageName = currentPackage.packageName().value();
+                if (currentPackage.packageOrg().value().equals(org)
+                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
+                    return Optional.of(currentPackage);
+                }
+            }
+        } catch (Throwable t) {
+            // Best-effort: callers fall back to Central resolution.
+        }
+        return Optional.empty();
+    }
+
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
             CentralAPI centralApi = RemoteCentral.getInstance();

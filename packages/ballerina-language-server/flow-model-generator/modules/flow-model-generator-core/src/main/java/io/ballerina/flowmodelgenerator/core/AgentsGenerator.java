@@ -29,6 +29,7 @@ import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
+import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
@@ -36,6 +37,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyNode;
@@ -687,6 +689,126 @@ public class AgentsGenerator {
             return gson.toJsonTree(sourceBuilder.build());
         }
         throw new IllegalStateException("Unsupported node kind to generate tool");
+    }
+
+    /**
+     * Generates an {@code @ai:AgentTool} wrapper that delegates to {@code agentVarName}'s {@code run} method.
+     */
+    public JsonElement genAgentTool(String agentVarName, boolean includeContext, String toolName,
+                                    String description, Path filePath, WorkspaceManager workspaceManager) {
+        ModuleInfo hostModule = resolveHostModule(filePath, workspaceManager);
+
+        // Synthetic node: AGENT + isNew routes the SourceBuilder to write at the end of agents.bal.
+        Codedata codedata = new Codedata.Builder<>(null).node(NodeKind.AGENT).isNew().build();
+        FlowNode flowNode = new FlowNode(null, null, codedata, false, null, null, null, 0);
+        SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
+        sourceBuilder.acceptImport(Constants.Ai.BALLERINA_ORG, Constants.Ai.AI_PACKAGE);
+
+        String returnType = resolveAgentRunReturnType(agentVarName, hostModule, sourceBuilder);
+
+        String desc = (description == null || description.isBlank())
+                ? "Delegates a query to the " + agentVarName + " agent." : description;
+        sourceBuilder.token().descriptionDoc(desc);
+        sourceBuilder.token().parameterDoc("query", "The request to send to the " + agentVarName + " agent.");
+        sourceBuilder.token().returnDoc("The response from the " + agentVarName + " agent.");
+
+        // ai:Context is hidden from the LLM; passing it threads the caller's context to the delegated agent.
+        String paramList = includeContext ? "ai:Context context, string query" : "string query";
+        String runArgs = includeContext ? "query, context = context" : "query";
+
+        sourceBuilder.token().name("@ai:AgentTool").name(System.lineSeparator());
+        sourceBuilder.token().keyword(SyntaxKind.ISOLATED_KEYWORD).keyword(SyntaxKind.FUNCTION_KEYWORD);
+        sourceBuilder.token().name(toolName).keyword(SyntaxKind.OPEN_PAREN_TOKEN);
+        sourceBuilder.token().name(paramList);
+        sourceBuilder.token().keyword(SyntaxKind.CLOSE_PAREN_TOKEN);
+        sourceBuilder.token()
+                .keyword(SyntaxKind.RETURNS_KEYWORD)
+                .name(returnType)
+                .keyword(SyntaxKind.PIPE_TOKEN)
+                .keyword(SyntaxKind.ERROR_KEYWORD);
+
+        sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
+        sourceBuilder.token()
+                .name(returnType)
+                .keyword(SyntaxKind.PIPE_TOKEN)
+                .keyword(SyntaxKind.ERROR_KEYWORD)
+                .name("response")
+                .whiteSpace()
+                .keyword(SyntaxKind.EQUAL_TOKEN)
+                .name(agentVarName)
+                .keyword(SyntaxKind.DOT_TOKEN)
+                .name(RUN)
+                .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
+                .name(runArgs)
+                .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
+                .endOfStatement();
+        sourceBuilder.token()
+                .keyword(SyntaxKind.RETURN_KEYWORD)
+                .name("response")
+                .endOfStatement();
+        sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
+
+        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
+        return gson.toJsonTree(sourceBuilder.build());
+    }
+
+    private ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
+        try {
+            workspaceManager.loadProject(filePath);
+            return workspaceManager.module(filePath).map(module -> ModuleInfo.from(module.descriptor())).orElse(null);
+        } catch (WorkspaceDocumentException | EventSyncException e) {
+            return null;
+        }
+    }
+
+    // Wrapper return type from <agentVarName>.run(...); built-in/unresolvable/anydata fall back to string.
+    private String resolveAgentRunReturnType(String agentVarName, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+        if (semanticModel == null) {
+            return "string";
+        }
+        for (Symbol symbol : semanticModel.moduleSymbols()) {
+            if (symbol.kind() != SymbolKind.VARIABLE || !agentVarName.equals(symbol.getName().orElse(""))) {
+                continue;
+            }
+            TypeSymbol type = CommonUtils.getRawType(((VariableSymbol) symbol).typeDescriptor());
+            if (type.kind() != SymbolKind.CLASS || CommonUtils.isAgentClass(type)) {
+                return "string";
+            }
+            MethodSymbol runMethod = ((ClassSymbol) type).methods().get(RUN);
+            if (runMethod == null) {
+                return "string";
+            }
+            Optional<TypeSymbol> optReturn = runMethod.typeDescriptor().returnTypeDescriptor();
+            if (optReturn.isEmpty()) {
+                return "string";
+            }
+            acceptTypeImports(optReturn.get(), hostModule, sourceBuilder);
+            String signature = CommonUtils.getTypeSignature(semanticModel, optReturn.get(), true, hostModule);
+            if (signature.isBlank() || signature.equals("anydata") || signature.equals("()")) {
+                return "string";
+            }
+            return signature;
+        }
+        return "string";
+    }
+
+    private void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+        if (typeSymbol instanceof UnionTypeSymbol union) {
+            union.memberTypeDescriptors().forEach(member -> acceptTypeImports(member, hostModule, sourceBuilder));
+            return;
+        }
+        typeSymbol.getModule().ifPresent(moduleSymbol -> {
+            ModuleID id = moduleSymbol.id();
+            if (id.orgName().equals(BALLERINA) && id.moduleName().startsWith("lang.")) {
+                return;
+            }
+            boolean sameModule = hostModule != null && id.orgName().equals(hostModule.org())
+                    && id.moduleName().equals(hostModule.moduleName());
+            if (sameModule) {
+                return;
+            }
+            sourceBuilder.acceptImport(id.orgName(), id.moduleName());
+        });
     }
 
     private List<String> populateToolParams(Property toolParams, boolean hasDescription,
