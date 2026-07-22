@@ -44,6 +44,9 @@ import Controls from "./Controls";
 import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, JoinProjectPathResponse, traverseFlow, VisualizerLocation } from "@wso2/ballerina-core";
 import { BreakpointVisitor } from "../visitors/BreakpointVisitor";
 import { BaseNodeModel } from "./nodes/BaseNode";
+import { AgentCallNodeModel } from "./nodes/AgentCallNode/AgentCallNodeModel";
+import { AgentTypeNodeModel } from "./nodes/AgentTypeNode/AgentTypeNodeModel";
+import { AgentNodeModel } from "./nodes/AgentNode/AgentNodeModel";
 import { PopupOverlay } from "./PopupOverlay";
 
 export interface DiagramProps {
@@ -59,19 +62,21 @@ export interface DiagramProps {
     onConnectionSelect?: (connectionName: string) => void;
     goToSource?: (node: FlowNode) => void;
     openView?: (location: VisualizerLocation) => void;
+    goToAgent?: (node: FlowNode) => void;
     draftNode?: DraftNodeConfig;
     selectedNodeId?: string;
     // agent node callbacks
     agentNode?: {
-        onModelSelect: (node: FlowNode) => void;
-        onAddTool: (node: FlowNode) => void;
-        onAddMcpServer: (node: FlowNode) => void;
-        onSelectTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMcpToolkit: (tool: ToolData, node: FlowNode) => void;
-        onDeleteTool: (tool: ToolData, node: FlowNode) => void;
-        goToTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMemoryManager: (node: FlowNode) => void;
-        onDeleteMemoryManager: (node: FlowNode) => void;
+        onModelSelect?: (node: FlowNode) => void;
+        onAddTool?: (node: FlowNode) => void;
+        onAddMcpServer?: (node: FlowNode) => void;
+        onSelectTool?: (tool: ToolData, node: FlowNode) => void;
+        onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
+        onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
+        goToTool?: (tool: ToolData, node: FlowNode) => void;
+        onSelectMemoryManager?: (node: FlowNode) => void;
+        onDeleteMemoryManager?: (node: FlowNode) => void;
+        onChatWithAgent?: (node: FlowNode) => void;
     };
     // ai nodes callbacks
     aiNodes?: {
@@ -101,6 +106,11 @@ export interface DiagramProps {
         serviceName?: string;
         functionName?: string;
     };
+    // Set only by the agent focus-flow diagram, so its single-node centering never affects the
+    // normal flow diagram.
+    isAgentFocusView?: boolean;
+    // When true, renders Controls with position:absolute (inside a popup) instead of position:fixed.
+    embedded?: boolean;
 }
 
 export function Diagram(props: DiagramProps) {
@@ -115,6 +125,7 @@ export function Diagram(props: DiagramProps) {
         onConnectionSelect,
         goToSource,
         openView,
+        goToAgent,
         draftNode,
         selectedNodeId,
         agentNode,
@@ -129,12 +140,16 @@ export function Diagram(props: DiagramProps) {
         isUserAuthenticated,
         expressionContext,
         entrypointContext,
+        isAgentFocusView,
+        embedded,
     } = props;
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
+    // In embedded agent focus view, hide until centering completes to avoid visible jump.
+    const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
 
@@ -286,10 +301,55 @@ export function Diagram(props: DiagramProps) {
             diagramEngine.getModel().removeLayer(overlayLayer);
         }
 
+        // Agent focus view renders a lone agent node (built-in AGENT_CALL or custom AGENT_TYPE). Center the agent
+        // card (width = 2 * lw) on the diagram center line (x = 0), letting the model/tools branch out to the right;
+        // the shared reset/centering below then horizontally centers the card in the canvas.
+        // Gated on isAgentFocusView so it never affects the normal flow diagram.
+        const isSingleAgentNode =
+            isAgentFocusView && nodes.length === 1 &&
+            (nodes[0].getType() === NodeTypes.AGENT_CALL_NODE ||
+                nodes[0].getType() === NodeTypes.AGENT_TYPE_NODE ||
+                nodes[0].getType() === NodeTypes.AGENT_NODE);
+        if (isSingleAgentNode) {
+            const agentNode = nodes[0] as AgentCallNodeModel | AgentTypeNodeModel | AgentNodeModel;
+            const { lw, y } = agentNode.node.viewState;
+            agentNode.setPosition(-lw, y);
+        }
+
         if (nodes.length < 3 || !hasDiagramZoomAndPosition(model.fileName)) {
             resetDiagramZoomAndPosition(model.fileName);
         }
         loadDiagramZoomAndPosition(diagramEngine);
+
+        if (isSingleAgentNode) {
+            const centerSingleAgentNode = () => {
+                const canvas = diagramEngine.getCanvas();
+                if (!canvas) {
+                    return false;
+                }
+                const agentNode = nodes[0] as AgentCallNodeModel | AgentTypeNodeModel | AgentNodeModel;
+                const diagramModel = diagramEngine.getModel();
+                const zoom = diagramModel.getZoomLevel() / 100;
+                const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
+                const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
+                // Card center is at diagram x=0 (node placed at x=-lw), so offsetX = canvasWidth/2.
+                const offsetX = canvasWidth / 2;
+                const offsetY = canvasHeight / 2 - 40 - (agentNode.getY() + cardHeight / 2) * zoom;
+                diagramModel.setOffset(offsetX, offsetY);
+                return true;
+            };
+
+            if (!centerSingleAgentNode()) {
+                requestAnimationFrame(() => {
+                    if (centerSingleAgentNode()) {
+                        diagramEngine.repaintCanvas();
+                    }
+                    setCanvasVisible(true);
+                });
+            } else {
+                setCanvasVisible(true);
+            }
+        }
 
         diagramEngine.repaintCanvas();
         // update the diagram model state
@@ -329,9 +389,23 @@ export function Diagram(props: DiagramProps) {
         onConnectionSelect: onConnectionSelect,
         goToSource: goToSource,
         openView: openView,
+        goToAgent: goToAgent,
         draftNode: draftNode,
         selectedNodeId: selectedNodeId,
-        agentNode: agentNode,
+        // Fill any editing callbacks the host omits (e.g. the main flow only passes onChatWithAgent)
+        // with no-ops so widgets can call them unconditionally.
+        agentNode: {
+            onModelSelect: () => { },
+            onAddTool: () => { },
+            onAddMcpServer: () => { },
+            onSelectTool: () => { },
+            onSelectMcpToolkit: () => { },
+            onDeleteTool: () => { },
+            goToTool: () => { },
+            onSelectMemoryManager: () => { },
+            onDeleteMemoryManager: () => { },
+            ...agentNode,
+        },
         aiNodes: aiNodes,
         suggestions: suggestions,
         project: project,
@@ -371,8 +445,13 @@ export function Diagram(props: DiagramProps) {
         getActiveBreakpointNode(nodes) || getDraftNode(nodes);
 
     return (
-        <>
-            <Controls engine={diagramEngine} />
+        <div style={{
+            opacity: canvasVisible ? 1 : 0,
+            transition: canvasVisible ? "opacity 0.15s ease" : "none",
+            height: "100%",
+            width: "100%",
+        }}>
+            <Controls engine={diagramEngine} embedded={embedded} />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
                     {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} />}
@@ -384,7 +463,7 @@ export function Diagram(props: DiagramProps) {
                     </DiagramCanvas>
                 </DiagramContextProvider>
             )}
-        </>
+        </div>
     );
 }
 

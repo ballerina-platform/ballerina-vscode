@@ -404,6 +404,23 @@ function findViewByArtifact(
                     },
                     dataMapperDepth: 0
                 };
+            case DIRECTORY_MAP.AGENT:
+                // The built-in ai:Agent (module "ai") opens the rich focus diagram; custom AgentType classes
+                // (including *ai:FixedReturnAgent / *ai:InferredReturnAgent) open the simplified AGENT_TYPE focus
+                // diagram (agent box + conditional model-provider circle).
+                return {
+                    location: {
+                        view: MACHINE_VIEW.BIDiagram,
+                        documentUri: currentDocumentUri,
+                        position: dir.position,
+                        identifier: dir.name,
+                        focusFlowDiagramView: dir.moduleName === "ai"
+                            ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
+                            : FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE,
+                        artifactType: DIRECTORY_MAP.AGENT,
+                    },
+                    dataMapperDepth: 0
+                };
             case DIRECTORY_MAP.LOCAL_CONNECTORS:
             case DIRECTORY_MAP.CONNECTION:
                 return {

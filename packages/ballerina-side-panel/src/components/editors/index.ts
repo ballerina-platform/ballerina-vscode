@@ -22,6 +22,7 @@ export * from "./TypeEditor";
 export * from "./TextEditor";
 export * from "./MultiSelectEditor";
 export * from "./ExpressionEditor";
+export * from "./RawExpressionEditor";
 export * from "./ArrayEditor";
 export * from "./FileSelect";
 export * from "./FormMapEditor";

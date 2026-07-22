@@ -301,11 +301,16 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
-            const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
-            const categories = reorderFunctionCategories(filteredFunctions || []);
-            setCategories(categories);
-            initialCategoriesRef.current = categories;
-            setLoading(false);
+            try {
+                const filteredFunctions = await handleSearchFunction("", FUNCTION_TYPE.REGULAR, false);
+                const categories = reorderFunctionCategories(filteredFunctions || []);
+                setCategories(categories);
+                initialCategoriesRef.current = categories;
+            } catch (error) {
+                console.error("Failed to load functions for agent tool", error);
+            } finally {
+                setLoading(false);
+            }
             return;
         }
 
@@ -313,15 +318,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const getNodeRequest: BIAvailableNodesRequest = {
                 position: targetRef.current.startLine,
                 filePath: agentFilePath.current,
-                // TODO: This is currently disabled because it hides nodes that are actually tool compatible 
-                // due to some inconsistencies in how the compatibility is determined. 
+                // TODO: This is currently disabled because it hides nodes that are actually tool compatible
+                // due to some inconsistencies in how the compatibility is determined.
                 // Need to revisit the logic and ensure it's consistent before enabling this filter
                 // queryMap: {
                 //     "checkAgentToolCompatibility": "true"
                 // }
             };
             const response = await rpcClient.getBIDiagramRpcClient().getAvailableNodes(getNodeRequest);
-            console.log(">>> Available nodes", response);
             if (!response.categories) {
                 console.error(">>> Error getting available nodes", response);
                 return;

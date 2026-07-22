@@ -436,6 +436,17 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.AgentsOverview: {
+                            const { AgentsOverview } = await import("./views/AgentsOverview");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentsOverview
+                                    key={remountKey}
+                                    projectPath={value?.projectPath}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.DataMapper: {
                             const { DataMapper } = await import("./views/DataMapper");
                             if (isStaleNavigation()) return;
@@ -673,6 +684,18 @@ const MainPanel = () => {
                                     key={remountKey}
                                     projectPath={value.projectPath}
                                     fileName={value.documentUri || Utils.joinPath(URI.file(value.projectPath), CONNECTIONS_FILE).fsPath}
+                                    onNavigateToOverview={handleNavigateToOverview}
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.AddAgent: {
+                            const { default: AddAgentPopup } = await import("./views/BI/AIChatAgent/AddAgentPopup");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AddAgentPopup
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
                                     onNavigateToOverview={handleNavigateToOverview}
                                 />
                             );

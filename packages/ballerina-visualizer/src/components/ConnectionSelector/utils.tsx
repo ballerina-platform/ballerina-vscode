@@ -19,7 +19,7 @@
 import { FlowNode, Category, Property, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { FormField, Category as PanelCategory, FormValues, FormImports } from "@wso2/ballerina-side-panel";
 import { ConnectionKindConfig, ConnectionKind, ConnectionSearchConfig } from "./types";
-import { getImportsForProperty } from "../../utils/bi";
+import { getImportsForProperty, DEFAULT_MODEL_PROVIDER_ITEM } from "../../utils/bi";
 import { getConnectionKindConfig } from "./config";
 import { Codicon } from "@wso2/ui-toolkit";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
@@ -40,6 +40,7 @@ export const createConnectionSelectField = (
             label: varName,
             value: varName,
             codedata: node.codedata,
+            iconUrl: node.metadata?.icon,
         })) : undefined;
     return {
         "key": "connection",
@@ -63,7 +64,8 @@ export const createConnectionSelectField = (
             "kind": "REQUIRED",
             "originalName": "connection",
             ...(connectionKind && { searchNodesKind: connectionKind }),
-            ...(initialItems && { initialItems })
+            ...(initialItems && { initialItems }),
+            ...(connectionKind === "MODEL_PROVIDER" && { staticItems: [DEFAULT_MODEL_PROVIDER_ITEM] }),
         },
         "actionCallback": handleActionBtnClick,
         "actionLabel": <><Codicon name="add" />{createLabel}</>,
@@ -127,6 +129,10 @@ export const fetchConnectionValueForNode = async (
 
 export const updateNodeWithConnectionVariable = (connectionKind: ConnectionKind, selectedNode: FlowNode, connectionVariable: string): void => {
     const config = getConnectionKindConfig(connectionKind);
+    // Generic client connections aren't one of the AI kinds; the new variable is read from the created artifact.
+    if (!config) {
+        return;
+    }
     const propertyKey = getValidPropertyKey(selectedNode, config.nodePropertyKey) || (Array.isArray(config.nodePropertyKey) ? config.nodePropertyKey[0] : config.nodePropertyKey);
     const property = selectedNode.properties[propertyKey as keyof typeof selectedNode.properties];
 

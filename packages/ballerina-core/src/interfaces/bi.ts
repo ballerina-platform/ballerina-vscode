@@ -98,6 +98,9 @@ export type NodeMetadata = {
     paramsToHide?: string[]; // List of properties keys to to hide from forms
     module?: string;
     type?: string;
+    modelProviderParam?: string; // AGENT_TYPE: init param key wired to the model provider (drives the circle)
+    memoryParam?: string; // AGENT_TYPE: init param key wired to the inner agent's memory (drives the memory affordance)
+    agentDescription?: string; // AGENT_TYPE: the custom agent class's doc-comment description
 };
 
 export type ParentMetadata = {
@@ -343,6 +346,7 @@ export type TargetMetadata = {
 export enum DIRECTORY_MAP {
     ACTIVITY = "ACTIVITY",
     AGENTS = "agents",
+    AGENT = "AGENT",
     AUTOMATION = "AUTOMATION",
     CONFIGURABLE = "CONFIGURABLE",
     CONNECTION = "CONNECTION",
@@ -529,6 +533,7 @@ export type NodeKind =
     | "ACTIVITY_CALL"
     | "AGENTS"
     | "AGENT"
+    | "AGENT_TYPE"
     | "AGENT_CALL"
     | "AGENT_ID_AUTH_CONFIG"
     | "AGENT_RUN"

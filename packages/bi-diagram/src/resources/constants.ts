@@ -32,6 +32,8 @@ export enum NodeTypes {
     END_NODE = "end-node",
     ERROR_NODE = "error-node",
     AGENT_CALL_NODE = "agent-call-node",
+    AGENT_TYPE_NODE = "agent-type-node",
+    AGENT_NODE = "agent-node",
     PROMPT_NODE = "prompt-node",
     WORKFLOW_RUN_NODE = "workflow-run-node",
     CALL_ACTIVITY_NODE = "call-activity-node",
@@ -142,6 +144,7 @@ export const LAST_NODE = "lastNode";
 // agent node
 export const AGENT_NODE_TOOL_GAP = 5;
 export const AGENT_NODE_TOOL_SECTION_GAP = 120;
+export const AGENT_CALL_TOOL_SECTION_GAP = 80;
 export const AGENT_NODE_ADD_TOOL_BUTTON_WIDTH = 20;
 
 // prompt node

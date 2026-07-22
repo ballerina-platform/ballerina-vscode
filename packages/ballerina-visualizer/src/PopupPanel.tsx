@@ -26,6 +26,7 @@ import { CONNECTIONS_FILE } from "./constants";
 import { FunctionForm } from "./views/BI";
 import { DataMapper } from "./views/DataMapper";
 import AddConnectionPopup from "./views/BI/Connection/AddConnectionPopup";
+import AddAgentPopup from "./views/BI/AIChatAgent/AddAgentPopup";
 import { ConnectionConfigurationPopup } from "./views/BI/Connection/ConnectionConfigurationPopup";
 import EditConnectionPopup from "./views/BI/Connection/EditConnectionPopup";
 import { ConfigurationCollector } from "./views/AIPanel/components/ConfigurationCollector";
@@ -90,6 +91,18 @@ const PopupPanel = (props: PopupPanelProps) => {
                                 projectPath={location.projectPath}
                                 fileName={location.documentUri || Utils.joinPath(URI.file(location.projectPath), CONNECTIONS_FILE).fsPath}
                                 target={machineState.metadata?.target || undefined}
+                                onClose={onClose}
+                                onNavigateToOverview={handleNavigateToOverview}
+                                isPopup={true}
+                            />
+                        );
+                    });
+                    break;
+                case MACHINE_VIEW.AddAgent:
+                    rpcClient.getVisualizerLocation().then((location) => {
+                        setViewComponent(
+                            <AddAgentPopup
+                                projectPath={location.projectPath}
                                 onClose={onClose}
                                 onNavigateToOverview={handleNavigateToOverview}
                                 isPopup={true}

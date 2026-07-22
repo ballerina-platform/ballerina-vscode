@@ -302,6 +302,7 @@ namespace S {
 }
 export interface FormProps {
     infoLabel?: string;
+    hideInfoBanner?: boolean;
     formFields: FormField[];
     submitText?: string;
     cancelText?: string;
@@ -356,17 +357,21 @@ export interface FormProps {
     changeOptionalFieldTitle?: string; // Option to change the title of optional fields
     openFormTypeEditor?: (open: boolean, newType?: string, editingField?: FormField) => void;
     derivedFields?: FieldDerivation[]; // Configuration for auto-deriving field values from other fields
+    bottomFields?: string[];
     updateImports?: (key: string, imports: Imports) => void;
     defaultExpandAdvanced?: boolean;
     onRequestCreateConnection?: (params: {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
+    // Enables the "Create New" link on connection-select fields; resolves with the new variable name.
+    onCreateConnection?: (kind: string, onCreated: (variableName: string) => void) => void;
 }
 
 export const Form = forwardRef((props: FormProps, _ref) => {
     const {
         infoLabel,
+        hideInfoBanner,
         formFields,
         selectedNode,
         submitText,
@@ -406,8 +411,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         changeOptionalFieldTitle = undefined,
         openFormTypeEditor,
         derivedFields = [],
+        bottomFields = [],
         updateImports,
         onRequestCreateConnection,
+        onCreateConnection,
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -773,6 +780,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const typeField = formFields.find((field) => !field.advanced && !field.hidden && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
     const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER");
+    const bottomFieldList = bottomFields.length > 0
+        ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden)
+        : [];
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
 
     const canOpenInDataMapper = (selectedNode === "VARIABLE" &&
@@ -805,6 +815,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             kind: selectedNode,
         },
         onRequestCreateConnection,
+        onCreateConnection,
     };
 
     // Find the first editable identifier field
@@ -865,6 +876,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }, [diagnosticsInfo, formFields]);
 
     const prevValuesRef = useRef<FormValues>({});
+    const lastDerivedValuesRef = useRef<Record<string, any>>({});
     const watchedValues = watch();
     const hasIncompleteRequiredFields = !!onFormValidation &&
         hasIncompleteRequiredFormFields(formFields, watchedValues);
@@ -918,48 +930,30 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         if (derivedFields.length === 0) return;
 
         derivedFields.forEach(({ sourceField, targetField, deriveFn, breakOnManualEdit = true }) => {
-            const sourceValue = watchedValues[sourceField];
-            const currentTargetValue = watchedValues[targetField];
-
-            // Skip if this field has been manually edited and breakOnManualEdit is true
             if (breakOnManualEdit && manuallyEditedFields.has(targetField)) {
                 return;
             }
 
-            // Derive the new target value
-            const derivedValue = deriveFn(sourceValue);
+            const currentTargetValue = watchedValues[targetField];
+            const lastDerived = lastDerivedValuesRef.current[targetField];
 
-            // Only update if the value has actually changed
+            if (breakOnManualEdit && lastDerived !== undefined && currentTargetValue !== lastDerived) {
+                setManuallyEditedFields(prev => {
+                    if (prev.has(targetField)) return prev;
+                    const newSet = new Set(prev);
+                    newSet.add(targetField);
+                    return newSet;
+                });
+                return;
+            }
+
+            const derivedValue = deriveFn(watchedValues[sourceField]);
+            lastDerivedValuesRef.current[targetField] = derivedValue;
             if (derivedValue !== currentTargetValue) {
                 setValue(targetField, derivedValue);
             }
         });
     }, [watchedValues, derivedFields, manuallyEditedFields, setValue]);
-
-    // Track manual edits to derived target fields
-    useEffect(() => {
-        if (derivedFields.length === 0) return;
-
-        const prevValues = prevValuesRef.current;
-        derivedFields.forEach(({ targetField, breakOnManualEdit = true }) => {
-            if (!breakOnManualEdit) return;
-
-            const currentValue = watchedValues[targetField];
-            const prevValue = prevValues[targetField];
-
-            if (currentValue !== prevValue && prevValue !== undefined) {
-                // Mark this field as manually edited
-                setManuallyEditedFields(prev => {
-                    if (!prev.has(targetField)) {
-                        const newSet = new Set(prev);
-                        newSet.add(targetField);
-                        return newSet;
-                    }
-                    return prev;
-                });
-            }
-        });
-    }, [watchedValues, derivedFields]);
 
     const handleOnOpenInDataMapper = () => {
         setSavingButton('dataMapper');
@@ -1040,7 +1034,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     )}
                 </S.MarkdownWrapper>
             )}
-            {!preserveOrder && !compact && (
+            {!preserveOrder && !compact && !hideInfoBanner && (
                 <FormDescription formFields={formFields} selectedNode={selectedNode} />
             )}
             {formDiagnostics && formDiagnostics.length > 0 && (
@@ -1095,6 +1089,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         }
                         // When preserveOrder is false, skip prioritized fields (they'll be rendered at bottom)
                         if (!preserveOrder && isPrioritizedField(field)) {
+                            return;
+                        }
+                        if (!preserveOrder && bottomFields.includes(field.key)) {
                             return;
                         }
 
@@ -1263,7 +1260,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     })}
             </S.CategoryRow>
 
-            {!preserveOrder && (variableField || typeField || targetTypeField) && (
+            {!preserveOrder && (variableField || typeField || targetTypeField || bottomFieldList.length > 0) && (
                 <S.CategoryRow topBorder={!compact && hasParameters}>
                     {variableField && (
                         <FieldFactory
@@ -1309,6 +1306,20 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                             )}
                         </>
                     )}
+                    {bottomFieldList.map((field) => {
+                        const updatedField = updateFormFieldWithImports(field, formImports);
+                        return (
+                            <FieldFactory
+                                key={updatedField.key}
+                                field={updatedField}
+                                handleOnFieldFocus={handleOnFieldFocus}
+                                recordTypeFields={recordTypeFields}
+                                onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                onBlur={handleOnBlur}
+                                handleFormValidation={handleFormValidation}
+                            />
+                        );
+                    })}
                 </S.CategoryRow>
             )}
 

@@ -695,6 +695,7 @@ const stateMachine = createMachine<MachineContext>(
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
                             artifactType: context.artifactType,
+                            focusFlowDiagramView: context?.focusFlowDiagramView,
                             org: orgName || context.org,
                             package: packageName || context.package,
                             type: context?.type,
@@ -920,6 +921,11 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
         if (targetedArtifactType === DIRECTORY_MAP.RESOURCE || targetedArtifactType === DIRECTORY_MAP.REMOTE) {
             // If the artifact type is resource/remote, we need to target the service
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
+        }
+
+        if (targetedArtifactType === DIRECTORY_MAP.AGENT) {
+            // Agents are stored under the "agents" key, not the "AGENT" artifactType.
+            targetedArtifactType = DIRECTORY_MAP.AGENTS;
         }
 
         const projectPath = StateMachine.context().projectPath;

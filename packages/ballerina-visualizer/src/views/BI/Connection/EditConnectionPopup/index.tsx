@@ -332,6 +332,10 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         });
     };
 
+    // This popup is reused for custom AgentType agents (routed here from the Agents sidebar). When the
+    // edited node is an agent, use agent wording instead of "connection"; connections keep their labels.
+    const isAgent = connection?.codedata?.node === "AGENT_TYPE";
+
     const getViewTitle = () => {
         switch (currentView) {
             case PopupView.CONNECTION_SELECT:
@@ -341,7 +345,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
             case PopupView.EDIT_CONNECTOR:
                 return "Edit Database Connector";
             default:
-                return "Edit Connection";
+                return isAgent ? "Edit Agent" : "Edit Connection";
         }
     };
 
@@ -354,7 +358,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
             case PopupView.EDIT_CONNECTOR:
                 return "Update your database connector credentials and selected tables";
             default:
-                return "Update connection details";
+                return isAgent ? "Update agent details" : "Update connection details";
         }
     };
 
@@ -427,14 +431,14 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                 ) : (
                     <>
                         <ConnectionDetailsSection>
-                            <ConnectionDetailsTitle variant="h3">Connection Details</ConnectionDetailsTitle>
+                            <ConnectionDetailsTitle variant="h3">{isAgent ? "Agent Details" : "Connection Details"}</ConnectionDetailsTitle>
                             <ConnectionDetailsSubtitle variant="body2">
-                                Configure your connection settings
+                                {isAgent ? "Configure your agent settings" : "Configure your connection settings"}
                             </ConnectionDetailsSubtitle>
                         </ConnectionDetailsSection>
                         {selectedNode && (
                             <ConnectionConfigView
-                                submitText={isSaving ? "Updating..." : "Update Connection"}
+                                submitText={isSaving ? "Updating..." : (isAgent ? "Update Agent" : "Update Connection")}
                                 fileName={filePath}
                                 selectedNode={selectedNode}
                                 onSubmit={handleOnFormSubmit}

@@ -61,6 +61,7 @@ import {
     isTemplateType,
     DropdownType,
     isDropDownType,
+    InputType,
 } from "@wso2/ballerina-core";
 import {
     HelperPaneVariableInfo,
@@ -73,7 +74,7 @@ import { cloneDeep } from "lodash";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
-import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation } from "@wso2/ui-toolkit";
+import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, Icon } from "@wso2/ui-toolkit";
 import { FunctionDefinition, STNode } from "@wso2/syntax-tree";
 import { DocSection } from "../components/ExpressionEditor";
 
@@ -82,6 +83,8 @@ import ballerina from "../languages/ballerina.js";
 import { FUNCTION_REGEX } from "../resources/constants";
 import { ConnectionKind, getConnectionKindConfig } from "../components/ConnectionSelector";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
+import { handleRepeatableProperty } from "./node-property-utils";
+export { updateNodeProperties } from "./node-property-utils";
 hljs.registerLanguage("ballerina", ballerina);
 
 export const BALLERINA_INTEGRATOR_ISSUES_URL = "https://github.com/wso2/product-ballerina-integrator/issues";
@@ -231,6 +234,17 @@ export function convertFunctionCategoriesToSidePanelCategories(
     return panelCategories;
 }
 
+export function convertAgentCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
+    return convertCategoriesToSidePanelCategoriesWithIcon(categories, (codedata, iconUrl) => (
+        <ConnectorIcon
+            url={iconUrl}
+            codedata={codedata}
+            fallbackIcon={<Icon name="bi-ai-agent" sx={{ width: 20, height: 20, fontSize: 20 }} />}
+            style={{ width: "20px", height: "20px", fontSize: "20px" }}
+        />
+    ));
+}
+
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
     panelCategories.forEach((category) => {
@@ -317,10 +331,10 @@ export function convertMemoryStoreCategoriesToSidePanelCategories(categories: Ca
 export {
     convertNodePropertiesToFormFields,
     convertNodePropertyToFormField,
-    updateNodeProperties,
     // convertConfig moved to node-property-utils (unit-tested there); re-exported so
     // existing `utils/bi` importers are unaffected.
     convertConfig,
+    DEFAULT_MODEL_PROVIDER_ITEM,
 } from "./node-property-utils";
 
 export function getFormProperties(flowNode: FlowNode): NodeProperties {
@@ -371,22 +385,6 @@ export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, cli
             return "Error";
         case SidePanelView.LOADING:
             return "";
-        case SidePanelView.AGENT_MEMORY_MANAGER:
-            return "Configure Memory";
-        case SidePanelView.AGENT_TOOL:
-            return "Configure Tool";
-        case SidePanelView.ADD_TOOL:
-            return "Add Tool";
-        case SidePanelView.ADD_MCP_SERVER:
-            return "Add MCP Server";
-        case SidePanelView.EDIT_MCP_SERVER:
-            return "Edit MCP Server";
-        case SidePanelView.NEW_TOOL:
-            return "Add New Tool";
-        case SidePanelView.NEW_TOOL_FROM_CONNECTION:
-            return "Create Tool from Connection";
-        case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-            return "Create Tool from Function";
         case SidePanelView.FORM:
             if (!activeNode) {
                 return "";

@@ -107,6 +107,14 @@ export function activate(context: BallerinaExtension) {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
     });
 
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddAgent);
+    });
+
+    commands.registerCommand(BI_COMMANDS.VIEW_AGENTS, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AgentsOverview);
+    });
+
     commands.registerCommand(BI_COMMANDS.ADD_CUSTOM_CONNECTOR, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
     });
@@ -228,7 +236,9 @@ export function activate(context: BallerinaExtension) {
 
         console.log(">>> delete component", item);
 
-        if (item.contextValue === DIRECTORY_MAP.CONNECTION) {
+        if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
+            // Agents are module-level variable declarations that live in the flow model's
+            // `connections` list, so they delete the same way connections do.
             await handleConnectionDeletion(item.label as string, item.info);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AvailableNode, LineRange, NodeKind } from '@wso2/ballerina-core';
+import { AvailableNode, CodeData, LineRange, NodeKind } from '@wso2/ballerina-core';
 import React, { createContext, FC, useContext } from 'react';
 import {
     Control,
@@ -60,6 +60,13 @@ export interface FormContext {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
+    // Host "Create New" handler for connection-select fields; resolves with the new variable name.
+    // `connectorCodeData` routes a generic client connection through the standard connector wizard.
+    onCreateConnection?: (
+        kind: string,
+        onCreated: (variableName: string) => void,
+        connectorCodeData?: CodeData
+    ) => void;
 }
 
 const defaultState: any = {};

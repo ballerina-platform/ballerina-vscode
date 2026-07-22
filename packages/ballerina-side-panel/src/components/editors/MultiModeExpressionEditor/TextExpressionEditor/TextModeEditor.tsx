@@ -59,6 +59,7 @@ export const TextModeEditor: React.FC<ChipExpressionEditorComponentProps> = (pro
                 placeholder={props.placeholder}
                 onLoadingStateChange={props.onLoadingStateChange}
                 onNormalizeValue={props.onNormalizeValue}
+                disabled={props.disabled}
             />
         </EditorContainer>
     );

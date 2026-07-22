@@ -16,7 +16,6 @@
  * under the License.
  */
 
-import { useEffect, useRef } from "react";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
     FlowNode,
@@ -24,19 +23,12 @@ import {
     SubPanel,
     SubPanelView,
     FUNCTION_TYPE,
-    ToolData,
-    NodeMetadata,
     EditorConfig
 } from "@wso2/ballerina-core";
 import { HelperView } from "../HelperView";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { getContainerTitle, getSubPanelWidth } from "../../../utils/bi";
-import { ToolConfig } from "../AIChatAgent/ToolConfig";
-import { AddTool } from "../AIChatAgent/AddTool";
-import { AddMcpServer } from "../AIChatAgent/AddMcpServer";
-import { NewTool, NewToolSelectionMode } from "../AIChatAgent/NewTool";
 import styled from "@emotion/styled";
-import { MemoryManagerConfig } from "../AIChatAgent/MemoryManagerConfig";
 import { FormSubmitOptions } from ".";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList, ConnectionKind } from "../../../components/ConnectionSelector";
 import { RelativeLoader } from "../../../components/RelativeLoader";
@@ -71,18 +63,9 @@ export enum SidePanelView {
     KNOWLEDGE_BASES = "KNOWLEDGE_BASES",
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
     NEW_AGENT = "NEW_AGENT",
-    ADD_TOOL = "ADD_TOOL",
-    NEW_TOOL = "NEW_TOOL",
-    NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
-    NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
-    NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
-    ADD_MCP_SERVER = "ADD_MCP_SERVER",
-    EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
-    AGENT_TOOL = "AGENT_TOOL",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
-    AGENT_MEMORY_MANAGER = "AGENT_MEMORY_MANAGER",
     AGENT_CONFIG = "AGENT_CONFIG",
     AGENT_LIST = "AGENT_LIST",
     ERROR = "ERROR",
@@ -96,7 +79,6 @@ interface PanelManagerProps {
     subPanel: SubPanel;
     categories: any[];
     selectedNode?: FlowNode;
-    parentNode?: FlowNode;
     nodeFormTemplate?: FlowNode;
     selectedClientName?: string;
     showEditForm?: boolean;
@@ -108,7 +90,6 @@ interface PanelManagerProps {
     updatedExpressionField?: ExpressionFormField;
     showProgressIndicator?: boolean;
     canGoBack?: boolean;
-    selectedMcpToolkitName?: string;
     selectedConnectionKind?: ConnectionKind;
     showProgressSpinner?: boolean;
     progressMessage?: string;
@@ -151,17 +132,11 @@ interface PanelManagerProps {
     onSearchTextChange?: (searchText: string) => void;
     searchText?: string;
     onAddAgent?: () => void;
-    onEditAgent?: () => void;
     onNavigateToPanel?: (targetPanel: SidePanelView, connectionKind?: ConnectionKind) => void;
     setSidePanelView: (view: SidePanelView) => void;
     onChangeSelectedNode?: (node: FlowNode) => void;
 
     // AI Agent handlers
-    onSelectTool?: (tool: ToolData, node: FlowNode) => void;
-    onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
-    onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
-    onAddTool?: (node: FlowNode) => void;
-    onAddMcpServer?: (node: FlowNode) => void;
     onSelectNewConnection?: (nodeId: string, metadata?: any) => void;
     onSelectConnectorPopup?: (nodeId: string, metadata?: any) => void;
     onUpdateNodeWithConnection?: (selectedNode: FlowNode) => void;
@@ -179,7 +154,6 @@ export function PanelManager(props: PanelManagerProps) {
         subPanel,
         categories,
         selectedNode,
-        parentNode,
         nodeFormTemplate,
         selectedClientName,
         showEditForm,
@@ -191,7 +165,6 @@ export function PanelManager(props: PanelManagerProps) {
         updatedExpressionField,
         showProgressIndicator,
         canGoBack,
-        selectedMcpToolkitName,
         selectedConnectionKind,
         showProgressSpinner = false,
         progressMessage = "Loading...",
@@ -241,36 +214,6 @@ export function PanelManager(props: PanelManagerProps) {
         onRefreshDevantConnections,
     } = props;
 
-    const backOverrideRef = useRef<(() => void) | null>(null);
-
-    useEffect(() => {
-        backOverrideRef.current = null;
-    }, [sidePanelView]);
-
-    const handleSetBackOverride = (handler: (() => void) | null) => {
-        backOverrideRef.current = handler;
-    };
-
-    const handleOnBackToAddTool = () => {
-        setSidePanelView(SidePanelView.ADD_TOOL);
-    };
-
-    const handleOnUseConnection = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_FROM_CONNECTION);
-    };
-
-    const handleOnUseFunction = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_FROM_FUNCTION);
-    };
-
-    const handleOnUseMcpServer = () => {
-        setSidePanelView(SidePanelView.ADD_MCP_SERVER);
-    };
-
-    const handleOnCreateCustomTool = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_CUSTOM);
-    };
-
     const findSubPanelComponent = (subPanel: SubPanel) => {
         switch (subPanel.view) {
             case SubPanelView.HELPER_PANEL:
@@ -305,91 +248,6 @@ export function PanelManager(props: PanelManagerProps) {
                         onRefreshDevantConnections={onRefreshDevantConnections}
                     />
                 );
-
-            case SidePanelView.ADD_TOOL:
-                return (
-                    <AddTool
-                        agentCallNode={selectedNode}
-                        onCreateCustomTool={handleOnCreateCustomTool}
-                        onUseConnection={handleOnUseConnection}
-                        onUseFunction={handleOnUseFunction}
-                        onUseMcpServer={handleOnUseMcpServer}
-                        onSave={onClose}
-                    />
-                );
-
-            case SidePanelView.ADD_MCP_SERVER:
-                return (
-                    <AddMcpServer
-                        agentCallNode={selectedNode}
-                        name={selectedMcpToolkitName}
-                        onSave={onClose}
-                        onBack={handleOnBackToAddTool}
-                    />
-                );
-
-            case SidePanelView.EDIT_MCP_SERVER:
-                return (
-                    <AddMcpServer
-                        editMode={true}
-                        name={selectedClientName}
-                        agentCallNode={selectedNode}
-                        onSave={onClose}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.ALL}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_CUSTOM:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.CUSTOM_TOOL}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.CONNECTION}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.FUNCTION}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.AGENT_TOOL:
-                const selectedTool = (selectedNode?.metadata.data as NodeMetadata).tools?.find(
-                    (tool) => tool.name === selectedClientName
-                );
-                return <ToolConfig agentCallNode={selectedNode} toolData={selectedTool} onSave={onClose} />;
-
-            case SidePanelView.AGENT_MEMORY_MANAGER:
-                return <MemoryManagerConfig agentNode={parentNode} memoryNode={selectedNode} onSave={onClose} />;
 
             case SidePanelView.FUNCTION_LIST:
                 return (
@@ -748,13 +606,6 @@ export function PanelManager(props: PanelManagerProps) {
 
     const onBackCallback = (() => {
         switch (sidePanelView) {
-            case SidePanelView.NEW_TOOL:
-            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
-            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-                // Read ref at call time so registering an override never causes a re-render
-                return () => (backOverrideRef.current ?? handleOnBackToAddTool)();
-            case SidePanelView.ADD_MCP_SERVER:
-                return handleOnBackToAddTool;
             case SidePanelView.CONNECTION_SELECT:
             case SidePanelView.CONNECTION_CREATE:
                 return onBack;
