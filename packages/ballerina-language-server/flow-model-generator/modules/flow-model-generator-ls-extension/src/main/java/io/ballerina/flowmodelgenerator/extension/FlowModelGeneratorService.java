@@ -125,7 +125,6 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
     @JsonRequest
     public CompletableFuture<FlowModelGeneratorResponse> getFlowModel(FlowModelGeneratorRequest request) {
-
         return CompletableFuture.supplyAsync(() -> {
             FlowModelGeneratorResponse response = new FlowModelGeneratorResponse();
             try {
@@ -649,9 +648,9 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
                 // Generate the flow nodes based on search criteria
                 ModelGenerator modelGenerator = new ModelGenerator(project, semanticModel, filePath, workspaceManager);
+                var nodes = modelGenerator.searchNodes(document, position, request.queryMap());
                 Gson gson = new Gson();
-                JsonElement jsonElement = gson.toJsonTree(
-                        modelGenerator.searchNodes(document, position, request.queryMap()));
+                JsonElement jsonElement = gson.toJsonTree(nodes);
                 response.setOutput(jsonElement.getAsJsonArray());
             } catch (Throwable e) {
                 response.setError(e);

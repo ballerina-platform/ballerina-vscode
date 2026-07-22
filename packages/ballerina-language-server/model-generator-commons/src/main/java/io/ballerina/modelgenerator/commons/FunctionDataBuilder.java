@@ -302,10 +302,27 @@ public class FunctionDataBuilder {
             }
         }
 
+        // Resolve workspace-sibling packages locally first; they aren't in Central, so the Central path below
+        // would just fail after a slow network round-trip.
+        Optional<Package> workspacePackage = resolveWorkspacePackage();
+        if (workspacePackage.isPresent()) {
+            this.resolvedPackage(workspacePackage.get());
+            return;
+        }
+
         // For external functions: resolve from central repository
         Package resolvedPackage = PackageUtil.resolveModulePackage(
                 moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()).orElse(null);
         this.resolvedPackage(resolvedPackage);
+    }
+
+    // The workspace child package matching moduleInfo, if any. Best-effort; empty on failure.
+    private Optional<Package> resolveWorkspacePackage() {
+        if (moduleInfo == null) {
+            return Optional.empty();
+        }
+        return PackageUtil.findWorkspacePackage(project, moduleInfo.org(), moduleInfo.packageName(),
+                moduleInfo.moduleName());
     }
 
     private void updateModuleInfo() {

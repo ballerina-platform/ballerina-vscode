@@ -55,6 +55,9 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.CONNECTOR_TYPE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST;
 import static io.ballerina.modelgenerator.commons.CommonUtils.PERSIST_MODEL_FILE;
 import static io.ballerina.modelgenerator.commons.CommonUtils.getPersistModelFilePath;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedReturnAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiInferredReturnAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
@@ -200,23 +203,31 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                     .type(Artifact.Type.CONFIGURABLE)
                     .visibility(varVisibility);
         } else {
-            Optional<ClassSymbol> connection = getConnection(moduleVariableDeclarationNode);
-            if (connection.isPresent()) {
-                ClassSymbol clientClassSymbol = connection.get();
+            Optional<ClassSymbol> agent = getAgent(moduleVariableDeclarationNode);
+            if (agent.isPresent()) {
                 variableBuilder
-                        .type(Artifact.Type.CONNECTION)
-                        .icon(clientClassSymbol)
+                        .type(Artifact.Type.AGENT)
+                        .icon(agent.get())
                         .visibility(varVisibility);
-                if (isPersistClient(clientClassSymbol, semanticModel)) {
-                    variableBuilder
-                            .addMetadata(CONNECTOR_TYPE, PERSIST);
-                    getPersistModelFilePath(projectPath, clientClassSymbol)
-                            .ifPresent(modelFile -> variableBuilder.addMetadata(PERSIST_MODEL_FILE, modelFile));
-                }
             } else {
-                variableBuilder
-                        .type(Artifact.Type.VARIABLE)
-                        .visibility(varVisibility);
+                Optional<ClassSymbol> connection = getConnection(moduleVariableDeclarationNode);
+                if (connection.isPresent()) {
+                    ClassSymbol clientClassSymbol = connection.get();
+                    variableBuilder
+                            .type(Artifact.Type.CONNECTION)
+                            .icon(clientClassSymbol)
+                            .visibility(varVisibility);
+                    if (isPersistClient(clientClassSymbol, semanticModel)) {
+                        variableBuilder
+                                .addMetadata(CONNECTOR_TYPE, PERSIST);
+                        getPersistModelFilePath(projectPath, clientClassSymbol)
+                                .ifPresent(modelFile -> variableBuilder.addMetadata(PERSIST_MODEL_FILE, modelFile));
+                    }
+                } else {
+                    variableBuilder
+                            .type(Artifact.Type.VARIABLE)
+                            .visibility(varVisibility);
+                }
             }
         }
 
@@ -284,6 +295,24 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
             if (classSymbol.qualifiers().contains(Qualifier.CLIENT) || isAiKnowledgeBase(classSymbol)
                     || isAiVectorStore(symbol) || isAiMemoryStore(symbol)) {
+                return Optional.of(classSymbol);
+            }
+        } catch (Throwable e) {
+            // Ignore
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ClassSymbol> getAgent(Node node) {
+        try {
+            Symbol symbol = semanticModel.symbol(node).orElseThrow();
+            TypeReferenceTypeSymbol typeDescriptorSymbol =
+                    (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
+            ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
+            // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType, so this ordering matters.
+            if (isAgentClass(classSymbol)
+                    || isAiFixedReturnAgent(classSymbol)
+                    || isAiInferredReturnAgent(classSymbol)) {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {
