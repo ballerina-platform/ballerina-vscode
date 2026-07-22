@@ -19,41 +19,41 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
           "data": {
-            "tools": [
-              {
-                "name": "set",
-                "path": "/path/icon.png",
-                "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+            "agentInfo": {
+              "systemPrompt": {
+                "role": "\"Math tutor\"",
+                "instructions": "\"Help the students with their questions.\""
               },
-              {
-                "name": "sum",
-                "path": "",
-                "description": ""
+              "tools": [
+                {
+                  "name": "set",
+                  "path": "/path/icon.png",
+                  "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+                },
+                {
+                  "name": "sum",
+                  "path": "",
+                  "description": ""
+                },
+                {
+                  "name": "mutiply",
+                  "path": "",
+                  "description": ""
+                }
+              ],
+              "modelProvider": {
+                "presentation": {
+                  "name": "myModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "AzureOpenAiProvider"
+                }
               },
-              {
-                "name": "mutiply",
-                "path": "",
-                "description": ""
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "20"
+                }
               }
-            ],
-            "agent": {
-              "systemPrompt": "{role: \"Math tutor\", instructions: \"Help the students with their questions.\"}",
-              "instructions": "\"Help the students with their questions.\"",
-              "agentType": "ai:REACT_AGENT",
-              "memory": "new ai:MessageWindowChatMemory(20)",
-              "role": "\"Math tutor\"",
-              "scope": "Global",
-              "model": "myModel",
-              "tools": "[set, sum, mutiply]"
-            },
-            "memory": {
-              "type": "ai:MessageWindowChatMemory",
-              "size": "20"
-            },
-            "model": {
-              "name": "myModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
-              "type": "AzureOpenAiProvider"
             }
           }
         },

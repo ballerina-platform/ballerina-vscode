@@ -52,23 +52,25 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
           "data": {
-            "tools": [],
-            "agent": {
-              "systemPrompt": "{role: \"\", instructions: string ``}",
-              "instructions": "",
-              "role": "\"\"",
-              "scope": "Global",
-              "model": "_WorkflowAgentModel",
-              "tools": "[]"
-            },
-            "memory": {
-              "type": "ai:MessageWindowChatMemory",
-              "size": "10"
-            },
-            "model": {
-              "name": "_WorkflowAgentModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
-              "type": "OpenAiProvider"
+            "agentInfo": {
+              "systemPrompt": {
+                "role": "\"\"",
+                "instructions": ""
+              },
+              "tools": [],
+              "modelProvider": {
+                "presentation": {
+                  "name": "_WorkflowAgentModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "OpenAiProvider"
+                }
+              },
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
+              }
             }
           }
         },
