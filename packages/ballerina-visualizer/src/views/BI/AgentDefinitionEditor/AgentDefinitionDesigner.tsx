@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, ServiceClassSourceRequest, buildAgentToolNode, Property, DIRECTORY_MAP, LineRange, AvailableNode, AgentToolHostClass } from "@wso2/ballerina-core";
+import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, ServiceClassSourceRequest, Property, DIRECTORY_MAP, LineRange, AvailableNode } from "@wso2/ballerina-core";
 import { Codicon, Typography, ProgressRing, ThemeColors, View, Icon, Overlay, LinkButton } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import styled from "@emotion/styled";
@@ -33,7 +33,7 @@ import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { ArtifactForm } from "../Forms/ArtifactForm";
-import { parseToolsString, removeToolFromAgentNode } from "../AIChatAgent/utils";
+import { AgentToolHostClass, buildAgentToolNode, parseToolsString, removeToolFromAgentNode } from "../AIChatAgent/utils";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "../AIChatAgent/AIAgentSidePanel";
 import { AddTool } from "../AIChatAgent/AddTool";
 import { NewToolSelectionMode } from "../AIChatAgent/NewTool";

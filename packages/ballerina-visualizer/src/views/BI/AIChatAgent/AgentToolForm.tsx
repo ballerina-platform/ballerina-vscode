@@ -19,7 +19,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import {
-    AgentToolHostClass,
     DIRECTORY_MAP,
     FlowNode,
     FunctionModel,
@@ -36,7 +35,7 @@ import { cloneDeep } from "lodash";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
 import ArtifactForm from "../Forms/ArtifactForm";
-import { fetchOAuthConfigProperties } from "./utils";
+import { AgentToolHostClass, fetchOAuthConfigProperties } from "./utils";
 import {
     convertParameterToParamValue,
     convertSchemaToFormFields,

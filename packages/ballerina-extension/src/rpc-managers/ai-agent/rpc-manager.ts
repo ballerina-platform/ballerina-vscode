@@ -19,14 +19,10 @@ import {
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
-    AIAgentRequest,
-    AIAgentResponse,
-    AIAgentToolsUpdateRequest,
     AIGentToolsResponse,
     CreateLibraryAgentDefinitionRequest,
     CreateLibraryAgentDefinitionResponse,
     GenAgentDefinitionRequest,
-    buildAgentToolNode,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -35,8 +31,6 @@ import {
     AIToolResponse,
     AIToolsRequest,
     AIToolsResponse,
-    AgentTool,
-    AgentToolRequest,
     FlowNode,
     McpToolUpdateRequest,
     McpToolsRequest,
@@ -302,253 +296,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
         }
     }
 
-    async createAIAgent(params: AIAgentRequest): Promise<AIAgentResponse> {
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-
-                const projectPath = context.projectPath;
-                const filePath = await this.ensureAgentsFile(projectPath);
-                let selectedModel = "";
-                // Create the tools first
-                if (params.newTools.length > 0) {
-                    for (const tool of params.newTools) { // create tools one by one
-                        await this.createAgentTool(tool);
-                    }
-                }
-
-                // Create the model Second
-                const aiModuleOrg = await StateMachine.langClient().getAiModuleOrg({ projectPath: projectPath });
-                const allAgents = (await StateMachine.langClient().getAllAgents({ filePath, orgName: aiModuleOrg.orgName }));
-                console.log("All Agents: ", allAgents);
-
-                const fixedAgentCodeData = allAgents.agents.at(0);
-
-                if (params.modelState === 1) {
-                    const allModels = await StateMachine.langClient().getAllModels({ agent: fixedAgentCodeData.object, filePath, orgName: aiModuleOrg.orgName });
-                    const modelCodeData = allModels.models.find(val => val.object === params.selectedModel);
-                    const modelFlowNode = (await StateMachine.langClient().getNodeTemplate({ filePath, id: modelCodeData, position: { line: 0, offset: 0 }, isLibrary: await isLibraryProject(StateMachine.context().projectPath ?? '') })).flowNode;
-
-                    // Go through the modelFields and assign each value to the flow node
-                    params.modelFields.forEach(field => {
-                        const excludedKeys = ["type", "checkError"];
-                        if (!excludedKeys.includes(field.key)) {
-                            modelFlowNode.properties[field.key].value = field.value;
-                        }
-                        if (field.key === "variable") {
-                            selectedModel = field.value;
-                        }
-                    });
-
-                    // Create a new model with given flow node
-                    const codeEdits = await StateMachine.langClient()
-                        .getSourceCode({
-                            filePath: filePath,
-                            flowNode: modelFlowNode
-                        });
-                    await updateSourceCode({ textEdits: codeEdits.textEdits });
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                } else {
-                    selectedModel = params.modelFields.at(0).value;
-                }
-
-
-                // Get the agent flow node
-                const agentFlowNode = (await StateMachine.langClient().getNodeTemplate({ filePath, id: fixedAgentCodeData, position: { line: 0, offset: 0 }, isLibrary: await isLibraryProject(StateMachine.context().projectPath ?? '') })).flowNode;
-
-                // Go through the agentFields and assign each value to the flow node
-                params.agentFields.forEach(field => {
-                    const excludedKeys = ["type", "checkError"];
-                    if (!excludedKeys.includes(field.key)) {
-                        agentFlowNode.properties[field.key].value = field.value;
-                    }
-                });
-
-                // set agent model name and tools
-                agentFlowNode.properties["model"].value = selectedModel;
-                agentFlowNode.properties["tools"].value = params.toolsFields.at(0).value;
-
-                // Create a new model with given flow node
-                const codeEdits = await StateMachine.langClient()
-                    .getSourceCode({
-                        filePath: filePath,
-                        flowNode: agentFlowNode
-                    });
-                await updateSourceCode({ textEdits: codeEdits.textEdits });
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                resolve({ response: true, filePath, position: undefined });
-            } catch (error) {
-                console.log(error);
-            }
-        });
-    }
-
-    async updateAIAgentTools(params: AIAgentToolsUpdateRequest): Promise<AIAgentResponse> {
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const projectPath = context.projectPath;
-                const filePath = await this.ensureAgentsFile(projectPath);
-                // Create the tools if there are any
-                if (params.newTools.length > 0) {
-                    for (const tool of params.newTools) {
-                        await this.createAgentTool(tool);
-                    }
-                }
-                // Get the agent flow node
-                const agentFlowNode = params.agentFlowNode;
-                // set agent tools
-                agentFlowNode.properties["tools"].value = params.toolsFields.at(0).value;
-
-                // Update the agent node with given flow node
-                const codeEdits = await StateMachine.langClient()
-                    .getSourceCode({
-                        filePath: filePath,
-                        flowNode: agentFlowNode
-                    });
-                await updateSourceCode({ textEdits: codeEdits.textEdits });
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                resolve({ response: true, filePath, position: undefined });
-            } catch (error) {
-                console.log(error);
-            }
-        });
-    }
-
-    // Update the flow node properties with the given key. This is for LS code generation
-    private updateFlowNodeProperties(flowNode: FlowNode, excludedKeys: string[] = ["variable", "type", "checkError", "targetType"]) {
-        for (const key in flowNode.properties) {
-            if (!excludedKeys.includes(key)) {
-                flowNode.properties[key].value = key;
-            }
-        }
-    }
-
-    async createTool(tool: AgentTool): Promise<void> {
-        try {
-            const projectPath = StateMachine.context().projectPath;
-            const toolName = tool.toolName;
-            const connectionName = tool.connectionName;
-            const toolsPath = await this.ensureAgentsFile(projectPath);
-            let flowNode: FlowNode; // REMOTE_ACTION_CALL| FUNCTION_DEFINITION
-
-            if (tool.toolType === "Connector") {
-                const filePath = Utils.joinPath(URI.file(projectPath), "connections.bal").fsPath;
-                const connectorFlowNode = tool.connectorFlowNode;
-                const connectorActionCodeData = tool.connectorActionCodeData;
-
-                if (tool.connectorState === 1) { // 1 = Create the connection first
-                    // Create a new connection with given flow node
-                    const codeEdits = await StateMachine.langClient()
-                        .getSourceCode({
-                            filePath: filePath,
-                            flowNode: connectorFlowNode,
-                            isConnector: true
-                        });
-                    await updateSourceCode({ textEdits: codeEdits.textEdits });
-                }
-                // Get the flowNode for connector action
-                const connectorActionFlowNode = await StateMachine.langClient()
-                    .getNodeTemplate({
-                        position: { line: 0, offset: 0 },
-                        filePath: filePath,
-                        id: connectorActionCodeData,
-                        isLibrary: await isLibraryProject(StateMachine.context().projectPath ?? ''),
-                    });
-                flowNode = connectorActionFlowNode.flowNode;
-                this.updateFlowNodeProperties(flowNode);
-            }
-            if (tool.toolType === "Function") {
-                const filePath = Utils.joinPath(URI.file(projectPath), "functions.bal").fsPath;
-
-                if (tool.functionState === 1) { // 1 = Create the function first
-                    // Get new function flow node 
-                    const newFunctionFlowNode = await StateMachine.langClient().getNodeTemplate({
-                        position: { line: 0, offset: 0 },
-                        filePath: filePath,
-                        id: { node: 'FUNCTION_DEFINITION' },
-                        isLibrary: await isLibraryProject(StateMachine.context().projectPath),
-                    });
-
-                    flowNode = newFunctionFlowNode.flowNode;
-                    // Update the flow node with function name
-                    flowNode.properties["functionName"].value = tool.functionName;
-
-                    // Create a new function with update flow node
-                    const codeEdits = await StateMachine.langClient()
-                        .getSourceCode({
-                            filePath: filePath,
-                            flowNode: flowNode
-                        });
-                    await updateSourceCode({ textEdits: codeEdits.textEdits });
-                } else {
-                    // Get the flowNode for existing function action
-                    const existingFunctionFlowNode = await StateMachine.langClient()
-                        .getFunctionNode({
-                            functionName: tool.functionName,
-                            fileName: "functions.bal",
-                            projectPath
-                        });
-                    flowNode = existingFunctionFlowNode.functionDefinition as FlowNode;
-                }
-            }
-
-            const codeEdits = await StateMachine.langClient().getSourceCode({
-                filePath: toolsPath,
-                flowNode: buildAgentToolNode(flowNode, toolName, "", connectionName),
-            });
-            await updateSourceCode({ textEdits: codeEdits.textEdits });
-        } catch (error) {
-            console.error(`Failed to create tool: ${error}`);
-        }
-    }
-
-    async createAgentTool(tool: AgentToolRequest): Promise<void> {
-        try {
-            const projectPath = StateMachine.context().projectPath;
-            const toolName = tool.toolName;
-            const toolsPath = await this.ensureAgentsFile(projectPath);
-            let flowNode: FlowNode; // REMOTE_ACTION_CALL| FUNCTION_DEFINITION
-            const selectedCodeData = tool.selectedCodeData;
-
-            if (selectedCodeData.node === "REMOTE_ACTION_CALL") {
-                const filePath = Utils.joinPath(URI.file(projectPath), "connections.bal").fsPath;
-                // Get the flowNode for connector action
-                const connectorActionFlowNode = await StateMachine.langClient()
-                    .getNodeTemplate({
-                        position: { line: 0, offset: 0 },
-                        filePath: filePath,
-                        id: selectedCodeData,
-                        isLibrary: await isLibraryProject(StateMachine.context().projectPath ?? ''),
-                    });
-                flowNode = connectorActionFlowNode.flowNode;
-                this.updateFlowNodeProperties(flowNode);
-            }
-            if (selectedCodeData.node === "FUNCTION_CALL") {
-                const filePath = Utils.joinPath(URI.file(projectPath), "functions.bal").fsPath;
-                // Get the flowNode for existing function action
-                const existingFunctionFlowNode = await StateMachine.langClient()
-                    .getNodeTemplate({
-                        position: { line: 0, offset: 0 },
-                        filePath: filePath,
-                        id: selectedCodeData,
-                        isLibrary: await isLibraryProject(StateMachine.context().projectPath ?? ''),
-                    });
-                flowNode = existingFunctionFlowNode.flowNode;
-            }
-
-            const codeEdits = await StateMachine.langClient().getSourceCode({
-                filePath: toolsPath,
-                flowNode: buildAgentToolNode(flowNode, toolName, tool.description,
-                    tool.selectedCodeData.parentSymbol || ""),
-            });
-            await updateSourceCode({ textEdits: codeEdits.textEdits });
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (error) {
-            console.error(`Failed to create tool: ${error}`);
-        }
-    }
-
     async getAiModuleOrg(params: AiModuleOrgRequest): Promise<AiModuleOrgResponse> {
         return new Promise(async (resolve) => {
             const context = StateMachine.context();
@@ -619,7 +366,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             mcpEdits = mcpToolKitEdits.textEdits;
         }
 
-        // 2. Update the agent's tools array to include the variable name (following updateAIAgentTools pattern)
+        // Update the agent's tools array with the toolkit variable name.
         const agentFlowNode = params.agentFlowNode;
         let toolsValue = agentFlowNode.properties["tools"].value;
 

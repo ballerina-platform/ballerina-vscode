@@ -18,12 +18,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { buildAgentToolNode, EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
+import { EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, findFlowNodeByModuleVarName, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { addToolToAgentNode, buildAgentToolNode, findFlowNodeByModuleVarName, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "./AgentToolForm";
 

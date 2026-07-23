@@ -18,13 +18,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentToolHostClass, ArtifactData, buildAgentCallToolNode, FlowNode } from "@wso2/ballerina-core";
+import { ArtifactData, FlowNode } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode } from "./utils";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode } from "./utils";
 
 const LoaderContainer = styled.div`
     display: flex;
