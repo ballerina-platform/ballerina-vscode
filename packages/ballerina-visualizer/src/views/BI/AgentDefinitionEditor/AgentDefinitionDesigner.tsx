@@ -666,7 +666,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         try {
             const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
             for (const project of structure?.projects ?? []) {
-                const match = (project.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITIONS] ?? [])
+                const match = (project.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITION] ?? [])
                     .find((artifact) => artifact.name === className);
                 if (match?.position) {
                     return match.position;

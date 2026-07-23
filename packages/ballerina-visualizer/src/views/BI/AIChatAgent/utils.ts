@@ -449,7 +449,7 @@ export const resolveAgentDefinitionLocation = async (
     const moduleName = instanceNode?.codedata?.module;
     const structure = await rpcClient.getBIDiagramRpcClient().getProjectStructure();
     for (const project of structure?.projects ?? []) {
-        const defs = project.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITIONS] ?? [];
+        const defs = project.directoryMap?.[DIRECTORY_MAP.AGENT_DEFINITION] ?? [];
         const match =
             defs.find((a) => a.name === className && (!moduleName || !a.moduleName || a.moduleName === moduleName)) ??
             defs.find((a) => a.name === className);

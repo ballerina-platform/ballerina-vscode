@@ -279,7 +279,7 @@ export function PackageListView(props: PackageListViewProps) {
                 isLibrary: project.isLibrary ?? false,
                 types: getIntegrationTypes(project),
                 hasAgentDefinitions: Boolean(
-                    project.isLibrary && project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITIONS]?.length
+                    project.isLibrary && project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION]?.length
                 )
             }
         });

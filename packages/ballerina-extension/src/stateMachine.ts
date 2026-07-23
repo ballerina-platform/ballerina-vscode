@@ -926,14 +926,6 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
         }
 
-        if (targetedArtifactType === DIRECTORY_MAP.AGENT) {
-            targetedArtifactType = DIRECTORY_MAP.AGENTS;
-        }
-
-        if (targetedArtifactType === DIRECTORY_MAP.AGENT_DEFINITION) {
-            targetedArtifactType = DIRECTORY_MAP.AGENT_DEFINITIONS;
-        }
-
         const projectPath = StateMachine.context().projectPath;
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 

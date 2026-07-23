@@ -59,7 +59,7 @@ async function getClassMemberArtifactType(documentUri: string, position: NodePos
         }
         const classArtifacts = [
             ...(project.directoryMap[DIRECTORY_MAP.TYPE] ?? []),
-            ...(project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITIONS] ?? [])
+            ...(project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION] ?? [])
         ];
         for (const dir of classArtifacts) {
             if (isSamePath(dir.path, documentUri) && isPositionWithinBlock(position, dir.position)) {

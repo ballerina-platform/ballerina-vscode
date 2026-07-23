@@ -246,10 +246,7 @@ export function activate(context: BallerinaExtension) {
                 window.showErrorMessage('Position is required to delete a component.');
                 return;
             }
-            const componentType = item.contextValue === DIRECTORY_MAP.AGENT_DEFINITION
-                ? DIRECTORY_MAP.AGENT_DEFINITIONS
-                : item.contextValue as string;
-            await handleComponentDeletion(componentType, item.label as string, item.info, item.position as NodePosition);
+            await handleComponentDeletion(item.contextValue as string, item.label as string, item.info, item.position as NodePosition);
         }
     });
 

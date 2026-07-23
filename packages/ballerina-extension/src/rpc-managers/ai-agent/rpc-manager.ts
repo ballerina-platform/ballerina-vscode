@@ -257,7 +257,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             const structure = await buildProjectsStructure(projectInfo, context.langClient, true);
             const artifact = structure.projects
                 .find((project) => isSamePath(project.projectPath, projectPath))
-                ?.directoryMap[DIRECTORY_MAP.AGENT_DEFINITIONS]
+                ?.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION]
                 ?.find((item) => item.name === name);
 
             if (artifact) {

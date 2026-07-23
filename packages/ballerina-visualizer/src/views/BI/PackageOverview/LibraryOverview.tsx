@@ -500,7 +500,7 @@ const SECTIONS: SectionConfig[] = [
         addTooltip: "Add New Connection",
     },
     {
-        key: DIRECTORY_MAP.AGENTS,
+        key: DIRECTORY_MAP.AGENT,
         title: "Agents",
         icon: "bi-ai-agent",
         description: "AI agents defined in your library.",
@@ -508,7 +508,7 @@ const SECTIONS: SectionConfig[] = [
         addTooltip: "Add New Agent",
     },
     {
-        key: DIRECTORY_MAP.AGENT_DEFINITIONS,
+        key: DIRECTORY_MAP.AGENT_DEFINITION,
         title: "Agent Definitions",
         icon: "symbol-class",
         isCodicon: true,
@@ -692,13 +692,13 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                 location: { view: MACHINE_VIEW.AddConnectionWizard },
                 isPopup: true,
             });
-        } else if (key === DIRECTORY_MAP.AGENTS) {
+        } else if (key === DIRECTORY_MAP.AGENT) {
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: { view: MACHINE_VIEW.AddAgent },
                 isPopup: true,
             });
-        } else if (key === DIRECTORY_MAP.AGENT_DEFINITIONS) {
+        } else if (key === DIRECTORY_MAP.AGENT_DEFINITION) {
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: { view: MACHINE_VIEW.AddAgentDefinition },
