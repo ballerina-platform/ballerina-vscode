@@ -111,8 +111,6 @@ public class ServiceClassUtil {
         return builder.toString();
     }
 
-    // Adds the field, init parameter, self.<name> = <name> assignment (creating init if missing), and the field
-    // type's import.
     public static List<TextEdit> buildAddInitParameterEdits(ClassDefinitionNode classDef, Field field,
                                                             TextDocument textDocument,
                                                             ModulePartNode modulePartNode) {
@@ -143,7 +141,6 @@ public class ServiceClassUtil {
         return edits;
     }
 
-    // Reuses an existing import, inserts a missing one, or aliases on prefix collision (rewriting the field type).
     private static List<TextEdit> buildTypeImportEdits(ModulePartNode modulePartNode, Field field) {
         Map<String, String> imports = field.getType() == null ? null : field.getType().getImports();
         if (imports == null || imports.isEmpty()) {
@@ -207,13 +204,11 @@ public class ServiceClassUtil {
         return segments.get(segments.size() - 1);
     }
 
-    // Default prefix = last dot-segment of the module part of "org/module.sub".
     private static String defaultPrefix(String moduleId) {
         String module = moduleId.contains("/") ? moduleId.substring(moduleId.indexOf('/') + 1) : moduleId;
         return module.contains(".") ? module.substring(module.lastIndexOf('.') + 1) : module;
     }
 
-    // Updates the field, init parameter, and assignment to the new name/type/default.
     public static List<TextEdit> buildUpdateInitParameterEdits(ObjectFieldNode fieldNode, Field field) {
         List<TextEdit> edits = new ArrayList<>();
         String oldName = fieldNode.fieldName().text().trim();
@@ -248,7 +243,6 @@ public class ServiceClassUtil {
         return edits;
     }
 
-    // Removes the field, init parameter (and its comma), and assignment.
     public static List<TextEdit> buildRemoveInitParameterEdits(ObjectFieldNode fieldNode, TextDocument textDocument) {
         List<TextEdit> edits = new ArrayList<>();
         String name = fieldNode.fieldName().text().trim();
@@ -284,8 +278,6 @@ public class ServiceClassUtil {
         return Optional.empty();
     }
 
-    // private final: assigned once in init from the param (immutable — valid in an isolated object). No field
-    // initializer; any default belongs on the parameter.
     private static String buildInjectedFieldString(Field field) {
         return "private final " + field.getType().getValue() + " " + field.getName().getValue() + ";";
     }

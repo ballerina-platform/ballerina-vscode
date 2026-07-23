@@ -36,9 +36,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Verifies configured connections are retained by an agent-definition class rather than added as constructor inputs.
- */
 public class AgentDefinitionConnectionTest extends AbstractLSTest {
 
     private static final Type TEXT_EDITS_TYPE = new TypeToken<Map<String, List<TextEdit>>>() { }.getType();
@@ -181,7 +178,6 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
 
     @Override
     public void test(Path config) {
-        // This focused test builds its request directly because the class range is part of the API contract.
     }
 
     @Override

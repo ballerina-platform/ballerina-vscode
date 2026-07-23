@@ -146,8 +146,6 @@ public class ModelGenerator {
         int end = textDocument.textPositionFrom(lineRange.endLine());
         NonTerminalNode canvasNode = modulePartNode.findNode(TextRange.from(start, end - start), true);
 
-        // A custom agent class definition has no flow of its own; narrow the canvas to its inner ai:Agent
-        // construction (`self.agent = check new (...)`) so the AGENT focus diagram renders that agent.
         if (canvasNode instanceof ClassDefinitionNode classDefinitionNode) {
             canvasNode = narrowToInnerAgent(classDefinitionNode, canvasNode);
         }
@@ -201,8 +199,6 @@ public class ModelGenerator {
         return gson.toJsonTree(diagram);
     }
 
-    // Returns the `self.<agent-field> = check new (...)` assignment that constructs the inner ai:Agent of a custom
-    // agent class definition, or the fallback node when the class isn't a custom agent / has no such assignment.
     private NonTerminalNode narrowToInnerAgent(ClassDefinitionNode classDefinitionNode, NonTerminalNode fallback) {
         Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
         if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)

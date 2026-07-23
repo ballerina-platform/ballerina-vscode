@@ -64,11 +64,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Creates, updates and removes flow nodes owned by a class field and initialized inside {@code init}.
- *
- * @since 1.0.0
- */
 public final class ClassOwnedNodeManager {
 
     public static final String INNER_AGENT_TOOLS = "INNER_AGENT_TOOLS";

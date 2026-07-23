@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
  */
 public class ExpressionDiagnosticsRequest extends DiagnosticsRequest {
 
-    // Artifacts of the synthetic `__reserved__` wrapper at a class-field position, not real expression errors.
     private static final Set<String> IGNORED_DIAGNOSTIC_CODES = Set.of(
             DiagnosticErrorCode.CANNOT_INFER_OBJECT_TYPE_FROM_LHS.diagnosticId(),
             DiagnosticErrorCode.INVALID_NON_PRIVATE_MUTABLE_FIELD_IN_ISOLATED_OBJECT.diagnosticId());
