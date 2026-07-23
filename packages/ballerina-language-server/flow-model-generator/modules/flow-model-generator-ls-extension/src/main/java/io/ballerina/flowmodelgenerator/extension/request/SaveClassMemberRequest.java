@@ -20,17 +20,12 @@ import com.google.gson.JsonElement;
 import io.ballerina.tools.text.LineRange;
 
 /**
- * Request to create or update a flow node owned by a class field.
+ * Request to create or update a class member represented by a flow node.
  *
  * @param filePath       absolute source file path
  * @param flowNode       configured flow node
  * @param classLineRange range of the containing class
- * @param wiring         optional class-local wiring instructions
  * @since 1.0.0
  */
-public record ClassOwnedNodeSourceRequest(String filePath, JsonElement flowNode, LineRange classLineRange,
-                                          ClassOwnedNodeWiring wiring) {
-
-    public record ClassOwnedNodeWiring(String kind) {
-    }
+public record SaveClassMemberRequest(String filePath, JsonElement flowNode, LineRange classLineRange) {
 }

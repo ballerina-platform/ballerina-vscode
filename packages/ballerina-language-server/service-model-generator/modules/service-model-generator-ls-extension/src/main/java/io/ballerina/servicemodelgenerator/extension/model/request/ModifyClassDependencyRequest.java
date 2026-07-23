@@ -18,16 +18,14 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.request;
 
-import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Field;
 
 /**
- * Request to add a constructor-injected input to a class: a new {@code init} parameter, a field, and the
- * {@code self.<name> = <name>} assignment wiring them together.
+ * Request to update or remove a constructor-injected class dependency. The {@code field} carries the existing field's
+ * {@code codedata.lineRange} (used to locate the input); for updates its name/type/default hold the new values.
  *
- * @param filePath The path of the file containing the class.
- * @param field    The input to add (name + type + optional default value).
- * @param codedata The code data locating the target class definition.
+ * @param filePath file path of the class
+ * @param field    the input field to modify (locates by its line range; new values for updates)
  */
-public record AddInitParameterRequest(String filePath, Field field, Codedata codedata) {
+public record ModifyClassDependencyRequest(String filePath, Field field) {
 }

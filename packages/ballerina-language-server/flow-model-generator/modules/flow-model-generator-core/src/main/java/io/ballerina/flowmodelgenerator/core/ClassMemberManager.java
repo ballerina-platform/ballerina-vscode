@@ -64,18 +64,15 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class ClassOwnedNodeManager {
-
-    public static final String INNER_AGENT_TOOLS = "INNER_AGENT_TOOLS";
+public final class ClassMemberManager {
     private static final String INDENT = "    ";
     private static final String TOOLS_ARG = "tools";
 
-    private ClassOwnedNodeManager() {
+    private ClassMemberManager() {
     }
 
-    public static Map<Path, List<TextEdit>> upsert(WorkspaceManager workspaceManager, Path filePath, FlowNode flowNode,
-                                                    LineRange classLineRange, String wiringKind,
-                                                    LSClientLogger lsClientLogger) {
+    public static Map<Path, List<TextEdit>> save(WorkspaceManager workspaceManager, Path filePath, FlowNode flowNode,
+                                                  LineRange classLineRange, LSClientLogger lsClientLogger) {
         ClassContext context = loadContext(workspaceManager, filePath, classLineRange);
         String fieldName = fieldName(flowNode);
         Map<Path, List<TextEdit>> edits = new HashMap<>();
@@ -85,7 +82,7 @@ public final class ClassOwnedNodeManager {
         findAssignment(context.classDefinition(), fieldName)
                 .ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
 
-        GeneratedClassNode generated = generateClassOwnedSource(workspaceManager, filePath, flowNode, classLineRange,
+        GeneratedClassNode generated = generateClassMemberSource(workspaceManager, filePath, flowNode, classLineRange,
                 context.modulePart(), lsClientLogger);
         mergeEdits(edits, generated.edits());
 
@@ -97,16 +94,15 @@ public final class ClassOwnedNodeManager {
                 .orElse(context.initBody().closeBraceToken().lineRange().startLine());
         addEdit(edits, filePath, new TextEdit(toRange(insertion), System.lineSeparator() + memberIndent + memberIndent
                 + generated.assignment()));
-        if (INNER_AGENT_TOOLS.equals(wiringKind)) {
+        if (flowNode.codedata().node() == NodeKind.MCP_TOOL_KIT) {
             wireToolIntoList(context.classDefinition(), fieldName).ifPresent(edit -> addEdit(edits, filePath, edit));
         }
         ensureErrorReturn(context.init(), edits, filePath);
         return edits;
     }
 
-    public static Map<Path, List<TextEdit>> remove(WorkspaceManager workspaceManager, Path filePath,
-                                                   String fieldName, LineRange classLineRange, String wiringKind,
-                                                   boolean cleanupGeneratedHelperClass) {
+    public static Map<Path, List<TextEdit>> delete(WorkspaceManager workspaceManager, Path filePath,
+                                                    String fieldName, LineRange classLineRange) {
         ClassContext context = loadContext(workspaceManager, filePath, classLineRange);
         Map<Path, List<TextEdit>> edits = new HashMap<>();
         Optional<Node> field = findField(context.classDefinition(), fieldName);
@@ -115,28 +111,29 @@ public final class ClassOwnedNodeManager {
         field.ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
         findAssignment(context.classDefinition(), fieldName)
                 .ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
-        if (INNER_AGENT_TOOLS.equals(wiringKind)) {
+        Optional<ClassDefinitionNode> generatedToolKit = fieldType == null
+                ? Optional.empty() : findGeneratedToolKitClass(context.modulePart(), fieldType);
+        if (generatedToolKit.isPresent()) {
             removeToolFromList(context.classDefinition(), fieldName)
                     .ifPresent(edit -> addEdit(edits, filePath, edit));
         }
-        if (cleanupGeneratedHelperClass && fieldType != null
+        if (generatedToolKit.isPresent()
                 && !isFieldTypeUsedByAnotherField(context.modulePart(), fieldType, fieldName)) {
-            findGeneratedToolKitClass(context.modulePart(), fieldType)
-                    .ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
+            addEdit(edits, filePath, new TextEdit(toRange(generatedToolKit.get().lineRange()), ""));
         }
         return edits;
     }
 
-    private static GeneratedClassNode generateClassOwnedSource(WorkspaceManager workspaceManager, Path filePath,
-                                                               FlowNode flowNode, LineRange classLineRange,
-                                                               ModulePartNode modulePart,
-                                                               LSClientLogger lsClientLogger) {
+    private static GeneratedClassNode generateClassMemberSource(WorkspaceManager workspaceManager, Path filePath,
+                                                                FlowNode flowNode, LineRange classLineRange,
+                                                                ModulePartNode modulePart,
+                                                                LSClientLogger lsClientLogger) {
         return switch (flowNode.codedata().node()) {
             case NEW_CONNECTION -> generateConnectionSource(workspaceManager, filePath, flowNode, classLineRange,
                     modulePart, lsClientLogger);
             case MCP_TOOL_KIT -> generateMcpToolKitSource(workspaceManager, filePath, flowNode, classLineRange,
                     lsClientLogger);
-            default -> throw new IllegalArgumentException("Unsupported class-owned node: "
+            default -> throw new IllegalArgumentException("Unsupported class member: "
                     + flowNode.codedata().node());
         };
     }
@@ -527,7 +524,7 @@ public final class ClassOwnedNodeManager {
         return flowNode.getProperty(Property.VARIABLE_KEY)
                 .map(Property::value)
                 .map(Object::toString)
-                .map(ClassOwnedNodeManager::stripSelf)
+                .map(ClassMemberManager::stripSelf)
                 .filter(name -> !name.isBlank())
                 .orElseThrow(() -> new IllegalArgumentException("Class-owned field name is required"));
     }
