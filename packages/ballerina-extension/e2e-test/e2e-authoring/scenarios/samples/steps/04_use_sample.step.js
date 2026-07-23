@@ -1,5 +1,7 @@
 {
   const frame = await getBIWebview();
+  // Reuses the search filter left in place by step 03, which already
+  // asserted this resolves to exactly one card.
   const card = frame.getByRole('article').filter({ hasText: 'Hello World Service' });
   await guestClick(card.getByRole('button', { name: 'Use this' }));
 

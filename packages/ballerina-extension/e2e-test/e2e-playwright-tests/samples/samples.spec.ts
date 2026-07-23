@@ -62,27 +62,42 @@ export default function createTests() {
                 return Number(match[1]);
             };
 
+            // Poll for the results count to settle below `below`, instead of a
+            // fixed sleep — the filter/search state updates asynchronously and
+            // a fixed wait can read a stale count under load.
+            const waitForResultCountBelow = async (below: number, timeoutMs = 15000): Promise<number> => {
+                const deadline = Date.now() + timeoutMs;
+                let last = await readResultCount();
+                while (last >= below && Date.now() < deadline) {
+                    await workbenchPage.waitForTimeout(300);
+                    last = await readResultCount();
+                }
+                return last;
+            };
+
             const initialCount = await readResultCount();
             expect(initialCount).toBeGreaterThan(0);
             logStep(`Initial sample count: ${initialCount}`);
 
             logStep('Clicking the "Sample" type filter (built-in samples only)');
             await samplesWebView.getByRole('button', { name: 'Sample', exact: true }).click({ force: true });
-            await workbenchPage.waitForTimeout(1000);
-            const filteredCount = await readResultCount();
+            const filteredCount = await waitForResultCountBelow(initialCount);
             logStep(`Sample-only count: ${filteredCount}`);
             expect(filteredCount).toBeLessThan(initialCount);
 
             logStep('Clicking "All" again and searching for a sample');
             await samplesWebView.getByRole('button', { name: 'All', exact: true }).click({ force: true });
-            await workbenchPage.waitForTimeout(1000);
+            await expect.poll(() => readResultCount(), { timeout: 15000 }).toBeGreaterThan(filteredCount);
             const searchBox = samplesWebView.getByRole('textbox', { name: 'Text field' });
             await searchBox.click({ force: true });
             await searchBox.fill('Hello World');
-            await workbenchPage.waitForTimeout(1000);
 
             const sampleCard = samplesWebView.getByRole('article').filter({ hasText: 'Hello World Service' });
             await sampleCard.waitFor({ state: 'visible', timeout: 15000 });
+            // The search must narrow the list down to exactly this one sample —
+            // otherwise "Use this" below could click the wrong card if more
+            // than one result matched "Hello World Service".
+            await expect(samplesWebView.getByRole('article')).toHaveCount(1);
             logStep('Sample filtered and shown: Hello World Service');
 
             logStep('Clicking "Use this" on the filtered sample');
