@@ -236,12 +236,10 @@ public class AgentToolBuilder extends NodeBuilder {
             return Optional.empty();
         }
         String element = "self." + toolName;
-        if (toolsList.expressions().isEmpty()) {
-            return Optional.of(new TextEdit(
-                    CommonUtils.toRange(toolsList.openBracket().lineRange().endLine()), element));
-        }
-        return Optional.of(new TextEdit(
-                CommonUtils.toRange(toolsList.closeBracket().lineRange().startLine()), ", " + element));
+        boolean isEmpty = toolsList.expressions().isEmpty();
+        LinePosition position = isEmpty ? toolsList.openBracket().lineRange().endLine()
+                : toolsList.closeBracket().lineRange().startLine();
+        return Optional.of(new TextEdit(CommonUtils.toRange(position), isEmpty ? element : ", " + element));
     }
 
     private static ListConstructorExpressionNode findInnerToolsList(ClassDefinitionNode classNode) {
