@@ -524,10 +524,10 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
             artifactData={{ artifactType: DIRECTORY_MAP.AGENT_DEFINITION }}
             onBeforeSave={async () => {
                 if (!dependencyDraft) return;
-                await rpcClient.getBIDiagramRpcClient().addClassInitParameter({
+                await rpcClient.getBIDiagramRpcClient().createClassDependency({
                     filePath,
                     field: buildAgentDependencyField(dependencyDraft, currentAgentName, classLineRange),
-                    codedata: { lineRange: classLineRange },
+                    classLineRange,
                 });
                 await rpcClient.getAIAgentRpcClient().fixMissingImports();
             }}
@@ -707,7 +707,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const loadConnections = async (model?: ServiceClassModel, refreshVersion?: number) => {
         if (!model?.codedata?.lineRange) return;
         try {
-            const response = await rpcClient.getBIDiagramRpcClient().getClassOwnedNodes({
+            const response = await rpcClient.getBIDiagramRpcClient().listClassMembers({
                 filePath: fileName,
                 classLineRange: model.codedata.lineRange
             });
@@ -903,19 +903,13 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setIsSaving(true);
         try {
             if (isNew) {
-                await rpcClient.getBIDiagramRpcClient().addClassInitParameter({
+                await rpcClient.getBIDiagramRpcClient().createClassDependency({
                     filePath: classFilePath,
                     field: updatedVariable,
-                    codedata: {
-                        lineRange: {
-                            fileName: agentClassModel.codedata.lineRange.fileName,
-                            startLine: { line: agentClassModel.codedata.lineRange.startLine.line, offset: agentClassModel.codedata.lineRange.startLine.offset },
-                            endLine: { line: agentClassModel.codedata.lineRange.endLine.line, offset: agentClassModel.codedata.lineRange.endLine.offset }
-                        }
-                    }
+                    classLineRange: agentClassModel.codedata.lineRange
                 });
             } else {
-                await rpcClient.getBIDiagramRpcClient().updateClassInitParameter({
+                await rpcClient.getBIDiagramRpcClient().updateClassDependency({
                     filePath: classFilePath,
                     field: updatedVariable
                 });
@@ -963,7 +957,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     };
 
     const handleDeleteVariable = async (variable: FieldType) => {
-        await rpcClient.getBIDiagramRpcClient().removeClassInitParameter({
+        await rpcClient.getBIDiagramRpcClient().removeClassDependency({
             filePath: classFilePath,
             field: variable
         });
@@ -971,7 +965,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
 
     const handleViewTool = async (tool: ToolData) => {
         if (tool.type === "MCP Server") {
-            const response = await rpcClient.getBIDiagramRpcClient().getClassOwnedNodes({
+            const response = await rpcClient.getBIDiagramRpcClient().listClassMembers({
                 filePath: classFilePath,
                 classLineRange: agentClassModel.codedata.lineRange,
             });
@@ -1080,12 +1074,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         suppressRefreshRef.current = true;
         try {
             if (tool.type === "MCP Server") {
-                await rpcClient.getBIDiagramRpcClient().removeClassOwnedNode({
+                await rpcClient.getBIDiagramRpcClient().deleteClassMember({
                     filePath: classFilePath,
                     fieldName: tool.name,
                     classLineRange: agentClassModel.codedata.lineRange,
-                    wiring: { kind: "INNER_AGENT_TOOLS" },
-                    cleanup: { generatedHelperClass: true },
                 });
                 return;
             }
@@ -1121,7 +1113,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         if (!updatedNode || !agentClassModel) return;
         setIsSaving(true);
         try {
-            await rpcClient.getBIDiagramRpcClient().upsertClassOwnedNode({
+            await rpcClient.getBIDiagramRpcClient().saveClassMember({
                 filePath: classFilePath,
                 flowNode: updatedNode,
                 classLineRange: agentClassModel.codedata.lineRange
@@ -1142,7 +1134,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setConnections((cs) => cs.filter((c) => c.properties?.variable?.value !== name));
         setIsSaving(true);
         try {
-            await rpcClient.getBIDiagramRpcClient().removeClassOwnedNode({
+            await rpcClient.getBIDiagramRpcClient().deleteClassMember({
                 filePath: classFilePath,
                 fieldName: name,
                 classLineRange: agentClassModel.codedata.lineRange

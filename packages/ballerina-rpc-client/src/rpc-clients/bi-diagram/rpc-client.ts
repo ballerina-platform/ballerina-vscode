@@ -20,11 +20,12 @@
 import {
     AIChatRequest,
     AddFieldRequest,
-    AddInitParameterRequest,
-    ClassOwnedNodeDeleteRequest,
-    ClassOwnedNodeRequest,
-    ClassOwnedNodeSourceRequest,
-    ClassInitParameterModifierRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
@@ -145,12 +146,12 @@ import {
     WorkspacesResponse,
     addBreakpointToSource,
     addClassField,
-    addClassInitParameter,
-    getClassOwnedNodes,
-    upsertClassOwnedNode,
-    removeClassOwnedNode,
-    updateClassInitParameter,
-    removeClassInitParameter,
+    createClassDependency,
+    listClassMembers,
+    saveClassMember,
+    deleteClassMember,
+    updateClassDependency,
+    removeClassDependency,
     addFunction,
     addProjectToWorkspace,
     buildProject,
@@ -508,28 +509,28 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendRequest(addClassField, HOST_EXTENSION, params);
     }
 
-    addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
-        return this._messenger.sendRequest(addClassInitParameter, HOST_EXTENSION, params);
+    createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(createClassDependency, HOST_EXTENSION, params);
     }
 
-    getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
-        return this._messenger.sendRequest(getClassOwnedNodes, HOST_EXTENSION, params);
+    listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
+        return this._messenger.sendRequest(listClassMembers, HOST_EXTENSION, params);
     }
 
-    upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
-        return this._messenger.sendRequest(upsertClassOwnedNode, HOST_EXTENSION, params);
+    saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(saveClassMember, HOST_EXTENSION, params);
     }
 
-    removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
-        return this._messenger.sendRequest(removeClassOwnedNode, HOST_EXTENSION, params);
+    deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(deleteClassMember, HOST_EXTENSION, params);
     }
 
-    updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
-        return this._messenger.sendRequest(updateClassInitParameter, HOST_EXTENSION, params);
+    updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(updateClassDependency, HOST_EXTENSION, params);
     }
 
-    removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
-        return this._messenger.sendRequest(removeClassInitParameter, HOST_EXTENSION, params);
+    removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(removeClassDependency, HOST_EXTENSION, params);
     }
 
     updateServiceClass(params: ServiceClassSourceRequest): Promise<UpdatedArtifactsResponse> {

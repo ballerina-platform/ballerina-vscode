@@ -471,11 +471,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             }
 
             if (agentDefinition) {
-                await rpcClient.getBIDiagramRpcClient().upsertClassOwnedNode({
+                await rpcClient.getBIDiagramRpcClient().saveClassMember({
                     filePath: agentDefinition.filePath,
                     flowNode: node,
                     classLineRange: agentDefinition.classLineRange,
-                    wiring: { kind: "INNER_AGENT_TOOLS" },
                 });
             } else {
                 await rpcClient.getAIAgentRpcClient().updateMCPToolKit({

@@ -26,7 +26,7 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.AvailableNodesGenerator;
-import io.ballerina.flowmodelgenerator.core.ClassOwnedNodeManager;
+import io.ballerina.flowmodelgenerator.core.ClassMemberManager;
 import io.ballerina.flowmodelgenerator.core.CopilotContextGenerator;
 import io.ballerina.flowmodelgenerator.core.DeleteNodeHandler;
 import io.ballerina.flowmodelgenerator.core.EnclosedNodeFinder;
@@ -42,9 +42,9 @@ import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeDeleteRequest;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeRequest;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeSourceRequest;
+import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
+import io.ballerina.flowmodelgenerator.extension.request.DeleteClassMemberRequest;
+import io.ballerina.flowmodelgenerator.extension.request.SaveClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.CopilotContextRequest;
 import io.ballerina.flowmodelgenerator.extension.request.EnclosedFuncDefRequest;
@@ -292,7 +292,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     }
 
     @JsonRequest
-    public CompletableFuture<FlowModelGeneratorResponse> getClassOwnedNodes(ClassOwnedNodeRequest request) {
+    public CompletableFuture<FlowModelGeneratorResponse> listClassMembers(ClassMemberRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             FlowModelGeneratorResponse response = new FlowModelGeneratorResponse();
             try {
@@ -301,7 +301,7 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 Project project = workspaceManager.loadProject(filePath);
                 SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
                 ModelGenerator modelGenerator = new ModelGenerator(project, semanticModel, filePath, workspaceManager);
-                response.setFlowDesignModel(modelGenerator.getClassOwnedNodes(request.classLineRange()));
+                response.setFlowDesignModel(modelGenerator.getClassMembers(request.classLineRange()));
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -310,15 +310,14 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     }
 
     @JsonRequest
-    public CompletableFuture<FlowModelSourceGeneratorResponse> upsertClassOwnedNode(
-            ClassOwnedNodeSourceRequest request) {
+    public CompletableFuture<FlowModelSourceGeneratorResponse> saveClassMember(SaveClassMemberRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
             try {
                 FlowNode flowNode = new Gson().fromJson(request.flowNode(), FlowNode.class);
-                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassOwnedNodeManager.upsert(
+                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassMemberManager.save(
                         this.workspaceManagerProxy.get(), Path.of(request.filePath()), flowNode,
-                        request.classLineRange(), wiringKind(request.wiring()), lsClientLogger);
+                        request.classLineRange(), lsClientLogger);
                 response.setTextEdits(new Gson().toJsonTree(edits));
             } catch (Throwable e) {
                 response.setError(e);
@@ -328,16 +327,13 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
     }
 
     @JsonRequest
-    public CompletableFuture<FlowModelSourceGeneratorResponse> removeClassOwnedNode(
-            ClassOwnedNodeDeleteRequest request) {
+    public CompletableFuture<FlowModelSourceGeneratorResponse> deleteClassMember(DeleteClassMemberRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             FlowModelSourceGeneratorResponse response = new FlowModelSourceGeneratorResponse();
             try {
-                boolean cleanupGeneratedHelper = request.cleanup() != null
-                        && Boolean.TRUE.equals(request.cleanup().generatedHelperClass());
-                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassOwnedNodeManager.remove(
+                Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = ClassMemberManager.delete(
                         this.workspaceManagerProxy.get(), Path.of(request.filePath()), request.fieldName(),
-                        request.classLineRange(), wiringKind(request.wiring()), cleanupGeneratedHelper);
+                        request.classLineRange());
                 response.setTextEdits(new Gson().toJsonTree(edits));
             } catch (Throwable e) {
                 response.setError(e);
@@ -779,9 +775,6 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
         }
     }
 
-    private String wiringKind(ClassOwnedNodeSourceRequest.ClassOwnedNodeWiring wiring) {
-        return wiring == null ? null : wiring.kind();
-    }
 
     private void propagateCodedataDataToTemplate(JsonObject requestId, JsonElement nodeTemplate) {
         if (!requestId.has("data") || !requestId.get("data").isJsonObject()) {

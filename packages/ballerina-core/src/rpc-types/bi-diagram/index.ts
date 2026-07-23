@@ -60,11 +60,12 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
-    AddInitParameterRequest,
-    ClassOwnedNodeDeleteRequest,
-    ClassOwnedNodeRequest,
-    ClassOwnedNodeSourceRequest,
-    ClassInitParameterModifierRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     RenameIdentifierRequest,
     BISearchRequest,
     BISearchResponse,
@@ -208,12 +209,12 @@ export interface BIDiagramAPI {
     getServiceClassModel: (params: ModelFromCodeRequest) => Promise<ServiceClassModelResponse>;
     updateClassField: (params: ClassFieldModifierRequest) => Promise<SourceEditResponse>;
     addClassField: (params: AddFieldRequest) => Promise<SourceEditResponse>;
-    addClassInitParameter: (params: AddInitParameterRequest) => Promise<SourceEditResponse>;
-    getClassOwnedNodes: (params: ClassOwnedNodeRequest) => Promise<BIModuleNodesResponse>;
-    upsertClassOwnedNode: (params: ClassOwnedNodeSourceRequest) => Promise<SourceEditResponse>;
-    removeClassOwnedNode: (params: ClassOwnedNodeDeleteRequest) => Promise<SourceEditResponse>;
-    updateClassInitParameter: (params: ClassInitParameterModifierRequest) => Promise<SourceEditResponse>;
-    removeClassInitParameter: (params: ClassInitParameterModifierRequest) => Promise<SourceEditResponse>;
+    createClassDependency: (params: CreateClassDependencyRequest) => Promise<SourceEditResponse>;
+    listClassMembers: (params: ClassMemberRequest) => Promise<ClassMembersResponse>;
+    saveClassMember: (params: SaveClassMemberRequest) => Promise<SourceEditResponse>;
+    deleteClassMember: (params: DeleteClassMemberRequest) => Promise<SourceEditResponse>;
+    updateClassDependency: (params: ModifyClassDependencyRequest) => Promise<SourceEditResponse>;
+    removeClassDependency: (params: ModifyClassDependencyRequest) => Promise<SourceEditResponse>;
     updateServiceClass: (params: ServiceClassSourceRequest) => Promise<UpdatedArtifactsResponse>;
     createGraphqlClassType: (params: UpdateTypeRequest) => Promise<UpdateTypeResponse>;
     getRecordConfig: (params: GetRecordConfigRequest) => Promise<GetRecordConfigResponse>;

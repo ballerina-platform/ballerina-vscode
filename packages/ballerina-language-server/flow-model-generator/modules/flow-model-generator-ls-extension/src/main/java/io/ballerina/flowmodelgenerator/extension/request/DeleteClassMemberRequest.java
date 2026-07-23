@@ -19,19 +19,12 @@ package io.ballerina.flowmodelgenerator.extension.request;
 import io.ballerina.tools.text.LineRange;
 
 /**
- * Request to remove a flow node owned by a class field.
+ * Request to remove a class member.
  *
  * @param filePath       absolute source file path
  * @param fieldName      class field name
  * @param classLineRange range of the containing class
- * @param wiring         optional class-local wiring instructions
- * @param cleanup        optional cleanup instructions
  * @since 1.0.0
  */
-public record ClassOwnedNodeDeleteRequest(String filePath, String fieldName, LineRange classLineRange,
-                                          ClassOwnedNodeSourceRequest.ClassOwnedNodeWiring wiring,
-                                          ClassOwnedNodeCleanup cleanup) {
-
-    public record ClassOwnedNodeCleanup(Boolean generatedHelperClass) {
-    }
+public record DeleteClassMemberRequest(String filePath, String fieldName, LineRange classLineRange) {
 }

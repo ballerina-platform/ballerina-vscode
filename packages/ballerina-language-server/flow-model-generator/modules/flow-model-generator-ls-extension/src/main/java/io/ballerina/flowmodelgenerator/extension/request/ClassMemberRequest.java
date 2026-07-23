@@ -19,11 +19,11 @@ package io.ballerina.flowmodelgenerator.extension.request;
 import io.ballerina.tools.text.LineRange;
 
 /**
- * Request to read class-owned flow nodes initialized inside a class constructor.
+ * Request to read flow-model members initialized inside a class constructor.
  *
  * @param filePath       absolute source file path
  * @param classLineRange range of the containing class
  * @since 1.0.0
  */
-public record ClassOwnedNodeRequest(String filePath, LineRange classLineRange) {
+public record ClassMemberRequest(String filePath, LineRange classLineRange) {
 }

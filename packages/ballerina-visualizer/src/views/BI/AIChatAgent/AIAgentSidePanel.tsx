@@ -1054,10 +1054,10 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 enabled: true, editable: false, optional: false, advanced: false,
             } as unknown as FieldType;
 
-            await rpcClient.getBIDiagramRpcClient().addClassInitParameter({
+            await rpcClient.getBIDiagramRpcClient().createClassDependency({
                 filePath: connectionDependency.filePath,
                 field,
-                codedata: { lineRange: connectionDependency.classLineRange },
+                classLineRange: connectionDependency.classLineRange,
             });
         } catch (error) {
             pendingDependencyRefreshRef.current = false;
@@ -1090,7 +1090,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         pendingDependencyRefreshRef.current = true;
         addedAgentConnectionNamesRef.current.push(connectionName);
         try {
-            await rpcClient.getBIDiagramRpcClient().upsertClassOwnedNode({
+            await rpcClient.getBIDiagramRpcClient().saveClassMember({
                 filePath: connectionDependency.filePath,
                 flowNode: connection,
                 classLineRange: connectionDependency.classLineRange,

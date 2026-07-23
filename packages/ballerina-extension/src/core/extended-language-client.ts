@@ -179,11 +179,12 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
-    AddInitParameterRequest,
-    ClassOwnedNodeDeleteRequest,
-    ClassOwnedNodeRequest,
-    ClassOwnedNodeSourceRequest,
-    ClassInitParameterModifierRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     FunctionModelRequest,
     FunctionModelResponse,
     TypeDataWithReferences,
@@ -463,12 +464,12 @@ enum EXTENDED_APIS {
     BI_GET_FUNCTION_FROM_SOURCE = 'serviceDesign/getFunctionFromSource',
     BI_UPDATE_CLASS_FIELD = 'serviceDesign/updateClassField',
     BI_ADD_CLASS_FIELD = 'serviceDesign/addField',
-    BI_ADD_CLASS_INIT_PARAMETER = 'serviceDesign/addClassInitParameter',
-    BI_GET_CLASS_OWNED_NODES = 'flowDesignService/getClassOwnedNodes',
-    BI_UPSERT_CLASS_OWNED_NODE = 'flowDesignService/upsertClassOwnedNode',
-    BI_REMOVE_CLASS_OWNED_NODE = 'flowDesignService/removeClassOwnedNode',
-    BI_UPDATE_CLASS_INIT_PARAMETER = 'serviceDesign/updateClassInitParameter',
-    BI_REMOVE_CLASS_INIT_PARAMETER = 'serviceDesign/removeClassInitParameter',
+    BI_CREATE_CLASS_DEPENDENCY = 'serviceDesign/createClassDependency',
+    BI_LIST_CLASS_MEMBERS = 'flowDesignService/listClassMembers',
+    BI_SAVE_CLASS_MEMBER = 'flowDesignService/saveClassMember',
+    BI_DELETE_CLASS_MEMBER = 'flowDesignService/deleteClassMember',
+    BI_UPDATE_CLASS_DEPENDENCY = 'serviceDesign/updateClassDependency',
+    BI_REMOVE_CLASS_DEPENDENCY = 'serviceDesign/removeClassDependency',
     BI_DESIGN_MODEL = 'designModelService/getDesignModel',
     BI_UPDATE_IMPORTS = 'expressionEditor/importModule',
     BI_ADD_FUNCTION = 'expressionEditor/functionCallTemplate',
@@ -1400,28 +1401,28 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_ADD_CLASS_FIELD, params);
     }
 
-    async addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
-        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_ADD_CLASS_INIT_PARAMETER, params);
+    async createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_CREATE_CLASS_DEPENDENCY, params);
     }
 
-    async getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
-        return this.sendRequest<BIModuleNodesResponse>(EXTENDED_APIS.BI_GET_CLASS_OWNED_NODES, params);
+    async listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
+        return this.sendRequest<ClassMembersResponse>(EXTENDED_APIS.BI_LIST_CLASS_MEMBERS, params);
     }
 
-    async upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
-        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPSERT_CLASS_OWNED_NODE, params);
+    async saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_SAVE_CLASS_MEMBER, params);
     }
 
-    async removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
-        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_OWNED_NODE, params);
+    async deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_DELETE_CLASS_MEMBER, params);
     }
 
-    async updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
-        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPDATE_CLASS_INIT_PARAMETER, params);
+    async updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPDATE_CLASS_DEPENDENCY, params);
     }
 
-    async removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
-        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_INIT_PARAMETER, params);
+    async removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_DEPENDENCY, params);
     }
 
     async getHttpResourceModel(params: HttpResourceModelRequest): Promise<HttpResourceModelResponse> {

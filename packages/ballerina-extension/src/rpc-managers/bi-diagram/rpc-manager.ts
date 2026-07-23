@@ -20,11 +20,12 @@
 import {
     AIChatRequest,
     AddFieldRequest,
-    AddInitParameterRequest,
-    ClassOwnedNodeDeleteRequest,
-    ClassOwnedNodeRequest,
-    ClassOwnedNodeSourceRequest,
-    ClassInitParameterModifierRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
@@ -2119,11 +2120,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async addClassInitParameter(params: AddInitParameterRequest): Promise<SourceEditResponse> {
+    async createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: SourceEditResponse = await StateMachine.langClient().addClassInitParameter(params);
-                await updateSourceCode({ textEdits: res.textEdits, description: 'Add Input' });
+                const res: SourceEditResponse = await StateMachine.langClient().createClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Create Class Dependency' });
                 resolve(res);
             } catch (error) {
                 console.log(error);
@@ -2131,10 +2132,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async getClassOwnedNodes(params: ClassOwnedNodeRequest): Promise<BIModuleNodesResponse> {
+    async listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: BIModuleNodesResponse = await StateMachine.langClient().getClassOwnedNodes(params);
+                const res: ClassMembersResponse = await StateMachine.langClient().listClassMembers(params);
                 resolve(res);
             } catch (error) {
                 console.log(error);
@@ -2142,11 +2143,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async upsertClassOwnedNode(params: ClassOwnedNodeSourceRequest): Promise<SourceEditResponse> {
+    async saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: SourceEditResponse = await StateMachine.langClient().upsertClassOwnedNode(params);
-                await updateSourceCode({ textEdits: res.textEdits, description: 'Class-Owned Node Update' });
+                const res: SourceEditResponse = await StateMachine.langClient().saveClassMember(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Save Class Member' });
                 resolve(res);
             } catch (error) {
                 console.log(error);
@@ -2154,11 +2155,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async removeClassOwnedNode(params: ClassOwnedNodeDeleteRequest): Promise<SourceEditResponse> {
+    async deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: SourceEditResponse = await StateMachine.langClient().removeClassOwnedNode(params);
-                await updateSourceCode({ textEdits: res.textEdits, description: 'Class-Owned Node Removal' });
+                const res: SourceEditResponse = await StateMachine.langClient().deleteClassMember(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Delete Class Member' });
                 resolve(res);
             } catch (error) {
                 console.log(error);
@@ -2166,11 +2167,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async updateClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+    async updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: SourceEditResponse = await StateMachine.langClient().updateClassInitParameter(params);
-                await updateSourceCode({ textEdits: res.textEdits, description: 'Update Input' });
+                const res: SourceEditResponse = await StateMachine.langClient().updateClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Update Class Dependency' });
                 resolve(res);
             } catch (error) {
                 console.log(error);
@@ -2178,11 +2179,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
-    async removeClassInitParameter(params: ClassInitParameterModifierRequest): Promise<SourceEditResponse> {
+    async removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
         return new Promise(async (resolve) => {
             try {
-                const res: SourceEditResponse = await StateMachine.langClient().removeClassInitParameter(params);
-                await updateSourceCode({ textEdits: res.textEdits, description: 'Remove Input' });
+                const res: SourceEditResponse = await StateMachine.langClient().removeClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Remove Class Dependency' });
                 resolve(res);
             } catch (error) {
                 console.log(error);

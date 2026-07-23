@@ -923,7 +923,7 @@ export function PackageOverview(props: PackageOverviewProps) {
             (!projectStructure.directoryMap[DIRECTORY_MAP.SERVICE] || projectStructure.directoryMap[DIRECTORY_MAP.SERVICE].length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW] || projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW].length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY] || projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY].length === 0) &&
-            (!projectStructure.directoryMap.agents || projectStructure.directoryMap.agents.length === 0)
+            (!projectStructure.directoryMap[DIRECTORY_MAP.AGENT] || projectStructure.directoryMap[DIRECTORY_MAP.AGENT].length === 0)
         );
     }
 

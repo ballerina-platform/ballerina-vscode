@@ -1437,46 +1437,31 @@ export interface AddFieldRequest {
     };
 }
 
-export interface AddInitParameterRequest {
-    filePath: string;
-    field: FieldType;
-    codedata: {
-        lineRange: LineRange;
-    };
-}
-
-export interface ClassOwnedNodeWiring {
-    kind: "INNER_AGENT_TOOLS";
-}
-
-export interface ClassOwnedNodeCleanup {
-    generatedHelperClass?: boolean;
-}
-
-export interface ClassOwnedNodeRequest {
+export interface ClassTarget {
     filePath: string;
     classLineRange: LineRange;
 }
 
-export interface ClassOwnedNodeSourceRequest {
-    filePath: string;
+export interface CreateClassDependencyRequest extends ClassTarget {
+    field: FieldType;
+}
+
+export interface ClassMemberRequest extends ClassTarget {}
+
+export interface SaveClassMemberRequest extends ClassTarget {
     flowNode: FlowNode;
-    classLineRange: LineRange;
-    wiring?: ClassOwnedNodeWiring;
 }
 
-export interface ClassOwnedNodeDeleteRequest {
-    filePath: string;
+export interface DeleteClassMemberRequest extends ClassTarget {
     fieldName: string;
-    classLineRange: LineRange;
-    wiring?: ClassOwnedNodeWiring;
-    cleanup?: ClassOwnedNodeCleanup;
 }
 
-export interface ClassInitParameterModifierRequest {
+export interface ModifyClassDependencyRequest {
     filePath: string;
     field: FieldType;
 }
+
+export type ClassMembersResponse = BIModuleNodesResponse;
 
 export interface ExpressionTokensRequest {
     expression: string;

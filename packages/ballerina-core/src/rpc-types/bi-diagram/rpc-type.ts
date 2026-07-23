@@ -61,11 +61,12 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
-    AddInitParameterRequest,
-    ClassOwnedNodeDeleteRequest,
-    ClassOwnedNodeRequest,
-    ClassOwnedNodeSourceRequest,
-    ClassInitParameterModifierRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     RenameIdentifierRequest,
     BISearchRequest,
     BISearchResponse,
@@ -211,12 +212,12 @@ export const getTypeFromJson: RequestType<JsonToTypeRequest, JsonToTypeResponse>
 export const getServiceClassModel: RequestType<ModelFromCodeRequest, ServiceClassModelResponse> = { method: `${_preFix}/getServiceClassModel` };
 export const updateClassField: RequestType<ClassFieldModifierRequest, SourceEditResponse> = { method: `${_preFix}/updateClassField` };
 export const addClassField: RequestType<AddFieldRequest, SourceEditResponse> = { method: `${_preFix}/addClassField` };
-export const addClassInitParameter: RequestType<AddInitParameterRequest, SourceEditResponse> = { method: `${_preFix}/addClassInitParameter` };
-export const getClassOwnedNodes: RequestType<ClassOwnedNodeRequest, BIModuleNodesResponse> = { method: `${_preFix}/getClassOwnedNodes` };
-export const upsertClassOwnedNode: RequestType<ClassOwnedNodeSourceRequest, SourceEditResponse> = { method: `${_preFix}/upsertClassOwnedNode` };
-export const removeClassOwnedNode: RequestType<ClassOwnedNodeDeleteRequest, SourceEditResponse> = { method: `${_preFix}/removeClassOwnedNode` };
-export const updateClassInitParameter: RequestType<ClassInitParameterModifierRequest, SourceEditResponse> = { method: `${_preFix}/updateClassInitParameter` };
-export const removeClassInitParameter: RequestType<ClassInitParameterModifierRequest, SourceEditResponse> = { method: `${_preFix}/removeClassInitParameter` };
+export const createClassDependency: RequestType<CreateClassDependencyRequest, SourceEditResponse> = { method: `${_preFix}/createClassDependency` };
+export const listClassMembers: RequestType<ClassMemberRequest, ClassMembersResponse> = { method: `${_preFix}/listClassMembers` };
+export const saveClassMember: RequestType<SaveClassMemberRequest, SourceEditResponse> = { method: `${_preFix}/saveClassMember` };
+export const deleteClassMember: RequestType<DeleteClassMemberRequest, SourceEditResponse> = { method: `${_preFix}/deleteClassMember` };
+export const updateClassDependency: RequestType<ModifyClassDependencyRequest, SourceEditResponse> = { method: `${_preFix}/updateClassDependency` };
+export const removeClassDependency: RequestType<ModifyClassDependencyRequest, SourceEditResponse> = { method: `${_preFix}/removeClassDependency` };
 export const updateServiceClass: RequestType<ServiceClassSourceRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/updateServiceClass` };
 export const createGraphqlClassType: RequestType<UpdateTypeRequest, UpdateTypeResponse> = { method: `${_preFix}/createGraphqlClassType` };
 export const getRecordConfig: RequestType<GetRecordConfigRequest, GetRecordConfigResponse> = { method: `${_preFix}/getRecordConfig` };
