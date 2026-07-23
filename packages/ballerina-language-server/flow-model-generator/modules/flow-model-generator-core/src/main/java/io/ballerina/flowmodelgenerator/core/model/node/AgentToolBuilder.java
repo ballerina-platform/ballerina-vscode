@@ -148,18 +148,17 @@ public class AgentToolBuilder extends NodeBuilder {
                 .map(property -> property.value().toString())
                 .orElseThrow(() -> new IllegalStateException("Tool name (functionName) is required"));
         Property toolParams = sourceBuilder.getProperty(Property.PARAMETERS_KEY).orElse(null);
-        String connection = data.get(CONNECTION_KEY) != null ? data.get(CONNECTION_KEY).toString() : "";
-        String agentVarName = data.get(AGENT_VAR_NAME_KEY) != null ? data.get(AGENT_VAR_NAME_KEY).toString() : "";
-        String agentReceiver = data.get(AGENT_RECEIVER_KEY) != null
-                ? data.get(AGENT_RECEIVER_KEY).toString() : agentVarName;
+        String connection = dataString(data, CONNECTION_KEY, "");
+        String agentVarName = dataString(data, AGENT_VAR_NAME_KEY, "");
+        String agentReceiver = dataString(data, AGENT_RECEIVER_KEY, agentVarName);
         boolean includeContext = Boolean.parseBoolean(String.valueOf(data.get(INCLUDE_CONTEXT_KEY)));
-        String description = data.get(DESCRIPTION_KEY) != null ? data.get(DESCRIPTION_KEY).toString()
-                : sourceBuilder.getProperty(Property.FUNCTION_NAME_DESCRIPTION_KEY)
-                        .map(property -> property.value().toString()).orElse("");
+        String description = dataString(data, DESCRIPTION_KEY, sourceBuilder
+                .getProperty(Property.FUNCTION_NAME_DESCRIPTION_KEY)
+                .map(property -> property.value().toString()).orElse(""));
         if (kind == ToolKind.AGENT_CALL && description.isBlank()) {
             description = "Delegates a query to the " + agentVarName + " agent.";
         }
-        String hostClassName = data.get(HOST_CLASS_NAME_KEY) != null ? data.get(HOST_CLASS_NAME_KEY).toString() : null;
+        String hostClassName = dataString(data, HOST_CLASS_NAME_KEY, null);
 
         SemanticModel semanticModel = sourceBuilder.workspaceManager.semanticModel(sourceBuilder.filePath)
                 .orElse(null);
@@ -184,6 +183,11 @@ public class AgentToolBuilder extends NodeBuilder {
         Codedata codedata = new Codedata.Builder<>(null).from(node.codedata()).addData(key, value).build();
         return new FlowNode(node.id(), node.metadata(), codedata, node.returning(), node.branches(),
                 node.properties(), node.diagnostics(), node.flags());
+    }
+
+    private static String dataString(Map<String, Object> data, String key, String defaultValue) {
+        Object value = data.get(key);
+        return value == null ? defaultValue : value.toString();
     }
 
     private static void relocateToolIntoClass(Map<Path, List<TextEdit>> textEdits, Path classFile, String className,
@@ -441,14 +445,7 @@ public class AgentToolBuilder extends NodeBuilder {
         REMOTE {
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
-                Optional<Property> optReturnType = ctx.sb.getProperty(Property.TYPE_KEY);
-                if (optReturnType.isEmpty()) {
-                    return new ReturnInfo("", FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode), null);
-                }
-                Property returnProperty = optReturnType.get();
-                String typeName = resolveReturnType(ctx.wrappedNode, returnProperty, ctx.sb);
-                return new ReturnInfo(typeName, FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode),
-                        returnProperty.metadata().description());
+                return resolveActionReturn(ctx, true);
             }
 
             @Override
@@ -459,10 +456,7 @@ public class AgentToolBuilder extends NodeBuilder {
         RESOURCE {
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
-                Optional<Property> optReturnType = ctx.sb.getProperty(Property.TYPE_KEY);
-                String typeName = optReturnType
-                        .map(property -> resolveReturnType(ctx.wrappedNode, property, ctx.sb)).orElse("");
-                return new ReturnInfo(typeName, FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode), null);
+                return resolveActionReturn(ctx, false);
             }
 
             @Override
@@ -528,6 +522,14 @@ public class AgentToolBuilder extends NodeBuilder {
                 default -> throw new IllegalStateException("Unsupported node kind to generate tool");
             };
         }
+    }
+
+    private static ReturnInfo resolveActionReturn(ToolGenContext ctx, boolean includeDescription) {
+        boolean checkError = FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode);
+        return ctx.sb.getProperty(Property.TYPE_KEY)
+                .map(property -> new ReturnInfo(resolveReturnType(ctx.wrappedNode, property, ctx.sb), checkError,
+                        includeDescription ? property.metadata().description() : null))
+                .orElse(new ReturnInfo("", checkError, null));
     }
 
     private static Map<Path, List<TextEdit>> buildFunctionBody(ToolGenContext ctx, ReturnInfo returnInfo) {
@@ -653,15 +655,7 @@ public class AgentToolBuilder extends NodeBuilder {
         String returnType = returnInfo.typeName();
         Set<String> ignoredKeys = new HashSet<>(List.of(Property.VARIABLE_KEY, Property.TYPE_KEY, TARGET_TYPE,
                 Property.CONNECTION_KEY, Property.CHECK_ERROR_KEY));
-        sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
-
-        if (!returnType.isEmpty()) {
-            sourceBuilder.token().expressionWithType(returnType,
-                    flowNode.getProperty(Property.VARIABLE_KEY).orElseThrow()).keyword(SyntaxKind.EQUAL_TOKEN);
-        }
-        if (FlowNodeUtil.hasCheckKeyFlagSet(flowNode)) {
-            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
-        }
+        beginActionBody(sourceBuilder, flowNode, returnType);
         sourceBuilder.token()
                 .name(ctx.connection)
                 .keyword(SyntaxKind.RIGHT_ARROW_TOKEN)
@@ -669,19 +663,7 @@ public class AgentToolBuilder extends NodeBuilder {
                 .stepOut()
                 .functionParameters(flowNode, ignoredKeys);
 
-        if (!returnType.isEmpty()) {
-            sourceBuilder.token()
-                    .keyword(SyntaxKind.RETURN_KEYWORD)
-                    .name(flowNode.getProperty(Property.VARIABLE_KEY).get().value().toString())
-                    .endOfStatement();
-        }
-        sourceBuilder.token()
-                .keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
-        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
-        if (needsModuleImport(flowNode, returnType, paramDecls(params))) {
-            sourceBuilder.acceptImport();
-        }
-        return sourceBuilder.build();
+        return finishActionBody(sourceBuilder, flowNode, returnType, params);
     }
 
     private static Map<Path, List<TextEdit>> buildResourceActionBody(ToolGenContext ctx, List<ToolParam> params,
@@ -713,15 +695,7 @@ public class AgentToolBuilder extends NodeBuilder {
                 }
             }
         }
-        sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
-
-        if (!returnType.isEmpty()) {
-            sourceBuilder.token().expressionWithType(returnType,
-                    flowNode.getProperty(Property.VARIABLE_KEY).orElseThrow()).keyword(SyntaxKind.EQUAL_TOKEN);
-        }
-        if (FlowNodeUtil.hasCheckKeyFlagSet(flowNode)) {
-            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
-        }
+        beginActionBody(sourceBuilder, flowNode, returnType);
 
         String resourcePath = flowNode.properties().get(Property.RESOURCE_PATH_KEY)
                 .codedata().originalName();
@@ -756,14 +730,28 @@ public class AgentToolBuilder extends NodeBuilder {
                 .stepOut()
                 .functionParameters(flowNode, ignoredKeys);
 
+        return finishActionBody(sourceBuilder, flowNode, returnType, params);
+    }
+
+    private static void beginActionBody(SourceBuilder sourceBuilder, FlowNode flowNode, String returnType) {
+        sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
         if (!returnType.isEmpty()) {
-            sourceBuilder.token()
-                    .keyword(SyntaxKind.RETURN_KEYWORD)
-                    .name(flowNode.getProperty(Property.VARIABLE_KEY).get().value().toString())
+            sourceBuilder.token().expressionWithType(returnType,
+                    flowNode.getProperty(Property.VARIABLE_KEY).orElseThrow()).keyword(SyntaxKind.EQUAL_TOKEN);
+        }
+        if (FlowNodeUtil.hasCheckKeyFlagSet(flowNode)) {
+            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+        }
+    }
+
+    private static Map<Path, List<TextEdit>> finishActionBody(SourceBuilder sourceBuilder, FlowNode flowNode,
+                                                                String returnType, List<ToolParam> params) {
+        if (!returnType.isEmpty()) {
+            sourceBuilder.token().keyword(SyntaxKind.RETURN_KEYWORD)
+                    .name(flowNode.getProperty(Property.VARIABLE_KEY).orElseThrow().value().toString())
                     .endOfStatement();
         }
-        sourceBuilder.token()
-                .keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
+        sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
         sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
         if (needsModuleImport(flowNode, returnType, paramDecls(params))) {
             sourceBuilder.acceptImport();
