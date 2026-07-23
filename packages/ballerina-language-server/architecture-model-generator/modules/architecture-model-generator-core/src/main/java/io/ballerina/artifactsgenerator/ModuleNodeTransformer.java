@@ -283,7 +283,6 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {
-            // Ignore — not an agent definition.
         }
         return Optional.empty();
     }
