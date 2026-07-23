@@ -1180,45 +1180,14 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     };
 
     const renderToolIcon = (tool: ToolData) => {
-        if (tool.type === "Agent") {
-            if (tool.path) {
-                return (
-                    <ConnectorIcon
-                        url={tool.path}
-                        style={{ width: 20, height: 20, fontSize: 20 }}
-                        fallbackIcon={<Icon name="bi-ai-agent" sx={{ fontSize: 20 }} />}
-                        codedata={agentNode?.codedata}
-                    />
-                );
-            }
-            return <Icon name="bi-ai-agent" sx={{ fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                iconSx={{ fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            />;
-        }
-        if (tool.type === "MCP Server") {
-            if (tool.path) {
-                return (
-                    <ConnectorIcon
-                        url={tool.path}
-                        style={{ width: 20, height: 20, fontSize: 20 }}
-                        fallbackIcon={<Icon name="bi-mcp" sx={{ fontSize: 20 }} />}
-                        codedata={agentNode?.codedata}
-                    />
-                );
-            }
-            return <Icon name="bi-mcp" sx={{ fontSize: 20 }} />;
-        }
-        if (tool.path) {
-            return (
-                <ConnectorIcon
-                    url={tool.path}
-                    style={{ width: 20, height: 20, fontSize: 20 }}
-                    fallbackIcon={<Icon name="bi-function" sx={{ fontSize: 20 }} />}
-                    codedata={agentNode?.codedata}
-                />
-            );
-        }
-        return <Icon name="bi-function" sx={{ fontSize: 20 }} />;
+        const iconName = tool.type === "Agent" ? "bi-ai-agent" : tool.type === "MCP Server" ? "bi-mcp" : "bi-function";
+        const iconStyle = tool.type === "Agent"
+            ? { fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }
+            : { fontSize: 20 };
+        return tool.path
+            ? <ConnectorIcon url={tool.path} style={{ width: 20, height: 20, fontSize: 20 }}
+                fallbackIcon={<Icon name={iconName} sx={{ fontSize: 20 }} />} codedata={agentNode?.codedata} />
+            : <Icon name={iconName} sx={iconStyle} iconSx={tool.type === "Agent" ? iconStyle : undefined} />;
     };
 
     const role = promptText((agentNode?.properties as any)?.role?.value);
