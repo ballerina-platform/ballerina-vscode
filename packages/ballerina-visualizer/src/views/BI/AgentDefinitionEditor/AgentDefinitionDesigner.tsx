@@ -398,7 +398,7 @@ function extractSettings(agentNode?: FlowNode): { label: string; value: string }
 
 // Prefer the LS-resolved tools (icons + MCP/Agent kinds); otherwise parse the inline `tools = [self.x, ...]` names.
 function extractTools(agentNode: FlowNode): ToolData[] {
-    const lsTools = (agentNode.metadata?.data as NodeMetadata)?.tools;
+    const lsTools = (agentNode.metadata?.data as NodeMetadata)?.agentInfo?.tools;
     if (lsTools && lsTools.length > 0) {
         return lsTools;
     }

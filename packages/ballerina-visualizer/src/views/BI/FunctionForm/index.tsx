@@ -230,34 +230,6 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         }
 
-        // Set properties needed for new agent tools
-        if (isAgentTool) {
-            flowNode.properties.isIsolated = {
-                value: "true",
-                optional: true,
-                metadata: undefined,
-                editable: false,
-                hidden: true,
-            };
-
-            flowNode.properties.annotations = {
-                "metadata": undefined,
-                "value": "@ai:AgentTool\n",
-                "optional": false,
-                "editable": false,
-                "hidden": true
-            };
-
-            if (flowNode.properties?.isPublic) {
-                flowNode.properties.isPublic.hidden = true;
-            }
-
-            flowNode.properties.functionName.value = "";
-            flowNode.properties.functionName.metadata.description = "Name of the agent tool.";
-            flowNode.properties.functionNameDescription.metadata.description = "Description of the agent tool. This will help AI agents understand when to use this tool and how to use it.";
-            flowNode.properties.parameters.metadata.description = "Define the inputs for the agent tool. These are the parameters that AI agents will use when calling this tool.";
-        }
-
         // Workflow creation form: keep it minimal and capture only what the user needs up front
         // (Name, Description, Input Type). Hide Public (shareable workflows are not encouraged yet),
         // Return Type and Return Type Description. The return type defaults to `error?` (set by the
