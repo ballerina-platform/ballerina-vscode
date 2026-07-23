@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { AgentToolHostClass, buildAgentCallToolNode, FlowNode } from "@wso2/ballerina-core";
+import { AgentToolHostClass, ArtifactData, buildAgentCallToolNode, FlowNode } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -33,7 +33,6 @@ const LoaderContainer = styled.div`
     height: 100%;
 `;
 
-// Mirrors the tool-source pill used by the function/connection tool form (AIAgentSidePanel).
 const ImplementationBadge = styled.div`
     display: inline-flex;
     align-items: center;
@@ -67,16 +66,21 @@ const ContextHint = styled.div`
 `;
 
 interface UseAgentToolFormProps {
-    agentNode: FlowNode;
+    agentNode?: FlowNode;
     agentVarName: string;
     agentReceiver?: string;
+    agentLabel?: string;
+    submitText?: string;
+    artifactData?: ArtifactData;
+    onBeforeSave?: () => Promise<void>;
     onSave?: () => void;
-    // When set, the wrapper method is authored inside this agent-definition class + wired into its inner tools=[...].
+    onToolSaved?: (toolName: string) => void;
     hostClass?: AgentToolHostClass;
 }
 
 export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
-    const { agentNode, agentVarName, agentReceiver, onSave, hostClass } = props;
+    const { agentNode, agentVarName, agentReceiver, agentLabel = agentVarName, submitText = "Save Tool", onBeforeSave,
+        onSave, onToolSaved, hostClass, artifactData } = props;
     const { rpcClient } = useRpcContext();
 
     const [agentFilePath, setAgentFilePath] = useState<string>("");
@@ -86,6 +90,11 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const includeContextRef = useRef<boolean>(false);
 
     useEffect(() => {
+        if (hostClass) {
+            setAgentFilePath(hostClass.filePath);
+            setReady(true);
+            return;
+        }
         (async () => {
             const fileName = agentNode?.codedata?.lineRange?.fileName ?? "agents.bal";
             const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] });
@@ -113,7 +122,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             optional: true,
             editable: true,
             documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",
-            value: `Delegates a query to the ${agentVarName} agent.`,
+            value: `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`,
             types: [{ fieldType: "STRING", selected: false }],
             enabled: true,
         },
@@ -125,22 +134,20 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         }
         setSaving(true);
         try {
+            await onBeforeSave?.();
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
             const description = String(data["description"] ?? "")
                 .replace(/```[\s\S]*?```/g, "")
                 .replace(/\n/g, " ")
                 .trim();
-            // AGENT_TOOL node (AgentToolBuilder, AGENT_CALL kind) replaces the genAgentTool RPC: the tool signature +
-            // `<agent>.run(...)` body are generated from the agent variable + context flag in codedata.data.
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: toolFilePath,
                 flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description,
                     hostClass, agentReceiver),
+                artifactData,
             });
-            // For an agent-definition class the builder places the method + wires the inner tools=[...] in one edit;
-            // module-level hosts still need the tools list rewired via the AGENT node re-emit.
-            if (!hostClass) {
+            if (!hostClass && agentNode) {
                 const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
                 if (updatedAgentNode) {
                     const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
@@ -151,6 +158,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                         .getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
                 }
             }
+            onToolSaved?.(toolName);
             onSave?.();
         } catch (error) {
             console.error("Failed to add agent as a tool", error);
@@ -175,15 +183,15 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             fields={fields}
             recordTypeFields={[]}
             onSubmit={handleSubmit}
-            submitText={"Save Tool"}
+            submitText={submitText}
             isSaving={saving}
             helperPaneSide="left"
             injectedComponents={[
                 {
                     component: (
-                        <ImplementationBadge title={agentVarName}>
+                        <ImplementationBadge title={agentLabel}>
                             <Icon name="bi-ai-agent" sx={{ width: 14, height: 14, fontSize: 14 }} />
-                            {agentVarName}
+                            {agentLabel}
                         </ImplementationBadge>
                     ),
                     index: 0,

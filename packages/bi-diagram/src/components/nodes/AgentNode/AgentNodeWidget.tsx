@@ -37,9 +37,8 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
+import NodeIcon, { ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
@@ -47,7 +46,9 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -249,13 +250,13 @@ export namespace NodeStyles {
         width: 100%;
         min-height: 0;
         overflow: hidden;
-        padding: 4px 4px 12px;
+        padding: 4px 0 12px;
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
         z-index: 2;
     `;
 
     export const AgentDescription = styled(Instructions)`
-        padding: 0;
+        padding: 0 4px;
     `;
 
     export const Divider = styled.div`
@@ -427,6 +428,7 @@ interface AgentNodeWidgetProps {
     model: AgentNodeModel;
     engine: DiagramEngine;
     onClick?: (node: FlowNode) => void;
+    variant?: "agent" | "agentType";
 }
 
 type AgentNodePresentation = {
@@ -436,8 +438,8 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
-function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
-    const isTypeDefinition = model.getType() === NodeTypes.AGENT_TYPE_NODE;
+function getAgentNodePresentation(variant: "agent" | "agentType", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
+    const isTypeDefinition = variant === "agentType";
     return {
         isTypeDefinition,
         showMemory: !isTypeDefinition || Boolean(agentInfo?.memory?.propertyKey),
@@ -447,43 +449,27 @@ function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadat
 }
 
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
-    const { model, engine, onClick } = props;
+    const { model, engine, onClick, variant = model.getType() === NodeTypes.AGENT_TYPE_NODE ? "agentType" : "agent" } = props;
+    const controller = useAgentNodeController(model);
     const {
-        onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId,
+        onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
         entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
-    } = useDiagramContext();
-    const traceAnimation = useTraceAnimation();
+    } = controller.context;
+    const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
+        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
+        boxSyncPulseAnimation, handleThemeChange } = controller;
 
-    const isSelected = selectedNodeId === model.node.id;
-
-    const [isBoxHovered, setIsBoxHovered] = useState(false);
     const [canViewDefinition, setCanViewDefinition] = useState(false);
-    const [agentIdHovered, setAgentIdHovered] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [toolAnchorEl, setToolAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
     const [memoryMenuAnchorEl, setMemoryMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
-    const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
     const [memoryMenuButtonElement, setMemoryMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(anchorEl);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
-    const [aiColor, setAiColor] = useState<string>(() => getAIColor());
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
-    const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
-    const syncPulseAnimation = getSyncPulseAnimation(cyanColor);
-    const boxSyncPulseAnimation = getBoxSyncPulseAnimation(cyanColor);
-
-    useEffect(() => {
-        if (model.node.suggested) {
-            model.setAroundLinksDisabled(model.node.suggested === true);
-        }
-    }, [model.node.suggested]);
-
     // Only show the definition affordance when its class can be resolved in this workspace.
     useEffect(() => {
         let active = true;
-        if (model.getType() !== NodeTypes.AGENT_TYPE_NODE || !getAgentDefinitionLocation || !model.node.codedata?.object) {
+        if (variant !== "agentType" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
             setCanViewDefinition(false);
             return () => { active = false; };
         }
@@ -491,7 +477,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             .then((location) => active && setCanViewDefinition(Boolean(location)))
             .catch(() => active && setCanViewDefinition(false));
         return () => { active = false; };
-    }, [getAgentDefinitionLocation, model, model.node.codedata?.object]);
+    }, [getAgentDefinitionLocation, model, model.node.codedata?.object, variant]);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
@@ -645,12 +631,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         setMemoryMenuAnchorEl(null);
     };
 
-    const handleThemeChange = () => {
-        const dark = isDarkTheme();
-        setIsDarkMode(dark);
-        setAiColor(getAIColor());
-    };
-
     const onChatWithAgent = () => {
         agentNode?.onChatWithAgent?.(model.node);
         setAnchorEl(null);
@@ -658,7 +638,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     const nodeMetadata = model?.node.metadata.data as NodeMetadata;
     const agentInfo = nodeMetadata?.agentInfo;
-    const presentation = getAgentNodePresentation(model, agentInfo);
+    const presentation = getAgentNodePresentation(variant, agentInfo);
     const { isTypeDefinition, showMemory, showModelCircle, toolsReadOnly } = presentation;
     const hasBreakpoint = !isTypeDefinition && model.hasBreakpoint();
     const isActiveBreakpoint = !isTypeDefinition && model.isActiveBreakpoint();
@@ -773,13 +753,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     const isAgentNodeActive = isModelActive || isAnyToolActive;
 
-    let containerHeight =
-        NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2;
-    if (tools.length > 0) {
-        containerHeight += tools.length * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    }
+    let containerHeight = getAgentNodeContainerHeight(model.node,
+        isTypeDefinition ? NodeTypes.AGENT_TYPE_NODE : NodeTypes.AGENT_NODE);
     if (isTypeDefinition) {
-        containerHeight = model.node.viewState?.ch || NODE_HEIGHT;
+        containerHeight = model.node.viewState?.ch || containerHeight;
     }
 
     return (

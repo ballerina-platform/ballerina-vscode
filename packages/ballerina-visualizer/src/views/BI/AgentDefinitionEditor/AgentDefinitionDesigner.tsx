@@ -16,12 +16,11 @@
  * under the License.
  */
 
-import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, ServiceClassSourceRequest, buildAgentToolNode, buildAgentCallToolNode, Property, DIRECTORY_MAP, LineRange, AvailableNode, AgentToolHostClass } from "@wso2/ballerina-core";
+import { Type, ServiceClassModel, ModelFromCodeRequest, FieldType, FunctionModel, NodePosition, removeStatement, EVENT_TYPE, FlowNode, NodeMetadata, ToolData, PropertyModel, ServiceClassSourceRequest, buildAgentToolNode, Property, DIRECTORY_MAP, LineRange, AvailableNode, AgentToolHostClass } from "@wso2/ballerina-core";
 import { Codicon, Typography, ProgressRing, ThemeColors, View, Icon, Overlay, LinkButton } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import styled from "@emotion/styled";
 import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { LoadingContainer } from "../../styles";
@@ -44,10 +43,10 @@ import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { FUNCTION_CALL } from "../../../constants";
 import { AgentToolForm } from "../AIChatAgent/AgentToolForm";
+import { UseAgentToolForm } from "../AIChatAgent/UseAgentToolForm";
 import ConnectionConfigView from "../Connection/ConnectionConfigView";
 import { cloneDeep, debounce } from "lodash";
 
-// The + Tool menu is a small panel flow: the AddTool chooser → a source-specific sub-panel.
 type ToolPanel = "NONE" | "MENU" | "CUSTOM" | "CONNECTION" | "FUNCTION" | "MCP";
 
 const ServiceContainer = styled.div`
@@ -147,42 +146,6 @@ const RowActions = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
-`;
-
-const AgentInputEmptyDescription = styled.div`
-    font-size: 13px;
-    line-height: 1.45;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-`;
-
-const AgentPill = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    align-self: flex-start;
-    max-width: 100%;
-    padding: 6px 10px;
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-foreground);
-    font-size: 12px;
-    overflow: hidden;
-`;
-
-const AgentPillText = styled.span`
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const AgentToolPopupFormContent = styled.div`
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 16px 20px 0;
 `;
 
 const IconButton = styled.div`
@@ -539,9 +502,7 @@ interface AgentDefinitionAgentToolFormProps {
 function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps): JSX.Element {
     const { filePath, reservedNames, projectPath, classLineRange, hostClass, onSave, onCancel } = props;
     const { rpcClient } = useRpcContext();
-    const [saving, setSaving] = useState<boolean>(false);
     const [dependencyDraft, setDependencyDraft] = useState<AgentDependencyDraft>();
-    const [includeContext, setIncludeContext] = useState<boolean>(false);
 
     const selectDependencyDraft = (draft: AgentDependencyDraft) => {
         setDependencyDraft(draft);
@@ -554,128 +515,41 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
         setDependencyDraft(undefined);
     };
 
-    const selectedSummary = (
-        <AgentPill title={currentAgentClassName}>
-            <Icon name="bi-ai-agent" sx={{ width: 14, height: 14, fontSize: 14 }} />
-            <AgentPillText>{currentAgentClassName}</AgentPillText>
-        </AgentPill>
-    );
-    const descriptionAgentName = currentAgentClassName === "Agent" ? "the generic agent" : currentAgentClassName;
-
-    const fields: FormField[] = [
-        {
-            key: "name",
-            label: "Tool Name",
-            type: "IDENTIFIER",
-            optional: false,
-            editable: true,
-            documentation: "Enter a unique name for the tool.",
-            value: `${currentAgentName}Tool`,
-            types: [{ fieldType: "IDENTIFIER", scope: "Global", selected: false }],
-            enabled: true,
-        },
-        {
-            key: "description",
-            label: "Description",
-            type: "TEXTAREA",
-            optional: true,
-            editable: true,
-            documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",
-            value: `Delegates a query to ${descriptionAgentName}.`,
-            types: [{ fieldType: "STRING", selected: false }],
-            enabled: true,
-        },
-    ];
-
-    const handleSubmit = async (data: FormValues) => {
-        if (saving) {
-            return;
-        }
-        setSaving(true);
-        try {
-            const inputName = dependencyDraft?.name ?? currentAgentName;
-            if (dependencyDraft) {
+    const toolForm = currentAgentName ? (
+        <UseAgentToolForm
+            key={`${currentAgentName}-${dependencyDraft?.typeValue ?? "existing"}`}
+            agentVarName={currentAgentName}
+            agentReceiver={`self.${currentAgentName}`}
+            agentLabel={currentAgentClassName}
+            hostClass={hostClass}
+            submitText="Add Tool"
+            artifactData={{ artifactType: DIRECTORY_MAP.AGENT_DEFINITION }}
+            onBeforeSave={async () => {
+                if (!dependencyDraft) return;
                 await rpcClient.getBIDiagramRpcClient().addClassInitParameter({
                     filePath,
-                    field: buildAgentDependencyField(dependencyDraft, inputName, classLineRange),
+                    field: buildAgentDependencyField(dependencyDraft, currentAgentName, classLineRange),
                     codedata: { lineRange: classLineRange },
                 });
                 await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            }
-            const toolName = String(data.name ?? "").trim() || `${inputName}Tool`;
-            const description = String(data.description ?? "")
-                .replace(/```[\s\S]*?```/g, "")
-                .replace(/\n/g, " ")
-                .trim();
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath,
-                flowNode: buildAgentCallToolNode(toolName, inputName, includeContext, description, hostClass,
-                    `self.${inputName}`),
-                artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION },
-            });
-            onSave({ name: toolName, type: "Agent" });
-        } catch (error) {
-            console.error(">>> agent definition: error creating agent tool", error);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const toolForm = currentAgentName ? (
-        <AgentToolPopupFormContent>
-            <ArtifactForm
-                key={`${currentAgentName}-${dependencyDraft?.typeValue ?? "existing"}`}
-                preserveFieldOrder={false}
-                fileName={filePath}
-                targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
-                fields={fields}
-                recordTypeFields={[]}
-                onSubmit={handleSubmit}
-                submitText={saving ? "Adding..." : "Add Tool"}
-                isSaving={saving}
-                helperPaneSide="left"
-                footerActionButton
-                injectedComponents={[
-                    { component: selectedSummary, index: 0 },
-                    {
-                        component: (
-                            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 4 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={includeContext}
-                                    onChange={(e) => setIncludeContext(e.target.checked)}
-                                />
-                                <div>
-                                    Pass context to {currentAgentName}
-                                    <AgentInputEmptyDescription>
-                                        Forwards the calling agent's context to {currentAgentName} when the tool runs.
-                                    </AgentInputEmptyDescription>
-                                </div>
-                            </label>
-                        ),
-                        index: fields.length + 1,
-                    },
-                ]}
-            />
-        </AgentToolPopupFormContent>
+            }}
+            onToolSaved={(toolName) => onSave({ name: toolName, type: "Agent" })}
+        />
     ) : undefined;
 
-    return createPortal(
-        <AddAgentPopup
-            isPopup
-            dependencyMode
-            projectPath={projectPath}
-            onClose={onCancel}
-            onNavigateToOverview={onCancel}
-            onGenericAgentSelected={() => selectDependencyDraft(genericAgentDependencyDraft(reservedNames))}
-            onAgentSelectedForDependency={(agent) => {
-                selectDependencyDraft(agentDependencyDraftFromNode(agent, reservedNames, projectPath));
-            }}
-            dependencyToolForm={toolForm}
-            onDependencyToolFormBack={handlePickerBack}
-        />,
-        document.body
-    );
+    return <AddAgentPopup
+        isPopup
+        dependencyMode
+        projectPath={projectPath}
+        onClose={onCancel}
+        onNavigateToOverview={onCancel}
+        onGenericAgentSelected={() => selectDependencyDraft(genericAgentDependencyDraft(reservedNames))}
+        onAgentSelectedForDependency={(agent) => {
+            selectDependencyDraft(agentDependencyDraftFromNode(agent, reservedNames, projectPath));
+        }}
+        dependencyToolForm={toolForm}
+        onDependencyToolFormBack={handlePickerBack}
+    />;
 }
 
 interface AgentDefinitionDesignerProps {

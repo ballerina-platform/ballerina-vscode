@@ -16,7 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
@@ -40,13 +40,13 @@ import {
     NODE_PADDING,
     NODE_TEXT_COLOR,
     NODE_WIDTH,
+    NodeTypes,
 } from "../../../resources/constants";
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
+import NodeIcon, { ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
@@ -54,7 +54,9 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -433,7 +435,7 @@ const AgentRow = styled.div<{ clickable: boolean }>`
     }
 
     &:hover {
-        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "rgba(0, 0, 0, 0.18)" : "transparent")};
+        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "var(--list-hover-background)" : "transparent")};
     }
 
     &:hover [data-agent-name] {
@@ -480,30 +482,14 @@ export interface NodeWidgetProps extends Omit<AgentCallNodeWidgetProps, "childre
 
 export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, goToSource, goToAgent, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId, entrypointContext } = useDiagramContext();
-    const traceAnimation = useTraceAnimation();
+    const controller = useAgentNodeController(model);
+    const { onNodeSelect, goToSource, goToAgent, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
+        entrypointContext } = controller.context;
+    const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
+        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
+        boxSyncPulseAnimation, hasBreakpoint, isActiveBreakpoint, handleThemeChange } = controller;
 
-    const isSelected = selectedNodeId === model.node.id;
-
-    const [isBoxHovered, setIsBoxHovered] = useState(false);
     const [toolMenuPos, setToolMenuPos] = useState<{ top: number; left: number } | null>(null);
-    const [agentIdHovered, setAgentIdHovered] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
-    const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(anchorEl);
-    const hasBreakpoint = model.hasBreakpoint();
-    const isActiveBreakpoint = model.isActiveBreakpoint();
-    const [aiColor, setAiColor] = useState<string>(() => getAIColor());
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
-    const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
-    const syncPulseAnimation = getSyncPulseAnimation(cyanColor);
-    const boxSyncPulseAnimation = getBoxSyncPulseAnimation(cyanColor);
-
-    useEffect(() => {
-        if (model.node.suggested) {
-            model.setAroundLinksDisabled(model.node.suggested === true);
-        }
-    }, [model.node.suggested]);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
@@ -568,12 +554,6 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const onRemoveBreakpoint = () => {
         removeBreakpoint && removeBreakpoint(model.node);
         setAnchorEl(null);
-    };
-
-    const handleThemeChange = () => {
-        const dark = isDarkTheme();
-        setIsDarkMode(dark);
-        setAiColor(getAIColor());
     };
 
     const onChatWithAgent = () => {
@@ -663,10 +643,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     // Agent box pulses when either model or any tool is actively executing
     const isAgentNodeActive = isModelActive || isAnyToolActive;
 
-    let containerHeight = NODE_HEIGHT + AGENT_CALL_TOOL_SECTION_GAP + AGENT_NODE_TOOL_GAP * 2 + AGENT_CALL_AGENT_ROW_HEIGHT;
-    if (tools.length > 0) {
-        containerHeight += tools.length * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    }
+    const containerHeight = getAgentNodeContainerHeight(model.node, NodeTypes.AGENT_CALL_NODE);
 
     return (
         <NodeStyles.Node data-testid="agent-call-node" readOnly={readOnly}>

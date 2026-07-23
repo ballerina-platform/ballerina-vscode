@@ -20,7 +20,7 @@ import React from "react";
 import { AbstractReactFactory, GenerateModelEvent, GenerateWidgetEvent } from "@projectstorm/react-canvas-core";
 import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
-import { AgentNodeWidget } from "./AgentNodeWidget";
+import { AgentWidget } from "../AgentWidget";
 import { NodeTypes } from "../../../resources/constants";
 
 export class AgentNodeFactory extends AbstractReactFactory<AgentNodeModel, DiagramEngine> {
@@ -33,6 +33,6 @@ export class AgentNodeFactory extends AbstractReactFactory<AgentNodeModel, Diagr
     }
 
     generateReactWidget(event: GenerateWidgetEvent<AgentNodeModel>) {
-        return <AgentNodeWidget engine={this.engine} model={event.model} />;
+        return <AgentWidget engine={this.engine} model={event.model} />;
     }
 }

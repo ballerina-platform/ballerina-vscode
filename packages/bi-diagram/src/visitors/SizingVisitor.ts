@@ -16,13 +16,9 @@
  * under the License.
  */
 
-import { BaseVisitor, NodeMetadata } from "@wso2/ballerina-core";
+import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
-    AGENT_CALL_TOOL_SECTION_GAP,
-    AGENT_NODE_ADD_TOOL_BUTTON_WIDTH,
-    AGENT_NODE_TOOL_GAP,
-    AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
     END_NODE_WIDTH,
     IF_NODE_WIDTH,
@@ -42,7 +38,9 @@ import {
     WAIT_DATA_DETAILS_GAP,
     WAIT_DATA_DETAILS_WIDTH,
     WHILE_NODE_WIDTH,
+    NodeTypes,
 } from "../resources/constants";
+import { getAgentNodeContainerHeight } from "../components/nodes/AgentWidget/agentNodeLayout";
 import { reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
 
@@ -299,13 +297,7 @@ export class SizingVisitor implements BaseVisitor {
         const halfNodeWidth = NODE_WIDTH / 2;
         const containerLeftWidth = halfNodeWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-        const nodeMetadata = node.metadata.data as NodeMetadata;
-        const tools = nodeMetadata?.agentInfo?.tools || [];
-        const numberOfCircles = tools.length || 0;
-        let containerHeight = NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2;
-        if (numberOfCircles > 0) {
-            containerHeight += numberOfCircles * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-        }
+        const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_NODE);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
@@ -316,14 +308,7 @@ export class SizingVisitor implements BaseVisitor {
         const containerLeftWidth = halfNodeWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
 
-        // Calculate node height based on node type
-        const nodeMetadata = node.metadata.data as NodeMetadata;
-        const tools = nodeMetadata?.agentInfo?.tools || [];
-        const numberOfCircles = tools.length || 0;
-        let containerHeight = NODE_HEIGHT + AGENT_CALL_TOOL_SECTION_GAP + AGENT_NODE_TOOL_GAP * 2 + 38;
-        if (numberOfCircles > 0) {
-            containerHeight += numberOfCircles * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-        }
+        const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_CALL_NODE);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
@@ -336,16 +321,7 @@ export class SizingVisitor implements BaseVisitor {
         const halfNodeWidth = NODE_WIDTH / 2;
         const containerLeftWidth = halfNodeWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
-        const nodeMetadata = node.metadata.data as NodeMetadata;
-        const agentInfo = nodeMetadata?.agentInfo;
-        const memoryHeight = agentInfo?.memory?.propertyKey ? 52 : 0;
-        const hasPrompt = Boolean(agentInfo?.systemPrompt?.role && agentInfo?.systemPrompt?.instructions);
-        const descriptionHeight = hasPrompt ? 115 : agentInfo?.description ? 95 : 0;
-        const boxHeight = NODE_HEIGHT + memoryHeight + descriptionHeight;
-        const toolCount = (agentInfo?.tools || []).length;
-        const baseHeight = NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP;
-        const toolsHeight = toolCount * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-        const containerHeight = Math.max(boxHeight, baseHeight + toolsHeight);
+        const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_TYPE_NODE);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
