@@ -308,7 +308,7 @@ public class ModelGenerator {
         return gson.toJsonTree(diagram);
     }
 
-    public JsonElement getClassOwnedNodes(LineRange classLineRange) {
+    public JsonElement getClassMembers(LineRange classLineRange) {
         Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
         SyntaxTree syntaxTree = document.syntaxTree();
         ModuleInfo moduleInfo = ModuleInfo.from(document.module().descriptor());

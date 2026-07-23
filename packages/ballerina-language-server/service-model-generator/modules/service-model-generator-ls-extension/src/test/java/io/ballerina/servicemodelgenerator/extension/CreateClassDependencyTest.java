@@ -23,7 +23,7 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Field;
-import io.ballerina.servicemodelgenerator.extension.model.request.AddInitParameterRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -39,12 +39,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tests for the constructor-injected input source generator (addClassInitParameter), covering the field type's
+ * Tests for the constructor-injected dependency source generator (createClassDependency), covering the field type's
  * import handling: insertion, reuse of an existing import, and a collision-free alias.
  *
  * @since 1.0.0
  */
-public class AddInitParameterTest extends AbstractLSTest {
+public class CreateClassDependencyTest extends AbstractLSTest {
 
     private static final Type TEXT_EDIT_LIST_TYPE = new TypeToken<Map<String, List<TextEdit>>>() {
     }.getType();
@@ -57,9 +57,9 @@ public class AddInitParameterTest extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(bufferedReader, TestConfig.class);
         bufferedReader.close();
 
-        AddInitParameterRequest request = new AddInitParameterRequest(
+        CreateClassDependencyRequest request = new CreateClassDependencyRequest(
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(),
-                testConfig.field(), testConfig.codedata());
+                testConfig.field(), testConfig.codedata().getLineRange());
         JsonObject jsonMap = getResponse(request).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
@@ -103,7 +103,7 @@ public class AddInitParameterTest extends AbstractLSTest {
 
     @Override
     protected Class<? extends AbstractLSTest> clazz() {
-        return AddInitParameterTest.class;
+        return CreateClassDependencyTest.class;
     }
 
     @Override
@@ -113,7 +113,7 @@ public class AddInitParameterTest extends AbstractLSTest {
 
     @Override
     protected String getApiName() {
-        return "addClassInitParameter";
+        return "createClassDependency";
     }
 
     /**

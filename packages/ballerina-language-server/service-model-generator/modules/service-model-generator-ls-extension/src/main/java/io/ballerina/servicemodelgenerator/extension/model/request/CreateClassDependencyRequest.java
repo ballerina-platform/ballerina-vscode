@@ -19,13 +19,15 @@
 package io.ballerina.servicemodelgenerator.extension.model.request;
 
 import io.ballerina.servicemodelgenerator.extension.model.Field;
+import io.ballerina.tools.text.LineRange;
 
 /**
- * Request to update or remove a constructor-injected input. The {@code field} carries the existing field's
- * {@code codedata.lineRange} (used to locate the input); for updates its name/type/default hold the new values.
+ * Request to create a constructor-injected class dependency: a new {@code init} parameter, a field, and the
+ * {@code self.<name> = <name>} assignment wiring them together.
  *
- * @param filePath file path of the class
- * @param field    the input field to modify (locates by its line range; new values for updates)
+ * @param filePath The path of the file containing the class.
+ * @param field    The input to add (name + type + optional default value).
+ * @param classLineRange The range locating the target class definition.
  */
-public record ClassInitParameterModifierRequest(String filePath, Field field) {
+public record CreateClassDependencyRequest(String filePath, Field field, LineRange classLineRange) {
 }

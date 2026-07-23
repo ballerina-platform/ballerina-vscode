@@ -58,9 +58,9 @@ import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerProperty;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.request.AddFieldRequest;
-import io.ballerina.servicemodelgenerator.extension.model.request.AddInitParameterRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.CreateClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
-import io.ballerina.servicemodelgenerator.extension.model.request.ClassInitParameterModifierRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ModifyClassDependencyRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.CommonModelFromSourceRequest;
 import io.ballerina.servicemodelgenerator.extension.model.request.FunctionModelRequest;
@@ -1013,7 +1013,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     @JsonRequest
-    public CompletableFuture<CommonSourceResponse> addClassInitParameter(AddInitParameterRequest request) {
+    public CompletableFuture<CommonSourceResponse> createClassDependency(CreateClassDependencyRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
@@ -1025,7 +1025,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 SyntaxTree syntaxTree = document.get().syntaxTree();
                 ModulePartNode modulePartNode = syntaxTree.rootNode();
                 TextDocument textDocument = syntaxTree.textDocument();
-                LineRange lineRange = request.codedata().getLineRange();
+                LineRange lineRange = request.classLineRange();
                 int start = textDocument.textPositionFrom(lineRange.startLine());
                 int end = textDocument.textPositionFrom(lineRange.endLine());
                 NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, end - start), true);
@@ -1042,7 +1042,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     @JsonRequest
-    public CompletableFuture<CommonSourceResponse> updateClassInitParameter(ClassInitParameterModifierRequest request) {
+    public CompletableFuture<CommonSourceResponse> updateClassDependency(ModifyClassDependencyRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
@@ -1064,7 +1064,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
     }
 
     @JsonRequest
-    public CompletableFuture<CommonSourceResponse> removeClassInitParameter(ClassInitParameterModifierRequest request) {
+    public CompletableFuture<CommonSourceResponse> removeClassDependency(ModifyClassDependencyRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
