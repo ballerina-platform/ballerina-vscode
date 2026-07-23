@@ -212,14 +212,6 @@ public class AgentSearchCommand extends SearchCommand {
     }
 
 
-    /**
-     * Fetches packages from Ballerina Central with the "Type/Agent" keyword. Results without a search query are
-     * cached in-memory so the initial popup view does not hit the network repeatedly.
-     *
-     * @param searchQuery optional search query to filter results
-     * @param org         optional organization to scope the central search to
-     * @return list of AvailableNode representing the packages
-     */
     private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, String org) {
         boolean cacheable = (searchQuery == null || searchQuery.isEmpty()) && org == null;
         if (cachedCentralAgents != null && cacheable) {
@@ -290,12 +282,6 @@ public class AgentSearchCommand extends SearchCommand {
         return rootBuilder.build().items();
     }
 
-    /**
-     * Collects agent classes defined across all projects in the current workspace. Returns empty when the project is
-     * not part of a multi-project workspace.
-     *
-     * @return list of AvailableNode representing workspace agent classes
-     */
     private List<AvailableNode> getWorkspaceAgents() {
         BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
         Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
