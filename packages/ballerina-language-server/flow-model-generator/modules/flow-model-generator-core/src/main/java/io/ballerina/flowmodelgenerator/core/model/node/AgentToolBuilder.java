@@ -359,7 +359,6 @@ public class AgentToolBuilder extends NodeBuilder {
         }
     }
 
-    // TODO: The agent tool annotation form is currently in the extension side, need to move to LS
     private static void emitAnnotation(ToolGenContext ctx) {
         Map<String, Object> data = ctx.data != null && ctx.data.containsKey("auth")
                 ? ctx.data
@@ -427,11 +426,6 @@ public class AgentToolBuilder extends NodeBuilder {
     private enum ToolKind {
         CUSTOM {
             @Override
-            List<ToolParam> resolveParams(ToolGenContext ctx) {
-                return wrappedToolParams(ctx.toolParams);
-            }
-
-            @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
                 String typeName = ctx.sb.getProperty(Property.TYPE_KEY)
                         .map(property -> property.value().toString()).orElse("");
@@ -454,11 +448,6 @@ public class AgentToolBuilder extends NodeBuilder {
         },
         FUNCTION {
             @Override
-            List<ToolParam> resolveParams(ToolGenContext ctx) {
-                return wrappedToolParams(ctx.toolParams);
-            }
-
-            @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
                 Optional<Property> returnType = ctx.sb.getProperty(Property.TYPE_KEY);
                 String typeName = returnType
@@ -468,21 +457,11 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            boolean hasDisplay() {
-                return true;
-            }
-
-            @Override
             Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
                 return buildFunctionBody(ctx, returnInfo);
             }
         },
         REMOTE {
-            @Override
-            List<ToolParam> resolveParams(ToolGenContext ctx) {
-                return wrappedToolParams(ctx.toolParams);
-            }
-
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
                 Optional<Property> optReturnType = ctx.sb.getProperty(Property.TYPE_KEY);
@@ -496,32 +475,17 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            boolean hasDisplay() {
-                return true;
-            }
-
-            @Override
             Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
                 return buildRemoteActionBody(ctx, params, returnInfo);
             }
         },
         RESOURCE {
             @Override
-            List<ToolParam> resolveParams(ToolGenContext ctx) {
-                return wrappedToolParams(ctx.toolParams);
-            }
-
-            @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
                 Optional<Property> optReturnType = ctx.sb.getProperty(Property.TYPE_KEY);
                 String typeName = optReturnType
                         .map(property -> resolveReturnType(ctx.wrappedNode, property, ctx.sb)).orElse("");
                 return new ReturnInfo(typeName, FlowNodeUtil.hasCheckKeyFlagSet(ctx.wrappedNode), null);
-            }
-
-            @Override
-            boolean hasDisplay() {
-                return true;
             }
 
             @Override
@@ -560,11 +524,15 @@ public class AgentToolBuilder extends NodeBuilder {
             }
         };
 
-        abstract List<ToolParam> resolveParams(ToolGenContext ctx);
+        List<ToolParam> resolveParams(ToolGenContext ctx) {
+            return wrappedToolParams(ctx.toolParams);
+        }
 
         abstract ReturnInfo resolveReturn(ToolGenContext ctx);
 
-        abstract boolean hasDisplay();
+        boolean hasDisplay() {
+            return true;
+        }
 
         abstract Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo);
 
