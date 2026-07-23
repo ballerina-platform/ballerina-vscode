@@ -18,9 +18,9 @@ package io.ballerina.flowmodelgenerator.extension.agentsmanager;
 
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeDeleteRequest;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeRequest;
-import io.ballerina.flowmodelgenerator.extension.request.ClassOwnedNodeSourceRequest;
+import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
+import io.ballerina.flowmodelgenerator.extension.request.DeleteClassMemberRequest;
+import io.ballerina.flowmodelgenerator.extension.request.SaveClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelAvailableNodesRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FlowModelGeneratorRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
@@ -44,11 +44,11 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     public void testClassOwnedConnectionUsesExistingInput() throws IOException {
         String source = "agent_definition_connection/agents.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
-        ClassOwnedNodeSourceRequest request = new ClassOwnedNodeSourceRequest(
+        SaveClassMemberRequest request = new SaveClassMemberRequest(
                 sourcePath.toString(), connectionNode(),
-                LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(15, 1)), null);
+                LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(15, 1)));
 
-        JsonObject response = getResponse(request, "flowDesignService/upsertClassOwnedNode");
+        JsonObject response = getResponse(request, "flowDesignService/saveClassMember");
         Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDITS_TYPE);
         String generated = edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
                 .reduce("", (left, right) -> left + "\n" + right);
@@ -99,14 +99,14 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     }
 
     @Test
-    public void testGetClassOwnedNodesReturnsMcpToolKit() throws IOException {
+    public void testListClassMembersReturnsMcpToolKit() throws IOException {
         String source = "agent_definition_connection/agents_with_mcp_tools.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
-        ClassOwnedNodeRequest request = new ClassOwnedNodeRequest(
+        ClassMemberRequest request = new ClassMemberRequest(
                 sourcePath.toString(),
                 LineRange.from("agents.bal", LinePosition.from(2, 0), LinePosition.from(29, 1)));
 
-        JsonObject response = getResponse(request, "flowDesignService/getClassOwnedNodes");
+        JsonObject response = getResponse(request, "flowDesignService/listClassMembers");
         String variables = response.getAsJsonObject("flowModel").getAsJsonArray("variables").toString();
 
         Assert.assertTrue(variables.contains("\"node\":\"MCP_TOOL_KIT\""), variables);
@@ -117,14 +117,14 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     }
 
     @Test
-    public void testGetClassOwnedNodesReturnsConnections() throws IOException {
+    public void testListClassMembersReturnsConnections() throws IOException {
         String source = "agent_definition_connection_available_nodes/agents.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
-        ClassOwnedNodeRequest request = new ClassOwnedNodeRequest(
+        ClassMemberRequest request = new ClassMemberRequest(
                 sourcePath.toString(),
                 LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(12, 1)));
 
-        JsonObject response = getResponse(request, "flowDesignService/getClassOwnedNodes");
+        JsonObject response = getResponse(request, "flowDesignService/listClassMembers");
         String variables = response.getAsJsonObject("flowModel").getAsJsonArray("variables").toString();
 
         Assert.assertTrue(variables.contains("\"node\":\"NEW_CONNECTION\""), variables);
@@ -135,12 +135,11 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     public void testGenericClassOwnedMcpToolKitUsesExistingInput() throws IOException {
         String source = "agent_definition_connection/agents.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
-        ClassOwnedNodeSourceRequest request = new ClassOwnedNodeSourceRequest(
+        SaveClassMemberRequest request = new SaveClassMemberRequest(
                 sourcePath.toString(), mcpToolKitNode(),
-                LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(15, 1)),
-                new ClassOwnedNodeSourceRequest.ClassOwnedNodeWiring("INNER_AGENT_TOOLS"));
+                LineRange.from("agents.bal", LinePosition.from(3, 0), LinePosition.from(15, 1)));
 
-        JsonObject response = getResponse(request, "flowDesignService/upsertClassOwnedNode");
+        JsonObject response = getResponse(request, "flowDesignService/saveClassMember");
         Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDITS_TYPE);
         String generated = edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
                 .reduce("", (left, right) -> left + "\n" + right);
@@ -158,13 +157,11 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
     public void testGenericRemoveClassOwnedMcpToolKitCleansWiring() throws IOException {
         String source = "agent_definition_connection/agents_with_mcp_tools.bal";
         Path sourcePath = sourceDir.resolve(source).toAbsolutePath();
-        ClassOwnedNodeDeleteRequest request = new ClassOwnedNodeDeleteRequest(
+        DeleteClassMemberRequest request = new DeleteClassMemberRequest(
                 sourcePath.toString(), "weatherMcp",
-                LineRange.from("agents.bal", LinePosition.from(2, 0), LinePosition.from(29, 1)),
-                new ClassOwnedNodeSourceRequest.ClassOwnedNodeWiring("INNER_AGENT_TOOLS"),
-                new ClassOwnedNodeDeleteRequest.ClassOwnedNodeCleanup(true));
+                LineRange.from("agents.bal", LinePosition.from(2, 0), LinePosition.from(29, 1)));
 
-        JsonObject response = getResponse(request, "flowDesignService/removeClassOwnedNode");
+        JsonObject response = getResponse(request, "flowDesignService/deleteClassMember");
         Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDITS_TYPE);
         String generated = edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
                 .reduce("", (left, right) -> left + "\n" + right);
@@ -192,7 +189,7 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
 
     @Override
     protected String getApiName() {
-        return "upsertClassOwnedNode";
+        return "saveClassMember";
     }
 
     private JsonObject connectionNode() {
