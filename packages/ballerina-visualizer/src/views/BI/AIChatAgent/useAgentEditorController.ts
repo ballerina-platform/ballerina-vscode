@@ -189,7 +189,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 view: MACHINE_VIEW.AIAgentToolForm,
             } : {
                 documentUri: resolved.documentUri,
+                identifier: tool.name,
                 position: toolPosition,
+                view: MACHINE_VIEW.BIDiagram,
             },
         });
     }, [resolveToolFunction, rpcClient]);

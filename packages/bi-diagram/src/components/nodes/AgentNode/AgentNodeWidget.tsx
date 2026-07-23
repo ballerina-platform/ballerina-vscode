@@ -34,7 +34,7 @@ import {
     NODE_WIDTH,
     NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
@@ -245,6 +245,7 @@ export namespace NodeStyles {
         display: flex;
         flex: 1;
         flex-direction: column;
+        gap: 8px;
         width: 100%;
         min-height: 0;
         overflow: hidden;
@@ -509,9 +510,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         setAnchorEl(null);
     };
 
-    const handleViewDefinitionClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-        event.stopPropagation();
+    const onViewDefinition = () => {
         goToAgentDefinition?.(model.node);
+        setAnchorEl(null);
     };
 
     const onModelEditClick = () => {
@@ -673,6 +674,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             label: "Edit",
             onClick: () => onNodeClick(),
         },
+        ...(isTypeDefinition && canViewDefinition ? [{
+            id: "viewDefinition",
+            label: "View Agent Definition",
+            onClick: () => onViewDefinition(),
+        }] : []),
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
         ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
@@ -859,13 +865,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             </NodeStyles.Header>
                             <NodeStyles.ActionButtonGroup>
                                 {hasError && <DiagnosticsPopUp node={model.node} />}
-                                {isTypeDefinition && canViewDefinition && (
-                                    <Tooltip content="View agent definition">
-                                        <NodeStyles.MenuButton appearance="icon" onClick={handleViewDefinitionClick}>
-                                            <Icon name="bi-function-flow" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
-                                        </NodeStyles.MenuButton>
-                                    </Tooltip>
-                                )}
                                 <NodeStyles.MenuButton
                                     ref={setMenuButtonElement}
                                     buttonSx={readOnly ? { cursor: "not-allowed" } : {}}

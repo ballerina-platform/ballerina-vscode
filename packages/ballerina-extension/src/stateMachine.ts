@@ -425,6 +425,7 @@ const stateMachine = createMachine<MachineContext>(
                                         position: (context, event) => event.viewLocation.position,
                                         identifier: (context, event) => event.viewLocation.identifier,
                                         artifactType: (context, event) => event.viewLocation.artifactType,
+                                        focusFlowDiagramView: (context, event) => event.viewLocation.focusFlowDiagramView,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         org: (context, event) => event.viewLocation?.org || context?.org,
