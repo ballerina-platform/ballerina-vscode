@@ -324,6 +324,15 @@ function outputTypeOf(returnType?: string): string {
     return arm ?? returnType.trim();
 }
 
+function toNodePosition(lineRange: LineRange): NodePosition {
+    return {
+        startLine: lineRange.startLine.line,
+        startColumn: lineRange.startLine.offset,
+        endLine: lineRange.endLine.line,
+        endColumn: lineRange.endLine.offset,
+    };
+}
+
 function promptText(raw?: string): string {
     if (!raw) return "";
     let s = raw.trim();
@@ -750,11 +759,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         if (!updatedNode) return;
         setIsSaving(true);
         try {
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: classFilePath,
-                flowNode: updatedNode,
-                artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION }
-            });
+            await saveAgentNode(updatedNode);
         } catch (error) {
             console.error(">>> agent definition: error saving agent form", error);
         } finally {
@@ -762,6 +767,14 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             setPanelOpen(false);
         }
     };
+
+    function saveAgentNode(flowNode: FlowNode) {
+        return rpcClient.getBIDiagramRpcClient().getSourceCode({
+            filePath: classFilePath,
+            flowNode,
+            artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION },
+        });
+    }
 
     const configFields: FormField[] = React.useMemo(() => {
         if (!agentClassModel) return [];
@@ -989,18 +1002,12 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setEditingMcpNode(undefined);
     };
 
-    const handleToolSaved = (toolName?: string) => {
-        handleCloseToolPanel();
-        setAgentToolPopupOpen(false);
-        markToolPending(toolName);
-        void refreshAfterToolWrite(toolName);
-    };
-
-    const handleAgentToolSaved = (tool: ToolData) => {
+    const completeToolSave = (tool?: string | ToolData) => {
+        const toolName = typeof tool === "string" ? tool : tool?.name;
         handleCloseToolPanel();
         setAgentToolPopupOpen(false);
         markToolPending(tool);
-        void refreshAfterToolWrite(tool.name);
+        void refreshAfterToolWrite(toolName);
     };
 
     const finishMultiEditRefresh = (toolName?: string) => {
@@ -1053,11 +1060,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
 
             const toolNode = buildAgentToolNode(flowNode, data.toolName, data.description, connection,
                 data.toolParameters, { className: agentClassModel.name, filePath: classFilePath });
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: classFilePath,
-                flowNode: toolNode,
-                artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION }
-            });
+            await saveAgentNode(toolNode);
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             toolCreated = true;
         } catch (error) {
@@ -1088,22 +1091,12 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             }
             const func = agentClassModel?.functions?.find((f) => f.name.value === tool.name);
             if (func?.codedata?.lineRange) {
-                const pos: NodePosition = {
-                    startLine: func.codedata.lineRange.startLine.line,
-                    startColumn: func.codedata.lineRange.startLine.offset,
-                    endLine: func.codedata.lineRange.endLine.line,
-                    endColumn: func.codedata.lineRange.endLine.offset
-                };
-                await applyModifications(rpcClient, [removeStatement(pos)], classFilePath);
+                await applyModifications(rpcClient, [removeStatement(toNodePosition(func.codedata.lineRange))], classFilePath);
             }
             if (agentNode) {
                 const updated = await removeToolFromAgentNode(agentNode, `self.${tool.name}`);
                 if (updated) {
-                    await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                        filePath: classFilePath,
-                        flowNode: updated,
-                        artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION }
-                    });
+                    await saveAgentNode(updated);
                 }
             }
         } catch (error) {
@@ -1174,14 +1167,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const openFunctionFlow = async (func: FunctionModel) => {
         const lineRange = func?.codedata?.lineRange;
         if (!lineRange) return;
-        const nodePosition: NodePosition = {
-            startLine: lineRange.startLine.line, startColumn: lineRange.startLine.offset,
-            endLine: lineRange.endLine.line, endColumn: lineRange.endLine.offset
-        };
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: {
-                position: nodePosition,
+                position: toNodePosition(lineRange),
                 documentUri: fileName,
                 type: type,
                 identifier: func.name.value,
@@ -1587,7 +1576,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                             startLine: { line: position.startLine, offset: position.startColumn },
                                             endLine: { line: position.endLine, offset: position.endColumn }
                                         }}
-                                        onSave={handleToolSaved}
+                                        onSave={completeToolSave}
                                         onBack={() => setToolPanel("MENU")}
                                     />
                                 )}
@@ -1630,7 +1619,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                         editMode={Boolean(editingMcpNode)}
                                         name={editingMcpNode?.properties?.variable?.value as string}
                                         existingNode={editingMcpNode}
-                                        onSave={handleToolSaved}
+                                        onSave={completeToolSave}
                                         onBack={() => editingMcpNode ? handleCloseToolPanel() : setToolPanel("MENU")}
                                     />
                                 )}
@@ -1675,7 +1664,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         projectPath={projectPath}
                         classLineRange={agentClassModel.codedata.lineRange}
                         hostClass={{ className: agentClassModel.name, filePath: classFilePath }}
-                        onSave={handleAgentToolSaved}
+                        onSave={completeToolSave}
                         onCancel={() => setAgentToolPopupOpen(false)}
                     />
                 )}
