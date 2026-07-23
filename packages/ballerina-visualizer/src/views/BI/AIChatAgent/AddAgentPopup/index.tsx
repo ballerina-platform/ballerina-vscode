@@ -98,7 +98,6 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     } = props;
     const [view, setView] = useState<AddAgentView>("gallery");
     const [transitionDirection, setTransitionDirection] = useState<"forward" | "backward">("forward");
-    // Held in the parent so it survives the AgentModalStep remount (key={view}) on view change.
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
     const isDependencyToolForm = Boolean(dependencyToolForm);
     const isForm = isDependencyToolForm || view === "configure" || view === "create" || view === "createDefinition";

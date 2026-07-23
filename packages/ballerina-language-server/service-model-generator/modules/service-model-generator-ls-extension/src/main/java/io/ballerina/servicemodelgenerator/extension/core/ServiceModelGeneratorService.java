@@ -928,12 +928,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         });
     }
 
-    /**
-     * Add a constructor-injected input to a class: a field, an {@code init} parameter, and the wiring assignment.
-     *
-     * @param request Add init-parameter request
-     * @return {@link CommonSourceResponse} of the common source response
-     */
     @JsonRequest
     public CompletableFuture<CommonSourceResponse> addClassInitParameter(AddInitParameterRequest request) {
         return CompletableFuture.supplyAsync(() -> {
@@ -963,12 +957,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         });
     }
 
-    /**
-     * Update a constructor-injected input in place (field declaration + {@code init} parameter + assignment).
-     *
-     * @param request Class init-parameter modifier request
-     * @return {@link CommonSourceResponse} of the common source response
-     */
     @JsonRequest
     public CompletableFuture<CommonSourceResponse> updateClassInitParameter(ClassInitParameterModifierRequest request) {
         return CompletableFuture.supplyAsync(() -> {
@@ -991,12 +979,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         });
     }
 
-    /**
-     * Remove a constructor-injected input (field declaration + {@code init} parameter + assignment).
-     *
-     * @param request Class init-parameter modifier request
-     * @return {@link CommonSourceResponse} of the common source response
-     */
     @JsonRequest
     public CompletableFuture<CommonSourceResponse> removeClassInitParameter(ClassInitParameterModifierRequest request) {
         return CompletableFuture.supplyAsync(() -> {

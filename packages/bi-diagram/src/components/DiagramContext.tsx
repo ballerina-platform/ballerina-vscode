@@ -93,7 +93,6 @@ export interface DiagramContextState {
     goToSource: (node: FlowNode) => void;
     openView: (location: VisualizerLocation) => void;
     goToAgent?: (node: FlowNode) => void;
-    // Open the agent definition designer for the class an AGENT_TYPE instance was created from.
     goToAgentDefinition?: (node: FlowNode) => void;
     getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: {

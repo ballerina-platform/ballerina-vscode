@@ -37,7 +37,6 @@ const NODE_ICON_MAP: Record<string, string> = {
 // Modules that always use node-type icons, skipping the icon URL fallback
 const GENERIC_ICON_MODULES = new Set(["ai.devant", "ai"]);
 
-// The non-URL icon for a node: its node-type glyph (bot for agents), else the default LLM glyph.
 function getFallbackIcon(codedata: CodeData): React.ReactElement {
     const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
     const nodeIcon = codedata.node && NODE_ICON_MAP[codedata.node];
@@ -45,8 +44,6 @@ function getFallbackIcon(codedata: CodeData): React.ReactElement {
     return <DefaultLlmIcon size={ICON_SIZE} />;
 }
 
-// Renders the Central icon URL, falling back to the node's glyph when the image is missing/404s (e.g. an
-// unpublished agent whose package icon doesn't resolve).
 const UrlIcon: React.FC<{ url: string; fallback: React.ReactElement }> = ({ url, fallback }) => {
     const [errored, setErrored] = useState(false);
     if (errored) {
@@ -71,8 +68,6 @@ export function getConnectionIcon(codedata: CodeData, iconUrl?: string): React.R
         }
     }
 
-    // Icon URL from metadata (fetched from Central) — skip for modules that prefer generic icons. Falls back to the
-    // node glyph if the image fails to load.
     if (iconUrl && !(codedata.module && GENERIC_ICON_MODULES.has(codedata.module))) {
         return <UrlIcon url={iconUrl} fallback={getFallbackIcon(codedata)} />;
     }

@@ -33,12 +33,10 @@ export const flowDashAnimation = keyframes`
     to { stroke-dashoffset: -12; }
 `;
 
-// sanitize a string for use as an SVG/HTML id attribute
 export function sanitizeId(name: string): string {
     return name.replace(/[^A-Za-z0-9_-]/g, "_");
 }
 
-// strip a single pair of wrapping quotes, or a `string \`...\`` template wrapper, from role/instructions
 export function stripWrappingQuotes(str: string): string {
     if (str.startsWith('string `') && str.endsWith('`')) {
         return str.slice('string `'.length, -1);

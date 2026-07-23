@@ -466,7 +466,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const [memoryMenuButtonElement, setMemoryMenuButtonElement] = useState<HTMLElement | null>(null);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
-    // Only show the definition affordance when its class can be resolved in this workspace.
     useEffect(() => {
         let active = true;
         if (variant !== "agentType" || !getAgentDefinitionLocation || !model.node.codedata?.object) {

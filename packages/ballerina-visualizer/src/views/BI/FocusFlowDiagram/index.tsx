@@ -90,8 +90,6 @@ export interface BIFocusFlowDiagramProps {
     projectPath: string;
     filePath: string;
     view?: FocusFlowDiagramView;
-    /** When rendering embedded (e.g. in a drawer), provide the position so the component
-     *  doesn't need to fetch it from the VS Code extension state. */
     position?: NodePosition;
     embedded?: boolean;
     onUpdate: () => void;

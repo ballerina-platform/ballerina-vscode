@@ -136,13 +136,11 @@ export function FunctionForm(props: FunctionFormProps) {
     useEffect(() => {
         let fields = functionNode ? convertConfig(functionNode.properties) : [];
 
-        // TODO: Remove this once the hidden flag is implemented
         if (isAutomation || functionName === "main") {
             formType.current = "Automation";
             fields = fields.filter(field => field.key !== "functionName" && field.key !== "type");
         }
 
-        // update description fields as "TEXTAREA"
         fields.forEach((field) => {
             const primaryInputType = getPrimaryInputType(field.types);
             if (field.key === "functionNameDescription" || field.key === "typeDescription") {

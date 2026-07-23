@@ -312,7 +312,6 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                 setIsLibraryOrgLocked(isLocked);
             }
         }).catch(() => {
-            // The organization field remains editable when the default cannot be resolved.
         });
         return () => {
             cancelled = true;
@@ -378,7 +377,6 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
             }
             onCreated?.();
         } catch {
-            // The extension shows the creation error as a notification.
         } finally {
             setCreating(false);
         }

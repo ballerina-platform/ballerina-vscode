@@ -25,19 +25,13 @@ import { getEndOfFileLineRange, getNodeTemplate } from "../utils";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { LoaderWrapper } from "./styles";
 
-// Agent declarations are written to the project's dedicated agents file (same as other agent declarations).
 const AGENT_FILE_NAME = "agents.bal";
 
 interface CreateAgentFormProps {
-    // The specific agent type to instantiate (LS-stamped node kind + type coordinates from the requesting field).
     agentCodeData: CodeData;
-    // Receives the created agent variable name so the caller can select it in the originating field.
     onCreated: (variableName: string) => void;
 }
 
-// Lean agent-instantiation form, rendered in a sub-modal from an agent-typed field's "Create New <Agent>". Uses the
-// same AGENT / AGENT_TYPE configure template the Add Agent popup click-to-init uses, so nested model/memory params
-// render their own selects.
 export default function CreateAgentForm({ agentCodeData, onCreated }: CreateAgentFormProps) {
     const { rpcClient } = useRpcContext();
     const [template, setTemplate] = useState<FlowNode>();
@@ -79,13 +73,11 @@ export default function CreateAgentForm({ agentCodeData, onCreated }: CreateAgen
         setSubmitting(true);
         try {
             const node = cloneDeep(updatedNode);
-            // Re-resolve end-of-file: creating a nested connection/memory (if the user did) shifts the file.
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             node.codedata.lineRange = endOfFile as any;
             const response = await rpcClient
                 .getBIDiagramRpcClient()
                 .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
-            // Prefer the user-entered variable name; fall back to the newly created artifact.
             const createdName =
                 (node.properties?.variable?.value as string) ||
                 response?.artifacts?.find((artifact) => artifact.isNew)?.name;

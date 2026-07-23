@@ -392,7 +392,6 @@ export enum SidePanelView {
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
 }
 
-// Agent-definition mode: connection tools inject a constructor-supplied client Input instead of a module-level connection.
 export interface ConnectionDependencyConfig {
     className: string;
     filePath: string;
@@ -493,7 +492,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [showOAuthConfig, setShowOAuthConfig] = useState<boolean>(false);
 
-    // Dependency mode analyzes at the inner-agent line so the class's client params show as connections.
     const targetRef = useRef<LineRange>(
         dependencyMode && agentNode?.codedata?.lineRange
             ? { startLine: agentNode.codedata.lineRange.startLine, endLine: agentNode.codedata.lineRange.endLine }
@@ -510,7 +508,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const [dependencyConnector, setDependencyConnector] = useState<AvailableNode>();
     const [connectionModalDirection, setConnectionModalDirection] = useState<"forward" | "backward">("forward");
     const [shouldAnimateConnectionStep, setShouldAnimateConnectionStep] = useState<boolean>(false);
-    // Keeps just-added Inputs visible until the parent's inputNames prop catches up.
     const addedDepNamesRef = useRef<string[]>([]);
     const addedAgentConnectionNamesRef = useRef<string[]>([]);
     const pendingDependencyRefreshRef = useRef<boolean>(false);
@@ -622,7 +619,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         );
                     }
                 });
-                // Agent-definition mode: keep only client fields declared by the class; drop leaked module connections.
                 if (dependencyMode) {
                     const connectionNames = new Set([
                         ...connectionDependency.connectionFieldNames,
@@ -676,9 +672,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         if (!dependencyMode || !agentNode?.codedata?.lineRange) {
             return;
         }
-        // Only reassign when the range value actually changed — an unrelated content update (e.g. opening
-        // the record editor) churns agentNode's identity but not its position, and a fresh targetRef object
-        // would re-fire ConnectionConfigurationForm's fetch effect (keyed on target identity) and reset the form.
         const newRange = agentNode.codedata.lineRange;
         const cur = targetRef.current;
         const sameRange = cur
@@ -986,7 +979,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     };
 
     const handleAddDependency = () => {
-        // Opening the modal is not a navigation transition. Reserve the slide for moving between its steps.
         setShouldAnimateConnectionStep(false);
         setSidePanelView(SidePanelView.CONNECTION_METHOD);
     };
@@ -1002,7 +994,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         setDepConnectorLoading(true);
         navigateConnectionModal(SidePanelView.DEPENDENCY_FORM);
         try {
-            // Pull/load the connector package so its client type and operations are available to the LS.
             await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: targetRef.current.startLine,
                 filePath: agentFilePath.current,
@@ -1339,9 +1330,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         sx={{
                             background: ThemeColors.SURFACE_CONTAINER,
                             opacity: 0.5,
-                            // The side panel uses z-index 2000. Overlay's `sx` is
-                            // interpolated last, so this reliably overrides the
-                            // shared PopupOverlay's default stacking level.
                             zIndex: 2050,
                         }}
                     />

@@ -682,8 +682,6 @@ export class CommonRpcManager implements CommonRPCAPI {
             }
             await fs.promises.writeFile(ballerinaTomlPath, updatedToml, 'utf-8');
         } catch (error) {
-            // Publishing remains available when the manifest cannot be safely updated. In
-            // particular, never remove a keyword after an incomplete or invalid TOML read.
             console.warn('Failed to synchronize the Type/Agent package keyword:', error);
         }
     }

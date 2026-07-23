@@ -1245,7 +1245,6 @@ public class AiUtils {
     public record AgentToolData(String name, String path, String description, String type) {
     }
     private static final String CONNECTION_DATA_KEY = "connection";
-    // Frontend reads the agent codedata at `property.codedata.data.agent` (an agent-typed init param select).
     private static final String AGENT_PARAM_DATA_KEY = "agent";
     private static final String AGENT_DESCRIPTION_KEY = "description";
     static final String AGENT_SYSTEM_PROMPT_KEY = "systemPrompt";
@@ -1286,7 +1285,6 @@ public class AiUtils {
                                               Function<ExpressionNode, Object> memoryDataResolver) {
         markClientConnectionParams(nodeBuilder, classSymbol);
 
-        // Render init params typed as an agent (ai:Agent / a custom agent class) as an agent select.
         markAgentParams(nodeBuilder, classSymbol);
 
         AgentInfo info = resolveAgentInfo(classSymbol, project);
@@ -1359,7 +1357,6 @@ public class AiUtils {
     private record SystemPromptData(String role, String instructions) {
     }
 
-    // Annotation first; falls back to inspecting the class only when it is workspace-owned source.
     private static AgentInfo resolveAgentInfo(ClassSymbol classSymbol, Project project) {
         Optional<AgentInfo> fromAnnotation = readAgentMetadata(classSymbol);
         if (fromAnnotation.isPresent()) {
@@ -1508,13 +1505,11 @@ public class AiUtils {
                         .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
     }
 
-    // The @display iconPath of a tool method (empty when absent). Used to render class-method tool icons.
     public static String getToolDisplayIcon(MethodSymbol method) {
         String icon = readDisplayAnnotation(method).icon();
         return icon == null ? "" : icon;
     }
 
-    // The label + iconPath of a method's @display annotation (each null when absent).
     private static DisplayInfo readDisplayAnnotation(MethodSymbol method) {
         for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
             if (annot.typeDescriptor() != null && annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
@@ -1529,7 +1524,6 @@ public class AiUtils {
     private record DisplayInfo(String label, String icon) {
     }
 
-    // Whether the symbol is a variable/field whose type is an MCP toolkit (declared or generated).
     public static boolean isMcpToolKitSymbol(Symbol symbol) {
         TypeSymbol typeSymbol;
         if (symbol instanceof VariableSymbol variableSymbol) {
@@ -1558,9 +1552,6 @@ public class AiUtils {
                 && CommonUtils.isAiMcpBaseToolKit(classSymbol);
     }
 
-    // Reads the agent metadata the ai compiler plugin records under the `agentMetadata` field of the class's @display
-    // annotation into an AgentInfo (semantic API, so it resolves cross-repo for Central agents). Empty when there is
-    // no @display annotation carrying an `agentMetadata` field (e.g. a class with no plugin-recorded metadata).
     private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
         for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
             if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT) || annot.attachmentValue().isEmpty()
@@ -1695,11 +1686,6 @@ public class AiUtils {
         agentInfo.put(dependencyMetadataKey, Map.of(PRESENTATION_KEY, presentation));
     }
 
-    /**
-     * Template-path variant: resolves the agent class by name (workspace-aware) from the node codedata, then marks
-     * its client-connection init params. Used by {@code AgentTypeBuilder} where no analyzed {@link ClassSymbol} is
-     * available yet (the declaration doesn't exist during create/configure).
-     */
     public static void markClientConnectionParams(NodeBuilder nodeBuilder, Codedata codedata, Project project) {
         if (codedata == null || codedata.object() == null) {
             return;
@@ -1794,9 +1780,6 @@ public class AiUtils {
         );
     }
 
-    // Stamp agent-typed init params (built-in ai:Agent or a custom *ai:FixedReturnAgentType /
-    // *ai:InferredReturnAgentType class) with the agent's codedata so the frontend renders an agent select filtered
-    // to that type. Template path — resolves the class from the node codedata.
     public static void markAgentParams(NodeBuilder nodeBuilder, Codedata codedata, Project project) {
         if (codedata == null || codedata.object() == null) {
             return;
@@ -1804,7 +1787,6 @@ public class AiUtils {
         resolveClass(codedata, project).ifPresent(classSymbol -> markAgentParams(nodeBuilder, classSymbol));
     }
 
-    // Analysis path — the class symbol is already resolved.
     private static void markAgentParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol) {
         Optional<MethodSymbol> initMethodOpt = classSymbol.initMethod();
         if (initMethodOpt.isEmpty()) {
@@ -1833,7 +1815,6 @@ public class AiUtils {
         }
     }
 
-    // The agent ClassSymbol for a type: built-in ai:Agent, or a class including a fixed/inferred return agent arm.
     private static Optional<ClassSymbol> getAgentClass(TypeSymbol typeSymbol) {
         TypeSymbol raw = typeSymbol instanceof TypeReferenceTypeSymbol typeRef ? typeRef.typeDescriptor() : typeSymbol;
         if (raw instanceof ClassSymbol classSymbol
@@ -1845,8 +1826,6 @@ public class AiUtils {
         return Optional.empty();
     }
 
-    // The agent's Codedata stashed under the param codedata's `data.agent`. node = AGENT for the built-in ai:Agent,
-    // AGENT_TYPE for a custom agent class — the frontend uses it as the searchNodes kind and the create-new template.
     private static PropertyCodedata buildAgentParamCodedata(ClassSymbol agentClass, PropertyCodedata existing) {
         Optional<ModuleSymbol> module = agentClass.getModule();
         Optional<String> className = agentClass.getName();
@@ -1874,7 +1853,6 @@ public class AiUtils {
         return builder.addData(AGENT_PARAM_DATA_KEY, agent).build();
     }
 
-    // Finds the class named codedata.object in the project (or a workspace sibling matching codedata's org/package).
     private static Optional<ClassSymbol> resolveClass(Codedata codedata, Project project) {
         String className = codedata.object();
         for (Project candidate : getProjectsForModule(codedata.org(), codedata.packageName(), project)) {

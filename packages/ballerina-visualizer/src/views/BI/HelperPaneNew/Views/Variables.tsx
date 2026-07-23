@@ -176,7 +176,6 @@ export const Variables = (props: VariablesPageProps) => {
     const dropdownItems = useMemo(() => {
         const excludedDescriptions = ["Configurable", "Parameter", "Listener", "Client"];
 
-        // Class fields (self.*) belong here — including connection clients — but not the inner agent field.
         const isClassField = (completion: CompletionItem) =>
             completion.label.startsWith("self.") && completion.label !== "self.agent";
 
@@ -190,7 +189,6 @@ export const Variables = (props: VariablesPageProps) => {
             if (isClassField(completion)) {
                 return true;
             }
-            // Non-self items: keep local variables, drop params/configurables/listeners/module clients.
             return !excludedDescriptions.some(desc =>
                 completion.labelDetails?.description?.includes(desc)
             );

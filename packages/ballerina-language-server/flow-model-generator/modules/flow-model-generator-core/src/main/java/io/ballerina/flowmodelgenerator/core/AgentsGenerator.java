@@ -379,14 +379,8 @@ public class AgentsGenerator {
         });
     }
 
-    /**
-     * Generates an empty custom agent class definition (a class including {@code *ai:FixedReturnAgentType}) from a
-     * name + description, written to {@code <name>.bal} in the project root. The role/instructions/tools start empty;
-     * they are authored afterwards from the agent-definition focus diagram.
-     */
     public JsonElement genAgentDefinition(String name, String description, Path filePath,
                                           WorkspaceManager workspaceManager) {
-        // AGENT + isNew routes the SourceBuilder to (create if needed and) write at the end of agents.bal.
         Codedata codedata = new Codedata.Builder<>(null).node(NodeKind.AGENT).isNew().build();
         FlowNode flowNode = new FlowNode(null, null, codedata, false, null, null, null, 0);
         SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
@@ -434,7 +428,6 @@ public class AgentsGenerator {
         return buildClassDoc(description) + body;
     }
 
-    // A class doc-comment from the (possibly multi-line) description; each line prefixed with "# ".
     private static String buildClassDoc(String description) {
         String text = (description == null || description.isBlank()) ? "An AI agent." : description.strip();
         StringBuilder sb = new StringBuilder();

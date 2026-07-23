@@ -208,7 +208,6 @@ public class AgentToolSearchCommand extends SearchCommand {
         if (!functionSymbol.qualifiers().contains(Qualifier.ISOLATED)) {
             return false;
         }
-        // Check if function has the @ai:AgentTool annotation and a valid tool signature
         return CommonUtils.isAgentToolFunction(functionSymbol) && isValidAgentToolSignature(functionSymbol);
     }
 

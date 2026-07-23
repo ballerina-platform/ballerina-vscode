@@ -639,21 +639,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         }
 
         if (isAgentFocus) {
-            // Chat button temporarily hidden. Keep the functionality (handleAgentFocusChat) intact.
-            // return (
-            //     <ActionButton
-            //         appearance="secondary"
-            //         onClick={handleAgentFocusChat}
-            //         tooltip="Generate a chat service for this agent"
-            //     >
-            //         <Icon
-            //             name="comment-discussion"
-            //             isCodicon={true}
-            //             sx={{ marginRight: 5, width: 16, height: 16, fontSize: 14 }}
-            //         />
-            //         Chat
-            //     </ActionButton>
-            // );
             return null;
         }
 

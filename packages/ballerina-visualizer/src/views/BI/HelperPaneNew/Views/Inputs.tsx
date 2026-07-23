@@ -147,8 +147,6 @@ export const Inputs = (props: InputsPageProps) => {
     }, [targetLineRange, breadCrumbSteps, completionContext])
 
     const dropdownItems = useMemo(() => {
-        // At root, show only function/init parameters — the values supplied when the agent is created.
-        // Class fields (self.*) live under Variables.
         if (isAtRoot()) {
             return filteredCompletions.filter(isParameterCompletion);
         }

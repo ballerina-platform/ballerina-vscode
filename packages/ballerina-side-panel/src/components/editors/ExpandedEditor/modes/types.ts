@@ -88,7 +88,6 @@ export interface EditorModeExpressionProps extends EditorModeProps {
     formDiagnostics?: DiagnosticMessage[];
     /** Input mode */
     inputMode?: InputMode;
-    /** Render the editor read-only */
     readOnly?: boolean;
 }
 

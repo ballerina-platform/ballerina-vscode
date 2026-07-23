@@ -103,8 +103,6 @@ export const getFunctionParametersList = (params: Parameter[], model: FunctionMo
 
 function convertParameterToFormField(key: string, param: ParameterModel): FormField {
     const resolvedKey = key === "defaultValue" ? "defaultable" : key === "name" ? "variable" : key;
-    // Render the parameter description as a plain doc field; the LS models it as `TEXT`, which the
-    // form would otherwise treat as an expression and wrap the value in quotes.
     const isDocumentation = resolvedKey === "documentation";
     return {
         key: resolvedKey,

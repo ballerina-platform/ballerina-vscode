@@ -110,8 +110,6 @@ export function useCreateConnection(
 
     return (kind: string, onCreated: (variableName: string) => void, connectorCodeData?: CodeData) => {
         if (connectorCodeData?.node === "AGENT" || connectorCodeData?.node === "AGENT_TYPE") {
-            // Instantiate the required agent type in a centered sub-modal, mirroring Create Memory. onCreated sets
-            // the field value in place; nested model/memory selects stack as further sub-modals.
             const modalId = "create-agent";
             const handleAgentCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);

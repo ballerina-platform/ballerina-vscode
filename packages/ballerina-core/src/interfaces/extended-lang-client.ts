@@ -1437,7 +1437,6 @@ export interface AddFieldRequest {
     };
 }
 
-// Constructor-injected input: a field wired from a new `init` parameter (self.<name> = <name>).
 export interface AddInitParameterRequest {
     filePath: string;
     field: FieldType;
@@ -1446,7 +1445,6 @@ export interface AddInitParameterRequest {
     };
 }
 
-// Configured connector stored as a class field and initialized inside the agent definition's init method.
 export interface ClassOwnedNodeWiring {
     kind: "INNER_AGENT_TOOLS";
 }
@@ -1979,11 +1977,6 @@ export interface GenAgentDefinitionRequest {
     description: string;
 }
 
-/**
- * Creates a library package in the current Ballerina workspace and adds an
- * agent definition to it. This is handled by the extension because package
- * creation and definition generation must complete as one operation.
- */
 export interface CreateLibraryAgentDefinitionRequest extends Omit<GenAgentDefinitionRequest, "filePath"> {
     sourceProjectPath: string;
     libraryName: string;

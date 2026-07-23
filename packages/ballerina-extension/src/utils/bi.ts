@@ -403,7 +403,6 @@ export async function createBIProjectPure(projectRequest: ProjectRequest, option
 
     const EMPTY = "\n";
 
-    // Silent writes avoid a per-file didOpen, which each re-resolves the whole workspace.
     const writeSkeletonFile = options?.silentFiles ? writeBallerinaFileSilent : writeBallerinaFileDidOpen;
 
     // Get the Ballerina distribution version
@@ -530,7 +529,6 @@ export async function addProjectToExistingWorkspace(params: AddProjectToWorkspac
     return projectPath;
 }
 
-// One reload to discover the newly registered package (skeleton files were written silently).
 function notifyWorkspaceTomlChanged(workspacePath: string) {
     const ballerinaTomlPath = path.join(workspacePath, 'Ballerina.toml');
     if (!fs.existsSync(ballerinaTomlPath)) {

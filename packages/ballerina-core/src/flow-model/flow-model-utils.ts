@@ -95,10 +95,6 @@ export function traverseNode(node: FlowNode, visitor: BaseVisitor, parent?: Flow
     }
 }
 
-/**
- * When set, the generated `@ai:AgentTool` method is written *inside* the given agent-definition class (and wired
- * into its inner `tools = [...]`) instead of at module level. `filePath` is the class file (absolute).
- */
 export interface AgentToolHostClass {
     className: string;
     filePath: string;

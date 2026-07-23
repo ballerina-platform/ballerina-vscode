@@ -162,9 +162,6 @@ const IconButton = styled.div`
     }
 `;
 
-// --- Configuration (role/instructions + settings) card ---
-// Styled like AgentInfoCard (bordered, rounded, SURFACE_DIM) so it reads as a static read-only
-// panel, distinct from the clickable grey tool/input rows.
 const ConfigCard = styled.div<{ clickable?: boolean }>`
     position: relative;
     display: flex;
@@ -201,7 +198,6 @@ const PromptLabel = styled.span`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-// Renders role/instructions markdown (same treatment as AgentNodeWidget), clamped so long prompts don't dominate.
 const MarkdownContent = styled.div<{ clamp: number }>`
     font-size: 13px;
     line-height: 1.5;
@@ -270,7 +266,6 @@ const ResponseTypeValue = styled(StatValue)`
     font-family: var(--vscode-editor-font-family);
 `;
 
-// --- Advanced disclosure (collapsible card, styled like ConfigCard) ---
 const AdvancedCard = styled.div`
     display: flex;
     flex-direction: column;
@@ -302,14 +297,12 @@ const AdvancedBody = styled.div`
     padding: 12px 15px 14px;
 `;
 
-// Constructor entry, styled like the Service Class Designer's Constructor row.
 const InfoSection = styled.div`
     display: flex;
     align-items: center;
     padding: 0 0 12px;
 `;
 
-// The inner `ai:Agent` field is implementation detail — hide it from the Inputs list.
 function isInnerAgentField(field: FieldType): boolean {
     const typeValue = (field.type?.value ?? "").replace(/\s/g, "");
     return /(^|:)Agent$/.test(typeValue);
@@ -331,7 +324,6 @@ function outputTypeOf(returnType?: string): string {
     return arm ?? returnType.trim();
 }
 
-// Strip a Ballerina string literal down to its rendered text: `string \`...\``, backticks, or quotes.
 function promptText(raw?: string): string {
     if (!raw) return "";
     let s = raw.trim();
@@ -342,7 +334,6 @@ function promptText(raw?: string): string {
     return s;
 }
 
-// Secondary agent settings shown as a read-only stat row (rendered only when present on the node).
 const SETTING_KEYS: { key: string; label: string; format?: (v: string) => string }[] = [
     { key: "maxIter", label: "Max Iterations" },
     { key: "verbose", label: "Verbose", format: (v) => (v === "true" ? "On" : v === "false" ? "Off" : v) },
@@ -359,13 +350,11 @@ function extractSettings(agentNode?: FlowNode): { label: string; value: string }
     }).filter((s): s is { label: string; value: string } => s !== null);
 }
 
-// Prefer the LS-resolved tools (icons + MCP/Agent kinds); otherwise parse the inline `tools = [self.x, ...]` names.
 function extractTools(agentNode: FlowNode): ToolData[] {
     const lsTools = (agentNode.metadata?.data as NodeMetadata)?.agentInfo?.tools;
     if (lsTools && lsTools.length > 0) {
         return lsTools;
     }
-    // Tool elements are `self.<name>` field refs; strip the receiver so the name matches the class method.
     const stripReceiver = (raw: string): string => (raw.startsWith("self.") ? raw.slice("self.".length) : raw);
     const toolsValue = (agentNode.properties as any)?.tools?.value;
     if (typeof toolsValue === "string") {
@@ -567,7 +556,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const [agentTools, setAgentTools] = useState<ToolData[]>([]);
     const [panelKind, setPanelKind] = useState<"config" | "agent" | "tool" | "variable" | "connection" | "outputType" | null>(null);
     const [panelOpen, setPanelOpen] = useState<boolean>(false);
-    // Bumped on each open so the panel remounts and replays the slide-in; kept stable through close for the slide-out.
     const [panelSeq, setPanelSeq] = useState<number>(0);
     const [editingVariable, setEditingVariable] = useState<FieldType>(undefined);
     const [isNew, setIsNew] = useState<boolean>(false);
@@ -578,25 +566,15 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const [toolPanelBack, setToolPanelBack] = useState<(() => void) | null>(null);
     const [agentToolPopupOpen, setAgentToolPopupOpen] = useState<boolean>(false);
     const [editingMcpNode, setEditingMcpNode] = useState<FlowNode>();
-    // Class-owned connections (`self.<field> = check new (...)`) — read-listed, editable in place.
     const [connections, setConnections] = useState<FlowNode[]>([]);
     const [editingConnection, setEditingConnection] = useState<FlowNode>();
-    // Source edits can move the class declaration. Keep the latest resolved location and class name
-    // outside render state so project-content notifications always refresh the right agent definition.
     const classPositionRef = useRef<NodePosition>(position);
     const classNameRef = useRef<string>();
     const refreshVersionRef = useRef(0);
     const refreshRef = useRef<(posOverride?: NodePosition) => Promise<void>>();
     const requestRefreshRef = useRef<(() => void)>();
-    // State updates are asynchronous, but post-save readiness checks must inspect the latest nested-agent
-    // model synchronously. Keep the rendered tool list mirrored here for that purpose.
     const agentToolsRef = useRef<ToolData[]>([]);
-    // A source write is authoritative, while the nested AGENT model can lag behind it. Keep newly written tools
-    // visible until that model confirms them, so its stale first response cannot erase the new card.
     const pendingToolsRef = useRef<Map<string, ToolData>>(new Map());
-    // Suppresses content-update refreshes during a multi-edit op (e.g. tool delete), so the UI never
-    // renders the transient invalid source between the edits. Preserve, rather than drop, the update signal so a
-    // refresh still runs once the operation completes.
     const suppressRefreshRef = useRef(false);
     const refreshPendingRef = useRef(false);
 
@@ -607,8 +585,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     }, [position]);
 
     useEffect(() => {
-        // A single source update may emit several notifications while the language server rebuilds
-        // its models. Coalesce them and use refs so this callback never refreshes a stale position.
         const debouncedRefresh = debounce(() => {
             if (suppressRefreshRef.current) {
                 refreshPendingRef.current = true;
@@ -664,9 +640,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         }
     };
 
-    // Class updates become visible before getFlowModel has necessarily rebuilt the nested AGENT node. In
-    // particular, the first tool changes `tools = []` to `tools = [self.tool]`; retry that independent model
-    // until it reports the tool rather than leaving the Tools section stale until a manual page refresh.
     const refreshAfterToolWrite = async (toolName?: string) => {
         const attempts = toolName ? 8 : 1;
         for (let attempt = 0; attempt < attempts; attempt++) {
@@ -699,7 +672,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const getAgentClassModel = async (pos: NodePosition = classPositionRef.current, refreshVersion?: number): Promise<ServiceClassModel | undefined> => {
         if (!pos || !fileName) return undefined;
 
-        // fileName (value.documentUri) is already the absolute class-file path.
         const request: ModelFromCodeRequest = {
             filePath: fileName,
             codedata: {
@@ -723,7 +695,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         return undefined;
     };
 
-    // Class-owned connections created in `init` (`self.<field> = check new (...)`); MCP toolkits are surfaced under Tools.
     const loadConnections = async (model?: ServiceClassModel, refreshVersion?: number) => {
         if (!model?.codedata?.lineRange) return;
         try {
@@ -747,13 +718,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 startLine: { line: pos.startLine, offset: pos.startColumn },
                 endLine: { line: pos.endLine, offset: pos.endColumn }
             });
-            // Keep current tools on a stale/failed fetch.
             if (!response?.flowModel) {
                 return;
             }
             const agentDecl = response.flowModel.nodes?.find((node) => node.codedata?.node === "AGENT");
-            // A project-content update can arrive before the language server has rebuilt the class flow model.
-            // Preserve the last valid node rather than clearing the designer and its open tool panel mid-refresh.
             if (!agentDecl) {
                 return;
             }
@@ -762,9 +730,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 const fetchedTools = extractTools(agentDecl);
                 for (const fetchedTool of fetchedTools) {
                     const pendingTool = pendingToolsRef.current.get(fetchedTool.name);
-                    // An agent-as-tool is not fully resolved until the analyzer reports its Agent type. Without
-                    // this check, the first partially rebuilt model replaces the optimistic agent icon with the
-                    // generic function icon.
                     if (!pendingTool?.type || pendingTool.type === fetchedTool.type) {
                         pendingToolsRef.current.delete(fetchedTool.name);
                     }
@@ -798,7 +763,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         }
     };
 
-    // Name + description edit — mirrors ServiceClassConfig, but inline so we stay on the designer.
     const configFields: FormField[] = React.useMemo(() => {
         if (!agentClassModel) return [];
         const fields: FormField[] = [];
@@ -901,8 +865,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setPanelOpen(true);
     };
 
-    // For whole-card click-to-edit: ignore clicks that are actually text selections, so selecting/copying
-    // the name, role, or instructions doesn't open the edit form.
     const openPanelUnlessSelecting = (kind: "config" | "agent") => {
         if (window.getSelection()?.toString()) return;
         openPanel(kind);
@@ -1055,8 +1017,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setAgentToolPopupOpen(true);
     };
 
-    // Creates the tool as an @ai:AgentTool method INSIDE the class and wires it into the inner tools=[...],
-    // in one getSourceCode call (AgentToolBuilder places + wires when passed the host class).
     const handleToolSubmit = async (data: ExtendedAgentToolRequest) => {
         if (!data.toolName || !agentClassModel) return;
 
@@ -1069,20 +1029,16 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         } else {
             if (!data.flowNode) return;
             flowNode = data.flowNode;
-            // Connection tools always call their client field from the agent definition.
             connection = data.selectedCodeData?.parentSymbol ? `self.${data.selectedCodeData.parentSymbol}` : "";
         }
 
         setIsSaving(true);
-        // Two edits (tool method + fixMissingImports) leave the source briefly inconsistent; suppress
-        // refreshes until both land, then refresh once so the new tool renders without a manual reload.
         suppressRefreshRef.current = true;
         let toolCreated = false;
         try {
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
             }
-            // Carry parameter-type imports so the generated wrapper resolves them.
             if (data.parameterImports && flowNode.properties) {
                 const props = flowNode.properties as Record<string, Property>;
                 const targetKey = props["type"] ? "type" : Object.keys(props)[0];
@@ -1113,15 +1069,11 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         }
     };
 
-    // Removes the @ai:AgentTool class method, then unwires self.<tool> from the inner tools=[...].
-    // The method (below init) is deleted first so the agent's line range stays valid for the re-emit.
     const handleDeleteTool = async (tool: ToolData) => {
         const previousTools = agentToolsRef.current;
         pendingToolsRef.current.delete(tool.name);
         updateAgentTools(previousTools.filter((existingTool) => existingTool.name !== tool.name));
         setIsSaving(true);
-        // Delete is two edits (remove method, then unwire self.<tool>); the source is briefly invalid
-        // between them. Suppress refreshes until both land so role/instructions don't flicker.
         suppressRefreshRef.current = true;
         try {
             if (tool.type === "MCP Server") {
@@ -1163,7 +1115,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         }
     };
 
-    // Lock the name on edit — renaming would orphan the old field (upsert keys the delete off the new name).
     const handleEditConnection = (connection: FlowNode) => {
         const node = cloneDeep(connection);
         if (node.properties?.variable) {
@@ -1173,7 +1124,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         openPanel("connection");
     };
 
-    // Edit round-trips through upsert (delete field + assignment, regenerate as `self.<field> = check new (...)`).
     const handleConnectionSave = async (updatedNode?: FlowNode) => {
         if (!updatedNode || !agentClassModel) return;
         setIsSaving(true);
@@ -1308,7 +1258,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             .map((param) => param.name?.value)
             .filter((name): name is string => Boolean(name))
     );
-    // An input's default lives on the init parameter, not the field, so pull it in for display/editing.
     const paramDefaults = new Map<string, string>();
     (initFunction?.parameters ?? []).forEach((param) => {
         const name = param.name?.value;
@@ -1331,8 +1280,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         ...(initFunction?.parameters ?? []).map((param) => param.name?.value),
         ...(agentClassModel?.functions ?? []).map((func) => func.name?.value),
     ].filter((name): name is string => Boolean(name))));
-    // Every class method except the constructor and the @ai:AgentTool methods (those live in Tools).
-    // Includes the generated public API (run/trace) so the definition's contract is visible.
     const methods = (agentClassModel?.functions ?? []).filter(
         (f) => f.kind !== "INIT" && !agentTools.some((t) => t.name === f.name.value)
     );

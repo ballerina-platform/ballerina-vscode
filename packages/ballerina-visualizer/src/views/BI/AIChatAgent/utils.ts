@@ -42,11 +42,6 @@ const OPENAI_PROVIDER_CODEDATA: CodeData = {
     symbol: "init",
 };
 
-/**
- * Refreshes a flow node's line range in place from the matching artifact in a getSourceCode/deleteFlowNode response.
- * A preceding edit/delete can shift file lines; re-writing the node on its now-stale range would duplicate it instead
- * of replacing it. Call this with the response artifacts before the follow-up getSourceCode. No-op if not found.
- */
 export function refreshNodeLineRangeFromArtifacts(
     node: FlowNode,
     artifacts: ProjectStructureArtifactResponse[] | undefined,
@@ -96,11 +91,6 @@ export interface CreatedBuiltInAgent {
     usedDefaultModelProvider: boolean;
 }
 
-/**
- * Ensures a model provider exists for an agent, reusing the shared `wso2ModelProvider` when the AI
- * module org is `ballerina`. Creates the provider source if it does not already exist. Returns the
- * model variable name to reference and whether the shared WSO2 default provider was used.
- */
 export const ensureModelProvider = async (
     rpcClient: BallerinaRpcClient,
     projectPath: string,
@@ -134,10 +124,6 @@ export const ensureModelProvider = async (
     return { modelVarName, usedDefaultModelProvider: modelProviderCodedata.symbol === GET_DEFAULT_MODEL_PROVIDER };
 };
 
-/**
- * Fetches the AGENT node template for the project's AI module. The template exposes the friendly
- * `role`/`instructions` fields (the raw `systemPrompt` record is hidden and reconstructed by the LS).
- */
 export const fetchAgentNodeTemplate = async (
     rpcClient: BallerinaRpcClient,
     projectPath: string
@@ -155,11 +141,6 @@ export const fetchAgentNodeTemplate = async (
     return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
 };
 
-/**
- * Creates a built-in `ai:Agent` declaration plus its model provider (reusing the shared
- * `wso2ModelProvider` when the AI module org is `ballerina`). Does not create a listener or
- * service — callers that need a chat service wire that up separately.
- */
 export const createBuiltInAgent = async (
     rpcClient: BallerinaRpcClient,
     projectPath: string,
@@ -459,7 +440,6 @@ export const goToAgent = async (node: FlowNode, rpcClient: BallerinaRpcClient) =
     }
 };
 
-// Resolve the definition of the class an AGENT_TYPE instance was created from; undefined if outside the workspace.
 export const resolveAgentDefinitionLocation = async (
     instanceNode: FlowNode,
     rpcClient: BallerinaRpcClient

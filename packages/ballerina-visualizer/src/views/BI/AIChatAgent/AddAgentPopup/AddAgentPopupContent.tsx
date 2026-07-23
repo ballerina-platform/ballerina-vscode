@@ -74,7 +74,6 @@ export interface AddAgentPopupContentProps {
     onGenericAgentSelected?: () => void;
 }
 
-// Maps a UI filter tab to the backend AgentSearchCommand `source` parameter.
 const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
     All: "all",
     Project: "local",
@@ -149,7 +148,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         throw new Error("No agent node template returned");
                     }
                 } else {
-                    // "create" view: load the built-in ai:Agent template.
                     template = await fetchAgentNodeTemplate(rpcClient, projectPath);
                 }
                 template.codedata.lineRange = endOfFile as any;
@@ -191,7 +189,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     const debouncedSearch = debounce((text: string) => runSearch(text, filterType), 1100);
 
-    // Initial open and tab switches fetch immediately; typing in the search box is debounced.
     useEffect(() => {
         if (view !== "gallery") {
             return;
@@ -220,8 +217,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         try {
             const node = cloneDeep(updatedNode);
 
-            // Pre-built agent (configure view): the user supplies the model via the form, so its value
-            // is kept as-is.
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             node.codedata.lineRange = endOfFile as any;
 
@@ -262,7 +257,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         }
     };
 
-    // Initialize a pre-built agent: open the class-init config form for the selected agent's codedata.
     const handleSelectAgent = (agent: AvailableNode) => {
         if (dependencyMode) {
             onAgentSelectedForDependency?.(agent);

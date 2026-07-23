@@ -294,11 +294,8 @@ public class FunctionDataBuilder {
                     Document document = currentPackage.getDefaultModule()
                             .document(currentPackage.project().documentId(filePath));
                     this.document(document);
-                    // Set semantic model automatically for local functions
                     workspaceManager.semanticModel(filePath).ifPresent(this::semanticModel);
                 } catch (ProjectException e) {
-                    // The file isn't a document in the project yet
-                    // resolvedPackage is set, so the build still proceeds from the package.
                 }
                 return;
             }
@@ -621,7 +618,6 @@ public class FunctionDataBuilder {
                     if (functionKind == FunctionData.Kind.CLASS_INIT || isConnector(functionKind)
                             || isAiClassKind(functionKind)) {
                         String className = parentSymbol.getName().orElse("Client");
-                        // Same module as the file: emit unqualified, matching the suppressed self-import.
                         return isSameAsUserModule() ? className
                                 : CommonUtils.getClassType(moduleInfo.moduleName(), className);
                     }
@@ -1185,7 +1181,6 @@ public class FunctionDataBuilder {
         return CommonUtils.getImportStatement(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName());
     }
 
-    // Same module as the file being edited — suppress both the import and the module-qualified prefix.
     private boolean isSameAsUserModule() {
         return isCurrentModule && moduleInfo.equals(userModuleInfo);
     }

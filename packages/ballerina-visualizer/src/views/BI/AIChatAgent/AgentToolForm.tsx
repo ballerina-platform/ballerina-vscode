@@ -44,11 +44,6 @@ import {
     handleParamChange,
 } from "../ServiceFunctionForm/utils";
 
-/**
- * Identifies an existing agent-tool method/function to edit. When present, AgentToolForm loads the
- * existing tool and saves in place instead of creating a new one. `inClass` selects the class-aware
- * service path (getFunctionFromSource / serviceDesign/updateFunction) over the module-level path.
- */
 export interface AgentToolEditContext {
     functionName: string;
     inClass: boolean;
@@ -82,8 +77,6 @@ interface AgentToolFormProps {
     hostClass?: AgentToolHostClass;
     targetLineRange?: LineRange;
     editContext?: AgentToolEditContext;
-    // When rendered as a full page (not a side panel), let the page own the scroll so the form
-    // doesn't add a second scrollbar of its own.
     nestedForm?: boolean;
     onSave: (toolName: string) => void | Promise<void>;
     onBack?: () => void;
@@ -94,8 +87,6 @@ interface ParsedConfigValue {
     isExpression: boolean;
 }
 
-// Match `re` (which must end with `{`) and extend to its balanced `}`.
-// Returns the full span and the inner body (without outer braces), or null.
 function matchBraced(str: string, re: RegExp): { start: number; end: number; body: string } | null {
     const m = re.exec(str);
     if (!m) return null;
@@ -110,7 +101,6 @@ function matchBraced(str: string, re: RegExp): { start: number; end: number; bod
     return null;
 }
 
-// Parse the `auth: { ... }` block of an @ai:AgentTool annotation into per-OAuth-key values.
 function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string, ParsedConfigValue> {
     const result: Record<string, ParsedConfigValue> = {};
     const auth = matchBraced(annotationValue, /auth\s*:\s*\{/);
@@ -167,7 +157,6 @@ function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string,
     return result;
 }
 
-// Build the `auth: { ... }` annotation fragment from OAuth config values. Empty string if no values.
 function buildAuthAnnotation(config: Record<string, string>, expressionKeys: Set<string>): string {
     const entries = Object.entries(config);
     if (entries.length === 0) {
@@ -197,8 +186,6 @@ function toAuthSource(key: string, value: unknown, isExpression: boolean): strin
     return JSON.stringify(text);
 }
 
-// Locates the @ai:AgentTool annotation property on a class-method's FunctionModel (keyed off codedata,
-// not the property name), returning its key and current annotation-body value (e.g. "{ auth: {...} }").
 function findAgentToolAnnotation(model: FunctionModel): { key: string; value: string } | undefined {
     const props = (model?.properties ?? {}) as Record<string, any>;
     for (const [key, prop] of Object.entries(props)) {
@@ -224,7 +211,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     const isEdit = Boolean(editContext);
     const isClassEdit = Boolean(editContext?.inClass);
 
-    // Agent-tool documentation + description/parameter widget overrides applied to signature fields (create + module edit).
     const applyToolFieldDocs = (field: FormField) => {
         if (field.key === "functionName") {
             field.documentation = "Name of the agent tool.";
@@ -240,7 +226,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         }
     };
 
-    // OAuth client-config fields (+ record-type members), optionally prefilled from a parsed auth block.
     const buildOAuthFields = (
         oauthProperties: { key: string; property: Property }[],
         existingConfig: Record<string, ParsedConfigValue>
@@ -274,7 +259,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         return { oauthFields, oauthRecordFields };
     };
 
-    // Builds the signature fields for an in-class tool from its service FunctionModel.
     const buildClassToolFields = (model: FunctionModel): FormField[] => {
         const list: FormField[] = [
             {
@@ -354,7 +338,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 const oauthStartLine = editContext?.lineRange?.startLine
                     ?? targetLineRange?.startLine ?? { line: 0, offset: 0 };
 
-                // ---- Module-level edit: load the existing function node (proven FunctionForm path) ----
                 if (editContext && !editContext.inClass) {
                     const [res, oauthProperties] = await Promise.all([
                         rpcClient.getBIDiagramRpcClient().getFunctionNode({
@@ -392,7 +375,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     return;
                 }
 
-                // ---- In-class edit: load via the class-aware service model (preserves @ai:AgentTool) ----
                 if (editContext && editContext.inClass && editContext.lineRange) {
                     const [modelResp, oauthProperties] = await Promise.all([
                         rpcClient.getServiceDesignerRpcClient().getFunctionFromSource({
@@ -416,7 +398,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     return;
                 }
 
-                // ---- Create (unchanged) ----
                 const [templateResponse, oauthProperties] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                         position: targetLineRange?.startLine ?? { line: 0, offset: 0 },
@@ -476,7 +457,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
         [fields]
     );
 
-    // In-class edit: rewrite the class method's signature via the class-aware service model.
     const handleClassEditSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (!functionModel || saving) return;
         setSaving(true);
@@ -497,7 +477,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 };
             }
 
-            // Rewrite the @ai:AgentTool annotation body from the OAuth fields (empty → bodyless annotation).
             const annotation = findAgentToolAnnotation(updatedModel);
             if (annotation) {
                 const rawAuth: Record<string, string> = {};
@@ -590,7 +569,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
 
             let response;
             if (isEdit) {
-                // Module-level edit: inject auth into the @ai:AgentTool annotation string, then update in place.
                 const rawAuth: Record<string, string> = {};
                 for (const { key } of oauthPropertiesRef.current) {
                     const value = data[key];

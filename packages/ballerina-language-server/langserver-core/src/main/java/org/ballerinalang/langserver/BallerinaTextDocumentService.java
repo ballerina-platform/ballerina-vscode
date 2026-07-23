@@ -447,8 +447,6 @@ class BallerinaTextDocumentService implements TextDocumentService {
                 }
                 String formattedSource;
                 if (FormatterUtils.isBuildProject(context.currentModule())) {
-                    // Reuse the workspace's already-loaded project; BuildProject.load re-parses
-                    // sources and re-resolves dependencies just to read the package manifest.
                     Optional<Project> project = context.workspace().project(context.filePath());
                     BuildProject buildProject;
                     if (project.isPresent() && project.get() instanceof BuildProject loadedProject) {

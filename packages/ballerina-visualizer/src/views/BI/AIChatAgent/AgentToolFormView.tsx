@@ -39,8 +39,6 @@ interface AgentToolFormViewProps {
     inClass: boolean;
 }
 
-// Full-page host for editing an existing @ai:AgentTool. Reuses the shared AgentToolForm (create + edit),
-// so module-level and in-class (agent-definition) tools share one form.
 export function AgentToolFormView(props: AgentToolFormViewProps) {
     const { projectPath, documentUri, functionName, position, inClass } = props;
     const { rpcClient } = useRpcContext();

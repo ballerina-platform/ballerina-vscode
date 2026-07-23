@@ -50,13 +50,6 @@ function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions:
     return result;
 }
 
-/**
- * Transform an `ai:Agent` declaration node into the synthetic `AGENT_CALL` render node that
- * `AgentCallNodeWidget` expects. The widget reads everything from `metadata.data`; since the
- * focus view deals with the agent directly, that view-model is derived from the declaration's
- * own `properties` (resolving model/memory variable names against module connections for the
- * icon/type) rather than from the LS-populated call-site metadata.
- */
 export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[] = []): FlowNode {
     const props = (agentNode.properties || {}) as Record<string, { value?: unknown }>;
 

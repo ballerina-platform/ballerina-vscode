@@ -426,8 +426,6 @@ function findViewByArtifact(
                     dataMapperDepth: 0
                 };
             case DIRECTORY_MAP.AGENT_DEFINITION:
-                // An agent class definition opens the Agent Definition Designer (class-shaped view); its inner
-                // ai:Agent is edited from a dedicated row, keeping definition vs instance editing distinct.
                 return {
                     location: {
                         view: MACHINE_VIEW.AgentDefinitionDesigner,

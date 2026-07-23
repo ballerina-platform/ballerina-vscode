@@ -131,10 +131,6 @@ public class AgentBuilder extends CallBuilder {
         super.setReturnTypeProperties(functionData, context, "Agent Name", "Name of the agent", hidden);
     }
 
-    /**
-     * Marks the agent fields that are managed outside the form ({@link #CONFIG_PARAMS_TO_HIDE}) as hidden,
-     * preserving their existing values. Used for both the AGENT template and analyzed AGENT nodes.
-     */
     public static void hideAgentConfigProperties(NodeBuilder nodeBuilder) {
         Map<String, Property> props = nodeBuilder.properties().build();
         for (String key : CONFIG_PARAMS_TO_HIDE) {

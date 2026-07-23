@@ -89,8 +89,6 @@ interface AgentInfoCardProps {
     onClick?: () => void;
 }
 
-// Header card for the Configure Agent form: agent icon + name + description. Mirrors the connector configure
-// popup's card; the icon resolves from the package's Central icon, falling back to the bot icon.
 export function AgentInfoCard({ label, description, icon, action, borderRadius, onClick }: AgentInfoCardProps) {
     return (
         <Card radius={borderRadius} clickable={Boolean(onClick)} onClick={onClick}>

@@ -151,8 +151,6 @@ function isInlineExpressionValue(value: unknown): boolean {
     return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
 }
 
-// Toggles a field between an action-expression (pick/create a node) and a free-form expression,
-// wiring the ACTION_EXPRESSION/EXPRESSION type pair and the search kind used to look up nodes.
 function applyExpressionToggle(
     formField: FormField,
     ballerinaType: string | undefined,
@@ -227,7 +225,6 @@ function enrichMemoryField(formField: FormField, property: Property): void {
 
 const AGENT_PARAM_DATA_KEY = "agent";
 
-// Render an agent-typed init param (marked by the LS) as a type-filtered agent select.
 function enrichAgentField(formField: FormField, property: Property): void {
     const agent = property.codedata?.data?.[AGENT_PARAM_DATA_KEY] as CodeData | undefined;
     if (!agent || !formField.editable || !agent.node) {

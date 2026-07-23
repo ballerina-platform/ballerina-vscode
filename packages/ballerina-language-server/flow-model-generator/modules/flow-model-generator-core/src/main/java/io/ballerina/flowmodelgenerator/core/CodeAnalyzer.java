@@ -736,7 +736,6 @@ public class CodeAnalyzer extends NodeVisitor {
         if (toolsArg != null && toolsArg.kind() == SyntaxKind.LIST_CONSTRUCTOR) {
             List<ToolData> toolsData = new ArrayList<>();
             for (Node element : ((ListConstructorExpressionNode) toolsArg).expressions()) {
-                // `self.<name>` class-method / MCP-toolkit field (agent definitions).
                 if (element instanceof FieldAccessExpressionNode fieldAccess) {
                     if (!(fieldAccess.fieldName() instanceof SimpleNameReferenceNode fieldName)) {
                         continue;
@@ -751,7 +750,6 @@ public class CodeAnalyzer extends NodeVisitor {
                     String type = method != null && isAgentDelegationTool(method) ? AGENT_TOOL_TYPE : null;
                     toolsData.add(new ToolData(toolName, icon, "", type));
                 } else if (element instanceof SimpleNameReferenceNode nameRef) {
-                    // Module-level tool reference.
                     String toolName = nameRef.name().text();
                     Symbol symbol = semanticModel.symbol(element).orElse(null);
                     if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
@@ -854,10 +852,6 @@ public class CodeAnalyzer extends NodeVisitor {
         nodeBuilder.codedata().addData(Constants.Ai.AGENT_CODEDATA, codedata);
     }
 
-    /**
-     * Parses the {@code role} and {@code instructions} fields from an agent's {@code systemPrompt} record mapping into
-     * {@code agentData}, detecting PROMPT-typed (string template) versus plain expression values.
-     */
     private void parseSystemPromptFields(MappingConstructorExpressionNode mappingCtr,
                                          Map<String, AiUtils.AgentPropertyValue> agentData) {
         for (MappingFieldNode field : mappingCtr.fields()) {
@@ -888,11 +882,6 @@ public class CodeAnalyzer extends NodeVisitor {
         }
     }
 
-    /**
-     * Replaces the raw {@code systemPrompt} record on an analyzed AGENT node with the friendly Role + Instructions
-     * fields (mirrors the AGENT_CALL form). The {@code systemPrompt} property is kept but hidden so source generation
-     * can rebuild it from the Role + Instructions values.
-     */
     private void applyAgentRoleInstructionFields(SeparatedNodeList<FunctionArgumentNode> argumentNodes) {
         Map<String, AiUtils.AgentPropertyValue> agentData = new HashMap<>();
         ExpressionNode systemPromptArg = extractSystemPromptArg(argumentNodes);
@@ -3197,8 +3186,6 @@ public class CodeAnalyzer extends NodeVisitor {
                     .editable()
                     .stepOut()
                     .addProperty(Property.VARIABLE_KEY);
-            // An agent constructed as a class field (`self.agent = check new (...)` in init) must round-trip as an
-            // assignment, not a `final ... = check new` declaration. SERVICE_INIT_SCOPE drives that in AgentBuilder.
             if (nodeBuilder instanceof AgentBuilder
                     && assignmentStatementNode.varRef() instanceof FieldAccessExpressionNode) {
                 nodeBuilder.properties().scope(Property.SERVICE_INIT_SCOPE);
@@ -4213,8 +4200,6 @@ public class CodeAnalyzer extends NodeVisitor {
                 .orElse(false);
     }
 
-    // Resolves the class method backing a `self.<tool>` field-access tool (so its @display is readable;
-    // semanticModel.symbol on the field access yields a VariableSymbol that carries no annotations).
     private Optional<MethodSymbol> resolveToolMethod(FieldAccessExpressionNode fieldAccess, String toolName) {
         Node parent = fieldAccess.parent();
         while (parent != null && !(parent instanceof ClassDefinitionNode)) {

@@ -144,7 +144,6 @@ export const sanitizePackageName = (name: string): string => {
         .replace(/_{2,}/g, "_"); // Convert multiple consecutive underscores to single underscore
 };
 
-// Convert any input into a PascalCase identifier suitable for a Ballerina class/type name.
 export const toPascalCase = (value: string): string => {
     return value
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // split camelCase/PascalCase boundaries
@@ -155,7 +154,6 @@ export const toPascalCase = (value: string): string => {
         .replace(/^[0-9]+/, ""); // identifiers cannot start with a digit
 };
 
-// Derive a lowercase snake_case package name from any input (e.g. "TestAgent" -> "test_agent").
 export const toSnakeCasePackageName = (value: string): string => {
     return value
         .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase boundary

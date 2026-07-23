@@ -74,10 +74,6 @@ interface EntryPosition {
 }
 
 export class AiAgentRpcManager implements AIAgentAPI {
-    /**
-     * Agent declarations and generated tools are written to agents.bal. The language server
-     * resolves that file while producing edits, so it must exist before a generation request.
-     */
     private async ensureAgentsFile(projectPath: string): Promise<string> {
         const agentsFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
         if (!existsSync(agentsFilePath)) {
