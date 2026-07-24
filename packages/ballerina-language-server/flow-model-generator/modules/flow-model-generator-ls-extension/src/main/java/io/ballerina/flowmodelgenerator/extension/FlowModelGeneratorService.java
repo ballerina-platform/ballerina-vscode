@@ -705,7 +705,11 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
 
                 // Generate the flow nodes based on search criteria
                 ModelGenerator modelGenerator = new ModelGenerator(project, semanticModel, filePath, workspaceManager);
-                var nodes = modelGenerator.searchNodes(document, position, request.queryMap());
+                SearchNodesRequest.SearchQuery query = request.query();
+                var nodes = modelGenerator.searchNodes(document, position,
+                        query == null ? null : query.kind(),
+                        query == null ? null : query.exactMatch(),
+                        query == null ? null : query.targetType());
                 Gson gson = new Gson();
                 JsonElement jsonElement = gson.toJsonTree(nodes);
                 response.setOutput(jsonElement.getAsJsonArray());

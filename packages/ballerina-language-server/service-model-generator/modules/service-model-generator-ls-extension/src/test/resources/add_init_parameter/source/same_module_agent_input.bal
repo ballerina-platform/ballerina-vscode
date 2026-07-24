@@ -1,7 +1,7 @@
 import ballerina/ai;
 
 public isolated class CalendarAssistantAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
 
     public isolated function run(string query) returns string|error {
         return query;
@@ -9,7 +9,7 @@ public isolated class CalendarAssistantAgent {
 }
 
 public isolated class HostAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
 
     private final ai:Agent agent;
 

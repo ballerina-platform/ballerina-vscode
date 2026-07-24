@@ -2,7 +2,7 @@ import ballerina/ai;
 import ballerina/http;
 
 public isolated class ConnectionAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
     private final http:Client managedClient;
     private final ai:Agent agent;
 

@@ -2,7 +2,7 @@
   "source": "proj/connections.bal",
   "description": "Invalid kind should return empty results",
   "position": null,
-  "queryMap": {
+  "query": {
     "kind": "INVALID_KIND"
   },
   "output": []
