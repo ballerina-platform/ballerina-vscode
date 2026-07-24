@@ -435,7 +435,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isWorkflow = parentMetadata?.kind === "Workflow";
     let isActivity = parentMetadata?.kind === "Activity";
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
-    let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE;
+    let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
 
     const handleAgentFocusChat = () => {
         if (!agentName || !filePath) {
@@ -578,7 +578,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     // Calculate title based on conditions
     const getTitle = () => {
         if (view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT) return agentName || "AI Agent";
-        if (view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE) return agentName || "AI Agent";
+        if (view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT) return agentName || "AI Agent";
         if (isNPFunction) return "Natural Function";
         if (isAutomation) return "Automation";
         const workflowTitle = getWorkflowTitleFromSource();
@@ -698,7 +698,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             ) : (
                 <TitleBar
                     title={getTitle()}
-                    {...(view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE
+                    {...(view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
                         ? { subtitle: "AI Agent" }
                         : { subtitleElement: getSubtitleElement })}
                     actions={getActions()}

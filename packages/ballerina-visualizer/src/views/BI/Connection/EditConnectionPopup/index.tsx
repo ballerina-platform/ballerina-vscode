@@ -332,7 +332,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
         });
     };
 
-    const isAgent = connection?.codedata?.node === "AGENT_TYPE";
+    const isAgent = connection?.codedata?.node === "TYPED_AGENT";
 
     const getViewTitle = () => {
         switch (currentView) {

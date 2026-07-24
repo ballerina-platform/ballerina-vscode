@@ -1,7 +1,7 @@
 {
   "source": "proj",
   "description": "Search module-level nodes using project path instead of file path",
-  "queryMap": {},
+  "query": {},
   "output": [
     {
       "id": "36732",

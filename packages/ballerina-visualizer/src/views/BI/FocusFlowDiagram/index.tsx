@@ -103,7 +103,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const embeddedPositionRef = useRef<NodePosition | undefined>(props.position);
     const { rpcClient } = useRpcContext();
     const isAgent = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT;
-    const isAgentType = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE;
+    const isAgentType = view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
 
     const agentDeclRef = useRef<FlowNode>();
     const agentFormNodeRef = useRef<FlowNode>();
@@ -260,7 +260,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
 
-    const getAgentFocusModel = async (kind: "AGENT" | "AGENT_TYPE", posOverride?: NodePosition) => {
+    const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
         const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
         if (suppressRef.current) {
@@ -319,7 +319,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
 
     const getAgentModel = (posOverride?: NodePosition) => getAgentFocusModel("AGENT", posOverride);
 
-    const getAgentTypeModel = (posOverride?: NodePosition) => getAgentFocusModel("AGENT_TYPE", posOverride);
+    const getAgentTypeModel = (posOverride?: NodePosition) => getAgentFocusModel("TYPED_AGENT", posOverride);
 
     const handleEditAgentTypeForm = (_node: FlowNode) => {
         if (!agentDeclRef.current) {

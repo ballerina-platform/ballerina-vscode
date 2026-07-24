@@ -109,7 +109,7 @@ export function useCreateConnection(
     };
 
     return (kind: string, onCreated: (variableName: string) => void, connectorCodeData?: CodeData) => {
-        if (connectorCodeData?.node === "AGENT" || connectorCodeData?.node === "AGENT_TYPE") {
+        if (connectorCodeData?.node === "AGENT" || connectorCodeData?.node === "TYPED_AGENT") {
             const modalId = "create-agent";
             const handleAgentCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);

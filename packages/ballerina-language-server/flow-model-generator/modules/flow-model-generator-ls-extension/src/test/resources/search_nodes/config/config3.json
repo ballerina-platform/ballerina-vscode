@@ -1,8 +1,11 @@
 {
   "source": "proj/connections.bal",
   "description": "Exact match for redisClient",
-  "queryMap": {
-    "exactMatch": "redisClient"
+  "query": {
+    "exactMatch": "redisClient",
+    "targetType": {
+      "name": "Client"
+    }
   },
   "output": [
     {

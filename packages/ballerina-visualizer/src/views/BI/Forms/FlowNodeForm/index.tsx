@@ -1614,7 +1614,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
-        if (node.codedata.node === "AGENT_TYPE" || node.codedata.node === "AGENT") {
+        if (node.codedata.node === "TYPED_AGENT" || node.codedata.node === "AGENT") {
             return;
         }
         const codedata = importsCodedataRef.current || { symbol: typeName };

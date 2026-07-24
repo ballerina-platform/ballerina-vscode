@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, EVENT_TYPE, FlowNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
+import { AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, EVENT_TYPE, FlowNode, LinePosition, LineRange, MACHINE_VIEW, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQuery, ToolParameters, VisualizerLocation } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -104,7 +104,7 @@ export const ensureModelProvider = async (
         modelVarName = AI_WSO2_MODEL_PROVIDER;
         const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: projectPath,
-            queryMap: { kind: "MODEL_PROVIDER" as NodeKind },
+            query: { kind: "MODEL_PROVIDER" as NodeKind },
         });
         const existingProvider = existingModelProviders?.output?.find(
             (node) => String(node.properties?.variable?.value) === AI_WSO2_MODEL_PROVIDER
@@ -291,13 +291,13 @@ export const findFlowNode = async (
     rpcClient: BallerinaRpcClient,
     filePath: string,
     position?: LinePosition,
-    queryMap?: SearchNodesQueryParams
+    query?: SearchNodesQuery
 ) => {
     try {
         const searchResult = await rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath,
             position,
-            queryMap
+            query
         });
 
         if (!searchResult?.output?.length) {
@@ -343,12 +343,12 @@ export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rp
         : undefined;
 
     // Search for the agent node by name
-    const queryMap: SearchNodesQueryParams = {
+    const query: SearchNodesQuery = {
         kind: "AGENT",
         exactMatch: agentName
     };
 
-    const nodes = await findFlowNode(rpcClient, filePath, linePosition, queryMap);
+    const nodes = await findFlowNode(rpcClient, filePath, linePosition, query);
     console.log(">>> agent nodes found", { nodes });
     if (nodes && nodes.length > 0) {
         return nodes[0];
@@ -367,7 +367,7 @@ export const resolveAgentLocation = async (
     const visualizerRpc = rpcClient.getVisualizerRpcClient();
     const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
     const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
-        kind: "AGENT_TYPE",
+        kind: "TYPED_AGENT",
         exactMatch: agentName,
     });
     const declRange = nodes?.[0]?.codedata?.lineRange;
@@ -394,7 +394,7 @@ export const goToAgentFromRunNode = async (agentRunNode: FlowNode, rpcClient: Ba
     const visualizerRpc = rpcClient.getVisualizerRpcClient();
     const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
     const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
-        kind: "AGENT_TYPE",
+        kind: "TYPED_AGENT",
         exactMatch: agentName,
     });
     const declRange = nodes?.[0]?.codedata?.lineRange;
@@ -868,12 +868,12 @@ export const findValueInModuleVariables = async (
     rpcClient: BallerinaRpcClient,
     filePath: string
 ): Promise<string | null> => {
-    const queryMap: SearchNodesQueryParams = {
+    const query: SearchNodesQuery = {
         kind: "VARIABLE",
         exactMatch: variableName
     };
 
-    const variables = await findFlowNode(rpcClient, filePath, undefined, queryMap);
+    const variables = await findFlowNode(rpcClient, filePath, undefined, query);
 
     if (!variables || variables.length === 0) {
         return null;

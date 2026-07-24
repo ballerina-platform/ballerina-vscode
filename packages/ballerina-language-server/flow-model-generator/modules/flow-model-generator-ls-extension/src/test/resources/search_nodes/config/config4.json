@@ -1,7 +1,7 @@
 {
   "source": "proj/connections.bal",
   "description": "Combined filters - kind=NEW_CONNECTION AND exactMatch=grpcClient",
-  "queryMap": {
+  "query": {
     "kind": "NEW_CONNECTION",
     "exactMatch": "grpcClient"
   },

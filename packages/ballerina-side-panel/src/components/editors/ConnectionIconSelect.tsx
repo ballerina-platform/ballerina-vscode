@@ -31,7 +31,7 @@ const NODE_ICON_MAP: Record<string, string> = {
     CHUNKER: "bi-cut",
     SHORT_TERM_MEMORY_STORE: "bi-memory",
     AGENT: "bi-ai-agent",
-    AGENT_TYPE: "bi-ai-agent",
+    TYPED_AGENT: "bi-ai-agent",
 };
 
 // Modules that always use node-type icons, skipping the icon URL fallback

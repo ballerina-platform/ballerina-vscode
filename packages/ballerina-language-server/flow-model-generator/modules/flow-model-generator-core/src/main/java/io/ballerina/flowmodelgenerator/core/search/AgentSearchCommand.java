@@ -259,7 +259,7 @@ public class AgentSearchCommand extends SearchCommand {
                 .build();
 
         Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.AGENT_TYPE)
+                .node(NodeKind.TYPED_AGENT)
                 .org(pkg.organization())
                 .module(pkg.name())
                 .packageName(pkg.name())
@@ -356,7 +356,7 @@ public class AgentSearchCommand extends SearchCommand {
                 .build();
 
         Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.AGENT_TYPE)
+                .node(NodeKind.TYPED_AGENT)
                 .org(moduleId.orgName())
                 .module(moduleId.moduleName())
                 .packageName(moduleId.packageName())

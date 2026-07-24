@@ -18,7 +18,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { CodeData, SearchNodesQueryParams } from "@wso2/ballerina-core";
+import { CodeData, SearchNodesQuery, SearchNodesTypeConstraint } from "@wso2/ballerina-core";
 import { Codicon, LinkButton } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { ConnectionIconSelect, ConnectionSelectItem } from "../../ConnectionIconSelect";
@@ -77,23 +77,9 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     const { targetLineRange, fileName, onCreateConnection } = useFormContext();
 
     const searchNodesKind = field.codedata?.searchNodesKind;
-    const typeQuery: SearchNodesQueryParams = {
-        ...(field.codedata?.typeMatch && { typeMatch: field.codedata.typeMatch }),
-        ...(field.codedata?.typeOrg && { typeOrg: field.codedata.typeOrg }),
-        ...(field.codedata?.typePackage && { typePackage: field.codedata.typePackage }),
-        ...(field.codedata?.typeModule && { typeModule: field.codedata.typeModule }),
-        ...(field.codedata?.typeName && { typeName: field.codedata.typeName }),
-        ...(field.codedata?.typeVersion && { typeVersion: field.codedata.typeVersion }),
-    };
-    const typeCacheKey = [
-        typeQuery.typeMatch,
-        typeQuery.typeOrg,
-        typeQuery.typePackage,
-        typeQuery.typeModule,
-        typeQuery.typeName,
-        typeQuery.typeVersion,
-    ].filter(Boolean).join(":");
-    const cacheKey = typeCacheKey ? `${searchNodesKind}:${typeCacheKey}` : searchNodesKind;
+    const targetType = field.codedata?.targetType as SearchNodesTypeConstraint | undefined;
+    const query: SearchNodesQuery = { kind: searchNodesKind, ...(targetType && { targetType }) };
+    const cacheKey = JSON.stringify(query);
     const initialItems: ConnectionSelectItem[] = field.codedata?.initialItems ?? [];
     const staticItems: ConnectionSelectItem[] = field.codedata?.staticItems ?? [];
     const itemsPreloaded = field.codedata?.initialItems !== undefined;
@@ -127,7 +113,7 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
         rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: fileName,
             position: targetLineRange.startLine,
-            queryMap: { kind: searchNodesKind, ...typeQuery }
+            query,
         }).then((response) => {
             const nodes = response?.output ?? [];
             const items: ConnectionSelectItem[] = nodes
@@ -156,7 +142,7 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     useEffect(() => {
         if (itemsPreloaded) return;
         fetchItems();
-    }, [searchNodesKind, typeCacheKey, fileName, filterKey]);
+    }, [cacheKey, fileName, filterKey]);
 
     useEffect(() => {
         if (!value && staticItems.length > 0) {

@@ -24,7 +24,7 @@ import { AgentWidget } from "../AgentWidget/AgentWidget";
 import { NodeTypes } from "../../../resources/constants";
 
 export class AgentNodeFactory extends AbstractReactFactory<AgentNodeModel, DiagramEngine> {
-    constructor(private readonly nodeType: NodeTypes.AGENT_NODE | NodeTypes.AGENT_TYPE_NODE = NodeTypes.AGENT_NODE) {
+    constructor(private readonly nodeType: NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE = NodeTypes.AGENT_NODE) {
         super(nodeType);
     }
 

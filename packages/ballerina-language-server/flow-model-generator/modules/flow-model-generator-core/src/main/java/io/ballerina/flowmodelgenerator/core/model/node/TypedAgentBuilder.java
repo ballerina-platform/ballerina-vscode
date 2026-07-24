@@ -30,19 +30,19 @@ import org.ballerinalang.langserver.common.utils.NameUtil;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class AgentTypeBuilder extends ClassInitBuilder {
+public class TypedAgentBuilder extends ClassInitBuilder {
 
     private static final String AGENT_LABEL = "Agent";
 
     @Override
     protected NodeKind getFunctionNodeKind() {
-        return NodeKind.AGENT_TYPE;
+        return NodeKind.TYPED_AGENT;
     }
 
     @Override
     public void setConcreteConstData() {
         metadata().label(AGENT_LABEL);
-        codedata().node(NodeKind.AGENT_TYPE).symbol("init");
+        codedata().node(NodeKind.TYPED_AGENT).symbol("init");
     }
 
     @Override

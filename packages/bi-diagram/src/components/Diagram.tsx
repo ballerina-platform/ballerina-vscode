@@ -295,7 +295,7 @@ export function Diagram(props: DiagramProps) {
         const isSingleAgentNode =
             isAgentFocusView && nodes.length === 1 &&
             (nodes[0].getType() === NodeTypes.AGENT_CALL_NODE ||
-                nodes[0].getType() === NodeTypes.AGENT_TYPE_NODE ||
+                nodes[0].getType() === NodeTypes.TYPED_AGENT_NODE ||
                 nodes[0].getType() === NodeTypes.AGENT_NODE);
         if (isSingleAgentNode) {
             const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;

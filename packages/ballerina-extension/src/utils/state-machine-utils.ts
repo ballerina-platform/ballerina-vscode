@@ -420,7 +420,7 @@ function findViewByArtifact(
                         identifier: dir.name,
                         focusFlowDiagramView: dir.moduleName === "ai"
                             ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
-                            : FOCUS_FLOW_DIAGRAM_VIEW.AGENT_TYPE,
+                            : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT,
                         artifactType: DIRECTORY_MAP.AGENT,
                     },
                     dataMapperDepth: 0

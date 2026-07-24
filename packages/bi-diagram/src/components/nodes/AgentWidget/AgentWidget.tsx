@@ -41,13 +41,13 @@ const variants = {
     [NodeTypes.AGENT_NODE]: {
         render: (props) => <AgentNodeWidget {...props} model={props.model as AgentNodeModel} variant="agent" />,
     },
-    [NodeTypes.AGENT_TYPE_NODE]: {
-        render: (props) => <AgentNodeWidget {...props} model={props.model as AgentNodeModel} variant="agentType" />,
+    [NodeTypes.TYPED_AGENT_NODE]: {
+        render: (props) => <AgentNodeWidget {...props} model={props.model as AgentNodeModel} variant="typedAgent" />,
     },
     [NodeTypes.AGENT_CALL_NODE]: {
         render: (props) => <AgentCallNodeWidget {...props} model={props.model as AgentCallNodeModel} />,
     },
-} satisfies Record<NodeTypes.AGENT_NODE | NodeTypes.AGENT_TYPE_NODE | NodeTypes.AGENT_CALL_NODE, AgentWidgetVariant>;
+} satisfies Record<NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE | NodeTypes.AGENT_CALL_NODE, AgentWidgetVariant>;
 
 export function AgentWidget(props: AgentWidgetProps): JSX.Element {
     return variants[props.model.getType() as keyof typeof variants].render(props);

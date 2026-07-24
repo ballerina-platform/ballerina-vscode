@@ -394,7 +394,7 @@ public class AgentsGenerator {
     private static String buildAgentClassSource(String name, String description) {
         String body = """
                 public isolated class %s {
-                    *ai:FixedReturnAgentType;
+                    *ai:FixedTypedAgent;
 
                     private final ai:Agent agent;
 

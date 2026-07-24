@@ -1020,7 +1020,7 @@ export interface WorkflowDataResponse {
 export type BISearchNodesRequest = {
     filePath: string;
     position?: LinePosition;
-    queryMap?: SearchNodesQueryParams;
+    query?: SearchNodesQuery;
 }
 
 export type BISearchNodesResponse = {
@@ -1028,15 +1028,19 @@ export type BISearchNodesResponse = {
     error: string;
 }
 
-export type SearchNodesQueryParams = {
+export type SearchNodesTypeConstraint = {
+    relation?: "exact" | "subtype";
+    org?: string;
+    packageName?: string;
+    module?: string;
+    name: string;
+    version?: string;
+}
+
+export type SearchNodesQuery = {
     kind?: NodeKind;
     exactMatch?: string;
-    typeMatch?: "exact" | "subtype";
-    typeOrg?: string;
-    typePackage?: string;
-    typeModule?: string;
-    typeName?: string;
-    typeVersion?: string;
+    targetType?: SearchNodesTypeConstraint;
 }
 
 export type BIGetEnclosedFunctionRequest = {

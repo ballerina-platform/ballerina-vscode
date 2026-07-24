@@ -80,7 +80,7 @@ const NODE_COLOR_GROUPS = {
     // AI/NP function group - cyan variants
     CYAN_FUNCTION_GROUP: [
         "AGENT_CALL",
-        "AGENT_TYPE",
+        "TYPED_AGENT",
         "AGENT_RUN",
         "AGENT",
         "AGENTS",
@@ -254,7 +254,7 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     AGENT: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     AGENTS: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     AGENT_RUN: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
-    AGENT_TYPE: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    TYPED_AGENT: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
     MODEL_PROVIDER: ({ size, color }) => <Icon name="bi-ai-model" sx={{ fontSize: size, width: size, height: size, color }} />,
     MODEL_PROVIDERS: ({ size, color }) => <Icon name="bi-ai-model" sx={{ fontSize: size, width: size, height: size, color }} />,
     KNOWLEDGE_BASE: ({ size, color }) => <Icon name="bi-db-kb" sx={{ fontSize: size, width: size, height: size, color }} />,

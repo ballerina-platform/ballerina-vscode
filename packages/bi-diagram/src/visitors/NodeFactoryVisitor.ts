@@ -712,12 +712,12 @@ export class NodeFactoryVisitor implements BaseVisitor {
         this.beginVisitAgentCall(node, parent);
     }
 
-    beginVisitAgentType(node: FlowNode, parent?: FlowNode): void {
+    beginVisitTypedAgent(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         if (!node.id) {
             return;
         }
-        const nodeModel = new AgentNodeModel(node, NodeTypes.AGENT_TYPE_NODE);
+        const nodeModel = new AgentNodeModel(node, NodeTypes.TYPED_AGENT_NODE);
         this.nodes.push(nodeModel);
         this.updateNodeLinks(node, nodeModel);
         this.addSuggestionsButton(node);

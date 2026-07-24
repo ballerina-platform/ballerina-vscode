@@ -428,7 +428,7 @@ interface AgentNodeWidgetProps {
     model: AgentNodeModel;
     engine: DiagramEngine;
     onClick?: (node: FlowNode) => void;
-    variant?: "agent" | "agentType";
+    variant?: "agent" | "typedAgent";
 }
 
 type AgentNodePresentation = {
@@ -438,8 +438,8 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
-function getAgentNodePresentation(variant: "agent" | "agentType", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
-    const isTypeDefinition = variant === "agentType";
+function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
+    const isTypeDefinition = variant === "typedAgent";
     return {
         isTypeDefinition,
         showMemory: !isTypeDefinition || Boolean(agentInfo?.memory?.propertyKey),
@@ -449,7 +449,7 @@ function getAgentNodePresentation(variant: "agent" | "agentType", agentInfo?: No
 }
 
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
-    const { model, engine, onClick, variant = model.getType() === NodeTypes.AGENT_TYPE_NODE ? "agentType" : "agent" } = props;
+    const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
     const controller = useAgentNodeController(model);
     const {
         onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
@@ -468,7 +468,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
     useEffect(() => {
         let active = true;
-        if (variant !== "agentType" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
+        if (variant !== "typedAgent" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
             setCanViewDefinition(false);
             return () => { active = false; };
         }
@@ -753,13 +753,13 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const isAgentNodeActive = isModelActive || isAnyToolActive;
 
     let containerHeight = getAgentNodeContainerHeight(model.node,
-        isTypeDefinition ? NodeTypes.AGENT_TYPE_NODE : NodeTypes.AGENT_NODE);
+        isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE);
     if (isTypeDefinition) {
         containerHeight = model.node.viewState?.ch || containerHeight;
     }
 
     return (
-        <NodeStyles.Node data-testid={isTypeDefinition ? "agent-type-node" : "agent-node"} readOnly={readOnly}>
+        <NodeStyles.Node data-testid={isTypeDefinition ? "typed-agent-node" : "agent-node"} readOnly={readOnly}>
             <NodeStyles.Box
                 disabled={disabled}
                 hovered={isBoxHovered}

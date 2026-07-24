@@ -566,7 +566,7 @@ export type NodeKind =
     | "ACTIVITY_CALL"
     | "AGENTS"
     | "AGENT"
-    | "AGENT_TYPE"
+    | "TYPED_AGENT"
     | "AGENT_CALL"
     | "AGENT_ID_AUTH_CONFIG"
     | "AGENT_RUN"

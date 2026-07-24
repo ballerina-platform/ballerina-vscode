@@ -27,12 +27,12 @@ import {
 } from "../../../resources/constants";
 import { FlowNode } from "../../../utils/types";
 
-export type AgentWidgetType = NodeTypes.AGENT_NODE | NodeTypes.AGENT_TYPE_NODE | NodeTypes.AGENT_CALL_NODE;
+export type AgentWidgetType = NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE | NodeTypes.AGENT_CALL_NODE;
 
 const layoutStrategies = {
     [NodeTypes.AGENT_NODE]: (toolHeight: number) => NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
         + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2 + toolHeight,
-    [NodeTypes.AGENT_TYPE_NODE]: (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => {
+    [NodeTypes.TYPED_AGENT_NODE]: (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => {
         const memoryHeight = agentInfo?.memory?.propertyKey ? 52 : 0;
         const hasPrompt = Boolean(agentInfo?.systemPrompt?.role && agentInfo?.systemPrompt?.instructions);
         const descriptionHeight = hasPrompt ? 115 : agentInfo?.description ? 95 : 0;
