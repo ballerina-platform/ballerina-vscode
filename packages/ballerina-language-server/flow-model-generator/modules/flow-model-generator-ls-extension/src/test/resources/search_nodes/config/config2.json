@@ -1,7 +1,7 @@
 {
   "source": "proj/connections.bal",
   "description": "Filter connections only (NEW_CONNECTION)",
-  "queryMap": {
+  "query": {
     "kind": "NEW_CONNECTION"
   },
   "output": [
