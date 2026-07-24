@@ -2017,8 +2017,8 @@ public class AiUtils {
         TypeSymbol raw = typeSymbol instanceof TypeReferenceTypeSymbol typeRef ? typeRef.typeDescriptor() : typeSymbol;
         if (raw instanceof ClassSymbol classSymbol
                 && (CommonUtils.isAgentClass(classSymbol)
-                || CommonUtils.isAiFixedReturnAgent(classSymbol)
-                || CommonUtils.isAiInferredReturnAgent(classSymbol))) {
+                || CommonUtils.isAiFixedTypedAgent(classSymbol)
+                || CommonUtils.isAiDependentlyTypedAgent(classSymbol))) {
             return Optional.of(classSymbol);
         }
         return Optional.empty();
@@ -2031,7 +2031,7 @@ public class AiUtils {
             return null;
         }
         ModuleInfo moduleInfo = ModuleInfo.from(module.get().id());
-        NodeKind nodeKind = CommonUtils.isAgentClass(agentClass) ? NodeKind.AGENT : NodeKind.AGENT_TYPE;
+        NodeKind nodeKind = CommonUtils.isAgentClass(agentClass) ? NodeKind.AGENT : NodeKind.TYPED_AGENT;
         Codedata agent = new Codedata.Builder<>(null)
                 .node(nodeKind)
                 .org(moduleInfo.org())

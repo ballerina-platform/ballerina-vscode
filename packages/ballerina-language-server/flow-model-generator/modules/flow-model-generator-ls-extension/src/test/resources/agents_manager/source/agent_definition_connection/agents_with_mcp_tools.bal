@@ -1,7 +1,7 @@
 import ballerina/ai;
 
 public isolated class CalendarAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
 
     private final string token;
     private final WeatherMcpToolKit weatherMcp;

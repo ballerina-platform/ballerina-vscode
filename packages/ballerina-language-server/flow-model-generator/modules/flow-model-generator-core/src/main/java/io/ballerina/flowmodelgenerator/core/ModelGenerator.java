@@ -88,8 +88,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
-import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedReturnAgent;
-import static io.ballerina.modelgenerator.commons.CommonUtils.isAiInferredReturnAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
@@ -112,16 +112,7 @@ public class ModelGenerator {
                     .map(property -> property.value().toString())
                     .orElse("")
     );
-    private static final String NODE_KIND_FILTER = "kind";
-    private static final String EXACT_MATCH_FILTER = "exactMatch";
-    private static final String TYPE_MATCH_FILTER = "typeMatch";
-    private static final String TYPE_MATCH_EXACT = "exact";
     private static final String TYPE_MATCH_SUBTYPE = "subtype";
-    private static final String TYPE_ORG_FILTER = "typeOrg";
-    private static final String TYPE_PACKAGE_FILTER = "typePackage";
-    private static final String TYPE_MODULE_FILTER = "typeModule";
-    private static final String TYPE_NAME_FILTER = "typeName";
-    private static final String TYPE_VERSION_FILTER = "typeVersion";
 
     public ModelGenerator(Project project, SemanticModel model, Path filePath, WorkspaceManager workspaceManager) {
         this.semanticModel = model;
@@ -202,7 +193,7 @@ public class ModelGenerator {
     private NonTerminalNode narrowToInnerAgent(ClassDefinitionNode classDefinitionNode, NonTerminalNode fallback) {
         Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
         if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)
-                || !(isAiFixedReturnAgent(classSymbol) || isAiInferredReturnAgent(classSymbol))) {
+                || !(isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol))) {
             return fallback;
         }
         for (Node member : classDefinitionNode.members()) {
@@ -439,19 +430,17 @@ public class ModelGenerator {
      *
      * @param document the document to search in
      * @param position the line position (nullable - if null, uses moduleSymbols, else visibleSymbols)
-     * @param queryMap the map containing query parameters (kind, exactMatch, type* filters)
+     * @param kindFilter optional node-kind filter
+     * @param exactMatchFilter optional symbol-name filter
+     * @param targetType optional type constraint for candidate symbols
      * @return List of FlowNodes that match the search criteria
      */
-    public List<FlowNode> searchNodes(Document document, LinePosition position, Map<String, String> queryMap) {
+    public List<FlowNode> searchNodes(Document document, LinePosition position, String kindFilter,
+                                      String exactMatchFilter, TypeConstraint targetType) {
         // Get symbols based on position
         List<Symbol> symbols = position != null
                 ? semanticModel.visibleSymbols(document, position)
                 : semanticModel.moduleSymbols();
-
-        // Extract filter parameters
-        String kindFilter = queryMap != null ? queryMap.get(NODE_KIND_FILTER) : null;
-        String exactMatchFilter = queryMap != null ? queryMap.get(EXACT_MATCH_FILTER) : null;
-        Optional<TypeConstraint> typeConstraint = TypeConstraint.from(queryMap);
 
         // Apply symbol-level filters first (exactMatch)
         Stream<Symbol> stream = symbols.stream()
@@ -464,8 +453,8 @@ public class ModelGenerator {
                     : exactMatchFilter;
             stream = stream.filter(symbol -> symbol.nameEquals(fieldName));
         }
-        if (typeConstraint.isPresent()) {
-            stream = stream.filter(symbol -> matchesTypeConstraint(symbol, typeConstraint.get()));
+        if (targetType != null && targetType.isDefined()) {
+            stream = stream.filter(symbol -> matchesTypeConstraint(symbol, targetType));
         }
         List<Symbol> filteredSymbols = stream.toList();
 
@@ -511,7 +500,7 @@ public class ModelGenerator {
             return false;
         }
         TypeSymbol candidateType = optType.get();
-        if (TYPE_MATCH_SUBTYPE.equals(constraint.match())) {
+        if (TYPE_MATCH_SUBTYPE.equals(constraint.relation())) {
             return resolveTypeConstraint(constraint)
                     .map(target -> CommonUtils.subTypeOf(candidateType, target))
                     .orElseGet(() -> matchesExactType(candidateType, constraint));
@@ -531,7 +520,7 @@ public class ModelGenerator {
         TypeSymbol rawType = CommonUtils.getRawType(typeSymbol);
         Optional<ModuleID> moduleId = rawType.getModule().map(module -> module.id());
         Optional<String> typeName = rawType.getName();
-        if (moduleId.isEmpty() || typeName.isEmpty() || !typeName.get().equals(constraint.typeName())) {
+        if (moduleId.isEmpty() || typeName.isEmpty() || !typeName.get().equals(constraint.name())) {
             return false;
         }
         ModuleID id = moduleId.get();
@@ -541,7 +530,7 @@ public class ModelGenerator {
         if (constraint.packageName() != null && !constraint.packageName().equals(id.packageName())) {
             return false;
         }
-        if (constraint.moduleName() != null && !constraint.moduleName().equals(id.moduleName())) {
+        if (constraint.module() != null && !constraint.module().equals(id.moduleName())) {
             return false;
         }
         return constraint.version() == null
@@ -550,13 +539,13 @@ public class ModelGenerator {
     }
 
     private Optional<TypeSymbol> resolveTypeConstraint(TypeConstraint constraint) {
-        if (constraint.org() == null || constraint.moduleName() == null) {
+        if (constraint.org() == null || constraint.module() == null) {
             return Optional.empty();
         }
         return semanticModel.types()
-                .typesInModule(constraint.org(), constraint.moduleName(),
+                .typesInModule(constraint.org(), constraint.module(),
                         constraint.version() == null ? "" : constraint.version())
-                .flatMap(types -> Optional.ofNullable(types.get(constraint.typeName())))
+                .flatMap(types -> Optional.ofNullable(types.get(constraint.name())))
                 .flatMap(symbol -> {
                     if (symbol instanceof TypeDefinitionSymbol typeDefinitionSymbol) {
                         return Optional.of(typeDefinitionSymbol.typeDescriptor());
@@ -568,30 +557,11 @@ public class ModelGenerator {
                 });
     }
 
-    private record TypeConstraint(String org, String packageName, String moduleName, String typeName, String version,
-                                  String match) {
+    public record TypeConstraint(String org, String packageName, String module, String name, String version,
+                                 String relation) {
 
-        private static Optional<TypeConstraint> from(Map<String, String> queryMap) {
-            if (queryMap == null) {
-                return Optional.empty();
-            }
-            String typeName = queryMap.get(TYPE_NAME_FILTER);
-            if (typeName == null || typeName.isBlank()) {
-                return Optional.empty();
-            }
-            String match = queryMap.getOrDefault(TYPE_MATCH_FILTER, TYPE_MATCH_EXACT);
-            return Optional.of(new TypeConstraint(
-                    blankToNull(queryMap.get(TYPE_ORG_FILTER)),
-                    blankToNull(queryMap.get(TYPE_PACKAGE_FILTER)),
-                    blankToNull(queryMap.get(TYPE_MODULE_FILTER)),
-                    typeName,
-                    blankToNull(queryMap.get(TYPE_VERSION_FILTER)),
-                    TYPE_MATCH_SUBTYPE.equals(match) ? TYPE_MATCH_SUBTYPE : TYPE_MATCH_EXACT
-            ));
-        }
-
-        private static String blankToNull(String value) {
-            return value == null || value.isBlank() ? null : value;
+        public boolean isDefined() {
+            return name != null && !name.isBlank();
         }
     }
 
@@ -892,7 +862,7 @@ public class ModelGenerator {
     private boolean isClassOrObject(TypeSymbol typeSymbol) {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
-                    isAiFixedReturnAgent(typeSymbol) || isAiInferredReturnAgent(typeSymbol) ||
+                    isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol) ||
                     isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol)) {
                 return true;
             }

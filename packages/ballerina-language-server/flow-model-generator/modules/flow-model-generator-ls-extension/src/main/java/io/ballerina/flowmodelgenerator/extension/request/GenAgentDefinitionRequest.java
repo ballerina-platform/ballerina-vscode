@@ -19,7 +19,7 @@
 package io.ballerina.flowmodelgenerator.extension.request;
 
 /**
- * A request to generate an empty custom agent class definition (a class including {@code *ai:FixedReturnAgentType})
+ * A request to generate an empty custom agent class definition (a class including {@code *ai:FixedTypedAgent})
  * from a name + description.
  *
  * @param filePath    a file in the target project (used to resolve the project root; the class is written to

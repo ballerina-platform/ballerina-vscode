@@ -5,7 +5,7 @@ type BillingResponse record {|
 |};
 
 public isolated class BillingAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
 
     public isolated function run(string query, ai:Context? context = ()) returns BillingResponse|error {
         return {answer: query};
@@ -13,7 +13,7 @@ public isolated class BillingAgent {
 }
 
 public isolated class SupportAgent {
-    *ai:FixedReturnAgentType;
+    *ai:FixedTypedAgent;
 
     private final ai:Agent agent;
     private final ai:Agent helperAgent;
