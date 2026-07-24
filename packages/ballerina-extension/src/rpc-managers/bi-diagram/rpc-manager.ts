@@ -391,12 +391,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     private ensureTargetFileExists(filePath: string) {
-        if (!filePath || !filePath.endsWith(".bal") || fs.existsSync(filePath)) {
-            return;
-        }
-        if (!fs.existsSync(path.dirname(filePath))) {
-            return;
-        }
+        if (!filePath || !filePath.endsWith(".bal") || fs.existsSync(filePath)) return;
+        if (!fs.existsSync(path.dirname(filePath))) return;
         writeBallerinaFileDidOpenTemp(filePath, "");
     }
 

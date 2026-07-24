@@ -38,7 +38,7 @@ import {
     NodePosition,
     AIGetPackageVersionRequest,
     AIGetPackageVersionResponse,
-    DefaultProviderKind,
+    DefaultProviderKind
 } from "@wso2/ballerina-core";
 import { existsSync } from "fs";
 import path from "path";

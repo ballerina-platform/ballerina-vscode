@@ -177,7 +177,7 @@ export async function updateProjectArtifacts(publishedArtifacts: ArtifactsNotifi
             console.warn("[updateProjectArtifacts] Workspace path not found in the StateMachine context.");
             return;
         }
-        
+
         const projectInfo = await StateMachine.langClient().getProjectInfo({ projectPath: workspacePath });
         if (!projectInfo) {
             console.warn("[updateProjectArtifacts] Project info not found for the project:", rootPath);
@@ -327,10 +327,7 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             break;
         case DIRECTORY_MAP.LISTENER:
             // Do things related to listener
-            const listenerModule = getTypePrefix(artifact.module);
-            entryValue.icon = listenerModule === "ai"
-                ? "bi-ai-listener"
-                : getCustomEntryNodeIcon(listenerModule);
+            entryValue.icon = getCustomEntryNodeIcon(getTypePrefix(artifact.module));
             break;
         case DIRECTORY_MAP.CONNECTION:
             entryValue.icon = icon;

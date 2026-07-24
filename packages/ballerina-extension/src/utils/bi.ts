@@ -475,7 +475,7 @@ sticky = true
     fs.writeFileSync(gitignorePath, gitignoreContent.trim());
 
     if (projectRequest.isLibrary) {
-        pullValidatorDependency();
+        void runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`).catch((error) => console.error('Failed to pull library validator package:', error));
     }
 
     console.log(`Integration(default profile) created successfully at ${projectRoot}`);
@@ -543,13 +543,6 @@ function notifyWorkspaceTomlChanged(workspacePath: string) {
             version: 1
         }
     });
-}
-
-function pullValidatorDependency(): void {
-    void runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`)
-        .catch((error) => {
-            console.error('Failed to pull library validator package:', error);
-        });
 }
 
 function createWorkspaceToml(workspacePath: string, projectTitle: string, packageName: string) {

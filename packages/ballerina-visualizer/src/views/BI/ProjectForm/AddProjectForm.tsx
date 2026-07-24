@@ -140,7 +140,7 @@ export function AddProjectForm() {
                 version: formData.version || undefined,
                 isLibrary: formData.isLibrary,
                 projectHandle: formData.projectHandle,
-            }).catch(() => undefined);
+            }).catch((): undefined => undefined);
         } catch (error) {
             setPathValidationError(error instanceof Error ? error.message : "An error occurred during validation");
             setIsLoading(false);

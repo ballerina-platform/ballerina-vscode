@@ -1537,7 +1537,6 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<AIGentToolsResponse>(EXTENDED_APIS.BI_AI_GEN_AGENT_DEFINITION, params);
     }
 
-
     async getPackageVersion(params: AIGetPackageVersionRequest): Promise<AIGetPackageVersionResponse> {
         return this.sendRequest<AIGetPackageVersionResponse>(EXTENDED_APIS.BI_AI_GET_PACKAGE_VERSION, params);
     }
