@@ -22,8 +22,6 @@ import {
     AiModuleOrgRequest,
     AiModuleOrgResponse,
     AIGentToolsResponse,
-    CreateLibraryAgentDefinitionRequest,
-    CreateLibraryAgentDefinitionResponse,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -33,7 +31,6 @@ import {
     AIToolsRequest,
     AIToolsResponse,
     configureDefaultModelProvider,
-    createLibraryAgentDefinition,
     DefaultProviderKind,
     genAgentDefinition,
     GenAgentDefinitionRequest,
@@ -101,11 +98,6 @@ export class AiAgentRpcClient implements AIAgentAPI {
     genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
         return this._messenger.sendRequest(genAgentDefinition, HOST_EXTENSION, params);
     }
-
-    createLibraryAgentDefinition(params: CreateLibraryAgentDefinitionRequest): Promise<CreateLibraryAgentDefinitionResponse> {
-        return this._messenger.sendRequest(createLibraryAgentDefinition, HOST_EXTENSION, params);
-    }
-
 
     fixMissingImports(): Promise<void> {
         return this._messenger.sendRequest(fixMissingImports, HOST_EXTENSION);

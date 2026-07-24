@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest, CreateLibraryAgentDefinitionRequest, CreateLibraryAgentDefinitionResponse, GenAgentDefinitionRequest } from "../../interfaces/extended-lang-client";
+import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest, GenAgentDefinitionRequest } from "../../interfaces/extended-lang-client";
 import { DefaultProviderKind, McpToolUpdateRequest } from "./interfaces";
 
 export interface AIAgentAPI {
@@ -29,7 +29,6 @@ export interface AIAgentAPI {
     getTool: (params: AIToolRequest) => Promise<AIToolResponse>;
     getMcpTools: (params: McpToolsRequest) => Promise<McpToolsResponse>;
     genAgentDefinition: (params: GenAgentDefinitionRequest) => Promise<AIGentToolsResponse>;
-    createLibraryAgentDefinition: (params: CreateLibraryAgentDefinitionRequest) => Promise<CreateLibraryAgentDefinitionResponse>;
     fixMissingImports: () => Promise<void>;
     getPackageVersion: (params: AIGetPackageVersionRequest) => Promise<AIGetPackageVersionResponse>;
     configureDefaultModelProvider: (kind: DefaultProviderKind) => Promise<void>;

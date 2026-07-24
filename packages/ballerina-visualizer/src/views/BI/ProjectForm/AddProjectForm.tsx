@@ -129,7 +129,7 @@ export function AddProjectForm() {
             const orgHandle = sanitizeOrgHandle(formData.orgName);
 
             // If validation passes, add the project
-            rpcClient.getBIDiagramRpcClient().addProjectToWorkspace({
+            void rpcClient.getBIDiagramRpcClient().addProjectToWorkspace({
                 projectName: formData.integrationName,
                 packageName: formData.packageName,
                 convertToWorkspace: !isInProject,
@@ -140,7 +140,7 @@ export function AddProjectForm() {
                 version: formData.version || undefined,
                 isLibrary: formData.isLibrary,
                 projectHandle: formData.projectHandle,
-            });
+            }).catch(() => undefined);
         } catch (error) {
             setPathValidationError(error instanceof Error ? error.message : "An error occurred during validation");
             setIsLoading(false);

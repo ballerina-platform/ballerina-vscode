@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { DIRECTORY_MAP, EVENT_TYPE, isSamePath, MACHINE_VIEW, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, TextField, Typography } from "@wso2/ui-toolkit";
+import { URI, Utils } from "vscode-uri";
 import { IntroText } from "./AddAgentPopup/styles";
 import {
     ProjectTypeContainer,
@@ -354,16 +355,21 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
         setCreating(true);
         try {
             if (destination === "library") {
-                await rpcClient.getAIAgentRpcClient().createLibraryAgentDefinition({
-                    sourceProjectPath: projectPath,
-                    name: normalizedName,
-                    description: description.trim(),
-                    libraryName: library.name,
+                const { projectPath: libraryProjectPath } = await rpcClient.getBIDiagramRpcClient().addProjectToWorkspace({
+                    projectName: library.name,
                     packageName: library.packageName,
+                    path: projectPath,
                     orgName: library.orgName || undefined,
                     orgHandle: sanitizeOrgHandle(library.orgName),
                     version: library.version || undefined,
+                    isLibrary: true,
                 });
+                const response = await rpcClient.getAIAgentRpcClient().genAgentDefinition({
+                    filePath: Utils.joinPath(URI.file(libraryProjectPath), "Ballerina.toml").fsPath,
+                    name: normalizedName,
+                    description: description.trim(),
+                });
+                await openDefinition(response.artifacts, libraryProjectPath, normalizedName);
             } else {
                 const { filePath } = await rpcClient
                     .getVisualizerRpcClient()

@@ -134,6 +134,7 @@ import {
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     DeleteProjectRequest,
     OpenReadmeRequest,
     ValidateProjectFormRequest,
@@ -163,7 +164,7 @@ export interface BIDiagramAPI {
     validateProjectPath: (params: ValidateProjectFormRequest) => Promise<ValidateProjectFormResponse>;
     getSuggestedProjectDefaults: (params: { isInProject: boolean }) => Promise<SuggestedProjectDefaultsResponse>;
     deleteProject: (params: DeleteProjectRequest) => void;
-    addProjectToWorkspace: (params: AddProjectToWorkspaceRequest) => void;
+    addProjectToWorkspace: (params: AddProjectToWorkspaceRequest) => Promise<AddProjectToWorkspaceResponse>;
     getWorkspaces: () => Promise<WorkspacesResponse>;
     getProjectStructure: () => Promise<ProjectStructureResponse>;
     getProjectComponents: () => Promise<ProjectComponentsResponse>;

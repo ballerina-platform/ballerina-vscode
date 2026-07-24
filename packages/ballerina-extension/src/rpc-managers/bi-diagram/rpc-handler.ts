@@ -207,7 +207,7 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onNotification(createProject, (args: ProjectRequest) => rpcManger.createProject(args));
     messenger.onRequest(validateProjectPath, (args: ValidateProjectFormRequest) => rpcManger.validateProjectPath(args));
     messenger.onNotification(deleteProject, (args: DeleteProjectRequest) => rpcManger.deleteProject(args));
-    messenger.onNotification(addProjectToWorkspace, (args: AddProjectToWorkspaceRequest) => rpcManger.addProjectToWorkspace(args));
+    messenger.onRequest(addProjectToWorkspace, (args: AddProjectToWorkspaceRequest) => rpcManger.addProjectToWorkspace(args));
     messenger.onRequest(getWorkspaces, () => rpcManger.getWorkspaces());
     messenger.onRequest(getProjectStructure, () => rpcManger.getProjectStructure());
     messenger.onRequest(getProjectComponents, () => rpcManger.getProjectComponents());

@@ -30,6 +30,7 @@ import {
     AddFunctionRequest,
     AddImportItemResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     BIAiSuggestionsRequest,
     BIAiSuggestionsResponse,
     BIAvailableNodesRequest,
@@ -325,8 +326,8 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendNotification(deleteProject, HOST_EXTENSION, params);
     }
 
-    addProjectToWorkspace(params: AddProjectToWorkspaceRequest): void {
-        return this._messenger.sendNotification(addProjectToWorkspace, HOST_EXTENSION, params);
+    addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<AddProjectToWorkspaceResponse> {
+        return this._messenger.sendRequest(addProjectToWorkspace, HOST_EXTENSION, params);
     }
 
     getWorkspaces(): Promise<WorkspacesResponse> {

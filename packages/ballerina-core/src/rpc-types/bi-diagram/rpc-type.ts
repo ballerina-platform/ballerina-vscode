@@ -136,6 +136,7 @@ import {
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     DeleteProjectRequest,
     OpenReadmeRequest,
     ValidateProjectFormRequest,
@@ -166,7 +167,7 @@ export const createProject: NotificationType<ProjectRequest> = { method: `${_pre
 export const validateProjectPath: RequestType<ValidateProjectFormRequest, ValidateProjectFormResponse> = { method: `${_preFix}/validateProjectPath` };
 export const getSuggestedProjectDefaults: RequestType<{ isInProject: boolean }, SuggestedProjectDefaultsResponse> = { method: `${_preFix}/getSuggestedProjectDefaults` };
 export const deleteProject: NotificationType<DeleteProjectRequest> = { method: `${_preFix}/deleteProject` };
-export const addProjectToWorkspace: NotificationType<AddProjectToWorkspaceRequest> = { method: `${_preFix}/addProjectToWorkspace` };
+export const addProjectToWorkspace: RequestType<AddProjectToWorkspaceRequest, AddProjectToWorkspaceResponse> = { method: `${_preFix}/addProjectToWorkspace` };
 export const getWorkspaces: RequestType<void, WorkspacesResponse> = { method: `${_preFix}/getWorkspaces` };
 export const getProjectStructure: RequestType<void, ProjectStructureResponse> = { method: `${_preFix}/getProjectStructure` };
 export const getProjectComponents: RequestType<void, ProjectComponentsResponse> = { method: `${_preFix}/getProjectComponents` };

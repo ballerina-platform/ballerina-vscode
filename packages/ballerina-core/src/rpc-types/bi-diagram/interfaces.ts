@@ -49,6 +49,10 @@ export interface AddProjectToWorkspaceRequest {
     projectHandle?: string;
 }
 
+export interface AddProjectToWorkspaceResponse {
+    projectPath: string;
+}
+
 export interface WorkspacesResponse {
     workspaces: WorkspaceFolder[];
 }

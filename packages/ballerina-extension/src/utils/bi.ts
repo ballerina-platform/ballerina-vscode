@@ -482,7 +482,7 @@ sticky = true
     return projectRoot;
 }
 
-export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest) {
+export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<string> {
     const currentProjectPath = StateMachine.context().projectPath;
     const tomlValues = await getProjectTomlValues(currentProjectPath);
     const currentPackageName = tomlValues?.package?.name;
@@ -510,7 +510,7 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     createWorkspaceToml(newDirectory, params.workspaceName, existingProjectDirName);
     addToWorkspaceToml(newDirectory, sanitizeName(params.packageName));
 
-    await createProjectInWorkspace(params, newDirectory);
+    const projectPath = await createProjectInWorkspace(params, newDirectory);
 
     // create settings.json file
     createVSCodeSettings(newDirectory);
@@ -518,6 +518,7 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     await writeLocalContextYaml(newDirectory, params.orgHandle, params.projectHandle);
 
     openInVSCode(newDirectory);
+    return projectPath;
 }
 
 export async function addProjectToExistingWorkspace(params: AddProjectToWorkspaceRequest): Promise<string> {

@@ -20,8 +20,6 @@ import {
     AiModuleOrgRequest,
     AiModuleOrgResponse,
     AIGentToolsResponse,
-    CreateLibraryAgentDefinitionRequest,
-    CreateLibraryAgentDefinitionResponse,
     GenAgentDefinitionRequest,
     AIModelsRequest,
     AIModelsResponse,
@@ -41,23 +39,14 @@ import {
     AIGetPackageVersionRequest,
     AIGetPackageVersionResponse,
     DefaultProviderKind,
-    DIRECTORY_MAP,
-    EVENT_TYPE,
-    MACHINE_VIEW,
-    isPathInside,
-    isSamePath,
-    PROJECT_KIND
 } from "@wso2/ballerina-core";
 import { existsSync } from "fs";
 import path from "path";
 import vscode from "vscode";
 import { URI, Utils } from "vscode-uri";
-import { openView, StateMachine } from "../../stateMachine";
+import { StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
-import { isLibraryProject } from "../../utils/config";
-import { addProjectToExistingWorkspace, validateProjectPath } from "../../utils/bi";
-import { buildProjectsStructure } from "../../utils/project-artifacts";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 
@@ -163,116 +152,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 console.log(error);
             }
         });
-    }
-
-    async createLibraryAgentDefinition(
-        params: CreateLibraryAgentDefinitionRequest
-    ): Promise<CreateLibraryAgentDefinitionResponse> {
-        const context = StateMachine.context();
-        const workspacePath = context.workspacePath;
-
-        if (context.projectInfo?.projectKind !== PROJECT_KIND.WORKSPACE_PROJECT || !workspacePath) {
-            throw this.agentDefinitionError("Agent definitions can only be created in a library from a Ballerina workspace");
-        }
-
-        const workspaceInfo = await context.langClient.getProjectInfo({ projectPath: workspacePath });
-        const activePackage = workspaceInfo.children?.find((child) =>
-            isSamePath(child.projectPath, params.sourceProjectPath) || isPathInside(child.projectPath, params.sourceProjectPath)
-        );
-        if (!activePackage?.projectPath) {
-            throw this.agentDefinitionError("The active package is not part of this Ballerina workspace");
-        }
-
-        if (await isLibraryProject(activePackage.projectPath)) {
-            throw this.agentDefinitionError("The active package is already a library");
-        }
-
-        const pathValidation = validateProjectPath(workspacePath, params.packageName, true);
-        if (!pathValidation.isValid) {
-            throw this.agentDefinitionError(pathValidation.errorMessage ?? "Invalid library package path");
-        }
-
-        const projectPath = await addProjectToExistingWorkspace({
-            projectName: params.libraryName,
-            packageName: params.packageName,
-            path: workspacePath,
-            orgName: params.orgName,
-            orgHandle: params.orgHandle,
-            version: params.version,
-            isLibrary: true,
-        });
-
-        const projectInfo = await this.waitForWorkspacePackage(workspacePath, projectPath);
-        StateMachine.updateProjectInfo(projectInfo, { silent: true });
-        await this.ensureAgentsFile(projectPath);
-
-        const response = await context.langClient.genAgentDefinition({
-            filePath: path.join(projectPath, "Ballerina.toml"),
-            name: params.name,
-            description: params.description ?? "",
-        });
-        await updateSourceCode({
-            textEdits: response.textEdits,
-            description: "Create library agent definition",
-            waitForArtifactNotifications: false,
-        });
-
-        const { projectInfo: refreshedProjectInfo, artifact } = await this.waitForAgentDefinitionArtifact(
-            workspacePath,
-            projectPath,
-            params.name
-        );
-        StateMachine.updateProjectInfo(refreshedProjectInfo, { silent: true });
-
-        StateMachine.setReadyMode();
-        openView(EVENT_TYPE.OPEN_VIEW, {
-            view: MACHINE_VIEW.AgentDefinitionDesigner,
-            documentUri: artifact.path,
-            position: artifact.position,
-            identifier: params.name,
-            projectPath,
-            artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
-        });
-
-        return { artifacts: [artifact], textEdits: response.textEdits, projectPath };
-    }
-
-    private async waitForWorkspacePackage(workspacePath: string, projectPath: string) {
-        const context = StateMachine.context();
-        for (let attempt = 0; attempt < 10; attempt++) {
-            const projectInfo = await context.langClient.getProjectInfo({ projectPath: workspacePath });
-            if (projectInfo.children?.some((child) => isSamePath(child.projectPath, projectPath))) {
-                return projectInfo;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-
-        throw this.agentDefinitionError("Library package was created but is not ready yet. Try creating the agent definition again.");
-    }
-
-    private async waitForAgentDefinitionArtifact(workspacePath: string, projectPath: string, name: string) {
-        const context = StateMachine.context();
-        for (let attempt = 0; attempt < 10; attempt++) {
-            const projectInfo = await this.waitForWorkspacePackage(workspacePath, projectPath);
-            const structure = await buildProjectsStructure(projectInfo, context.langClient, true);
-            const artifact = structure.projects
-                .find((project) => isSamePath(project.projectPath, projectPath))
-                ?.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION]
-                ?.find((item) => item.name === name);
-
-            if (artifact) {
-                return { projectInfo, artifact };
-            }
-
-            await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-
-        throw this.agentDefinitionError(`Agent definition ${name} was created but could not be loaded from workspace artifacts`);
-    }
-
-    private agentDefinitionError(message: string): Error {
-        vscode.window.showErrorMessage(message);
-        return new Error(message);
     }
 
     async fixMissingImports(): Promise<void> {

@@ -1962,19 +1962,6 @@ export interface GenAgentDefinitionRequest {
     description: string;
 }
 
-export interface CreateLibraryAgentDefinitionRequest extends Omit<GenAgentDefinitionRequest, "filePath"> {
-    sourceProjectPath: string;
-    libraryName: string;
-    packageName: string;
-    orgName?: string;
-    orgHandle?: string;
-    version?: string;
-}
-
-export interface CreateLibraryAgentDefinitionResponse extends AIGentToolsResponse {
-    projectPath: string;
-}
-
 export interface AIGetPackageVersionRequest {
     projectPath: string;
     org: string;

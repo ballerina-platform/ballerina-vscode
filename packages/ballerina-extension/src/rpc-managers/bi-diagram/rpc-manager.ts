@@ -30,6 +30,7 @@ import {
     AddFunctionRequest,
     AddImportItemResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     ArtifactData,
     BIAiSuggestionsRequest,
     BIAiSuggestionsResponse,
@@ -804,26 +805,20 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         StateMachine.refreshProjectInfo();
     }
 
-    async addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<void> {
-        if (params.convertToWorkspace) {
-            try {
-                await convertProjectToWorkspace(params);
-                // Refresh project info to update UI with newly added project
-                StateMachine.refreshProjectInfo();
-            } catch (error) {
-                window.showErrorMessage("Error converting integration to project");
-                console.error("Error converting integration to project:", error);
-                return;
-            }
-        } else {
-            try {
-                await addProjectToExistingWorkspace(params);
-                // Refresh project info to update UI with newly added project
-                StateMachine.refreshProjectInfo();
-            } catch (error) {
-                window.showErrorMessage("Error adding integration to existing project");
-                console.error("Error adding integration to existing project:", error);
-            }
+    async addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<AddProjectToWorkspaceResponse> {
+        try {
+            const projectPath = params.convertToWorkspace
+                ? await convertProjectToWorkspace(params)
+                : await addProjectToExistingWorkspace(params);
+            StateMachine.refreshProjectInfo();
+            return { projectPath };
+        } catch (error) {
+            const operation = params.convertToWorkspace
+                ? "converting integration to project"
+                : "adding integration to existing project";
+            window.showErrorMessage(`Error ${operation}`);
+            console.error(`Error ${operation}:`, error);
+            throw error;
         }
     }
 
