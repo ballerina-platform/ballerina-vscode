@@ -437,17 +437,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
     let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
 
-    const handleAgentFocusChat = () => {
-        if (!agentName || !filePath) {
-            console.error("Cannot start inline agent chat: missing agent variable name or file path");
-            return;
-        }
-        rpcClient.getBIDiagramRpcClient().startInlineAgentChat({
-            agentVarName: agentName,
-            filePath,
-        });
-    };
-
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {
         if (serviceType !== "http") { return; }
 

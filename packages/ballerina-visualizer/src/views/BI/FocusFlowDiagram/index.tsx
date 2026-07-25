@@ -642,20 +642,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const handleGetAgentDefinitionLocation = (node: FlowNode) =>
         resolveAgentDefinitionLocation(node, rpcClient);
 
-    const handleOnChatWithAgent = (agentDeclNode: FlowNode) => {
-        const agentVarName = agentDeclNode.properties?.variable?.value as string;
-        const filePath = model?.fileName || agentDeclNode.codedata?.lineRange?.fileName;
-        if (!agentVarName || !filePath) {
-            console.error("Cannot start inline agent chat: missing agent variable name or file path");
-            return;
-        }
-        rpcClient.getBIDiagramRpcClient().startInlineAgentChat({
-            agentVarName,
-            filePath,
-            agentNode: agentDeclNode,
-        });
-    };
-
     const flowModel = originalFlowModel.current && suggestedModel ? suggestedModel : model;
 
     /* expression editor related */
@@ -892,7 +878,6 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onModelSelect: isAgentType ? handleEditAgentTypeModel : handleEditAgentModel,
         onRefresh: (position) => { void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position)); },
         onLoadingChange: setShowProgressIndicator,
-        onChat: isAgentType ? handleOnChatWithAgent : undefined,
         onAgentCreated: () => { suppressAgentReloadRef.current = true; },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
     });
