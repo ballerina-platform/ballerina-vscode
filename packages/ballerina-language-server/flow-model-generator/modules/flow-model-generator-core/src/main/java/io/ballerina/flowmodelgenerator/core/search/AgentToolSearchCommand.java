@@ -30,6 +30,7 @@ import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
@@ -208,7 +209,7 @@ public class AgentToolSearchCommand extends SearchCommand {
         if (!functionSymbol.qualifiers().contains(Qualifier.ISOLATED)) {
             return false;
         }
-        return CommonUtils.isAgentToolFunction(functionSymbol) && isValidAgentToolSignature(functionSymbol);
+        return AiUtils.isAgentToolFunction(functionSymbol) && isValidAgentToolSignature(functionSymbol);
     }
 
     private boolean isValidAgentToolSignature(FunctionSymbol functionSymbol) {
