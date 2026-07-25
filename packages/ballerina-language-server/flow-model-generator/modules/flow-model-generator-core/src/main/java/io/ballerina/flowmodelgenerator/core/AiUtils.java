@@ -29,6 +29,7 @@ import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
+import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
@@ -1490,7 +1491,7 @@ public class AiUtils {
         List<AgentToolData> tools = new ArrayList<>();
         for (MethodSymbol method : classSymbol.methods().values()) {
             Optional<String> name = method.getName();
-            if (name.isEmpty() || !hasAiAnnotation(method, AGENT_TOOL_ANNOT)) {
+            if (name.isEmpty() || !hasAiAnnotation(method.annotAttachments(), AGENT_TOOL_ANNOT)) {
                 continue;
             }
             DisplayInfo display = readDisplayAnnotation(method);
@@ -1499,8 +1500,13 @@ public class AiUtils {
         return tools;
     }
 
-    private static boolean hasAiAnnotation(MethodSymbol method, String annotName) {
-        return method.annotAttachments().stream().anyMatch(annot -> annot.typeDescriptor().nameEquals(annotName)
+    public static boolean isAgentToolFunction(Symbol symbol) {
+        return symbol instanceof FunctionSymbol functionSymbol
+                && hasAiAnnotation(functionSymbol.annotAttachments(), AGENT_TOOL_ANNOT);
+    }
+
+    private static boolean hasAiAnnotation(List<AnnotationAttachmentSymbol> annotations, String annotName) {
+        return annotations.stream().anyMatch(annot -> annot.typeDescriptor().nameEquals(annotName)
                 && annot.typeDescriptor().getModule().map(ModuleSymbol::id)
                         .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
     }
