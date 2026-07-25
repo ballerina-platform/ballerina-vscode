@@ -38,15 +38,7 @@ interface Props extends AddConnectionPopupProps {
 }
 
 export function AddConnectionPopupContent(props: Props) {
-    const {
-        fileName,
-        target,
-        handleDatabaseConnection,
-        handleApiSpecConnection,
-        handleSelectConnector,
-        DevantServicesSection,
-        selectionOnly = false,
-    } = props;
+    const { fileName, target, handleDatabaseConnection, handleApiSpecConnection, handleSelectConnector, DevantServicesSection, selectionOnly = false, } = props;
     const { rpcClient } = useRpcContext();
     const { platformExtState, loginToDevant, handleLinkWorkspace, platformRpcClient } = usePlatformExtContext();
 
@@ -269,7 +261,7 @@ export function AddConnectionPopupContent(props: Props) {
     };
 
     const connectorOptions = getConnectorCreationOptions();
-    
+
     return (
         <>
             {!selectionOnly && platformExtState?.isExtInstalled && !platformExtState?.isLoggedIn && (
