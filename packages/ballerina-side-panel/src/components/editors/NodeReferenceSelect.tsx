@@ -52,7 +52,7 @@ const UrlIcon: React.FC<{ url: string; fallback: React.ReactElement }> = ({ url,
     return <img src={url} style={{ width: ICON_SIZE, height: ICON_SIZE }} onError={() => setErrored(true)} />;
 };
 
-export function getConnectionIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
+export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
     const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
 
     // Check AI module icon map first (e.g. OpenAI, Anthropic, etc.)
@@ -77,7 +77,7 @@ export function getConnectionIcon(codedata: CodeData, iconUrl?: string): React.R
 
 // --- Select Item type ---
 
-export interface ConnectionSelectItem {
+export interface NodeReferenceSelectItem {
     id: string;
     label: string;
     value: string;
@@ -185,10 +185,10 @@ const FieldLabel = styled.label`
 
 // --- Component ---
 
-interface ConnectionIconSelectProps {
+interface NodeReferenceSelectProps {
     id: string;
     label?: string;
-    items: ConnectionSelectItem[];
+    items: NodeReferenceSelectItem[];
     value?: string;
     placeholder?: string;
     emptyMessage?: string;
@@ -198,7 +198,7 @@ interface ConnectionIconSelectProps {
     onChange: (value: string) => void;
 }
 
-export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
+export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
     id,
     label,
     items,
@@ -305,7 +305,7 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
                             </>
                         ) : selectedItem ? (
                             <>
-                                {selectedItem.codedata && getConnectionIcon(selectedItem.codedata, selectedItem.iconUrl)}
+                                {selectedItem.codedata && getNodeReferenceIcon(selectedItem.codedata, selectedItem.iconUrl)}
                                 <SelectedLabel>{selectedItem.label}</SelectedLabel>
                             </>
                         ) : (
@@ -326,7 +326,7 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
                                 onClick={() => handleSelect(item.value)}
                                 onKeyDown={(e: React.KeyboardEvent) => handleOptionKeyDown(e, index, item.value)}
                             >
-                                {item.codedata && getConnectionIcon(item.codedata, item.iconUrl)}
+                                {item.codedata && getNodeReferenceIcon(item.codedata, item.iconUrl)}
                                 <OptionLabel>{item.label}</OptionLabel>
                             </OptionItem>
                         ))}

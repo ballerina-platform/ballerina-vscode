@@ -21,7 +21,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, SearchNodesQuery, SearchNodesTypeConstraint } from "@wso2/ballerina-core";
 import { Codicon, LinkButton } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
-import { ConnectionIconSelect, ConnectionSelectItem } from "../../ConnectionIconSelect";
+import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
 
 function humanizeKind(kind: string): string {
@@ -31,21 +31,21 @@ function humanizeKind(kind: string): string {
         .join(" ");
 }
 
-export type ConnectorFilter = { module?: string; object?: string };
+export type NodeReferenceFilter = { module?: string; object?: string };
 
-interface ConnectionSelectEditorProps {
+interface NodeReferenceSelectEditorProps {
     value: string;
     field: FormField;
     onChange: (value: string, cursorPosition: number) => void;
-    connectorFilters?: ConnectorFilter[];
+    nodeReferenceFilters?: NodeReferenceFilter[];
 }
 
 // Cache icon URLs by module name across remounts to avoid icon flicker
 const iconUrlCache = new Map<string, string>();
-// Cache fetched items by searchNodesKind across remounts to avoid redundant API calls
-const itemsCache = new Map<string, ConnectionSelectItem[]>();
+// Cache fetched node items by search query across remounts to avoid redundant API calls.
+const nodeItemsCache = new Map<string, NodeReferenceSelectItem[]>();
 
-function enrichWithCachedIcons(items: ConnectionSelectItem[]): ConnectionSelectItem[] {
+function enrichWithCachedIcons(items: NodeReferenceSelectItem[]): NodeReferenceSelectItem[] {
     return items.map(item => {
         const module = item.codedata?.module;
         const cachedUrl = module ? iconUrlCache.get(module) : undefined;
@@ -54,10 +54,10 @@ function enrichWithCachedIcons(items: ConnectionSelectItem[]): ConnectionSelectI
 }
 
 function ensureValueInItems(
-    items: ConnectionSelectItem[],
+    items: NodeReferenceSelectItem[],
     value: string,
     searchNodesKind?: string,
-): ConnectionSelectItem[] {
+): NodeReferenceSelectItem[] {
     if (!value || items.some(item => item.value === value)) {
         return items;
     }
@@ -72,34 +72,36 @@ function ensureValueInItems(
     ];
 }
 
-export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ value, field, onChange, connectorFilters }) => {
+export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps> = ({
+    value, field, onChange, nodeReferenceFilters,
+}) => {
     const { rpcClient } = useRpcContext();
-    const { targetLineRange, fileName, onCreateConnection } = useFormContext();
+    const { targetLineRange, fileName, onCreateNode } = useFormContext();
 
     const searchNodesKind = field.codedata?.searchNodesKind;
     const targetType = field.codedata?.targetType as SearchNodesTypeConstraint | undefined;
     const query: SearchNodesQuery = { kind: searchNodesKind, ...(targetType && { targetType }) };
     const cacheKey = JSON.stringify(query);
-    const initialItems: ConnectionSelectItem[] = field.codedata?.initialItems ?? [];
-    const staticItems: ConnectionSelectItem[] = field.codedata?.staticItems ?? [];
+    const initialItems: NodeReferenceSelectItem[] = field.codedata?.initialItems ?? [];
+    const staticItems: NodeReferenceSelectItem[] = field.codedata?.staticItems ?? [];
     const itemsPreloaded = field.codedata?.initialItems !== undefined;
-    const cachedItems = cacheKey ? itemsCache.get(cacheKey) : undefined;
-    const hasFilters = connectorFilters && connectorFilters.length > 0;
+    const cachedItems = cacheKey ? nodeItemsCache.get(cacheKey) : undefined;
+    const hasFilters = nodeReferenceFilters && nodeReferenceFilters.length > 0;
     // Stable string key for effect deps so we re-fetch only when the filter set actually changes.
     const filterKey = hasFilters
-        ? connectorFilters!.map((f) => `${f.module ?? ""}:${f.object ?? ""}`).join("|")
+        ? nodeReferenceFilters!.map((f) => `${f.module ?? ""}:${f.object ?? ""}`).join("|")
         : "";
-    const applyConnectorFilter = (items: ConnectionSelectItem[]): ConnectionSelectItem[] => {
+    const applyNodeReferenceFilter = (items: NodeReferenceSelectItem[]): NodeReferenceSelectItem[] => {
         if (!hasFilters) return items;
         return items.filter(item =>
-            connectorFilters!.some((filter) =>
+            nodeReferenceFilters!.some((filter) =>
                 (!filter.module || item.codedata?.module === filter.module) &&
                 (!filter.object || item.codedata?.object === filter.object)
             )
         );
     };
-    const resolvedItems = applyConnectorFilter([...staticItems, ...(cachedItems ?? enrichWithCachedIcons(initialItems))]);
-    const [selectItems, setSelectItems] = useState<ConnectionSelectItem[]>(
+    const resolvedItems = applyNodeReferenceFilter([...staticItems, ...(cachedItems ?? enrichWithCachedIcons(initialItems))]);
+    const [selectItems, setSelectItems] = useState<NodeReferenceSelectItem[]>(
         ensureValueInItems(resolvedItems, value, searchNodesKind)
     );
     const [loading, setLoading] = useState<boolean>(!!searchNodesKind && !cachedItems && !itemsPreloaded);
@@ -107,7 +109,7 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
     const fetchItems = () => {
         if (!searchNodesKind) return;
         // Show loading only if we have no cached items to display
-        if (!itemsCache.has(cacheKey)) {
+        if (!nodeItemsCache.has(cacheKey)) {
             setLoading(true);
         }
         rpcClient.getBIDiagramRpcClient().searchNodes({
@@ -116,7 +118,7 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
             query,
         }).then((response) => {
             const nodes = response?.output ?? [];
-            const items: ConnectionSelectItem[] = nodes
+            const items: NodeReferenceSelectItem[] = nodes
                 .filter(node => node.properties?.variable?.value)
                 .map(node => {
                     const iconUrl = node.metadata?.icon;
@@ -132,8 +134,8 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
                         iconUrl,
                     };
                 });
-            itemsCache.set(cacheKey, items);
-            setSelectItems(applyConnectorFilter([...staticItems, ...items]));
+            nodeItemsCache.set(cacheKey, items);
+            setSelectItems(applyNodeReferenceFilter([...staticItems, ...items]));
         }).finally(() => {
             setLoading(false);
         });
@@ -150,29 +152,28 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
         }
     }, []);
 
-    // When value changes to something not in the current items (e.g. after creating
-    // a new connection via an overlay), inject a placeholder and re-fetch
+    // When a newly created node becomes the value, inject a placeholder and re-fetch.
     useEffect(() => {
         if (!value || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
         if (cacheKey) {
-            itemsCache.delete(cacheKey);
+            nodeItemsCache.delete(cacheKey);
         }
         fetchItems();
     }, [value]);
 
-    const showCreateNew = !!onCreateConnection && !!searchNodesKind && field.editable && !field.actionCallback;
+    const showCreateNew = !!onCreateNode && !!searchNodesKind && field.editable && !field.actionCallback;
     const agentCodeData = field.codedata?.data?.agent as CodeData | undefined;
-    const connectorCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
+    const creationCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
     const createNewLabel = agentCodeData?.object
         ? agentCodeData.object // e.g. "CalendarAssistantAgent" -> "Create New CalendarAssistantAgent"
-        : connectorCodeData?.module && connectorCodeData?.object
-        ? `${humanizeKind(connectorCodeData.module.split(".").pop() ?? "")} ${connectorCodeData.object}`
+        : creationCodeData?.module && creationCodeData?.object
+        ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
         : humanizeKind(searchNodesKind);
 
     return (
         <>
-            <ConnectionIconSelect
+            <NodeReferenceSelect
                 id={field.key}
                 items={selectItems}
                 value={value}
@@ -183,10 +184,10 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
             />
             {showCreateNew && (
                 <LinkButton
-                    onClick={() => onCreateConnection(
+                    onClick={() => onCreateNode(
                         searchNodesKind,
                         (varName) => onChange(varName, varName?.length),
-                        connectorCodeData
+                        creationCodeData
                     )}
                     sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
                 >

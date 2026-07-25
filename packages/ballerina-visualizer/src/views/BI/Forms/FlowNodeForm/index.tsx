@@ -119,7 +119,7 @@ import DynamicModal from "../../../../components/Modal";
 import { EntryPointTypeCreator } from "../../../../components/EntryPointTypeCreator";
 import React from "react";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
-import { ConnectionKind, useCreateConnection } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
@@ -1541,7 +1541,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         closePopup: closeModal
     }
 
-    const handleCreateConnection = useCreateConnection(fileName, targetLineRange, props.onConnectionCreated);
+    const handleCreateNode = useCreateNode(fileName, targetLineRange, props.onConnectionCreated);
 
 
     // State to manage record config page modal
@@ -2211,7 +2211,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     openView={handleOpenView}
                     openSubPanel={openSubPanel}
                     subPanelView={subPanelView}
-                    onCreateConnection={handleCreateConnection}
+                    onCreateNode={handleCreateNode}
                     expressionEditor={expressionEditor}
                     targetLineRange={targetLineRange}
                     fileName={fileName}

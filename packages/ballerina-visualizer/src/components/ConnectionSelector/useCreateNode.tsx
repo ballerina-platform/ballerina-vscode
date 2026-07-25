@@ -37,17 +37,17 @@ const readCreatedVariable = (node: FlowNode): string | undefined => {
     return props?.model?.value ?? props?.modelProvider?.value;
 };
 
-export function useCreateConnection(
+export function useCreateNode(
     fileName?: string,
     targetLineRange?: LineRange,
-    onConnectionCreated?: () => void
+    onNodeCreated?: () => void
 ) {
     const { rpcClient } = useRpcContext();
     const panelOverlay = useContext(PanelOverlayContext);
     const { addModal, closeModal } = useModalStack();
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {
-        onConnectionCreated?.();
+        onNodeCreated?.();
         onCreated(variableName);
     };
 
@@ -108,8 +108,8 @@ export function useCreateConnection(
         }
     };
 
-    return (kind: string, onCreated: (variableName: string) => void, connectorCodeData?: CodeData) => {
-        if (connectorCodeData?.node === "AGENT" || connectorCodeData?.node === "TYPED_AGENT") {
+    return (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => {
+        if (nodeCodeData?.node === "AGENT" || nodeCodeData?.node === "TYPED_AGENT") {
             const modalId = "create-agent";
             const handleAgentCreated = (variableName: string) => {
                 handleCreated(variableName, onCreated);
@@ -117,17 +117,17 @@ export function useCreateConnection(
             };
             addModal(
                 <Suspense fallback={<LoaderContainer><RelativeLoader /></LoaderContainer>}>
-                    <CreateAgentForm agentCodeData={connectorCodeData} onCreated={handleAgentCreated} />
+                    <CreateAgentForm agentCodeData={nodeCodeData} onCreated={handleAgentCreated} />
                 </Suspense>,
                 modalId,
-                `Create ${connectorCodeData.object ?? "Agent"}`,
+                `Create ${nodeCodeData.object ?? "Agent"}`,
                 600,
                 600
             );
             return;
         }
-        if (connectorCodeData) {
-            createGenericConnection(connectorCodeData, onCreated);
+        if (nodeCodeData) {
+            createGenericConnection(nodeCodeData, onCreated);
             return;
         }
         if (kind === "MEMORY") {

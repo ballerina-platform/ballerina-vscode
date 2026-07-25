@@ -367,7 +367,7 @@ export interface FormProps {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
-    onCreateConnection?: (kind: string, onCreated: (variableName: string) => void) => void;
+    onCreateNode?: (kind: string, onCreated: (variableName: string) => void) => void;
 }
 
 export const Form = forwardRef((props: FormProps, _ref) => {
@@ -416,7 +416,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         bottomFields = [],
         updateImports,
         onRequestCreateConnection,
-        onCreateConnection,
+        onCreateNode,
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -817,7 +817,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             kind: selectedNode,
         },
         onRequestCreateConnection,
-        onCreateConnection,
+        onCreateNode,
     };
 
     // Find the first editable identifier field
