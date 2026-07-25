@@ -44,6 +44,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -94,7 +95,7 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
         Optional<Symbol> functionSymbol = semanticModel.symbol(functionDefinitionNode);
         // Hide agent tools from being rendered under "Functions" in the artifact tree
         if (functionDefinitionNode.kind() == SyntaxKind.FUNCTION_DEFINITION
-                && functionSymbol.isPresent() && CommonUtils.isAgentToolFunction(functionSymbol.get())) {
+                && functionSymbol.isPresent() && AiUtils.isAgentToolFunction(functionSymbol.get())) {
             return Optional.empty();
         }
         if (functionName.equals(MAIN_FUNCTION_NAME)) {
