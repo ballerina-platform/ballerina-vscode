@@ -59,6 +59,7 @@ import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
+import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
@@ -1411,8 +1412,10 @@ public class AiUtils {
             if (!(field instanceof SpecificFieldNode f) || f.valueExpr().isEmpty()) {
                 continue;
             }
-            String src = f.valueExpr().get().toSourceCode().strip();
-            String value = src.contains("`") ? src.substring(src.indexOf('`') + 1, src.lastIndexOf('`'))
+            ExpressionNode valueExpression = f.valueExpr().get();
+            String src = valueExpression.toSourceCode().strip();
+            String value = valueExpression.kind() == SyntaxKind.STRING_TEMPLATE_EXPRESSION
+                    ? src.substring(src.indexOf('`') + 1, src.lastIndexOf('`'))
                     : src.replaceAll("^\"|\"$", "");
             switch (f.fieldName().toSourceCode().trim()) {
                 case SYSTEM_PROMPT_ROLE -> role = value;
@@ -1731,6 +1734,9 @@ public class AiUtils {
                     .originalName(existing.originalName())
                     .dependentProperty(existing.dependentProperty())
                     .lineRange(existing.lineRange());
+            if (existing.data() != null) {
+                existing.data().forEach(propertyCodedata::addData);
+            }
         }
         return propertyCodedata.addData(dataKey, builder.build()).build();
     }
@@ -1750,7 +1756,7 @@ public class AiUtils {
                 property.diagnostics(),
                 codedata,
                 property.advancedValue(),
-                null,
+                property.imports(),
                 property.defaultValue(),
                 property.comment(),
                 property.dynamicFormFields(),
@@ -1760,15 +1766,22 @@ public class AiUtils {
 
     private static Optional<ClassSymbol> resolveClass(Codedata codedata, Project project) {
         String className = codedata.object();
+        if (className == null) {
+            return Optional.empty();
+        }
         for (Project candidate : getProjectsForModule(codedata.org(), codedata.packageName(), project)) {
             try {
                 Package pkg = candidate.currentPackage();
-                SemanticModel semanticModel = PackageUtil.getCompilation(pkg)
-                        .getSemanticModel(pkg.getDefaultModule().moduleId());
-                for (Symbol symbol : semanticModel.moduleSymbols()) {
-                    if (symbol instanceof ClassSymbol classSymbol
-                            && classSymbol.getName().filter(className::equals).isPresent()) {
-                        return Optional.of(classSymbol);
+                for (io.ballerina.projects.Module module : pkg.modules()) {
+                    if (codedata.module() != null && !codedata.module().equals(module.moduleName().toString())) {
+                        continue;
+                    }
+                    SemanticModel semanticModel = PackageUtil.getCompilation(pkg).getSemanticModel(module.moduleId());
+                    for (Symbol symbol : semanticModel.moduleSymbols()) {
+                        if (symbol instanceof ClassSymbol classSymbol
+                                && classSymbol.getName().filter(className::equals).isPresent()) {
+                            return Optional.of(classSymbol);
+                        }
                     }
                 }
             } catch (RuntimeException e) {
@@ -1808,6 +1821,14 @@ public class AiUtils {
                     .isPresent();
         }
         return false;
+    }
+
+    public static boolean isTypedAgent(TypeSymbol typeSymbol) {
+        return CommonUtils.isAiFixedTypedAgent(typeSymbol) || CommonUtils.isAiDependentlyTypedAgent(typeSymbol);
+    }
+
+    public static boolean isTypedAgent(Symbol symbol) {
+        return CommonUtils.isAiFixedTypedAgent(symbol) || CommonUtils.isAiDependentlyTypedAgent(symbol);
     }
 
     private static ExpressionNode getArgumentForParam(SeparatedNodeList<FunctionArgumentNode> argumentNodes,

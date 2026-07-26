@@ -22,13 +22,8 @@ import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.modelgenerator.commons.PackageUtil;
-import io.ballerina.projects.DocumentId;
-import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 import org.ballerinalang.langserver.common.utils.NameUtil;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 public class TypedAgentBuilder extends ClassInitBuilder {
 
@@ -47,37 +42,11 @@ public class TypedAgentBuilder extends ClassInitBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        TemplateContext resolvedContext = anchorToExistingFile(context);
-        super.setConcreteTemplateData(resolvedContext);
-        suggestResultVariableName(resolvedContext);
-        try {
-            Project project = PackageUtil.loadProject(resolvedContext.workspaceManager(),
-                    resolvedContext.filePath());
-            AiUtils.markClientConnectionParams(this, resolvedContext.codedata(), project);
-            AiUtils.markAgentParams(this, resolvedContext.codedata(), project);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private TemplateContext anchorToExistingFile(TemplateContext context) {
-        if (context == null || context.filePath() == null || context.workspaceManager() == null
-                || Files.isRegularFile(context.filePath())) {
-            return context;
-        }
-        try {
-            Path packageDir = context.filePath().getParent();
-            Project project = context.workspaceManager().loadProject(packageDir);
-            Module defaultModule = project.currentPackage().getDefaultModule();
-            for (DocumentId documentId : defaultModule.documentIds()) {
-                Path docPath = project.sourceRoot().resolve(defaultModule.document(documentId).name());
-                if (Files.isRegularFile(docPath)) {
-                    return new TemplateContext(context.workspaceManager(), docPath, context.position(),
-                            context.codedata(), context.lsClientLogger());
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return context;
+        super.setConcreteTemplateData(context);
+        suggestResultVariableName(context);
+        Project project = PackageUtil.loadProject(context.workspaceManager(), context.filePath());
+        AiUtils.markClientConnectionParams(this, context.codedata(), project);
+        AiUtils.markAgentParams(this, context.codedata(), project);
     }
 
     private void suggestResultVariableName(TemplateContext context) {

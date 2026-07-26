@@ -21,9 +21,6 @@ package io.ballerina.flowmodelgenerator.core.search;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.centralconnector.CentralAPI;
-import io.ballerina.centralconnector.RemoteCentral;
-import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -50,7 +47,6 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,7 +60,6 @@ import java.util.Optional;
 public class AgentSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
-    private static final String AGENT_KEYWORD_FILTER = "keywords:\"Type/Agent\"";
     private static final String CENTRAL_AGENTS_CATEGORY = "Central Agents";
     private static final String LOCAL_AGENTS_CATEGORY = "Local Agents";
     private static final String INIT_SYMBOL = "init";
@@ -73,25 +68,24 @@ public class AgentSearchCommand extends SearchCommand {
 
     private static final String SOURCE_DEFAULT = "default";
     private static final String SOURCE_ALL = "all";
-    private static final String SOURCE_ORGANIZATION = "organization";
     private static final String SOURCE_LOCAL = "local";
 
     private List<Item> cachedDefaultAgents;
-    private List<AvailableNode> cachedLandingAgents;
     private final String orgName;
     private final String source;
 
     public AgentSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
         orgName = queryMap.get("orgName");
-        source = queryMap.getOrDefault("source", SOURCE_DEFAULT);
+        String requestedSource = queryMap.getOrDefault("source", SOURCE_DEFAULT);
+        source = SOURCE_ALL.equals(requestedSource) || SOURCE_LOCAL.equals(requestedSource)
+                ? requestedSource : SOURCE_DEFAULT;
     }
 
     @Override
     protected List<Item> defaultView() {
         return switch (source) {
             case SOURCE_ALL -> getAllAgents(null);
-            case SOURCE_ORGANIZATION -> getOrganizationAgents(null);
             case SOURCE_LOCAL -> getLocalAgents(null);
             default -> getDefaultAgents();
         };
@@ -101,7 +95,6 @@ public class AgentSearchCommand extends SearchCommand {
     protected List<Item> search() {
         return switch (source) {
             case SOURCE_ALL -> getAllAgents(query);
-            case SOURCE_ORGANIZATION -> getOrganizationAgents(query);
             case SOURCE_LOCAL -> getLocalAgents(query);
             default -> searchDefaultAgents();
         };
@@ -146,89 +139,21 @@ public class AgentSearchCommand extends SearchCommand {
     }
 
     private List<AvailableNode> getLandingAgents() {
-        if (cachedLandingAgents == null) {
-            try {
-                List<AvailableNode> landing =
-                        LocalIndexCentral.getInstance().readJsonResource(AGENTS_LANDING_JSON, LANDING_AGENTS_TYPE);
-                cachedLandingAgents = landing != null ? landing : List.of();
-            } catch (RuntimeException e) {
-                cachedLandingAgents = List.of();
-            }
-        }
-        return cachedLandingAgents;
-    }
-    private List<Item> getAllAgents(String searchQuery) {
-        List<AvailableNode> centralAgents = (searchQuery == null || searchQuery.isEmpty())
-                ? getLandingAgents()
-                : fetchAgentsFromCentral(searchQuery, null);
-        addCategory(CENTRAL_AGENTS_CATEGORY, centralAgents);
-        addCategory(LOCAL_AGENTS_CATEGORY, filterLocalAgents(getWorkspaceAgents(), searchQuery));
-        return rootBuilder.build().items();
-    }
-
-    private List<Item> getOrganizationAgents(String searchQuery) {
-        String currentOrg = getCurrentOrg();
-        if (currentOrg == null || currentOrg.isEmpty()) {
-            return rootBuilder.build().items();
-        }
-        addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, currentOrg));
-        return rootBuilder.build().items();
-    }
-
-    private String getCurrentOrg() {
         try {
-            return project.currentPackage().packageOrg().value();
+            List<AvailableNode> landing =
+                    LocalIndexCentral.getInstance().readJsonResource(AGENTS_LANDING_JSON, LANDING_AGENTS_TYPE);
+            return landing != null ? landing : List.of();
         } catch (RuntimeException e) {
-            return null;
-        }
-    }
-    private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, String org) {
-        try {
-            PackageResponse response = getPackageResponse(searchQuery, org);
-            return response == null || response.packages() == null ? List.of()
-                    : response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
-        } catch (RuntimeException ignored) {
             return List.of();
         }
     }
-
-    private PackageResponse getPackageResponse(String searchQuery, String org) {
-        CentralAPI centralClient = RemoteCentral.getInstance();
-        Map<String, String> centralQueryMap = new HashMap<>();
-        String q = (searchQuery == null || searchQuery.isEmpty())
-                ? AGENT_KEYWORD_FILTER
-                : searchQuery + " AND " + AGENT_KEYWORD_FILTER;
-        centralQueryMap.put("q", q);
-        centralQueryMap.put("limit", String.valueOf(limit));
-        centralQueryMap.put("offset", String.valueOf(offset));
-
-        if (org != null && !org.isEmpty()) {
-            centralQueryMap.put("org", org);
-        }
-
-        return centralClient.searchPackages(centralQueryMap);
-    }
-
-    private static AvailableNode generateCentralAgentNode(PackageResponse.Package pkg) {
-        Metadata metadata = new Metadata.Builder<>(null)
-                .label(pkg.name())
-                .description(pkg.summary())
-                .icon(CommonUtils.generateIcon(pkg.organization(), pkg.name(), pkg.version()))
-                .build();
-
-        Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.TYPED_AGENT)
-                .org(pkg.organization())
-                .module(pkg.name())
-                .packageName(pkg.name())
-                .symbol(INIT_SYMBOL)
-                .version(pkg.version())
-                .build();
-
-        return new AvailableNode(metadata, codedata, true);
+    private List<Item> getAllAgents(String searchQuery) {
+        addCategory(CENTRAL_AGENTS_CATEGORY, filterAgents(getLandingAgents(), searchQuery));
+        addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
+        return rootBuilder.build().items();
     }
     private List<Item> getLocalAgents(String searchQuery) {
-        addCategory(LOCAL_AGENTS_CATEGORY, filterLocalAgents(getWorkspaceAgents(), searchQuery));
+        addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
     }
 
@@ -242,7 +167,7 @@ public class AgentSearchCommand extends SearchCommand {
         BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
         Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
         if (workspaceProject.isEmpty()) {
-            return List.of();
+            return findAgentClasses(project);
         }
 
         List<AvailableNode> agents = new ArrayList<>();
@@ -252,14 +177,12 @@ public class AgentSearchCommand extends SearchCommand {
         return agents;
     }
 
-    private List<AvailableNode> filterLocalAgents(List<AvailableNode> localAgents, String searchQuery) {
+    private List<AvailableNode> filterAgents(List<AvailableNode> agents, String searchQuery) {
         String loweredQuery = searchQuery == null ? "" : searchQuery.toLowerCase(Locale.ROOT);
-        return localAgents.stream()
+        return agents.stream()
                 .filter(agent -> orgName == null || agent.codedata().org().equalsIgnoreCase(orgName))
                 .filter(agent -> loweredQuery.isEmpty()
-                        || agent.metadata().label().toLowerCase(Locale.ROOT).contains(loweredQuery)
-                        || (agent.codedata().object() != null
-                        && agent.codedata().object().toLowerCase(Locale.ROOT).contains(loweredQuery)))
+                        || agent.metadata().label().toLowerCase(Locale.ROOT).contains(loweredQuery))
                 .toList();
     }
 
