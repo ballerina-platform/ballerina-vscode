@@ -118,7 +118,7 @@ public final class ClassMemberManager {
         removeToolFromList(context.classDefinition(), fieldName)
                 .ifPresent(edit -> addEdit(edits, filePath, edit));
         if (generatedToolKit.isPresent()
-                && !isFieldTypeUsedByAnotherField(context.modulePart(), fieldType, fieldName)) {
+                && !isFieldTypeUsedByAnotherField(context.modulePart(), fieldType, field.orElseThrow())) {
             addEdit(edits, filePath, new TextEdit(toRange(generatedToolKit.get().lineRange()), ""));
         }
         return edits;
@@ -151,13 +151,13 @@ public final class ClassMemberManager {
                 workspaceManager, filePath, lsClientLogger);
         Map<Path, List<TextEdit>> generated = new NewConnectionBuilder().toSource(sourceBuilder);
         List<TextEdit> generatedEdits = new ArrayList<>(generated.getOrDefault(filePath, List.of()));
-        String declaration = removeDeclaration(generatedEdits, connectionName, "connection");
+        GeneratedDeclaration declaration = removeDeclaration(generatedEdits, connectionName, "connection");
 
         ImportResolution importResolution = resolveImport(modulePart, connection.codedata(), requestedType);
-        String type = replacePrefix(extractType(declaration, connectionName), importResolution.requestedPrefix(),
+        String type = replacePrefix(declaration.type(), importResolution.requestedPrefix(),
                 importResolution.effectivePrefix());
-        String assignment = toAssignment(declaration, connectionName, importResolution.requestedPrefix(),
-                importResolution.effectivePrefix());
+        String assignment = "self." + connectionName + " = " + replacePrefix(declaration.initializer(),
+                importResolution.requestedPrefix(), importResolution.effectivePrefix());
 
         generatedEdits.removeIf(edit -> edit.getNewText().contains("import " + connection.codedata().org() + "/"
                 + connection.codedata().module()));
@@ -180,14 +180,14 @@ public final class ClassMemberManager {
                 workspaceManager, filePath, lsClientLogger);
         Map<Path, List<TextEdit>> generated = new McpToolKitBuilder().toSource(sourceBuilder);
         List<TextEdit> generatedEdits = new ArrayList<>(generated.getOrDefault(filePath, List.of()));
-        String declaration = removeDeclaration(generatedEdits, toolKitName, "MCP toolkit");
+        GeneratedDeclaration declaration = removeDeclaration(generatedEdits, toolKitName, "MCP toolkit");
         if (generatedEdits.isEmpty()) {
             generated.remove(filePath);
         } else {
             generated.put(filePath, generatedEdits);
         }
-        return new GeneratedClassNode(extractType(declaration, toolKitName),
-                toAssignment(declaration, toolKitName, null, null), generated);
+        return new GeneratedClassNode(declaration.type(), "self." + toolKitName + " = " + declaration.initializer(),
+                generated);
     }
 
     private static ClassContext loadContext(WorkspaceManager workspaceManager, Path filePath,
@@ -239,37 +239,18 @@ public final class ClassMemberManager {
                 toolKit.branches(), new HashMap<>(toolKit.properties()), toolKit.diagnostics(), toolKit.flags());
     }
 
-    private static String removeDeclaration(List<TextEdit> edits, String fieldName, String nodeLabel) {
-        Pattern declarationPattern = Pattern.compile("(?s).*\\bfinal\\s+.+?\\s+" + Pattern.quote(fieldName)
-                + "\\s*=\\s*check\\s+new.*");
+    private static GeneratedDeclaration removeDeclaration(List<TextEdit> edits, String fieldName, String nodeLabel) {
+        Pattern declarationPattern = Pattern.compile("(?s)^final\\s+(.+?)\\s+" + Pattern.quote(fieldName)
+                + "\\s*=\\s*(check\\s+new.*)");
         for (int index = 0; index < edits.size(); index++) {
             TextEdit edit = edits.get(index);
-            if (declarationPattern.matcher(edit.getNewText()).matches()) {
+            Matcher matcher = declarationPattern.matcher(edit.getNewText().strip());
+            if (matcher.matches()) {
                 edits.remove(index);
-                return edit.getNewText().strip();
+                return new GeneratedDeclaration(matcher.group(1).strip(), matcher.group(2).strip());
             }
         }
         throw new IllegalArgumentException("Unable to generate the " + nodeLabel + " initializer");
-    }
-
-    private static String extractType(String declaration, String fieldName) {
-        Pattern pattern = Pattern.compile("(?s)^final\\s+(.+?)\\s+" + Pattern.quote(fieldName) + "\\s*=");
-        Matcher matcher = pattern.matcher(declaration);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("Unable to determine the class-owned field type");
-        }
-        return matcher.group(1).strip();
-    }
-
-    private static String toAssignment(String declaration, String fieldName, String requestedPrefix,
-                                       String effectivePrefix) {
-        Pattern pattern = Pattern.compile("(?s)^final\\s+.+?\\s+" + Pattern.quote(fieldName) + "\\s*=\\s*");
-        Matcher matcher = pattern.matcher(declaration);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException("Unable to determine the class-owned initializer");
-        }
-        String initializer = declaration.substring(matcher.end());
-        return "self." + fieldName + " = " + replacePrefix(initializer, requestedPrefix, effectivePrefix);
     }
 
     private static String replacePrefix(String source, String requestedPrefix, String effectivePrefix) {
@@ -419,14 +400,14 @@ public final class ClassMemberManager {
     }
 
     private static boolean isFieldTypeUsedByAnotherField(ModulePartNode modulePart, String fieldType,
-                                                          String fieldName) {
+                                                          ObjectFieldNode deletedField) {
         return modulePart.members().stream()
                 .filter(ClassDefinitionNode.class::isInstance)
                 .map(ClassDefinitionNode.class::cast)
                 .flatMap(classDefinition -> classDefinition.members().stream())
                 .filter(ObjectFieldNode.class::isInstance)
                 .map(ObjectFieldNode.class::cast)
-                .anyMatch(field -> !fieldName.equals(field.fieldName().text().trim())
+                .anyMatch(field -> field != deletedField
                         && fieldType.equals(field.typeName().toSourceCode().strip()));
     }
 
@@ -550,6 +531,9 @@ public final class ClassMemberManager {
     }
 
     private record GeneratedClassNode(String type, String assignment, Map<Path, List<TextEdit>> edits) {
+    }
+
+    private record GeneratedDeclaration(String type, String initializer) {
     }
 
     private record ImportResolution(String requestedPrefix, String effectivePrefix, String importText) {
