@@ -125,12 +125,7 @@ public class AvailableNodesGenerator {
 
         if (!isInWorkflowFunction) {
             List<Category> connections = new ArrayList<>();
-            Map<String, Symbol> symbols = new LinkedHashMap<>();
-            semanticModel.visibleSymbols(document, position).forEach(symbol ->
-                    symbol.getName().ifPresent(name -> symbols.put(name, symbol)));
-            getEnclosingClassFields(position).forEach(field ->
-                    field.getName().ifPresent(name -> symbols.putIfAbsent(name, field)));
-            for (Symbol symbol : symbols.values()) {
+            for (Symbol symbol : getScopedSymbols(position).values()) {
                 Optional<Category> connection = getConnection(symbol, checkAgentToolCompatibility);
                 if (connection.isEmpty()) {
                     continue;
@@ -181,10 +176,19 @@ public class AvailableNodesGenerator {
         }
         Node node = ((ModulePartNode) document.syntaxTree().rootNode())
                 .findNode(TextRange.from(textPosition, 0));
+        boolean insideFunctionBody = false;
         while (node != null) {
+            if (node.kind() == SyntaxKind.FUNCTION_BODY_BLOCK) {
+                insideFunctionBody = true;
+            }
             if (node.kind() == SyntaxKind.CLASS_DEFINITION) {
+                if (!insideFunctionBody) {
+                    return List.of();
+                }
                 Optional<Symbol> classSymbol = semanticModel.symbol((ClassDefinitionNode) node);
-                if (classSymbol.isPresent() && classSymbol.get() instanceof ClassSymbol resolvedClassSymbol) {
+                if (classSymbol.isPresent() && classSymbol.get() instanceof ClassSymbol resolvedClassSymbol
+                        && (isAiFixedTypedAgent(resolvedClassSymbol)
+                        || isAiDependentlyTypedAgent(resolvedClassSymbol))) {
                     return new ArrayList<>(resolvedClassSymbol.fieldDescriptors().values());
                 }
                 return List.of();
@@ -192,6 +196,15 @@ public class AvailableNodesGenerator {
             node = node.parent();
         }
         return List.of();
+    }
+
+    private Map<String, Symbol> getScopedSymbols(LinePosition position) {
+        Map<String, Symbol> symbols = new LinkedHashMap<>();
+        semanticModel.visibleSymbols(document, position).forEach(symbol ->
+                symbol.getName().ifPresent(name -> symbols.put(name, symbol)));
+        getEnclosingClassFields(position).forEach(field ->
+                field.getName().ifPresent(name -> symbols.putIfAbsent(name, field)));
+        return symbols;
     }
 
     public JsonArray getAvailableNodes(LinePosition position) {

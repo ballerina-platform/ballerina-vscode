@@ -31,6 +31,7 @@ import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.ObjectFieldNode;
 import io.ballerina.compiler.syntax.tree.ReturnTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.StatementNode;
@@ -59,6 +60,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -105,18 +107,16 @@ public final class ClassMemberManager {
                                                     String fieldName, LineRange classLineRange) {
         ClassContext context = loadContext(workspaceManager, filePath, classLineRange);
         Map<Path, List<TextEdit>> edits = new HashMap<>();
-        Optional<Node> field = findField(context.classDefinition(), fieldName);
-        String fieldType = field.map(node -> extractFieldType(node.toSourceCode(), fieldName)).orElse(null);
+        Optional<ObjectFieldNode> field = findField(context.classDefinition(), fieldName);
+        String fieldType = field.map(node -> node.typeName().toSourceCode().strip()).orElse(null);
 
         field.ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
         findAssignment(context.classDefinition(), fieldName)
                 .ifPresent(node -> addEdit(edits, filePath, new TextEdit(toRange(node.lineRange()), "")));
         Optional<ClassDefinitionNode> generatedToolKit = fieldType == null
                 ? Optional.empty() : findGeneratedToolKitClass(context.modulePart(), fieldType);
-        if (generatedToolKit.isPresent()) {
-            removeToolFromList(context.classDefinition(), fieldName)
-                    .ifPresent(edit -> addEdit(edits, filePath, edit));
-        }
+        removeToolFromList(context.classDefinition(), fieldName)
+                .ifPresent(edit -> addEdit(edits, filePath, edit));
         if (generatedToolKit.isPresent()
                 && !isFieldTypeUsedByAnotherField(context.modulePart(), fieldType, fieldName)) {
             addEdit(edits, filePath, new TextEdit(toRange(generatedToolKit.get().lineRange()), ""));
@@ -312,10 +312,11 @@ public final class ClassMemberManager {
         return Optional.empty();
     }
 
-    private static Optional<Node> findField(ClassDefinitionNode classDefinition, String fieldName) {
-        Pattern fieldPattern = Pattern.compile("(?s).*\\b" + Pattern.quote(fieldName) + "\\s*;\\s*");
+    private static Optional<ObjectFieldNode> findField(ClassDefinitionNode classDefinition, String fieldName) {
         return classDefinition.members().stream()
-                .filter(member -> fieldPattern.matcher(member.toSourceCode()).matches())
+                .filter(ObjectFieldNode.class::isInstance)
+                .map(ObjectFieldNode.class::cast)
+                .filter(field -> fieldName.equals(field.fieldName().text().trim()))
                 .findFirst();
     }
 
@@ -357,35 +358,40 @@ public final class ClassMemberManager {
             return Optional.empty();
         }
         String element = "self." + fieldName;
-        List<String> retained = toolsList.expressions().stream()
-                .map(expression -> expression.toSourceCode())
-                .map(String::trim)
-                .filter(tool -> !element.equals(tool))
-                .toList();
-        if (retained.size() == toolsList.expressions().size()) {
-            return Optional.empty();
+        for (int index = 0; index < toolsList.expressions().size(); index++) {
+            if (!element.equals(toolsList.expressions().get(index).toSourceCode().trim())) {
+                continue;
+            }
+            LineRange range = toolsList.expressions().get(index).lineRange();
+            if (toolsList.expressions().size() > 1) {
+                if (index < toolsList.expressions().size() - 1) {
+                    range = LineRange.from(range.fileName(), range.startLine(),
+                            toolsList.expressions().getSeparator(index).lineRange().endLine());
+                } else {
+                    range = LineRange.from(range.fileName(),
+                            toolsList.expressions().getSeparator(index - 1).lineRange().startLine(), range.endLine());
+                }
+            }
+            return Optional.of(new TextEdit(toRange(range), ""));
         }
-        return Optional.of(new TextEdit(toRange(toolsList.lineRange()), "[" + String.join(", ", retained) + "]"));
+        return Optional.empty();
     }
 
     private static ListConstructorExpressionNode findInnerToolsList(ClassDefinitionNode classDefinition) {
-        for (Node member : classDefinition.members()) {
-            if (!(member instanceof FunctionDefinitionNode function) || !"init".equals(function.functionName().text())
-                    || !(function.functionBody() instanceof FunctionBodyBlockNode body)) {
-                continue;
-            }
-            for (StatementNode statement : body.statements()) {
-                ListConstructorExpressionNode tools = extractToolsFromAssignment(statement);
-                if (tools != null) {
-                    return tools;
-                }
-            }
-        }
-        return null;
+        return findInit(classDefinition)
+                .filter(function -> function.functionBody() instanceof FunctionBodyBlockNode)
+                .map(function -> (FunctionBodyBlockNode) function.functionBody())
+                .stream()
+                .flatMap(body -> body.statements().stream())
+                .map(ClassMemberManager::extractToolsFromAssignment)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
     private static ListConstructorExpressionNode extractToolsFromAssignment(StatementNode statement) {
-        if (!(statement instanceof AssignmentStatementNode assignment)) {
+        if (!(statement instanceof AssignmentStatementNode assignment)
+                || !"self.agent".equals(assignment.varRef().toSourceCode().trim())) {
             return null;
         }
         ExpressionNode expression = assignment.expression();
@@ -412,29 +418,16 @@ public final class ClassMemberManager {
         return null;
     }
 
-    private static String extractFieldType(String fieldSource, String fieldName) {
-        Pattern pattern = Pattern.compile("(?s).*\\bfinal\\s+(.+?)\\s+" + Pattern.quote(fieldName) + "\\s*;.*");
-        Matcher matcher = pattern.matcher(fieldSource);
-        if (matcher.matches()) {
-            return matcher.group(1).strip();
-        }
-        pattern = Pattern.compile("(?s).*\\b(.+?)\\s+" + Pattern.quote(fieldName) + "\\s*;.*");
-        matcher = pattern.matcher(fieldSource);
-        if (!matcher.matches()) {
-            return null;
-        }
-        return matcher.group(1).replace("private", "").strip();
-    }
-
     private static boolean isFieldTypeUsedByAnotherField(ModulePartNode modulePart, String fieldType,
                                                           String fieldName) {
-        Pattern fieldPattern = Pattern.compile("(?s).*\\b" + Pattern.quote(fieldType)
-                + "\\s+(?!\\Q" + fieldName + "\\E\\b)\\w+\\s*;.*");
         return modulePart.members().stream()
                 .filter(ClassDefinitionNode.class::isInstance)
                 .map(ClassDefinitionNode.class::cast)
                 .flatMap(classDefinition -> classDefinition.members().stream())
-                .anyMatch(member -> fieldPattern.matcher(member.toSourceCode()).matches());
+                .filter(ObjectFieldNode.class::isInstance)
+                .map(ObjectFieldNode.class::cast)
+                .anyMatch(field -> !fieldName.equals(field.fieldName().text().trim())
+                        && fieldType.equals(field.typeName().toSourceCode().strip()));
     }
 
     private static Optional<ClassDefinitionNode> findGeneratedToolKitClass(ModulePartNode modulePart,

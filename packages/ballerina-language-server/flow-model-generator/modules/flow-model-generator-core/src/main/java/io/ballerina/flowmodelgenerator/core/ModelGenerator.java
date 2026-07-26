@@ -222,11 +222,10 @@ public class ModelGenerator {
 
     private boolean isInnerAgentAssignment(AssignmentStatementNode assignment, ClassSymbol classSymbol) {
         String variableReference = assignment.varRef().toSourceCode().replaceAll("\\s", "");
-        if (!variableReference.startsWith("self.")) {
+        if (!"self.agent".equals(variableReference)) {
             return false;
         }
-        ClassFieldSymbol fieldSymbol = classSymbol.fieldDescriptors()
-                .get(variableReference.substring("self.".length()));
+        ClassFieldSymbol fieldSymbol = classSymbol.fieldDescriptors().get("agent");
         if (fieldSymbol == null) {
             return false;
         }
@@ -313,7 +312,8 @@ public class ModelGenerator {
         }
 
         Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
-        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)) {
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)
+                || !(isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol))) {
             return gson.toJsonTree(new ExtendedDiagram(filePath.toString(), List.of(), List.of(), List.of()));
         }
 

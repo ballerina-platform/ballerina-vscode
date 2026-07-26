@@ -57,13 +57,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Handles the search command for agents. Supports four source types:
- * <ul>
- *   <li>{@code default} - Searches pre-defined agents from LocalIndexCentral (JSON-based)</li>
- *   <li>{@code all} - Curated landing list when no query, else Central "Type/Agent" search; plus workspace agents</li>
- *   <li>{@code organization} - Searches Ballerina Central agents scoped to the current project org</li>
- *   <li>{@code local} - Searches agent classes defined across the current workspace's projects</li>
- * </ul>
+ * Handles the search command for agents.
  *
  * @since 1.2.0
  */
@@ -83,7 +77,6 @@ public class AgentSearchCommand extends SearchCommand {
     private static final String SOURCE_LOCAL = "local";
 
     private List<Item> cachedDefaultAgents;
-    private List<AvailableNode> cachedCentralAgents;
     private List<AvailableNode> cachedLandingAgents;
     private final String orgName;
     private final String source;
@@ -129,8 +122,6 @@ public class AgentSearchCommand extends SearchCommand {
         }
         return GSON.toJsonTree(items).getAsJsonArray();
     }
-
-
     private List<Item> getDefaultAgents() {
         if (cachedDefaultAgents == null) {
             cachedDefaultAgents = List.copyOf(LocalIndexCentral.getInstance().getAgents());
@@ -166,40 +157,21 @@ public class AgentSearchCommand extends SearchCommand {
         }
         return cachedLandingAgents;
     }
-
-
     private List<Item> getAllAgents(String searchQuery) {
         List<AvailableNode> centralAgents = (searchQuery == null || searchQuery.isEmpty())
                 ? getLandingAgents()
                 : fetchAgentsFromCentral(searchQuery, null);
-        if (!centralAgents.isEmpty()) {
-            Category.Builder centralBuilder = rootBuilder.stepIn(CENTRAL_AGENTS_CATEGORY, null, null);
-            centralAgents.forEach(centralBuilder::node);
-        }
-
-        List<AvailableNode> localAgents = filterLocalAgents(getWorkspaceAgents(), searchQuery);
-        if (!localAgents.isEmpty()) {
-            Category.Builder localBuilder = rootBuilder.stepIn(LOCAL_AGENTS_CATEGORY, null, null);
-            localAgents.forEach(localBuilder::node);
-        }
-
+        addCategory(CENTRAL_AGENTS_CATEGORY, centralAgents);
+        addCategory(LOCAL_AGENTS_CATEGORY, filterLocalAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
     }
-
 
     private List<Item> getOrganizationAgents(String searchQuery) {
         String currentOrg = getCurrentOrg();
         if (currentOrg == null || currentOrg.isEmpty()) {
             return rootBuilder.build().items();
         }
-
-        List<AvailableNode> agents = fetchAgentsFromCentral(searchQuery, currentOrg);
-        if (agents.isEmpty()) {
-            return rootBuilder.build().items();
-        }
-
-        Category.Builder categoryBuilder = rootBuilder.stepIn(CENTRAL_AGENTS_CATEGORY, null, null);
-        agents.forEach(categoryBuilder::node);
+        addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, currentOrg));
         return rootBuilder.build().items();
     }
 
@@ -210,28 +182,14 @@ public class AgentSearchCommand extends SearchCommand {
             return null;
         }
     }
-
-
     private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, String org) {
-        boolean cacheable = (searchQuery == null || searchQuery.isEmpty()) && org == null;
-        if (cachedCentralAgents != null && cacheable) {
-            return cachedCentralAgents;
-        }
-
-        List<AvailableNode> agents = new ArrayList<>();
         try {
             PackageResponse response = getPackageResponse(searchQuery, org);
-            if (response != null && response.packages() != null) {
-                for (PackageResponse.Package pkg : response.packages()) {
-                    agents.add(generateCentralAgentNode(pkg));
-                }
-            }
-            if (cacheable) {
-                cachedCentralAgents = agents;
-            }
+            return response == null || response.packages() == null ? List.of()
+                    : response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
         } catch (RuntimeException ignored) {
+            return List.of();
         }
-        return agents;
     }
 
     private PackageResponse getPackageResponse(String searchQuery, String org) {
@@ -269,17 +227,15 @@ public class AgentSearchCommand extends SearchCommand {
 
         return new AvailableNode(metadata, codedata, true);
     }
-
-
     private List<Item> getLocalAgents(String searchQuery) {
-        List<AvailableNode> localAgents = filterLocalAgents(getWorkspaceAgents(), searchQuery);
-        if (localAgents.isEmpty()) {
-            return rootBuilder.build().items();
-        }
-
-        Category.Builder categoryBuilder = rootBuilder.stepIn(LOCAL_AGENTS_CATEGORY, null, null);
-        localAgents.forEach(categoryBuilder::node);
+        addCategory(LOCAL_AGENTS_CATEGORY, filterLocalAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
+    }
+
+    private void addCategory(String name, List<AvailableNode> agents) {
+        if (!agents.isEmpty()) {
+            agents.forEach(rootBuilder.stepIn(name, null, null)::node);
+        }
     }
 
     private List<AvailableNode> getWorkspaceAgents() {
@@ -297,21 +253,14 @@ public class AgentSearchCommand extends SearchCommand {
     }
 
     private List<AvailableNode> filterLocalAgents(List<AvailableNode> localAgents, String searchQuery) {
-        List<AvailableNode> filtered = localAgents;
-        if (searchQuery != null && !searchQuery.isEmpty()) {
-            String lowered = searchQuery.toLowerCase(Locale.ROOT);
-            filtered = filtered.stream()
-                    .filter(agent -> agent.metadata().label().toLowerCase(Locale.ROOT).contains(lowered) ||
-                            (agent.codedata().object() != null &&
-                                    agent.codedata().object().toLowerCase(Locale.ROOT).contains(lowered)))
-                    .toList();
-        }
-        if (orgName != null && !filtered.isEmpty()) {
-            filtered = filtered.stream()
-                    .filter(agent -> agent.codedata().org().equalsIgnoreCase(orgName))
-                    .toList();
-        }
-        return filtered;
+        String loweredQuery = searchQuery == null ? "" : searchQuery.toLowerCase(Locale.ROOT);
+        return localAgents.stream()
+                .filter(agent -> orgName == null || agent.codedata().org().equalsIgnoreCase(orgName))
+                .filter(agent -> loweredQuery.isEmpty()
+                        || agent.metadata().label().toLowerCase(Locale.ROOT).contains(loweredQuery)
+                        || (agent.codedata().object() != null
+                        && agent.codedata().object().toLowerCase(Locale.ROOT).contains(loweredQuery)))
+                .toList();
     }
 
     private static List<AvailableNode> findAgentClasses(Project project) {
@@ -356,7 +305,7 @@ public class AgentSearchCommand extends SearchCommand {
                 .build();
 
         Codedata codedata = new Codedata.Builder<>(null)
-                .node(NodeKind.TYPED_AGENT)
+                .node(CommonUtils.isAgentClass(classSymbol) ? NodeKind.AGENT : NodeKind.TYPED_AGENT)
                 .org(moduleId.orgName())
                 .module(moduleId.moduleName())
                 .packageName(moduleId.packageName())
