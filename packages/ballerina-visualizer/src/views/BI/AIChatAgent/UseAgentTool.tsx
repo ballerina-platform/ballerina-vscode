@@ -95,8 +95,8 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 (name) => name !== hostAgentVar
             );
             setAgentNames(names);
-        } catch (error) {
-            console.error("Failed to load available agents", error);
+        } catch {
+            return;
         } finally {
             setLoading(false);
         }

@@ -489,8 +489,6 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
         boxSyncPulseAnimation, hasBreakpoint, isActiveBreakpoint, handleThemeChange } = controller;
 
-    const [toolMenuPos, setToolMenuPos] = useState<{ top: number; left: number } | null>(null);
-
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
             return;
@@ -632,7 +630,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         return false;
     })();
     const chatEntry = isTraceMatch ? traceAnimation.entries.find(e => e.type === 'chat') : undefined;
-    const toolEntries = (entrypointMatches ? traceAnimation.entries : [])
+    const toolEntries = (isTraceMatch ? traceAnimation.entries : [])
         .filter(e => e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName));
     const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
     const isAnyToolActive = activeToolNames.length > 0;

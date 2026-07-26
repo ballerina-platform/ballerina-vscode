@@ -56,7 +56,7 @@ export function AgentEditorPanelContent({ controller }: { controller: AgentEdito
                 mode={controller.view === "NEW_TOOL_CUSTOM" ? NewToolSelectionMode.CUSTOM_TOOL
                     : controller.view === "NEW_TOOL_CONNECTION" ? NewToolSelectionMode.CONNECTION
                         : NewToolSelectionMode.FUNCTION}
-                onSave={controller.close} onBack={controller.back} onSetBackOverride={() => { }} />;
+                onSave={controller.close} onBack={controller.back} />;
         case "NEW_TOOL_AGENT":
             return <UseAgentTool agentNode={agent} onSelectAgent={controller.selectAgent}
                 onAgentCreated={controller.onAgentCreated} onBack={controller.back} onClose={controller.close} />;

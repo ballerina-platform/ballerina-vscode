@@ -25,9 +25,6 @@ function unwrap(value: unknown): string {
     }
     let v = value.trim();
     v = v.replace(/^string\s*`/, "").replace(/`$/, "");
-    if (v.startsWith("`") && v.endsWith("`")) {
-        v = v.slice(1, -1);
-    }
     if (v.startsWith('"') && v.endsWith('"')) {
         v = v.slice(1, -1);
     }
@@ -35,19 +32,12 @@ function unwrap(value: unknown): string {
 }
 
 function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions: string } {
-    const result = { role: "", instructions: "" };
     if (typeof systemPrompt !== "string") {
-        return result;
+        return { role: "", instructions: "" };
     }
     const roleMatch = systemPrompt.match(/role\s*:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/);
     const instrMatch = systemPrompt.match(/instructions\s*:\s*(string\s*`[^`]*`|"(?:[^"\\]|\\.)*"|`[^`]*`)/);
-    if (roleMatch) {
-        result.role = unwrap(roleMatch[1]);
-    }
-    if (instrMatch) {
-        result.instructions = unwrap(instrMatch[1]);
-    }
-    return result;
+    return { role: unwrap(roleMatch?.[1]), instructions: unwrap(instrMatch?.[1]) };
 }
 
 export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[] = []): FlowNode {

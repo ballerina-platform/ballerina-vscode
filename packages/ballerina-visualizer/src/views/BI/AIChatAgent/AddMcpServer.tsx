@@ -84,16 +84,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     const mcpToolKitNodeTemplateRef = useRef<FlowNode>(null);
     const mcpToolKitNodeRef = useRef<FlowNode>(null);
-    const agentNodeRef = useRef<FlowNode>(null);
 
     const agentFilePathRef = useRef<string>("");
     const agentFileEndLineRangeRef = useRef<LineRange | null>(null);
     const formRef = useRef<any>(null);
     const projectPathUriRef = useRef<string>("");
-
-    const fetchAgentNode = async () => {
-        agentNodeRef.current = agentNode;
-    };
 
     const fetchMcpToolKitTemplate = async () => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
@@ -138,9 +133,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
         const moduleNodes = editMode && !props.existingNode ? await fetchModuleNodes() : undefined;
 
-        await fetchAgentNode();
-        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNodeRef.current?.codedata?.lineRange?.fileName] })).filePath;
-        const endLineRange = await getEndOfFileLineRange(agentNodeRef.current?.codedata?.lineRange?.fileName, rpcClient);
+        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNode?.codedata?.lineRange?.fileName] })).filePath;
+        const endLineRange = await getEndOfFileLineRange(agentNode?.codedata?.lineRange?.fileName, rpcClient);
         agentFileEndLineRangeRef.current = endLineRange;
 
         const template = await fetchMcpToolKitTemplate();
@@ -161,7 +155,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
 
         setIsLoading(false);
-    }, [editMode, props.existingNode, rpcClient]);
+    }, [agentDefinition, agentNode, editMode, props.existingNode, rpcClient]);
 
     const fetchToolsFromServer = useCallback(async (
         url: string,
@@ -478,18 +472,14 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 });
             } else {
                 await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                    agentFlowNode: agentNodeRef.current,
+                    agentFlowNode: agentNode,
                     selectedTools: Array.from(selectedMcpTools),
                     updatedNode: node,
                     toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
                 });
             }
             
-            try {
-                await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            } catch (importFixError) {
-                console.warn("fixMissingImports failed after MCP save", importFixError);
-            }
+            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch(() => undefined);
 
             onSave?.();
         } catch (error) {

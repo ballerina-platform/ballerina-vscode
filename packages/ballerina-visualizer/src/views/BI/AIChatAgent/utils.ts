@@ -23,7 +23,6 @@ import { URI, Utils } from "vscode-uri";
 import { BALLERINA, GET_DEFAULT_MODEL_PROVIDER } from "../../../constants";
 
 export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
-const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
 
 const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
     node: "MODEL_PROVIDER",
@@ -74,14 +73,7 @@ export function toCamelCase(name: string): string {
 }
 
 export function toBaseName(name: string): string {
-    const camel = toCamelCase(name);
-    const lower = camel.toLowerCase();
-    for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
-        if (lower.endsWith(suffix) && lower.length > suffix.length) {
-            return camel.slice(0, -suffix.length);
-        }
-    }
-    return camel;
+    return toCamelCase(name).replace(/^(.+?)(?:agent|model)$/i, "$1");
 }
 
 export interface CreatedBuiltInAgent {
@@ -386,32 +378,13 @@ export const resolveAgentLocation = async (
 };
 
 export const goToAgentFromRunNode = async (agentRunNode: FlowNode, rpcClient: BallerinaRpcClient) => {
-    const agentName = agentRunNode.properties?.connection?.value;
-    const callSiteFile = agentRunNode.codedata?.lineRange?.fileName;
-    if (typeof agentName !== "string" || !callSiteFile) {
-        return;
-    }
-    const visualizerRpc = rpcClient.getVisualizerRpcClient();
-    const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
-    const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
-        kind: "TYPED_AGENT",
-        exactMatch: agentName,
-    });
-    const declRange = nodes?.[0]?.codedata?.lineRange;
-    if (!declRange) {
-        return;
-    }
-    const { filePath: declPath } = await visualizerRpc.joinProjectPath({ segments: [declRange.fileName] });
-    await visualizerRpc.openView({
+    const location = await resolveAgentLocation(agentRunNode, rpcClient);
+    if (!location) return;
+    await rpcClient.getVisualizerRpcClient().openView({
         type: EVENT_TYPE.OPEN_VIEW,
         location: {
-            documentUri: declPath,
-            position: {
-                startLine: declRange.startLine.line,
-                startColumn: declRange.startLine.offset,
-                endLine: declRange.endLine.line,
-                endColumn: declRange.endLine.offset,
-            },
+            documentUri: location.filePath,
+            position: location.position,
         },
     });
 };
@@ -815,8 +788,8 @@ export const getEndOfFileLineRange = async (
     fileName: string,
     rpcClient: BallerinaRpcClient
 ): Promise<LineRange> => {
-    const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
     try {
+        const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
         // Get the end of file position using the BIDiagram RPC client
         const endPosition = await rpcClient.getBIDiagramRpcClient().getEndOfFile({
             filePath: filePath
@@ -831,7 +804,7 @@ export const getEndOfFileLineRange = async (
     } catch (error) {
         console.error(`Error getting end of file line range for ${fileName}:`, error);
         return {
-            fileName: filePath,
+            fileName,
             startLine: { line: 0, offset: 0 },
             endLine: { line: 0, offset: 0 }
         };

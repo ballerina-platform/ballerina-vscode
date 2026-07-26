@@ -82,12 +82,6 @@ const SectionTitle = styled.div`
     font-family: GilmerRegular;
 `;
 
-const SectionSubtitle = styled.span`
-    font-size: 13px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    margin-left: 8px;
-`;
-
 const SectionDescription = styled.div`
     margin-top: 4px;
     font-size: 12px;
@@ -303,11 +297,6 @@ const InfoSection = styled.div`
     padding: 0 0 12px;
 `;
 
-function isInnerAgentField(field: FieldType): boolean {
-    const typeValue = (field.type?.value ?? "").replace(/\s/g, "");
-    return /(^|:)Agent$/.test(typeValue);
-}
-
 function isModelProviderType(typeValue?: string): boolean {
     return /(^|:)ModelProvider$/.test((typeValue ?? "").replace(/\s/g, ""));
 }
@@ -366,25 +355,19 @@ function extractTools(agentNode: FlowNode): ToolData[] {
     }
     const stripReceiver = (raw: string): string => (raw.startsWith("self.") ? raw.slice("self.".length) : raw);
     const toolsValue = (agentNode.properties as any)?.tools?.value;
-    if (typeof toolsValue === "string") {
-        return parseToolsString(toolsValue).map((raw) => ({ name: stripReceiver(raw) }));
-    }
-    if (Array.isArray(toolsValue)) {
-        return toolsValue
+    const names: string[] = typeof toolsValue === "string"
+        ? parseToolsString(toolsValue)
+        : Array.isArray(toolsValue)
+            ? toolsValue
             .map((tool: unknown) => (typeof tool === "string" ? tool : (tool as { value?: unknown })?.value))
             .filter((name: unknown): name is string => typeof name === "string")
-            .map((raw: string) => ({ name: stripReceiver(raw) }));
-    }
-    return [];
+            : [];
+    return names.map((raw) => ({ name: stripReceiver(raw) }));
 }
 
 function isAgentTypedField(field: FieldType): boolean {
     const typeValue = String(field.type?.value ?? "").replace(/\s/g, "");
-    if (typeValue === "ai:Agent") {
-        return true;
-    }
-    const typeName = typeValue.includes(":") ? typeValue.split(":").pop() : typeValue;
-    return Boolean(typeName && /Agent(Type)?$/.test(typeName));
+    return /Agent(Type)?$/.test(typeValue.split(":").pop() ?? "");
 }
 
 function inferAgentTypeImports(typeValue: string) {
@@ -392,12 +375,12 @@ function inferAgentTypeImports(typeValue: string) {
     return normalized === "ai:Agent" ? { ai: "ballerina/ai" } : undefined;
 }
 
-function uniqueAgentInputName(reservedNames: string[]): string {
+function uniqueAgentInputName(reservedNames: string[], base = "agent"): string {
     const used = new Set(reservedNames);
     let index = 1;
-    let candidate = "agent";
+    let candidate = base;
     while (used.has(candidate)) {
-        candidate = `agent${index++}`;
+        candidate = `${base}${index++}`;
     }
     return candidate;
 }
@@ -407,14 +390,7 @@ function lowerFirst(value: string): string {
 }
 
 function suggestAgentInputName(typeName: string, reservedNames: string[]): string {
-    const base = lowerFirst(typeName.replace(/[^A-Za-z0-9_]/g, "")) || "agent";
-    const used = new Set(reservedNames);
-    let index = 1;
-    let candidate = base;
-    while (used.has(candidate)) {
-        candidate = `${base}${index++}`;
-    }
-    return candidate;
+    return uniqueAgentInputName(reservedNames, lowerFirst(typeName.replace(/[^A-Za-z0-9_]/g, "")) || "agent");
 }
 
 function defaultModuleName(projectPath: string): string {
@@ -452,12 +428,8 @@ function genericAgentDependencyDraft(reservedNames: string[]): AgentDependencyDr
 }
 
 function agentClassDisplayName(typeValue?: string, fallback?: string): string {
-    const normalized = String(typeValue ?? "").replace(/\s/g, "");
-    if (!normalized) {
-        return fallback ?? "Agent";
-    }
-    const typeName = normalized.includes(":") ? normalized.split(":").pop() : normalized;
-    return typeName === "Agent" && normalized === "ai:Agent" ? "Agent" : (typeName || fallback || "Agent");
+    const typeName = String(typeValue ?? "").replace(/\s/g, "").split(":").pop();
+    return typeName || fallback || "Agent";
 }
 
 function buildAgentDependencyField(draft: AgentDependencyDraft, name: string, classLineRange: LineRange): FieldType {
@@ -502,16 +474,8 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
     const { rpcClient } = useRpcContext();
     const [dependencyDraft, setDependencyDraft] = useState<AgentDependencyDraft>();
 
-    const selectDependencyDraft = (draft: AgentDependencyDraft) => {
-        setDependencyDraft(draft);
-    };
-
     const currentAgentName = dependencyDraft?.name ?? "";
     const currentAgentClassName = agentClassDisplayName(dependencyDraft?.typeValue, currentAgentName);
-
-    const handlePickerBack = () => {
-        setDependencyDraft(undefined);
-    };
 
     const toolForm = currentAgentName ? (
         <UseAgentToolForm
@@ -541,12 +505,12 @@ function AgentDefinitionAgentToolForm(props: AgentDefinitionAgentToolFormProps):
         projectPath={projectPath}
         onClose={onCancel}
         onNavigateToOverview={onCancel}
-        onGenericAgentSelected={() => selectDependencyDraft(genericAgentDependencyDraft(reservedNames))}
+        onGenericAgentSelected={() => setDependencyDraft(genericAgentDependencyDraft(reservedNames))}
         onAgentSelectedForDependency={(agent) => {
-            selectDependencyDraft(agentDependencyDraftFromNode(agent, reservedNames, projectPath));
+            setDependencyDraft(agentDependencyDraftFromNode(agent, reservedNames, projectPath));
         }}
         dependencyToolForm={toolForm}
-        onDependencyToolFormBack={handlePickerBack}
+        onDependencyToolFormBack={() => setDependencyDraft(undefined)}
     />;
 }
 
@@ -569,7 +533,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const [editingVariable, setEditingVariable] = useState<FieldType>(undefined);
     const [isNew, setIsNew] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
-    const [classFilePath, setClassFilePath] = useState<string>("");
     const [advancedOpen, setAdvancedOpen] = useState<boolean>(false);
     const [toolPanel, setToolPanel] = useState<ToolPanel>("NONE");
     const [toolPanelBack, setToolPanelBack] = useState<(() => void) | null>(null);
@@ -581,11 +544,9 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const classNameRef = useRef<string>();
     const refreshVersionRef = useRef(0);
     const refreshRef = useRef<(posOverride?: NodePosition) => Promise<void>>();
-    const requestRefreshRef = useRef<(() => void)>();
     const agentToolsRef = useRef<ToolData[]>([]);
     const pendingToolsRef = useRef<Map<string, ToolData>>(new Map());
     const suppressRefreshRef = useRef(false);
-    const refreshPendingRef = useRef(false);
 
     useEffect(() => {
         classPositionRef.current = position;
@@ -596,20 +557,14 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     useEffect(() => {
         const debouncedRefresh = debounce(() => {
             if (suppressRefreshRef.current) {
-                refreshPendingRef.current = true;
                 return;
             }
-            refreshPendingRef.current = false;
             void refreshRef.current?.();
         }, 300);
-        requestRefreshRef.current = debouncedRefresh;
         const unsubscribe = rpcClient.onProjectContentUpdated(debouncedRefresh);
         return () => {
             unsubscribe?.();
             debouncedRefresh.cancel();
-            if (requestRefreshRef.current === debouncedRefresh) {
-                requestRefreshRef.current = undefined;
-            }
         };
     }, [rpcClient]);
 
@@ -622,6 +577,13 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         classPositionRef.current = pos;
         const model = await getAgentClassModel(pos, refreshVersion);
         if (refreshVersion !== refreshVersionRef.current) return;
+        if (!model) {
+            setAgentClassModel(undefined);
+            setAgentNode(undefined);
+            updateAgentTools([]);
+            setConnections([]);
+            return;
+        }
 
         await loadAgentNode(pos, refreshVersion);
         if (refreshVersion !== refreshVersionRef.current) return;
@@ -652,6 +614,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const refreshAfterToolWrite = async (toolName?: string) => {
         const attempts = toolName ? 8 : 1;
         for (let attempt = 0; attempt < attempts; attempt++) {
+            if (toolName && attempt === attempts - 1) {
+                pendingToolsRef.current.delete(toolName);
+                updateAgentTools(agentToolsRef.current.filter((tool) => tool.name !== toolName));
+            }
             await refreshRef.current?.();
             if (!toolName || !pendingToolsRef.current.has(toolName)) {
                 return;
@@ -697,7 +663,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             if (refreshVersion === undefined || refreshVersion === refreshVersionRef.current) {
                 classNameRef.current = response.model.name;
                 setAgentClassModel(response.model);
-                setClassFilePath(fileName);
             }
             return response.model;
         }
@@ -714,8 +679,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             if (refreshVersion === undefined || refreshVersion === refreshVersionRef.current) {
                 setConnections((response.flowModel?.variables ?? []).filter((node) => node.codedata?.node === "NEW_CONNECTION"));
             }
-        } catch (error) {
-            console.error(">>> agent definition: error loading connections", error);
+        } catch {
         }
     };
 
@@ -727,11 +691,12 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 startLine: { line: pos.startLine, offset: pos.startColumn },
                 endLine: { line: pos.endLine, offset: pos.endColumn }
             });
-            if (!response?.flowModel) {
-                return;
-            }
-            const agentDecl = response.flowModel.nodes?.find((node) => node.codedata?.node === "AGENT");
+            const agentDecl = response?.flowModel?.nodes?.find((node) => node.codedata?.node === "AGENT");
             if (!agentDecl) {
+                if (refreshVersion === undefined || refreshVersion === refreshVersionRef.current) {
+                    setAgentNode(undefined);
+                    updateAgentTools([]);
+                }
                 return;
             }
             if (refreshVersion === undefined || refreshVersion === refreshVersionRef.current) {
@@ -750,8 +715,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                     !fetchedTools.some((fetchedTool) => fetchedTool.name === tool.name));
                 updateAgentTools([...resolvedTools, ...missingPendingTools]);
             }
-        } catch (error) {
-            console.error(">>> agent definition: error loading agent node", error);
+        } catch {
         }
     };
 
@@ -760,8 +724,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setIsSaving(true);
         try {
             await saveAgentNode(updatedNode);
-        } catch (error) {
-            console.error(">>> agent definition: error saving agent form", error);
+        } catch {
         } finally {
             setIsSaving(false);
             setPanelOpen(false);
@@ -770,7 +733,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
 
     function saveAgentNode(flowNode: FlowNode) {
         return rpcClient.getBIDiagramRpcClient().getSourceCode({
-            filePath: classFilePath,
+            filePath: fileName,
             flowNode,
             artifactData: { artifactType: DIRECTORY_MAP.AGENT_DEFINITION },
         });
@@ -818,7 +781,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         if (!agentClassModel) return;
         setIsSaving(true);
         try {
-            const updatedModel = { ...agentClassModel };
+            const updatedModel = cloneDeep(agentClassModel);
             let hasChanges = false;
             if (data.name && updatedModel.properties?.["name"]) {
                 const nameProp = updatedModel.properties["name"] as PropertyModel;
@@ -832,11 +795,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 hasChanges = true;
             }
             if (hasChanges) {
-                const request: ServiceClassSourceRequest = { filePath: classFilePath, serviceClass: updatedModel };
+                const request: ServiceClassSourceRequest = { filePath: fileName, serviceClass: updatedModel };
                 await rpcClient.getBIDiagramRpcClient().updateServiceClass(request);
             }
-        } catch (error) {
-            console.error(">>> agent definition: error saving name/description", error);
+        } catch {
         } finally {
             setIsSaving(false);
             setPanelOpen(false);
@@ -859,13 +821,12 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 },
             };
             await rpcClient.getServiceDesignerRpcClient().updateResourceSourceCode({
-                filePath: classFilePath,
+                filePath: fileName,
                 codedata: { lineRange: agentClassModel.codedata.lineRange },
                 function: updatedRun,
                 artifactType: DIRECTORY_MAP.AGENT_DEFINITION,
             });
-        } catch (error) {
-            console.error(">>> agent definition: error saving output type", error);
+        } catch {
         } finally {
             setIsSaving(false);
             setPanelOpen(false);
@@ -904,19 +865,18 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         try {
             if (isNew) {
                 await rpcClient.getBIDiagramRpcClient().createClassDependency({
-                    filePath: classFilePath,
+                    filePath: fileName,
                     field: updatedVariable,
                     classLineRange: agentClassModel.codedata.lineRange
                 });
             } else {
                 await rpcClient.getBIDiagramRpcClient().updateClassDependency({
-                    filePath: classFilePath,
+                    filePath: fileName,
                     field: updatedVariable
                 });
             }
             setPanelOpen(false);
-        } catch (error) {
-            console.error('Error updating variable:', error);
+        } catch {
         }
         setIsSaving(false);
     };
@@ -927,13 +887,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         const newVariable: FieldType = {
             isPrivate: true,
             isFinal: true,
-            codedata: {
-                lineRange: {
-                    fileName: agentClassModel.codedata.lineRange.fileName,
-                    startLine: { line: agentClassModel.codedata.lineRange.startLine.line, offset: agentClassModel.codedata.lineRange.startLine.offset },
-                    endLine: { line: agentClassModel.codedata.lineRange.endLine.line, offset: agentClassModel.codedata.lineRange.endLine.offset }
-                }
-            },
+            codedata: { lineRange: cloneDeep(agentClassModel.codedata.lineRange) },
             type: {
                 metadata: { label: "Variable Type", description: "The type of the variable" },
                 enabled: true, editable: true, value: "", types: [{ fieldType: "TYPE", selected: false }],
@@ -958,7 +912,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
 
     const handleDeleteVariable = async (variable: FieldType) => {
         await rpcClient.getBIDiagramRpcClient().removeClassDependency({
-            filePath: classFilePath,
+            filePath: fileName,
             field: variable
         });
     };
@@ -966,7 +920,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const handleViewTool = async (tool: ToolData) => {
         if (tool.type === "MCP Server") {
             const response = await rpcClient.getBIDiagramRpcClient().listClassMembers({
-                filePath: classFilePath,
+                filePath: fileName,
                 classLineRange: agentClassModel.codedata.lineRange,
             });
             const mcpNode = response.flowModel?.variables?.find((node) =>
@@ -1006,7 +960,6 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
 
     const finishMultiEditRefresh = (toolName?: string) => {
         suppressRefreshRef.current = false;
-        refreshPendingRef.current = false;
         markToolPending(toolName);
         void refreshAfterToolWrite(toolName);
     };
@@ -1021,17 +974,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const handleToolSubmit = async (data: ExtendedAgentToolRequest) => {
         if (!data.toolName || !agentClassModel) return;
 
-        let flowNode: FlowNode;
-        let connection: string;
-        if (data.selectedCodeData?.node === FUNCTION_CALL) {
-            if (!data.functionNode) return;
-            flowNode = data.functionNode as unknown as FlowNode;
-            connection = "";
-        } else {
-            if (!data.flowNode) return;
-            flowNode = data.flowNode;
-            connection = data.selectedCodeData?.parentSymbol ? `self.${data.selectedCodeData.parentSymbol}` : "";
-        }
+        const isFunctionCall = data.selectedCodeData?.node === FUNCTION_CALL;
+        const flowNode = isFunctionCall ? data.functionNode as unknown as FlowNode : data.flowNode;
+        if (!flowNode) return;
+        const connection = isFunctionCall ? "" : data.selectedCodeData?.parentSymbol ? `self.${data.selectedCodeData.parentSymbol}` : "";
 
         setIsSaving(true);
         suppressRefreshRef.current = true;
@@ -1053,12 +999,11 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             }
 
             const toolNode = buildAgentToolNode(flowNode, data.toolName, data.description, connection,
-                data.toolParameters, { className: agentClassModel.name, filePath: classFilePath });
+                data.toolParameters, { className: agentClassModel.name, filePath: fileName });
             await saveAgentNode(toolNode);
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             toolCreated = true;
-        } catch (error) {
-            console.error(">>> agent definition: error creating tool", error);
+        } catch {
         } finally {
             setIsSaving(false);
             handleCloseToolPanel();
@@ -1075,7 +1020,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         try {
             if (tool.type === "MCP Server") {
                 await rpcClient.getBIDiagramRpcClient().deleteClassMember({
-                    filePath: classFilePath,
+                    filePath: fileName,
                     fieldName: tool.name,
                     classLineRange: agentClassModel.codedata.lineRange,
                 });
@@ -1083,7 +1028,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
             }
             const func = agentClassModel?.functions?.find((f) => f.name.value === tool.name);
             if (func?.codedata?.lineRange) {
-                await applyModifications(rpcClient, [removeStatement(toNodePosition(func.codedata.lineRange))], classFilePath);
+                await applyModifications(rpcClient, [removeStatement(toNodePosition(func.codedata.lineRange))], fileName);
             }
             if (agentNode) {
                 const updated = await removeToolFromAgentNode(agentNode, `self.${tool.name}`);
@@ -1091,8 +1036,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                     await saveAgentNode(updated);
                 }
             }
-        } catch (error) {
-            console.error(">>> agent definition: error deleting tool", error);
+        } catch {
             updateAgentTools(previousTools);
         } finally {
             setIsSaving(false);
@@ -1114,12 +1058,11 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setIsSaving(true);
         try {
             await rpcClient.getBIDiagramRpcClient().saveClassMember({
-                filePath: classFilePath,
+                filePath: fileName,
                 flowNode: updatedNode,
                 classLineRange: agentClassModel.codedata.lineRange
             });
-        } catch (error) {
-            console.error(">>> agent definition: error saving connection", error);
+        } catch {
         } finally {
             setIsSaving(false);
             setPanelOpen(false);
@@ -1135,12 +1078,11 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         setIsSaving(true);
         try {
             await rpcClient.getBIDiagramRpcClient().deleteClassMember({
-                filePath: classFilePath,
+                filePath: fileName,
                 fieldName: name,
                 classLineRange: agentClassModel.codedata.lineRange
             });
-        } catch (error) {
-            console.error(">>> agent definition: error deleting connection", error);
+        } catch {
             setConnections(previous);
         } finally {
             setIsSaving(false);
@@ -1235,6 +1177,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     );
     const hasAdvanced = Boolean(initFunction) || methods.length > 0;
     const toolPanelTitle = editingMcpNode ? "Edit MCP Server" : "Add Tool";
+    const targetLineRange = {
+        startLine: { line: position.startLine, offset: position.startColumn },
+        endLine: { line: position.endLine, offset: position.endColumn },
+    };
 
     return (
         <View>
@@ -1491,11 +1437,8 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                     >
                         {panelKind === "config" && agentClassModel && configFields.length > 0 && (
                             <ArtifactForm
-                                fileName={classFilePath}
-                                targetLineRange={{
-                                    startLine: { line: position.startLine, offset: position.startColumn },
-                                    endLine: { line: position.endLine, offset: position.endColumn }
-                                }}
+                                fileName={fileName}
+                                targetLineRange={targetLineRange}
                                 fields={configFields}
                                 onSubmit={handleConfigSubmit}
                                 isSaving={isSaving}
@@ -1503,7 +1446,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         )}
                         {panelKind === "agent" && agentNode && (
                             <FlowNodeForm
-                                fileName={classFilePath}
+                                fileName={fileName}
                                 node={agentNode}
                                 nodeFormTemplate={agentNode}
                                 targetLineRange={agentNode.codedata?.lineRange as any}
@@ -1530,13 +1473,10 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                 )}
                                 {toolPanel === "CUSTOM" && (
                                     <AgentToolForm
-                                        filePath={classFilePath}
+                                        filePath={fileName}
                                         projectPath={projectPath}
-                                        hostClass={{ className: agentClassModel.name, filePath: classFilePath }}
-                                        targetLineRange={{
-                                            startLine: { line: position.startLine, offset: position.startColumn },
-                                            endLine: { line: position.endLine, offset: position.endColumn }
-                                        }}
+                                        hostClass={{ className: agentClassModel.name, filePath: fileName }}
+                                        targetLineRange={targetLineRange}
                                         onSave={completeToolSave}
                                         onBack={() => setToolPanel("MENU")}
                                     />
@@ -1551,15 +1491,15 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                         onCancel={() => { setToolPanelBack(null); setToolPanel("MENU"); }}
                                         connectionDependency={toolPanel === "CONNECTION" ? {
                                             className: agentClassModel.name,
-                                            filePath: classFilePath,
+                                            filePath: fileName,
                                             classLineRange: agentClassModel.codedata.lineRange,
                                             inputNames: inputFields.map((f) => f.name?.value).filter((n): n is string => Boolean(n)),
                                             connectionFieldNames: (agentClassModel.fields ?? [])
-                                                .filter((field) => !isInnerAgentField(field) && !isAgentTypedField(field))
+                                                .filter((field) => !isAgentTypedField(field))
                                                 .map((field) => field.name?.value)
                                                 .filter((name): name is string => Boolean(name)),
                                             connectionOrigins: Object.fromEntries((agentClassModel.fields ?? [])
-                                                .filter((field) => !isInnerAgentField(field) && !isAgentTypedField(field))
+                                                .filter((field) => !isAgentTypedField(field))
                                                 .map((field) => [
                                                     field.name?.value,
                                                     initParameterNames.has(field.name?.value ?? "") ? "dependency" : "agent",
@@ -1573,7 +1513,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                     <AddMcpServer
                                         agentNode={agentNode}
                                         agentDefinition={{
-                                            filePath: classFilePath,
+                                            filePath: fileName,
                                             classLineRange: agentClassModel.codedata.lineRange,
                                             reservedNames: connectionDependencyReservedNames,
                                         }}
@@ -1588,7 +1528,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         )}
                         {panelKind === "connection" && editingConnection && (
                             <ConnectionConfigView
-                                fileName={classFilePath}
+                                fileName={fileName}
                                 selectedNode={editingConnection}
                                 submitText={isSaving ? "Saving..." : "Save"}
                                 isSaving={isSaving}
@@ -1598,7 +1538,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         {panelKind === "variable" && editingVariable && agentClassModel && (
                             <VariableForm
                                 model={editingVariable}
-                                filePath={classFilePath}
+                                filePath={fileName}
                                 lineRange={editingVariable.codedata.lineRange}
                                 onClose={handleCloseVariableForm}
                                 isSaving={isSaving}
@@ -1607,7 +1547,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                         )}
                         {panelKind === "outputType" && agentClassModel && outputTypeFields.length > 0 && (
                             <ArtifactForm
-                                fileName={classFilePath}
+                                fileName={fileName}
                                 targetLineRange={agentClassModel.codedata.lineRange as any}
                                 fields={outputTypeFields}
                                 onSubmit={handleOutputTypeSave}
@@ -1620,11 +1560,11 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                 )}
                 {agentToolPopupOpen && agentClassModel && (
                     <AgentDefinitionAgentToolForm
-                        filePath={classFilePath}
+                        filePath={fileName}
                         reservedNames={connectionDependencyReservedNames}
                         projectPath={projectPath}
                         classLineRange={agentClassModel.codedata.lineRange}
-                        hostClass={{ className: agentClassModel.name, filePath: classFilePath }}
+                        hostClass={{ className: agentClassModel.name, filePath: fileName }}
                         onSave={completeToolSave}
                         onCancel={() => setAgentToolPopupOpen(false)}
                     />

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import {
     DIRECTORY_MAP,
@@ -100,6 +100,11 @@ function matchBraced(str: string, re: RegExp): { start: number; end: number; bod
     return null;
 }
 
+function parseAuthValue(value: string): ParsedConfigValue {
+    const literal = value.match(/^string\s*`([^`]*)`$/) ?? value.match(/^"([^"]*)"$/);
+    return literal ? { value: literal[1], isExpression: false } : { value, isExpression: true };
+}
+
 function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string, ParsedConfigValue> {
     const result: Record<string, ParsedConfigValue> = {};
     const auth = matchBraced(annotationValue, /auth\s*:\s*\{/);
@@ -111,16 +116,10 @@ function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string,
             const scopesMatch = configBlock.match(/scopes\s*:\s*\[([^\]]*)\]/);
             if (scopesMatch) {
                 const items = scopesMatch[1].split(",").map((s) => s.trim()).filter(Boolean);
-                const unwrapped = items.map((item) => {
-                    const strTemplate = item.match(/^string\s*`([^`]*)`$/);
-                    if (strTemplate) return { val: strTemplate[1], isLiteral: true };
-                    const quoted = item.match(/^"([^"]*)"$/);
-                    if (quoted) return { val: quoted[1], isLiteral: true };
-                    return { val: item, isLiteral: false };
-                });
-                const allLiteral = unwrapped.every((u) => u.isLiteral);
+                const values = items.map(parseAuthValue);
+                const allLiteral = values.every((value) => !value.isExpression);
                 result.scopes = {
-                    value: JSON.stringify(unwrapped.map((u) => u.val)),
+                    value: allLiteral ? JSON.stringify(values.map((value) => value.value)) : `[${items.join(", ")}]`,
                     isExpression: !allLiteral,
                 };
             }
@@ -140,18 +139,7 @@ function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string,
         }
         const valueMatch = configBlock.match(new RegExp(`${key}\\s*:\\s*(.+?)\\s*(?:,|$)`, "m"));
         if (!valueMatch) continue;
-        const raw = valueMatch[1].trim();
-        const strTemplate = raw.match(/^string\s*`([^`]*)`$/);
-        if (strTemplate) {
-            result[key] = { value: strTemplate[1], isExpression: false };
-            continue;
-        }
-        const quoted = raw.match(/^"([^"]*)"$/);
-        if (quoted) {
-            result[key] = { value: quoted[1], isExpression: false };
-            continue;
-        }
-        result[key] = { value: raw, isExpression: true };
+        result[key] = parseAuthValue(valueMatch[1].trim());
     }
     return result;
 }
@@ -450,10 +438,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     }, [filePath, hostClass?.className, hostClass?.filePath, projectPath, rpcClient, targetLineRange,
         editContext?.functionName, editContext?.inClass]);
 
-    const oauthKeys = useMemo(
-        () => new Set(oauthPropertiesRef.current.map(({ key }) => key)),
-        [fields]
-    );
+    const oauthKeys = new Set(oauthPropertiesRef.current.map(({ key }) => key));
 
     const handleClassEditSubmit = async (data: FormValues, formImports?: FormImports) => {
         if (!functionModel || saving) return;
@@ -509,8 +494,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             } as any);
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             await onSave(String(updatedModel.name.value));
-        } catch (error) {
-            console.error("Failed to update agent tool", error);
+        } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({ message: "Failed to update the agent tool." });
         } finally {
             setSaving(false);
@@ -548,6 +532,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             }
 
             const auth: Record<string, string> = {};
+            const rawAuth: Record<string, string> = {};
             const expressionKeys = new Set<string>();
             for (const { key } of oauthPropertiesRef.current) {
                 const value = data[key];
@@ -557,6 +542,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     (type) => type.selected && type.fieldType === "EXPRESSION"
                 ) ?? false;
                 if (isExpression) expressionKeys.add(key);
+                rawAuth[key] = String(value);
                 const source = toAuthSource(key, value, isExpression);
                 if (source) auth[key] = source;
             }
@@ -567,12 +553,6 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
 
             let response;
             if (isEdit) {
-                const rawAuth: Record<string, string> = {};
-                for (const { key } of oauthPropertiesRef.current) {
-                    const value = data[key];
-                    if (value === undefined || value === "") continue;
-                    rawAuth[key] = String(value);
-                }
                 if (properties.annotations && typeof properties.annotations.value === "string") {
                     let annotationStr = properties.annotations.value as string;
                     if (annotationStr.includes("@ai:AgentTool")) {
@@ -613,8 +593,7 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             await onSave(String(properties.functionName.value));
-        } catch (error) {
-            console.error("Failed to save custom agent tool", error);
+        } catch {
             await rpcClient.getCommonRpcClient().showErrorMessage({
                 message: `Failed to ${isEdit ? "update" : "create"} the agent tool.`,
             });

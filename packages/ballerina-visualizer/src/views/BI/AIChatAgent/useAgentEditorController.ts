@@ -17,7 +17,7 @@
  */
 
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
 import { EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ToolData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -70,10 +70,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
-    const activeAgent = useRef<FlowNode>();
-
     const activate = useCallback((node: FlowNode) => {
-        activeAgent.current = node;
         setAgentNode(node);
         host.onSelectionChange?.(node);
     }, [host]);
@@ -85,14 +82,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setMemoryNode(undefined);
         setSelectedTool(undefined);
         setSelectedAgentName("");
-        activeAgent.current = undefined;
         setAgentNode(undefined);
         host.onSelectionChange?.(undefined);
         void host.onRefresh(position);
     }, [host]);
 
-    const resolveToolFunction = useCallback(async (toolName: string, agentNode?: FlowNode) => {
-        const agentFileName = (agentNode ?? activeAgent.current)?.codedata?.lineRange?.fileName || "agents.bal";
+    const resolveToolFunction = useCallback(async (toolName: string, agentNode: FlowNode) => {
+        const agentFileName = agentNode.codedata?.lineRange?.fileName || "agents.bal";
         const response = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
             functionName: toolName,
             fileName: agentFileName,
@@ -182,16 +178,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         };
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
-            location: form ? {
+            location: {
                 documentUri: resolved.documentUri,
                 identifier: tool.name,
                 position: toolPosition,
-                view: MACHINE_VIEW.AIAgentToolForm,
-            } : {
-                documentUri: resolved.documentUri,
-                identifier: tool.name,
-                position: toolPosition,
-                view: MACHINE_VIEW.BIDiagram,
+                view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram,
             },
         });
     }, [resolveToolFunction, rpcClient]);

@@ -566,8 +566,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
     // Calculate title based on conditions
     const getTitle = () => {
-        if (view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT) return agentName || "AI Agent";
-        if (view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT) return agentName || "AI Agent";
+        if (isAgentFocus) return agentName || "AI Agent";
         if (isNPFunction) return "Natural Function";
         if (isAutomation) return "Automation";
         const workflowTitle = getWorkflowTitleFromSource();
@@ -687,13 +686,13 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             ) : (
                 <TitleBar
                     title={getTitle()}
-                    {...(view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
+                    {...(isAgentFocus
                         ? { subtitle: "AI Agent" }
                         : { subtitleElement: getSubtitleElement })}
-                    actions={getActions()}
+                    actions={loadingDiagram ? null : getActions()}
                 />
             )}
-            {enableSequenceDiagram && !isAgent && !view &&
+            {enableSequenceDiagram && !isAgent && !isAgentFocus &&
                 (
                     !loadingDiagram ? (
                         <Switch

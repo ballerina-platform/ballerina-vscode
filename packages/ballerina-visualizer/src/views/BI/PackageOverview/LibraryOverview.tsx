@@ -828,9 +828,9 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     if (activeSection) {
         return (
             <LibraryWrapper>
-                <ArtifactsPanel>
-                    <LibraryHeader>
-                        <LibraryHeaderLeft>
+            <ArtifactsPanel>
+                <LibraryHeader>
+                    <LibraryHeaderLeft>
                             <Button appearance="icon" onClick={handleBack} buttonSx={{ padding: "2px 6px" }}>
                                 <Codicon name="arrow-left" />
                             </Button>
@@ -838,27 +838,27 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                             <LibraryHeaderTitle variant="h2">{activeSection.title}</LibraryHeaderTitle>
                         </LibraryHeaderLeft>
                         <LibraryHeaderRight>
-                            <SearchBar>
-                                <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
-                                <SearchInput
-                                    ref={sectionSearchRef}
-                                    type="text"
-                                    placeholder={`Search ${activeSection.title.toLowerCase()}`}
-                                    value={sectionSearch}
-                                    onChange={(e) => setSectionSearch(e.target.value)}
-                                    autoFocus
-                                />
-                                {isSectionSearching && (
-                                    <SearchClearButton
-                                        type="button"
-                                        aria-label="Clear search"
-                                        onClick={() => { setSectionSearch(""); sectionSearchRef.current?.focus(); }}
-                                    >
-                                        <Codicon name="close" iconSx={{ fontSize: 12 }} />
-                                    </SearchClearButton>
-                                )}
-                            </SearchBar>
-                            <Button
+                        <SearchBar>
+                            <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
+                            <SearchInput
+                                ref={sectionSearchRef}
+                                type="text"
+                                placeholder={`Search ${activeSection.title.toLowerCase()}`}
+                                value={sectionSearch}
+                                onChange={(e) => setSectionSearch(e.target.value)}
+                                autoFocus
+                            />
+                            {isSectionSearching && (
+                                <SearchClearButton
+                                    type="button"
+                                    aria-label="Clear search"
+                                    onClick={() => { setSectionSearch(""); sectionSearchRef.current?.focus(); }}
+                                >
+                                    <Codicon name="close" iconSx={{ fontSize: 12 }} />
+                                </SearchClearButton>
+                            )}
+                        </SearchBar>
+                        <Button
                                 appearance="primary"
                                 onClick={() => handleAdd(activeSection.key)}
                             >
@@ -874,25 +874,25 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                             )}
                             {sectionAllItems.length === 0 && (
                                 <AddArtifactCard
-                                    type="button"
-                                    onClick={() => handleAdd(activeSection.key)}
-                                >
-                                    <ArtifactCardInner>
-                                        <ArtifactCardIconContainer>
-                                            <Codicon name="add" iconSx={{ fontSize: 24, width: 24, height: 24 }} />
-                                        </ArtifactCardIconContainer>
-                                        <ArtifactCardContent>
-                                            <ArtifactCardTitle>{activeSection.addLabel}</ArtifactCardTitle>
-                                        </ArtifactCardContent>
-                                    </ArtifactCardInner>
-                                </AddArtifactCard>
-                            )}
-                            {isSectionSearching && sectionDetailItems.length === 0 && sectionAllItems.length > 0 && (
-                                <NoResultsLabel>No matching {activeSection.title.toLowerCase()}</NoResultsLabel>
-                            )}
-                        </CardGrid>
-                    </SectionDetailContent>
-                </ArtifactsPanel>
+                                type="button"
+                                onClick={() => handleAdd(activeSection.key)}
+                            >
+                                <ArtifactCardInner>
+                                    <ArtifactCardIconContainer>
+                                        <Codicon name="add" iconSx={{ fontSize: 24, width: 24, height: 24 }} />
+                                    </ArtifactCardIconContainer>
+                                    <ArtifactCardContent>
+                                        <ArtifactCardTitle>{activeSection.addLabel}</ArtifactCardTitle>
+                                    </ArtifactCardContent>
+                                </ArtifactCardInner>
+                            </AddArtifactCard>
+                        )}
+                        {isSectionSearching && sectionDetailItems.length === 0 && sectionAllItems.length > 0 && (
+                            <NoResultsLabel>No matching {activeSection.title.toLowerCase()}</NoResultsLabel>
+                        )}
+                    </CardGrid>
+                </SectionDetailContent>
+            </ArtifactsPanel>
             </LibraryWrapper>
         );
     }
@@ -904,44 +904,44 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
     return (
         <LibraryWrapper>
             <ArtifactsPanel constrainHeight>
-                <LibraryHeader>
-                    <LibraryHeaderLeft>
-                        <LibraryHeaderTitle variant="h2">Artifacts</LibraryHeaderTitle>
-                    </LibraryHeaderLeft>
-                    <LibraryHeaderRight>
-                        {!isLibraryEmpty && (
-                            <SearchBar>
-                                <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
-                                <SearchInput
-                                    ref={overviewSearchRef}
-                                    type="text"
-                                    placeholder="Search across all sections"
-                                    value={overviewSearch}
-                                    onChange={(e) => setOverviewSearch(e.target.value)}
-                                />
-                                {isOverviewSearching && (
-                                    <SearchClearButton
-                                        type="button"
-                                        aria-label="Clear search"
-                                        onClick={() => { setOverviewSearch(""); overviewSearchRef.current?.focus(); }}
-                                    >
-                                        <Codicon name="close" iconSx={{ fontSize: 12 }} />
-                                    </SearchClearButton>
-                                )}
-                            </SearchBar>
-                        )}
-                        {!isLibraryEmpty && (
-                            <Button appearance="primary" onClick={handleAddArtifacts}>
-                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
-                            </Button>
-                        )}
-                    </LibraryHeaderRight>
-                </LibraryHeader>
+            <LibraryHeader>
+                <LibraryHeaderLeft>
+                    <LibraryHeaderTitle variant="h2">Artifacts</LibraryHeaderTitle>
+                </LibraryHeaderLeft>
+                <LibraryHeaderRight>
+                    {!isLibraryEmpty && (
+                        <SearchBar>
+                            <SearchIcon><Codicon name="search" iconSx={{ fontSize: 12 }} /></SearchIcon>
+                            <SearchInput
+                                ref={overviewSearchRef}
+                                type="text"
+                                placeholder="Search across all sections"
+                                value={overviewSearch}
+                                onChange={(e) => setOverviewSearch(e.target.value)}
+                            />
+                            {isOverviewSearching && (
+                                <SearchClearButton
+                                    type="button"
+                                    aria-label="Clear search"
+                                    onClick={() => { setOverviewSearch(""); overviewSearchRef.current?.focus(); }}
+                                >
+                                    <Codicon name="close" iconSx={{ fontSize: 12 }} />
+                                </SearchClearButton>
+                            )}
+                        </SearchBar>
+                    )}
+                    {!isLibraryEmpty && (
+                        <Button appearance="primary" onClick={handleAddArtifacts}>
+                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
+                        </Button>
+                    )}
+                </LibraryHeaderRight>
+            </LibraryHeader>
 
-                {/* Global search results */}
-                {isOverviewSearching && (
-                    <SearchResultsContent>
-                        {searchGroups.length > 0 ? (
+            {/* Global search results */}
+            {isOverviewSearching && (
+                <SearchResultsContent>
+                    {searchGroups.length > 0 ? (
                             searchGroups.map(({ section, filteredItems, allItems }) => (
                                 <SearchResultGroup key={section.key}>
                                     <SearchResultGroupHeader>
@@ -949,7 +949,7 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                                         <SearchResultGroupTitle>{section.title}</SearchResultGroupTitle>
                                         <SearchResultGroupCount>
                                             {filteredItems.length}/{allItems.length}
-                                        </SearchResultGroupCount>
+                                    </SearchResultGroupCount>
                                     </SearchResultGroupHeader>
                                     <CardGrid>
                                         {filteredItems.map((item) =>
@@ -957,38 +957,38 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                                         )}
                                     </CardGrid>
                                 </SearchResultGroup>
-                            ))
-                        ) : (
-                            <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
-                        )}
-                    </SearchResultsContent>
-                )}
-
-                {/* Overview: section cards (non-empty only) or empty state */}
-                {!isOverviewSearching && (
-                    isLibraryEmpty ? (
-                        <LibraryEmptyState>
-                            <Typography variant="h3" sx={{ marginBottom: "8px" }}>
-                                Your library is empty
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
-                            >
-                                Start by adding reusable artifacts to your library
-                            </Typography>
-                            <Button appearance="primary" onClick={handleAddArtifacts}>
-                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
-                            </Button>
-                        </LibraryEmptyState>
+                        ))
                     ) : (
-                        <OverviewContent>
-                            <SectionCardGrid>
-                                {nonEmptySections.map(({ section, allItems }) => (
-                                    <SectionCard
-                                        key={section.key}
-                                        id={`section-${section.key}`}
-                                        type="button"
+                        <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
+                    )}
+                </SearchResultsContent>
+            )}
+
+            {/* Overview: section cards (non-empty only) or empty state */}
+            {!isOverviewSearching && (
+                isLibraryEmpty ? (
+                    <LibraryEmptyState>
+                        <Typography variant="h3" sx={{ marginBottom: "8px" }}>
+                            Your library is empty
+                        </Typography>
+                        <Typography
+                            variant="body1"
+                            sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
+                        >
+                            Start by adding reusable artifacts to your library
+                        </Typography>
+                        <Button appearance="primary" onClick={handleAddArtifacts}>
+                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
+                        </Button>
+                    </LibraryEmptyState>
+                ) : (
+                    <OverviewContent>
+                        <SectionCardGrid>
+                            {nonEmptySections.map(({ section, allItems }) => (
+                                <SectionCard
+                                    key={section.key}
+                                    id={`section-${section.key}`}
+                                    type="button"
                                         onClick={() => handleSectionOpen(section)}
                                     >
                                         <SectionCardTopRow>
@@ -997,14 +997,14 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                                             </SectionCardIconWrapper>
                                             <SectionCardName>{section.title}</SectionCardName>
                                             <SectionCountBadge>{allItems.length}</SectionCountBadge>
-                                        </SectionCardTopRow>
-                                        <SectionCardDescription>{section.description}</SectionCardDescription>
-                                    </SectionCard>
-                                ))}
-                            </SectionCardGrid>
-                        </OverviewContent>
-                    )
-                )}
+                                    </SectionCardTopRow>
+                                    <SectionCardDescription>{section.description}</SectionCardDescription>
+                                </SectionCard>
+                            ))}
+                        </SectionCardGrid>
+                    </OverviewContent>
+                )
+            )}
             </ArtifactsPanel>
 
             {/* README — separate container, hidden when searching */}

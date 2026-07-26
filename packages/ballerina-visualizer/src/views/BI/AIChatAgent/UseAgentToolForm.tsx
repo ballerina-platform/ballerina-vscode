@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { ArtifactData, FlowNode } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
@@ -87,7 +87,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
     const [includeContext, setIncludeContext] = useState<boolean>(false);
-    const includeContextRef = useRef<boolean>(false);
 
     useEffect(() => {
         if (hostClass) {
@@ -143,7 +142,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: toolFilePath,
-                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description,
+                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
                     hostClass, agentReceiver),
                 artifactData,
             });
@@ -202,10 +201,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                             <input
                                 type="checkbox"
                                 checked={includeContext}
-                                onChange={(e) => {
-                                    includeContextRef.current = e.target.checked;
-                                    setIncludeContext(e.target.checked);
-                                }}
+                                onChange={(e) => setIncludeContext(e.target.checked)}
                             />
                             <div>
                                 Pass context to {agentVarName}

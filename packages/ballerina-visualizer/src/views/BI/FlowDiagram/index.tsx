@@ -20,13 +20,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import {
-    findFlowNode,
-    findFlowNodeByModuleVarName,
-    goToAgent,
-    refreshNodeLineRangeFromArtifacts,
-    removeToolFromAgentNode,
-} from "../AIChatAgent/utils";
+import { goToAgent } from "../AIChatAgent/utils";
 import { MemoizedDiagram, setTraceAnimationActive, setTraceAnimationInactive } from "@wso2/bi-diagram";
 import {
     BIAvailableNodesRequest,
@@ -57,7 +51,6 @@ import {
     AIPanelPrompt,
     LinePosition,
     EditorDisplayMode,
-    ToolData,
 } from "@wso2/ballerina-core";
 
 import {
@@ -1886,8 +1879,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (NODES_TO_SKIP_ARTIFACT.includes(updatedNode?.codedata?.node)) {
             skipArtifact = true;
         }
-        const artifactData = !skipArtifact ? getArtifactData(editorConfig) : undefined;
-
         rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({
@@ -1895,7 +1886,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 flowNode: nodeToSubmit,
                 isFunctionNodeUpdate: editorConfig?.displayMode !== EditorDisplayMode.NONE,
                 isHelperPaneChange: options?.isChangeFromHelperPane,
-                artifactData,
+                artifactData: !skipArtifact ? getArtifactData(editorConfig) : undefined,
 
             })
             .then(async (response) => {
@@ -2420,15 +2411,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             .finally(() => {
                 setShowProgressIndicator(false);
             });
-    };
-
-    const handleOnAddNewAgent = () => {
-        setShowAddAgentPopup(true);
-    };
-
-    const handleAgentCreated = () => {
-        setShowAddAgentPopup(false);
-        loadAvailableAgents();
     };
 
     const handleOnAddNewModelProvider = () => {
@@ -2977,7 +2959,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSearchChunker={handleSearchChunker}
                 onUpdateNodeWithConnection={updateNodeWithConnection}
                 // AI Agent specific callbacks
-                onAddAgent={handleOnAddNewAgent}
+                onAddAgent={() => setShowAddAgentPopup(true)}
                 onSelectNewConnection={handleOnSelectNewConnection}
                 onSelectConnectorPopup={handleOnSelectConnectorConfiguration}
                 onNavigateToPanel={handleOnNavigateToPanel}
@@ -3003,7 +2985,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         projectPath={projectPath}
                         onClose={() => setShowAddAgentPopup(false)}
                         onNavigateToOverview={() => setShowAddAgentPopup(false)}
-                        onAgentCreated={handleAgentCreated}
+                        onAgentCreated={() => {
+                            setShowAddAgentPopup(false);
+                            loadAvailableAgents();
+                        }}
                     />
                 </AddAgentPopupLayer>
             )}
