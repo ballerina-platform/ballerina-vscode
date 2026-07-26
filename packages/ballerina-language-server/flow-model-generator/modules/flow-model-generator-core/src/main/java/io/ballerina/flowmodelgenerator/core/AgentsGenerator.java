@@ -422,7 +422,7 @@ public class AgentsGenerator {
                     public isolated function trace(string|ai:Prompt query,
                             string sessionId = "sessionId",
                             ai:Context context = new) returns ai:Trace|ai:Error {
-                        return self.agent.run(query, sessionId, context);
+                        return self.agent.trace(query, sessionId, context);
                     }
                 }""".replace("%s", name);
         return buildClassDoc(description) + body;

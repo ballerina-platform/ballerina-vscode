@@ -285,19 +285,23 @@ public class FunctionDataBuilder {
             if (isLocal) {
                 // For local functions: use current workspace package + document + semantic model
                 Optional<Project> optProject = workspaceManager.project(filePath);
-                if (optProject.isEmpty()) {
-                    return;
+                if (optProject.isPresent()) {
+                    Package currentPackage = optProject.get().currentPackage();
+                    try {
+                        Document document = currentPackage.getDefaultModule()
+                                .document(currentPackage.project().documentId(filePath));
+                        Optional<SemanticModel> localModel = workspaceManager.semanticModel(filePath);
+                        if (localModel.isPresent()) {
+                            this.resolvedPackage(currentPackage)
+                                    .document(document)
+                                    .project(currentPackage.project())
+                                    .semanticModel(localModel.get());
+                            return;
+                        }
+                    } catch (ProjectException ignored) {
+                        // Fall through to the workspace/central resolution path.
+                    }
                 }
-                Package currentPackage = optProject.get().currentPackage();
-                this.resolvedPackage(currentPackage).project(currentPackage.project());
-                try {
-                    Document document = currentPackage.getDefaultModule()
-                            .document(currentPackage.project().documentId(filePath));
-                    this.document(document);
-                    workspaceManager.semanticModel(filePath).ifPresent(this::semanticModel);
-                } catch (ProjectException e) {
-                }
-                return;
             }
         }
 
