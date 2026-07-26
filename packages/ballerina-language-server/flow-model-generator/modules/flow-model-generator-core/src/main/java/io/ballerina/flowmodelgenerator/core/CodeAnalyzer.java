@@ -785,27 +785,9 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
 
-        if (memory == null) {
-            String defaultMemoryManagerName = getDefaultMemoryManagerName(classSymbol);
-            if (!defaultMemoryManagerName.isEmpty()) {
-                AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY,
-                        new MemoryManagerData(defaultMemoryManagerName, AiUtils.MEMORY_DEFAULT_VALUE));
-            }
-        } else if (memory.kind() == SyntaxKind.EXPLICIT_NEW_EXPRESSION) {
-            ExplicitNewExpressionNode newExpr = (ExplicitNewExpressionNode) memory;
-            SeparatedNodeList<FunctionArgumentNode> arguments = newExpr.parenthesizedArgList().arguments();
-            String size = "";
-            if (arguments.size() == 1) {
-                size = arguments.get(0).toSourceCode();
-            }
-            AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY,
-                    new MemoryManagerData(newExpr.typeDescriptor().toSourceCode(), size));
-        } else if (memory.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
-            Optional<TypeSymbol> optSymbolType = semanticModel.typeOf(memory);
-            optSymbolType.ifPresent(typeSymbol -> AiUtils.addPresentationMetadata(agentInfo,
-                    AiUtils.MEMORY_METADATA_KEY,
-                    new MemoryManagerData(typeSymbol.getName().orElse("Memory Not Configured"),
-                            AiUtils.MEMORY_DEFAULT_VALUE)));
+        MemoryManagerData memoryData = memory == null ? defaultMemoryData(classSymbol) : getMemoryData(memory);
+        if (memoryData != null) {
+            AiUtils.addPresentationMetadata(agentInfo, AiUtils.MEMORY_METADATA_KEY, memoryData);
         }
 
         if (modelArg != null) {
@@ -3786,6 +3768,11 @@ public class CodeAnalyzer extends NodeVisitor {
         return null;
     }
 
+    private MemoryManagerData defaultMemoryData(ClassSymbol classSymbol) {
+        String name = getDefaultMemoryManagerName(classSymbol);
+        return name.isEmpty() ? null : new MemoryManagerData(name, AiUtils.MEMORY_DEFAULT_VALUE);
+    }
+
     private static String getIdentifierName(NameReferenceNode nameReferenceNode) {
         return switch (nameReferenceNode.kind()) {
             case QUALIFIED_NAME_REFERENCE -> ((QualifiedNameReferenceNode) nameReferenceNode).identifier().text();
@@ -4287,10 +4274,8 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     private boolean isMcpToolKitExpression(ExpressionNode expressionNode) {
-        if (AiUtils.isMcpToolKitSymbol(semanticModel.symbol(expressionNode).orElse(null))) {
-            return true;
-        }
-        return semanticModel.typeOf(expressionNode)
+        return AiUtils.isMcpToolKitSymbol(semanticModel.symbol(expressionNode).orElse(null))
+                || semanticModel.typeOf(expressionNode)
                 .map(AiUtils::isMcpToolKitType)
                 .orElse(false);
     }
