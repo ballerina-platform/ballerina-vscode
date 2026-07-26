@@ -174,7 +174,8 @@ public class AgentToolBuilder extends NodeBuilder {
                 agentVarName, agentReceiver, hostClassName, includeContext);
         Map<Path, List<TextEdit>> textEdits = generate(kind, context);
         if (hostClassName != null) {
-            relocateToolIntoClass(textEdits, sb.filePath, hostClassName, toolName, sourceBuilder.workspaceManager);
+            relocateToolIntoClass(textEdits, sb.filePath, hostClassName, toolName, sourceBuilder.workspaceManager,
+                    semanticModel, agentVarName);
         }
         return textEdits;
     }
@@ -191,25 +192,26 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static void relocateToolIntoClass(Map<Path, List<TextEdit>> textEdits, Path classFile, String className,
-                                              String toolName, WorkspaceManager workspaceManager) {
+                                              String toolName, WorkspaceManager workspaceManager,
+                                              SemanticModel semanticModel, String agentVarName) {
         List<TextEdit> classEdits = textEdits.get(classFile);
         if (classEdits == null || classEdits.isEmpty()) {
-            return;
+            throw new IllegalStateException("Agent tool edits not found: " + className);
         }
         Document document = FileSystemUtils.getDocument(workspaceManager, classFile);
         if (document == null) {
-            return;
+            throw new IllegalStateException("Document not found for agent tool class: " + classFile);
         }
         ClassDefinitionNode classNode = findClass(document.syntaxTree().rootNode(), className);
-        if (classNode == null) {
-            return;
+        if (classNode == null || !isAgentClass(semanticModel, classNode)) {
+            throw new IllegalStateException("Agent tool class not found: " + className);
         }
         TextEdit functionEdit = classEdits.stream()
                 .filter(edit -> edit.getNewText().contains("function " + toolName + "("))
                 .findFirst()
                 .orElse(null);
         if (functionEdit == null) {
-            return;
+            throw new IllegalStateException("Agent tool declaration not found: " + toolName);
         }
         LinePosition insertPosition = classNode.members().isEmpty()
                 ? classNode.openBrace().lineRange().endLine()
@@ -218,7 +220,16 @@ public class AgentToolBuilder extends NodeBuilder {
         functionEdit.setNewText(CLASS_MEMBER_INDENT
                 + functionEdit.getNewText().replace("\n", "\n" + CLASS_MEMBER_INDENT));
 
-        wireToolIntoList(classNode, toolName).ifPresent(classEdits::add);
+        classEdits.add(wireToolIntoList(classNode, toolName, agentVarName)
+                .orElseThrow(() -> new IllegalStateException("Agent tools list not found: " + className)));
+    }
+
+    private static boolean isAgentClass(SemanticModel semanticModel, ClassDefinitionNode classNode) {
+        return semanticModel != null && semanticModel.symbol(classNode)
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast)
+                .map(CommonUtils::isAgentClass)
+                .orElse(false);
     }
 
     private static ClassDefinitionNode findClass(ModulePartNode root, String className) {
@@ -230,26 +241,28 @@ public class AgentToolBuilder extends NodeBuilder {
         return null;
     }
 
-    private static Optional<TextEdit> wireToolIntoList(ClassDefinitionNode classNode, String toolName) {
-        ListConstructorExpressionNode toolsList = findInnerToolsList(classNode);
+    private static Optional<TextEdit> wireToolIntoList(ClassDefinitionNode classNode, String toolName,
+                                                        String agentVarName) {
+        ListConstructorExpressionNode toolsList = findInnerToolsList(classNode, agentVarName);
         if (toolsList == null) {
             return Optional.empty();
         }
         String element = "self." + toolName;
         boolean isEmpty = toolsList.expressions().isEmpty();
         LinePosition position = isEmpty ? toolsList.openBracket().lineRange().endLine()
-                : toolsList.closeBracket().lineRange().startLine();
+                : toolsList.expressions().get(toolsList.expressions().size() - 1).lineRange().endLine();
         return Optional.of(new TextEdit(CommonUtils.toRange(position), isEmpty ? element : ", " + element));
     }
 
-    private static ListConstructorExpressionNode findInnerToolsList(ClassDefinitionNode classNode) {
+    private static ListConstructorExpressionNode findInnerToolsList(ClassDefinitionNode classNode,
+                                                                     String agentVarName) {
         for (Node member : classNode.members()) {
             if (!(member instanceof FunctionDefinitionNode func) || !func.functionName().text().equals(INIT)
                     || !(func.functionBody() instanceof FunctionBodyBlockNode body)) {
                 continue;
             }
             for (StatementNode statement : body.statements()) {
-                ListConstructorExpressionNode tools = extractToolsFromAssignment(statement);
+                ListConstructorExpressionNode tools = extractToolsFromAssignment(statement, agentVarName);
                 if (tools != null) {
                     return tools;
                 }
@@ -258,8 +271,12 @@ public class AgentToolBuilder extends NodeBuilder {
         return null;
     }
 
-    private static ListConstructorExpressionNode extractToolsFromAssignment(StatementNode statement) {
+    private static ListConstructorExpressionNode extractToolsFromAssignment(StatementNode statement,
+                                                                              String agentVarName) {
         if (!(statement instanceof AssignmentStatementNode assignment)) {
+            return null;
+        }
+        if (!assignment.varRef().toSourceCode().trim().equals("self." + agentVarName)) {
             return null;
         }
         ExpressionNode expression = assignment.expression();
@@ -298,7 +315,7 @@ public class AgentToolBuilder extends NodeBuilder {
         }
         emitSignature(ctx, params, returnInfo);
 
-        return kind.buildBody(ctx, params, returnInfo);
+        return kind.buildBody(ctx, returnInfo);
     }
 
     private static void emitDoc(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
@@ -362,7 +379,8 @@ public class AgentToolBuilder extends NodeBuilder {
         List<String> fields = new ArrayList<>();
         for (Map.Entry<String, JsonElement> entry : authConfig.entrySet()) {
             String key = entry.getKey();
-            String value = entry.getValue().getAsString();
+            JsonElement valueElement = entry.getValue();
+            String value = valueElement.isJsonArray() ? valueElement.toString() : valueElement.getAsString();
 
             if (value == null || value.isEmpty() || value.equals("()") || value.trim().matches("\\{\\s*}")) {
                 continue;
@@ -419,8 +437,13 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
-                ctx.sb.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN).keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+                ctx.sb.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
+                if (!returnInfo.typeName().isEmpty()) {
+                    ctx.sb.token().keyword(SyntaxKind.PANIC_KEYWORD).name("error(\"not implemented\")")
+                            .endOfStatement();
+                }
+                ctx.sb.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
                 ctx.sb.textEdit(SourceBuilder.SourceKind.DECLARATION).acceptImport();
                 return ctx.sb.build();
             }
@@ -436,7 +459,7 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
                 return buildFunctionBody(ctx, returnInfo);
             }
         },
@@ -447,8 +470,8 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
-                return buildRemoteActionBody(ctx, params, returnInfo);
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+                return buildRemoteActionBody(ctx, returnInfo);
             }
         },
         RESOURCE {
@@ -458,8 +481,8 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
-                return buildResourceActionBody(ctx, params, returnInfo);
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
+                return buildResourceActionBody(ctx, returnInfo);
             }
         },
         AGENT_CALL {
@@ -488,7 +511,7 @@ public class AgentToolBuilder extends NodeBuilder {
             }
 
             @Override
-            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo) {
+            Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo) {
                 return buildAgentCallBody(ctx, returnInfo);
             }
         };
@@ -503,7 +526,7 @@ public class AgentToolBuilder extends NodeBuilder {
             return true;
         }
 
-        abstract Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, List<ToolParam> params, ReturnInfo returnInfo);
+        abstract Map<Path, List<TextEdit>> buildBody(ToolGenContext ctx, ReturnInfo returnInfo);
 
         static ToolKind resolve(Map<String, Object> data, FlowNode wrappedNode) {
             Object explicit = data.get(TOOL_KIND_KEY);
@@ -641,13 +664,12 @@ public class AgentToolBuilder extends NodeBuilder {
         List<TextEdit> te = new ArrayList<>();
         Path p = addIsolateKeyword(ctx.semanticModel, funcName.trim(), ctx.filePath, te, ctx.workspaceManager);
         if (p != null) {
-            textEdits.put(p, te);
+            textEdits.computeIfAbsent(p, ignored -> new ArrayList<>()).addAll(te);
         }
         return textEdits;
     }
 
-    private static Map<Path, List<TextEdit>> buildRemoteActionBody(ToolGenContext ctx, List<ToolParam> params,
-                                                                   ReturnInfo returnInfo) {
+    private static Map<Path, List<TextEdit>> buildRemoteActionBody(ToolGenContext ctx, ReturnInfo returnInfo) {
         SourceBuilder sourceBuilder = ctx.sb;
         FlowNode flowNode = ctx.wrappedNode;
         String returnType = returnInfo.typeName();
@@ -661,11 +683,10 @@ public class AgentToolBuilder extends NodeBuilder {
                 .stepOut()
                 .functionParameters(flowNode, ignoredKeys);
 
-        return finishActionBody(sourceBuilder, flowNode, returnType, params);
+        return finishActionBody(sourceBuilder, flowNode, returnType);
     }
 
-    private static Map<Path, List<TextEdit>> buildResourceActionBody(ToolGenContext ctx, List<ToolParam> params,
-                                                                     ReturnInfo returnInfo) {
+    private static Map<Path, List<TextEdit>> buildResourceActionBody(ToolGenContext ctx, ReturnInfo returnInfo) {
         SourceBuilder sourceBuilder = ctx.sb;
         FlowNode flowNode = ctx.wrappedNode;
         String returnType = returnInfo.typeName();
@@ -687,8 +708,8 @@ public class AgentToolBuilder extends NodeBuilder {
             PropertyCodedata codedata = property.codedata();
             if (codedata != null) {
                 String kind = codedata.kind();
-                if (kind.equals(ParameterData.Kind.PATH_PARAM.name()) ||
-                        kind.equals(ParameterData.Kind.PATH_REST_PARAM.name())) {
+                if (ParameterData.Kind.PATH_PARAM.name().equals(kind)
+                        || ParameterData.Kind.PATH_REST_PARAM.name().equals(kind)) {
                     pathParams.add(key);
                 }
             }
@@ -728,7 +749,7 @@ public class AgentToolBuilder extends NodeBuilder {
                 .stepOut()
                 .functionParameters(flowNode, ignoredKeys);
 
-        return finishActionBody(sourceBuilder, flowNode, returnType, params);
+        return finishActionBody(sourceBuilder, flowNode, returnType);
     }
 
     private static void beginActionBody(SourceBuilder sourceBuilder, FlowNode flowNode, String returnType) {
@@ -743,7 +764,7 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static Map<Path, List<TextEdit>> finishActionBody(SourceBuilder sourceBuilder, FlowNode flowNode,
-                                                                String returnType, List<ToolParam> params) {
+                                                                String returnType) {
         if (!returnType.isEmpty()) {
             sourceBuilder.token().keyword(SyntaxKind.RETURN_KEYWORD)
                     .name(flowNode.getProperty(Property.VARIABLE_KEY).orElseThrow().value().toString())
@@ -751,9 +772,7 @@ public class AgentToolBuilder extends NodeBuilder {
         }
         sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
         sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
-        if (needsModuleImport(flowNode, returnType, paramDecls(params))) {
-            sourceBuilder.acceptImport();
-        }
+        sourceBuilder.acceptImport();
         return sourceBuilder.build();
     }
 
@@ -780,7 +799,7 @@ public class AgentToolBuilder extends NodeBuilder {
                 .name(RESPONSE_VAR)
                 .endOfStatement();
         sourceBuilder.token().keyword(SyntaxKind.CLOSE_BRACE_TOKEN);
-        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION);
+        sourceBuilder.textEdit(SourceBuilder.SourceKind.DECLARATION).acceptImport();
         return sourceBuilder.build();
     }
 
@@ -804,23 +823,6 @@ public class AgentToolBuilder extends NodeBuilder {
             paramList.add(new ToolParam(paramType + " " + paramName, paramName, doc));
         }
         return paramList;
-    }
-
-    private static List<String> paramDecls(List<ToolParam> params) {
-        return params.stream().map(ToolParam::decl).collect(Collectors.toList());
-    }
-
-    private static boolean needsModuleImport(FlowNode flowNode, String returnType, List<String> paramList) {
-        String modulePrefix = flowNode.codedata().getModulePrefix() + ":";
-        if (returnType.contains(modulePrefix)) {
-            return true;
-        }
-        for (String param : paramList) {
-            if (param.contains(modulePrefix)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static String resolveTypeInferParams(String returnType, FlowNode flowNode) {
@@ -964,7 +966,7 @@ public class AgentToolBuilder extends NodeBuilder {
             return "string";
         }
         TypeSymbol type = CommonUtils.getRawType(agentType);
-        if (type.kind() != SymbolKind.CLASS || CommonUtils.isAgentClass(type)) {
+        if (type.kind() != SymbolKind.CLASS || !CommonUtils.isAgentClass(type)) {
             return "string";
         }
         MethodSymbol runMethod = ((ClassSymbol) type).methods().get(RUN);
