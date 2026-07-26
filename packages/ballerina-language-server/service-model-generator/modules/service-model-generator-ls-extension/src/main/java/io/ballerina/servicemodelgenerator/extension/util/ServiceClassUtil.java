@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.util;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
@@ -70,6 +71,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -120,6 +122,9 @@ public class ServiceClassUtil {
         String paramStr = buildParameterString(field);
         String assignment = "self." + name + " = " + name + ";";
         Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
+        if (initFn.isPresent() && !(initFn.get().functionBody() instanceof FunctionBodyBlockNode)) {
+            return List.of();
+        }
 
         StringBuilder header = new StringBuilder(NEW_LINE).append(memberIndent).append(buildInjectedFieldString(field));
         if (initFn.isEmpty()) {
@@ -155,7 +160,7 @@ public class ServiceClassUtil {
             usedPrefixes.add(prefix);
         }
 
-        List<TextEdit> importEdits = new ArrayList<>();
+        List<String> newImports = new ArrayList<>();
         String typeValue = field.getType().getValue();
         for (Map.Entry<String, String> entry : imports.entrySet()) {
             String requestedPrefix = entry.getKey();
@@ -172,14 +177,16 @@ public class ServiceClassUtil {
                 usedPrefixes.add(effectivePrefix);
                 String stmt = "import " + moduleId
                         + (effectivePrefix.equals(naturalPrefix) ? "" : " as " + effectivePrefix) + ";";
-                importEdits.add(importTextEdit(modulePartNode, existing, stmt));
+                newImports.add(stmt);
             }
-            if (!effectivePrefix.equals(requestedPrefix) && typeValue.startsWith(requestedPrefix + COLON)) {
-                typeValue = effectivePrefix + typeValue.substring(requestedPrefix.length());
+            if (!effectivePrefix.equals(requestedPrefix)) {
+                typeValue = typeValue.replaceAll("(?<![A-Za-z0-9_])" + Pattern.quote(requestedPrefix + COLON),
+                        effectivePrefix + COLON);
             }
         }
         field.getType().setValue(typeValue);
-        return importEdits;
+        return newImports.isEmpty() ? List.of()
+                : List.of(importTextEdit(modulePartNode, existing, String.join(NEW_LINE, newImports)));
     }
 
     private static TextEdit importTextEdit(ModulePartNode modulePartNode, List<ImportDeclarationNode> existing,
@@ -209,63 +216,77 @@ public class ServiceClassUtil {
         return module.contains(".") ? module.substring(module.lastIndexOf('.') + 1) : module;
     }
 
-    public static List<TextEdit> buildUpdateInitParameterEdits(ObjectFieldNode fieldNode, Field field) {
-        List<TextEdit> edits = new ArrayList<>();
+    public static List<TextEdit> buildUpdateInitParameterEdits(ObjectFieldNode fieldNode, Field field,
+                                                                ModulePartNode modulePartNode) {
         String oldName = fieldNode.fieldName().text().trim();
         String newName = field.getName().getValue();
-        edits.add(new TextEdit(Utils.toRange(fieldNode.lineRange()), buildInjectedFieldString(field)));
 
         if (!(fieldNode.parent() instanceof ClassDefinitionNode classDef)) {
-            return edits;
+            return List.of();
         }
         Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
-        if (initFn.isEmpty()) {
-            return edits;
+        if (initFn.isEmpty() || !(initFn.get().functionBody() instanceof FunctionBodyBlockNode body)) {
+            return List.of();
         }
         FunctionDefinitionNode init = initFn.get();
+        ParameterNode parameter = null;
         for (ParameterNode param : init.functionSignature().parameters()) {
             if (oldName.equals(getParameterName(param))) {
-                edits.add(new TextEdit(Utils.toRange(param.lineRange()), buildParameterString(field)));
+                parameter = param;
                 break;
             }
         }
-        if (init.functionBody() instanceof FunctionBodyBlockNode body) {
-            for (StatementNode stmt : body.statements()) {
-                if (stmt instanceof AssignmentStatementNode asn
-                        && asn.varRef().toSourceCode().trim().equals("self." + oldName)
-                        && asn.expression().toSourceCode().trim().equals(oldName)) {
-                    edits.add(new TextEdit(Utils.toRange(stmt.lineRange()),
-                            "self." + newName + " = " + newName + ";"));
-                    break;
-                }
+        TextEdit assignmentEdit = null;
+        for (StatementNode stmt : body.statements()) {
+            if (stmt instanceof AssignmentStatementNode asn
+                    && asn.varRef().toSourceCode().trim().equals("self." + oldName)
+                    && asn.expression().toSourceCode().trim().equals(oldName)) {
+                assignmentEdit = new TextEdit(Utils.toRange(stmt.lineRange()),
+                        "self." + newName + " = " + newName + ";");
+                break;
             }
         }
+        if (parameter == null || assignmentEdit == null) {
+            return List.of();
+        }
+        List<TextEdit> edits = new ArrayList<>(buildTypeImportEdits(modulePartNode, field));
+        edits.add(new TextEdit(Utils.toRange(fieldNode.lineRange()), buildInjectedFieldString(field)));
+        edits.add(new TextEdit(Utils.toRange(parameter.lineRange()), buildParameterString(field)));
+        edits.add(assignmentEdit);
         return edits;
     }
 
     public static List<TextEdit> buildRemoveInitParameterEdits(ObjectFieldNode fieldNode, TextDocument textDocument) {
-        List<TextEdit> edits = new ArrayList<>();
         String name = fieldNode.fieldName().text().trim();
-        edits.add(removeLineEdit(fieldNode.lineRange(), textDocument));
 
         if (!(fieldNode.parent() instanceof ClassDefinitionNode classDef)) {
-            return edits;
+            return List.of();
         }
         Optional<FunctionDefinitionNode> initFn = findInitFunction(classDef);
-        if (initFn.isEmpty()) {
-            return edits;
+        if (initFn.isEmpty() || !(initFn.get().functionBody() instanceof FunctionBodyBlockNode body)) {
+            return List.of();
         }
         FunctionDefinitionNode init = initFn.get();
-        buildRemoveParameterEdit(init.functionSignature(), name).ifPresent(edits::add);
-        if (init.functionBody() instanceof FunctionBodyBlockNode body) {
-            for (StatementNode stmt : body.statements()) {
-                if (stmt instanceof AssignmentStatementNode asn
-                        && asn.varRef().toSourceCode().trim().equals("self." + name)) {
-                    edits.add(removeLineEdit(stmt.lineRange(), textDocument));
-                    break;
-                }
+        Optional<TextEdit> parameterEdit = buildRemoveParameterEdit(init.functionSignature(), name);
+        if (parameterEdit.isEmpty()) {
+            return List.of();
+        }
+        TextEdit assignmentEdit = null;
+        for (StatementNode stmt : body.statements()) {
+            if (stmt instanceof AssignmentStatementNode asn
+                    && asn.varRef().toSourceCode().trim().equals("self." + name)
+                    && asn.expression().toSourceCode().trim().equals(name)) {
+                assignmentEdit = removeLineEdit(stmt.lineRange(), textDocument);
+                break;
             }
         }
+        if (assignmentEdit == null) {
+            return List.of();
+        }
+        List<TextEdit> edits = new ArrayList<>();
+        edits.add(removeLineEdit(fieldNode.lineRange(), textDocument));
+        edits.add(parameterEdit.get());
+        edits.add(assignmentEdit);
         return edits;
     }
 
@@ -373,6 +394,14 @@ public class ServiceClassUtil {
             }
         }
         return TAB;
+    }
+
+    public static boolean isAgentClass(SemanticModel semanticModel, ClassDefinitionNode classDef) {
+        return semanticModel.symbol(classDef)
+                .filter(ClassSymbol.class::isInstance)
+                .map(ClassSymbol.class::cast)
+                .map(CommonUtils::isAgentClass)
+                .orElse(false);
     }
 
     public static ServiceClass getServiceClass(SemanticModel semanticModel, ClassDefinitionNode classDef,
