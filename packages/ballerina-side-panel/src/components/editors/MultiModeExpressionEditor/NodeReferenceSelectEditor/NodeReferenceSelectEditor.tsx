@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, SearchNodesQuery, SearchNodesTypeConstraint } from "@wso2/ballerina-core";
 import { Codicon, LinkButton } from "@wso2/ui-toolkit";
@@ -38,19 +38,6 @@ interface NodeReferenceSelectEditorProps {
     field: FormField;
     onChange: (value: string, cursorPosition: number) => void;
     nodeReferenceFilters?: NodeReferenceFilter[];
-}
-
-// Cache icon URLs by module name across remounts to avoid icon flicker
-const iconUrlCache = new Map<string, string>();
-// Cache fetched node items by search query across remounts to avoid redundant API calls.
-const nodeItemsCache = new Map<string, NodeReferenceSelectItem[]>();
-
-function enrichWithCachedIcons(items: NodeReferenceSelectItem[]): NodeReferenceSelectItem[] {
-    return items.map(item => {
-        const module = item.codedata?.module;
-        const cachedUrl = module ? iconUrlCache.get(module) : undefined;
-        return cachedUrl && !item.iconUrl ? { ...item, iconUrl: cachedUrl } : item;
-    });
 }
 
 function ensureValueInItems(
@@ -81,13 +68,11 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const searchNodesKind = field.codedata?.searchNodesKind;
     const targetType = field.codedata?.targetType as SearchNodesTypeConstraint | undefined;
     const query: SearchNodesQuery = { kind: searchNodesKind, ...(targetType && { targetType }) };
-    const cacheKey = JSON.stringify(query);
+    const queryKey = JSON.stringify(query);
     const initialItems: NodeReferenceSelectItem[] = field.codedata?.initialItems ?? [];
     const staticItems: NodeReferenceSelectItem[] = field.codedata?.staticItems ?? [];
     const itemsPreloaded = field.codedata?.initialItems !== undefined;
-    const cachedItems = cacheKey ? nodeItemsCache.get(cacheKey) : undefined;
     const hasFilters = nodeReferenceFilters && nodeReferenceFilters.length > 0;
-    // Stable string key for effect deps so we re-fetch only when the filter set actually changes.
     const filterKey = hasFilters
         ? nodeReferenceFilters!.map((f) => `${f.module ?? ""}:${f.object ?? ""}`).join("|")
         : "";
@@ -100,32 +85,28 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             )
         );
     };
-    const resolvedItems = applyNodeReferenceFilter([...staticItems, ...(cachedItems ?? enrichWithCachedIcons(initialItems))]);
+    const resolvedItems = applyNodeReferenceFilter([...staticItems, ...initialItems]);
     const [selectItems, setSelectItems] = useState<NodeReferenceSelectItem[]>(
         ensureValueInItems(resolvedItems, value, searchNodesKind)
     );
-    const [loading, setLoading] = useState<boolean>(!!searchNodesKind && !cachedItems && !itemsPreloaded);
+    const [loading, setLoading] = useState<boolean>(!!searchNodesKind && !itemsPreloaded);
+    const requestIdRef = useRef(0);
 
     const fetchItems = () => {
-        if (!searchNodesKind) return;
-        // Show loading only if we have no cached items to display
-        if (!nodeItemsCache.has(cacheKey)) {
-            setLoading(true);
-        }
+        const requestId = ++requestIdRef.current;
+        if (!searchNodesKind || itemsPreloaded) return;
+        setLoading(true);
         rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: fileName,
             position: targetLineRange.startLine,
             query,
         }).then((response) => {
+            if (requestId !== requestIdRef.current) return;
             const nodes = response?.output ?? [];
             const items: NodeReferenceSelectItem[] = nodes
                 .filter(node => node.properties?.variable?.value)
                 .map(node => {
                     const iconUrl = node.metadata?.icon;
-                    const module = node.codedata?.module;
-                    if (iconUrl && module) {
-                        iconUrlCache.set(module, iconUrl);
-                    }
                     return {
                         id: String(node.properties.variable.value),
                         label: node.properties.variable.value as string,
@@ -134,17 +115,23 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                         iconUrl,
                     };
                 });
-            nodeItemsCache.set(cacheKey, items);
-            setSelectItems(applyNodeReferenceFilter([...staticItems, ...items]));
+            setSelectItems(ensureValueInItems(
+                applyNodeReferenceFilter([...staticItems, ...items]), value, searchNodesKind
+            ));
         }).finally(() => {
-            setLoading(false);
+            if (requestId === requestIdRef.current) setLoading(false);
         });
     };
 
     useEffect(() => {
-        if (itemsPreloaded) return;
+        if (itemsPreloaded) {
+            requestIdRef.current++;
+            setSelectItems(ensureValueInItems(resolvedItems, value, searchNodesKind));
+            setLoading(false);
+            return;
+        }
         fetchItems();
-    }, [cacheKey, fileName, filterKey]);
+    }, [queryKey, fileName, targetLineRange.startLine, filterKey, itemsPreloaded]);
 
     useEffect(() => {
         if (!value && staticItems.length > 0) {
@@ -152,13 +139,9 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
         }
     }, []);
 
-    // When a newly created node becomes the value, inject a placeholder and re-fetch.
     useEffect(() => {
         if (!value || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
-        if (cacheKey) {
-            nodeItemsCache.delete(cacheKey);
-        }
         fetchItems();
     }, [value]);
 
@@ -166,7 +149,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const agentCodeData = field.codedata?.data?.agent as CodeData | undefined;
     const creationCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
     const createNewLabel = agentCodeData?.object
-        ? agentCodeData.object // e.g. "CalendarAssistantAgent" -> "Create New CalendarAssistantAgent"
+        ? agentCodeData.object
         : creationCodeData?.module && creationCodeData?.object
         ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
         : humanizeKind(searchNodesKind);

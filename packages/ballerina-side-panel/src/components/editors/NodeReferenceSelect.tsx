@@ -46,10 +46,7 @@ function getFallbackIcon(codedata: CodeData): React.ReactElement {
 
 const UrlIcon: React.FC<{ url: string; fallback: React.ReactElement }> = ({ url, fallback }) => {
     const [errored, setErrored] = useState(false);
-    if (errored) {
-        return fallback;
-    }
-    return <img src={url} style={{ width: ICON_SIZE, height: ICON_SIZE }} onError={() => setErrored(true)} />;
+    return errored ? fallback : <img src={url} alt="" style={{ width: ICON_SIZE, height: ICON_SIZE }} onError={() => setErrored(true)} />;
 };
 
 export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
@@ -69,13 +66,11 @@ export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): Reac
     }
 
     if (iconUrl && !(codedata.module && GENERIC_ICON_MODULES.has(codedata.module))) {
-        return <UrlIcon url={iconUrl} fallback={getFallbackIcon(codedata)} />;
+        return <UrlIcon key={iconUrl} url={iconUrl} fallback={getFallbackIcon(codedata)} />;
     }
 
     return getFallbackIcon(codedata);
 }
-
-// --- Select Item type ---
 
 export interface NodeReferenceSelectItem {
     id: string;
@@ -84,8 +79,6 @@ export interface NodeReferenceSelectItem {
     codedata?: CodeData;
     iconUrl?: string;
 }
-
-// --- Styled Components ---
 
 const SelectContainer = styled.div`
     display: flex;
@@ -183,8 +176,6 @@ const FieldLabel = styled.label`
     margin-bottom: 2px;
 `;
 
-// --- Component ---
-
 interface NodeReferenceSelectProps {
     id: string;
     label?: string;
@@ -233,31 +224,20 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
 
     const focusOption = (index: number) => {
         const options = containerRef.current?.querySelectorAll<HTMLElement>('[role="option"]');
-        if (options && options[index]) {
-            options[index].focus();
-        }
+        options?.[index]?.focus();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled) return;
+        if (disabled || isEmpty || loading) return;
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setOpen(!open);
         } else if (e.key === "Escape") {
             setOpen(false);
-        } else if (e.key === "ArrowDown") {
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
             e.preventDefault();
-            if (!open) {
-                setOpen(true);
-            }
-            // Focus first option after render
-            setTimeout(() => focusOption(0), 0);
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            if (!open) {
-                setOpen(true);
-            }
-            setTimeout(() => focusOption(items.length - 1), 0);
+            setOpen(true);
+            setTimeout(() => focusOption(e.key === "ArrowDown" ? 0 : items.length - 1), 0);
         }
     };
 
@@ -314,7 +294,7 @@ export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
                     </SelectedDisplay>
                     {!loading && !isEmpty && <Codicon name="chevron-down" sx={{ fontSize: 14, flexShrink: 0 }} />}
                 </SelectTrigger>
-                {open && items.length > 0 && (
+                {open && !disabled && !loading && items.length > 0 && (
                     <DropdownPanel role="listbox">
                         {items.map((item, index) => (
                             <OptionItem

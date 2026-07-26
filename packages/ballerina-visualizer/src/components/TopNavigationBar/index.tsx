@@ -243,6 +243,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
             MACHINE_VIEW.BIFunctionForm,
             MACHINE_VIEW.BINPFunctionForm,
             MACHINE_VIEW.BITestFunctionForm,
+            MACHINE_VIEW.AIAgentToolForm,
             MACHINE_VIEW.BIAIEvaluationForm,
             MACHINE_VIEW.BIServiceWizard,
             MACHINE_VIEW.BIDataMapperForm,

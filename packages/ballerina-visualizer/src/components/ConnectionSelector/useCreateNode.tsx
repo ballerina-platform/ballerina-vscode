@@ -33,8 +33,8 @@ import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 const readCreatedVariable = (node: FlowNode): string | undefined => {
-    const props = node?.properties as Record<string, { value?: string }> | undefined;
-    return props?.model?.value ?? props?.modelProvider?.value;
+    const props = node.properties as Record<string, { value?: string }> | undefined;
+    return props?.model?.value || props?.modelProvider?.value;
 };
 
 export function useCreateNode(
@@ -59,10 +59,10 @@ export function useCreateNode(
                 connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
                 selectedNode={dummyNode}
                 nodeFormTemplate={flowNode}
-                onSave={(_node, artifacts) => {
-                    const created = artifacts?.find((artifact) => artifact.isNew);
-                    if (created?.name) {
-                        handleCreated(created.name, onCreated);
+                onSave={(node, artifacts) => {
+                    const variableName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
+                    if (variableName) {
+                        handleCreated(variableName, onCreated);
                     }
                     close();
                 }}
@@ -92,8 +92,7 @@ export function useCreateNode(
                 panelOverlay.updateOverlay(createId, {
                     content: renderCreator(flowNode, panelOverlay.clearAllOverlays),
                 });
-            } catch (error) {
-                console.error("Error preparing connection creation:", error);
+            } catch {
                 panelOverlay.closeTopOverlay();
             }
             return;
@@ -103,9 +102,7 @@ export function useCreateNode(
         try {
             const flowNode = await fetchTemplate();
             addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 600, 520);
-        } catch (error) {
-            console.error("Error preparing connection creation:", error);
-        }
+        } catch {}
     };
 
     return (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => {
@@ -179,8 +176,8 @@ export function useCreateNode(
                                 connectionKind={connectionKind}
                                 selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
                                 nodeFormTemplate={flowNode}
-                                onSave={(node) => {
-                                    const varName = readCreatedVariable(node);
+                                onSave={(node, artifacts) => {
+                                    const varName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
                                     if (varName) {
                                         handleCreated(varName, onCreated);
                                     }
@@ -189,8 +186,7 @@ export function useCreateNode(
                             />
                         ),
                     });
-                } catch (error) {
-                    console.error("Error preparing connection creation:", error);
+                } catch {
                     panelOverlay.closeTopOverlay();
                     createId = null;
                 }

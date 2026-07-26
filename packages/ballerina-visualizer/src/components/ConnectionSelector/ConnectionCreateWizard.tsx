@@ -38,7 +38,6 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
     const { connectionKind, fileName, targetLineRange, onCreated } = props;
     const { rpcClient } = useRpcContext();
 
-    const [view, setView] = useState<"SELECT" | "CREATE">("SELECT");
     const [nodeTemplate, setNodeTemplate] = useState<FlowNode | undefined>(undefined);
     const [loading, setLoading] = useState<boolean>(false);
 
@@ -53,7 +52,6 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
                 rpcClient
             );
             setNodeTemplate(flowNode);
-            setView("CREATE");
         } finally {
             setLoading(false);
         }
@@ -78,7 +76,7 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
         );
     }
 
-    if (view === "CREATE" && nodeTemplate) {
+    if (nodeTemplate) {
         const throwawayNode = { properties: { model: { value: "" } } } as unknown as FlowNode;
         return (
             <ConnectionCreator

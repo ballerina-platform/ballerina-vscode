@@ -374,6 +374,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
             if (onSaveConfiguredConnection) {
                 try {
                     await onSaveConfiguredConnection(node);
+                    setSavingFormStatus(SavingFormStatus.SUCCESS);
                 } catch (error) {
                     console.error(">>> Error updating agent definition connection", error);
                     setSavingFormStatus(SavingFormStatus.ERROR);
@@ -482,7 +483,7 @@ export function ConnectionConfigurationForm(props: ConnectionConfigurationFormPr
                 </ConnectorTag>
             </ConnectorInfoCard>
 
-            <ConfigContent hasFooterButton={!pullingStatus && !!selectedNodeRef.current}>
+            <ConfigContent hasFooterButton={!pullingStatus && !!selectedNodeRef.current && (footerActionButton ?? true)}>
                 {pullingStatus && (
                     <StatusContainer>
                         {pullingStatus === PullingStatus.FETCHING && (

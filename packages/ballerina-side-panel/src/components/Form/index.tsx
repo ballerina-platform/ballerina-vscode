@@ -39,6 +39,7 @@ import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEd
 import { getValueForDropdown, isDropdownField } from "../editors/utils";
 import {
     Diagnostic,
+    CodeData,
     LineRange,
     NodeKind,
     SubPanel,
@@ -367,7 +368,7 @@ export interface FormProps {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
-    onCreateNode?: (kind: string, onCreated: (variableName: string) => void) => void;
+    onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
 export const Form = forwardRef((props: FormProps, _ref) => {

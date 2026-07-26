@@ -138,7 +138,6 @@ export function convertNodePropertyToFormField(
 }
 
 const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
-const MODEL_PROVIDER_SEARCH_KIND = "MODEL_PROVIDER";
 const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
 export const DEFAULT_MODEL_PROVIDER_ITEM = {
     id: "ai:getDefaultModelProvider",
@@ -176,12 +175,10 @@ function enrichModelProviderField(formField: FormField, property: Property): voi
     if (!isModelProvider || !formField.editable) {
         return;
     }
-    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, MODEL_PROVIDER_SEARCH_KIND, {
-        staticItems: [DEFAULT_MODEL_PROVIDER_ITEM],
+    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, "MODEL_PROVIDER", {
+        staticItems: [...(formField.codedata?.staticItems ?? []), DEFAULT_MODEL_PROVIDER_ITEM],
     });
 }
-
-const NEW_CONNECTION_SEARCH_KIND = "NEW_CONNECTION";
 
 function getConnectionTargetType(property: Property): SearchNodesTypeConstraint | undefined {
     const connection = property.codedata?.data?.connection as {
@@ -209,25 +206,22 @@ function enrichClientConnectionField(formField: FormField, property: Property): 
     }
     const targetType = getConnectionTargetType(property);
     const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
-    applyExpressionToggle(formField, ballerinaType, NEW_CONNECTION_SEARCH_KIND,
+    applyExpressionToggle(formField, ballerinaType, "NEW_CONNECTION",
         targetType ? { targetType } : {});
 }
 
 const AI_MEMORY_TYPE = "ai:Memory";
-const MEMORY_SEARCH_KIND = "MEMORY";
 
 function enrichMemoryField(formField: FormField, property: Property): void {
     const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
     if (!isMemory || !formField.editable) {
         return;
     }
-    applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND);
+    applyExpressionToggle(formField, AI_MEMORY_TYPE, "MEMORY");
 }
 
-const AGENT_PARAM_DATA_KEY = "agent";
-
 function enrichAgentField(formField: FormField, property: Property): void {
-    const agent = property.codedata?.data?.[AGENT_PARAM_DATA_KEY] as CodeData | undefined;
+    const agent = property.codedata?.data?.agent as CodeData | undefined;
     if (!agent || !formField.editable || !agent.node) {
         return;
     }
