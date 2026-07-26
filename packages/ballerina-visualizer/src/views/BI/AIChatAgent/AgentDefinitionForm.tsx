@@ -112,10 +112,7 @@ const PackageSettingsButton = styled.button`
     font-weight: 600;
 `;
 
-const PackageSettingsContent = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+const PackageSettingsContent = styled(LibraryDetails)`
     margin-top: 16px;
 `;
 
@@ -233,7 +230,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
     const { rpcClient } = useRpcContext();
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [destination, setDestination] = useState<DefinitionDestination>("current");
+    const [destination, setDestination] = useState<DefinitionDestination>("library");
     const [canCreateLibrary, setCanCreateLibrary] = useState(false);
     const [creating, setCreating] = useState(false);
     const [nameTouched, setNameTouched] = useState(false);
@@ -309,7 +306,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
         let cancelled = false;
         rpcClient.getCommonRpcClient().getDefaultOrgName().then(({ orgName, isLocked }) => {
             if (!cancelled) {
-                setLibrary((current) => current.orgName ? current : { ...current, orgName });
+                setLibrary((current) => isLocked || !current.orgName ? { ...current, orgName } : current);
                 setIsLibraryOrgLocked(isLocked);
             }
         }).catch(() => {

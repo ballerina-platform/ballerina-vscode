@@ -177,7 +177,7 @@ function toAuthSource(key: string, value: unknown, isExpression: boolean): strin
     if (key === "scopes") {
         try {
             const scopes = JSON.parse(text) as string[];
-            return `[${scopes.join(", ")}]`;
+            return `[${scopes.map((scope) => JSON.stringify(scope)).join(", ")}]`;
         } catch {
             return text.startsWith("[") ? text : `[${text}]`;
         }
@@ -397,9 +397,11 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     return;
                 }
 
+                const insertionPosition = targetLineRange?.startLine
+                    ?? await rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath });
                 const [templateResponse, oauthProperties] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getNodeTemplate({
-                        position: targetLineRange?.startLine ?? { line: 0, offset: 0 },
+                        position: insertionPosition,
                         filePath,
                         id: { node: "AGENT_TOOL" },
                     }),
@@ -434,11 +436,8 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 setToolNode(node);
                 setFields([...baseFields, ...oauthFields]);
                 setRecordTypeFields(oauthRecordFields);
-                if (!targetLineRange) {
-                    const eof = await rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath });
-                    if (!cancelled) {
-                        setFormRange({ startLine: eof, endLine: eof });
-                    }
+                if (!targetLineRange && !cancelled) {
+                    setFormRange({ startLine: insertionPosition, endLine: insertionPosition });
                 }
             } finally {
                 if (!cancelled) setLoading(false);

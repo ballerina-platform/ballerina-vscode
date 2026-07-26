@@ -328,26 +328,15 @@ const ConnectionModalStep = styled.div<{
     flex: 1;
     flex-direction: column;
     min-height: 0;
+    --connection-step-offset: ${(props: { $animate: boolean; $direction: "forward" | "backward" }) => props.$direction === "forward" ? "8px" : "-8px"};
     animation: ${(props: { $animate: boolean; $direction: "forward" | "backward" }) => props.$animate
-        ? `${props.$direction === "forward" ? "connection-step-forward" : "connection-step-backward"} 150ms ease-out both`
+        ? "connection-step 150ms ease-out both"
         : "none"};
 
-    @keyframes connection-step-forward {
+    @keyframes connection-step {
         from {
             opacity: 0;
-            transform: translateX(8px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes connection-step-backward {
-        from {
-            opacity: 0;
-            transform: translateX(-8px);
+            transform: translateX(var(--connection-step-offset));
         }
 
         to {
@@ -407,6 +396,7 @@ export interface BIFlowDiagramProps {
     onSubmit: (data: ExtendedAgentToolRequest) => void | Promise<void>;
     mode?: NewToolSelectionMode;
     onViewChange?: (view: SidePanelView, navigateBack?: () => void) => void;
+    onAgentToolCreated?: (functionName: string) => void;
     onCancel?: () => void;
     connectionDependency?: ConnectionDependencyConfig;
 }
@@ -477,7 +467,7 @@ const INITIAL_FIELDS: FormField[] = [
 ];
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
-    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, connectionDependency } = props;
+    const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onCancel, connectionDependency } = props;
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
 
@@ -535,6 +525,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         fetchNodes();
     }, []);
 
+    const hasAutoTriggered = useRef(false);
+    useEffect(() => {
+        if (mode === NewToolSelectionMode.CUSTOM_TOOL && !loading && !hasAutoTriggered.current) {
+            hasAutoTriggered.current = true;
+            handleOnAddFunction(MACHINE_VIEW.BIAgentToolForm, DIRECTORY_MAP.AGENT_TOOL);
+        }
+    }, [loading]);
+
     useEffect(() => {
         if (sidePanelView === SidePanelView.TOOL_FORM) {
             onViewChange?.(SidePanelView.TOOL_FORM, () => {
@@ -569,6 +567,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     useEffect(() => {
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             console.log(">>> on parent popup submitted", parent);
+            if (parent.artifactType === DIRECTORY_MAP.AGENT_TOOL && parent.recentIdentifier) {
+                onAgentToolCreated?.(parent.recentIdentifier);
+                return;
+            }
+            if (mode === NewToolSelectionMode.CUSTOM_TOOL && parent.artifactType === DIRECTORY_MAP.AGENT_TOOL) {
+                onCancel?.();
+                return;
+            }
             setLoading(true);
             fetchNodes();
         });
@@ -577,6 +583,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const fetchNodes = async () => {
         setLoading(true);
 
+        if (mode === NewToolSelectionMode.CUSTOM_TOOL) {
+            setLoading(false);
+            return;
+        }
+
         // FUNCTION mode: skip getAvailableNodes entirely — connections are not needed
         if (mode === NewToolSelectionMode.FUNCTION) {
             try {
@@ -584,9 +595,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 const categories = reorderFunctionCategories(filteredFunctions || []);
                 setCategories(categories);
                 initialCategoriesRef.current = categories;
-            } catch (error) {
-                console.error("Failed to load functions for agent tool", error);
-            } finally {
+            } catch { } finally {
                 setLoading(false);
             }
             return;
@@ -1009,8 +1018,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setDepImports({ [prefix]: `${cd.org}/${cd.module}` });
             setDepName(suggestDependencyName(prefix));
             setDepNameError("");
-        } catch (error) {
-            console.error(">>> Error loading connector package", error);
+        } catch {
             navigateConnectionModal(SidePanelView.CONNECTOR_SELECT, "backward");
         } finally {
             setDepConnectorLoading(false);
@@ -1059,11 +1067,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 field,
                 classLineRange: connectionDependency.classLineRange,
             });
-        } catch (error) {
+        } catch {
             pendingDependencyRefreshRef.current = false;
             addedDepNamesRef.current = addedDepNamesRef.current.filter((name) => name !== dependencyName);
             setDepSaving(false);
-            console.error(">>> Error adding connection dependency", error);
+            setDepNameError("Unable to add the connection parameter. Try again.");
         }
     };
 
@@ -1391,37 +1399,36 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                             </PopupHeader>
                             {sidePanelView === SidePanelView.CONNECTION_METHOD && (
                                 <ConnectionMethodOptions>
-                                    <ConnectionMethodCard onClick={() => {
-                                        setConnectionMethod("dependency");
-                                        navigateConnectionModal(SidePanelView.CONNECTOR_SELECT);
-                                    }}>
-                                        <ConnectionMethodIcon>
-                                            <Icon name="bi-connection" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                                        </ConnectionMethodIcon>
-                                        <ConnectionMethodDetails>
-                                            <ConnectionMethodTitle>Add a Connection Parameter</ConnectionMethodTitle>
-                                            <ConnectionMethodDescription>
-                                                Allow a connection to be provided when an agent is created.
-                                            </ConnectionMethodDescription>
-                                        </ConnectionMethodDetails>
-                                        <ConnectionMethodChevron className="connection-method-chevron">
-                                            <Codicon name="chevron-right" />
-                                        </ConnectionMethodChevron>
-                                    </ConnectionMethodCard>
-                                    <ConnectionMethodCard onClick={handleCreateConnectionInAgent}>
-                                        <ConnectionMethodIcon>
-                                            <Icon name="bi-settings" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                                        </ConnectionMethodIcon>
-                                        <ConnectionMethodDetails>
-                                            <ConnectionMethodTitle>Add a Built-in Connection</ConnectionMethodTitle>
-                                            <ConnectionMethodDescription>
-                                                Create and bundle this connection with the agent definition.
-                                            </ConnectionMethodDescription>
-                                        </ConnectionMethodDetails>
-                                        <ConnectionMethodChevron className="connection-method-chevron">
-                                            <Codicon name="chevron-right" />
-                                        </ConnectionMethodChevron>
-                                    </ConnectionMethodCard>
+                                    {[
+                                        {
+                                            icon: "bi-connection",
+                                            title: "Add a Connection Parameter",
+                                            description: "Allow a connection to be provided when an agent is created.",
+                                            onClick: () => {
+                                                setConnectionMethod("dependency");
+                                                navigateConnectionModal(SidePanelView.CONNECTOR_SELECT);
+                                            },
+                                        },
+                                        {
+                                            icon: "bi-settings",
+                                            title: "Add a Built-in Connection",
+                                            description: "Create and bundle this connection with the agent definition.",
+                                            onClick: handleCreateConnectionInAgent,
+                                        },
+                                    ] as const).map(({ icon, title, description, onClick }) => (
+                                        <ConnectionMethodCard key={title} onClick={onClick}>
+                                            <ConnectionMethodIcon>
+                                                <Icon name={icon} sx={{ fontSize: 24, width: 24, height: 24 }} />
+                                            </ConnectionMethodIcon>
+                                            <ConnectionMethodDetails>
+                                                <ConnectionMethodTitle>{title}</ConnectionMethodTitle>
+                                                <ConnectionMethodDescription>{description}</ConnectionMethodDescription>
+                                            </ConnectionMethodDetails>
+                                            <ConnectionMethodChevron>
+                                                <Codicon name="chevron-right" />
+                                            </ConnectionMethodChevron>
+                                        </ConnectionMethodCard>
+                                    ))}
                                 </ConnectionMethodOptions>
                             )}
                             {sidePanelView === SidePanelView.CONNECTOR_SELECT && (

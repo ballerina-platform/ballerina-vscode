@@ -82,10 +82,6 @@ export const IntroText = styled(Typography)`
     margin: 0;
 `;
 
-export const SearchContainer = styled.div`
-    width: 100%;
-`;
-
 export const StyledSearchBox = styled(SearchBox)`
     width: 100%;
 `;
@@ -112,18 +108,6 @@ export const SectionHeader = styled.div`
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 12px;
-`;
-
-export const SectionHeaderRight = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-`;
-
-export const CreateAgentOptions = styled.div`
-    display: flex;
-    flex-direction: column;
     gap: 12px;
 `;
 

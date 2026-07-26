@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import styled from "@emotion/styled";
 import { AvailableNode, ParentPopupData } from "@wso2/ballerina-core";
 import { Codicon, ThemeColors } from "@wso2/ui-toolkit";

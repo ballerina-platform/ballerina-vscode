@@ -436,7 +436,7 @@ export const goToAgent = async (node: FlowNode, rpcClient: BallerinaRpcClient) =
             },
         });
     } else {
-        goToAgentFromRunNode(node, rpcClient);
+        return goToAgentFromRunNode(node, rpcClient);
     }
 };
 

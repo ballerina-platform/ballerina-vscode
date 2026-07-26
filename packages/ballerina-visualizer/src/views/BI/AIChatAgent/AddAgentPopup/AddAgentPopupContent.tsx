@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, EVENT_TYPE, FlowNode, LineRange } from "@wso2/ballerina-core";
@@ -37,7 +37,6 @@ import {
     AgentOptionTitle,
     AgentsGrid,
     ArrowIcon,
-    CreateAgentOptions,
     EmptyState,
     FilterButton,
     FilterButtons,
@@ -48,9 +47,7 @@ import {
     ResultsSection,
     Section,
     SectionHeader,
-    SectionHeaderRight,
     SectionTitle,
-    SearchContainer,
     StyledSearchBox,
 } from "./styles";
 
@@ -96,11 +93,13 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         onGenericAgentSelected,
     } = props;
     const { rpcClient } = useRpcContext();
-    const [searchText, setSearchText] = useState<string>("");
+    const [searchText, setSearchText] = useState("");
     const [filterType, setFilterType] = useState<AgentFilter>("All");
     const [agents, setAgents] = useState<AvailableNode[]>([]);
-    const [isSearching, setIsSearching] = useState<boolean>(false);
-    const [isWorkspace, setIsWorkspace] = useState<boolean>(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [isWorkspace, setIsWorkspace] = useState(false);
+    const searchRequestRef = useRef(0);
+    const previousFilterRef = useRef<AgentFilter | undefined>(undefined);
 
     useEffect(() => {
         let cancelled = false;
@@ -121,9 +120,9 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     }, [rpcClient]);
 
     const [agentNode, setAgentNode] = useState<FlowNode>();
-    const [agentFilePath, setAgentFilePath] = useState<string>("");
+    const [agentFilePath, setAgentFilePath] = useState("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if ((view !== "configure" && view !== "create") || (view === "configure" && !pendingAgent)) {
@@ -167,6 +166,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     }, [view, pendingAgent, rpcClient, projectPath]);
 
     const runSearch = (text: string, filter: AgentFilter) => {
+        const request = ++searchRequestRef.current;
         setIsSearching(true);
         rpcClient
             .getBIDiagramRpcClient()
@@ -180,29 +180,34 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 searchKind: "AGENT",
             })
             .then((model) => {
-                setAgents((model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]));
+                if (request === searchRequestRef.current) {
+                    setAgents((model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]));
+                }
             })
             .finally(() => {
-                setIsSearching(false);
+                if (request === searchRequestRef.current) {
+                    setIsSearching(false);
+                }
             });
     };
 
-    const debouncedSearch = debounce((text: string) => runSearch(text, filterType), 1100);
+    const debouncedSearch = debounce((text: string, filter: AgentFilter) => runSearch(text, filter), 1100);
 
     useEffect(() => {
         if (view !== "gallery") {
+            previousFilterRef.current = undefined;
             return;
         }
-        runSearch(searchText, filterType);
-    }, [view, filterType, rpcClient, projectPath]);
-
-    useEffect(() => {
-        if (view !== "gallery") {
+        const filterChanged = previousFilterRef.current !== filterType;
+        previousFilterRef.current = filterType;
+        if (!searchText || filterChanged) {
+            runSearch(searchText, filterType);
             return;
         }
-        debouncedSearch(searchText);
+        searchRequestRef.current += 1;
+        debouncedSearch(searchText, filterType);
         return () => debouncedSearch.cancel();
-    }, [searchText]);
+    }, [view, searchText, filterType, rpcClient, projectPath]);
 
     const handleCustomAgent = () => {
         onPendingAgentChange(undefined);
@@ -274,62 +279,34 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         );
     }
 
-    if (view === "create") {
+    if (view === "create" || view === "configure") {
+        const isConfiguring = view === "configure";
         const fieldOverrides = {
             type: { hidden: true },
             variable: { label: "Agent Name", documentation: "Name of the agent" },
         };
         const formNode = agentNode ? cloneDeep(agentNode) : undefined;
-        return (
-            <FormContainer>
-                {formNode && targetLineRange ? (
-                    <FlowNodeForm
-                        fileName={agentFilePath}
-                        node={formNode}
-                        nodeFormTemplate={formNode}
-                        targetLineRange={targetLineRange}
-                        onSubmit={handleCreateAgent}
-                        submitText={isSubmitting ? "Creating..." : "Create Agent"}
-                        showProgressIndicator={isSubmitting}
-                        disableSaveButton={isSubmitting}
-                        footerActionButton
-                        fieldOverrides={fieldOverrides}
-                    />
-                ) : (
-                    <LoaderWrapper>
-                        <RelativeLoader />
-                    </LoaderWrapper>
-                )}
-            </FormContainer>
-        );
-    }
-
-    if (view === "configure") {
-        const fieldOverrides = {
-            type: { hidden: true },
-            variable: { label: "Agent Name", documentation: "Name of the agent" },
-        };
-        const formNode = agentNode ? cloneDeep(agentNode) : undefined;
-        if (formNode?.metadata?.description) {
+        const submitText = isConfiguring ? "Add Agent" : "Create Agent";
+        const submittingText = isConfiguring ? "Adding..." : "Creating...";
+        if (isConfiguring && formNode?.metadata?.description) {
             delete formNode.metadata.description;
         }
-        const cardDescription = pendingAgent?.metadata?.description || agentNode?.metadata?.description;
         return (
             <FormContainer>
                 {formNode && targetLineRange ? (
                     <>
-                        <AgentInfoCard
+                        {isConfiguring && <AgentInfoCard
                             label={pendingAgent?.metadata?.label || ""}
-                            description={cardDescription}
+                            description={pendingAgent?.metadata?.description || agentNode?.metadata?.description}
                             icon={pendingAgent?.metadata?.icon}
-                        />
+                        />}
                         <FlowNodeForm
                             fileName={agentFilePath}
                             node={formNode}
                             nodeFormTemplate={formNode}
                             targetLineRange={targetLineRange}
                             onSubmit={handleCreateAgent}
-                            submitText={isSubmitting ? "Adding..." : "Add Agent"}
+                            submitText={isSubmitting ? submittingText : submitText}
                             showProgressIndicator={isSubmitting}
                             disableSaveButton={isSubmitting}
                             footerActionButton
@@ -353,18 +330,16 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                     : "To add an agent, create a one-off agent for this project, create a reusable agent definition that can be shared across projects, or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
             </IntroText>
 
-            <SearchContainer>
-                <StyledSearchBox
-                    value={searchText}
-                    placeholder="Search agents..."
-                    onChange={setSearchText}
-                    size={60}
-                />
-            </SearchContainer>
+            <StyledSearchBox
+                value={searchText}
+                placeholder="Search agents..."
+                onChange={setSearchText}
+                size={60}
+            />
 
             <Section>
                 <SectionTitle variant="h4">{dependencyMode ? "Generic Agent" : "Create New Agent"}</SectionTitle>
-                <CreateAgentOptions>
+                <Section>
                     <AgentOptionCard onClick={dependencyMode ? onGenericAgentSelected : handleCustomAgent}>
                         <AgentOptionIcon>
                             <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
@@ -404,14 +379,13 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             </ArrowIcon>
                         </AgentOptionCard>
                     )}
-                </CreateAgentOptions>
+                </Section>
             </Section>
 
             <ResultsSection>
                 <SectionHeader>
                     <SectionTitle variant="h4">{dependencyMode ? "Agent Types" : "Pre-built Agents"}</SectionTitle>
-                    <SectionHeaderRight>
-                        <FilterButtons>
+                    <FilterButtons>
                             <FilterButton
                                 active={filterType === "All"}
                                 onClick={() => setFilterType("All")}
@@ -432,8 +406,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             >
                                 Organization
                             </FilterButton>
-                        </FilterButtons>
-                    </SectionHeaderRight>
+                    </FilterButtons>
                 </SectionHeader>
                 {isSearching && agents.length === 0 ? (
                     <LoaderWrapper>

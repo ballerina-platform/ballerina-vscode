@@ -36,8 +36,8 @@ export default function CreateAgentForm({ agentCodeData, onCreated }: CreateAgen
     const { rpcClient } = useRpcContext();
     const [template, setTemplate] = useState<FlowNode>();
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
-    const [filePath, setFilePath] = useState<string>("");
-    const [submitting, setSubmitting] = useState<boolean>(false);
+    const [filePath, setFilePath] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -57,9 +57,7 @@ export default function CreateAgentForm({ agentCodeData, onCreated }: CreateAgen
                 setFilePath(endOfFile.fileName);
                 setTargetLineRange(endOfFile);
                 setTemplate(nodeTemplate);
-            } catch (error) {
-                console.error("Error loading agent template:", error);
-            }
+            } catch { }
         })();
         return () => {
             cancelled = true;
@@ -84,9 +82,7 @@ export default function CreateAgentForm({ agentCodeData, onCreated }: CreateAgen
             if (createdName) {
                 onCreated(createdName);
             }
-        } catch (error) {
-            console.error("Error creating agent:", error);
-        } finally {
+        } catch { } finally {
             setSubmitting(false);
         }
     };

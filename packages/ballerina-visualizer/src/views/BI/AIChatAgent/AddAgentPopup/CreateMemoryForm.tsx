@@ -36,8 +36,8 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
     const { rpcClient } = useRpcContext();
     const [template, setTemplate] = useState<FlowNode>();
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
-    const [filePath, setFilePath] = useState<string>("");
-    const [submitting, setSubmitting] = useState<boolean>(false);
+    const [filePath, setFilePath] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -68,9 +68,7 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
                 setFilePath(endOfFile.fileName);
                 setTargetLineRange(endOfFile);
                 setTemplate(nodeTemplate);
-            } catch (error) {
-                console.error("Error loading memory template:", error);
-            }
+            } catch { }
         })();
         return () => {
             cancelled = true;
@@ -95,9 +93,7 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
             if (createdName) {
                 onCreated(createdName);
             }
-        } catch (error) {
-            console.error("Error creating memory:", error);
-        } finally {
+        } catch { } finally {
             setSubmitting(false);
         }
     };
