@@ -74,12 +74,12 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     const [currentStep, setCurrentStep] = useState<number>(0);
 
     const steps = [
-        { label: "Creating Agent", description: "Creating the AI chat agent" },
-        { label: "Creating Model Provider", description: "Creating the model provider for the AI chat agent" },
+        { label: "Creating Agent", description: "Creating the chat agent service" },
+        { label: "Creating Model Provider", description: "Creating the model provider for the chat agent service" },
         { label: "Pulling Modules", description: "Pulling the required modules. This may take a few moments." },
         { label: "Creating Listener", description: "Configuring the service listener" },
-        { label: "Creating Service", description: "Setting up the AI chat service" },
-        { label: "Completing", description: "Finalizing the agent setup" }
+        { label: "Creating Service", description: "Setting up the chat agent service" },
+        { label: "Completing", description: "Finalizing the chat agent service setup" }
     ];
 
     const projectPath = useRef<string>("");
@@ -231,7 +231,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 setCurrentStep(0);
             }
         } catch (error) {
-            console.error("Error creating AI Chat Agent:", error);
+            console.error("Error creating chat agent service:", error);
             setIsCreating(false);
             setCurrentStep(0);
         } finally {

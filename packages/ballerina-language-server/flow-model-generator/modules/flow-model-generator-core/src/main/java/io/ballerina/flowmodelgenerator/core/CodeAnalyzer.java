@@ -4653,7 +4653,7 @@ public class CodeAnalyzer extends NodeVisitor {
         FUNCTION("Function"),
         REMOTE_FUNCTION("Remote Function"),
         RESOURCE("Resource"),
-        AI_CHAT_AGENT("AI Chat Agent"),
+        AI_CHAT_AGENT("Chat Agent Service"),
         WORKFLOW("Workflow"),
         ACTIVITY("Activity");
 

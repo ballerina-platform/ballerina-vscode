@@ -97,7 +97,7 @@ export enum MACHINE_VIEW {
     BIServiceClassConfigView = "Service Class Config View",
     BIDataMapperForm = "Add Data Mapper SKIP",
     AIAgentDesigner = "AI Agent Designer",
-    AIChatAgentWizard = "AI Chat Agent Wizard",
+    AIChatAgentWizard = "Chat Agent Service Wizard",
     ResolveMissingDependencies = "Resolve Missing Dependencies",
     ServiceFunctionForm = "Service Function Form",
     AIAgentToolForm = "Agent Tool Form",
