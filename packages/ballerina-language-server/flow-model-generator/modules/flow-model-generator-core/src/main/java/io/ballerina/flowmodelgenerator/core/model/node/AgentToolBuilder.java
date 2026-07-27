@@ -228,7 +228,7 @@ public class AgentToolBuilder extends NodeBuilder {
         return semanticModel != null && semanticModel.symbol(classNode)
                 .filter(ClassSymbol.class::isInstance)
                 .map(ClassSymbol.class::cast)
-                .map(CommonUtils::isAgentClass)
+                .map(CommonUtils::isAiAgentType)
                 .orElse(false);
     }
 
@@ -276,7 +276,7 @@ public class AgentToolBuilder extends NodeBuilder {
         if (!(statement instanceof AssignmentStatementNode assignment)) {
             return null;
         }
-        if (!assignment.varRef().toSourceCode().trim().equals("self." + agentVarName)) {
+        if (!agentVarName.isBlank() && !assignment.varRef().toSourceCode().trim().equals("self." + agentVarName)) {
             return null;
         }
         ExpressionNode expression = assignment.expression();

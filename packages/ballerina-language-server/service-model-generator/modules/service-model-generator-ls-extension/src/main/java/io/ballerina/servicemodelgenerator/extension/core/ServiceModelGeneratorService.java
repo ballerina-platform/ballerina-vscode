@@ -1019,8 +1019,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Path filePath = Path.of(request.filePath());
                 this.workspaceManager.loadProject(filePath);
                 Optional<Document> document = this.workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                if (document.isEmpty()) {
                     return new CommonSourceResponse();
                 }
                 SyntaxTree syntaxTree = document.get().syntaxTree();
@@ -1030,8 +1029,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 int start = textDocument.textPositionFrom(lineRange.startLine());
                 int end = textDocument.textPositionFrom(lineRange.endLine());
                 NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, end - start), true);
-                if (!(node instanceof ClassDefinitionNode classDefinitionNode)
-                        || !ServiceClassUtil.isAgentClass(semanticModel.get(), classDefinitionNode)) {
+                if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
                     return new CommonSourceResponse();
                 }
                 List<TextEdit> edits = ServiceClassUtil.buildAddInitParameterEdits(classDefinitionNode,
@@ -1050,14 +1048,11 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Path filePath = Path.of(request.filePath());
                 this.workspaceManager.loadProject(filePath);
                 Optional<Document> document = this.workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                if (document.isEmpty()) {
                     return new CommonSourceResponse();
                 }
                 NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
-                if (!(node instanceof ObjectFieldNode fieldNode)
-                        || !(fieldNode.parent() instanceof ClassDefinitionNode classDef)
-                        || !ServiceClassUtil.isAgentClass(semanticModel.get(), classDef)) {
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
                     return new CommonSourceResponse();
                 }
                 ModulePartNode modulePartNode = document.get().syntaxTree().rootNode();
@@ -1077,16 +1072,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 Path filePath = Path.of(request.filePath());
                 this.workspaceManager.loadProject(filePath);
                 Optional<Document> document = this.workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                if (document.isEmpty()) {
                     return new CommonSourceResponse();
                 }
                 SyntaxTree syntaxTree = document.get().syntaxTree();
                 TextDocument textDocument = syntaxTree.textDocument();
                 NonTerminalNode node = findNonTerminalNode(request.field().codedata(), document.get());
-                if (!(node instanceof ObjectFieldNode fieldNode)
-                        || !(fieldNode.parent() instanceof ClassDefinitionNode classDef)
-                        || !ServiceClassUtil.isAgentClass(semanticModel.get(), classDef)) {
+                if (!(node instanceof ObjectFieldNode fieldNode)) {
                     return new CommonSourceResponse();
                 }
                 List<TextEdit> edits = ServiceClassUtil.buildRemoveInitParameterEdits(fieldNode, textDocument);
