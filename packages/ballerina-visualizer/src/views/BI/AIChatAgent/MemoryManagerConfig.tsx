@@ -148,7 +148,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             return;
         }
 
-        const metadata = agentNode.metadata?.data as NodeMetadata;
+        const metadata = agentNode.metadata?.data as NodeMetadata & { memory?: { type?: string } };
         let currentMemoryType = (metadata?.agentInfo?.memory?.presentation?.type ?? metadata?.memory?.type) as string;
 
         // Remove "ai:" prefix if present

@@ -479,7 +479,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 });
             }
             
-            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch(() => undefined);
+            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
 
             onSave?.();
         } catch (error) {

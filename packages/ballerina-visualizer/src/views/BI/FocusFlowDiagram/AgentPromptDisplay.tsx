@@ -93,7 +93,7 @@ export function AgentPromptDisplay({ role, instructions }: AgentPromptDisplayPro
         return null;
     }
 
-    return fields.map((field) => (
+    return <>{fields.map((field) => (
         <ReadonlyPromptField key={field.key} field={buildField(field.key, field.label, field.documentation, values[field.key])} />
-    ));
+    ))}</>;
 }

@@ -338,7 +338,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             />
 
             <Section>
-                <SectionTitle variant="h4">{dependencyMode ? "Generic Agent" : "Create New Agent"}</SectionTitle>
+                <SectionTitle variant="h4">{dependencyMode ? "Generic Agent" : "Create New"}</SectionTitle>
                 <Section>
                     <AgentOptionCard onClick={dependencyMode ? onGenericAgentSelected : handleCustomAgent}>
                         <AgentOptionIcon>
@@ -351,7 +351,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             <AgentOptionDescription>
                                 {dependencyMode
                                     ? "Use a flexible agent input when the concrete agent is supplied by the caller."
-                                    : "Create a one-off agent for this integration only."}
+                                    : "Create a one-off agent instance for this integration only."}
                             </AgentOptionDescription>
                         </AgentOptionContent>
                         <ArrowIcon>
@@ -371,7 +371,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                             <AgentOptionContent>
                                 <AgentOptionTitle>Create Agent Definition</AgentOptionTitle>
                                 <AgentOptionDescription>
-                                    Create an agent template that can be shared and used to create multiple agents with the same configuration.
+                                    Create an agent definition that can be shared and used to create agent instances with the same configuration.
                                 </AgentOptionDescription>
                             </AgentOptionContent>
                             <ArrowIcon>
@@ -386,26 +386,26 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 <SectionHeader>
                     <SectionTitle variant="h4">{dependencyMode ? "Agent Types" : "Pre-built Agents"}</SectionTitle>
                     <FilterButtons>
+                        <FilterButton
+                            active={filterType === "All"}
+                            onClick={() => setFilterType("All")}
+                        >
+                            All
+                        </FilterButton>
+                        {isWorkspace && (
                             <FilterButton
-                                active={filterType === "All"}
-                                onClick={() => setFilterType("All")}
+                                active={filterType === "Project"}
+                                onClick={() => setFilterType("Project")}
                             >
-                                All
+                                Project
                             </FilterButton>
-                            {isWorkspace && (
-                                <FilterButton
-                                    active={filterType === "Project"}
-                                    onClick={() => setFilterType("Project")}
-                                >
-                                    Project
-                                </FilterButton>
-                            )}
-                            <FilterButton
-                                active={filterType === "Organization"}
-                                onClick={() => setFilterType("Organization")}
-                            >
-                                Organization
-                            </FilterButton>
+                        )}
+                        <FilterButton
+                            active={filterType === "Organization"}
+                            onClick={() => setFilterType("Organization")}
+                        >
+                            Organization
+                        </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
                 {isSearching && agents.length === 0 ? (

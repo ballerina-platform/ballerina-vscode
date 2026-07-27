@@ -1399,7 +1399,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                             </PopupHeader>
                             {sidePanelView === SidePanelView.CONNECTION_METHOD && (
                                 <ConnectionMethodOptions>
-                                    {[
+                                    {([
                                         {
                                             icon: "bi-connection",
                                             title: "Add a Connection Parameter",
