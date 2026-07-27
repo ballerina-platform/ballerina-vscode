@@ -1235,7 +1235,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await handleSearch(searchText, functionType, "FUNCTION");
     };
 
-     const handleSearchWorkflow = async (searchText: string, functionType: FUNCTION_TYPE) => {
+    const handleSearchWorkflow = async (searchText: string, functionType: FUNCTION_TYPE) => {
         // NOTE: Backend payloads may still contain legacy "WORKFLOW_START" in some environments.
         // FE is intentionally standardized on "WORKFLOW_RUN"; align API/LS payloads to avoid mismatches.
         await handleSearch(searchText, functionType, "WORKFLOW_RUN");
@@ -2345,7 +2345,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
-   
+
 
     const handleOnAddNPFunction = () => {
         rpcClient.getVisualizerRpcClient().openView({
@@ -2824,7 +2824,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const isChatAgentFlow = (() => {
         const eventStartNode = flowModel?.nodes.find((node) => node.codedata.node === "EVENT_START");
         const meta = eventStartNode?.metadata?.data as { kind?: string; label?: string } | undefined;
-        return meta?.kind === "AI Chat Agent" && meta?.label === "chat";
+        return meta?.kind === "Chat Agent Service" && meta?.label === "chat";
     })();
 
     const memoizedDiagramProps = useMemo(

@@ -430,7 +430,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isAutomation = parentMetadata?.kind === "Function" && parentMetadata?.label === "main";
     let isResource = parentMetadata?.kind === "Resource";
     let isRemote = parentMetadata?.kind === "Remote Function";
-    let isAgent = parentMetadata?.kind === "AI Chat Agent" && parentMetadata?.label === "chat";
+    let isAgent = parentMetadata?.kind === "Chat Agent Service" && parentMetadata?.label === "chat";
     let isInitFunction = parentMetadata?.kind === "Function" && parentMetadata?.label === "init";
     let isWorkflow = parentMetadata?.kind === "Workflow";
     let isActivity = parentMetadata?.kind === "Activity";
