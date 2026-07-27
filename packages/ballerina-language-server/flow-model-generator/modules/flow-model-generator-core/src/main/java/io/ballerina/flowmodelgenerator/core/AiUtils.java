@@ -435,7 +435,8 @@ public class AiUtils {
         Object valueToUse = customValue != null ? customValue : property.value();
         boolean hidden = isHidden || property.hidden();
 
-        if (hidden && nodeBuilder.properties().build().containsKey(key)) {
+        Property existingProperty = nodeBuilder.properties().build().get(key);
+        if (hidden && existingProperty != null && existingProperty != property) {
             return;
         }
 
