@@ -648,6 +648,7 @@ const MainPanel = () => {
                             if (isStaleNavigation()) return;
                             setViewComponent(
                                 <AgentDefinitionDesigner
+                                    key={remountKey}
                                     projectPath={value.projectPath}
                                     fileName={value?.documentUri}
                                     position={value?.position}

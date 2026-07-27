@@ -549,6 +549,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
     const suppressRefreshRef = useRef(false);
 
     useEffect(() => {
+        if (classNameRef.current) return;
         classPositionRef.current = position;
         classNameRef.current = undefined;
         void refresh(position);
