@@ -155,14 +155,12 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                     title="Connection"
                     onClick={() => handleClick(DIRECTORY_MAP.CONNECTION)}
                 />
-                {isLibrary &&
-                    <ButtonCard
-                        id="agent"
-                        icon={<Icon name="bi-ai-agent" />}
-                        title="Agent"
-                        onClick={() => handleClick(DIRECTORY_MAP.AGENT)}
-                    />
-                }
+                <ButtonCard
+                    id="agent"
+                    icon={<Icon name="bi-ai-agent" />}
+                    title="Agent"
+                    onClick={() => handleClick(DIRECTORY_MAP.AGENT)}
+                />
                 {isLibrary &&
                     <ButtonCard
                         id="agent-definition"
