@@ -68,6 +68,7 @@ public class AgentSearchCommand extends SearchCommand {
 
     private static final String SOURCE_DEFAULT = "default";
     private static final String SOURCE_ALL = "all";
+    private static final String SOURCE_ORGANIZATION = "organization";
     private static final String SOURCE_LOCAL = "local";
 
     private List<Item> cachedDefaultAgents;
@@ -78,7 +79,8 @@ public class AgentSearchCommand extends SearchCommand {
         super(project, position, queryMap);
         orgName = queryMap.get("orgName");
         String requestedSource = queryMap.getOrDefault("source", SOURCE_DEFAULT);
-        source = SOURCE_ALL.equals(requestedSource) || SOURCE_LOCAL.equals(requestedSource)
+        source = SOURCE_ALL.equals(requestedSource) || SOURCE_ORGANIZATION.equals(requestedSource)
+                || SOURCE_LOCAL.equals(requestedSource)
                 ? requestedSource : SOURCE_DEFAULT;
     }
 
@@ -86,6 +88,7 @@ public class AgentSearchCommand extends SearchCommand {
     protected List<Item> defaultView() {
         return switch (source) {
             case SOURCE_ALL -> getAllAgents(null);
+            case SOURCE_ORGANIZATION -> getOrganizationAgents(null);
             case SOURCE_LOCAL -> getLocalAgents(null);
             default -> getDefaultAgents();
         };
@@ -95,6 +98,7 @@ public class AgentSearchCommand extends SearchCommand {
     protected List<Item> search() {
         return switch (source) {
             case SOURCE_ALL -> getAllAgents(query);
+            case SOURCE_ORGANIZATION -> getOrganizationAgents(query);
             case SOURCE_LOCAL -> getLocalAgents(query);
             default -> searchDefaultAgents();
         };
@@ -154,6 +158,14 @@ public class AgentSearchCommand extends SearchCommand {
     }
     private List<Item> getLocalAgents(String searchQuery) {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
+        return rootBuilder.build().items();
+    }
+
+    private List<Item> getOrganizationAgents(String searchQuery) {
+        String currentOrg = project.currentPackage().packageOrg().value();
+        addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery).stream()
+                .filter(agent -> agent.codedata().org().equalsIgnoreCase(currentOrg))
+                .toList());
         return rootBuilder.build().items();
     }
 
