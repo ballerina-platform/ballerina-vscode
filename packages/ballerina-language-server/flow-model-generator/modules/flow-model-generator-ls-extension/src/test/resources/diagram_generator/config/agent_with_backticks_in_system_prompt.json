@@ -17,7 +17,7 @@
         "metadata": {
           "label": "Start",
           "data": {
-            "kind": "AI Chat Agent",
+            "kind": "Chat Agent Service",
             "label": "chat",
             "isServiceFunction": true,
             "accessor": "post",
