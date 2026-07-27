@@ -198,16 +198,35 @@ export default function createTests() {
         });
 
         test('Add an artifact from the tree via the Entry Points "Add" button', async () => {
-            logStep('Hovering "Entry Points" and clicking "Add Entry Point"');
             const entryPoints = treeItem('Entry Points');
-            await entryPoints.hover();
             const sideBar = page.page.locator('#workbench\\.parts\\.sidebar');
             const addBtn = sideBar.getByRole('button', { name: 'Add Entry Point' }).first();
-            await addBtn.waitFor({ timeout: 10000 });
-            await addBtn.click();
 
-            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
-            await expect(artifactWebView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 15000 });
+            // The preceding test deletes "main" from the tree, which can leave
+            // the sidebar mid-reflow: a hover/click landing during that reflow
+            // is silently swallowed (no error — the row just doesn't react),
+            // so the "Artifacts" panel never opens. Retry hover+click a few
+            // times instead of trusting the first one to land.
+            let artifactWebView;
+            let lastError: unknown;
+            for (let attempt = 1; attempt <= 3 && !artifactWebView; attempt++) {
+                logStep(`Hovering "Entry Points" and clicking "Add Entry Point" (attempt ${attempt})`);
+                try {
+                    await entryPoints.scrollIntoViewIfNeeded();
+                    await entryPoints.hover({ force: true });
+                    await addBtn.waitFor({ timeout: 10000 });
+                    await addBtn.click({ force: true });
+
+                    const webView = await getWebview(BI_INTEGRATOR_LABEL, page);
+                    await expect(webView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 15000 });
+                    artifactWebView = webView;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            if (!artifactWebView) {
+                throw lastError instanceof Error ? lastError : new Error('The "Artifacts" panel never opened after clicking "Add Entry Point"');
+            }
 
             logStep('Selecting "Automation" and creating it');
             const automationCard = artifactWebView.locator('[data-testid="automation"], #automation').first();

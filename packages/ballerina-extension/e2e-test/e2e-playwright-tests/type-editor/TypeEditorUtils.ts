@@ -265,14 +265,27 @@ export class TypeEditorUtils {
     async editType(typeName: string): Promise<void> {
         const menuButton = this.webView.locator(`[data-testid="type-node-${typeName}-menu"]`);
         await this.waitForElement(menuButton);
-        await menuButton.click();
 
-        // The menu can briefly re-render after open on slow runners, detaching the
-        // Edit item between stability check and click. Force the click to bypass
-        // the stability retry that hits the detached node.
+        // The menu can briefly re-render after open on slow runners (e.g. a
+        // diagram re-layout), detaching the "Edit" item mid-click. `force`
+        // alone doesn't help — it skips the stability wait but still targets
+        // the same doomed DOM handle if it detaches before the click
+        // dispatches — so re-open the menu from scratch on each attempt.
         const editMenuItem = this.webView.getByText('Edit', { exact: true });
-        await this.waitForElement(editMenuItem);
-        await editMenuItem.click({ force: true });
+        let lastError: unknown;
+        let opened = false;
+        for (let attempt = 1; attempt <= 3 && !opened; attempt++) {
+            try {
+                await menuButton.click();
+                await editMenuItem.click({ force: true, timeout: 10000 });
+                opened = true;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        if (!opened) {
+            throw lastError instanceof Error ? lastError : new Error(`Could not click "Edit" for type "${typeName}"`);
+        }
 
         // Wait for type editor to load
         const typeEditorContent = this.webView.locator('[data-testid="type-editor-container"]');
@@ -361,8 +374,23 @@ export class TypeEditorUtils {
     async openServiceClassForEditing(name: string): Promise<void> {
         const menu = this.webView.getByTestId(`type-node-${name}-menu`);
         await this.waitForElement(menu, 10000);
-        await menu.getByRole('img').click();
-        await this.webView.getByText('Edit', { exact: true }).click();
+
+        // The dropdown can close and re-render (e.g. a diagram re-layout)
+        // between opening it and clicking "Edit", detaching the menu item
+        // mid-click. A single click's built-in actionability retries keep
+        // re-resolving that same doomed element, so instead re-open the menu
+        // from scratch on each attempt.
+        let lastError: unknown;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await menu.getByRole('img').click();
+                await this.webView.getByText('Edit', { exact: true }).click({ timeout: 10000 });
+                return;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw lastError instanceof Error ? lastError : new Error(`Could not click "Edit" for service class "${name}"`);
     }
 
     /**

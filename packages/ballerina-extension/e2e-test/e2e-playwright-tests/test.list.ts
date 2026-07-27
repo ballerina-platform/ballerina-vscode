@@ -80,6 +80,8 @@ import inlineDataMapper from './datamapper/inline-data-mapper.spec';
 
 import createProject from './project-overview/project-creation.spec';
 
+import samplesFlow from './samples/samples.spec';
+
 import diagram from './diagram/diagram.spec';
 import automationFlowNodes from './diagram/flow-nodes.spec';
 
@@ -163,6 +165,9 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Project Explorer Test---->
     test.describe(projectExplorer);
+
+    // <----Explore Samples Test---->
+    test.describe(samplesFlow);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
