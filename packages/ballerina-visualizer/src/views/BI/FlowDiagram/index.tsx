@@ -3676,6 +3676,32 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return rpcClient.getVisualizerRpcClient().joinProjectPath(props);
     };
 
+    // Opens the durable agent's own model (the declaration canvas). Used by run-site agent
+    // boxes, which are read-only references to the agent instance.
+    const handleOnGoToDurableAgent = async (node: FlowNode) => {
+        const declaration = (node.metadata?.data as {
+            declaration?: {
+                fileName: string;
+                startLine: { line: number; offset: number };
+                endLine: { line: number; offset: number };
+            };
+        })?.declaration;
+        if (!declaration) {
+            console.error(">>> Durable agent declaration location not found on node", node);
+            return;
+        }
+        const joined = await handleGetProjectPath({ segments: declaration.fileName });
+        handleOpenView({
+            documentUri: joined?.filePath ?? declaration.fileName,
+            position: {
+                startLine: declaration.startLine.line,
+                startColumn: declaration.startLine.offset,
+                endLine: declaration.endLine.line,
+                endColumn: declaration.endLine.offset,
+            },
+        });
+    };
+
     const handleGetFunctionLocation = async (functionName: string): Promise<VisualizerLocation | undefined> => {
         const projectComponents = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
         if (!projectComponents?.components) {
@@ -3791,6 +3817,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSelectMemoryManager: handleOnSelectMemoryManager,
                 onDeleteMemoryManager: handleOnDeleteMemoryManager,
                 onChatWithAgent: isChatAgentFlow ? undefined : handleOnChatWithAgent,
+                // Outside the declaration canvas the durable agent box is a read-only
+                // reference; clicks navigate to the agent's own model.
+                durableAgentReference: !agentOnlyView,
+                onGoToAgent: handleOnGoToDurableAgent,
             },
             suggestions: {
                 fetching: fetchingAiSuggestions,

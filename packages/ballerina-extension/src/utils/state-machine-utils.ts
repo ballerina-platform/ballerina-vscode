@@ -389,6 +389,9 @@ function findViewByArtifact(
             case DIRECTORY_MAP.AUTOMATION:
             case DIRECTORY_MAP.FUNCTION:
             case DIRECTORY_MAP.WORKFLOW:
+            // A durable agentic workflow artifact opens as a BI diagram at the declaration's
+            // range, where the flow model renders the agent model canvas.
+            case DIRECTORY_MAP.DURABLE_AGENT:
             case DIRECTORY_MAP.ACTIVITY:
             case DIRECTORY_MAP.REMOTE:
                 return {

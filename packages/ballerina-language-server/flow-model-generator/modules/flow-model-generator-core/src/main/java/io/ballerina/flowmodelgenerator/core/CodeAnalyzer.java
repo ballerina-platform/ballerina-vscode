@@ -1190,6 +1190,13 @@ public class CodeAnalyzer extends NodeVisitor {
         nodeBuilder.metadata().addData("humanTasks", humanTasks);
         nodeBuilder.metadata().addData("tools", agentTools);
         nodeBuilder.metadata().addData("events", updateEvents);
+        // The declaration's own range lets a run-site box navigate to the agent's model.
+        NonTerminalNode declarationNode = varNode;
+        while (declarationNode != null && declarationNode.kind() != SyntaxKind.MODULE_VAR_DECL) {
+            declarationNode = declarationNode.parent();
+        }
+        nodeBuilder.metadata().addData("declaration",
+                (declarationNode != null ? declarationNode : varNode).lineRange());
     }
 
     // Extracts capabilities from a declaration config list. Bare function/variable references
@@ -3703,23 +3710,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 || varDecl.initializer().isEmpty()) {
             return false;
         }
-        boolean isAgentDeclaration = false;
-        Optional<Symbol> symbol = semanticModel.symbol(varDecl.typedBindingPattern().bindingPattern());
-        if (symbol.isPresent() && symbol.get() instanceof VariableSymbol variableSymbol) {
-            TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
-            isAgentDeclaration = rawType instanceof ClassSymbol classSymbol
-                    && classSymbol.getName()
-                            .map(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME::equals).orElse(false)
-                    && isWorkflowModule(classSymbol.getModule());
-        }
-        if (!isAgentDeclaration) {
-            // Syntactic fallback: the semantic model may not resolve the binding pattern symbol
-            // (e.g. while the module is still loading); match the declared type name instead.
-            String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-            isAgentDeclaration = typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                    || typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME);
-        }
-        if (!isAgentDeclaration) {
+        if (!WorkflowUtil.isDurableAgentDeclaration(varDecl, semanticModel)) {
             return false;
         }
 

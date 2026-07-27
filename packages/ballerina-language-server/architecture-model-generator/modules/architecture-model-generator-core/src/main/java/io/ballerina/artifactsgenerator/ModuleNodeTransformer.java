@@ -195,6 +195,16 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                         moduleVariableDeclarationNode.typedBindingPattern().bindingPattern()));
 
         Artifact.Visibility varVisibility = determineVisibility(moduleVariableDeclarationNode);
+        if (WorkflowUtil.isDurableAgentDeclaration(moduleVariableDeclarationNode, semanticModel)) {
+            // A `workflow:DurableAgent` declaration is a durable agentic workflow — a first-class
+            // artifact listed alongside durable workflows, opening the agent model on click.
+            variableBuilder
+                    .type(Artifact.Type.DURABLE_AGENT)
+                    .visibility(varVisibility);
+            semanticModel.symbol(moduleVariableDeclarationNode.typedBindingPattern().bindingPattern())
+                    .ifPresent(variableBuilder::icon);
+            return Optional.of(variableBuilder.build());
+        }
         if (hasQualifier(moduleVariableDeclarationNode.qualifiers(), SyntaxKind.CONFIGURABLE_KEYWORD)) {
             variableBuilder
                     .type(Artifact.Type.CONFIGURABLE)

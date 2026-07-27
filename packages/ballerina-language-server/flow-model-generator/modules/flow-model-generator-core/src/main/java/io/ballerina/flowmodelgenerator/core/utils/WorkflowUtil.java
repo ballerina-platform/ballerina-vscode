@@ -32,13 +32,17 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextRange;
@@ -117,6 +121,37 @@ public class WorkflowUtil {
      */
     public static boolean isDurableAgentFunction(Symbol symbol) {
         return hasWorkflowAnnotation(symbol, Constants.Workflow.DURABLE_AGENT);
+    }
+
+    /**
+     * Checks whether the given module-level variable declaration declares a
+     * {@code workflow:DurableAgent} object (the durable agentic workflow declaration form).
+     * Falls back to a syntactic type-name match when the semantic model cannot resolve the
+     * binding pattern symbol (e.g. while the module is still loading).
+     *
+     * @param varDecl       the module variable declaration
+     * @param semanticModel the semantic model
+     * @return true when the declaration's type is workflow:DurableAgent
+     */
+    public static boolean isDurableAgentDeclaration(ModuleVariableDeclarationNode varDecl,
+                                                    SemanticModel semanticModel) {
+        if (!(varDecl.typedBindingPattern().bindingPattern() instanceof CaptureBindingPatternNode)
+                || varDecl.initializer().isEmpty()) {
+            return false;
+        }
+        Optional<Symbol> symbol = semanticModel.symbol(varDecl.typedBindingPattern().bindingPattern());
+        if (symbol.isPresent() && symbol.get() instanceof VariableSymbol variableSymbol) {
+            TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
+            if (rawType instanceof ClassSymbol classSymbol
+                    && classSymbol.getName()
+                            .map(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME::equals).orElse(false)
+                    && isWorkflowModule(classSymbol.getModule())) {
+                return true;
+            }
+        }
+        String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+        return typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                || typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME);
     }
 
     /**

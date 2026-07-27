@@ -411,6 +411,11 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
     const isSelected = selectedNodeId === model.node.id;
 
+    // Reference mode: the box renders at a run() call site. The agent's configuration is
+    // owned by its declaration, so editing affordances are hidden and clicks navigate to
+    // the agent's own model instead of opening the configuration form.
+    const isAgentReference = agentNode?.durableAgentReference === true;
+
     const [isBoxHovered, setIsBoxHovered] = useState(false);
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
@@ -457,9 +462,20 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         }
         if (event.metaKey) {
             onGoToSource();
-        } else {
-            onNodeClick();
+            return;
         }
+        if (isAgentReference) {
+            agentNode?.onGoToAgent?.(model.node);
+            setMenuPos(null);
+            return;
+        }
+        onNodeClick();
+    };
+
+    const onGoToAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+        event.stopPropagation();
+        agentNode?.onGoToAgent?.(model.node);
+        setMenuPos(null);
     };
 
     const onNodeClick = () => {
@@ -489,7 +505,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     };
 
     const onModelEditClick = () => {
-        if (readOnly) {
+        if (readOnly || isAgentReference) {
             return;
         }
         agentNode?.onModelSelect?.(model.node);
@@ -497,7 +513,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     };
 
     const onConfigureAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
-        if (readOnly) {
+        if (readOnly || isAgentReference) {
             return;
         }
         event.stopPropagation();
@@ -509,11 +525,15 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (readOnly) {
             return;
         }
+        if (isAgentReference) {
+            agentNode?.onGoToAgent?.(model.node);
+            return;
+        }
         agentNode?.onEditCapability?.(model.node, { ...item.data, type: item.kind });
     };
 
     const onCapabilityDelete = (item: CapabilityItem) => (event: React.MouseEvent<SVGGElement>) => {
-        if (readOnly) {
+        if (readOnly || isAgentReference) {
             return;
         }
         event.stopPropagation();
@@ -523,7 +543,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
     // Fires the matching add callback and shows the pill; the diagram remounts the node
     // once the generated statement lands, clearing the pill.
     const onAffordanceClick = (kind: AddableCapability) => (event: React.MouseEvent<HTMLElement>) => {
-        if (readOnly) {
+        if (readOnly || isAgentReference) {
             return;
         }
         event.stopPropagation();
@@ -816,7 +836,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                                 </foreignObject>
 
-                                <g
+                                {!isAgentReference && <g
                                     transform="translate(236, 8)"
                                     onClick={onCapabilityDelete(item)}
                                     css={css`
@@ -830,7 +850,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                     <title>Remove</title>
                                     <circle cx="0" cy="0" r="7" fill={NODE_BG_COLOR} stroke={NODE_BORDER_COLOR} strokeWidth={1} />
                                     <text x="0" y="2.8" textAnchor="middle" fontSize="9" fill={NODE_TEXT_COLOR}>✕</text>
-                                </g>
+                                </g>}
 
                                 <text
                                     x="190"
@@ -920,14 +940,28 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             </NodeStyles.Header>
                             <NodeStyles.ActionButtonGroup>
                                 {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
-                                <NodeStyles.MenuButton
-                                    buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
-                                    appearance="icon"
-                                    onClick={onConfigureAgentClick}
-                                    tooltip="Configure Agent Identifier"
-                                >
-                                    <Icon name="bi-settings" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
-                                </NodeStyles.MenuButton>
+                                {isAgentReference ? (
+                                    <NodeStyles.MenuButton
+                                        appearance="icon"
+                                        onClick={onGoToAgentClick}
+                                        tooltip="Go to Agent"
+                                    >
+                                        <Icon
+                                            name="bi-arrow-outward"
+                                            sx={{ width: 16, height: 16 }}
+                                            iconSx={{ fontSize: 16 }}
+                                        />
+                                    </NodeStyles.MenuButton>
+                                ) : (
+                                    <NodeStyles.MenuButton
+                                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+                                        appearance="icon"
+                                        onClick={onConfigureAgentClick}
+                                        tooltip="Configure Agent Identifier"
+                                    >
+                                        <Icon name="bi-settings" sx={{ width: 16, height: 16 }} iconSx={{ fontSize: 16 }} />
+                                    </NodeStyles.MenuButton>
+                                )}
                                 <NodeStyles.MenuButton
                                     ref={setMenuButtonElement}
                                     buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
@@ -985,7 +1019,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
 
                 {/* Capability add-affordances at fixed anchors; the model affordance hides
                     once the declaration has a model. */}
-                {!readOnly &&
+                {!readOnly && !isAgentReference &&
                     ADD_AFFORDANCES
                         .filter((affordance) => affordance.kind !== "model" || !nodeMetadata?.model)
                         .map((affordance) => (
@@ -1113,7 +1147,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                             </foreignObject>
 
-                            <g
+                            {!isAgentReference && <g
                                 transform="translate(96, 8)"
                                 onClick={onCapabilityDelete(item)}
                                 css={css`
@@ -1127,7 +1161,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                                 <title>Remove</title>
                                 <circle cx="0" cy="0" r="7" fill={NODE_BG_COLOR} stroke={NODE_BORDER_COLOR} strokeWidth={1} />
                                 <text x="0" y="2.8" textAnchor="middle" fontSize="9" fill={NODE_TEXT_COLOR}>✕</text>
-                            </g>
+                            </g>}
 
                             <text
                                 x="110"
