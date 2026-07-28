@@ -18,13 +18,13 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { ArtifactData, FlowNode } from "@wso2/ballerina-core";
+import { ArtifactData, FlowNode, NodePosition } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode } from "./utils";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -73,7 +73,7 @@ interface UseAgentToolFormProps {
     submitText?: string;
     artifactData?: ArtifactData;
     onBeforeSave?: () => Promise<void>;
-    onSave?: () => void;
+    onSave?: (agentPosition?: NodePosition) => void;
     onToolSaved?: (toolName: string) => void;
     hostClass?: AgentToolHostClass;
 }
@@ -140,25 +140,28 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                 .replace(/\n/g, " ")
                 .trim();
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
+            const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: toolFilePath,
                 flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
                     hostClass, agentReceiver),
                 artifactData,
             });
+            let agentPosition: NodePosition | undefined;
             if (!hostClass && agentNode) {
                 const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
                 if (updatedAgentNode) {
+                    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse?.artifacts);
                     const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
                         segments: [updatedAgentNode.codedata.lineRange.fileName],
                     });
                     await rpcClient
                         .getBIDiagramRpcClient()
                         .getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
+                    agentPosition = await resolveAgentNodePosition(updatedAgentNode, rpcClient);
                 }
             }
             onToolSaved?.(toolName);
-            onSave?.();
+            onSave?.(agentPosition);
         } catch (error) {
             console.error("Failed to add agent as a tool", error);
         } finally {

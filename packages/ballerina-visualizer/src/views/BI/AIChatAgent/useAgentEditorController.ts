@@ -19,14 +19,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ToolData } from "@wso2/ballerina-core";
+import { EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
+    from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
 import {
     findFlowNode,
     findFlowNodeByModuleVarName,
-    refreshNodeLineRangeFromArtifacts,
+    refreshAgentNodeLineRange,
     removeToolFromAgentNode,
+    resolveAgentNodePosition,
 } from "./utils";
 
 export type AgentEditorView =
@@ -140,6 +142,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             const name = node.properties?.variable?.value as string;
             const memory = (node.properties as any)?.[memoryKey]?.value;
             const updated = structuredClone(node);
+            let deleteArtifacts: ProjectStructureArtifactResponse[] | undefined;
             if (typeof memory === "string" && memory.trim() && memory.trim() !== "()") {
                 const memoryVar = await findFlowNodeByModuleVarName(memory.trim(), rpcClient);
                 if (memoryVar) {
@@ -149,15 +152,17 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     const response = await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
                         filePath: path, flowNode: memoryVar,
                     });
-                    refreshNodeLineRangeFromArtifacts(updated, response?.artifacts, name);
+                    deleteArtifacts = response?.artifacts;
                 }
             }
+            await refreshAgentNodeLineRange(updated, rpcClient, deleteArtifacts);
             (updated.properties as any)[memoryKey].value = "()";
             const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updated.codedata.lineRange.fileName],
             })).filePath;
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
-            nextPosition = response?.artifacts?.find((artifact) => artifact.name === name)?.position;
+            nextPosition = response?.artifacts?.find((artifact) => artifact.name === name)?.position
+                ?? await resolveAgentNodePosition(updated, rpcClient);
         } finally {
             setLoading(false);
             close(nextPosition);
@@ -190,11 +195,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const deleteTool = useCallback(async (tool: ToolData, node: FlowNode) => {
         activate(node);
         setLoading(true);
+        let nextPosition: NodePosition | undefined;
         try {
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
+                await refreshAgentNodeLineRange(updated, rpcClient);
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                    segments: [node.codedata.lineRange.fileName],
+                    segments: [updated.codedata.lineRange.fileName],
                 })).filePath;
                 await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
             }
@@ -210,9 +217,10 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     },
                 });
             }
+            nextPosition = await resolveAgentNodePosition(node, rpcClient);
         } finally {
             setLoading(false);
-            close();
+            close(nextPosition);
         }
     }, [activate, close, resolveToolFunction, rpcClient]);
 

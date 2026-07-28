@@ -41,7 +41,7 @@ const OPENAI_PROVIDER_CODEDATA: CodeData = {
     symbol: "init",
 };
 
-export function refreshNodeLineRangeFromArtifacts(
+function refreshNodeLineRangeFromArtifacts(
     node: FlowNode,
     artifacts: ProjectStructureArtifactResponse[] | undefined,
     name: string
@@ -55,6 +55,44 @@ export function refreshNodeLineRangeFromArtifacts(
     node.codedata.lineRange.endLine.line = artifact.position.endLine;
     node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
 }
+
+export const refreshAgentNodeLineRange = async (
+    agentNode: FlowNode,
+    rpcClient: BallerinaRpcClient,
+    artifacts?: ProjectStructureArtifactResponse[]
+): Promise<void> => {
+    const agentVarName = agentNode?.properties?.variable?.value;
+    if (typeof agentVarName !== "string" || !agentNode.codedata?.lineRange) {
+        return;
+    }
+    if (artifacts?.some((artifact) => artifact?.name === agentVarName && artifact.position)) {
+        refreshNodeLineRangeFromArtifacts(agentNode, artifacts, agentVarName);
+        return;
+    }
+    const refreshed = await findFlowNodeByModuleVarName(agentVarName, rpcClient);
+    if (refreshed?.codedata?.lineRange) {
+        agentNode.codedata.lineRange = refreshed.codedata.lineRange;
+    }
+};
+
+export const resolveAgentNodePosition = async (
+    agentNode: FlowNode,
+    rpcClient: BallerinaRpcClient
+): Promise<NodePosition | undefined> => {
+    const agentVarName = agentNode?.properties?.variable?.value;
+    if (typeof agentVarName !== "string") {
+        return undefined;
+    }
+    const range = (await findFlowNodeByModuleVarName(agentVarName, rpcClient))?.codedata?.lineRange;
+    return range
+        ? {
+            startLine: range.startLine.line,
+            startColumn: range.startLine.offset,
+            endLine: range.endLine.line,
+            endColumn: range.endLine.offset,
+        }
+        : undefined;
+};
 
 export function toCamelCase(name: string): string {
     const words = name.trim().split(/[\s_]+/).filter(Boolean);

@@ -1521,7 +1521,7 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
                                         editMode={Boolean(editingMcpNode)}
                                         name={editingMcpNode?.properties?.variable?.value as string}
                                         existingNode={editingMcpNode}
-                                        onSave={completeToolSave}
+                                        onSave={() => completeToolSave()}
                                         onBack={() => editingMcpNode ? handleCloseToolPanel() : setToolPanel("MENU")}
                                     />
                                 )}

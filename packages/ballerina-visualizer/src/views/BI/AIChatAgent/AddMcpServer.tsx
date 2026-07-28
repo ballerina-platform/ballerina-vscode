@@ -7,9 +7,9 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { FlowNode, LineRange } from "@wso2/ballerina-core";
+import { FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { debounce } from "lodash";
+import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import FlowNodeForm from "../Forms/FlowNodeForm";
@@ -19,7 +19,7 @@ import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
 import { Container, LoaderContainer } from "./styles";
-import { extractAccessToken, getEndOfFileLineRange, removeQuotes, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
+import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
 
 interface Tool {
     name: string;
@@ -36,7 +36,7 @@ interface AddMcpServerProps {
         classLineRange: LineRange;
         reservedNames?: string[];
     };
-    onSave?: () => void;
+    onSave?: (agentPosition?: NodePosition) => void;
     onBack?: () => void;
 }
 
@@ -464,6 +464,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                 delete (node.properties as any)["toolScopes"];
             }
 
+            let targetAgentNode: FlowNode | undefined;
             if (agentDefinition) {
                 await rpcClient.getBIDiagramRpcClient().saveClassMember({
                     filePath: agentDefinition.filePath,
@@ -471,17 +472,19 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     classLineRange: agentDefinition.classLineRange,
                 });
             } else {
+                targetAgentNode = cloneDeep(agentNode);
+                await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
                 await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                    agentFlowNode: agentNode,
+                    agentFlowNode: targetAgentNode,
                     selectedTools: Array.from(selectedMcpTools),
                     updatedNode: node,
                     toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
                 });
             }
-            
+
             await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
 
-            onSave?.();
+            onSave?.(targetAgentNode ? await resolveAgentNodePosition(targetAgentNode, rpcClient) : undefined);
         } catch (error) {
             console.error("Error saving MCP server:", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
