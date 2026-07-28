@@ -110,14 +110,14 @@ public class Constants {
         public static final String RUN_LABEL = "Run Workflow";
         public static final String RUN_DESCRIPTION = "Run a new workflow instance";
         public static final String SEND_DATA_METHOD_NAME = "sendData";
-        public static final String SEND_DATA_LABEL = "Send Data";
-        public static final String SEND_DATA_DESCRIPTION = "Send data to an existing workflow instance";
+        public static final String SEND_DATA_LABEL = "Send Data Event";
+        public static final String SEND_DATA_DESCRIPTION = "Send a data event to a running workflow instance";
         public static final String CALL_ACTIVITY_METHOD_NAME = "callActivity";
         public static final String AWAIT_METHOD_NAME = "await";
         public static final String CALL_ACTIVITY_LABEL = "Call Activity";
         public static final String CALL_ACTIVITY_DESCRIPTION = "Call a workflow activity function";
-        public static final String WAIT_DATA_LABEL = "Await Data";
-        public static final String WAIT_DATA_DESCRIPTION = "Wait for workflow data to be received";
+        public static final String WAIT_DATA_LABEL = "Await Data Event";
+        public static final String WAIT_DATA_DESCRIPTION = "Wait for a data event from outside the workflow";
 
         // Child workflow composition (Context remote methods)
         public static final String RUN_CHILD_WORKFLOW_METHOD_NAME = "runChildWorkflow";
@@ -194,7 +194,7 @@ public class Constants {
         public static final String REGISTER_HUMAN_TASK_DESCRIPTION =
                 "Register a human task the agent can create and wait on";
         public static final String REGISTER_UPDATE_EVENTS_METHOD_NAME = "registerUpdateEvents";
-        public static final String REGISTER_EVENT_LABEL = "Register Event";
+        public static final String REGISTER_EVENT_LABEL = "Register Data Event";
         public static final String REGISTER_EVENT_DESCRIPTION =
                 "Declare a named two-way update channel the agent can wait on";
         public static final String REGISTER_AGENT_TOOL_METHOD_NAME = "registerAgentTool";

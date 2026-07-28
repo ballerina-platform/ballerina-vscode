@@ -250,15 +250,6 @@ public class DesignModelGenerator {
                 return;
             }
             eventNames.forEach(eventName -> {
-                if (Workflow.READ_EDGE_EVENT.equals(eventName)) {
-                    // Read-only agent interaction: attach the reader for layout only.
-                    if (isFunction) {
-                        workflow.addAttachedFunction(senderUuid);
-                    } else {
-                        workflow.addAttachedService(senderUuid);
-                    }
-                    return;
-                }
                 workflow.getEvent(eventName).ifPresent(event -> {
                     if (isFunction) {
                         event.addAttachedFunction(senderUuid);

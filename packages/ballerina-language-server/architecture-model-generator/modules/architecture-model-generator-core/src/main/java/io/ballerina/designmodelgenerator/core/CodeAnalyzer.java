@@ -446,9 +446,8 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         if (!"run".equals(methodName)) {
-            // Read-only interactions (getResult/waitForResult/waitForEventResult/...) draw a
-            // dashed edge to the agent box rather than the run trigger.
-            this.currentFunctionModel.addSentEvent(agent.getUuid(), Workflow.READ_EDGE_EVENT);
+            // Read-only interactions (getResult/waitForResult/waitForEventResult/...) draw no
+            // edge: like regular workflows, only run and data-event sends connect on the overview.
             return;
         }
         this.currentFunctionModel.workflows.add(agent.getUuid());

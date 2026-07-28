@@ -124,6 +124,24 @@ public class WorkflowUtil {
     }
 
     /**
+     * Checks whether the given module symbol is a module-level variable of the
+     * {@code workflow:DurableAgent} class (a durable agentic workflow declaration).
+     *
+     * @param symbol the module symbol to check
+     * @return true for a durable agent declaration
+     */
+    public static boolean isDurableAgentVariable(Symbol symbol) {
+        if (!(symbol instanceof VariableSymbol variableSymbol)) {
+            return false;
+        }
+        TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
+        return rawType instanceof ClassSymbol classSymbol
+                && classSymbol.getName()
+                        .map(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME::equals).orElse(false)
+                && isWorkflowModule(classSymbol.getModule());
+    }
+
+    /**
      * Checks whether the given module-level variable declaration declares a
      * {@code workflow:DurableAgent} object (the durable agentic workflow declaration form).
      * Falls back to a syntactic type-name match when the semantic model cannot resolve the

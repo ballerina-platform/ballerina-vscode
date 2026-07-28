@@ -398,7 +398,7 @@ const ADD_AFFORDANCES: {
     anchor: NodeStyles.AffordanceAnchorName;
 }[] = [
     { kind: "humanTask", label: "Add Human Task", icon: "bi-user", anchor: "topLeft" },
-    { kind: "event", label: "Add Event", icon: "bi-import", anchor: "bottomLeft" },
+    { kind: "event", label: "Add Data Event", icon: "bi-import", anchor: "bottomLeft" },
     { kind: "activity", label: "Add Activity", icon: "bi-task", anchor: "middleRight" },
     { kind: "agentTool", label: "Add Agent Tool", icon: "bi-function", anchor: "bottomRight" },
     { kind: "model", label: "Configure Model", icon: "bi-ai-model", anchor: "topRight" },

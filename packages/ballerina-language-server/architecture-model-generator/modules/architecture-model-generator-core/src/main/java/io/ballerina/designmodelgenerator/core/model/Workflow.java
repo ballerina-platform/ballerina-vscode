@@ -37,7 +37,6 @@ public final class Workflow extends DesignGraphNode {
     /** A module-level {@code workflow:DurableAgent} declaration. */
     public static final String KIND_DURABLE_AGENT = "DURABLE_AGENT";
     /** Reserved pseudo-event marking a read-only interaction (getResult/waitFor*) with an agent. */
-    public static final String READ_EDGE_EVENT = "__read";
 
     private final String symbol;
     private final Location location;

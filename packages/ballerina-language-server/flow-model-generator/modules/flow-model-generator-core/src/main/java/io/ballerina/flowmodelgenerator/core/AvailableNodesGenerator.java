@@ -373,9 +373,13 @@ public class AvailableNodesGenerator {
                     .stepOut();
         }
 
-        if (!this.inDurableAgentFunction) {
+        // Inside a workflow function the Workflow section leads the palette — it holds the
+        // durable steps that make up the flow. Everywhere else it appears after the general
+        // categories (see below) and only when the integration actually has workflows or
+        // durable agents to interact with.
+        if (isInWorkflowFunction) {
             this.rootBuilder.stepIn(Category.Name.WORKFLOW)
-                    .items(getWorkflowNodes(isInWorkflowFunction))
+                    .items(getWorkflowNodes(true, true, true))
                     .stepOut();
         }
 
@@ -423,7 +427,34 @@ public class AvailableNodesGenerator {
                         .node(NodeKind.ROLLBACK)
                         .node(NodeKind.RETRY)
                         .stepOut();
+
+            // The client-side workflow verbs, shown only when the integration defines the
+            // matching artifacts: workflow functions enable Run Workflow / Send Data Event,
+            // durable agents enable the agent interaction nodes.
+            boolean hasWorkflows = projectHasWorkflows();
+            boolean hasDurableAgents = projectHasDurableAgents();
+            if (hasWorkflows || hasDurableAgents) {
+                this.rootBuilder.stepIn(Category.Name.WORKFLOW)
+                        .items(getWorkflowNodes(false, hasWorkflows, hasDurableAgents))
+                        .stepOut();
+            }
         }
+    }
+
+    /**
+     * Returns {@code true} when the current package declares at least one {@code @workflow:Workflow}
+     * function.
+     */
+    private boolean projectHasWorkflows() {
+        return this.semanticModel.moduleSymbols().stream().anyMatch(WorkflowUtil::isWorkflowFunction);
+    }
+
+    /**
+     * Returns {@code true} when the current package declares at least one module-level
+     * {@code workflow:DurableAgent}.
+     */
+    private boolean projectHasDurableAgents() {
+        return this.semanticModel.moduleSymbols().stream().anyMatch(WorkflowUtil::isDurableAgentVariable);
     }
 
     private List<Item> getAiNodes(boolean disableBallerinaAiNodes) {
@@ -502,7 +533,8 @@ public class AvailableNodesGenerator {
     }
 
 
-    private List<Item> getWorkflowNodes(boolean isInWorkflowFunction) {
+    private List<Item> getWorkflowNodes(boolean isInWorkflowFunction, boolean hasWorkflows,
+                                        boolean hasDurableAgents) {
         List<Item> workflowNodes = new ArrayList<>();
 
         if (isInWorkflowFunction) {
@@ -549,43 +581,18 @@ public class AvailableNodesGenerator {
             workflowNodes.add(childWorkflows);
             workflowNodes.add(workflowFunctions);
         } else {
-            // Outside workflow function: Run Workflow and Send Data
-            AvailableNode runWorkflow = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.RUN_LABEL)
-                            .description(Workflow.RUN_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.WORKFLOW_RUN)
-                            .build(),
-                    true
-            );
-
-            AvailableNode sendData = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.SEND_DATA_LABEL)
-                            .description(Workflow.SEND_DATA_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.SEND_DATA)
-                            .build(),
-                    true
-            );
-
-            AvailableNode updateAgent = new AvailableNode(
-                    new Metadata.Builder<>(null)
-                            .label(Workflow.UPDATE_AGENT_LABEL)
-                            .description(Workflow.UPDATE_AGENT_DESCRIPTION)
-                            .build(),
-                    new Codedata.Builder<>(null)
-                            .node(NodeKind.DURABLE_AGENT_UPDATE)
-                            .build(),
-                    true
-            );
-
-            workflowNodes.add(runWorkflow);
-            workflowNodes.add(sendData);
-            workflowNodes.add(updateAgent);
+            // Outside workflow functions the items follow the integration's artifacts:
+            // workflow functions bring the workflow verbs, durable agents bring theirs.
+            if (hasWorkflows) {
+                workflowNodes.add(workflowNode(Workflow.RUN_LABEL, Workflow.RUN_DESCRIPTION,
+                        NodeKind.WORKFLOW_RUN));
+                workflowNodes.add(workflowNode(Workflow.SEND_DATA_LABEL, Workflow.SEND_DATA_DESCRIPTION,
+                        NodeKind.SEND_DATA));
+            }
+            if (hasDurableAgents) {
+                workflowNodes.add(workflowNode(Workflow.UPDATE_AGENT_LABEL, Workflow.UPDATE_AGENT_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_UPDATE));
+            }
         }
 
         return workflowNodes;
