@@ -302,8 +302,11 @@ public class DesignModelGenerator {
                 intermediateModel.uuidToWorkflowMap.put(workflow.getUuid(), workflow);
             } else if (isDurableAgentVariable(symbol)) {
                 // A module-level `workflow:DurableAgent` declaration joins the overview's workflow
-                // column as a durable agentic workflow; its identity is the variable name.
-                LineRange lineRange = symbol.getLocation().get().lineRange();
+                // column as a durable agentic workflow; its identity is the variable name. As with
+                // functions, the symbol location covers only the name — widen to the whole
+                // declaration so deleting the agent removes the full statement.
+                LineRange nameRange = symbol.getLocation().get().lineRange();
+                LineRange lineRange = resolveEnclosingModuleVarDeclRange(symbol.getLocation().get(), nameRange);
                 String sortText = lineRange.fileName() + lineRange.startLine().line();
                 Workflow agent = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange),
                         Workflow.KIND_DURABLE_AGENT);
@@ -642,6 +645,24 @@ public class DesignModelGenerator {
         }
         NonTerminalNode node = modulePartNode.findNode(symbolLocation.textRange());
         while (node != null && !(node instanceof FunctionDefinitionNode)) {
+            node = node.parent();
+        }
+        return node != null ? node.lineRange() : nameRange;
+    }
+
+    /**
+     * Resolves the full module-variable-declaration range enclosing a symbol location. A durable
+     * agent variable's symbol location covers only the variable name, so deletion needs the whole
+     * declaration. Falls back to the given name range when the node cannot be resolved.
+     */
+    private LineRange resolveEnclosingModuleVarDeclRange(io.ballerina.tools.diagnostics.Location symbolLocation,
+                                                         LineRange nameRange) {
+        ModulePartNode modulePartNode = documentMap.get(nameRange.fileName());
+        if (modulePartNode == null) {
+            return nameRange;
+        }
+        NonTerminalNode node = modulePartNode.findNode(symbolLocation.textRange());
+        while (node != null && node.kind() != SyntaxKind.MODULE_VAR_DECL) {
             node = node.parent();
         }
         return node != null ? node.lineRange() : nameRange;

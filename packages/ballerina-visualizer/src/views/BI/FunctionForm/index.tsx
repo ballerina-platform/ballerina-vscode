@@ -1040,7 +1040,7 @@ export function FunctionForm(props: FunctionFormProps) {
                                     ? (functionName ? "Saving..." : "Creating...")
                                     : (functionName
                                         ? "Save"
-                                        : (isDurableAgent ? "Configure Durable Agentic Workflow" : "Create"))}
+                                        : (isDurableAgent ? "Create Agent" : "Create"))}
                                 selectedNode={functionNode?.codedata?.node}
                                 preserveFieldOrder={true}
                                 injectedComponents={

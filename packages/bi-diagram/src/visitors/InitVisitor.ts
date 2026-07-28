@@ -58,8 +58,12 @@ export class InitVisitor implements BaseVisitor {
 
     endVisitNode(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
+        // The durable-agent declaration canvas is not a flow — its model is just
+        // [Start, agent box] — so it gets no trailing end node (or arrow into one).
+        const isDurableAgentCanvas =
+            (this.flow.nodes?.[0]?.metadata?.data as { kind?: string })?.kind === "Durable Agentic Workflow";
         // if this is last block in the flow, add empty node end of the block
-        if (!node.returning && this.flow.nodes.at(-1).id === node.id) {
+        if (!node.returning && !isDurableAgentCanvas && this.flow.nodes.at(-1).id === node.id) {
             const emptyNode: FlowNode = {
                 id: getCustomNodeId(node.id, LAST_NODE),
                 codedata: {

@@ -246,7 +246,8 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     CONNECTION_ACTIVITY_CALL: ({ size, color }) => <Icon name="bi-task" sx={{ fontSize: size, width: size, height: size, color }} />,
     SEND_DATA: ({ size, color }) => <Icon name="bi-arrow-outward" sx={{ fontSize: size, width: size, height: size, color }} />,
-    WAIT_DATA: ({ size, color }) => <Icon name="bi-wait" sx={{ fontSize: size, width: size, height: size, color }} />,
+    // Awaiting data is a receive, not a sleep: the import icon reads as "data arriving from outside".
+    WAIT_DATA: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
     HUMAN_TASK: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
     SLEEP: ({ size, color }) => <Icon name="bi-clock" sx={{ fontSize: size, width: size, height: size, color }} />,
     FORK: ({ size, color }) => <Icon name="bi-parallel" sx={{ fontSize: size, width: size, height: size, color }} />,

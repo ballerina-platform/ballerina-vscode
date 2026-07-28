@@ -398,7 +398,7 @@ const ADD_AFFORDANCES: {
     anchor: NodeStyles.AffordanceAnchorName;
 }[] = [
     { kind: "humanTask", label: "Add Human Task", icon: "bi-user", anchor: "topLeft" },
-    { kind: "event", label: "Add Event", icon: "bi-arrow-outward", anchor: "bottomLeft" },
+    { kind: "event", label: "Add Event", icon: "bi-import", anchor: "bottomLeft" },
     { kind: "activity", label: "Add Activity", icon: "bi-task", anchor: "middleRight" },
     { kind: "agentTool", label: "Add Agent Tool", icon: "bi-function", anchor: "bottomRight" },
     { kind: "model", label: "Configure Model", icon: "bi-ai-model", anchor: "topRight" },
@@ -640,7 +640,17 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             return <Icon name="bi-user" sx={{ fontSize: "24px" }} />;
         }
         if (item.kind === "event") {
-            return <Icon name="bi-arrow-outward" sx={{ fontSize: "24px" }} />;
+            // Receiver icon (data arriving from outside) with a waiting-state badge: the
+            // channel expects a payload asynchronously.
+            return (
+                <div style={{ position: "relative", display: "flex" }}>
+                    <Icon name="bi-import" sx={{ fontSize: "24px" }} />
+                    <Icon
+                        name="bi-clock"
+                        sx={{ fontSize: "11px", position: "absolute", right: "-4px", bottom: "-2px" }}
+                    />
+                </div>
+            );
         }
         if (item.data.path) {
             return (
