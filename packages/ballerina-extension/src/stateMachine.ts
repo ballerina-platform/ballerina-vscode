@@ -145,6 +145,11 @@ const stateMachine = createMachine<MachineContext>(
                     }
                 ]
             },
+            SET_PROJECT_INFO: {
+                actions: assign({
+                    projectInfo: (context, event) => event.projectInfo
+                })
+            },
             UPDATE_PROJECT_INFO: {
                 actions: [
                     assign({
@@ -731,6 +736,10 @@ const stateMachine = createMachine<MachineContext>(
                     return resolve({ ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview });
                 }
 
+                if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
+                    return resolve(selectedEntry.location);
+                }
+
                 if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
                     // Get updated location and identifier if transition was from VIEW_UPDATE event
                     if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
@@ -882,6 +891,9 @@ export const StateMachine = {
     },
     updateProjectInfo: (projectInfo: ProjectInfo, options?: { silent?: boolean }) => {
         stateService.send({ type: 'UPDATE_PROJECT_INFO', projectInfo, silent: options?.silent });
+    },
+    setProjectInfo: (projectInfo: ProjectInfo) => {
+        stateService.send({ type: 'SET_PROJECT_INFO', projectInfo });
     },
     resetToExtensionReady: () => {
         stateService.send({ type: 'RESET_TO_EXTENSION_READY' });

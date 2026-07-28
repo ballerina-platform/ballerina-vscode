@@ -141,17 +141,13 @@ export class AiAgentRpcManager implements AIAgentAPI {
         if (!params.description) {
             params.description = "";
         }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                await this.ensureAgentsFile(path.dirname(params.filePath));
-                const response: AIGentToolsResponse = await context.langClient.genAgentDefinition(params);
-                const artifacts = await updateSourceCode({ textEdits: response.textEdits });
-                resolve({ artifacts, textEdits: response.textEdits });
-            } catch (error) {
-                console.log(error);
-            }
+        await this.ensureAgentsFile(path.dirname(params.filePath));
+        const response: AIGentToolsResponse = await StateMachine.langClient().genAgentDefinition(params);
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: "Create agent definition",
         });
+        return { artifacts, textEdits: response.textEdits };
     }
 
     async fixMissingImports(): Promise<void> {

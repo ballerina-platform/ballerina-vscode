@@ -47,6 +47,7 @@ export interface AddProjectToWorkspaceRequest {
     version?: string;
     isLibrary?: boolean;
     projectHandle?: string;
+    silentRefresh?: boolean;
 }
 
 export interface AddProjectToWorkspaceResponse {

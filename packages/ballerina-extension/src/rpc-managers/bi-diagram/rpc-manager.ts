@@ -215,6 +215,7 @@ import {
     getSuggestedProjectDefaults
 } from "../../utils/bi";
 import { writeBallerinaFileDidOpen, writeBallerinaFileDidOpenTemp } from "../../utils/modification";
+import { buildProjectsStructure } from "../../utils/project-artifacts";
 import { updateSourceCode } from "../../utils/source-utils";
 import { getView } from "../../utils/state-machine-utils";
 import { isLibraryProject } from "../../utils/config";
@@ -806,7 +807,14 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             const projectPath = params.convertToWorkspace
                 ? await convertProjectToWorkspace(params)
                 : await addProjectToExistingWorkspace(params);
-            StateMachine.refreshProjectInfo();
+            if (params.silentRefresh) {
+                const refreshPath = StateMachine.context().workspacePath || StateMachine.context().projectPath;
+                const projectInfo = await StateMachine.langClient().getProjectInfo({ projectPath: refreshPath });
+                StateMachine.setProjectInfo(projectInfo);
+                await buildProjectsStructure(projectInfo, StateMachine.langClient(), true);
+            } else {
+                StateMachine.refreshProjectInfo();
+            }
             return { projectPath };
         } catch (error) {
             const operation = params.convertToWorkspace

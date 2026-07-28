@@ -360,6 +360,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                     orgHandle: sanitizeOrgHandle(library.orgName),
                     version: library.version || undefined,
                     isLibrary: true,
+                    silentRefresh: true,
                 });
                 const response = await rpcClient.getAIAgentRpcClient().genAgentDefinition({
                     filePath: Utils.joinPath(URI.file(libraryProjectPath), "Ballerina.toml").fsPath,
