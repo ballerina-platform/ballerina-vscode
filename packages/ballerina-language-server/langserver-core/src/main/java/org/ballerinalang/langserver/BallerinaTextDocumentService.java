@@ -18,6 +18,7 @@ package org.ballerinalang.langserver;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.BuildProject;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
@@ -446,9 +447,17 @@ class BallerinaTextDocumentService implements TextDocumentService {
                 }
                 String formattedSource;
                 if (FormatterUtils.isBuildProject(context.currentModule())) {
-                    Path rootPath = context.workspace().projectRoot(context.filePath());
-                    BuildProject project = BuildProject.load(rootPath, BuildOptions.builder().build());
-                    FormattingOptions options = buildFormattingOptions(project);
+                    // Reuse the workspace's already-loaded project; BuildProject.load re-parses
+                    // sources and re-resolves dependencies just to read the package manifest.
+                    Optional<Project> project = context.workspace().project(context.filePath());
+                    BuildProject buildProject;
+                    if (project.isPresent() && project.get() instanceof BuildProject loadedProject) {
+                        buildProject = loadedProject;
+                    } else {
+                        Path rootPath = context.workspace().projectRoot(context.filePath());
+                        buildProject = BuildProject.load(rootPath, BuildOptions.builder().build());
+                    }
+                    FormattingOptions options = buildFormattingOptions(buildProject);
                     formattedSource = Formatter.format(syntaxTree.get(), options).toSourceCode();
                 } else {
                     formattedSource = Formatter.format(syntaxTree.get()).toSourceCode();
