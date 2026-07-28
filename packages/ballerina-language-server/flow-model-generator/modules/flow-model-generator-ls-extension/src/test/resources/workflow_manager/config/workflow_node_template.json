@@ -21,7 +21,7 @@
       "functionName": {
         "metadata": {
           "label": "Name",
-          "description": "Name of the function"
+          "description": "Unique workflow identifier used to reference it in workflow management and execution."
         },
         "types": [
           {
@@ -106,7 +106,7 @@
       },
       "inputType": {
         "metadata": {
-          "label": "Input Type",
+          "label": "Workflow Input Data type",
           "description": "Type of the input data to the workflow"
         },
         "types": [

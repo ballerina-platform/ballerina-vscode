@@ -29,7 +29,9 @@ import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Automation;
@@ -289,7 +291,10 @@ public class DesignModelGenerator {
                 continue;
             }
             if (WorkflowUtil.isWorkflowFunction(symbol)) {
-                LineRange lineRange = symbol.getLocation().get().lineRange();
+                // symbol.getLocation() points at the function name only; use the enclosing function
+                // definition's range so deleting the workflow removes the whole function, not just its name.
+                LineRange nameRange = symbol.getLocation().get().lineRange();
+                LineRange lineRange = resolveEnclosingFunctionRange(symbol.getLocation().get(), nameRange);
                 String sortText = lineRange.fileName() + lineRange.startLine().line();
                 Workflow workflow = new Workflow(symbol.getName().get(), sortText, getLocation(lineRange));
                 populateWorkflowEvents(workflow, (FunctionSymbol) symbol);
@@ -621,6 +626,25 @@ public class DesignModelGenerator {
         Path filePath = rootPath.resolve(lineRange.fileName());
         return new Location(filePath.toAbsolutePath().toString(), lineRange.startLine(),
                 lineRange.endLine());
+    }
+
+    /**
+     * Resolves the full function-definition range enclosing a symbol location. A function symbol's
+     * location covers only the function name, so callers that need the whole declaration (e.g. deleting
+     * the workflow) must widen it to the enclosing {@link FunctionDefinitionNode}. Falls back to the
+     * given name range when the node cannot be resolved.
+     */
+    private LineRange resolveEnclosingFunctionRange(io.ballerina.tools.diagnostics.Location symbolLocation,
+                                                    LineRange nameRange) {
+        ModulePartNode modulePartNode = documentMap.get(nameRange.fileName());
+        if (modulePartNode == null) {
+            return nameRange;
+        }
+        NonTerminalNode node = modulePartNode.findNode(symbolLocation.textRange());
+        while (node != null && !(node instanceof FunctionDefinitionNode)) {
+            node = node.parent();
+        }
+        return node != null ? node.lineRange() : nameRange;
     }
 
     public String getServiceType(String listenerType) {

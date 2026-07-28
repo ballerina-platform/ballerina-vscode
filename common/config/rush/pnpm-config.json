@@ -90,9 +90,16 @@
      */
     "globalOverrides": {
       "lodash": "4.18.1",
+      // Security fix: the DoS advisory covering every line up to 5.0.7 is
+      // only fixed in 5.0.8, and upstream has not backported it to the
+      // 1.x/2.x lines. 5.x is not a drop-in replacement — it dropped the
+      // CommonJS default export that minimatch 3.x/5.x/9.x rely on — so the
+      // 1.x/2.x pins stay at their latest published releases and the
+      // residual finding is scoped out in .trivyignore.yaml until a
+      // backport lands.
       "brace-expansion@>=1 <2": "1.1.16",
       "brace-expansion@>=2 <3": "2.1.2",
-      "brace-expansion@>=5.0.0 <6": "5.0.7",
+      "brace-expansion@>=5.0.0 <6": "5.0.8",
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").
@@ -134,6 +141,8 @@
       "linkify-it@5": "5.0.2",
       "markdown-it@>=14 <15": "14.2.0",
       "micromatch": "4.0.8",
+      // Security fix: path traversal via source map auto-loading.
+      "postcss@8": "8.5.18",
       "prismjs": "1.30.0",
       "protobufjs@>=7 <8": "7.6.5",
       "qs@6": "6.15.2",

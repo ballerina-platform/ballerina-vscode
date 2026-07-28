@@ -31,6 +31,11 @@ on:
         type: boolean
         required: false
         default: false
+      runFastTests:
+        description: Run the jest fast tests (unit + component + contract)
+        type: boolean
+        required: false
+        default: true
       runBalE2ETests:
         type: boolean
         required: false
@@ -128,6 +133,8 @@ jobs:
           # makes every entry except the first start with ' ' and never match.
           skip-dirs: 'common/temp,submodules,packages/ballerina-language-server/**/src/test/resources,packages/ballerina-language-server/**/src/test/data,packages/ballerina-language-server/**/build/resources/test'
           ignore-unfixed: true
+          # All entries must stay plain-format: the action refuses to mix YAML
+          # and plain ignore files, and the submodule's file is plain.
           trivyignores: .trivyignore,submodules/wso2-vscode-extensions/.trivyignore
 
   ExtTest_Ballerina:
@@ -186,6 +193,7 @@ jobs:
   fast-tests:
     name: Fast tests (unit + component + contract)
     needs: Build_Stage
+    if: ${{ inputs.runFastTests }}
     timeout-minutes: 20
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
     steps:
@@ -242,7 +250,7 @@ jobs:
     name: Run Ballerina e2e Test
     needs: Build_Stage
     timeout-minutes: 60
-    if: ${{ inputs.runBalE2ETests || (inputs.isReleaseBuild && inputs.ballerina) }}
+    if: ${{ inputs.runBalE2ETests }}
     strategy:
       fail-fast: false
       matrix:

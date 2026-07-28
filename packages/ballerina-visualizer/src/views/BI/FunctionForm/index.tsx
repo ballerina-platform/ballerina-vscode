@@ -272,14 +272,12 @@ export function FunctionForm(props: FunctionFormProps) {
             nodeKind = 'WORKFLOW';
             formType.current = 'Durable Workflow';
             setTitleSubtitle('Build durable, long-running workflow processes');
-            setFormSubtitle('Define a workflow process with a strongly typed input payload');
+            setFormSubtitle('Define a static workflow logic');
         } else if (isDurableAgent) {
             nodeKind = 'DURABLE_AGENT';
             formType.current = 'Durable Agentic Workflow';
             setTitleSubtitle('Build a workflow driven by an agentic model');
-            setFormSubtitle(functionName
-                ? 'A durable workflow that expresses its logic as natural-language instructions and a model instead of explicit control flow'
-                : 'Name the workflow to get started; the model, instructions and capabilities are configured next');
+            setFormSubtitle('Define an agentic workflow logic');
         } else if (isActivity) {
             nodeKind = 'ACTIVITY';
             formType.current = 'Workflow Activity';

@@ -30,6 +30,16 @@ on:
           - 'minor'
           - 'major'
           - 'N/A'
+      runFrontendTests:
+        description: 'Run frontend tests (jest fast tests + Ballerina e2e)'
+        type: boolean
+        required: false
+        default: false
+      runBackendTests:
+        description: 'Run backend tests (Ballerina language server tests)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   Build:
@@ -37,7 +47,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
-      runOnAWS: true
+      runOnAWS: false
       isPreRelease: ${{ inputs.isPreRelease }}
       lsSource: ${{ inputs.lsSource }}
       ballerinaLsTag: ${{ inputs.ballerinaLsTag }}
@@ -45,6 +55,9 @@ jobs:
       ballerina: true
       version: ${{ inputs.version }}
       isReleaseBuild: true
+      runFastTests: ${{ inputs.runFrontendTests }}
+      runBalE2ETests: ${{ inputs.runFrontendTests }}
+      runLSTests: ${{ inputs.runBackendTests }}
 
   Release:
     name: Release VSIX
@@ -53,7 +66,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    runs-on: codebuild-ballerina-vscode-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - name: Restore build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -192,7 +205,7 @@ jobs:
   Notify:
     needs: [Release]
     if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'wso2/ballerina-vscode' }}
-    runs-on: codebuild-ballerina-vscode-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:

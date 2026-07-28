@@ -40,7 +40,7 @@
             }
           },
           "scope": "GLOBAL",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
           "dependentFunctions": [],
           "dependentConnection": [],
           "kind": "Connection",
@@ -69,7 +69,7 @@
           "kind": "NAMED",
           "type": "http:Listener",
           "args": [],
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
           "uuid": "a9ca1ae4-cd96-de31-fc39-84e14cd20873",
           "enableFlowModel": true,
           "sortText": "service.bal3"
@@ -143,7 +143,7 @@
           ],
           "absolutePath": "/orders ",
           "type": "http:Service",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
           "uuid": "9371cb67-f217-3d14-d87b-0e93b2521b80",
           "enableFlowModel": true,
           "sortText": "service.bal5"
@@ -155,12 +155,12 @@
           "location": {
             "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-workflow-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_13/workflows.bal",
             "startLine": {
-              "line": 14,
-              "offset": 9
+              "line": 13,
+              "offset": 0
             },
             "endLine": {
-              "line": 14,
-              "offset": 23
+              "line": 16,
+              "offset": 1
             }
           },
           "attachedServices": [],
@@ -177,12 +177,12 @@
           "location": {
             "filePath": "/Users/hasitha/Source/workflow/ballerina-vscode-workflow-overview/packages/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_13/workflows.bal",
             "startLine": {
-              "line": 3,
-              "offset": 9
+              "line": 2,
+              "offset": 0
             },
             "endLine": {
-              "line": 3,
-              "offset": 22
+              "line": 11,
+              "offset": 1
             }
           },
           "attachedServices": [

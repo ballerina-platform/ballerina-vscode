@@ -1205,7 +1205,10 @@ public class AiUtils {
             return new ReturnTypeInfo("anydata", "");
         }
         TypeSymbol anydata = semanticModel.types().ANYDATA;
-        String signature = successType.signature();
+        // Use the module-qualified signature (e.g. "http:Response") rather than TypeSymbol.signature(),
+        // which embeds the module version ("ballerina:http:2.16.5:Response") and makes goldens break on
+        // every central patch bump.
+        String signature = CommonUtils.getTypeSignature(semanticModel, successType, false);
         if (CommonUtils.subTypeOf(successType, anydata)) {
             return new ReturnTypeInfo("anydata", signature);
         }

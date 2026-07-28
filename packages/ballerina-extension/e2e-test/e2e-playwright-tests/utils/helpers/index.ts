@@ -28,10 +28,11 @@ export {
     initMigrationTest,
     reacquireWindow,
     createProject,
-    setupBallerinaIntegrator, 
+    setupBallerinaIntegrator,
     toggleNotifications,
     zipProjectSnapshot,
-    captureFailureScreenshot
+    captureFailureScreenshot,
+    executeBallPullCommand
 } from './setup';
 
 // Re-export from webview

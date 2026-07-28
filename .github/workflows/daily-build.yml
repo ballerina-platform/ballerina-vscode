@@ -264,8 +264,46 @@ jobs:
     secrets: inherit
     with:
       ballerina: true
-      runTests: true
+      runFastTests: true
       runBalE2ETests: true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Daily pre-release — publish the extension VSIX as a GitHub pre-release
+  # Gated on all verification jobs, including the LS Trivy scan, so a
+  # dependency-scan failure blocks the daily pre-release.
+  # ─────────────────────────────────────────────────────────────────────────
+  Release:
+    name: Publish daily pre-release
+    needs:
+      - ls-ubuntu-pack
+      - ls-ubuntu-test
+      - ls-windows-build
+      - ls-trivy
+      - Build
+    if: ${{ github.repository == 'wso2/ballerina-vscode' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      # build.zip carries the full workspace (incl. .github/actions and the
+      # built VSIX), so the local release action resolves without a checkout.
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Publish pre-release
+        uses: ./.github/actions/release
+        with:
+          repo: wso2/ballerina-vscode
+          name: ballerina
+          chatAPI: ${{ secrets.BI_TEAM_CHAT_API }}
 
   # ─────────────────────────────────────────────────────────────────────────
   # Notifications

@@ -148,13 +148,17 @@ runs:
     - name: Compress build
       shell: bash
       run: |
-        zip -rq build.zip ./ -x 'common/temp*' -x '**/node_modules/*' -x 'submodules/wso2-vscode-extensions/.git/*'
         # Resolve the exact VSIX from packages/ballerina-extension/vsix/. The 'vsix/'
         # subdir (populated by the copyVSIX script) is one of the rush build-cache
         # outputFolderNames, so it's present even when ballerina is restored from
         # cache. The package-root 'ballerina-<version>.vsix' (vsce's direct output)
         # is NOT cached and may be missing on cache-restore.
         version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        # Stage the VSIX at the workspace root so consumers that unzip build.zip
+        # (daily-build Release job, release-vsix.yml) resolve 'ballerina-<v>.vsix'
+        # with a root-level `ls`. Must happen before build.zip is created.
+        cp "packages/ballerina-extension/vsix/ballerina-${version}.vsix" ./
+        zip -rq build.zip ./ -x 'common/temp*' -x '**/node_modules/*' -x 'submodules/wso2-vscode-extensions/.git/*'
         zip -j VSIX.zip "packages/ballerina-extension/vsix/ballerina-${version}.vsix"
 
     - name: Save build

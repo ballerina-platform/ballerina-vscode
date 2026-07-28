@@ -334,6 +334,7 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                     </PlayButtonCircle>
                 )}
                 <ServiceBox
+                    data-testid={`entry-node-${model.type}`}
                     onMouseEnter={() => !readonly && setIsHovered(true)}
                     onMouseLeave={() => !readonly && setIsHovered(false)}
                     onMouseDown={!readonly ? handleMouseDown : undefined}
@@ -345,9 +346,10 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
                         <Title hovered={!readonly && isHovered}>{getNodeTitle(model)}</Title>
                         <Description>{getNodeDescription(model)}</Description>
                     </Header>
-                    <MenuButton 
+                    <MenuButton
+                        data-testid={`entry-node-${model.type}-menu`}
                         disabled={readonly}
-                        appearance="icon" 
+                        appearance="icon"
                         onClick={!readonly ? handleOnMenuClick : undefined}
                         onMouseDown={!readonly ? handleMenuMouseDown : undefined}
                         onMouseUp={!readonly ? handleMenuMouseUp : undefined}

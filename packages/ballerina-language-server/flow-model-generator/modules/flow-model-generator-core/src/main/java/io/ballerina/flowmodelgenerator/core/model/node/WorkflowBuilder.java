@@ -60,8 +60,10 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
     public static final String DESCRIPTION = "Define a workflow process function";
 
     public static final String INPUT_KEY = "inputType";
-    public static final String INPUT_LABEL = "Input Type";
+    public static final String INPUT_LABEL = "Workflow Input Data type";
     public static final String INPUT_DOC = "Type of the input data to the workflow";
+    public static final String NAME_DOC =
+            "Unique workflow identifier used to reference it in workflow management and execution.";
     public static final String ANYDATA_TYPE = "anydata";
 
     @Override
@@ -94,8 +96,9 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
         PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
-        // Add function name
-        properties().functionNameTemplate("workflow", context.getAllVisibleSymbolNames());
+        // Add function name (workflow-specific label/doc so it reads as a workflow identifier)
+        properties().functionNameTemplate("workflow", context.getAllVisibleSymbolNames(),
+                FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
         setMandatoryProperties(this, "json|error", "", "");
         // Add input property with WORKFLOW_INPUT_TYPE
         setInputTypeProperty(this, "");

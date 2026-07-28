@@ -16,11 +16,9 @@
  * under the License.
  */
 import { test, expect } from '@playwright/test';
-import { execFileSync } from 'child_process';
 import * as path from 'path';
-import { initTest, logStep, page, reacquireWindow } from '../utils/helpers';
+import { executeBallPullCommand, getWebview, initTest, logStep, page, reacquireWindow } from '../utils/helpers';
 import { waitForBISidebarTreeView } from '../utils/helpers/sidebar';
-import { getWebview } from '../utils/helpers';
 import { BI_INTEGRATOR_LABEL } from '../utils/helpers/constants';
 import { ProjectExplorer } from '../utils/pages';
 
@@ -43,24 +41,14 @@ const CONNECTOR_MODULES = ['ballerinax/kafka', 'ballerinax/rabbitmq'];
 // cold cache — every fresh CI runner — that resolution doesn't finish within
 // the tree assertion window, so the nodes never render and the suite fails
 // consistently. Pre-pulling the packages into the shared central cache before
-// VS Code opens the workspace makes CI mirror a warm local cache. `bal pull` is
-// idempotent: when a package is already cached it prints "Package already
-// exists." and exits 0, so this is a fast no-op on developer machines.
+// VS Code opens the workspace makes CI mirror a warm local cache - reuses the
+// same `bal pull` helper `setup.ts` uses for its own pre-pull workaround,
+// rather than keeping a second parallel implementation here.
 function warmConnectorDependencies() {
     for (const module of CONNECTOR_MODULES) {
-        try {
-            logStep(`Ensuring ${module} is available in the local Ballerina cache`);
-            execFileSync('bal', ['pull', module], { stdio: 'pipe', timeout: 180000 });
-        } catch (err) {
-            const details = err as { stdout?: unknown; stderr?: unknown; message?: string };
-            const output = `${details.stdout ?? ''}${details.stderr ?? ''}`;
-            // A non-zero exit for an already-cached package is expected on some
-            // distributions; only surface genuinely unexpected failures.
-            if (!/already exists/i.test(output)) {
-                console.warn(`  ⚠️  Failed to pre-pull ${module}: ${output || details.message}`);
-            }
-        }
+        logStep(`Ensuring ${module} is available in the local Ballerina cache`);
     }
+    executeBallPullCommand(CONNECTOR_MODULES);
 }
 
 function treeItem(label: string) {

@@ -303,6 +303,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -336,7 +337,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -378,6 +381,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -405,7 +409,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -581,6 +587,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -611,7 +618,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1070,6 +1079,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -1103,7 +1113,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -1145,6 +1157,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -1172,7 +1185,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1274,6 +1289,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -1304,7 +1320,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1554,6 +1572,7 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
             >
               <div
                 class="css-11"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-12"
@@ -1584,7 +1603,9 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
                 <div
                   class="css-16 css-17"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1994,6 +2015,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -2027,7 +2049,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -2213,6 +2237,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -2240,7 +2265,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -2342,6 +2369,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -2372,7 +2400,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -3019,6 +3049,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -3052,7 +3083,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -3238,6 +3271,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -3265,7 +3299,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -3367,6 +3403,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -3397,7 +3434,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -3877,6 +3916,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
             >
               <div
                 class="css-11"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-12"
@@ -3904,7 +3944,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -4213,6 +4255,7 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
             >
               <div
                 class="css-11"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-12"
@@ -4243,7 +4286,9 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
                 <div
                   class="css-16 css-17"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -4483,6 +4528,7 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
             >
               <div
                 class="css-11"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-12"
@@ -4510,7 +4556,9 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
