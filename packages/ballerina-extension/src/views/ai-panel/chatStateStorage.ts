@@ -285,6 +285,48 @@ export class ChatStateStorage {
     }
 
     /**
+     * Persist a single generation incrementally (append-only).
+     * Appends only the changed header and/or the model messages not yet
+     * written — instead of rewriting the whole thread. Use for every
+     * per-generation mutation. Relies on the store's per-generation tracking,
+     * which is primed by loadThread()/saveThread() (thread creation + load).
+     */
+    private persistGeneration(projectRootPath: string, threadId: string, generation: Generation): void {
+        const thread = this.storage.get(projectRootPath)?.threads.get(threadId);
+        if (!thread) {
+            return;
+        }
+        try {
+            this.persistenceStore.appendGeneration(
+                projectRootPath,
+                threadId,
+                toPersistedGeneration(generation),
+                thread.updatedAt
+            );
+        } catch (err) {
+            console.error(`[ChatStateStorage] Failed to append generation ${generation.id}:`, err);
+        }
+    }
+
+    /** Persist a generation removal (append-only tombstone). */
+    private persistGenerationRemoval(projectRootPath: string, threadId: string, generationId: string): void {
+        try {
+            this.persistenceStore.removeGenerationRecord(projectRootPath, threadId, generationId);
+        } catch (err) {
+            console.error(`[ChatStateStorage] Failed to persist removal of generation ${generationId}:`, err);
+        }
+    }
+
+    /** Persist a truncation from a generation onward (append-only). */
+    private persistTruncation(projectRootPath: string, threadId: string, fromGenerationId: string): void {
+        try {
+            this.persistenceStore.truncateFromGeneration(projectRootPath, threadId, fromGenerationId);
+        } catch (err) {
+            console.error(`[ChatStateStorage] Failed to persist truncation from ${fromGenerationId}:`, err);
+        }
+    }
+
+    /**
      * Flush workspace metadata to disk.
      */
     private flushWorkspaceMetadata(projectRootPath: string): void {
@@ -549,8 +591,8 @@ export class ChatStateStorage {
         thread.generations.push(generation);
         thread.updatedAt = Date.now();
 
-        // Persist immediately
-        this.flushThread(projectRootPath, threadId);
+        // Persist immediately (append-only)
+        this.persistGeneration(projectRootPath, threadId, generation);
         console.log(`[ChatStateStorage] Added generation: ${generation.id} to thread: ${threadId}`);
 
         // Capture checkpoint for this generation asynchronously (skip for synthetic compacted generations)
@@ -618,8 +660,8 @@ export class ChatStateStorage {
         Object.assign(generation, updates);
         thread.updatedAt = Date.now();
 
-        // Persist immediately
-        this.flushThread(projectRootPath, threadId);
+        // Persist immediately (append-only: only changed header / new messages)
+        this.persistGeneration(projectRootPath, threadId, generation);
         console.log(`[ChatStateStorage] Updated generation: ${generationId}`);
     }
 
@@ -635,8 +677,8 @@ export class ChatStateStorage {
         if (index !== -1) {
             thread.generations.splice(index, 1);
             thread.updatedAt = Date.now();
-            // Persist immediately
-            this.flushThread(projectRootPath, threadId);
+            // Persist immediately (append-only tombstone)
+            this.persistGenerationRemoval(projectRootPath, threadId, generationId);
             // Also clean up checkpoint file if it exists
             this.persistenceStore.deleteCheckpoint(projectRootPath, threadId, generationId);
             console.log(`[ChatStateStorage] Removed generation: ${generationId}`);
@@ -779,8 +821,8 @@ export class ChatStateStorage {
         Object.assign(generation.reviewState, state);
         thread.updatedAt = Date.now();
 
-        // Persist immediately
-        this.flushThread(projectRootPath, threadId);
+        // Persist immediately (append-only: reviewState is part of the header)
+        this.persistGeneration(projectRootPath, threadId, generation);
         console.log(`[ChatStateStorage] Updated review state for generation: ${generationId}, status: ${generation.reviewState.status}`);
     }
 
@@ -793,21 +835,23 @@ export class ChatStateStorage {
      */
     acceptAllReviews(projectRootPath: string, threadId: string): void {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
-        let count = 0;
+        const changed: Generation[] = [];
 
         for (const generation of thread.generations) {
             if (generation.reviewState.status === 'under_review') {
                 generation.reviewState.status = 'accepted';
                 generation.reviewState.affectedPackagePaths = [];
-                count++;
+                changed.push(generation);
             }
         }
 
-        if (count > 0) {
+        if (changed.length > 0) {
             thread.updatedAt = Date.now();
-            this.flushThread(projectRootPath, threadId);
+            for (const generation of changed) {
+                this.persistGeneration(projectRootPath, threadId, generation);
+            }
         }
-        console.log(`[ChatStateStorage] Accepted ${count} review(s) in thread: ${threadId}`);
+        console.log(`[ChatStateStorage] Accepted ${changed.length} review(s) in thread: ${threadId}`);
     }
 
     /**
@@ -819,22 +863,24 @@ export class ChatStateStorage {
      */
     declineAllReviews(projectRootPath: string, threadId: string): void {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
-        let count = 0;
+        const changed: Generation[] = [];
 
         for (const generation of thread.generations) {
             if (generation.reviewState.status === 'under_review') {
                 generation.reviewState.status = 'error';
                 generation.reviewState.errorMessage = 'Declined by user';
                 generation.reviewState.affectedPackagePaths = [];
-                count++;
+                changed.push(generation);
             }
         }
 
-        if (count > 0) {
+        if (changed.length > 0) {
             thread.updatedAt = Date.now();
-            this.flushThread(projectRootPath, threadId);
+            for (const generation of changed) {
+                this.persistGeneration(projectRootPath, threadId, generation);
+            }
         }
-        console.log(`[ChatStateStorage] Declined ${count} review(s) in thread: ${threadId}`);
+        console.log(`[ChatStateStorage] Declined ${changed.length} review(s) in thread: ${threadId}`);
     }
 
     // ============================================
@@ -928,8 +974,10 @@ export class ChatStateStorage {
             console.error(`[ChatStateStorage] Failed to persist checkpoint ${checkpoint.id}:`, err);
         }
 
-        // Enforce checkpoint limit (evicts oldest) and flush thread once at the end
+        // Enforce checkpoint limit (evicts oldest, persisting each evicted generation)
         await this.enforceCheckpointLimit(projectRootPath, threadId);
+        // Persist this generation's header (hasCheckpoint flag now reflects the checkpoint)
+        this.persistGeneration(projectRootPath, threadId, generation);
     }
 
     /**
@@ -943,8 +991,7 @@ export class ChatStateStorage {
         const config = getCheckpointConfig();
 
         if (!config.enabled) {
-            // Still flush the thread to persist the newly added checkpoint
-            this.flushThread(projectRootPath, threadId);
+            // Nothing to evict; caller persists the newly-checkpointed generation.
             return;
         }
 
@@ -955,14 +1002,16 @@ export class ChatStateStorage {
             .map((gen, index) => ({ generation: gen, index }))
             .filter(item => item.generation.checkpoint !== undefined);
 
-        // If we're within the limit, just flush and return
+        // If we're within the limit, nothing to evict; caller persists the added generation.
         if (generationsWithCheckpoints.length <= config.maxCount) {
-            this.flushThread(projectRootPath, threadId);
             return;
         }
 
         // Calculate how many checkpoints to remove
         const checkpointsToRemove = generationsWithCheckpoints.length - config.maxCount;
+
+        // Bump updatedAt before persisting so the appended records carry the new timestamp.
+        thread.updatedAt = Date.now();
 
         // Remove checkpoints from oldest generations (keep the most recent maxCount)
         for (let i = 0; i < checkpointsToRemove; i++) {
@@ -974,11 +1023,10 @@ export class ChatStateStorage {
 
             // Delete the persisted checkpoint file
             this.persistenceStore.deleteCheckpoint(projectRootPath, threadId, generation.id);
-        }
 
-        thread.updatedAt = Date.now();
-        // Persist thread with updated checkpoint flags
-        this.flushThread(projectRootPath, threadId);
+            // Persist the evicted generation's header (hasCheckpoint flips to false)
+            this.persistGeneration(projectRootPath, threadId, generation);
+        }
     }
 
     /**
@@ -1010,6 +1058,7 @@ export class ChatStateStorage {
         }
 
         // Clean up checkpoint files for removed generations
+        const fromGenerationId = thread.generations[checkpointGenerationIndex].id;
         for (let i = checkpointGenerationIndex; i < thread.generations.length; i++) {
             this.persistenceStore.deleteCheckpoint(projectRootPath, threadId, thread.generations[i].id);
         }
@@ -1020,8 +1069,8 @@ export class ChatStateStorage {
         thread.generations = thread.generations.slice(0, checkpointGenerationIndex);
         thread.updatedAt = Date.now();
 
-        // Persist immediately
-        this.flushThread(projectRootPath, threadId);
+        // Persist truncation (append-only): removes fromGenerationId and everything after it
+        this.persistTruncation(projectRootPath, threadId, fromGenerationId);
         return true;
     }
 
