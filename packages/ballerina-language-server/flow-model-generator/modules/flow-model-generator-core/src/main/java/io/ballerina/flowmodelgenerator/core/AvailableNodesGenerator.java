@@ -629,7 +629,8 @@ public class AvailableNodesGenerator {
             if (!condition.test(classSymbol)) {
                 return Optional.empty();
             }
-            String parentSymbolName = symbol.getName().orElseThrow();
+            String symbolName = symbol.getName().orElseThrow();
+            String parentSymbolName = symbol instanceof ClassFieldSymbol ? "self." + symbolName : symbolName;
             ModuleInfo moduleInfo = classSymbol.getModule()
                     .map(moduleSymbol -> ModuleInfo.from(moduleSymbol.id()))
                     .orElse(null);

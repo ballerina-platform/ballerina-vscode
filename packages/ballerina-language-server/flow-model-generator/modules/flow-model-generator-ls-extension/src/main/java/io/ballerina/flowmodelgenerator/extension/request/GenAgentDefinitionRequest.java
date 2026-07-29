@@ -22,8 +22,8 @@ package io.ballerina.flowmodelgenerator.extension.request;
  * A request to generate an empty custom agent class definition (a class including {@code *ai:FixedTypedAgent})
  * from a name + description.
  *
- * @param filePath    a file in the target project (used to resolve the project root; the class is written to
- *                    {@code <name>.bal})
+ * @param filePath    a file in the target project, used to resolve the project root; the class is written to
+ *                    {@code agents.bal}
  * @param name        the agent class name
  * @param description the class doc-comment description
  * @since 1.0.0

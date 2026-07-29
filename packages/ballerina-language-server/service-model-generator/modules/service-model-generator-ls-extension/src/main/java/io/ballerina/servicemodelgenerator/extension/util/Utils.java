@@ -799,6 +799,7 @@ public final class Utils {
             target.setResponses(source.getResponses());
         }
         target.setIsGraphqlId(source.isGraphqlId());
+        updateValue(target.getDocumentation(), source.getDocumentation());
     }
 
     public static List<String> getAnnotationEdits(Service service) {

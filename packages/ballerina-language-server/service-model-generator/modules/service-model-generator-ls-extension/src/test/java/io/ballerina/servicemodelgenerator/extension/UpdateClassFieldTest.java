@@ -23,6 +23,7 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.servicemodelgenerator.extension.model.Field;
 import io.ballerina.servicemodelgenerator.extension.model.request.ClassFieldModifierRequest;
+import io.ballerina.servicemodelgenerator.extension.model.request.ModifyClassDependencyRequest;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -90,6 +91,23 @@ public class UpdateClassFieldTest extends AbstractLSTest {
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    @Test
+    public void testUpdateClassDependencyMovesNewDefaultableParameterAfterRequiredParameters() throws IOException {
+        Path configJsonPath = configDir.resolve("update_class_field_1.json");
+        TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
+        Field field = testConfig.field();
+        field.getDefaultValue().setValue("0");
+
+        Path sourcePath = sourceDir.resolve("defaultable_init.bal").toAbsolutePath();
+        ModifyClassDependencyRequest request = new ModifyClassDependencyRequest(sourcePath.toString(), field);
+        JsonObject response = getResponse(request, "serviceDesign/updateClassDependency");
+        Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDIT_LIST_TYPE);
+        String generated = edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
+                .reduce("", (left, right) -> left + "\n" + right);
+
+        Assert.assertTrue(generated.contains("string id, int intValue = 0"), generated);
     }
 
     @Override
