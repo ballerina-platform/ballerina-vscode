@@ -52,6 +52,7 @@ import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
@@ -966,7 +967,8 @@ public class AgentToolBuilder extends NodeBuilder {
             return "string";
         }
         TypeSymbol type = CommonUtils.getRawType(agentType);
-        if (type.kind() != SymbolKind.CLASS || !CommonUtils.isAgentClass(type)) {
+        if (type.kind() != SymbolKind.CLASS
+                || !(CommonUtils.isAgentClass(type) || AiUtils.isTypedAgent(type))) {
             return "string";
         }
         MethodSymbol runMethod = ((ClassSymbol) type).methods().get(RUN);

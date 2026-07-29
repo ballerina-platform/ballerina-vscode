@@ -68,6 +68,8 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
         JsonObject response = getResponse(request, "flowDesignService/getAvailableNodes");
         Assert.assertTrue(response.toString().contains("managedClient"),
                 "A class-owned client field should be available as a connection tool receiver");
+        Assert.assertTrue(response.toString().contains("\"parentSymbol\":\"self.managedClient\""),
+                "A class-owned client field must be emitted with its self-qualified receiver");
     }
 
     @Test
