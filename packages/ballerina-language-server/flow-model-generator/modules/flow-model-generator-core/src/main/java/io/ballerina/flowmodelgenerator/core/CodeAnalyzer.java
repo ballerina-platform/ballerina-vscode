@@ -1231,9 +1231,17 @@ public class CodeAnalyzer extends NodeVisitor {
                     String propertyKey = fieldToPropertyKey.get(fieldName);
                     if (propertyKey != null) {
                         // The cardinality enum may be module-qualified in source (workflow:SINGLE_EVENT);
-                        // the form's select options carry the bare enum names.
-                        String value = "name".equals(fieldName) ? stripQuotes(rawValue)
-                                : "cardinality".equals(fieldName) ? stripModulePrefix(rawValue) : rawValue;
+                        // the form's select options carry the bare enum names. String-literal values
+                        // of text-mode fields (name/title/description/roles) hydrate unquoted so the
+                        // form shows the text, not its source syntax.
+                        String value;
+                        if ("cardinality".equals(fieldName)) {
+                            value = stripModulePrefix(rawValue);
+                        } else if (TEXT_MODE_CAPABILITY_FIELDS.contains(fieldName)) {
+                            value = stripQuotes(rawValue);
+                        } else {
+                            value = rawValue;
+                        }
                         values.put(propertyKey, value);
                     }
                     if ("name".equals(fieldName)) {
@@ -1249,6 +1257,10 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
     }
+
+    // Capability declaration fields whose values render in text-mode form fields.
+    private static final Set<String> TEXT_MODE_CAPABILITY_FIELDS =
+            Set.of("name", "title", "description", "roles");
 
     private static String stripModulePrefix(String value) {
         int colon = value.lastIndexOf(':');

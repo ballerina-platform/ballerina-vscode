@@ -37,7 +37,9 @@ export const EnumEditor = (props: EnumEditorProps) => {
             ...baseItems,
             {
                 id: "default-option",
-                content: "No Selection",
+                // A field-provided placeholder (e.g. "(default)") describes what an empty
+                // selection means; fall back to the generic label otherwise.
+                content: props.field.placeholder?.toString() || "No Selection",
                 value: DEFAULT_NONE_SELECTED_VALUE
             }
         ];

@@ -201,8 +201,8 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             variableBuilder
                     .type(Artifact.Type.DURABLE_AGENT)
                     .visibility(varVisibility);
-            semanticModel.symbol(moduleVariableDeclarationNode.typedBindingPattern().bindingPattern())
-                    .ifPresent(variableBuilder::icon);
+            // No symbol-derived icon: it would resolve to the workflow module's icon, while
+            // the explorer gives durable agents their own agent icon by artifact type.
             return Optional.of(variableBuilder.build());
         }
         if (hasQualifier(moduleVariableDeclarationNode.qualifiers(), SyntaxKind.CONFIGURABLE_KEYWORD)) {

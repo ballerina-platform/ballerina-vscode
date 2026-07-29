@@ -1,7 +1,10 @@
 // Test file for workflow artifacts
 
 import ballerina/workflow;
+import ballerina/ai;
 import ballerina/io;
+
+final ai:Wso2ModelProvider supportModel = check new ("http://localhost:9099", "test-token");
 
 type OrderInput record {
     readonly string orderId;
@@ -49,3 +52,10 @@ function calculateDiscount(decimal amount) returns decimal|error {
 function helperFunction() returns string {
     return "helper";
 }
+
+# Customer support durable agentic workflow
+final workflow:DurableAgent supportAgent = check new ({
+    systemPrompt: {role: "Support triage", instructions: "Help the customer."},
+    model: supportModel,
+    activities: [sendNotification]
+});

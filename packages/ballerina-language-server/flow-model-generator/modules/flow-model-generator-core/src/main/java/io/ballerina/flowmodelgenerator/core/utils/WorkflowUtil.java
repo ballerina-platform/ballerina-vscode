@@ -157,19 +157,24 @@ public class WorkflowUtil {
                 || varDecl.initializer().isEmpty()) {
             return false;
         }
+        // Syntax first: the artifacts generator processes documents in parallel, and the
+        // semantic model's lazy symbol resolution is not safe under that concurrency
+        // (ConcurrentModificationException on agent-containing projects). The direct type
+        // reference covers every plugin-accepted declaration shape.
+        String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+        if (typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                || typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+            return true;
+        }
         Optional<Symbol> symbol = semanticModel.symbol(varDecl.typedBindingPattern().bindingPattern());
         if (symbol.isPresent() && symbol.get() instanceof VariableSymbol variableSymbol) {
             TypeSymbol rawType = CommonUtils.getRawType(variableSymbol.typeDescriptor());
-            if (rawType instanceof ClassSymbol classSymbol
+            return rawType instanceof ClassSymbol classSymbol
                     && classSymbol.getName()
                             .map(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME::equals).orElse(false)
-                    && isWorkflowModule(classSymbol.getModule())) {
-                return true;
-            }
+                    && isWorkflowModule(classSymbol.getModule());
         }
-        String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
-        return typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
-                || typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME);
+        return false;
     }
 
     /**
