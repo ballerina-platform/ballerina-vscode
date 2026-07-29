@@ -168,5 +168,17 @@
       "event"
     ],
     "triggerName": "HubSpot"
+  },
+  "17": {
+    "name": "aws.sqs",
+    "orgName": "ballerinax",
+    "packageName": "aws.sqs",
+    "keywords": [
+      "aws",
+      "sqs",
+      "messaging",
+      "event"
+    ],
+    "triggerName": "AWS SQS"
   }
 }
