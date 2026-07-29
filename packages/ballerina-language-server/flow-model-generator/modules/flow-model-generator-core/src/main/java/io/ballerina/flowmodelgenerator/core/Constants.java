@@ -196,7 +196,8 @@ public class Constants {
         public static final String REGISTER_UPDATE_EVENTS_METHOD_NAME = "registerUpdateEvents";
         public static final String REGISTER_EVENT_LABEL = "Register Data Event";
         public static final String REGISTER_EVENT_DESCRIPTION =
-                "Declare a named two-way update channel the agent can wait on";
+                "Declare a named data-event channel the agent can wait on; a response type makes it "
+                        + "request-response";
         public static final String REGISTER_AGENT_TOOL_METHOD_NAME = "registerAgentTool";
         public static final String REGISTER_AGENT_TOOL_LABEL = "Register AgentTool";
         public static final String REGISTER_AGENT_TOOL_DESCRIPTION =
@@ -206,11 +207,11 @@ public class Constants {
         public static final String RUN_DURABLE_AGENT_DESCRIPTION =
                 "Build the agent from the registered capabilities and run the durable loop";
         public static final String RUN_DURABLE_AGENT_FUNCTION_NAME = "runDurableAgent";
-        public static final String UPDATE_AGENT_FUNCTION_NAME = "updateAgent";
-        public static final String UPDATE_AGENT_ASYNC_FUNCTION_NAME = "updateAgentAsync";
-        public static final String UPDATE_AGENT_LABEL = "Update Durable Agentic Workflow";
-        public static final String UPDATE_AGENT_DESCRIPTION =
-                "Send a request to a running durable agent and receive its answer for that turn";
+        public static final String AGENT_SEND_DATA_METHOD_NAME = "sendData";
+        public static final String AGENT_WAIT_DATA_RESULT_METHOD_NAME = "waitForDataResult";
+        public static final String AGENT_SEND_DATA_LABEL = "Send Agent Data Event";
+        public static final String AGENT_SEND_DATA_DESCRIPTION =
+                "Send a data event to a running durable agent and read its answer for that turn";
     }
 
     // Constants used for AI

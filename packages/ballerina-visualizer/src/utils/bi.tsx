@@ -73,7 +73,7 @@ import { cloneDeep } from "lodash";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
-import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation } from "@wso2/ui-toolkit";
+import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, Icon } from "@wso2/ui-toolkit";
 import { FunctionDefinition, STNode } from "@wso2/syntax-tree";
 import { DocSection } from "../components/ExpressionEditor";
 
@@ -108,7 +108,11 @@ function convertAvailableNodeToPanelNode(
         description: node.metadata.description,
         enabled: node.enabled,
         metadata: node,
-        icon: node.codedata.node === "NEW_CONNECTION" ? (
+        icon: node.metadata.icon?.startsWith("bi-") ? (
+            // A codicon-style icon name distinguishes items sharing a node kind (e.g. durable
+            // agentic workflows in the same startable list as workflow functions).
+            <Icon name={node.metadata.icon} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
+        ) : node.codedata.node === "NEW_CONNECTION" ? (
             <ConnectorIcon
                 url={node.metadata.icon}
                 style={{ width: "16px", height: "16px", fontSize: "16px" }}

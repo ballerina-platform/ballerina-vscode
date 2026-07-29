@@ -110,6 +110,29 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 "Short summary shown in the task inbox", "", false);
         addDocTextProperty(DESCRIPTION_KEY, "Description",
                 "Context shown to the person completing the task");
+        // Deadline for the task: on expiry the agent is told the task timed out so it
+        // can react. Rendered with a timer badge on the capability when configured.
+        properties().custom()
+                .metadata()
+                    .label("Timeout")
+                    .description("Maximum time to wait for completion, e.g. {hours: 4}. On expiry "
+                            + "the agent is told the task timed out so it can react; omit to wait "
+                            + "indefinitely")
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.EXPRESSION)
+                    .ballerinaType("time:Duration")
+                    .selected(true)
+                    .stepOut()
+                .codedata()
+                    .kind(ParameterData.Kind.DEFAULTABLE.name())
+                    .stepOut()
+                .placeholder("{hours: 4}")
+                .value("")
+                .editable(true)
+                .optional(true)
+                .stepOut()
+                .addProperty(TIMEOUT_KEY);
         properties().checkError(true);
     }
 

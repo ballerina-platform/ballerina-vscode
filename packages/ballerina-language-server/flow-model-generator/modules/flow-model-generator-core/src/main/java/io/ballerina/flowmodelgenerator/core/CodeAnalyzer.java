@@ -1177,7 +1177,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 case "tools", "peers" -> collectDeclaredCapabilities(valueExpr, "tool", "tool",
                         Map.of("tool", "tool", "name", "name", "description", "description"), agentTools);
                 case "events" -> collectDeclaredCapabilities(valueExpr, "event", null,
-                        Map.of("name", "name", "request", "requestType", "response", "responseType"), updateEvents);
+                        Map.of("name", "name", "request", "requestType", "response", "responseType",
+                                "cardinality", "cardinality"), updateEvents);
                 case "humanTasks" -> collectDeclaredCapabilities(valueExpr, "humanTask", null,
                         Map.of("name", "taskName", "roles", "userRoles", "title", "title",
                                 "description", "description", "resultType", "resultType", "timeout", "timeout"),
@@ -1229,7 +1230,11 @@ public class CodeAnalyzer extends NodeVisitor {
                     String rawValue = specificField.valueExpr().get().toSourceCode().trim();
                     String propertyKey = fieldToPropertyKey.get(fieldName);
                     if (propertyKey != null) {
-                        values.put(propertyKey, "name".equals(fieldName) ? stripQuotes(rawValue) : rawValue);
+                        // The cardinality enum may be module-qualified in source (workflow:SINGLE_EVENT);
+                        // the form's select options carry the bare enum names.
+                        String value = "name".equals(fieldName) ? stripQuotes(rawValue)
+                                : "cardinality".equals(fieldName) ? stripModulePrefix(rawValue) : rawValue;
+                        values.put(propertyKey, value);
                     }
                     if ("name".equals(fieldName)) {
                         declaredName = stripQuotes(rawValue);
@@ -1243,6 +1248,11 @@ public class CodeAnalyzer extends NodeVisitor {
                 out.add(new AgentCapabilityData(name, capabilityType, item.lineRange(), values));
             }
         }
+    }
+
+    private static String stripModulePrefix(String value) {
+        int colon = value.lastIndexOf(':');
+        return colon >= 0 ? value.substring(colon + 1) : value;
     }
 
     private static String stripQuotes(String value) {

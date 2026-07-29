@@ -590,7 +590,7 @@ public class AvailableNodesGenerator {
                         NodeKind.SEND_DATA));
             }
             if (hasDurableAgents) {
-                workflowNodes.add(workflowNode(Workflow.UPDATE_AGENT_LABEL, Workflow.UPDATE_AGENT_DESCRIPTION,
+                workflowNodes.add(workflowNode(Workflow.AGENT_SEND_DATA_LABEL, Workflow.AGENT_SEND_DATA_DESCRIPTION,
                         NodeKind.DURABLE_AGENT_UPDATE));
             }
         }

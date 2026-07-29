@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
+import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
@@ -49,13 +50,23 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
 
     public static final String NAME_KEY = "name";
     public static final String NAME_LABEL = "Event Name";
-    public static final String NAME_DOC = "The update channel name (\"chat\" drives the conversation itself)";
+    public static final String NAME_DOC =
+            "The data-event channel name (\"chat\" drives the conversation itself)";
     public static final String REQUEST_TYPE_KEY = "requestType";
     public static final String REQUEST_TYPE_LABEL = "Request Type";
-    public static final String REQUEST_TYPE_DOC = "The request payload type";
+    public static final String REQUEST_TYPE_DOC = "Type of the payload sent to the agent on this channel";
     public static final String RESPONSE_TYPE_KEY = "responseType";
     public static final String RESPONSE_TYPE_LABEL = "Response Type";
-    public static final String RESPONSE_TYPE_DOC = "The expected response type (optional)";
+    public static final String RESPONSE_TYPE_DOC = "Type of the agent's reply for this channel. Declaring a "
+            + "response makes the channel request-response (read with getDataResult/waitForDataResult); "
+            + "leave empty for a one-way channel";
+    public static final String CARDINALITY_KEY = "cardinality";
+    public static final String CARDINALITY_LABEL = "Cardinality";
+    public static final String CARDINALITY_DOC = "How the channel consumes its events: MULTI_EVENT (the "
+            + "default) re-arms after every turn so events can arrive repeatedly and from multiple senders; "
+            + "SINGLE_EVENT is consumed exactly once per run";
+    public static final String MULTI_EVENT = "MULTI_EVENT";
+    public static final String SINGLE_EVENT = "SINGLE_EVENT";
 
     private static final String STRING_TYPE = "string";
     private static final String DEFAULT_REQUEST_TYPE = "string";
@@ -146,6 +157,26 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
                 .stepOut()
                 .addProperty(RESPONSE_TYPE_KEY);
 
+        properties().custom()
+                .metadata()
+                    .label(CARDINALITY_LABEL)
+                    .description(CARDINALITY_DOC)
+                    .stepOut()
+                .type()
+                    .fieldType(Property.ValueType.SINGLE_SELECT)
+                    .options(List.of(new Option(MULTI_EVENT, MULTI_EVENT),
+                            new Option(SINGLE_EVENT, SINGLE_EVENT)))
+                    .selected(true)
+                    .stepOut()
+                .codedata()
+                    .kind(ParameterData.Kind.DEFAULTABLE.name())
+                    .stepOut()
+                .value(MULTI_EVENT)
+                .editable(true)
+                .optional(true)
+                .stepOut()
+                .addProperty(CARDINALITY_KEY);
+
         properties().checkError(true);
     }
 
@@ -165,11 +196,17 @@ public class DurableAgentRegisterEventBuilder extends CallBuilder {
                     .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
             String responseType = sourceBuilder.getProperty(RESPONSE_TYPE_KEY)
                     .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
+            String cardinality = sourceBuilder.getProperty(CARDINALITY_KEY)
+                    .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
             StringBuilder entry = new StringBuilder("{name: ")
                     .append(WorkflowUtil.quoteIfPlain(eventName))
                     .append(", request: ").append(requestType.isBlank() ? "json" : requestType);
             if (!responseType.isBlank()) {
                 entry.append(", response: ").append(responseType);
+            }
+            // MULTI_EVENT is the module default; only a SINGLE_EVENT opt-in is written out.
+            if (SINGLE_EVENT.equals(cardinality)) {
+                entry.append(", cardinality: ").append(WORKFLOW_MODULE).append(":").append(SINGLE_EVENT);
             }
             entry.append("}");
             return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "events", entry.toString());

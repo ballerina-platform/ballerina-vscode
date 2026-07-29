@@ -291,13 +291,21 @@ export namespace NodeStyles {
         border-radius: 5px;
     `;
 
-    export type AffordanceAnchorName = "topLeft" | "bottomLeft" | "middleRight" | "bottomRight" | "topRight";
+    export type AffordanceAnchorName =
+        | "leftMiddleUpper"
+        | "leftMiddleLower"
+        | "rightMiddleUpper"
+        | "rightMiddleLower"
+        | "topRight";
 
+    // The capability affordances sit in vertically stacked pairs at the box's left and
+    // right middles (people-facing capabilities left, execution capabilities right), so
+    // they are all visible at a glance; the model configuration stays top-right.
     const anchorPosition: Record<AffordanceAnchorName, string> = {
-        topLeft: "top: -14px; left: -14px;",
-        bottomLeft: "bottom: -14px; left: -14px;",
-        middleRight: "top: calc(50% - 14px); right: -14px;",
-        bottomRight: "bottom: -14px; right: -14px;",
+        leftMiddleUpper: "top: calc(50% - 32px); left: -14px;",
+        leftMiddleLower: "top: calc(50% + 4px); left: -14px;",
+        rightMiddleUpper: "top: calc(50% - 32px); right: -14px;",
+        rightMiddleLower: "top: calc(50% + 4px); right: -14px;",
         topRight: "top: -14px; right: -14px;",
     };
 
@@ -397,10 +405,10 @@ const ADD_AFFORDANCES: {
     icon: string;
     anchor: NodeStyles.AffordanceAnchorName;
 }[] = [
-    { kind: "humanTask", label: "Add Human Task", icon: "bi-user", anchor: "topLeft" },
-    { kind: "event", label: "Add Data Event", icon: "bi-import", anchor: "bottomLeft" },
-    { kind: "activity", label: "Add Activity", icon: "bi-task", anchor: "middleRight" },
-    { kind: "agentTool", label: "Add Agent Tool", icon: "bi-function", anchor: "bottomRight" },
+    { kind: "humanTask", label: "Add Human Task", icon: "bi-user", anchor: "leftMiddleUpper" },
+    { kind: "event", label: "Add Data Event", icon: "bi-import", anchor: "leftMiddleLower" },
+    { kind: "activity", label: "Add Activity", icon: "bi-task", anchor: "rightMiddleUpper" },
+    { kind: "agentTool", label: "Add Agent Tool", icon: "bi-function", anchor: "rightMiddleLower" },
     { kind: "model", label: "Configure Model", icon: "bi-ai-model", anchor: "topRight" },
 ];
 
@@ -637,20 +645,25 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             return <Icon name="bi-task" sx={{ fontSize: "24px" }} />;
         }
         if (item.kind === "humanTask") {
-            return <Icon name="bi-user" sx={{ fontSize: "24px" }} />;
-        }
-        if (item.kind === "event") {
-            // Receiver icon (data arriving from outside) with a waiting-state badge: the
-            // channel expects a payload asynchronously.
+            // The clock badge marks a configured deadline: the task times out and the agent
+            // is told, so reviewers can spot time-bound tasks at a glance.
+            const hasDeadline = !!(item.data as any)?.values?.timeout;
             return (
                 <div style={{ position: "relative", display: "flex" }}>
-                    <Icon name="bi-import" sx={{ fontSize: "24px" }} />
-                    <Icon
-                        name="bi-clock"
-                        sx={{ fontSize: "11px", position: "absolute", right: "-4px", bottom: "-2px" }}
-                    />
+                    <Icon name="bi-user" sx={{ fontSize: "24px" }} />
+                    {hasDeadline && (
+                        <Icon
+                            name="bi-clock"
+                            sx={{ fontSize: "11px", position: "absolute", right: "-4px", bottom: "-2px" }}
+                        />
+                    )}
                 </div>
             );
+        }
+        if (item.kind === "event") {
+            // Receiver icon: data arriving from outside. (The clock badge is reserved for
+            // capabilities with a configured deadline.)
+            return <Icon name="bi-import" sx={{ fontSize: "24px" }} />;
         }
         if (item.data.path) {
             return (

@@ -418,7 +418,7 @@ public class CodeAnalyzer extends NodeVisitor {
 
     /**
      * Draws the trigger edge for durable agent driver calls: any method call on a module-level
-     * {@code workflow:DurableAgent} variable ({@code agent.run(...)}, {@code agent.sendEvent(...)},
+     * {@code workflow:DurableAgent} variable ({@code agent.run(...)}, {@code agent.sendData(...)},
      * {@code agent.waitForResult(...)}, ...) connects the caller to the agent's overview node,
      * exactly like {@code workflow:run} does for workflow functions.
      *
@@ -433,10 +433,10 @@ public class CodeAnalyzer extends NodeVisitor {
         if (agent == null || !Workflow.KIND_DURABLE_AGENT.equals(agent.getKind())) {
             return;
         }
-        // agent.sendEvent(id, "channel", data): correlate with the declared event channel so the
+        // agent.sendData(id, "channel", data): correlate with the declared event channel so the
         // overview draws the edge into the channel's in-port, like workflow:sendData does.
         String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
-        if ("sendEvent".equals(methodName)) {
+        if ("sendData".equals(methodName)) {
             String eventName = getStringArgValue(methodCallExpressionNode.arguments(), 1, "eventName");
             if (eventName != null && agent.getEvent(eventName).isPresent()) {
                 this.currentFunctionModel.addSentEvent(agent.getUuid(), eventName);
@@ -446,7 +446,7 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
         if (!"run".equals(methodName)) {
-            // Read-only interactions (getResult/waitForResult/waitForEventResult/...) draw no
+            // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
             // edge: like regular workflows, only run and data-event sends connect on the overview.
             return;
         }
