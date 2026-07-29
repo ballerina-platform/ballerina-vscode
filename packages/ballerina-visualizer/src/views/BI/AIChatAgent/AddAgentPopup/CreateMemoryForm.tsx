@@ -24,6 +24,7 @@ import { FlowNodeForm } from "../../Forms/FlowNodeForm";
 import { getAiModuleOrg, getEndOfFileLineRange, getNodeTemplate } from "../utils";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { LoaderWrapper } from "./styles";
+import { Button } from "@wso2/ui-toolkit";
 
 const MEMORY_FILE_NAME = "agents.bal";
 const SHORT_TERM_MEMORY = "ShortTermMemory";
@@ -38,11 +39,14 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [filePath, setFilePath] = useState<string>("");
     const [submitting, setSubmitting] = useState<boolean>(false);
+    const [loadError, setLoadError] = useState<string>();
+    const [loadAttempt, setLoadAttempt] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
+                setLoadError(undefined);
                 const endOfFile = await getEndOfFileLineRange(MEMORY_FILE_NAME, rpcClient);
                 const orgName = await getAiModuleOrg(rpcClient);
                 const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
@@ -53,6 +57,9 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
                 const items = (searchResponse?.categories?.[0]?.items ?? []) as { codedata?: CodeData }[];
                 const shortTerm = items.find((item) => item.codedata?.object === SHORT_TERM_MEMORY) ?? items[0];
                 if (!shortTerm?.codedata) {
+                    if (!cancelled) {
+                        setLoadError("Unable to load a memory template.");
+                    }
                     return;
                 }
                 const nodeTemplate = await getNodeTemplate(
@@ -61,7 +68,11 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
                     endOfFile.fileName,
                     endOfFile.startLine
                 );
-                if (!nodeTemplate || cancelled) {
+                if (cancelled) {
+                    return;
+                }
+                if (!nodeTemplate) {
+                    setLoadError("Unable to load a memory template.");
                     return;
                 }
                 nodeTemplate.codedata.lineRange = endOfFile as any;
@@ -70,12 +81,15 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
                 setTemplate(nodeTemplate);
             } catch (error) {
                 console.error("Error loading memory template:", error);
+                if (!cancelled) {
+                    setLoadError("Unable to load a memory template.");
+                }
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [rpcClient]);
+    }, [rpcClient, loadAttempt]);
 
     const handleSubmit = async (updatedNode?: FlowNode) => {
         if (!updatedNode) {
@@ -101,6 +115,19 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
             setSubmitting(false);
         }
     };
+
+    if (loadError) {
+        return (
+            <LoaderWrapper>
+                <div role="alert">
+                    <p>{loadError}</p>
+                    <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                        Retry
+                    </Button>
+                </div>
+            </LoaderWrapper>
+        );
+    }
 
     if (!template || !targetLineRange) {
         return (
