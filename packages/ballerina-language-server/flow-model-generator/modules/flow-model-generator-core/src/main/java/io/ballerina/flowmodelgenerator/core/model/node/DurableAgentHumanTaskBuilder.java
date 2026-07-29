@@ -87,11 +87,14 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                 "Role(s) permitted to complete this task", "MANAGER", true);
         // The completion type drives the task inbox's completion form (schema generation and
         // runtime validation of the submitted payload) — typically a record type.
+        // Optional: the module defaults the completion type to anydata (a free-form
+        // completion form), so a declaration without resultType loads as a valid form.
         properties().custom()
                 .metadata()
                     .label("Completion Type")
                     .description("The type of the result a person submits when completing this task; "
-                            + "drives the completion form rendered in the task inbox")
+                            + "drives the completion form rendered in the task inbox. Defaults to "
+                            + "anydata (a free-form completion form)")
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.TYPE)
@@ -99,11 +102,12 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                     .selected(true)
                     .stepOut()
                 .codedata()
-                    .kind(ParameterData.Kind.REQUIRED.name())
+                    .kind(ParameterData.Kind.DEFAULTABLE.name())
                     .stepOut()
                 .placeholder("ApprovalResult")
                 .value("")
                 .editable(true)
+                .optional(true)
                 .stepOut()
                 .addProperty(RESULT_TYPE_KEY);
         addStringProperty(TITLE_KEY, "Title",
@@ -128,6 +132,7 @@ public class DurableAgentHumanTaskBuilder extends CallBuilder {
                     .kind(ParameterData.Kind.DEFAULTABLE.name())
                     .originalName(TIMEOUT_KEY)
                     .stepOut()
+                .imports("ballerina/time")
                 .placeholder("{hours: 4}")
                 .value("")
                 .editable(true)

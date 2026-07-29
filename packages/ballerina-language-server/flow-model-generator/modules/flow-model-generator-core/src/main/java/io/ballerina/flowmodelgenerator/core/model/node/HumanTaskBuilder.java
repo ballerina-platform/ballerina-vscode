@@ -294,6 +294,7 @@ public class HumanTaskBuilder extends CallBuilder {
                 .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType("time:Duration?").selected(true)
                     .stepOut()
                 .codedata().kind(ParameterData.Kind.DEFAULTABLE.name()).originalName(TIMEOUT_KEY).stepOut()
+                .imports("ballerina/time")
                 .value(values.get(TIMEOUT_KEY))
                 .editable(true)
                 .optional(true)
