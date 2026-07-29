@@ -893,10 +893,8 @@ public class AgentToolBuilder extends NodeBuilder {
             if (isIsolated) {
                 break;
             }
-            LinePosition startLine = lineRange.startLine();
-            int offset = startLine.offset() - SyntaxKind.FUNCTION_KEYWORD.stringValue().length() - 1;
-            int line = startLine.line();
-            Position position = new Position(line, offset);
+            LinePosition functionStart = functionDefinitionNode.functionKeyword().lineRange().startLine();
+            Position position = new Position(functionStart.line(), functionStart.offset());
             textEdits.add(new TextEdit(new Range(position, position), "isolated "));
             return functionFile;
         }
