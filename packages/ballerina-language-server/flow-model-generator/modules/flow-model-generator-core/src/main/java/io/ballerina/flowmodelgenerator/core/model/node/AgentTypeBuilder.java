@@ -54,7 +54,7 @@ public class AgentTypeBuilder extends ClassInitBuilder {
             Project project = PackageUtil.loadProject(resolvedContext.workspaceManager(),
                     resolvedContext.filePath());
             AiUtils.markClientConnectionParams(this, resolvedContext.codedata(), project);
-        } catch (Throwable ignored) {
+        } catch (Exception ignored) {
         }
     }
 
@@ -74,7 +74,7 @@ public class AgentTypeBuilder extends ClassInitBuilder {
                             context.codedata(), context.lsClientLogger());
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Exception ignored) {
         }
         return context;
     }
