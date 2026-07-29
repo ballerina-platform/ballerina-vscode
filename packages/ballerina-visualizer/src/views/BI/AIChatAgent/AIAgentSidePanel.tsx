@@ -30,7 +30,6 @@ import {
     ParentPopupData,
     BISearchRequest,
     CodeData,
-    AgentToolRequest,
     NodeMetadata,
     FunctionNode,
     FlowNode,
@@ -134,7 +133,11 @@ export interface BIFlowDiagramProps {
     onCancel?: () => void;
 }
 
-export interface ExtendedAgentToolRequest extends AgentToolRequest {
+export interface ExtendedAgentToolRequest {
+    toolName: string;
+    description: string;
+    selectedCodeData: CodeData;
+    toolParameters?: ToolParameters;
     functionNode?: FunctionNode;
     flowNode?: FlowNode;
     parameterImports?: { [prefix: string]: string };
