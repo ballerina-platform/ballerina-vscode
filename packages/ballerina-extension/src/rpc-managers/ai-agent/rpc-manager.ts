@@ -218,7 +218,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             mcpEdits = mcpToolKitEdits.textEdits;
         }
 
-        // 2. Update the agent's tools array to include the variable name (following updateAIAgentTools pattern)
+        // 2. Update the agent's tools array with the toolkit variable name.
         const agentFlowNode = params.agentFlowNode;
         let toolsValue = agentFlowNode.properties["tools"].value;
 
