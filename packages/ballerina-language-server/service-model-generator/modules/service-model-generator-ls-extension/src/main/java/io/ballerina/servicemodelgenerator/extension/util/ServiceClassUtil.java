@@ -251,9 +251,39 @@ public class ServiceClassUtil {
         }
         List<TextEdit> edits = new ArrayList<>(buildTypeImportEdits(modulePartNode, field));
         edits.add(new TextEdit(Utils.toRange(fieldNode.lineRange()), buildInjectedFieldString(field)));
-        edits.add(new TextEdit(Utils.toRange(parameter.lineRange()), buildParameterString(field)));
+        boolean wasDefaultable = parameter.kind() == SyntaxKind.DEFAULTABLE_PARAM;
+        if (wasDefaultable != hasDefaultValue(field)) {
+            edits.add(buildReorderedParameterEdit(init.functionSignature(), parameter, field));
+        } else {
+            edits.add(new TextEdit(Utils.toRange(parameter.lineRange()), buildParameterString(field)));
+        }
         edits.add(assignmentEdit);
         return edits;
+    }
+
+    private static TextEdit buildReorderedParameterEdit(FunctionSignatureNode signature, ParameterNode updatedParameter,
+                                                        Field field) {
+        List<String> requiredParameters = new ArrayList<>();
+        List<String> defaultableParameters = new ArrayList<>();
+        List<String> restParameters = new ArrayList<>();
+        for (ParameterNode parameter : signature.parameters()) {
+            String source = parameter == updatedParameter ? buildParameterString(field)
+                    : parameter.toSourceCode().strip();
+            if (parameter == updatedParameter ? hasDefaultValue(field)
+                    : parameter.kind() == SyntaxKind.DEFAULTABLE_PARAM) {
+                defaultableParameters.add(source);
+            } else if (parameter.kind() == SyntaxKind.REST_PARAM) {
+                restParameters.add(source);
+            } else {
+                requiredParameters.add(source);
+            }
+        }
+        requiredParameters.addAll(defaultableParameters);
+        requiredParameters.addAll(restParameters);
+        LineRange parameterRange = LineRange.from(signature.lineRange().fileName(),
+                signature.openParenToken().lineRange().endLine(),
+                signature.closeParenToken().lineRange().startLine());
+        return new TextEdit(Utils.toRange(parameterRange), String.join(", ", requiredParameters));
     }
 
     public static List<TextEdit> buildRemoveInitParameterEdits(ObjectFieldNode fieldNode, TextDocument textDocument) {
