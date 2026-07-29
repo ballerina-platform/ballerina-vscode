@@ -191,7 +191,7 @@
             "character": 0
           }
         },
-        "newText": "\njson result = check context->callActivity(activity:callRestAPI, {connection: httpClient, method: \"GET\", path: \"/users/1\"}, retryPolicy = workflow:ManualRetry);"
+        "newText": "\njson result = check context->callActivity(activity:callRestAPI, {connection: httpClient, method: \"GET\", path: \"/users/1\"}, retryPolicy = []);"
       }
     ]
   }

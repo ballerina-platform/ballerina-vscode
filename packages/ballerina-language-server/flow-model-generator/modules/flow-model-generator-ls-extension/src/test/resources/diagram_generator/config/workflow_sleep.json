@@ -93,7 +93,7 @@
         "metadata": {
           "label": "Sleep",
           "description": "Pause workflow execution for a specified duration",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.0.png"
         },
         "codedata": {
           "node": "SLEEP",
@@ -102,7 +102,7 @@
           "packageName": "workflow",
           "object": "Context",
           "symbol": "sleep",
-          "version": "0.7.0",
+          "version": "0.8.0",
           "lineRange": {
             "fileName": "workflow_sleep.bal",
             "startLine": {
