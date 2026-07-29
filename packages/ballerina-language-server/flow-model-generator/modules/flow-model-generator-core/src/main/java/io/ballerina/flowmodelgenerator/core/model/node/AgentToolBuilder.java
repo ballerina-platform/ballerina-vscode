@@ -851,6 +851,9 @@ public class AgentToolBuilder extends NodeBuilder {
 
     private static Path addIsolateKeyword(SemanticModel semanticModel, String name, Path filePath,
                                           List<TextEdit> textEdits, WorkspaceManager workspaceManager) {
+        if (semanticModel == null) {
+            return null;
+        }
         for (Symbol symbol : semanticModel.moduleSymbols()) {
             if (symbol.kind() != SymbolKind.FUNCTION) {
                 continue;
