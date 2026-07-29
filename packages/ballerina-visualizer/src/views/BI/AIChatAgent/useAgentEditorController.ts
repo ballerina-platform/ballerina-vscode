@@ -162,6 +162,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             })).filePath;
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
             nextPosition = response?.artifacts?.find((artifact) => artifact.name === name)?.position;
+        } catch (error) {
+            console.error("Failed to delete memory", error);
+            await rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to delete memory. The deletion may be partially applied.",
+            });
         } finally {
             setLoading(false);
             close(nextPosition);
@@ -213,6 +218,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     },
                 });
             }
+        } catch (error) {
+            console.error("Failed to delete tool", error);
+            await rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to delete tool. The deletion may be partially applied.",
+            });
         } finally {
             setLoading(false);
             close();
