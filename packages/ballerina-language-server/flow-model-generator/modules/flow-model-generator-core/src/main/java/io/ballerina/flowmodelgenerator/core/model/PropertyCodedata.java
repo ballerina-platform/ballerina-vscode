@@ -103,7 +103,7 @@ public record PropertyCodedata(String kind, String originalName, String dependen
             this.dependentProperty = source.dependentProperty();
             this.lineRange = source.lineRange();
             this.searchNodesKind = source.searchNodesKind();
-            this.data = source.data();
+            this.data = source.data() == null ? null : new LinkedHashMap<>(source.data());
             return this;
         }
 
