@@ -23,6 +23,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.ModuleID;
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
@@ -37,6 +38,7 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
@@ -74,6 +76,7 @@ import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -361,21 +364,24 @@ public class AgentsGenerator {
     }
 
     private static void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+        if (hostModule == null) {
+            acceptTypeImportsWithoutHostModule(typeSymbol, sourceBuilder);
+            return;
+        }
+        CommonUtils.getImportStatements(typeSymbol, hostModule)
+                .ifPresent(imports -> Arrays.stream(imports.split(",")).forEach(sourceBuilder::addImport));
+    }
+
+    private static void acceptTypeImportsWithoutHostModule(TypeSymbol typeSymbol, SourceBuilder sourceBuilder) {
         if (typeSymbol instanceof UnionTypeSymbol union) {
-            union.memberTypeDescriptors().forEach(member -> acceptTypeImports(member, hostModule, sourceBuilder));
+            union.memberTypeDescriptors().forEach(member -> acceptTypeImportsWithoutHostModule(member, sourceBuilder));
             return;
         }
         typeSymbol.getModule().ifPresent(moduleSymbol -> {
             ModuleID id = moduleSymbol.id();
-            if (id.orgName().equals(BALLERINA) && id.moduleName().startsWith("lang.")) {
-                return;
+            if (!id.orgName().equals(BALLERINA) || !id.moduleName().startsWith("lang.")) {
+                sourceBuilder.acceptImport(id.orgName(), id.moduleName());
             }
-            boolean sameModule = hostModule != null && id.orgName().equals(hostModule.org())
-                    && id.moduleName().equals(hostModule.moduleName());
-            if (sameModule) {
-                return;
-            }
-            sourceBuilder.acceptImport(id.orgName(), id.moduleName());
         });
     }
 

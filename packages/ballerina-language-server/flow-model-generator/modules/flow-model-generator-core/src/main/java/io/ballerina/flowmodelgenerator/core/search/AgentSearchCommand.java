@@ -300,7 +300,7 @@ public class AgentSearchCommand extends SearchCommand {
         BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
         Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
         if (workspaceProject.isEmpty()) {
-            return List.of();
+            return findAgentClasses(project);
         }
 
         List<AvailableNode> agents = new ArrayList<>();
