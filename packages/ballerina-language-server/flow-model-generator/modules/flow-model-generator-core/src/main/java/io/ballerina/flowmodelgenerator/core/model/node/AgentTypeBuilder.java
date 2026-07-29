@@ -26,6 +26,8 @@ import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
 import org.ballerinalang.langserver.common.utils.NameUtil;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,7 +56,7 @@ public class AgentTypeBuilder extends ClassInitBuilder {
             Project project = PackageUtil.loadProject(resolvedContext.workspaceManager(),
                     resolvedContext.filePath());
             AiUtils.markClientConnectionParams(this, resolvedContext.codedata(), project);
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
         }
     }
 
@@ -74,7 +76,7 @@ public class AgentTypeBuilder extends ClassInitBuilder {
                             context.codedata(), context.lsClientLogger());
                 }
             }
-        } catch (Exception ignored) {
+        } catch (WorkspaceDocumentException | EventSyncException | RuntimeException ignored) {
         }
         return context;
     }
