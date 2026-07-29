@@ -17,30 +17,9 @@
  * under the License.
  */
 
-import { NodePosition } from "@wso2/syntax-tree";
-import { CodeData, FlowNode, InputType, Metadata } from "../../interfaces/bi";
+import { FlowNode, InputType, Metadata } from "../../interfaces/bi";
 
 export type DefaultProviderKind = "model" | "embedding";
-
-export interface AgentTool {
-    toolName: string;
-    toolType: string;
-
-    // Function Related
-    functionState: number; // 1 = New, 2 = Existing
-    functionScope: string; // Current Integration | Library
-    functionName: string;
-    existingFunctionCodeData: CodeData;
-
-    //Connector Related
-    connectorState: number; // 1 = New, 2 = Existing
-
-    // For new connector option we will collect the config updated connectorFlowNode
-    connectorFlowNode: FlowNode;
-    // For both new and existing We will collect the action code data which can be used to the get the template of that "REMOTE_ACTION_CALL"
-    connectorActionCodeData: CodeData;
-    connectionName: string;
-}
 
 export interface ToolParameterFormValues {
     variable: string;
@@ -66,33 +45,6 @@ export interface ToolParameterItem {
         };
     };
     formValues: ToolParameterFormValues;
-}
-
-export interface AgentToolRequest {
-    toolName: string;
-    description: string;
-    selectedCodeData: CodeData; // Codedata can be FUNCTION_CALL | REMOTE_ACTION_CALL
-    toolParameters?: ToolParameters; // Optional: Parameters for the tool, can be an object or array
-}
-
-export interface AIAgentRequest {
-    agentFields: any[]; // Need to fix this type
-    modelFields: any[];
-    modelState: number; // 1 = New, 2 = Existing
-    selectedModel: string;
-    toolsFields: any[];
-    newTools: AgentToolRequest[];
-}
-export interface AIAgentToolsUpdateRequest {
-    agentFlowNode: FlowNode;
-    toolsFields: any[];
-    newTools: AgentToolRequest[];
-}
-
-export interface AIAgentResponse {
-    response: boolean;
-    filePath: string;
-    position: NodePosition;
 }
 
 export interface McpToolUpdateRequest {
