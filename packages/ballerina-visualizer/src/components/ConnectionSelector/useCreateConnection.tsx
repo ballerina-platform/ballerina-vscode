@@ -161,8 +161,10 @@ export function useCreateConnection(
                                 connectionKind={connectionKind}
                                 selectedNode={{ properties: { model: { value: "" } } } as unknown as FlowNode}
                                 nodeFormTemplate={flowNode}
-                                onSave={(node) => {
-                                    const varName = readCreatedVariable(node);
+                                onSave={(node, artifacts) => {
+                                    const varName = readCreatedVariable(node) || artifacts?.find(
+                                        (artifact) => artifact.isNew
+                                    )?.name;
                                     if (varName) {
                                         handleCreated(varName, onCreated);
                                     }
