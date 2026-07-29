@@ -954,7 +954,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             agentNode: agentEditor.diagramCallbacks,
         }),
         [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            agentEditor.diagramCallbacks, isAgentType]
+            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType]
     );
 
     const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
