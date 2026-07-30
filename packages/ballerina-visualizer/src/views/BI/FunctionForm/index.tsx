@@ -1021,13 +1021,17 @@ export function FunctionForm(props: FunctionFormProps) {
                         title={`${functionName ? 'Edit' : 'Create New'} ${formType.current}`}
                         subtitle={formSubtitle}
                     />
-                    {isLoading && (
+                    {(isLoading || (saving && !functionName)) && (
                         <LoadingContainer>
-                            <LoadingRing />
+                            <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
                         </LoadingContainer>
                     )}
+                    {/* While a new artifact is being created the form is replaced by the loader:
+                        the source is already written, so keeping the form mounted lets the name
+                        field re-validate against the freshly created function and flash a
+                        misleading "name already used" error. */}
                     <FormContainer>
-                        {filePath && targetLineRange && functionFields.length > 0 &&
+                        {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
                             <ArtifactForm
                                 fileName={filePath}
                                 nestedForm={true}

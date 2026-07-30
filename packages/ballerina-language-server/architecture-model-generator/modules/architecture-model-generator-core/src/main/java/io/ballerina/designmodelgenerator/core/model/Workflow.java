@@ -46,6 +46,9 @@ public final class Workflow extends DesignGraphNode {
     private final List<Event> events;
     private final List<HumanTask> humanTasks;
     private final Set<String> activities;
+    // Connections used directly by the entity (e.g. a durable agent's model provider);
+    // the overview draws workflow -> connection edges for these plus the activity-derived set.
+    private final Set<String> connections;
     private final Set<String> invalidSendDataServices;
     private final Set<String> invalidSendDataFunctions;
 
@@ -63,12 +66,21 @@ public final class Workflow extends DesignGraphNode {
         this.events = new ArrayList<>();
         this.humanTasks = new ArrayList<>();
         this.activities = new HashSet<>();
+        this.connections = new HashSet<>();
         this.invalidSendDataServices = new HashSet<>();
         this.invalidSendDataFunctions = new HashSet<>();
     }
 
     public String getKind() {
         return kind;
+    }
+
+    public Set<String> getConnections() {
+        return connections;
+    }
+
+    public void addConnection(String connectionUuid) {
+        this.connections.add(connectionUuid);
     }
 
     public Set<String> getInvalidSendDataServices() {

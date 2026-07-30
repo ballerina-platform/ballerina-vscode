@@ -47,6 +47,8 @@ export type CDWorkflow = {
     events?: CDWorkflowEvent[];
     humanTasks?: CDWorkflowHumanTask[];
     activities?: string[];
+    // Connections used directly by the entity (e.g. a durable agent's model provider).
+    connections?: string[];
     invalidSendDataServices?: string[];
     invalidSendDataFunctions?: string[];
     uuid: string;

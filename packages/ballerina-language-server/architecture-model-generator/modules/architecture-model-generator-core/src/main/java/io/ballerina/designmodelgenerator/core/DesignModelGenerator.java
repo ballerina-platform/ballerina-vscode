@@ -391,12 +391,20 @@ public class DesignModelGenerator {
             }
             for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
                 if (!(field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField)
-                        || specificField.valueExpr().isEmpty()
-                        || !(specificField.valueExpr().get()
-                                instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                        || specificField.valueExpr().isEmpty()) {
                     continue;
                 }
                 String fieldName = specificField.fieldName().toSourceCode().trim();
+                io.ballerina.compiler.syntax.tree.ExpressionNode valueExpr = specificField.valueExpr().get();
+                // The model provider is a module-level client — link it so the overview draws
+                // the agent -> model-provider connection edge.
+                if ("model".equals(fieldName)) {
+                    linkAgentModelProvider(intermediateModel, agent, valueExpr);
+                    continue;
+                }
+                if (!(valueExpr instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                    continue;
+                }
                 switch (fieldName) {
                     case "events" -> populateAgentEvents(agent, list);
                     case "humanTasks" -> populateAgentHumanTasks(agent, list);
@@ -433,6 +441,29 @@ public class DesignModelGenerator {
             if (name != null) {
                 agent.addHumanTask(new Workflow.HumanTask(name, getLocation(item.lineRange())));
             }
+        }
+    }
+
+    // The agent's `model: <var>` config field references a module-level model-provider client;
+    // resolve the variable to its overview connection (keyed by the symbol location, same as
+    // populateModuleLevelConnections) and record the edge on the agent.
+    private void linkAgentModelProvider(IntermediateModel intermediateModel, Workflow agent,
+                                        io.ballerina.compiler.syntax.tree.ExpressionNode valueExpr) {
+        if (valueExpr.kind() != SyntaxKind.SIMPLE_NAME_REFERENCE) {
+            return;
+        }
+        String providerVarName = valueExpr.toSourceCode().trim();
+        for (Symbol symbol : this.semanticModel.moduleSymbols()) {
+            if (!(symbol instanceof VariableSymbol) || symbol.getName().isEmpty()
+                    || !providerVarName.equals(symbol.getName().get()) || symbol.getLocation().isEmpty()) {
+                continue;
+            }
+            Connection connection = intermediateModel.connectionMap
+                    .get(String.valueOf(symbol.getLocation().get().hashCode()));
+            if (connection != null) {
+                agent.addConnection(connection.getUuid());
+            }
+            return;
         }
     }
 

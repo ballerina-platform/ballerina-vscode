@@ -296,16 +296,25 @@ export namespace NodeStyles {
         | "leftMiddleLower"
         | "rightMiddleUpper"
         | "rightMiddleLower"
+        | "bottomLeftOuter"
+        | "bottomLeftInner"
+        | "bottomRightOuter"
+        | "bottomRightInner"
         | "topRight";
 
     // The capability affordances sit in vertically stacked pairs at the box's left and
     // right middles (people-facing capabilities left, execution capabilities right), so
-    // they are all visible at a glance; the model configuration stays top-right.
+    // they are all visible at a glance; the model configuration stays top-right. A side
+    // with no capabilities yet parks its pair at the bottom corner instead.
     const anchorPosition: Record<AffordanceAnchorName, string> = {
         leftMiddleUpper: "top: calc(50% - 32px); left: -14px;",
         leftMiddleLower: "top: calc(50% + 4px); left: -14px;",
         rightMiddleUpper: "top: calc(50% - 32px); right: -14px;",
         rightMiddleLower: "top: calc(50% + 4px); right: -14px;",
+        bottomLeftOuter: "bottom: -14px; left: -14px;",
+        bottomLeftInner: "bottom: -14px; left: 22px;",
+        bottomRightOuter: "bottom: -14px; right: -14px;",
+        bottomRightInner: "bottom: -14px; right: 22px;",
         topRight: "top: -14px; right: -14px;",
     };
 
@@ -399,16 +408,41 @@ type CapabilityItem = {
 // Capabilities addable from the agent box's "+" affordances, each pinned to a fixed anchor.
 type AddableCapability = "humanTask" | "event" | "activity" | "agentTool" | "model";
 
-const ADD_AFFORDANCES: {
+// Anchors per capability kind: a side that already has capability circles keeps its pair at
+// the box middle (next to the circles); an empty side parks the pair at the bottom corner.
+const getAddAffordances = (
+    leftEmpty: boolean,
+    rightEmpty: boolean
+): {
     kind: AddableCapability;
     label: string;
     icon: string;
     anchor: NodeStyles.AffordanceAnchorName;
-}[] = [
-    { kind: "humanTask", label: "Add Human Task", icon: "bi-user", anchor: "leftMiddleUpper" },
-    { kind: "event", label: "Add Data Event", icon: "bi-import", anchor: "leftMiddleLower" },
-    { kind: "activity", label: "Add Activity", icon: "bi-task", anchor: "rightMiddleUpper" },
-    { kind: "agentTool", label: "Add Agent Tool", icon: "bi-function", anchor: "rightMiddleLower" },
+}[] => [
+    {
+        kind: "humanTask",
+        label: "Add Human Task",
+        icon: "bi-user",
+        anchor: leftEmpty ? "bottomLeftOuter" : "leftMiddleUpper",
+    },
+    {
+        kind: "event",
+        label: "Add Data Event",
+        icon: "bi-import",
+        anchor: leftEmpty ? "bottomLeftInner" : "leftMiddleLower",
+    },
+    {
+        kind: "activity",
+        label: "Add Activity",
+        icon: "bi-task",
+        anchor: rightEmpty ? "bottomRightInner" : "rightMiddleUpper",
+    },
+    {
+        kind: "agentTool",
+        label: "Add Agent Tool",
+        icon: "bi-function",
+        anchor: rightEmpty ? "bottomRightOuter" : "rightMiddleLower",
+    },
     { kind: "model", label: "Configure Model", icon: "bi-ai-model", anchor: "topRight" },
 ];
 
@@ -625,6 +659,9 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         ...(nodeMetadata?.humanTasks || []).map((humanTask: AgentCapability): CapabilityItem => ({ data: humanTask, kind: "humanTask" })),
         ...(nodeMetadata?.events || []).map((event: AgentCapability): CapabilityItem => ({ data: event, kind: "event" })),
     ];
+
+    // Empty sides park their add-affordances at the bottom corners instead of the middles.
+    const addAffordances = getAddAffordances(leftItems.length === 0, rightItems.length === 0);
 
     // Row 0 is the model circle on the right (and the first left item, if any).
     const numberOfRows = Math.max(leftItems.length, rightItems.length + 1);
@@ -1043,7 +1080,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                 {/* Capability add-affordances at fixed anchors; the model affordance hides
                     once the declaration has a model. */}
                 {!readOnly && !isAgentReference &&
-                    ADD_AFFORDANCES
+                    addAffordances
                         .filter((affordance) => affordance.kind !== "model" || !nodeMetadata?.model)
                         .map((affordance) => (
                         <NodeStyles.AffordanceButton
@@ -1068,10 +1105,10 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                     >
                         <span>+</span>
                         <Icon
-                            name={ADD_AFFORDANCES.find((a) => a.kind === addingCapability)?.icon || "bi-plus"}
+                            name={addAffordances.find((a) => a.kind === addingCapability)?.icon || "bi-plus"}
                             sx={{ width: 14, height: 14, fontSize: 14 }}
                         />
-                        <span>{ADD_AFFORDANCES.find((a) => a.kind === addingCapability)?.label.replace(/^Add /, "").replace(/^Configure /, "")}</span>
+                        <span>{addAffordances.find((a) => a.kind === addingCapability)?.label.replace(/^Add /, "").replace(/^Configure /, "")}</span>
                     </NodeStyles.AddingPill>
                 )}
             </NodeStyles.Box>
