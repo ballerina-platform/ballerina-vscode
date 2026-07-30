@@ -1,0 +1,106 @@
+{
+  "source": "durable_agent_module.bal",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "description": "Register AgentTool node template with ToolDecl gating fields",
+  "codedata": {
+    "node": "DURABLE_AGENT_REGISTER_TOOL",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Register AgentTool",
+      "description": "Register an AI tool the agent can invoke"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_REGISTER_TOOL",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "AgenticWorkflowContext",
+      "symbol": "registerAgentTool",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "tool": {
+        "metadata": {
+          "label": "Tool",
+          "description": "The @ai:AgentTool function to register with the agent"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval",
+          "description": "Gate this tool: before the agent runs it, a review activity is created and the agent suspends durably until a reviewer proceeds (optionally editing the arguments) or rejects."
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "ballerinaType": "boolean",
+            "selected": true
+          }
+        ],
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "Reviewer Roles",
+          "description": "Role(s) permitted to decide the approval review of this tool, e.g. \"support-lead\" or [\"finance\", \"manager\"]."
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "placeholder": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

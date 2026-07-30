@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
     FlowNode,
@@ -52,6 +53,16 @@ const Container = styled.div`
     height: 100%;
 `;
 
+const EmptyToolListContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px 16px;
+    text-align: center;
+`;
+
 export enum SidePanelView {
     NODE_LIST = "NODE_LIST",
     FORM = "FORM",
@@ -75,6 +86,7 @@ export enum SidePanelView {
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
     NEW_AGENT = "NEW_AGENT",
     ADD_TOOL = "ADD_TOOL",
+    ADD_DURABLE_TOOL_EMPTY = "ADD_DURABLE_TOOL_EMPTY",
     NEW_TOOL = "NEW_TOOL",
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
     NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
@@ -169,6 +181,7 @@ interface PanelManagerProps {
     onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
     onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
     onAddTool?: (node: FlowNode) => void;
+    onCreateAgentTool?: () => void;
     onAddMcpServer?: (node: FlowNode) => void;
     onSelectNewConnection?: (nodeId: string, metadata?: any) => void;
     onSelectConnectorPopup?: (nodeId: string, metadata?: any) => void;
@@ -246,6 +259,7 @@ export function PanelManager(props: PanelManagerProps) {
         onSelectConnectorPopup,
         onUpdateNodeWithConnection,
         onNavigateToPanel,
+        onCreateAgentTool,
         errorMessage,
         onImportDevantConn,
         onLinkDevantProject,
@@ -327,6 +341,18 @@ export function PanelManager(props: PanelManagerProps) {
                         onUseMcpServer={handleOnUseMcpServer}
                         onSave={onClose}
                     />
+                );
+
+            case SidePanelView.ADD_DURABLE_TOOL_EMPTY:
+                return (
+                    <EmptyToolListContainer>
+                        <Typography variant="body2" sx={{ color: ThemeColors.ON_SURFACE_VARIANT }}>
+                            No tools available to use.
+                        </Typography>
+                        <Button appearance="primary" onClick={() => onCreateAgentTool?.()}>
+                            Create a Tool
+                        </Button>
+                    </EmptyToolListContainer>
                 );
 
             case SidePanelView.ADD_MCP_SERVER:

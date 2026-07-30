@@ -381,6 +381,8 @@ export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, cli
             return "Configure Tool";
         case SidePanelView.ADD_TOOL:
             return "Add Tool";
+        case SidePanelView.ADD_DURABLE_TOOL_EMPTY:
+            return "Add Agent Tool";
         case SidePanelView.ADD_MCP_SERVER:
             return "Add MCP Server";
         case SidePanelView.EDIT_MCP_SERVER:

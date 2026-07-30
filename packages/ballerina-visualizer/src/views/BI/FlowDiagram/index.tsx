@@ -186,6 +186,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // (`final workflow:DurableAgent x = ...`): capability forms must edit the declaration's
     // config literal, so their codedata targets the agent variable instead of ctx statements.
     const durableAgentObjectVarRef = useRef<string | null>(null);
+    // Set while the durable-agent "Add Agent Tool" flow found no @ai:AgentTool functions and
+    // showed the "no tools" CTA panel instead of the register form. Holds the run node (and the
+    // file name captured at that time, since the popup-submitted callback closes over a stale
+    // `model`) so the register-tool form can reopen with a fresh tool list after the
+    // tool-creation popup submits.
+    const pendingDurableToolNodeRef = useRef<{ node: FlowNode; fileName?: string } | null>(null);
     const initialCategoriesRef = useRef<any[]>([]);
     const showEditForm = useRef<boolean>(false);
     // True while the call form open is step 3 of the create-activity-from-connection wizard.
@@ -260,6 +266,18 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             }
             setSearchText("");
             if (parent.artifactType === DIRECTORY_MAP.AGENT_TOOL) {
+                const pendingDurableTool = pendingDurableToolNodeRef.current;
+                if (pendingDurableTool) {
+                    // A tool was just created from the durable-agent "no tools" CTA panel —
+                    // reopen the register-tool form with the refreshed tool list, preselecting
+                    // the freshly created tool.
+                    pendingDurableToolNodeRef.current = null;
+                    handleOnAddDurableTool(pendingDurableTool.node, {
+                        fileName: pendingDurableTool.fileName,
+                        preselectTool: parent.recentIdentifier,
+                    });
+                    return;
+                }
                 // Agent tool creation is handled by AIAgentSidePanel — skip to avoid interfering
                 return;
             }
@@ -953,6 +971,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnCloseSidePanel = () => {
+        pendingDurableToolNodeRef.current = null;
         resetNodeSelectionStates();
         // Cancel draft and return to previous flow model
         if (hasDraft) {
@@ -3153,11 +3172,19 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     // Registers an agent tool on the durable agent, inserted BEFORE the buildAndRunAgent call.
-    const handleOnAddDurableTool = async (runNode: FlowNode) => {
+    // When the project has no @ai:AgentTool functions the register form is replaced with a
+    // "no tools" CTA panel that opens the shared tool-creation popup. `options` carries the
+    // context needed when this is re-invoked after that popup submits: `fileName` (the popup
+    // callback closes over a stale `model`) and `preselectTool` (the freshly created tool).
+    const handleOnAddDurableTool = async (
+        runNode: FlowNode,
+        options?: { fileName?: string; preselectTool?: string }
+    ) => {
         durableAgentObjectVarRef.current = runNode.codedata?.object === "DurableAgent"
             ? ((runNode.metadata?.data as any)?.agentName ?? null)
             : null;
 
+        const filePath = options?.fileName ?? model?.fileName;
         const insertBefore = {
             startLine: runNode.codedata.lineRange.startLine,
             endLine: runNode.codedata.lineRange.startLine,
@@ -3169,11 +3196,33 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             .getBIDiagramRpcClient()
             .getNodeTemplate({
                 position: insertBefore.startLine,
-                filePath: model?.fileName,
+                filePath: filePath,
                 id: { node: "DURABLE_AGENT_REGISTER_TOOL" },
             })
             .then((response) => {
                 applyDurableAgentObjectTarget(response.flowNode);
+                const toolProperty = (response.flowNode.properties as any)?.["tool"];
+                const toolOptions: Array<{ label: string; value: string }> | undefined =
+                    toolProperty?.types?.[0]?.options;
+                if (!toolOptions || toolOptions.length === 0) {
+                    // No @ai:AgentTool functions in the project — show the "no tools" CTA
+                    // panel and remember the run node so the register form reopens once a
+                    // tool is created via the popup.
+                    pendingDurableToolNodeRef.current = { node: runNode, fileName: filePath };
+                    setSidePanelView(SidePanelView.ADD_DURABLE_TOOL_EMPTY);
+                    setShowSidePanel(true);
+                    return;
+                }
+                pendingDurableToolNodeRef.current = null;
+                if (options?.preselectTool) {
+                    const preselected = toolOptions.find(
+                        (option) =>
+                            option.value === options.preselectTool || option.label === options.preselectTool
+                    );
+                    if (preselected) {
+                        toolProperty.value = preselected.value;
+                    }
+                }
                 selectedNodeRef.current = response.flowNode;
                 nodeTemplateRef.current = response.flowNode;
                 showEditForm.current = false;
@@ -3183,6 +3232,20 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             .finally(() => {
                 setShowProgressIndicator(false);
             });
+    };
+
+    // Opens the shared agent-tool creation popup (the same utility AIAgentSidePanel uses) from
+    // the durable-agent "no tools" CTA panel. Once it submits, onParentPopupSubmitted reopens
+    // the register-tool form via pendingDurableToolNodeRef.
+    const handleOnCreateAgentToolForDurable = () => {
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIAgentToolForm,
+                artifactType: DIRECTORY_MAP.AGENT_TOOL,
+            },
+            isPopup: true,
+        });
     };
 
     // Opens the edit form for an already-registered activity or human task (from clicking its
@@ -3940,6 +4003,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSelectTool={handleOnSelectTool}
                 onDeleteTool={handleOnDeleteTool}
                 onAddTool={handleOnAddTool}
+                onCreateAgentTool={handleOnCreateAgentToolForDurable}
                 onAddMcpServer={handleOnAddMcpServer}
                 onSelectNewConnection={handleOnSelectNewConnection}
                 onSelectConnectorPopup={handleOnSelectConnectorConfiguration}

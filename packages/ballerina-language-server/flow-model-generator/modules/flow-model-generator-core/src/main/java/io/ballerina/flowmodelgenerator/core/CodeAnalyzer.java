@@ -1175,7 +1175,8 @@ public class CodeAnalyzer extends NodeVisitor {
                         Map.of("activity", "activity", "name", "name", "description", "description",
                                 "requiresApproval", "requiresApproval", "userRoles", "userRoles"), activities);
                 case "tools", "peers" -> collectDeclaredCapabilities(valueExpr, "tool", "tool",
-                        Map.of("tool", "tool", "name", "name", "description", "description"), agentTools);
+                        Map.of("tool", "tool", "name", "name", "description", "description",
+                                "requiresApproval", "requiresApproval", "userRoles", "userRoles"), agentTools);
                 case "events" -> collectDeclaredCapabilities(valueExpr, "event", null,
                         Map.of("name", "name", "request", "requestType", "response", "responseType",
                                 "cardinality", "cardinality"), updateEvents);
