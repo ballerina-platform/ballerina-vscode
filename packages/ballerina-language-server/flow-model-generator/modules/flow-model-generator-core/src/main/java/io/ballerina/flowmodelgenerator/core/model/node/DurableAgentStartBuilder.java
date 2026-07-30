@@ -41,7 +41,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
 /**
  * Starts a durable agent instance. Mirrors the driver signature
  * {@code run(string query, anydata input = ())} and generates
- * {@code string <var> = check <agent>.run(<query>[, <input>]);} — always binding the new
+ * {@code string instanceId = check agent.run(query, input);} — always binding the new
  * instance ID, never the result (a durable agent may suspend for days on a human task).
  *
  * @since 1.8.0

@@ -40,8 +40,8 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
 
 /**
  * Reads the agent's answer for a specific data-event turn by its correlation token. With Wait
- * for Answer checked it generates {@code <T> <var> = check <agent>.waitForDataResult(<instanceId>,
- * <token>);}; unchecked it uses {@code getDataResult}, which returns a
+ * for Answer checked it generates {@code string reply = check agent.waitForDataResult(instanceId,
+ * token);}; unchecked it uses {@code getDataResult}, which returns a
  * {@code workflow:AgentBusyError} while the turn is unanswered.
  *
  * @since 1.8.0

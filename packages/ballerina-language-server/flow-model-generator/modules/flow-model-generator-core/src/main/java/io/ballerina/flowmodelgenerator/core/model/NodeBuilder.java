@@ -51,10 +51,10 @@ import io.ballerina.flowmodelgenerator.core.model.node.DataMapperCreationBuilder
 import io.ballerina.flowmodelgenerator.core.model.node.DataMapperDefinitionBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentAddActivityBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentDataResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentHumanTaskBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRegisterEventBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRegisterToolBuilder;
-import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentDataResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRunBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentStartBuilder;

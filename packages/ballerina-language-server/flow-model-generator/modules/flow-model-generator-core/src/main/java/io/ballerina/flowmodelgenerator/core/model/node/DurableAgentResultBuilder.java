@@ -40,7 +40,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
 
 /**
  * Reads a durable agent instance's final result. With Wait for Result checked it generates
- * {@code <T> <var> = check <agent>.waitForResult(<instanceId>);} (durably suspends inside a
+ * {@code string result = check agent.waitForResult(instanceId);} (durably suspends inside a
  * workflow, resumable from a service); unchecked it uses {@code getResult}, which returns a
  * {@code workflow:AgentBusyError} while the instance is still working.
  *
