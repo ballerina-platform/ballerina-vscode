@@ -66,6 +66,13 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Manages source edits for class-owned nodes.
+ *
+ * <p>Maintains their fields, constructor initialization, imports, generated toolkit classes</p>
+ *
+ * @since 1.8.0
+ */
 public final class ClassMemberManager {
     private static final String INDENT = "    ";
     private static final String TOOLS_ARG = "tools";
