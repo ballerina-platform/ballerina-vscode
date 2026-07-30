@@ -3614,7 +3614,7 @@
     },
     {
       "name": "workflow",
-      "version": "0.4.0",
+      "version": "0.8.0",
       "description": "The `ballerina/workflow` library provides durable, fault-tolerant workflow orchestration for Ballerina applications. It lets you define long-running business processes — spanning minutes, hours, or days — that automatically recover from crashes and process restarts without losing progress."
     },
     {
