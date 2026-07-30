@@ -724,13 +724,18 @@ export class NodeFactoryVisitor implements BaseVisitor {
         // [Start, agent box], so a start node has already been visited. Link it to the
         // box with a non-editable edge (no add-button).
         const isAgentBox = (node.metadata?.data as { agentBox?: boolean })?.agentBox === true;
+        // Only the synthetic declaration-canvas copy (agent-only view) gets the non-editable
+        // Start edge — an in-chain `agent.run(...)` statement also carries the agentBox marker
+        // but is a real statement, so its edges keep the add-button.
+        const isDeclarationCanvasBox =
+            node.id === "durable-agent-box" || node.id === "durable-agent-placeholder";
         if (!isAgentBox) {
             this.updateNodeLinks(node, nodeModel);
-        } else if (this.lastNodeModel instanceof StartNodeModel) {
+        } else if (isDeclarationCanvasBox && this.lastNodeModel instanceof StartNodeModel) {
             this.updateNodeLinks(node, nodeModel, { showAddButton: false });
         } else if (this.lastNodeModel) {
             // Object-model agent box rendered in-chain (an `agent.run(...)` statement inside a
-            // workflow function): keep the normal chain links.
+            // workflow function or resource): keep the normal chain links.
             this.updateNodeLinks(node, nodeModel);
         }
         this.addSuggestionsButton(node);

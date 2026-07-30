@@ -1,0 +1,126 @@
+{
+  "source": "durable_agent_module.bal",
+  "description": "Get Agent Data Result waits for the turn's answer by its token",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Get Agent Data Result waits for the turn's answer by its token"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_DATA_RESULT",
+      "org": "ballerina",
+      "module": "workflow",
+      "lineRange": {
+        "fileName": "durable_agent_module.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "supportAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "agentId": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "token": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "eventToken",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "waitForAnswer": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "TYPE",
+        "value": "string",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "variable": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "IDENTIFIER",
+        "value": "agentReply",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "branches": [],
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_module.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nstring agentReply = check supportAgent.waitForDataResult(instanceId, eventToken);"
+      }
+    ]
+  }
+}

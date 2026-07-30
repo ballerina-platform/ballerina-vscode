@@ -542,6 +542,124 @@ public class WorkflowUtil {
     }
 
     /**
+     * Lists the project's module-level {@code workflow:DurableAgent} variables as dropdown
+     * options, one per agent. Shared by the agent driver forms (run/send data/read results).
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the form is opened in
+     * @return dropdown options, one per durable agent variable
+     */
+    public static List<io.ballerina.flowmodelgenerator.core.model.Option> durableAgentOptions(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath) {
+        List<io.ballerina.flowmodelgenerator.core.model.Option> options = new java.util.ArrayList<>();
+        io.ballerina.projects.Package currentPackage =
+                io.ballerina.modelgenerator.commons.PackageUtil.loadProject(workspaceManager, filePath)
+                        .currentPackage();
+        io.ballerina.modelgenerator.commons.PackageUtil.getCompilation(currentPackage);
+        currentPackage.modules().forEach(module ->
+                module.getCompilation().getSemanticModel().moduleSymbols().stream()
+                        .filter(symbol -> symbol.kind() == SymbolKind.VARIABLE)
+                        .filter(WorkflowUtil::isDurableAgentVariable)
+                        .forEach(symbol -> symbol.getName().ifPresent(name -> options.add(
+                                new io.ballerina.flowmodelgenerator.core.model.Option(name, name)))));
+        return options;
+    }
+
+    /**
+     * Lists the data-event channel names declared across the default module's durable agent
+     * declarations ({@code events: [{name: "...", ...}]}). Data-event channels are declared on
+     * the agent — the call-site forms offer them as a fixed dropdown rather than free text.
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the form is opened in
+     * @return dropdown options, one per declared event channel (deduplicated, source order)
+     */
+    public static List<io.ballerina.flowmodelgenerator.core.model.Option> declaredAgentEventOptions(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath) {
+        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
+        io.ballerina.projects.Project project;
+        try {
+            project = workspaceManager.loadProject(filePath);
+        } catch (Exception e) {
+            return List.of();
+        }
+        io.ballerina.projects.Module module = project.currentPackage().getDefaultModule();
+        for (io.ballerina.projects.DocumentId documentId : module.documentIds()) {
+            Document document = module.document(documentId);
+            ModulePartNode root = document.syntaxTree().rootNode();
+            for (io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode member : root.members()) {
+                if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
+                    continue;
+                }
+                String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
+                if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
+                        && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                    continue;
+                }
+                io.ballerina.compiler.syntax.tree.ExpressionNode initializer = varDecl.initializer().get();
+                if (initializer instanceof io.ballerina.compiler.syntax.tree.CheckExpressionNode checkExpr) {
+                    initializer = checkExpr.expression();
+                }
+                io.ballerina.compiler.syntax.tree.SeparatedNodeList
+                        <io.ballerina.compiler.syntax.tree.FunctionArgumentNode> args;
+                if (initializer instanceof io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode newExpr
+                        && newExpr.parenthesizedArgList().isPresent()) {
+                    args = newExpr.parenthesizedArgList().get().arguments();
+                } else if (initializer
+                        instanceof io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode explicitNew) {
+                    args = explicitNew.parenthesizedArgList().arguments();
+                } else {
+                    continue;
+                }
+                if (args.isEmpty()
+                        || !(args.get(0) instanceof io.ballerina.compiler.syntax.tree.PositionalArgumentNode pos)
+                        || !(pos.expression()
+                                instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode conf)) {
+                    continue;
+                }
+                collectDeclaredEventNames(conf, names);
+            }
+        }
+        return names.stream()
+                .map(name -> new io.ballerina.flowmodelgenerator.core.model.Option(name, name))
+                .toList();
+    }
+
+    // Collects the `name` field of each mapping entry in the config's `events` list.
+    private static void collectDeclaredEventNames(
+            io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config,
+            java.util.Set<String> names) {
+        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
+            if (!(field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField)
+                    || specificField.valueExpr().isEmpty()
+                    || !"events".equals(specificField.fieldName().toSourceCode().trim())
+                    || !(specificField.valueExpr().get()
+                            instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                continue;
+            }
+            for (Node item : list.expressions()) {
+                if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
+                    continue;
+                }
+                for (io.ballerina.compiler.syntax.tree.MappingFieldNode entryField
+                        : ((io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode) item).fields()) {
+                    if (entryField instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode entry
+                            && entry.valueExpr().isPresent()
+                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
+                        String raw = entry.valueExpr().get().toSourceCode().trim();
+                        if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
+                            raw = raw.substring(1, raw.length() - 1);
+                        }
+                        if (!raw.isEmpty()) {
+                            names.add(raw);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Whether the node targets an object-model durable agent declaration: the codedata carries
      * the {@code DurableAgent} object and the agent variable as the parent symbol.
      *

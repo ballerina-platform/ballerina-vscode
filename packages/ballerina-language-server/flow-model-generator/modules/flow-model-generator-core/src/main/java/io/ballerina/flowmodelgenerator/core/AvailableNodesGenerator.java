@@ -590,8 +590,14 @@ public class AvailableNodesGenerator {
                         NodeKind.SEND_DATA));
             }
             if (hasDurableAgents) {
+                workflowNodes.add(workflowNode(Workflow.AGENT_START_LABEL, Workflow.AGENT_START_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_START));
                 workflowNodes.add(workflowNode(Workflow.AGENT_SEND_DATA_LABEL, Workflow.AGENT_SEND_DATA_DESCRIPTION,
                         NodeKind.DURABLE_AGENT_UPDATE));
+                workflowNodes.add(workflowNode(Workflow.AGENT_RESULT_LABEL, Workflow.AGENT_RESULT_DESCRIPTION,
+                        NodeKind.DURABLE_AGENT_RESULT));
+                workflowNodes.add(workflowNode(Workflow.AGENT_DATA_RESULT_LABEL,
+                        Workflow.AGENT_DATA_RESULT_DESCRIPTION, NodeKind.DURABLE_AGENT_DATA_RESULT));
             }
         }
 

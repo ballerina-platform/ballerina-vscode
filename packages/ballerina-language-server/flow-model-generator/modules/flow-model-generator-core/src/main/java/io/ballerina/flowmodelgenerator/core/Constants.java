@@ -212,6 +212,19 @@ public class Constants {
         public static final String AGENT_SEND_DATA_LABEL = "Send Agent Data Event";
         public static final String AGENT_SEND_DATA_DESCRIPTION =
                 "Send a data event to a running durable agent and read its answer for that turn";
+        public static final String AGENT_START_METHOD_NAME = "run";
+        public static final String AGENT_START_LABEL = "Run Durable Agent";
+        public static final String AGENT_START_DESCRIPTION =
+                "Start a durable agent instance and bind its instance ID";
+        public static final String AGENT_GET_RESULT_METHOD_NAME = "getResult";
+        public static final String AGENT_WAIT_RESULT_METHOD_NAME = "waitForResult";
+        public static final String AGENT_RESULT_LABEL = "Get Agent Result";
+        public static final String AGENT_RESULT_DESCRIPTION =
+                "Read a durable agent instance's final result";
+        public static final String AGENT_GET_DATA_RESULT_METHOD_NAME = "getDataResult";
+        public static final String AGENT_DATA_RESULT_LABEL = "Get Agent Data Result";
+        public static final String AGENT_DATA_RESULT_DESCRIPTION =
+                "Read the agent's answer for a sent data event by its correlation token";
     }
 
     // Constants used for AI

@@ -18,20 +18,17 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
-import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
-import io.ballerina.projects.Package;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -61,7 +58,8 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
     public static final String EVENT_NAME_KEY = "eventName";
     public static final String EVENT_NAME_LABEL = "Data Event";
     public static final String EVENT_NAME_DOC =
-            "An event channel declared in the agent's `events` (\"chat\" for conversational agents)";
+            "An event channel declared in the agent's `events`. New channels are declared on the "
+                    + "durable agent itself (Add Data Event on the agent diagram), not here";
     public static final String DATA_KEY = "data";
     public static final String DATA_LABEL = "Data";
     public static final String DATA_DOC = "The data payload sent on the channel; must match its request type";
@@ -75,7 +73,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
 
     private static final String STRING_TYPE = "string";
     private static final String ANYDATA_TYPE = "anydata";
-    private static final String DEFAULT_EVENT = "\"chat\"";
+    private static final String DEFAULT_EVENT_NAME = "chat";
     private static final String DEFAULT_RESULT_VAR = "agentReply";
     private static final String DEFAULT_RESULT_TYPE = "string";
     private static final String DEFAULT_TOKEN_VAR = "eventToken";
@@ -101,7 +99,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.SINGLE_SELECT)
-                    .options(getDurableAgentFunctions(context))
+                    .options(WorkflowUtil.durableAgentOptions(context.workspaceManager(), context.filePath()))
                     .selected(true)
                     .stepOut()
                 .codedata()
@@ -130,20 +128,29 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .stepOut()
                 .addProperty(AGENT_ID_KEY);
 
+        // Channels are declared on the agent (Add Data Event), so the call site offers them
+        // as a fixed dropdown; the conversational default "chat" is offered when no channel
+        // is declared yet.
+        List<Option> eventOptions =
+                WorkflowUtil.declaredAgentEventOptions(context.workspaceManager(), context.filePath());
+        if (eventOptions.isEmpty()) {
+            eventOptions = List.of(new Option(DEFAULT_EVENT_NAME, DEFAULT_EVENT_NAME));
+        }
         properties().custom()
                 .metadata()
                     .label(EVENT_NAME_LABEL)
                     .description(EVENT_NAME_DOC)
                     .stepOut()
                 .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_TYPE)
+                    .fieldType(Property.ValueType.SINGLE_SELECT)
+                    .options(eventOptions)
                     .selected(true)
                     .stepOut()
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
-                .value(DEFAULT_EVENT)
+                .placeholder("Select a data event")
+                .value(eventOptions.size() == 1 ? eventOptions.get(0).value() : "")
                 .editable(true)
                 .stepOut()
                 .addProperty(EVENT_NAME_KEY);
@@ -178,7 +185,8 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .stepOut()
                 .addProperty(WAIT_KEY);
 
-        // The agent's answer for the turn; updateAgent is dependently typed on the variable type.
+        // The agent's answer is dependently typed on the variable type; the property stays
+        // hidden (defaulted) so the form has no read-only Result Type field.
         properties().custom()
                 .metadata()
                     .label("Result Type")
@@ -187,6 +195,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .type().fieldType(Property.ValueType.TYPE).ballerinaType(DEFAULT_RESULT_TYPE).selected(true).stepOut()
                 .value(DEFAULT_RESULT_TYPE)
                 .editable(true)
+                .hidden()
                 .stepOut()
                 .addProperty(Property.TYPE_KEY);
         properties().data(Property.RESULT_NAME, context.getAllVisibleSymbolNames(),
@@ -198,7 +207,9 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
         String agent = requireValue(sourceBuilder, AGENT_KEY, "A durable agent function must be selected");
         String agentId = requireValue(sourceBuilder, AGENT_ID_KEY, "The agent ID is required");
-        String eventName = requireValue(sourceBuilder, EVENT_NAME_KEY, "The event name is required");
+        // The event dropdown submits the bare channel name; sendData takes it as a string.
+        String eventName = toStringLiteral(
+                requireValue(sourceBuilder, EVENT_NAME_KEY, "The event name is required"));
         String data = requireValue(sourceBuilder, DATA_KEY, "The request payload is required");
 
         // Non-blocking mode sends the data event and binds its correlation token instead of
@@ -206,6 +217,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
         boolean waitForAnswer = sourceBuilder.getProperty(WAIT_KEY)
                 .map(p -> p.value() == null || !"false".equals(p.value().toString()))
                 .orElse(true);
+        boolean checkError = FlowNodeUtil.hasCheckKeyFlagSet(sourceBuilder.flowNode);
 
         String resultType = waitForAnswer
                 ? sourceBuilder.getProperty(Property.TYPE_KEY)
@@ -220,18 +232,23 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
 
         String sendCall = agent + "." + AGENT_SEND_DATA_METHOD_NAME
                 + "(" + String.join(", ", List.of(agentId, eventName, data)) + ")";
+        // In wait mode the inner `check` binding the correlation token is structural — the
+        // outer flag only controls whether the statement itself propagates errors.
         String expression = waitForAnswer
                 ? agent + "." + AGENT_WAIT_DATA_RESULT_METHOD_NAME
                         + "(" + agentId + ", check " + sendCall + ")"
                 : sendCall;
 
         sourceBuilder.token()
-                .name(resultType)
+                .name(checkError ? resultType : resultType + "|error")
                 .whiteSpace()
                 .name(variableName)
                 .whiteSpace()
-                .keyword(SyntaxKind.EQUAL_TOKEN)
-                .keyword(SyntaxKind.CHECK_KEYWORD)
+                .keyword(SyntaxKind.EQUAL_TOKEN);
+        if (checkError) {
+            sourceBuilder.token().keyword(SyntaxKind.CHECK_KEYWORD);
+        }
+        sourceBuilder.token()
                 .name(expression)
                 .endOfStatement();
 
@@ -241,6 +258,16 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .build();
     }
 
+    // The channel name correlates with an event declared on the agent, so it is always emitted
+    // as a string literal even when the form submits the bare name.
+    private static String toStringLiteral(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            return trimmed;
+        }
+        return "\"" + trimmed + "\"";
+    }
+
     private static String requireValue(SourceBuilder sourceBuilder, String key, String message) {
         return sourceBuilder.getProperty(key)
                 .filter(p -> p.value() != null && !p.value().toString().isEmpty())
@@ -248,17 +275,4 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .orElseThrow(() -> new IllegalStateException(message));
     }
 
-    private List<Option> getDurableAgentFunctions(TemplateContext context) {
-        List<Option> options = new ArrayList<>();
-        Package currentPackage = PackageUtil.loadProject(context.workspaceManager(), context.filePath())
-                .currentPackage();
-        PackageUtil.getCompilation(currentPackage);
-        currentPackage.modules().forEach(module ->
-                module.getCompilation().getSemanticModel().moduleSymbols().stream()
-                        .filter(symbol -> symbol.kind() == SymbolKind.VARIABLE)
-                        .filter(WorkflowUtil::isDurableAgentVariable)
-                        .forEach(symbol -> symbol.getName().ifPresent(name ->
-                                options.add(new Option(name, name)))));
-        return options;
-    }
 }

@@ -250,6 +250,12 @@ const NODE_ICONS: Record<NodeKind, React.FC<{ size: number; color: string; isDBC
     // Awaiting data is a receive, not a sleep: the import icon reads as "data arriving from outside".
     WAIT_DATA: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
     HUMAN_TASK: ({ size, color }) => <Icon name="bi-user" sx={{ fontSize: size, width: size, height: size, color }} />,
+    // Agent driver verbs mirror the workflow data-event icons: send for sendData, import
+    // (receive) for the result readers, and the agent glyph for starting an agent.
+    DURABLE_AGENT_START: ({ size, color }) => <Icon name="bi-ai-agent" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_UPDATE: ({ size, color }) => <Icon name="bi-send" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_RESULT: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
+    DURABLE_AGENT_DATA_RESULT: ({ size, color }) => <Icon name="bi-import" sx={{ fontSize: size, width: size, height: size, color }} />,
     SLEEP: ({ size, color }) => <Icon name="bi-clock" sx={{ fontSize: size, width: size, height: size, color }} />,
     FORK: ({ size, color }) => <Icon name="bi-parallel" sx={{ fontSize: size, width: size, height: size, color }} />,
     WAIT: ({ size, color }) => <Icon name="bi-wait" sx={{ fontSize: size, width: size, height: size, color }} />,

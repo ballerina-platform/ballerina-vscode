@@ -1,0 +1,104 @@
+{
+  "source": "durable_agent_module.bal",
+  "description": "Run Durable Agent generates string instanceId = check agent.run(query, input)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Run Durable Agent generates string instanceId = check agent.run(query, input)"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_START",
+      "org": "ballerina",
+      "module": "workflow",
+      "lineRange": {
+        "fileName": "durable_agent_module.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "supportAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "query": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "\"Handle the case\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "input": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "{caseNo: 42}",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "IDENTIFIER",
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "branches": [],
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_module.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nstring instanceId = check supportAgent.run(\"Handle the case\", {caseNo: 42});"
+      }
+    ]
+  }
+}
