@@ -1,0 +1,135 @@
+{
+  "source": "agent_12/agents.bal",
+  "description": "Generates an agent definition with backticks in its prompt",
+  "diagram": {
+    "metadata": {
+      "label": "Agent"
+    },
+    "codedata": {
+      "node": "AGENT",
+      "org": "ballerina",
+      "module": "ai",
+      "packageName": "ai",
+      "object": "Agent",
+      "symbol": "init",
+      "version": "1.12.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "systemPrompt": {
+        "valueType": "EXPRESSION",
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "systemPrompt"
+        }
+      },
+      "model": {
+        "valueType": "EXPRESSION",
+        "value": "myModel",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "model"
+        }
+      },
+      "type": {
+        "valueType": "TYPE",
+        "value": "ai:Agent",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": true,
+        "codedata": {}
+      },
+      "variable": {
+        "valueType": "IDENTIFIER",
+        "value": "backtickAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "role": {
+        "valueType": "STRING",
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "string ````Role Prompt Inside Backticks````",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "instructions": {
+        "valueType": "STRING",
+        "types": [
+          {
+            "fieldType": "PROMPT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "string ````Instructions Prompt Inside Backticks````",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_12/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 29,
+            "character": 1
+          },
+          "end": {
+            "line": 29,
+            "character": 1
+          }
+        },
+        "newText": "\nfinal ai:Agent backtickAgent = check new (\n    systemPrompt = {role: string `${\"`\"}${\"`\"}${\"`\"}Role Prompt Inside Backticks${\"`\"}${\"`\"}${\"`\"}`, instructions: string `${\"`\"}${\"`\"}${\"`\"}Instructions Prompt Inside Backticks${\"`\"}${\"`\"}${\"`\"}`}, model = myModel\n);"
+      }
+    ]
+  }
+}
