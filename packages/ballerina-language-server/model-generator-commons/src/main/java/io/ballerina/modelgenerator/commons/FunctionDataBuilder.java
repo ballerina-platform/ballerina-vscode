@@ -66,6 +66,7 @@ import io.ballerina.projects.ModuleName;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.Project;
+import io.ballerina.projects.ProjectException;
 import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
@@ -288,24 +289,39 @@ public class FunctionDataBuilder {
                     return;
                 }
                 Package currentPackage = optProject.get().currentPackage();
-                Module defaultModule = currentPackage.getDefaultModule();
-                Document document = defaultModule.document(currentPackage.project().documentId(filePath));
-
-                this.resolvedPackage(currentPackage)
-                        .document(document)
-                        .project(currentPackage.project());
-
-                // Set semantic model automatically for local functions
-                SemanticModel semanticModel = workspaceManager.semanticModel(filePath).orElseThrow();
-                this.semanticModel(semanticModel);
+                this.resolvedPackage(currentPackage).project(currentPackage.project());
+                try {
+                    Document document = currentPackage.getDefaultModule()
+                            .document(currentPackage.project().documentId(filePath));
+                    this.document(document);
+                    // Set semantic model automatically for local functions
+                    workspaceManager.semanticModel(filePath).ifPresent(this::semanticModel);
+                } catch (ProjectException e) {
+                    // The file isn't a document in the project yet
+                    // resolvedPackage is set, so the build still proceeds from the package.
+                }
                 return;
             }
+        }
+
+        Optional<Package> workspacePackage = resolveWorkspacePackage();
+        if (workspacePackage.isPresent()) {
+            this.resolvedPackage(workspacePackage.get());
+            return;
         }
 
         // For external functions: resolve from central repository
         Package resolvedPackage = PackageUtil.resolveModulePackage(
                 moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()).orElse(null);
         this.resolvedPackage(resolvedPackage);
+    }
+
+    private Optional<Package> resolveWorkspacePackage() {
+        if (moduleInfo == null) {
+            return Optional.empty();
+        }
+        return PackageUtil.findWorkspacePackage(project, moduleInfo.org(), moduleInfo.packageName(),
+                moduleInfo.moduleName());
     }
 
     private void updateModuleInfo() {

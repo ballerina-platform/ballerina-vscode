@@ -54,7 +54,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -294,32 +293,52 @@ public class PackageUtil {
      */
     public static Optional<SemanticModel> getSemanticModelFromWorkspace(Project project, String org,
                                                                         String packageName, String moduleName) {
-        BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-        Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+        Optional<Project> workspaceProject = findWorkspaceProject(project, org, packageName, moduleName);
         if (workspaceProject.isEmpty()) {
             return Optional.empty();
         }
-        List<Project> childProjects = compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get());
-        for (Project childProject : childProjects) {
-            Package currentPackage = childProject.currentPackage();
-            String currentPackageName = currentPackage.packageName().value();
-            boolean orgMatches = currentPackage.packageOrg().value().equals(org);
-            boolean nameMatches = currentPackageName.equals(packageName) || currentPackageName.equals(moduleName);
-            if (!orgMatches || !nameMatches) {
-                continue;
-            }
+        return findModule(workspaceProject.get().currentPackage(), packageName, moduleName)
+                .map(module -> getCompilation(workspaceProject.get()).getSemanticModel(module.moduleId()));
+    }
 
-            ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-            if (moduleName == null || moduleName.isEmpty() || packageName.equals(moduleName)) {
-                return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+    public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName) {
+        return findWorkspaceProject(project, org, packageName, moduleName).map(Project::currentPackage);
+    }
+
+    public static Optional<Project> findWorkspaceProject(Project project, String org, String packageName,
+                                                         String moduleName) {
+        if (project == null || org == null) {
+            return Optional.empty();
+        }
+        try {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+            if (workspaceProject.isEmpty()) {
+                return Optional.empty();
             }
-            for (Module mod : currentPackage.modules()) {
-                if (mod.moduleName().toString().equals(moduleName)) {
-                    moduleId = mod.moduleId();
-                    break;
+            for (Project childProject : compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get())) {
+                Package currentPackage = childProject.currentPackage();
+                String currentPackageName = currentPackage.packageName().value();
+                if (currentPackage.packageOrg().value().equals(org)
+                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
+                    return Optional.of(childProject);
                 }
             }
-            return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<Module> findModule(Package currentPackage, String packageName, String moduleName) {
+        if (moduleName == null || moduleName.isEmpty() || Objects.equals(packageName, moduleName)) {
+            return Optional.of(currentPackage.getDefaultModule());
+        }
+        for (Module module : currentPackage.modules()) {
+            if (module.moduleName().toString().equals(moduleName)) {
+                return Optional.of(module);
+            }
         }
         return Optional.empty();
     }

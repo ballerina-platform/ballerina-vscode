@@ -1,0 +1,5 @@
+{
+  "source": "agent_type/agents.bal",
+  "description": "Custom *ai:FixedReturnAgentType declaration should produce NodeKind.AGENT_TYPE. Snapshot capture pending.",
+  "flowModel": {}
+}

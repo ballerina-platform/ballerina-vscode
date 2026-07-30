@@ -25,7 +25,6 @@ import io.ballerina.flowmodelgenerator.core.AgentChatServiceGenerator;
 import io.ballerina.flowmodelgenerator.core.AgentsGenerator;
 import io.ballerina.flowmodelgenerator.core.McpClient;
 import io.ballerina.flowmodelgenerator.extension.request.AddAgentChatServiceRequest;
-import io.ballerina.flowmodelgenerator.extension.request.GenToolRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAiModuleOrgRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAllAgentsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAllMemoryManagersRequest;
@@ -38,7 +37,6 @@ import io.ballerina.flowmodelgenerator.extension.request.GetToolsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.McpToolsRequest;
 import io.ballerina.flowmodelgenerator.extension.request.SecureSocketConfig;
 import io.ballerina.flowmodelgenerator.extension.response.AddAgentChatServiceResponse;
-import io.ballerina.flowmodelgenerator.extension.response.GenToolResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAgentsResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAiModuleOrgResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetConnectorActionsResponse;
@@ -289,29 +287,6 @@ public class AgentsManagerService implements ExtendedLanguageServerService {
                 response.setError(new RuntimeException("Failed to get MCP tools: " + errorMsg, e));
                 return response;
             }
-        });
-    }
-
-    @JsonRequest
-    public CompletableFuture<GenToolResponse> genTool(GenToolRequest request) {
-        return CompletableFuture.supplyAsync(() -> {
-            GenToolResponse response = new GenToolResponse();
-            try {
-                Path filePath = Path.of(request.filePath());
-                this.workspaceManager.loadProject(filePath);
-                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
-                if (semanticModel.isEmpty()) {
-                    return response;
-                }
-
-                AgentsGenerator agentsGenerator = new AgentsGenerator(semanticModel.get());
-                response.setTextEdits(agentsGenerator.genTool(request.flowNode(), request.toolName(),
-                        request.toolParameters(), request.connection(), request.description(), filePath,
-                        this.workspaceManager));
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
-            return response;
         });
     }
 

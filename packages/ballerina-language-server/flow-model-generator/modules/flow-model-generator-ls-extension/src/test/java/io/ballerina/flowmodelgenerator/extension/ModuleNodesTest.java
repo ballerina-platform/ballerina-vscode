@@ -66,7 +66,8 @@ public class ModuleNodesTest extends AbstractLSTest {
     @Override
     protected String[] skipList() {
         return new String[]{
-                "new_agent_model.json"
+                "new_agent_model.json",
+                "agent_type.json"
         };
     }
 

@@ -635,8 +635,8 @@
       },
       "variable": {
         "metadata": {
-          "label": "Result",
-          "description": "Name of the result variable"
+          "label": "Agent Name",
+          "description": "Name of the agent"
         },
         "valueType": "IDENTIFIER",
         "value": "openaiModelprovider",

@@ -77,6 +77,26 @@ public class NodeTemplateTest extends AbstractLSTest {
         }
     }
 
+    @Test
+    public void testAgentTemplateWithoutPackageCoordinates() throws IOException {
+        JsonObject codedata = new JsonObject();
+        codedata.addProperty("node", "AGENT");
+        codedata.addProperty("org", "ballerina");
+        codedata.addProperty("module", "ai");
+        codedata.addProperty("object", "Agent");
+        codedata.addProperty("symbol", "init");
+
+        String source = "agent_1/agents.bal";
+        String filePath = sourceDir.resolve(source).toAbsolutePath().toString();
+        FlowModelNodeTemplateRequest request =
+                new FlowModelNodeTemplateRequest(filePath, LinePosition.from(0, 0), codedata);
+        JsonObject response = getResponseAndCloseFile(request, source);
+
+        Assert.assertFalse(response.has("errorMsg"), "Incomplete AGENT codedata must resolve the ai package");
+        JsonObject templateCodedata = response.getAsJsonObject("flowNode").getAsJsonObject("codedata");
+        Assert.assertEquals(templateCodedata.get("packageName").getAsString(), "ai");
+    }
+
     @Override
     protected String getResourceDir() {
         return "agents_manager";

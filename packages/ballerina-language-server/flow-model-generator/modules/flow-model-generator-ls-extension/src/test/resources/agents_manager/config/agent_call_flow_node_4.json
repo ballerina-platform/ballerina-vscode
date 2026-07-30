@@ -19,41 +19,41 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
           "data": {
-            "tools": [
-              {
-                "name": "set",
-                "path": "/path/icon.png",
-                "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+            "agentInfo": {
+              "systemPrompt": {
+                "role": "\"Math tutor\"",
+                "instructions": "\"Help the students with their questions.\""
               },
-              {
-                "name": "sum",
-                "path": "",
-                "description": ""
+              "tools": [
+                {
+                  "name": "set",
+                  "path": "/path/icon.png",
+                  "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+                },
+                {
+                  "name": "sum",
+                  "path": "",
+                  "description": ""
+                },
+                {
+                  "name": "mutiply",
+                  "path": "",
+                  "description": ""
+                }
+              ],
+              "modelProvider": {
+                "presentation": {
+                  "name": "myModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "AzureOpenAiProvider"
+                }
               },
-              {
-                "name": "mutiply",
-                "path": "",
-                "description": ""
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "20"
+                }
               }
-            ],
-            "agent": {
-              "systemPrompt": "{role: \"Math tutor\", instructions: \"Help the students with their questions.\"}",
-              "instructions": "\"Help the students with their questions.\"",
-              "agentType": "ai:REACT_AGENT",
-              "memory": "new ai:MessageWindowChatMemory(20)",
-              "role": "\"Math tutor\"",
-              "scope": "Global",
-              "model": "myModel",
-              "tools": "[set, sum, mutiply]"
-            },
-            "memory": {
-              "type": "ai:MessageWindowChatMemory",
-              "size": "20"
-            },
-            "model": {
-              "name": "myModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
-              "type": "AzureOpenAiProvider"
             }
           }
         },
@@ -646,7 +646,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -708,7 +708,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
@@ -849,7 +849,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -945,6 +945,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Math tutor\"",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Help the students with their questions.\"",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {

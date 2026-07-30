@@ -48,12 +48,16 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png",
           "data": {
-            "agent": {
-              "systemPrompt": "{\n        role: \"Assistant\",\n        instructions: string `Help users with weather and time queries.`\n    }",
-              "instructions": "Help users with weather and time queries.",
-              "role": "\"Assistant\"",
-              "scope": "Global",
-              "model": "check ai:getDefaultModelProvider()"
+            "agentInfo": {
+              "systemPrompt": {
+                "role": "\"Assistant\"",
+                "instructions": "Help users with weather and time queries."
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "check ai:getDefaultModelProvider()"
+                }
+              }
             }
           }
         },
@@ -584,7 +588,7 @@
               }
             ],
             "value": "string",
-            "placeholder": "ai:Trace|string",
+            "placeholder": "ai:Trace|anydata",
             "optional": true,
             "editable": true,
             "advanced": true,
@@ -593,7 +597,7 @@
               "kind": "PARAM_FOR_TYPE_INFER",
               "originalName": "td"
             },
-            "defaultValue": "ai:Trace|string"
+            "defaultValue": "ai:Trace|anydata"
           },
           "query": {
             "metadata": {
@@ -777,6 +781,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Assistant\"",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Help users with weather and time queries.",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {

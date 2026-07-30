@@ -2,7 +2,7 @@
 org = "org"
 name = "agent"
 version = "0.1.0"
-distribution = "2201.12.2"
+distribution = "2201.12.7"
 
 [build-options]
 observabilityIncluded = true
