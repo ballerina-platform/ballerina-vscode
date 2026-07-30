@@ -414,13 +414,8 @@ export function Diagram(props: DiagramProps) {
     const getFocusedNode = (nodes: NodeModel[]): NodeModel | undefined =>
         getActiveBreakpointNode(nodes) || getDraftNode(nodes);
 
-    return (
-        <div style={{
-            opacity: canvasVisible ? 1 : 0,
-            transition: canvasVisible ? "opacity 0.15s ease" : "none",
-            height: "100%",
-            width: "100%",
-        }}>
+    const diagramContent = (
+        <>
             <Controls engine={diagramEngine} embedded={embedded} />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
@@ -433,8 +428,23 @@ export function Diagram(props: DiagramProps) {
                     </DiagramCanvas>
                 </DiagramContextProvider>
             )}
-        </div>
+        </>
     );
+
+    if (isAgentFocusView && embedded) {
+        return (
+            <div style={{
+                opacity: canvasVisible ? 1 : 0,
+                transition: canvasVisible ? "opacity 0.15s ease" : "none",
+                height: "100%",
+                width: "100%",
+            }}>
+                {diagramContent}
+            </div>
+        );
+    }
+
+    return diagramContent;
 }
 
 export const MemoizedDiagram = memo(Diagram);
