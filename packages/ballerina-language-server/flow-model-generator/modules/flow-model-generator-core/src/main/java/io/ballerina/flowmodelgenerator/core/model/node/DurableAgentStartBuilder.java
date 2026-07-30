@@ -22,6 +22,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
@@ -75,6 +76,8 @@ public class DurableAgentStartBuilder extends FunctionCall {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         setConcreteConstData();
+        io.ballerina.compiler.api.SemanticModel semanticModel =
+                FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath());
 
         properties().custom()
                 .metadata()
@@ -99,11 +102,7 @@ public class DurableAgentStartBuilder extends FunctionCall {
                     .label(QUERY_LABEL)
                     .description(QUERY_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().STRING, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
@@ -117,11 +116,7 @@ public class DurableAgentStartBuilder extends FunctionCall {
                     .label(INPUT_LABEL)
                     .description(INPUT_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(ANYDATA_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().ANYDATA, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.DEFAULTABLE.name())
                     .stepOut()

@@ -576,6 +576,21 @@ public class WorkflowUtil {
      */
     public static List<io.ballerina.flowmodelgenerator.core.model.Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath) {
+        return declaredAgentEventOptions(workspaceManager, filePath, null);
+    }
+
+    /**
+     * Lists the declared data-event channel names, restricted to one agent when
+     * {@code targetAgent} names a module-level durable agent variable.
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the form is opened in
+     * @param targetAgent      the agent variable name to scope to, or {@code null} for all agents
+     * @return dropdown options, one per declared event channel (deduplicated, source order)
+     */
+    public static List<io.ballerina.flowmodelgenerator.core.model.Option> declaredAgentEventOptions(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent) {
         java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
         io.ballerina.projects.Project project;
         try {
@@ -594,6 +609,12 @@ public class WorkflowUtil {
                 String typeText = varDecl.typedBindingPattern().typeDescriptor().toSourceCode().trim();
                 if (!typeText.equals(Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)
                         && !typeText.endsWith(":" + Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME)) {
+                    continue;
+                }
+                if (targetAgent != null && !targetAgent.isBlank()
+                        && (!(varDecl.typedBindingPattern().bindingPattern()
+                                instanceof io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode capture)
+                            || !targetAgent.equals(capture.variableName().text()))) {
                     continue;
                 }
                 io.ballerina.compiler.syntax.tree.ExpressionNode initializer = varDecl.initializer().get();

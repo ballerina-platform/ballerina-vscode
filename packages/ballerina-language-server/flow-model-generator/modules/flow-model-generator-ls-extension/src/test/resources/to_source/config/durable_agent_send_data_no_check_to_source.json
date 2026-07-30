@@ -1,6 +1,6 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event without waiting and without check binds the token as string|error",
+  "description": "Send Agent Data Event without check binds the token as string|error",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -68,28 +68,6 @@
         "editable": true,
         "advanced": false,
         "hidden": false
-      },
-      "waitForAnswer": {
-        "metadata": {
-          "label": ""
-        },
-        "valueType": "FLAG",
-        "value": false,
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "type": {
-        "metadata": {
-          "label": ""
-        },
-        "valueType": "TYPE",
-        "value": "string",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": true
       },
       "variable": {
         "metadata": {

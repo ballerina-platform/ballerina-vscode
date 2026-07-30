@@ -23,6 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
@@ -35,15 +36,13 @@ import java.util.Map;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.AGENT_SEND_DATA_DESCRIPTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.AGENT_SEND_DATA_LABEL;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.AGENT_SEND_DATA_METHOD_NAME;
-import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.AGENT_WAIT_DATA_RESULT_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 
 /**
- * Sends a data event to a running durable agent and reads its answer for that turn. Generates
- * {@code <resultType> reply = check <agent>.waitForDataResult(<instanceId>,
- * check <agent>.sendData(<instanceId>, <eventName>, <data>));} — or just the {@code sendData}
- * call binding the correlation token when the answer is read later.
+ * Sends a data event to a running durable agent. Always generates
+ * {@code string <token> = check <agent>.sendData(<instanceId>, <eventName>, <data>);} — the
+ * correlation token for reading that turn's answer via Get Agent Data Result.
  *
  * @since 1.8.0
  */
@@ -64,18 +63,8 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
     public static final String DATA_LABEL = "Data";
     public static final String DATA_DOC = "The data payload sent on the channel; must match its request type";
 
-    public static final String WAIT_KEY = "waitForAnswer";
-    public static final String WAIT_LABEL = "Wait for Answer";
-    public static final String WAIT_DOC = "Wait for the agent's answer to this turn (blocking). Uncheck to "
-            + "send without waiting: the event is durably accepted and its correlation token is returned - "
-            + "read the answer later with getDataResult or waitForDataResult. Prefer non-blocking for turns "
-            + "that may take long, e.g. human-task approvals.";
-
     private static final String STRING_TYPE = "string";
-    private static final String ANYDATA_TYPE = "anydata";
     private static final String DEFAULT_EVENT_NAME = "chat";
-    private static final String DEFAULT_RESULT_VAR = "agentReply";
-    private static final String DEFAULT_RESULT_TYPE = "string";
     private static final String DEFAULT_TOKEN_VAR = "eventToken";
 
     @Override
@@ -91,6 +80,8 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         setConcreteConstData();
+        io.ballerina.compiler.api.SemanticModel semanticModel =
+                FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath());
 
         properties().custom()
                 .metadata()
@@ -115,11 +106,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                     .label(AGENT_ID_LABEL)
                     .description(AGENT_ID_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().STRING, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
@@ -129,10 +116,11 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .addProperty(AGENT_ID_KEY);
 
         // Channels are declared on the agent (Add Data Event), so the call site offers them
-        // as a fixed dropdown; the conversational default "chat" is offered when no channel
-        // is declared yet.
-        List<Option> eventOptions =
-                WorkflowUtil.declaredAgentEventOptions(context.workspaceManager(), context.filePath());
+        // as a fixed dropdown; when the form targets a known agent only ITS channels are
+        // offered, and the conversational default "chat" is offered when none is declared.
+        String targetAgent = context.codedata() == null ? null : context.codedata().parentSymbol();
+        List<Option> eventOptions = WorkflowUtil.declaredAgentEventOptions(
+                context.workspaceManager(), context.filePath(), targetAgent);
         if (eventOptions.isEmpty()) {
             eventOptions = List.of(new Option(DEFAULT_EVENT_NAME, DEFAULT_EVENT_NAME));
         }
@@ -149,8 +137,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
-                .placeholder("Select a data event")
-                .value(eventOptions.size() == 1 ? eventOptions.get(0).value() : "")
+                .value(eventOptions.get(0).value())
                 .editable(true)
                 .stepOut()
                 .addProperty(EVENT_NAME_KEY);
@@ -160,11 +147,7 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                     .label(DATA_LABEL)
                     .description(DATA_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(ANYDATA_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().ANYDATA, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
@@ -173,31 +156,6 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 .stepOut()
                 .addProperty(DATA_KEY);
 
-        properties().custom()
-                .metadata()
-                    .label(WAIT_LABEL)
-                    .description(WAIT_DOC)
-                    .stepOut()
-                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
-                .value("true")
-                .editable(true)
-                .optional(true)
-                .stepOut()
-                .addProperty(WAIT_KEY);
-
-        // The agent's answer is dependently typed on the variable type; the property stays
-        // hidden (defaulted) so the form has no read-only Result Type field.
-        properties().custom()
-                .metadata()
-                    .label("Result Type")
-                    .description("The expected type of the agent's answer")
-                    .stepOut()
-                .type().fieldType(Property.ValueType.TYPE).ballerinaType(DEFAULT_RESULT_TYPE).selected(true).stepOut()
-                .value(DEFAULT_RESULT_TYPE)
-                .editable(true)
-                .hidden()
-                .stepOut()
-                .addProperty(Property.TYPE_KEY);
         properties().data(Property.RESULT_NAME, context.getAllVisibleSymbolNames(),
                 Property.RESULT_NAME, Property.RESULT_DOC, false);
         properties().checkError(true);
@@ -212,32 +170,17 @@ public class DurableAgentUpdateBuilder extends FunctionCall {
                 requireValue(sourceBuilder, EVENT_NAME_KEY, "The event name is required"));
         String data = requireValue(sourceBuilder, DATA_KEY, "The request payload is required");
 
-        // Non-blocking mode sends the data event and binds its correlation token instead of
-        // the answer; the answer is read later via getDataResult/waitForDataResult.
-        boolean waitForAnswer = sourceBuilder.getProperty(WAIT_KEY)
-                .map(p -> p.value() == null || !"false".equals(p.value().toString()))
-                .orElse(true);
         boolean checkError = FlowNodeUtil.hasCheckKeyFlagSet(sourceBuilder.flowNode);
-
-        String resultType = waitForAnswer
-                ? sourceBuilder.getProperty(Property.TYPE_KEY)
-                        .map(p -> p.value() == null || p.value().toString().isEmpty()
-                                ? DEFAULT_RESULT_TYPE : p.value().toString())
-                        .orElse(DEFAULT_RESULT_TYPE)
-                : STRING_TYPE;
         String variableName = sourceBuilder.getProperty(Property.VARIABLE_KEY)
                 .map(p -> p.value() == null || p.value().toString().isEmpty()
-                        ? (waitForAnswer ? DEFAULT_RESULT_VAR : DEFAULT_TOKEN_VAR) : p.value().toString())
-                .orElse(waitForAnswer ? DEFAULT_RESULT_VAR : DEFAULT_TOKEN_VAR);
+                        ? DEFAULT_TOKEN_VAR : p.value().toString())
+                .orElse(DEFAULT_TOKEN_VAR);
 
-        String sendCall = agent + "." + AGENT_SEND_DATA_METHOD_NAME
+        // sendData always returns the turn's correlation token; the answer is read via
+        // getDataResult/waitForDataResult (the Get Agent Data Result node).
+        String expression = agent + "." + AGENT_SEND_DATA_METHOD_NAME
                 + "(" + String.join(", ", List.of(agentId, eventName, data)) + ")";
-        // In wait mode the inner `check` binding the correlation token is structural — the
-        // outer flag only controls whether the statement itself propagates errors.
-        String expression = waitForAnswer
-                ? agent + "." + AGENT_WAIT_DATA_RESULT_METHOD_NAME
-                        + "(" + agentId + ", check " + sendCall + ")"
-                : sendCall;
+        String resultType = STRING_TYPE;
 
         sourceBuilder.token()
                 .name(checkError ? resultType : resultType + "|error")

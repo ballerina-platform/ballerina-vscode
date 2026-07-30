@@ -1,6 +1,6 @@
 {
   "source": "durable_agent_module.bal",
-  "description": "Send Agent Data Event quotes the dropdown channel name and waits for the answer",
+  "description": "Send Agent Data Event quotes the dropdown channel name and binds the turn token",
   "diagram": {
     "id": "1",
     "metadata": {
@@ -69,34 +69,12 @@
         "advanced": false,
         "hidden": false
       },
-      "waitForAnswer": {
-        "metadata": {
-          "label": ""
-        },
-        "valueType": "FLAG",
-        "value": true,
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "type": {
-        "metadata": {
-          "label": ""
-        },
-        "valueType": "TYPE",
-        "value": "string",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": true
-      },
       "variable": {
         "metadata": {
           "label": ""
         },
         "valueType": "IDENTIFIER",
-        "value": "agentReply",
+        "value": "eventToken",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -130,7 +108,7 @@
             "character": 0
           }
         },
-        "newText": "\nstring agentReply = check supportAgent.waitForDataResult(instanceId, check supportAgent.sendData(instanceId, \"customerMessage\", \"hello\"));"
+        "newText": "\nstring eventToken = check supportAgent.sendData(instanceId, \"customerMessage\", \"hello\");"
       }
     ]
   }

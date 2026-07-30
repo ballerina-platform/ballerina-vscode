@@ -22,6 +22,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ParameterData;
@@ -81,6 +82,8 @@ public class DurableAgentDataResultBuilder extends FunctionCall {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         setConcreteConstData();
+        io.ballerina.compiler.api.SemanticModel semanticModel =
+                FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath());
 
         properties().custom()
                 .metadata()
@@ -105,11 +108,7 @@ public class DurableAgentDataResultBuilder extends FunctionCall {
                     .label(AGENT_ID_LABEL)
                     .description(AGENT_ID_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().STRING, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
@@ -123,11 +122,7 @@ public class DurableAgentDataResultBuilder extends FunctionCall {
                     .label(TOKEN_LABEL)
                     .description(TOKEN_DOC)
                     .stepOut()
-                .type()
-                    .fieldType(Property.ValueType.EXPRESSION)
-                    .ballerinaType(STRING_TYPE)
-                    .selected(true)
-                    .stepOut()
+                .typeWithExpression(semanticModel.types().STRING, moduleInfo)
                 .codedata()
                     .kind(ParameterData.Kind.REQUIRED.name())
                     .stepOut()
@@ -148,8 +143,8 @@ public class DurableAgentDataResultBuilder extends FunctionCall {
                 .stepOut()
                 .addProperty(WAIT_KEY);
 
-        // The answer is dependently typed on the variable type; kept hidden and defaulted so
-        // the form matches the driver signature without a read-only field.
+        // The read is dependently typed: the expected answer type is part of the driver
+        // signature, so the form takes it as an editable parameter.
         properties().custom()
                 .metadata()
                     .label("Result Type")
@@ -158,7 +153,6 @@ public class DurableAgentDataResultBuilder extends FunctionCall {
                 .type().fieldType(Property.ValueType.TYPE).ballerinaType(DEFAULT_RESULT_TYPE).selected(true).stepOut()
                 .value(DEFAULT_RESULT_TYPE)
                 .editable(true)
-                .hidden()
                 .stepOut()
                 .addProperty(Property.TYPE_KEY);
         properties().data(DEFAULT_RESULT_VAR, context.getAllVisibleSymbolNames(),

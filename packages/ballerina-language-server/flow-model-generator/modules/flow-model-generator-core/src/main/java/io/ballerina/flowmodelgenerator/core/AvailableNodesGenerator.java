@@ -371,12 +371,22 @@ public class AvailableNodesGenerator {
             this.rootBuilder.stepIn(Category.Name.AI)
                     .items(getAiNodes(disableBallerinaAiNodes))
                     .stepOut();
+
+            // The client-side workflow verbs, right after AI so they are easy to reach:
+            // shown only when the integration defines the matching artifacts — workflow
+            // functions enable Run Workflow / Send Data Event, durable agents enable the
+            // agent interaction nodes.
+            boolean hasWorkflows = projectHasWorkflows();
+            boolean hasDurableAgents = projectHasDurableAgents();
+            if (hasWorkflows || hasDurableAgents) {
+                this.rootBuilder.stepIn(Category.Name.WORKFLOW)
+                        .items(getWorkflowNodes(false, hasWorkflows, hasDurableAgents))
+                        .stepOut();
+            }
         }
 
         // Inside a workflow function the Workflow section leads the palette — it holds the
-        // durable steps that make up the flow. Everywhere else it appears after the general
-        // categories (see below) and only when the integration actually has workflows or
-        // durable agents to interact with.
+        // durable steps that make up the flow.
         if (isInWorkflowFunction) {
             this.rootBuilder.stepIn(Category.Name.WORKFLOW)
                     .items(getWorkflowNodes(true, true, true))
@@ -428,16 +438,6 @@ public class AvailableNodesGenerator {
                         .node(NodeKind.RETRY)
                         .stepOut();
 
-            // The client-side workflow verbs, shown only when the integration defines the
-            // matching artifacts: workflow functions enable Run Workflow / Send Data Event,
-            // durable agents enable the agent interaction nodes.
-            boolean hasWorkflows = projectHasWorkflows();
-            boolean hasDurableAgents = projectHasDurableAgents();
-            if (hasWorkflows || hasDurableAgents) {
-                this.rootBuilder.stepIn(Category.Name.WORKFLOW)
-                        .items(getWorkflowNodes(false, hasWorkflows, hasDurableAgents))
-                        .stepOut();
-            }
         }
     }
 

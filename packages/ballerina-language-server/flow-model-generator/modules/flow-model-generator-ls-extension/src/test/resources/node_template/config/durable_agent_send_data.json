@@ -58,9 +58,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -93,8 +98,7 @@
             "selected": true
           }
         ],
-        "value": "",
-        "placeholder": "Select a data event",
+        "value": "customerMessage",
         "optional": false,
         "editable": true,
         "advanced": false,
@@ -112,7 +116,7 @@
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "anydata",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -123,42 +127,6 @@
         "codedata": {
           "kind": "REQUIRED"
         }
-      },
-      "waitForAnswer": {
-        "metadata": {
-          "label": "Wait for Answer",
-          "description": "Wait for the agent's answer to this turn (blocking). Uncheck to send without waiting: the event is durably accepted and its correlation token is returned - read the answer later with getDataResult or waitForDataResult. Prefer non-blocking for turns that may take long, e.g. human-task approvals."
-        },
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "ballerinaType": "boolean",
-            "selected": true
-          }
-        ],
-        "value": "true",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "type": {
-        "metadata": {
-          "label": "Result Type",
-          "description": "The expected type of the agent's answer"
-        },
-        "types": [
-          {
-            "fieldType": "TYPE",
-            "ballerinaType": "string",
-            "selected": true
-          }
-        ],
-        "value": "string",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": true
       },
       "variable": {
         "metadata": {

@@ -58,9 +58,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -79,9 +84,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -127,7 +137,7 @@
         "optional": false,
         "editable": true,
         "advanced": false,
-        "hidden": true
+        "hidden": false
       },
       "variable": {
         "metadata": {

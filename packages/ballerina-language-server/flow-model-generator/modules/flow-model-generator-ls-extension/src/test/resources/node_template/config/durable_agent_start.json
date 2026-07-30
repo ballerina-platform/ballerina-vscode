@@ -58,9 +58,14 @@
         },
         "types": [
           {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
             "fieldType": "EXPRESSION",
             "ballerinaType": "string",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",
@@ -81,7 +86,7 @@
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "anydata",
-            "selected": true
+            "selected": false
           }
         ],
         "value": "",

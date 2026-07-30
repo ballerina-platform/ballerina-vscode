@@ -159,6 +159,34 @@
     },
     {
       "metadata": {
+        "label": "Workflow",
+        "description": "Workflow orchestration components"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Run Workflow",
+            "description": "Run a new workflow instance"
+          },
+          "codedata": {
+            "node": "WORKFLOW_RUN"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Send Data Event",
+            "description": "Send a data event to a running workflow instance"
+          },
+          "codedata": {
+            "node": "SEND_DATA"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
         "label": "Statement",
         "description": "Fundamental executable units in a program"
       },
@@ -391,34 +419,6 @@
           },
           "codedata": {
             "node": "RETRY"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Workflow",
-        "description": "Workflow orchestration components"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Run Workflow",
-            "description": "Run a new workflow instance"
-          },
-          "codedata": {
-            "node": "WORKFLOW_RUN"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Send Data Event",
-            "description": "Send a data event to a running workflow instance"
-          },
-          "codedata": {
-            "node": "SEND_DATA"
           },
           "enabled": true
         }

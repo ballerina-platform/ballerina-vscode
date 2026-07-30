@@ -159,6 +159,54 @@
     },
     {
       "metadata": {
+        "label": "Workflow",
+        "description": "Workflow orchestration components"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Run Durable Agent",
+            "description": "Start a durable agent instance and bind its instance ID"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_START"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Send Agent Data Event",
+            "description": "Send a data event to a running durable agent and read its answer for that turn"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_UPDATE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Get Agent Result",
+            "description": "Read a durable agent instance's final result"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_RESULT"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Get Agent Data Result",
+            "description": "Read the agent's answer for a sent data event by its correlation token"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_DATA_RESULT"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
         "label": "Statement",
         "description": "Fundamental executable units in a program"
       },
@@ -391,54 +439,6 @@
           },
           "codedata": {
             "node": "RETRY"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Workflow",
-        "description": "Workflow orchestration components"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Run Durable Agent",
-            "description": "Start a durable agent instance and bind its instance ID"
-          },
-          "codedata": {
-            "node": "DURABLE_AGENT_START"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Send Agent Data Event",
-            "description": "Send a data event to a running durable agent and read its answer for that turn"
-          },
-          "codedata": {
-            "node": "DURABLE_AGENT_UPDATE"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Get Agent Result",
-            "description": "Read a durable agent instance's final result"
-          },
-          "codedata": {
-            "node": "DURABLE_AGENT_RESULT"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Get Agent Data Result",
-            "description": "Read the agent's answer for a sent data event by its correlation token"
-          },
-          "codedata": {
-            "node": "DURABLE_AGENT_DATA_RESULT"
           },
           "enabled": true
         }
