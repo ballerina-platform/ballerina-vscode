@@ -77,8 +77,8 @@ public class CopilotDeprecationTest {
     }
 
     // Disabled: deprecated fields on ListenerConfiguration exist only in ballerina/ftp >= 2.18.0,
-    // but `ballerinaFtpVersion` in gradle.properties is pinned to 2.16.0, so CI pulls a version
-    // without them and the test fails. Re-enable after bumping `ballerinaFtpVersion` to >= 2.18.0.
+    // but ballerina/ftp in build-config/ballerina_dependencies/Ballerina.toml is pinned to 2.16.0,
+    // so CI resolves a version without them and the test fails. Re-enable after bumping it to >= 2.18.0.
     @Test(enabled = false)
     public void testFtpListenerConfigurationDeprecatedField() {
         CopilotLibraryManager manager = new CopilotLibraryManager();

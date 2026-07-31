@@ -23,6 +23,22 @@
               "symbol": "init"
             },
             "enabled": true
+          },
+          {
+            "metadata": {
+              "label": "Google Vertex Model Provider",
+              "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.2.png"
+            },
+            "codedata": {
+              "node": "MODEL_PROVIDER",
+              "org": "ballerinax",
+              "module": "ai.googleapis.vertex",
+              "packageName": "ai.googleapis.vertex",
+              "object": "ModelProvider",
+              "symbol": "init"
+            },
+            "enabled": true
           }
         ]
       }

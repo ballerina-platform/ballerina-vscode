@@ -77,6 +77,7 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
         VECTOR_STORE("Vector Stores", "Vector stores used in the integration", null),
         DATA_LOADER("Data Loaders", "Data loaders available in the integration", null),
         CHUNKER("Chunkers", "Document chunkers available in the integration", null),
+        SHORT_TERM_MEMORY_STORE("Memory Stores", "Short-term memory stores available in the integration", null),
         AI("AI", "AI components available in the flow", null),
         WORKFLOW("Workflow", "Workflow orchestration components", null),
         WORKFLOW_STEPS("Steps", "Durable steps executed by this workflow",
@@ -103,6 +104,15 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
             this.name = name;
             this.description = description;
             this.keywords = keywords;
+        }
+
+        /**
+         * Returns the display label for this category.
+         *
+         * @return the category display label
+         */
+        public String label() {
+            return name;
         }
     }
 

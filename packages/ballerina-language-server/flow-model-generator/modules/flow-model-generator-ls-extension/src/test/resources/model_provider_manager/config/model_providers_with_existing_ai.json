@@ -11,15 +11,14 @@
             "metadata": {
               "label": "Default Model Provider (WSO2)",
               "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
               "org": "ballerina",
               "module": "ai",
               "packageName": "ai",
-              "symbol": "getDefaultModelProvider",
-              "version": "1.0.0"
+              "symbol": "getDefaultModelProvider"
             },
             "enabled": true
           },
@@ -27,7 +26,7 @@
             "metadata": {
               "label": "Anthropic Model Provider",
               "description": "Provider is a client class that provides an interface for interacting with Anthropic Large Language Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.anthropic_1.3.4.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -35,8 +34,7 @@
               "module": "ai.anthropic",
               "packageName": "ai.anthropic",
               "object": "ModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
             },
             "enabled": true
           },
@@ -44,7 +42,7 @@
             "metadata": {
               "label": "Azure OpenAI Model Provider",
               "description": "OpenAiProvider is a client class that provides an interface for interacting with Azure-hosted OpenAI language models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -52,8 +50,7 @@
               "module": "ai.azure",
               "packageName": "ai.azure",
               "object": "OpenAiModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
             },
             "enabled": true
           },
@@ -61,7 +58,7 @@
             "metadata": {
               "label": "Deepseek Model Provider",
               "description": "Deepseek is a client class that provides an interface for interacting with Deepseek Large Language Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.deepseek_1.1.4.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -69,8 +66,23 @@
               "module": "ai.deepseek",
               "packageName": "ai.deepseek",
               "object": "ModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
+              "label": "Google Vertex Model Provider",
+              "description": "ModelProvider is a client class that provides an interface for interacting with\nmodels hosted on Google Vertex AI, including Google Gemini models and partner\nmodels (Anthropic Claude, Mistral) available through Vertex AI Model Garden.\n\nThe `model` parameter uses `\"publisher/model-name\"` format, which determines both\nthe endpoint path and the wire format used for requests:\n- `\"google/gemini-2.0-flash\"` — Vertex AI `generateContent` API\n- `\"anthropic/claude-sonnet-4-6\"` — Anthropic Messages API via `rawPredict`\n- `\"mistralai/mistral-medium-3\"` — OpenAI-compatible format via `rawPredict`\n- `\"meta/llama-4-maverick-17b-128e-instruct-maas\"` — OpenAI-compatible open-models endpoint\n- `\"deepseek-ai/deepseek-v3-0324\"` — OpenAI-compatible open-models endpoint\n- `\"qwen/qwen3-235b-a22b\"` — OpenAI-compatible open-models endpoint\n- `\"kimi/kimi-k2\"` — OpenAI-compatible open-models endpoint\n- `\"minimax/minimax-m2\"` — OpenAI-compatible open-models endpoint",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.googleapis.vertex_1.0.2.png"
+            },
+            "codedata": {
+              "node": "MODEL_PROVIDER",
+              "org": "ballerinax",
+              "module": "ai.googleapis.vertex",
+              "packageName": "ai.googleapis.vertex",
+              "object": "ModelProvider",
+              "symbol": "init"
             },
             "enabled": true
           },
@@ -78,7 +90,7 @@
             "metadata": {
               "label": "Mistral Model Provider",
               "description": "MistralAiProvider is a client class that provides an interface for interacting with Mistral AI Large Language Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.mistral_1.2.4.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -86,8 +98,7 @@
               "module": "ai.mistral",
               "packageName": "ai.mistral",
               "object": "ModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
             },
             "enabled": true
           },
@@ -95,7 +106,7 @@
             "metadata": {
               "label": "Ollama Model Provider",
               "description": "Provider represents a client for interacting with an Ollama language models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.ollama_1.2.4.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -103,8 +114,7 @@
               "module": "ai.ollama",
               "packageName": "ai.ollama",
               "object": "ModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
             },
             "enabled": true
           },
@@ -112,7 +122,7 @@
             "metadata": {
               "label": "OpenAI Model Provider",
               "description": "ModelProvider is a client class that provides an interface for interacting with OpenAI Large Language Models.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",
@@ -120,8 +130,23 @@
               "module": "ai.openai",
               "packageName": "ai.openai",
               "object": "ModelProvider",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
+              "label": "OpenRouter Model Provider",
+              "description": "ModelProvider is a client class that provides an interface for interacting with\nLLMs via the OpenRouter unified API, which supports models from OpenAI, Anthropic,\nGoogle, Meta, Mistral, and many other providers.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.2.png"
+            },
+            "codedata": {
+              "node": "MODEL_PROVIDER",
+              "org": "ballerinax",
+              "module": "ai.openrouter",
+              "packageName": "ai.openrouter",
+              "object": "ModelProvider",
+              "symbol": "init"
             },
             "enabled": true
           }

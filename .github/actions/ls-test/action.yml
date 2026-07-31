@@ -31,15 +31,22 @@ runs:
     - name: Set Up Ballerina
       uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
       with:
-        version: 2201.13.3
+        version: 2201.13.4
 
+    # The build resolves Ballerina packages into a build-owned home
+    # (build/ballerina_dependencies/home) rather than ~/.ballerina, and the
+    # cache key hashes the locked dependency project — so the cache is only
+    # reused when its contents are exactly what the current lock file would
+    # produce. No restore-keys on purpose: a fuzzy match would restore packages
+    # from older dependency sets, and test-time resolution picks the newest
+    # version in the cache — stale entries change test behaviour. When the key
+    # misses, the resolveBallerinaDependencies task rebuilds the cache from
+    # scratch.
     - name: Cache Ballerina dependencies
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
-        path: ${{ runner.os == 'Windows' && 'C:\Users\runneradmin\.ballerina\repositories\' || '/home/runner/.ballerina/repositories/' }}
-        key: ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-${{ hashFiles('**/gradle.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-
+        path: packages/ballerina-language-server/build/ballerina_dependencies
+        key: ${{ runner.os }}-ballerina-${{ inputs.cache-branch }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**') }}
 
     - name: Test with Gradle
       shell: bash

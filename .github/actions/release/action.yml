@@ -14,6 +14,14 @@ inputs:
     description: 'Google Chat thread key for grouping release notifications'
     required: false
     default: ''
+  tag:
+    description: >-
+      Fixed, rolling release tag (e.g. "nightly"). When set, any existing
+      release + git tag with this name is deleted and recreated, so the tag
+      always points at the latest build. When empty (default), a unique
+      "v<version>" release is created without deleting anything.
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -23,25 +31,164 @@ runs:
       id: vsix
       run: |
         file=$(ls ${{ inputs.name }}-[0-9]*.[0-9]*.[0-9]*.vsix)
-        fileName=${file##*-}
-        version=${fileName%.*}
         extension=${{ inputs.name }}
+        # Strip the '<name>-' prefix and the '.vsix' suffix rather than cutting
+        # at the last '-': a nightly version carries a '-SNAPSHOT' prerelease id
+        # (ballerina-5.13.0-SNAPSHOT.vsix), which a trailing-dash cut would
+        # reduce to just "SNAPSHOT".
+        version=${file#${extension}-}
+        version=${version%.vsix}
         extensionName="$(echo "$extension" | sed 's/.*/\u&/')"
+        # A non-empty `tag` input selects the rolling release (e.g. nightly);
+        # otherwise fall back to a unique per-version tag.
+        if [ -n "${{ inputs.tag }}" ]; then
+          releaseTag="${{ inputs.tag }}"
+          releaseName="Nightly Build (v${version})"
+        else
+          releaseTag="v${version}"
+          releaseName="Release v${version}"
+        fi
         echo "vsixName=$file" >> $GITHUB_OUTPUT
         echo "version=$version" >> $GITHUB_OUTPUT
         echo "extensionName=$extensionName" >> $GITHUB_OUTPUT
+        echo "releaseTag=$releaseTag" >> $GITHUB_OUTPUT
+        echo "releaseName=$releaseName" >> $GITHUB_OUTPUT
 
     - name: Create a release in ${{ inputs.repo }} repo
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ inputs.repo }}
+        TAG: ${{ steps.vsix.outputs.releaseTag }}
+        RELEASE_NAME: ${{ steps.vsix.outputs.releaseName }}
+        VSIX: ${{ steps.vsix.outputs.vsixName }}
+        ROLLING: ${{ inputs.tag != '' }}
       run: |
-        createResponse=`curl -X POST  -H "Accept: application/vnd.github.v3+json" \
-        -H "Authorization:token ${{ github.token }}" -d '{"tag_name":"v${{ steps.vsix.outputs.version }}", \
-        "draft":false, "name": "Release v${{ steps.vsix.outputs.version }}", "prerelease":true}' \
-        https://api.github.com/repos/${{ inputs.repo }}/releases` \
-          && id=`echo "$createResponse" | sed -n -e 's/"id":\ \([0-9]\+\),/\1/p' | head -n 1 | sed 's/[[:blank:]]//g'` && \
-          uploadResponse=`curl -X POST -H "Authorization:token ${{ github.token }}" -H "Content-Type:application/octet-stream" \
-          --data-binary @${{ steps.vsix.outputs.vsixName }} \
-          https://uploads.github.com/repos/${{ inputs.repo }}/releases/$id/assets?name=${{ steps.vsix.outputs.vsixName }}`
+        set -euo pipefail
+        API="https://api.github.com/repos/${REPO}"
+
+        # Bounded timeouts so a hung GitHub API call can't stall the job until
+        # the job-level timeout. The metadata calls are small; the asset upload
+        # ships a ~100MB VSIX, so it gets a much larger budget.
+        CURL_API=(curl -sS --connect-timeout 15 --max-time 60)
+        CURL_UPLOAD=(curl -sS --connect-timeout 15 --max-time 900)
+
+        # On the rolling path (e.g. nightly) the release is REUSED rather than
+        # deleted and recreated. Nothing is destroyed until the replacement
+        # artifact is uploaded and verified, so a failed run always leaves the
+        # previous nightly downloadable. That matters because the whole point of
+        # a fixed tag is a URL that keeps working; deleting first would take
+        # 'releases/download/<tag>/...' offline until the next successful build.
+        existingId=""
+        existingAssets="[]"
+        if [ "${ROLLING}" = "true" ]; then
+          existing=$("${CURL_API[@]}" -H "Authorization:token ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "${API}/releases/tags/${TAG}")
+          existingId=$(echo "${existing}" | jq -r '.id // empty')
+          existingAssets=$(echo "${existing}" | jq -c '.assets // []')
+        fi
+
+        if [ -n "${existingId}" ]; then
+          echo "Reusing existing release ${existingId} for tag ${TAG}"
+          id="${existingId}"
+        else
+          createResponse=$("${CURL_API[@]}" -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases" \
+            -d "$(jq -n \
+              --arg tag "${TAG}" \
+              --arg name "${RELEASE_NAME}" \
+              --arg commit "${GITHUB_SHA}" \
+              '{tag_name: $tag, target_commitish: $commit, draft: false, name: $name, prerelease: true}')")
+          id=$(echo "${createResponse}" | jq -r '.id // empty')
+          if [ -z "${id}" ]; then
+            echo "Failed to create release:" >&2
+            echo "${createResponse}" >&2
+            exit 1
+          fi
+        fi
+
+        # Asset names must be unique within a release, and a nightly VSIX has the
+        # same filename every run — so the replacement is uploaded under a temp
+        # name and renamed only after the old one is gone. Clear any temp asset
+        # left behind by a previously failed run, or this upload would 422.
+        staleId=$(echo "${existingAssets}" | jq -r --arg n "${VSIX}.new" \
+          '.[] | select(.name == $n) | .id' | head -n 1)
+        if [ -n "${staleId}" ]; then
+          echo "Removing stale temp asset ${staleId} (${VSIX}.new)"
+          "${CURL_API[@]}" -X DELETE -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases/assets/${staleId}"
+        fi
+
+        # curl exits 0 on a non-2xx HTTP response, so 'set -e' alone would let a
+        # rejected upload (auth, size limit, rate limit) pass as success, leaving
+        # a release whose artifact silently never arrived.
+        uploadResponse=$("${CURL_UPLOAD[@]}" -X POST \
+          -H "Authorization:token ${GH_TOKEN}" \
+          -H "Content-Type:application/octet-stream" \
+          --data-binary "@${VSIX}" \
+          "https://uploads.github.com/repos/${REPO}/releases/${id}/assets?name=${VSIX}.new")
+        assetId=$(echo "${uploadResponse}" | jq -r '.id // empty')
+        if [ -z "${assetId}" ]; then
+          echo "Failed to upload ${VSIX} to release ${id}:" >&2
+          echo "${uploadResponse}" >&2
+          exit 1
+        fi
+
+        # The new artifact is safely uploaded — only now retire the old one.
+        oldId=$(echo "${existingAssets}" | jq -r --arg n "${VSIX}" \
+          '.[] | select(.name == $n) | .id' | head -n 1)
+        if [ -n "${oldId}" ]; then
+          echo "Deleting superseded asset ${oldId} (${VSIX})"
+          "${CURL_API[@]}" -X DELETE -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases/assets/${oldId}"
+        fi
+
+        renameResponse=$("${CURL_API[@]}" -X PATCH \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization:token ${GH_TOKEN}" \
+          "${API}/releases/assets/${assetId}" \
+          -d "$(jq -n --arg name "${VSIX}" '{name: $name}')")
+        if [ -z "$(echo "${renameResponse}" | jq -r '.id // empty')" ]; then
+          echo "Failed to rename asset ${assetId} to ${VSIX}:" >&2
+          echo "${renameResponse}" >&2
+          exit 1
+        fi
+        echo "Uploaded ${VSIX} as asset ${assetId}"
+
+        # Refresh the reused release's title, and move the tag to this commit so
+        # the rolling tag tracks the newest build. Both happen after a verified
+        # upload, so tag and artifact never disagree on a failed run.
+        if [ -n "${existingId}" ]; then
+          releasePatch=$("${CURL_API[@]}" -X PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases/${id}" \
+            -d "$(jq -n --arg name "${RELEASE_NAME}" \
+              '{name: $name, draft: false, prerelease: true}')")
+          if [ -z "$(echo "${releasePatch}" | jq -r '.id // empty')" ]; then
+            echo "Failed to update release ${id}:" >&2
+            echo "${releasePatch}" >&2
+            exit 1
+          fi
+          # Compare the returned ref target rather than just checking for a body:
+          # a rejected ref update (missing ref, concurrent move) would otherwise
+          # leave ${TAG} on a stale commit while the release serves the new VSIX.
+          refPatch=$("${CURL_API[@]}" -X PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/git/refs/tags/${TAG}" \
+            -d "$(jq -n --arg sha "${GITHUB_SHA}" \
+              '{sha: $sha, force: true}')")
+          if [ "$(echo "${refPatch}" | jq -r '.object.sha // empty')" != "${GITHUB_SHA}" ]; then
+            echo "Failed to move tag ${TAG} to ${GITHUB_SHA}:" >&2
+            echo "${refPatch}" >&2
+            exit 1
+          fi
+          echo "Moved tag ${TAG} to ${GITHUB_SHA}"
+        fi
 
     - name: "Release Notification"
       shell: bash
@@ -71,7 +218,7 @@ runs:
                         "content": "v${{ steps.vsix.outputs.version }}",
                         "onClick": {
                           "openLink": {
-                            "url": "https://github.com/${{ inputs.repo }}/releases/tag/v${{ steps.vsix.outputs.version }}"
+                            "url": "https://github.com/${{ inputs.repo }}/releases/tag/${{ steps.vsix.outputs.releaseTag }}"
                           }
                         },
                         "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Visual_Studio_Code_1.35_icon.svg/512px-Visual_Studio_Code_1.35_icon.svg.png",
@@ -80,7 +227,7 @@ runs:
                             "text": "Download VSIX",
                             "onClick": {
                               "openLink": {
-                                "url": "https://github.com/${{ inputs.repo }}/releases/download/v${{ steps.vsix.outputs.version }}/${{ steps.vsix.outputs.vsixName }}"
+                                "url": "https://github.com/${{ inputs.repo }}/releases/download/${{ steps.vsix.outputs.releaseTag }}/${{ steps.vsix.outputs.vsixName }}"
                               }
                             }
                           }

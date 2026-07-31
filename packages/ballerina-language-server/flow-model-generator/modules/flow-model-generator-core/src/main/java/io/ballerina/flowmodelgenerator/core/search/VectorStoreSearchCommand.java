@@ -29,7 +29,6 @@ import io.ballerina.tools.text.LineRange;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Handles the search command for vector stores.
@@ -38,8 +37,6 @@ import java.util.stream.Collectors;
  */
 public class VectorStoreSearchCommand extends SearchCommand {
 
-    private static final String VECTOR_STORE_LABEL = "Vector Stores";
-
     public VectorStoreSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
     }
@@ -47,21 +44,15 @@ public class VectorStoreSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         List<AvailableNode> modelProviders = AiUtils.getVectorStores(project);
-        Category category = new Category.Builder(null).metadata().label(VECTOR_STORE_LABEL)
-                .stepOut().items(List.copyOf(modelProviders)).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.VECTOR_STORE.label(), modelProviders,
+                null));
     }
 
     @Override
     protected List<Item> search() {
         List<AvailableNode> modelProviders = AiUtils.getVectorStores(project);
-        List<Item> matchingProviders = modelProviders.stream()
-                .filter(node -> AiUtils.matchesQuery(node, query))
-                .collect(Collectors.toList());
-
-        Category category = new Category.Builder(null).metadata().label(VECTOR_STORE_LABEL)
-                .stepOut().items(matchingProviders).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.VECTOR_STORE.label(), modelProviders,
+                query));
     }
 
     @Override

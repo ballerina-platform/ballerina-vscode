@@ -96,6 +96,23 @@ subprojects {
         ballerinaStdLibs "io.ballerina.stdlib:observe-ballerina:${observeVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:tcp-ballerina:${stdlibTcpVersion}"
 
+        /* Packages bundled in the full Ballerina distribution but not in
+           jballerina-tools; test fixtures need them at the versions locked in
+           build-config/ballerina_dependencies/Dependencies.toml */
+        ballerinaStdLibs "io.ballerina.stdlib:ai-ballerina:${stdlibAiVersion}"
+        ballerinaStdLibs "io.ballerina.lib:avro-ballerina:${stdlibAvroVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:cache-ballerina:${stdlibCacheVersion}"
+        ballerinaStdLibs "io.ballerina:cloud-ballerina:${ballerinaCloudVersion}"
+        ballerinaStdLibs "io.ballerina.lib:data.csv-ballerina:${stdlibDataCsvVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:email-ballerina:${stdlibEmailVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:file-ballerina:${stdlibFileVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:jwt-ballerina:${stdlibJwtVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:math.vector-ballerina:${stdlibMathVectorVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:mcp-ballerina:${stdlibMcpVersion}"
+        ballerinaStdLibs "io.ballerina.lib:messaging-ballerina:${stdlibMessagingVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:soap-ballerina:${stdlibSoapVersion}"
+        ballerinaStdLibs "io.ballerina.stdlib:yaml-ballerina:${stdlibYamlVersion}"
+
         /* Ballerina Persist Tool */
         ballerinaStdLibs "io.ballerina:persist-tools:${persistToolVersion}"
     }
@@ -106,50 +123,74 @@ if (moduleVersion.indexOf('-') != -1) {
     moduleVersion = moduleVersion.substring(0, moduleVersion.indexOf('-'))
 }
 
-// TODO: Remove this once the workspace manager is refactored to import modules where necessary.
-def pullBallerinaModule(String packageName, String version = null, String orgName = "ballerinax") {
-    def taskName = "pull${orgName.capitalize()}Module_${packageName.replace('/', '_')}"
-    if (tasks.findByName(taskName) != null) {
-        return tasks.named(taskName)
-    }
-    tasks.register(taskName) {
-        doLast {
+// Build-owned Ballerina user home. Both bal build (below) and every test JVM use
+// this directory instead of ~/.ballerina, so test runs never read from or write
+// to the developer's machine-wide package cache. It lives inside the task's
+// output directory on purpose: wiping build/ballerina_dependencies clears the
+// resolution hash and the cache it describes together, so they cannot go out of
+// sync.
+ext.ballerinaTestHomeDir = file("$buildDir/ballerina_dependencies/home")
+
+task resolveBallerinaDependencies {
+    description 'Resolves Ballerina dependencies by executing bal build in build-config/ballerina_dependencies'
+    group 'build'
+
+    def sourceDir = file("build-config/ballerina_dependencies")
+    def targetDir = file("$buildDir/ballerina_dependencies")
+
+    inputs.dir sourceDir
+    outputs.dir targetDir
+
+    doLast {
+        def lockFile = file("build-config/ballerina_dependencies/Dependencies.toml")
+        def hashFile = file("$buildDir/ballerina_dependencies/.deps-hash")
+
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        digest.update(lockFile.bytes)
+        def currentHash = digest.digest().collect { String.format("%02x", it) }.join()
+
+        // Skip the bal build only when the locked dependency set is unchanged AND the
+        // home it describes still exists — a partially deleted home must trigger
+        // re-resolution. Dependencies.toml is the authoritative lock (every resolved
+        // package and exact version, transitives included), so it is the correct change
+        // signal; Ballerina.toml only declares version floors and does not by itself
+        // determine what gets provisioned into the cache.
+        def homeBalaDir = new File(ballerinaTestHomeDir, "repositories/central.ballerina.io/bala")
+        def skipResolution = hashFile.exists() && hashFile.text.trim() == currentHash && homeBalaDir.exists()
+
+        if (skipResolution) {
+            logger.lifecycle("Dependencies.toml unchanged — skipping dependency resolution")
+        } else {
+            delete targetDir
+
+            // Copy the directory to build location
+            copy {
+                from sourceDir
+                into targetDir
+            }
+
+            // Execute bal build in the copied directory
             def errOutput = new ByteArrayOutputStream()
             def result = exec {
                 ignoreExitValue = true
+                workingDir targetDir
+                environment "BALLERINA_HOME_DIR", ballerinaTestHomeDir.absolutePath
 
-                // Check if the package exists in the ballerina user home
-                def centralRepoDir = new File(System.getProperty("user.home"), ".ballerina/repositories/central.ballerina.io/bala/${orgName}")
-                if (centralRepoDir.exists()) {
-                    def pkgDir = new File(centralRepoDir, packageName)
-                    if (pkgDir.exists()) {
-                        if (version != null) {
-                            // Check if the specific version exists
-                            def versionDir = new File(pkgDir, version)
-                            if (versionDir.exists()) {
-                                commandLine 'echo', "Package ${packageName} version ${version} exists"
-                                return
-                            }
-                        } else {
-                            // If no version is specified, check for any version
-                            commandLine 'echo', "Package ${packageName} exists"
-                            return
-                        }
-                    }
-                }
-
-                def balPullCommand = "bal pull ${orgName}/${packageName}${version ? ':' + version : ''} --sticky=false"
+                def balBuildCommand = "bal build --sticky"
                 if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-                    commandLine 'cmd', '/c', balPullCommand
+                    commandLine 'cmd', '/c', balBuildCommand
                 } else {
-                    commandLine '/bin/sh', '-c', balPullCommand
+                    commandLine '/bin/sh', '-c', balBuildCommand
                 }
                 errorOutput = errOutput
             }
+
             if (result.exitValue != 0) {
                 println errOutput
-                throw new GradleException("Failed to pull Ballerina module: ${packageName}")
+                throw new GradleException("Failed to build Ballerina dependencies")
             }
+
+            hashFile.text = currentHash
         }
     }
 }
@@ -340,25 +381,25 @@ task pack(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
     }
 }
 
-task pullBallerinaModules {
-    dependsOn pullBallerinaModule('ai', ballerinaxAiAgent)
-    dependsOn pullBallerinaModule('kafka', ballerinaxKafkaVersion)
-    dependsOn pullBallerinaModule('rabbitmq', ballerinaxRabbitmqVersion)
-    dependsOn pullBallerinaModule('solace', ballerinaxSolaceVersion)
-    dependsOn pullBallerinaModule('cdc', ballerinaxCdcVersion)
-    dependsOn pullBallerinaModule('mssql', ballerinaxMSSQLVersion)
-    dependsOn pullBallerinaModule('mssql.cdc.driver', ballerinaxMSSQLCDCDriverVersion)
-    dependsOn pullBallerinaModule('mysql', ballerinaxMysqlVersion)
-    dependsOn pullBallerinaModule('mysql.cdc.driver', ballerinaxMysqlCdcDriverVersion)
-    dependsOn pullBallerinaModule('trigger.github', ballerinaxGithubTriggerVersion)
-    dependsOn pullBallerinaModule('trigger.shopify', ballerinaxShopifyTriggerVersion)
-    dependsOn pullBallerinaModule('trigger.hubspot', ballerinaxHubspotTriggerVersion)
-    dependsOn pullBallerinaModule('np', ballerinaxNp)
-    dependsOn pullBallerinaModule('workflow', ballerinaWorkflowVersion, "ballerina")
+test {
+    dependsOn resolveBallerinaDependencies
 }
 
-test {
-    dependsOn pullBallerinaModules
+// Tests must resolve Ballerina packages only from the build-owned Ballerina home
+// that resolveBallerinaDependencies pre-populates — never from the developer's
+// ~/.ballerina and never from Ballerina Central over the network. The Ballerina
+// project API honors the BALLERINA_HOME_DIR environment variable. Every test
+// task in every module depends on the resolution task so that running a single
+// module's tests (or a single test class) on a fresh checkout also populates
+// the home first.
+allprojects {
+    tasks.withType(Test).configureEach {
+        dependsOn rootProject.tasks.named("resolveBallerinaDependencies")
+        environment "BALLERINA_HOME_DIR", rootProject.ballerinaTestHomeDir.absolutePath
+        // Tests never contact Ballerina Central — they resolve only from the
+        // build-owned home provisioned above. See FORCE_OFFLINE in PackageUtil.
+        systemProperty "ls.test.offline", "true"
+    }
 }
 
 task buildFlow {
@@ -431,7 +472,7 @@ cyclonedxBom {
     includeBomSerialNumber = true
 }
 
-build.dependsOn test
+build.dependsOn resolveBallerinaDependencies
 build.doNotTrackState("build needs to run every time")
 publishToMavenLocal.dependsOn build
 publish.dependsOn build

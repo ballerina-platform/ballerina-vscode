@@ -73,7 +73,7 @@ import { cloneDeep } from "lodash";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
-import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, Icon } from "@wso2/ui-toolkit";
+import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, Icon, getAIModuleIcon } from "@wso2/ui-toolkit";
 import { FunctionDefinition, STNode } from "@wso2/syntax-tree";
 import { DocSection } from "../components/ExpressionEditor";
 
@@ -135,6 +135,49 @@ function convertAvailableNodeToPanelNode(
     };
 }
 
+
+// Central icon URLs are `…/{org}_{package}_{version}.png`; the middle segment is the package key.
+function getPackageKeyFromIconUrl(iconUrl?: string): string | undefined {
+    const fileName = iconUrl?.split("/").pop();
+    const parts = fileName?.split("_");
+    return parts && parts.length >= 3 ? parts[1] : undefined;
+}
+
+// Prefer the embedded provider SVG so monochrome logos stay visible in dark mode.
+function resolveChildBadgeIcon(codedata: any, iconUrl?: string): React.ReactElement {
+    const embedded =
+        getAIModuleIcon(getPackageKeyFromIconUrl(iconUrl), 14) ?? getAIModuleIcon(codedata?.object, 14);
+    if (embedded) {
+        return embedded;
+    }
+    return <img src={iconUrl} style={{ width: 14, height: 14 }} />;
+}
+
+// Keeps the package icon on the group header and gives each child its own @display icon.
+function applyGroupedChildIcons(group: PanelCategory, rawItems: any[]): void {
+    const rawGroup = rawItems?.find(
+        (r) => r && !("codedata" in r) && r.metadata?.label === group.title
+    );
+    const packageIconUrl: string | undefined = rawGroup?.metadata?.icon;
+
+    if (packageIconUrl) {
+        group.icon = (
+            <ConnectorIcon url={packageIconUrl} style={{ width: "20px", height: "20px", fontSize: "20px" }} />
+        );
+    }
+
+    group.items?.forEach((child) => {
+        const childNode = child as PanelNode;
+        const codedata = childNode.metadata?.codedata;
+        const childIconUrl: string | undefined = childNode.metadata?.metadata?.icon;
+        const hasClassIcon = Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
+        child.icon = hasClassIcon ? (
+            resolveChildBadgeIcon(codedata, childIconUrl)
+        ) : (
+            <NodeIcon type={codedata?.node} size={14} />
+        );
+    });
+}
 
 function convertDiagramCategoryToSidePanelCategory(category: Category, functionType?: FUNCTION_TYPE): PanelCategory {
     const connectorType = (category?.metadata?.data as NodeMetadata)?.connectorType;
@@ -237,18 +280,15 @@ export function convertFunctionCategoriesToSidePanelCategories(
 
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
-    panelCategories.forEach((category) => {
+    panelCategories.forEach((category, index) => {
         category.items?.forEach((item) => {
             if ((item as PanelNode).metadata?.codedata) {
                 const codedata = (item as PanelNode).metadata.codedata;
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 const iconType = codedata?.module == "ai" ? codedata.object : codedata?.module;
                 item.icon = <AIModelIcon type={iconType} codedata={codedata} iconUrl={iconUrl} />;
-            } else if (((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.codedata) {
-                const codedata = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata.codedata;
-                const iconUrl = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.metadata?.icon;
-                const iconType = codedata?.module == "ai" ? codedata.object : codedata?.module;
-                item.icon = <AIModelIcon type={iconType} codedata={codedata} iconUrl={iconUrl} />;
+            } else if ((item as PanelCategory).items) {
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
             }
         });
     });
@@ -282,16 +322,14 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
     iconFactory: (codedata: any, iconUrl?: string) => React.ReactElement
 ): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
-    panelCategories.forEach((category) => {
+    panelCategories.forEach((category, index) => {
         category.items?.forEach((item) => {
             if ((item as PanelNode).metadata?.codedata) {
                 const codedata = (item as PanelNode).metadata.codedata;
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 item.icon = iconFactory(codedata, iconUrl);
-            } else if (((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.codedata) {
-                const codedata = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata.codedata;
-                const iconUrl = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.metadata?.icon;
-                item.icon = iconFactory(codedata, iconUrl);
+            } else if ((item as PanelCategory).items) {
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
             }
         });
     });

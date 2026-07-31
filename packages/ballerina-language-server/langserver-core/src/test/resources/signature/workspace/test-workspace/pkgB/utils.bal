@@ -1,5 +1,3 @@
-import ballerina/http;
-
 # A utility function that processes data
 #
 # + data - The input data string

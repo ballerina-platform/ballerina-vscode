@@ -5,8 +5,7 @@
     "org": "ballerina",
     "module": "ai",
     "packageName": "ai",
-    "symbol": "getDefaultModelProvider",
-    "version": "1.1.0"
+    "symbol": "getDefaultModelProvider"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -14,7 +13,7 @@
       "metadata": {
         "label": "Model Provider",
         "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "MODEL_PROVIDER",
@@ -22,7 +21,7 @@
         "module": "ai",
         "packageName": "ai",
         "symbol": "getDefaultModelProvider",
-        "version": "1.1.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,

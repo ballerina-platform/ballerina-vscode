@@ -12,7 +12,6 @@
     "packageName": "mssql",
     "object": "Client",
     "symbol": "call",
-    "version": "1.16.1",
     "parentSymbol": "dbClient",
     "resourcePath": "/albums/[albumId]"
   },
@@ -21,7 +20,7 @@
     "metadata": {
       "label": "call",
       "description": "Calls a stored procedure with the given SQL query.\nOnce the results are processed, invoke the `close` method on the `sql:ProcedureCallResult`.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.16.1.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.17.0.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
@@ -30,7 +29,6 @@
       "packageName": "mssql",
       "object": "Client",
       "symbol": "call",
-      "version": "1.16.1",
       "isNew": true
     },
     "returning": false,

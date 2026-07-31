@@ -134,7 +134,6 @@
       "module": "http",
       "object": "Client",
       "symbol": "get",
-      "version": "2.14.0",
       "isNew": true,
       "inferredReturnType": "targetType"
     },

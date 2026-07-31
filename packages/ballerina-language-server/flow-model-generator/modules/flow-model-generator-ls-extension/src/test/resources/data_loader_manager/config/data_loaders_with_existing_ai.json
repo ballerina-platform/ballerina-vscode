@@ -9,9 +9,25 @@
         "items": [
           {
             "metadata": {
+              "label": "Text Data Loader",
+              "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+            },
+            "codedata": {
+              "node": "DATA_LOADER",
+              "org": "ballerina",
+              "module": "ai",
+              "packageName": "ai",
+              "object": "TextDataLoader",
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
               "label": "Devant Binary Data Loader",
               "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
             },
             "codedata": {
               "node": "DATA_LOADER",
@@ -19,8 +35,23 @@
               "module": "ai.devant",
               "packageName": "ai.devant",
               "object": "BinaryDataLoader",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
+              "label": "Microsoft SharePoint Text Data Loader",
+              "description": "A data loader that retrieves documents from SharePoint document libraries as text.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.microsoft.sharepoint_1.0.1.png"
+            },
+            "codedata": {
+              "node": "DATA_LOADER",
+              "org": "ballerinax",
+              "module": "ai.microsoft.sharepoint",
+              "packageName": "ai.microsoft.sharepoint",
+              "object": "TextDataLoader",
+              "symbol": "init"
             },
             "enabled": true
           }

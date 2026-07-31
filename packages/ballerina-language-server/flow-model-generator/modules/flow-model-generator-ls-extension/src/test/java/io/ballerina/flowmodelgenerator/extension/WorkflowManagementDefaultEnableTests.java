@@ -75,6 +75,19 @@ public class WorkflowManagementDefaultEnableTests extends AbstractLSTest {
         return "workflowManagementService";
     }
 
+    // todo: Remove after resolving BIR issue related to ballerinax/wso2.controlplane:1.0.0
+    /**
+     * * @see <a href="https://github.com/wso2/product-integrator/issues/1920">product-integrator#1920</a>
+     */
+    @Override
+    protected String[] skipList() {
+        return new String[]{
+                "config1.json",
+                "config2.json",
+                "config5.json"
+        };
+    }
+
     /**
      * Represents the test configuration for the workflow management default-enable test.
      *

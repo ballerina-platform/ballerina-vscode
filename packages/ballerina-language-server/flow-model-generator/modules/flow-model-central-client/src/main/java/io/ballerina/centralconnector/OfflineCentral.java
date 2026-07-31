@@ -16,9 +16,8 @@
  *  under the License.
  */
 
-package io.ballerina.flowmodelgenerator.extension;
+package io.ballerina.centralconnector;
 
-import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.ConnectorResponse;
 import io.ballerina.centralconnector.response.ConnectorsResponse;
 import io.ballerina.centralconnector.response.DependentPackage;
@@ -32,72 +31,77 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link CentralAPI} implementation that always fails, forcing callers to fall back to the local search database.
- * Used in tests to ensure deterministic results independent of the remote Ballerina Central.
+ * A {@link CentralAPI} implementation that never contacts Ballerina Central. Every operation fails, forcing callers to
+ * fall back to their local sources (the search index database, the build-owned package cache, or hardcoded defaults).
+ * <p>
+ * {@link RemoteCentral#getInstance()} returns this implementation when the {@code ls.test.offline} system property is
+ * set, so tests resolve only from the build-provisioned Ballerina home and never over the network.
  *
  * @since 1.7.0
  */
-public class OfflineCentralAPI implements CentralAPI {
+public class OfflineCentral implements CentralAPI {
+
+    private static final String MESSAGE = "Ballerina Central access is disabled (ls.test.offline)";
 
     @Override
     public PackageResponse searchPackages(Map<String, String> queryMap) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public SymbolResponse searchSymbols(Map<String, String> queryMap) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public FunctionsResponse functions(String organization, String name, String version) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public Listeners listeners(String organization, String name, String version) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public FunctionResponse function(String organization, String name, String version, String functionName) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public ConnectorsResponse connectors(Map<String, String> queryMap) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public ConnectorResponse connector(String id) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public ConnectorResponse connector(String organization, String name, String version, String clientName) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public String latestPackageVersion(String org, String name) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public List<String> allPackageVersions(String org, String name) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public Map<String, List<DependentPackage>> dependentPackages(String org, String packageName,
-                                                                  List<String> versions) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+                                                                 List<String> versions) {
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override
     public Map<String, List<String>> packageKeywords(List<DependentPackage> modules) {
-        throw new UnsupportedOperationException("Central API is disabled for testing");
+        throw new UnsupportedOperationException(MESSAGE);
     }
 
     @Override

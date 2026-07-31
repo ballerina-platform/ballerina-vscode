@@ -28,6 +28,8 @@ import io.ballerina.architecturemodelgenerator.core.diagnostics.DiagnosticMessag
 import io.ballerina.architecturemodelgenerator.core.diagnostics.DiagnosticUtils;
 import io.ballerina.architecturemodelgenerator.core.generators.entity.EntityModelGenerator;
 import io.ballerina.architecturemodelgenerator.core.model.entity.Entity;
+import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.SingleFileProject;
@@ -68,8 +70,11 @@ public class PersistERModelGeneratorService implements ExtendedLanguageServerSer
             AtomicBoolean hasDiagnosticErrors = new AtomicBoolean(false);
             Map<String, Entity> entities = new HashMap<>();
             try {
-                // Persist model file should be loaded as a single file project
-                Project project = SingleFileProject.load(path);
+                // Persist model file should be loaded as a single file project. Tests (ls.test.offline) force offline
+                // resolution so compilation never pulls from Central; production keeps the default behaviour.
+                Project project = PackageUtil.isOffline()
+                        ? SingleFileProject.load(path, BuildOptions.builder().setOffline(true).build())
+                        : SingleFileProject.load(path);
                 PackageCompilation currentPackageCompilation = project.currentPackage().getCompilation();
                 EntityModelGenerator entityModelGenerator =
                         new EntityModelGenerator(currentPackageCompilation,

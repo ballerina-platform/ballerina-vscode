@@ -14,7 +14,6 @@
       "module": "snowflake",
       "object": "Client",
       "symbol": "init",
-      "version": "2.0.0",
       "lineRange": {
         "fileName": "connections.bal",
         "startLine": {

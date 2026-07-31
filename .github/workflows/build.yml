@@ -12,6 +12,10 @@ on:
       isPreRelease:
         default: true
         type: boolean
+      snapshot:
+        description: Stamp the extension version as '<version>-SNAPSHOT' (nightly builds)
+        default: false
+        type: boolean
       enableCache:
         default: true
         type: boolean
@@ -106,6 +110,7 @@ jobs:
         uses: ./.github/actions/build
         with:
           isPreRelease: ${{ inputs.isPreRelease }}
+          snapshot: ${{ inputs.snapshot }}
           lsSource: ${{ inputs.lsSource }}
           ballerinaLsTag: ${{ inputs.ballerinaLsTag }}
           enableCache: ${{ inputs.enableCache }}

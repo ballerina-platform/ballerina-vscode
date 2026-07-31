@@ -15,7 +15,6 @@
       "packageName": "ai",
       "object": "Agent",
       "symbol": "run",
-      "version": "1.9.0",
       "isNew": true,
       "lineRange": {
         "fileName": "functions.bal",

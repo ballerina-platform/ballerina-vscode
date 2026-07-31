@@ -65,6 +65,7 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
 
     // Navigation state
     const [currentView, setCurrentView] = useState<WizardView>(WizardView.CONNECTION_CONFIG);
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
 
@@ -246,6 +247,8 @@ export function EditConnectionWizard(props: EditConnectionWizardProps) {
                         connectionKind={selectedConnectionKind}
                         selectedNode={connection}
                         onSelect={handleSelectNewConnection}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={setExpandedGroupId}
                     />
                 );
 

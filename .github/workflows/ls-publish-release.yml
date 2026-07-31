@@ -124,7 +124,7 @@ jobs:
       - name: Set up Ballerina
         uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
         with:
-          version: 2201.13.3
+          version: 2201.13.4
 
       - name: Build with Gradle
         env:

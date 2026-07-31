@@ -10,6 +10,22 @@
         "items": [
           {
             "metadata": {
+              "label": "Azure Embedding Provider",
+              "description": "EmbeddingProvider provides an interface for interacting with Azure OpenAI Embedding Models.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.azure_1.4.4.png"
+            },
+            "codedata": {
+              "node": "EMBEDDING_PROVIDER",
+              "org": "ballerinax",
+              "module": "ai.azure",
+              "packageName": "ai.azure",
+              "object": "EmbeddingProvider",
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
               "label": "OpenAI Embedding Provider",
               "description": "EmbeddingProvider provides an interface for interacting with OpenAI Embedding Models.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openai_1.3.5.png"
@@ -19,6 +35,22 @@
               "org": "ballerinax",
               "module": "ai.openai",
               "packageName": "ai.openai",
+              "object": "EmbeddingProvider",
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
+              "label": "OpenRouter Embedding Provider",
+              "description": "EmbeddingProvider is a client class that provides an interface for generating\nvector embeddings via the OpenRouter unified API, which supports embedding models\nfrom OpenAI, Google, Mistral, and other providers.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.openrouter_1.0.2.png"
+            },
+            "codedata": {
+              "node": "EMBEDDING_PROVIDER",
+              "org": "ballerinax",
+              "module": "ai.openrouter",
+              "packageName": "ai.openrouter",
               "object": "EmbeddingProvider",
               "symbol": "init"
             },

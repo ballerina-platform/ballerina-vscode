@@ -134,7 +134,6 @@
       "module": "redis",
       "object": "Client",
       "symbol": "bitOpAnd",
-      "version": "3.0.2",
       "id": 1109,
       "isNew": true
     },

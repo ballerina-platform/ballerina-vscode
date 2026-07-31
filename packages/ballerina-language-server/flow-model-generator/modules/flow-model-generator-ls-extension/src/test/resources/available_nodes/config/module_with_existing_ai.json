@@ -65,8 +65,7 @@
                 "module": "ai",
                 "packageName": "ai",
                 "object": "KnowledgeBase",
-                "symbol": "init",
-                "version": "1.0.0"
+                "symbol": "init"
               },
               "enabled": true
             },
@@ -78,7 +77,7 @@
               "codedata": {
                 "node": "DATA_LOADERS"
               },
-              "enabled": false
+              "enabled": true
             },
             {
               "metadata": {
@@ -89,8 +88,7 @@
                 "org": "ballerina",
                 "module": "ai",
                 "packageName": "ai",
-                "symbol": "chunkDocumentRecursively",
-                "version": "1.0.0"
+                "symbol": "chunkDocumentRecursively"
               },
               "enabled": true
             },
@@ -102,7 +100,7 @@
               "codedata": {
                 "node": "CHUNKERS"
               },
-              "enabled": false
+              "enabled": true
             },
             {
               "metadata": {
@@ -113,8 +111,7 @@
                 "org": "ballerina",
                 "module": "ai",
                 "packageName": "ai",
-                "symbol": "augmentUserQuery",
-                "version": "1.0.0"
+                "symbol": "augmentUserQuery"
               },
               "enabled": true
             },

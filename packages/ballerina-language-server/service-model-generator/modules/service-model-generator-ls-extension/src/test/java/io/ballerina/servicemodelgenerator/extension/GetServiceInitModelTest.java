@@ -84,6 +84,22 @@ public class GetServiceInitModelTest extends AbstractLSTest {
     }
 
     /**
+     * The "*_2" cases compile a source project that imports {@code ballerinax/salesforce}. Under the
+     * test-provisioned distribution, salesforce currently fails to load from its BIR
+     * ({@code Cannot read field "scope" because "env" is null}) because of an upstream Ballerina
+     * whole-program BIR cache corruption produced while provisioning the shared dependency home.
+     * Skip these until the upstream issue is resolved.
+     *
+     * @see <a href="https://github.com/wso2/product-integrator/issues/1920">product-integrator#1920</a>
+     */
+    @Override
+    protected String[] skipList() {
+        return new String[]{
+                "salesforce_service_model_2.json",
+        };
+    }
+
+    /**
      * Represents the test configuration.
      *
      * @param description description of the test

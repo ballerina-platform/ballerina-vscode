@@ -12,7 +12,6 @@
     "packageName": "http",
     "object": "Client",
     "symbol": "get",
-    "version": "2.12.0",
     "parentSymbol": "httpClient",
     "resourcePath": "/path/to/subdirectory"
   },
@@ -21,7 +20,7 @@
     "metadata": {
       "label": "get",
       "description": "The client resource function to send HTTP GET requests to HTTP endpoints.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.12.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
     },
     "codedata": {
       "node": "RESOURCE_ACTION_CALL",
@@ -145,7 +144,7 @@
       "targetType": {
         "metadata": {
           "label": "Target Type",
-          "description": "HTTP response, `anydata` or stream of HTTP SSE, which is expected to be returned after data binding"
+          "description": "Expected return type (to be used for automatic data binding).\nSupported types:\n- Built-in subtypes of `anydata` (`string`, `byte[]`, `json|xml`, etc.)\n- Custom types (e.g., `User`, `Student?`, `Person[]`, etc.)\n- Full HTTP response with headers and status (`http:Response`)\n- Stream of Server-Sent Events (`stream<http:SseEvent, error?>`)"
         },
         "types": [
           {

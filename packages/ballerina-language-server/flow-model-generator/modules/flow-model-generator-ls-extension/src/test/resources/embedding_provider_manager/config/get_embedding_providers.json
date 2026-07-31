@@ -29,7 +29,6 @@
                   "packageName": "ai.openai",
                   "object": "EmbeddingProvider",
                   "symbol": "embed",
-                  "version": "1.1.0",
                   "parentSymbol": "openAiEmbeddingModel",
                   "resourcePath": ""
                 },
@@ -48,7 +47,6 @@
                   "packageName": "ai.openai",
                   "object": "EmbeddingProvider",
                   "symbol": "batchEmbed",
-                  "version": "1.1.0",
                   "parentSymbol": "openAiEmbeddingModel",
                   "resourcePath": ""
                 },
@@ -77,7 +75,6 @@
                   "packageName": "ai",
                   "object": "Wso2EmbeddingProvider",
                   "symbol": "embed",
-                  "version": "1.1.0",
                   "parentSymbol": "wso2DefaultEmbeddingModel",
                   "resourcePath": ""
                 },
@@ -96,7 +93,6 @@
                   "packageName": "ai",
                   "object": "Wso2EmbeddingProvider",
                   "symbol": "batchEmbed",
-                  "version": "1.1.0",
                   "parentSymbol": "wso2DefaultEmbeddingModel",
                   "resourcePath": ""
                 },
@@ -125,7 +121,6 @@
                   "packageName": "ai",
                   "object": "Wso2EmbeddingProvider",
                   "symbol": "embed",
-                  "version": "1.1.0",
                   "parentSymbol": "wso2EmbeddingModel",
                   "resourcePath": ""
                 },
@@ -144,7 +139,6 @@
                   "packageName": "ai",
                   "object": "Wso2EmbeddingProvider",
                   "symbol": "batchEmbed",
-                  "version": "1.1.0",
                   "parentSymbol": "wso2EmbeddingModel",
                   "resourcePath": ""
                 },

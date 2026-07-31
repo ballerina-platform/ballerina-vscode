@@ -83,6 +83,10 @@ def pullBallerinaTool(String toolName, String version = null) {
         group = "ballerinaTools"
         description = "Pulls Ballerina tool ${toolName}${version ? " version ${version}" : ""} if not present"
 
+        // Install the tool into the build-owned Ballerina home the test JVMs read,
+        // not the developer's ~/.ballerina (see ballerinaTestHomeDir in the root project).
+        environment "BALLERINA_HOME_DIR", rootProject.ballerinaTestHomeDir.absolutePath
+
         def balPullCommand = "bal tool pull ${toolName}${version ? ':' + version : ''}"
         if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
             commandLine 'cmd', '/c', balPullCommand

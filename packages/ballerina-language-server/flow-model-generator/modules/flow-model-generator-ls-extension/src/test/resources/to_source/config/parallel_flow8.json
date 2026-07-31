@@ -79,7 +79,6 @@
               "org": "ballerina",
               "module": "io",
               "symbol": "println",
-              "version": "1.7.0",
               "lineRange": {
                 "fileName": "fork.bal",
                 "startLine": {
@@ -179,7 +178,6 @@
               "org": "ballerina",
               "module": "io",
               "symbol": "println",
-              "version": "1.7.0",
               "lineRange": {
                 "fileName": "fork.bal",
                 "startLine": {

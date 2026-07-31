@@ -11,15 +11,14 @@
     "module": "ai",
     "packageName": "ai",
     "object": "MessageWindowChatMemory",
-    "symbol": "init",
-    "version": "1.0.0"
+    "symbol": "init"
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "Class",
       "description": "Initializes a new memory window with a default or given size.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
     },
     "codedata": {
       "node": "CLASS_INIT",
@@ -28,7 +27,6 @@
       "packageName": "ai",
       "object": "MessageWindowChatMemory",
       "symbol": "init",
-      "version": "1.0.0",
       "isNew": true
     },
     "returning": false,

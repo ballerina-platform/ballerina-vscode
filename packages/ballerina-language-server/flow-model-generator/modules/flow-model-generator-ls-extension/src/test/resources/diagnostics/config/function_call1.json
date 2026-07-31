@@ -12,8 +12,7 @@
       "node": "FUNCTION_CALL",
       "org": "ballerina",
       "module": "log",
-      "symbol": "printInfo",
-      "version": "2.10.0"
+      "symbol": "printInfo"
     },
     "property": {
       "metadata": {

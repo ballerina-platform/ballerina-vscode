@@ -115,6 +115,11 @@ public class BallerinaBaseCompilerApi extends BallerinaCompilerApi {
 
     @Override
     public Project loadProject(Path path) {
+        // Tests (ls.test.offline) force offline resolution so this load never pulls from Central; production keeps the
+        // default (online) behaviour.
+        if (CommonUtil.TEST_OFFLINE) {
+            return createProject(path, BuildOptions.builder().setOffline(true).build());
+        }
         return ProjectLoader.loadProject(path);
     }
 

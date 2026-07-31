@@ -142,10 +142,10 @@ jobs:
             "${{ secrets.EDITOR_TEAM_CHAT_API }}&messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" \
             -d "$body"
 
-      - name: Create a release in wso2/ballerina-vscode repo
+      - name: Create a release in ${{ github.repository }} repo
         uses: ./.github/actions/release
         with:
-          repo: wso2/ballerina-vscode
+          repo: ${{ github.repository }}
           name: ballerina
           chatAPI: ${{ secrets.EDITOR_TEAM_CHAT_API }}
           threadKey: ballerina-release-${{ github.run_id }}
@@ -204,7 +204,7 @@ jobs:
 
   Notify:
     needs: [Release]
-    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'wso2/ballerina-vscode' }}
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

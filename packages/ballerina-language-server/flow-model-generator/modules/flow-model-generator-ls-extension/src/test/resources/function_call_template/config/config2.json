@@ -6,10 +6,10 @@
     "org": "ballerina",
     "module": "io",
     "symbol": "println",
-    "version": "1.6.1"
+    "version": "1.8.1"
   },
   "kind": "IMPORTED",
   "functionCall": "io:println(${1})",
   "prefix": "io",
-  "moduleId": "ballerina/io:1.6.1"
+  "moduleId": "ballerina/io:1.8.1"
 }

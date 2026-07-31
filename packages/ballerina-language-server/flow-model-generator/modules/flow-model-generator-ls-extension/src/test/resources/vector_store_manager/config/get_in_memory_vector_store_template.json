@@ -6,8 +6,7 @@
     "module": "ai",
     "packageName": "ai",
     "object": "InMemoryVectorStore",
-    "symbol": "init",
-    "version": "1.1.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Vector Store",
         "description": "Initializes a new in-memory vector store.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "VECTOR_STORE",
@@ -23,7 +22,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "InMemoryVectorStore",
-        "version": "1.1.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,
@@ -66,34 +65,6 @@
           "editable": true,
           "advanced": false,
           "hidden": false
-        },
-        "topK": {
-          "metadata": {
-            "label": "Top K",
-            "description": "The maximum number of top similar vectors to return in query results"
-          },
-          "types": [
-            {
-              "fieldType": "NUMBER",
-              "ballerinaType": "int",
-              "selected": false
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "int",
-              "selected": false
-            }
-          ],
-          "placeholder": "0",
-          "optional": true,
-          "editable": true,
-          "advanced": true,
-          "hidden": false,
-          "codedata": {
-            "kind": "DEFAULTABLE",
-            "originalName": "topK"
-          },
-          "defaultValue": "3"
         },
         "similarityMetric": {
           "metadata": {

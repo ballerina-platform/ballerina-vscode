@@ -1,11 +1,11 @@
 {
   "description": "Test getting kafka listener model",
   "codedata": {
+    "type": "Listener",
     "orgName": "ballerinax",
     "packageName": "kafka",
     "moduleName": "kafka",
-    "version": "4.6.0",
-    "type": "Listener"
+    "version": "4.6.5"
   },
   "filePath": "sample1/main.bal",
   "response": {
@@ -16,10 +16,10 @@
       "description": "Creates a new `kafka:Listener`.\n",
       "moduleName": "kafka",
       "orgName": "ballerinax",
-      "version": "4.6.0",
+      "version": "4.6.5",
       "packageName": "kafka",
       "listenerProtocol": "kafka",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_kafka_4.6.5.png",
       "properties": {
         "variableNameKey": {
           "metadata": {
@@ -1386,7 +1386,7 @@
         "autoSeekOnValidationFailure": {
           "metadata": {
             "label": "Auto Seek On Validation Failure",
-            "description": "Automatically seeks past the errornous records in the event of an data-binding or\nvalidating constraints failure"
+            "description": "Automatically seeks past the erroneous records in the event of an data-binding or\nvalidating constraints failure"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -1429,7 +1429,7 @@
               "typeMembers": [
                 {
                   "type": "SecureSocket",
-                  "packageInfo": "ballerinax:kafka:4.6.0",
+                  "packageInfo": "ballerinax:kafka:4.6.5",
                   "packageName": "kafka",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -1466,7 +1466,7 @@
               "typeMembers": [
                 {
                   "type": "AuthenticationConfiguration",
-                  "packageInfo": "ballerinax:kafka:4.6.0",
+                  "packageInfo": "ballerinax:kafka:4.6.5",
                   "packageName": "kafka",
                   "kind": "RECORD_TYPE",
                   "selected": false

@@ -57,7 +57,6 @@
               "module": "http",
               "object": "Client",
               "symbol": "get",
-              "version": "2.12.2",
               "lineRange": {
                 "fileName": "while.bal",
                 "startLine": {

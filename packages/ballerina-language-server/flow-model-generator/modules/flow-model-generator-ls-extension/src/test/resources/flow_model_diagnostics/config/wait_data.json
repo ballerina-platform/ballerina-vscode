@@ -386,7 +386,7 @@
           "kind": "DEFAULTABLE",
           "originalName": "minCount"
         },
-        "defaultValue": "<int:Unsigned32>futures.length()"
+        "defaultValue": "0"
       },
       "timeout": {
         "metadata": {

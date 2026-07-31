@@ -15,7 +15,6 @@
       "packageName": "kafka",
       "object": "Consumer",
       "symbol": "poll",
-      "version": "4.6.2",
       "isNew": true,
       "inferredReturnType": "T",
       "lineRange": {

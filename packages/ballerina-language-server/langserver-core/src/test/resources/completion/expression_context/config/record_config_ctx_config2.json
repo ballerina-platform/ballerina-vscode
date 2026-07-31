@@ -72,11 +72,11 @@
     {
       "label": "httpClient",
       "labelDetails": {
-        "detail": " http:Client",
+        "detail": " module1:Client",
         "description": "Client"
       },
       "kind": "Field",
-      "detail": "http:Client",
+      "detail": "module1:Client",
       "sortText": "CA",
       "insertText": "httpClient",
       "insertTextFormat": "Snippet"

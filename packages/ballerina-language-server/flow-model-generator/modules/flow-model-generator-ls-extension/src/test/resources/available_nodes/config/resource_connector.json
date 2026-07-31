@@ -30,7 +30,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "respond",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -49,7 +48,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "promise",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -68,7 +66,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "pushPromisedResponse",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -87,7 +84,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "'continue",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -106,7 +102,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "redirect",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -125,7 +120,6 @@
                 "packageName": "http",
                 "object": "Caller",
                 "symbol": "getRemoteHostName",
-                "version": "2.14.1",
                 "parentSymbol": "caller",
                 "resourcePath": ""
               },
@@ -17580,8 +17574,7 @@
             "org": "ballerina",
             "module": "log",
             "packageName": "log",
-            "symbol": "printInfo",
-            "version": "2.10.0"
+            "symbol": "printInfo"
           },
           "enabled": true
         },
@@ -17596,8 +17589,7 @@
             "org": "ballerina",
             "module": "log",
             "packageName": "log",
-            "symbol": "printError",
-            "version": "2.10.0"
+            "symbol": "printError"
           },
           "enabled": true
         },
@@ -17612,8 +17604,7 @@
             "org": "ballerina",
             "module": "log",
             "packageName": "log",
-            "symbol": "printWarn",
-            "version": "2.10.0"
+            "symbol": "printWarn"
           },
           "enabled": true
         },
@@ -17628,8 +17619,7 @@
             "org": "ballerina",
             "module": "log",
             "packageName": "log",
-            "symbol": "printDebug",
-            "version": "2.10.0"
+            "symbol": "printDebug"
           },
           "enabled": true
         }

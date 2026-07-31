@@ -96,7 +96,7 @@ brew install --cask temurin@21
 ## Initial checkout
 
 ```bash
-git clone --recurse-submodules https://github.com/wso2/ballerina-vscode.git
+git clone --recurse-submodules https://github.com/ballerina-platform/ballerina-vscode.git
 cd ballerina-vscode
 
 # If you cloned without --recurse-submodules:

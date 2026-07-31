@@ -6,8 +6,7 @@
     "module": "ai",
     "packageName": "ai",
     "object": "VectorKnowledgeBase",
-    "symbol": "init",
-    "version": "1.1.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Knowledge Base",
         "description": "Initializes a new `VectorKnowledgeBase` instance.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "KNOWLEDGE_BASE",
@@ -23,7 +22,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "VectorKnowledgeBase",
-        "version": "1.1.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,
@@ -110,6 +109,29 @@
             "kind": "REQUIRED",
             "originalName": "embeddingModel"
           }
+        },
+        "chunker": {
+          "metadata": {
+            "label": "Chunker",
+            "description": "The chunker to chunk the documents. If set to `AUTO`, the chunker will be chosen automatically\nbased on the document type. If set to `DISABLE`, no chunking will be performed.\nOtherwise, the specified chunker will be used."
+          },
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ai:Chunker|\"AUTO\"|\"DISABLE\"",
+              "selected": false
+            }
+          ],
+          "placeholder": "object {}",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false,
+          "codedata": {
+            "kind": "DEFAULTABLE",
+            "originalName": "chunker"
+          },
+          "defaultValue": "AUTO"
         },
         "scope": {
           "metadata": {

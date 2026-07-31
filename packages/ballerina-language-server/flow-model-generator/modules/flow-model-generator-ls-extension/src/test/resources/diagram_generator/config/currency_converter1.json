@@ -1911,7 +1911,7 @@
                     "selected": true
                   }
                 ],
-                "value": "redis:error|error|http:error|error",
+                "value": "redis:Error|error|http:error|error",
                 "placeholder": "error",
                 "optional": false,
                 "editable": true,
@@ -3145,7 +3145,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"redis://localhost:6379\""
+            "defaultValue": "\"\""
           },
           "connectionPooling": {
             "metadata": {

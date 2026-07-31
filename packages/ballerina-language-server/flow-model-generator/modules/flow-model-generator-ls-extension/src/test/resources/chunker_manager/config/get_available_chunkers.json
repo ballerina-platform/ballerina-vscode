@@ -29,7 +29,6 @@
                   "packageName": "ai.devant",
                   "object": "Chunker",
                   "symbol": "chunk",
-                  "version": "1.0.0",
                   "parentSymbol": "devantChunker",
                   "resourcePath": ""
                 },
@@ -58,7 +57,6 @@
                   "packageName": "ai",
                   "object": "GenericRecursiveChunker",
                   "symbol": "chunk",
-                  "version": "1.5.0",
                   "parentSymbol": "genericChunker",
                   "resourcePath": ""
                 },
@@ -87,7 +85,6 @@
                   "packageName": "ai",
                   "object": "HtmlChunker",
                   "symbol": "chunk",
-                  "version": "1.5.0",
                   "parentSymbol": "htmlChunker",
                   "resourcePath": ""
                 },
@@ -116,7 +113,6 @@
                   "packageName": "ai",
                   "object": "MarkdownChunker",
                   "symbol": "chunk",
-                  "version": "1.5.0",
                   "parentSymbol": "mdChunker",
                   "resourcePath": ""
                 },

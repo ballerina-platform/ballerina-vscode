@@ -123,6 +123,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
 
     // Navigation state
     const [currentView, setCurrentView] = useState<PopupView>(PopupView.CONNECTION_CONFIG);
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [nodeFormTemplate, setNodeFormTemplate] = useState<FlowNode>();
 
@@ -181,7 +182,7 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                             connection: connectionName,
                             projectPath: visualizerLocation.projectPath
                         });
-                    
+
                         if (response?.data) {
                             setConnectorCredentials(response.data);
                         }
@@ -313,10 +314,10 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
     };
 
     const handleOpenERDiagram = async () => {
-        if(!connectorCredentials?.modelFilePath) {
+        if (!connectorCredentials?.modelFilePath) {
             return;
         }
-        
+
         const visualizerLocation = await rpcClient.getVisualizerLocation();
         const modelDocumentUri = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
             segments: [connectorCredentials.modelFilePath]
@@ -366,6 +367,8 @@ export function EditConnectionPopup(props: EditConnectionPopupProps) {
                         connectionKind={selectedConnectionKind}
                         selectedNode={connection}
                         onSelect={handleSelectNewConnection}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={setExpandedGroupId}
                     />
                 );
             case PopupView.CONNECTION_CREATE:

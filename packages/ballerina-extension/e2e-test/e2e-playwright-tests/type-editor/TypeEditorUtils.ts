@@ -260,23 +260,61 @@ export class TypeEditorUtils {
     }
 
     /**
+     * Open a type node's three-dot menu and click one of its items.
+     *
+     * The popover can close on its own while the diagram re-renders (the LS
+     * pushes an updated model right after a save), which detaches the item
+     * mid-click. Playwright then keeps retrying against a menu that no longer
+     * exists and burns the whole click timeout without ever recovering —
+     * "element was detached from the DOM, retrying" until it fails. Re-opening
+     * the menu is the only thing that can recover, so drive the open+click as
+     * one retryable unit and stop as soon as `isOpen` confirms the target view
+     * actually came up.
+     *
+     * Targets the menu item by its `#menu-item-<id>` id (set by ui-toolkit's
+     * MenuItem) rather than by visible text, so it can't match stray "Edit"
+     * text rendered elsewhere in the webview.
+     */
+    private async openTypeNodeMenuItem(
+        typeName: string,
+        menuItemId: string,
+        isOpen: () => Promise<boolean>,
+        attempts: number = 5
+    ): Promise<void> {
+        const menuButton = this.webView.locator(`[data-testid="type-node-${typeName}-menu"]`);
+        const menuItem = this.webView.locator(`#menu-item-${menuItemId}`);
+
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            await this.waitForElement(menuButton, 15000);
+            // The clickable target is the MoreVert icon inside the MenuButton;
+            // fall back to the button host if the icon doesn't expose a role.
+            const menuIcon = menuButton.getByRole('img');
+            const target = await menuIcon.count() > 0 ? menuIcon.first() : menuButton;
+            await target.click({ force: true });
+
+            const clicked = await menuItem.waitFor({ state: 'visible', timeout: 5000 })
+                .then(() => menuItem.click({ force: true, timeout: 5000 }))
+                .then(() => true)
+                .catch(() => false);
+
+            if (clicked && await isOpen()) {
+                return;
+            }
+            await this.page.waitForTimeout(1000);
+        }
+        throw new Error(
+            `"${menuItemId}" did not open from the ${typeName} node menu after ${attempts} attempts`
+        );
+    }
+
+    /**
      * Edit an existing type by clicking its menu
      */
     async editType(typeName: string): Promise<void> {
-        const menuButton = this.webView.locator(`[data-testid="type-node-${typeName}-menu"]`);
-        await this.waitForElement(menuButton);
-        await menuButton.click();
-
-        // The menu can briefly re-render after open on slow runners, detaching the
-        // Edit item between stability check and click. Force the click to bypass
-        // the stability retry that hits the detached node.
-        const editMenuItem = this.webView.getByText('Edit', { exact: true });
-        await this.waitForElement(editMenuItem);
-        await editMenuItem.click({ force: true });
-
-        // Wait for type editor to load
         const typeEditorContent = this.webView.locator('[data-testid="type-editor-container"]');
-        await this.waitForElement(typeEditorContent);
+        await this.openTypeNodeMenuItem(typeName, 'edit', () =>
+            typeEditorContent.waitFor({ state: 'visible', timeout: 30000 })
+                .then(() => true).catch(() => false));
     }
 
     /**
@@ -359,10 +397,12 @@ export class TypeEditorUtils {
      * to wait on their own buttons.
      */
     async openServiceClassForEditing(name: string): Promise<void> {
-        const menu = this.webView.getByTestId(`type-node-${name}-menu`);
-        await this.waitForElement(menu, 10000);
-        await menu.getByRole('img').click();
-        await this.webView.getByText('Edit', { exact: true }).click();
+        // The edit view's own "Method" button is the post-condition here — the
+        // service class editor has no `type-editor-container` to wait on.
+        const methodButton = this.webView.getByRole('button', { name: ' Method' });
+        await this.openTypeNodeMenuItem(name, 'edit', () =>
+            methodButton.waitFor({ state: 'visible', timeout: 30000 })
+                .then(() => true).catch(() => false));
     }
 
     /**

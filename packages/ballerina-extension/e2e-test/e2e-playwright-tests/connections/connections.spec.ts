@@ -33,6 +33,36 @@ const AUTOMATION_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'automati
 const OPENAPI_SPEC_PATH = path.join(newProjectPath, 'petstore.yaml');
 const CONNECTION_NAME = 'httpClient';
 
+/**
+ * Click an architecture-diagram node until it actually navigates.
+ *
+ * These nodes (entry, connection, listener) have no onClick — component-diagram
+ * wires onMouseDown/onMouseUp through useClickWithDragTolerance, which only
+ * fires the handler when the pointer moved less than 5px between the two
+ * events. Any layout shift mid-click therefore reads as a drag and the click is
+ * dropped with no error at all, so a single attempt can silently do nothing.
+ * Retry against `expected` — the thing the click is supposed to open.
+ */
+async function clickUntil(
+    node: Locator,
+    expected: Locator,
+    description: string,
+    attempts: number = 5
+): Promise<void> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        // No `force` — the default actionability wait requires a stable
+        // bounding box, which is what keeps mousedown and mouseup on the
+        // same point.
+        await node.click({ timeout: 15000 }).catch(() => { /* node re-rendering; retry */ });
+        const opened = await expected.waitFor({ state: 'visible', timeout: 15000 })
+            .then(() => true).catch(() => false);
+        if (opened) {
+            return;
+        }
+    }
+    throw new Error(`Clicking the ${description} did not open the expected view after ${attempts} attempts`);
+}
+
 export default function createTests() {
     test.describe.serial('Connections Tests', {
     }, async () => {
@@ -70,10 +100,9 @@ export default function createTests() {
             logStep('Click the Automation entry node to open its flow diagram');
             const automationNode = artifactWebView.locator('[data-testid="entry-node-automation"]');
             await automationNode.waitFor({ state: 'visible', timeout: 60000 });
-            await automationNode.click({ force: true });
 
             diagramCanvas = artifactWebView.locator('#bi-diagram-canvas');
-            await diagramCanvas.waitFor({ state: 'visible', timeout: 30000 });
+            await clickUntil(automationNode, diagramCanvas, 'Automation entry node');
 
             logStep('Click add connection and create an HTTP client');
             diagram = new Diagram(page.page);
@@ -151,20 +180,38 @@ export default function createTests() {
             await getMethodItem.click({ force: true });
 
             await form.switchToFormView(false, artifactWebView);
-            await form.fill({
-                values: {
-                    'path': {
-                        type: 'cmEditor',
-                        value: '/',
-                        additionalProps: { clickLabel: true }
+
+            const pathEditor = artifactWebView.locator('div[data-testid="ex-editor-path"]');
+            const pathContent = pathEditor.locator('.cm-content').first();
+            const fillPath = async (waitForEditorMs: number = 30000) => {
+                await pathEditor.waitFor({ state: 'visible', timeout: waitForEditorMs });
+                await form.fill({
+                    values: {
+                        'path': {
+                            type: 'cmEditor',
+                            value: '/',
+                            additionalProps: { clickLabel: true }
+                        }
                     }
-                }
-            });
-            // Dismiss the expression helper popup triggered by the CodeMirror fill.
-            await page.page.keyboard.press('Escape');
-            await page.page.waitForTimeout(300);
-            await page.page.keyboard.press('Escape');
-            await page.page.waitForTimeout(300);
+                });
+                // Dismiss the expression helper popup triggered by the CodeMirror fill.
+                await page.page.keyboard.press('Escape');
+                await page.page.waitForTimeout(300);
+                await page.page.keyboard.press('Escape');
+                await page.page.waitForTimeout(300);
+            };
+            const pathIsFilled = async () =>
+                ((await pathContent.textContent().catch(() => '')) ?? '').trim().length > 0;
+
+            await fillPath();
+            if (!await pathIsFilled()) {
+                // The container was there but the CodeMirror view wasn't wired up
+                // yet — one retry is enough once the editor has had time to mount.
+                await fillPath();
+            }
+            if (!await pathIsFilled()) {
+                throw new Error('path field is empty after form.fill() — Save will never enable');
+            }
 
             // Target Type has no default value and is required, but it isn't a
             // standard `ex-editor-*` expression field — it's a plain
@@ -205,10 +252,19 @@ export default function createTests() {
                         await typeTargetType().catch(() => { /* field detached mid-interaction; retry next loop */ });
                     }
                 }
+                if (!await pathIsFilled()) {
+                    // Short editor wait so a remount can't stall this 1s poll loop.
+                    await fillPath(5000).catch(() => { /* editor remounting; retry next loop */ });
+                }
                 await page.page.waitForTimeout(1000);
             }
             if (!getFormReady) {
-                throw new Error('Save is disabled on the Get action form after filling path and targetType');
+                const pathValue = await pathContent.textContent().catch(() => null);
+                const targetTypeValue = await targetTypeField.inputValue().catch(() => null);
+                throw new Error(
+                    'Save is disabled on the Get action form after filling path and targetType ' +
+                    `(path="${pathValue}", targetType="${targetTypeValue}")`
+                );
             }
             await saveGetActionButton.click({ force: true });
 
@@ -234,7 +290,12 @@ export default function createTests() {
             if (!onOverview) {
                 throw new Error('Clicking home did not navigate back to the architecture diagram');
             }
-            await connectionNode.click({ force: true });
+            // Same drag-tolerance trap as the Automation node in 'Add connection'
+            // — and reached right after the home navigation redraws the diagram,
+            // so the re-fit is guaranteed to be in flight. Waiting on the url
+            // editor doubles as the guard Form.fill() needs to not no-op.
+            const urlEditor = artifactWebView.locator('div[data-testid="ex-editor-url"]');
+            await clickUntil(connectionNode, urlEditor, `${CONNECTION_NAME} connection node`);
 
             await form.switchToFormView(false, artifactWebView);
             await form.fill({

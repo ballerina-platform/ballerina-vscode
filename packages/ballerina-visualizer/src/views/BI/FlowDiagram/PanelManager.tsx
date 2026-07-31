@@ -170,6 +170,8 @@ interface PanelManagerProps {
     onSearchChunker?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchTextChange?: (searchText: string) => void;
     searchText?: string;
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
     onAddAgent?: () => void;
     onEditAgent?: () => void;
     onNavigateToPanel?: (targetPanel: SidePanelView, connectionKind?: ConnectionKind) => void;
@@ -249,6 +251,8 @@ export function PanelManager(props: PanelManagerProps) {
         onSearchNpFunction,
         onSearchTextChange,
         searchText,
+        expandedGroupId,
+        onExpandedGroupChange,
         onSearchAll,
         onSearchVectorStore,
         onSearchEmbeddingProvider,
@@ -562,6 +566,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -590,6 +596,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -620,6 +628,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -650,6 +660,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -680,6 +692,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -710,6 +724,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -725,7 +741,14 @@ export function PanelManager(props: PanelManagerProps) {
                 );
 
             case SidePanelView.CONNECTION_SELECT:
-                return <ConnectionSelectionList connectionKind={selectedConnectionKind} onSelect={onSelectNewConnection} />;
+                return (
+                    <ConnectionSelectionList
+                        connectionKind={selectedConnectionKind}
+                        onSelect={onSelectNewConnection}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
+                    />
+                );
 
             case SidePanelView.CONNECTION_CREATE:
                 return (

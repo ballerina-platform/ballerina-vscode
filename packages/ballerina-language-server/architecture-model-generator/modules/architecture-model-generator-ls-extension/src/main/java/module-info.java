@@ -18,6 +18,7 @@
 
 module io.ballerina.LSExtensions.ProjectDesignService {
     requires io.ballerina.language.server.commons;
+    requires io.ballerina.model.generator.commons;
     requires io.ballerina.lang;
     requires org.eclipse.lsp4j.jsonrpc;
     requires org.eclipse.lsp4j;

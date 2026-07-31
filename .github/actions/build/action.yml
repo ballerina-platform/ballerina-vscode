@@ -7,6 +7,12 @@ inputs:
     description: Whether this is a prerelease build
     required: false
     default: 'true'
+  snapshot:
+    description: >-
+      Stamp the extension version as '<version>-SNAPSHOT' (nightly builds).
+      Takes precedence over the isPreRelease timestamp suffix.
+    required: false
+    default: 'false'
   lsSource:
     description: LS source — local (use jar built from source) or download (fetch from GitHub release)
     required: false
@@ -86,6 +92,7 @@ runs:
       with:
         path: "ballerina-extension"
         isPreRelease: ${{ inputs.isPreRelease }}
+        snapshot: ${{ inputs.snapshot }}
         version: ${{ inputs.version }}
 
     - name: Validate lsSource

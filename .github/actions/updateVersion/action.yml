@@ -8,7 +8,14 @@ inputs:
     required: true    
   isPreRelease:
     default: true
-    type: boolean      
+    type: boolean
+  snapshot:
+    description: >-
+      Mark the version as a nightly snapshot by appending '-SNAPSHOT'
+      (e.g. 5.13.0-SNAPSHOT) instead of the isPreRelease timestamp suffix.
+      Valid semver, so 'vsce package' accepts it; nightly VSIXes are never
+      published to the Marketplace, so the suffix never reaches it.
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -17,14 +24,22 @@ runs:
       run: |
         cd packages/${{ inputs.path }}
         currentVersion=$(node -p "require('./package.json').version")
-        if [[ ${#currentVersion} -ge 8 ]]; then
-          currentVersionWOPreId=${currentVersion%-*}
+        currentVersionWOPreId=${currentVersion%-*}
+        # Only strip when the base version actually ends in an 8-char timestamp.
+        # Length alone is not enough: '5.13.1000', '10.13.100' and '5.130.100'
+        # are all >8 chars but carry no timestamp, and blindly cutting 8 chars
+        # would leave '5' / '1' and run 'npm version 5', silently rewriting
+        # package.json to a bogus version. Requiring the last 8 characters to be
+        # digits distinguishes a real 'yymmddHH' suffix from a long version.
+        # (The length test must also stay: ':0:-8' on a shorter string is a
+        # fatal bash expansion error, which '-SNAPSHOT' versions would hit.)
+        if [[ ${#currentVersionWOPreId} -gt 8 && ${currentVersionWOPreId: -8} =~ ^[0-9]{8}$ ]]; then
           currentVersionNo=${currentVersionWOPreId:0:-8}
           if [[ $currentVersionNo != *?[0-9] ]]; then
             currentVersionNo=${currentVersionNo}0
           fi
           npm version $currentVersionNo --preid beta --no-git-tag-version
-        fi  
+        fi
 
     - name: Update extension versions
       if: ${{ inputs.version != 'N/A' }}
@@ -42,11 +57,21 @@ runs:
 
     - name: Set prerelase version
       shell: bash
-      if: ${{ inputs.isPreRelease == 'true' }}
+      if: ${{ inputs.isPreRelease == 'true' && inputs.snapshot != 'true' }}
       run: |
         cd packages/${{ inputs.path }}
         currentVersion=$(node -p "require('./package.json').version")
         newVersion=${currentVersion}${{ steps.timestamp.outputs.timestamp }}
         echo $newVersion
         npm version $newVersion --preid beta --no-git-tag-version
-        
+
+    - name: Set snapshot version
+      shell: bash
+      if: ${{ inputs.snapshot == 'true' }}
+      run: |
+        cd packages/${{ inputs.path }}
+        currentVersion=$(node -p "require('./package.json').version")
+        # Strip any pre-existing prerelease id so re-runs stay idempotent.
+        newVersion="${currentVersion%%-*}-SNAPSHOT"
+        echo $newVersion
+        npm version $newVersion --no-git-tag-version

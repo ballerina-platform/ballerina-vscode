@@ -103,32 +103,6 @@ task copyStdlibs() {
     }
 }
 
-test.dependsOn rootProject.pullBallerinaModule('redis', ballerinaxRedisVersion)
-test.dependsOn rootProject.pullBallerinaModule('postgresql', ballerinaxPostgresqlVersion)
-test.dependsOn rootProject.pullBallerinaModule('postgresql.driver', ballerinaxPostgresqlDriverVersion)
-test.dependsOn rootProject.pullBallerinaModule('salesforce', ballerinaxSalesforceVersion)
-test.dependsOn rootProject.pullBallerinaModule('trigger.salesforce', ballerinaxTriggerSalesforceVersion)
-test.dependsOn rootProject.pullBallerinaModule('github', ballerinaxGithubVersion)
-test.dependsOn rootProject.pullBallerinaModule('snowflake', ballerinaxSnowflakeVersion)
-test.dependsOn rootProject.pullBallerinaModule('docusign.dsadmin', ballerinaxDocusignDsadminVersion)
-test.dependsOn rootProject.pullBallerinaModule('mysql', ballerinaxMysqlVersion)
-test.dependsOn rootProject.pullBallerinaModule('wso2.controlplane', ballerinaxWso2ControlplaneVersion)
-test.dependsOn rootProject.pullBallerinaModule('ftp', ballerinaFtpVersion, 'ballerina')
-
-test.dependsOn rootProject.pullBallerinaModule('ai.pinecone', ballerinaxAiPineconeVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.devant', ballerinaxAiDevantVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.openai', ballerinaxAiOpenaiVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.ollama', ballerinaxAiOllamaVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.azure', ballerinaxAiAzureVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.anthropic', ballerinaxAiAnthropicVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.deepseek', ballerinaxAiDeepseekVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai.mistral', ballerinaxAiMistralVersion)
-test.dependsOn rootProject.pullBallerinaModule('ai', ballerinaAiVersion, "ballerina")
-
-
-// TODO: Re-enable this once the `np` module is available on central
-//test.dependsOn rootProject.pullBallerinaModule('np')
-
 task copyServiceIndex(type: Copy) {
     from "${rootDir}/service-model-generator/modules/service-model-generator-ls-extension/src/main/resources/service-index.sqlite"
     into "${buildDir}/resources/test"

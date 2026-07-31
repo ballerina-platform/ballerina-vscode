@@ -99,15 +99,10 @@ jobs:
       - name: Set Up Ballerina
         uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
         with:
-          version: 2201.13.3
+          version: 2201.13.4
 
-      - name: Cache Ballerina dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: /home/runner/.ballerina/repositories/
-          key: ${{ runner.os }}-ballerina-${{ matrix.branch }}-${{ hashFiles('**/gradle.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-ballerina-${{ matrix.branch }}-
+      # No dependency cache here: this job runs `pack -x check` (no tests), so it never provisions
+      # build/ballerina_dependencies. Nothing to cache.
 
       - name: Pack with Gradle
         env:
@@ -192,15 +187,13 @@ jobs:
       - name: Set Up Ballerina
         uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
         with:
-          version: 2201.13.3
+          version: 2201.13.4
 
       - name: Cache Ballerina dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: C:\Users\runneradmin\.ballerina\repositories\
-          key: ${{ runner.os }}-ballerina-${{ matrix.branch }}-${{ hashFiles('**/gradle.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-ballerina-${{ matrix.branch }}-
+          path: packages/ballerina-language-server/build/ballerina_dependencies
+          key: ${{ runner.os }}-ballerina-${{ matrix.branch }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**') }}
 
       - name: Build with Gradle
         shell: cmd
@@ -266,6 +259,26 @@ jobs:
       ballerina: true
       runFastTests: true
       runBalE2ETests: true
+      # Daily builds ship only to a rolling GitHub `nightly` release, never the
+      # Marketplace, so instead of the isPreRelease timestamp suffix they get a
+      # '-SNAPSHOT' version (5.13.0-SNAPSHOT). It is valid semver so vsce
+      # accepts it, and it makes a nightly VSIX unmistakable next to a release
+      # build of the same version.
+      #
+      # isPreRelease: false is deliberate and does more than drop the timestamp.
+      # It is also exported into the rush build env (actions/build/action.yml),
+      # where common-libs/scripts/package-vsix.js turns it into
+      # 'vsce package --pre-release'. Nightlies are therefore packaged WITHOUT
+      # that flag, on purpose: the flag marks the VSIX as a pre-release build,
+      # which moves whoever installs it onto the Marketplace pre-release channel
+      # for future updates. A nightly is unvetted main, not an opt-in supported
+      # channel, so it should not silently enroll testers in one.
+      #
+      # The bundled LS is built from source (lsSource defaults to 'local'), so
+      # it always matches the extension version, and isPreRelease has no effect
+      # on LS resolution here (that path is gated on lsSource == 'download').
+      isPreRelease: false
+      snapshot: true
 
   # ─────────────────────────────────────────────────────────────────────────
   # Daily pre-release — publish the extension VSIX as a GitHub pre-release
@@ -280,7 +293,7 @@ jobs:
       - ls-windows-build
       - ls-trivy
       - Build
-    if: ${{ github.repository == 'wso2/ballerina-vscode' }}
+    if: ${{ github.repository == 'ballerina-platform/ballerina-vscode' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -301,9 +314,12 @@ jobs:
       - name: Publish pre-release
         uses: ./.github/actions/release
         with:
-          repo: wso2/ballerina-vscode
+          repo: ${{ github.repository }}
           name: ballerina
           chatAPI: ${{ secrets.BI_TEAM_CHAT_API }}
+          # Rolling tag: each daily run deletes and recreates the `nightly`
+          # release so it always points at the latest build.
+          tag: nightly
 
   # ─────────────────────────────────────────────────────────────────────────
   # Notifications
@@ -344,7 +360,7 @@ jobs:
       - ls-windows-build
       - ls-trivy
       - Build
-    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'wso2/ballerina-vscode' }}
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

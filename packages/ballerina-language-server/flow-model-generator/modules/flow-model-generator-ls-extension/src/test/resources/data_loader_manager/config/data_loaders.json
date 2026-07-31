@@ -25,6 +25,22 @@
           },
           {
             "metadata": {
+              "label": "Devant Binary Data Loader",
+              "description": "Loads documents as `ai:BinaryDocument` instances from a specified file or directory path.\nThis loader can handle either a single file or a directory containing multiple files.\nTypically used in conjunction with `devant:Chunker` to split documents into chunks for processing.",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
+            },
+            "codedata": {
+              "node": "DATA_LOADER",
+              "org": "ballerinax",
+              "module": "ai.devant",
+              "packageName": "ai.devant",
+              "object": "BinaryDataLoader",
+              "symbol": "init"
+            },
+            "enabled": true
+          },
+          {
+            "metadata": {
               "label": "Microsoft SharePoint Text Data Loader",
               "description": "A data loader that retrieves documents from SharePoint document libraries as text.",
               "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.microsoft.sharepoint_1.0.1.png"

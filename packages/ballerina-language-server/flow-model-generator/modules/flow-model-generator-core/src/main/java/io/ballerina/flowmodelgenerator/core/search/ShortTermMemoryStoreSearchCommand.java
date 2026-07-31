@@ -29,7 +29,6 @@ import io.ballerina.tools.text.LineRange;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Handles the search command for short-term memory stores.
@@ -38,8 +37,6 @@ import java.util.stream.Collectors;
  */
 public class ShortTermMemoryStoreSearchCommand extends SearchCommand {
 
-    private static final String SHORT_TERM_MEMORY_STORE_LABEL = "Memory Stores";
-
     public ShortTermMemoryStoreSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
     }
@@ -47,21 +44,15 @@ public class ShortTermMemoryStoreSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         List<AvailableNode> stores = AiUtils.getShortTermMemoryStores(project);
-        Category category = new Category.Builder(null).metadata().label(SHORT_TERM_MEMORY_STORE_LABEL)
-                .stepOut().items(List.copyOf(stores)).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.SHORT_TERM_MEMORY_STORE.label(), stores,
+                null));
     }
 
     @Override
     protected List<Item> search() {
         List<AvailableNode> stores = AiUtils.getShortTermMemoryStores(project);
-        List<Item> matchingStores = stores.stream()
-                .filter(node -> AiUtils.matchesQuery(node, query))
-                .collect(Collectors.toList());
-
-        Category category = new Category.Builder(null).metadata().label(SHORT_TERM_MEMORY_STORE_LABEL)
-                .stepOut().items(matchingStores).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.SHORT_TERM_MEMORY_STORE.label(), stores,
+                query));
     }
 
     @Override

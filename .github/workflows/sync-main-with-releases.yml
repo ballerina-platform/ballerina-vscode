@@ -8,7 +8,7 @@ on:
 
 jobs:
   sync-main:
-    if: github.event.pull_request.merged == true && github.repository == 'wso2/ballerina-vscode'
+    if: github.event.pull_request.merged == true && github.repository == 'ballerina-platform/ballerina-vscode'
     permissions:
       contents: write
       pull-requests: write

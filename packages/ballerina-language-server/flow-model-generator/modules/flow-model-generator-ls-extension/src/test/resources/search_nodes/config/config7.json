@@ -1547,7 +1547,7 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "connection"
           },
-          "defaultValue": "\"redis://localhost:6379\""
+          "defaultValue": "\"\""
         },
         "connectionPooling": {
           "metadata": {
