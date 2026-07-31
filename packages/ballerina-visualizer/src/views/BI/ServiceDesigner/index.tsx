@@ -1589,6 +1589,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         model={functionModel}
                                         filePath={filePath}
                                         lineRange={createLineRange(filePath, position)}
+                                        isStreamableHttp={serviceModel?.properties?.["serviceType"]?.value === "StreamableHttpService"}
                                         isSaving={isSaving}
                                         onSave={handleFunctionSubmit}
                                         onClose={handleNewFunctionClose}

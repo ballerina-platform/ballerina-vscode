@@ -46,7 +46,11 @@ import static io.ballerina.servicemodelgenerator.extension.util.Utils.importExis
 
 public class McpServiceBuilder extends AbstractServiceBuilder {
 
-    private static final String MCP_BASIC_SERVICE_CLASS_NAME = "Service";
+    // Transport-explicit MCP types introduced by the Streamable HTTP transport work. New services are
+    // generated with these; older mcp:Service / mcp:Listener / @mcp:ServiceConfig services still work.
+    private static final String MCP_STREAMABLE_HTTP_SERVICE_CLASS_NAME = "StreamableHttpService";
+    private static final String MCP_STREAMABLE_HTTP_LISTENER_CLASS_NAME = "StreamableHttpListener";
+    private static final String MCP_STREAMABLE_HTTP_SERVICE_CONFIG = "StreamableHttpServiceConfig";
     private static final String SERVICE_NAME_PROPERTY = "serviceName";
     private static final String VERSION_PROPERTY = "version";
 
@@ -56,7 +60,7 @@ public class McpServiceBuilder extends AbstractServiceBuilder {
         Map<String, Value> properties = serviceInitModel.getProperties();
         ModulePartNode modulePartNode = context.document().syntaxTree().rootNode();
 
-        ListenerDTO result = buildListenerDTO(context);
+        ListenerDTO result = buildListenerDTO(context, MCP_STREAMABLE_HTTP_LISTENER_CLASS_NAME);
 
         String serviceName = properties.get(SERVICE_NAME_PROPERTY).getValue();
         String version = properties.get(VERSION_PROPERTY).getValue();
@@ -65,7 +69,7 @@ public class McpServiceBuilder extends AbstractServiceBuilder {
                 result.listenerDeclaration() + NEW_LINE +
                 buildServiceConfig(serviceName, version) +
                 SERVICE + SPACE +
-                serviceInitModel.getModuleName() + COLON + MCP_BASIC_SERVICE_CLASS_NAME + SPACE +
+                serviceInitModel.getModuleName() + COLON + MCP_STREAMABLE_HTTP_SERVICE_CLASS_NAME + SPACE +
                 serviceInitModel.getBasePath(result.listenerProtocol()) + SPACE +
                 ON + SPACE + result.listenerVarName() + SPACE + OPEN_BRACE +
                 TWO_NEW_LINES + CLOSE_BRACE + NEW_LINE;
@@ -86,7 +90,7 @@ public class McpServiceBuilder extends AbstractServiceBuilder {
     }
 
     private String buildServiceConfig(String name, String version) {
-        return "@" + MCP + ":ServiceConfig" + SPACE + OPEN_BRACE + NEW_LINE +
+        return "@" + MCP + COLON + MCP_STREAMABLE_HTTP_SERVICE_CONFIG + SPACE + OPEN_BRACE + NEW_LINE +
                 TAB + "info: " + OPEN_BRACE + NEW_LINE +
                 TWO_TABS + "name: " + name + COMMA + NEW_LINE +
                 TWO_TABS + "version: " + version + NEW_LINE +

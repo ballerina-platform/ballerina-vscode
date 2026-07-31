@@ -161,6 +161,10 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
     }
 
     protected static ListenerDTO buildListenerDTO(AddServiceInitModelContext context) {
+        return buildListenerDTO(context, "Listener");
+    }
+
+    protected static ListenerDTO buildListenerDTO(AddServiceInitModelContext context, String listenerClassName) {
         ServiceInitModel serviceInitModel = context.serviceInitModel();
         Map<String, Value> properties = serviceInitModel.getProperties();
         List<String> requiredParams = new ArrayList<>();
@@ -194,7 +198,7 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         requiredParams.addAll(includedParams);
         String args = String.join(", ", requiredParams);
         String listenerDeclaration = String.format("listener %s:%s %s = new (%s);",
-                listenerProtocol, "Listener", listenerVarName, args);
+                listenerProtocol, listenerClassName, listenerVarName, args);
         return new ListenerDTO(listenerProtocol, listenerVarName, listenerDeclaration);
     }
 

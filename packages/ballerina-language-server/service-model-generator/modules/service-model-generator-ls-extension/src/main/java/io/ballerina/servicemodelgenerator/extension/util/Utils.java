@@ -109,6 +109,9 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.COLON;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GET;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL_CONTEXT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL_FIELD;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_HEADER_PARAM_ANNOTATION;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULTABLE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_MUTATION;
@@ -1151,6 +1154,21 @@ public final class Utils {
                 if (param.isGraphqlId()) {
                     paramDef = String.format("@graphql:ID %s", paramDef);
                     imports.put("graphql", "ballerina/graphql");
+                }
+                // Add @http:Header annotation for transport-bound MCP tool params (Streamable HTTP)
+                if (HTTP_PARAM_TYPE_HEADER.equals(param.getHttpParamType())) {
+                    StringBuilder headerAnnot = new StringBuilder("@http:").append(HTTP_HEADER_PARAM_ANNOTATION);
+                    Value headerName = param.getHeaderName();
+                    if (Objects.nonNull(headerName) && headerName.isEnabledWithValue()
+                            && !headerName.getValue().equals(param.getName().getValue())) {
+                        headerAnnot.append(" {name: ").append(headerName.getLiteralValue()).append("}");
+                    }
+                    paramDef = headerAnnot + " " + paramDef;
+                    imports.put(HTTP, "ballerina/" + HTTP);
+                }
+                // Register the http import for raw transport params (e.g. http:Request, http:Headers)
+                if (String.valueOf(param.getType().getValue()).startsWith(HTTP + ":")) {
+                    imports.put(HTTP, "ballerina/" + HTTP);
                 }
                 params.add(paramDef);
             }

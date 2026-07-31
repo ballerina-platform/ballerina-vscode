@@ -20,8 +20,12 @@ package io.ballerina.servicemodelgenerator.extension.builder.function;
 
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
+import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.MetadataNode;
+import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
@@ -30,13 +34,16 @@ import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContex
 import io.ballerina.servicemodelgenerator.extension.model.context.GetModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
+import io.ballerina.servicemodelgenerator.extension.util.HttpUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.tools.text.LinePosition;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +51,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_HEADER_PARAM_ANNOTATION;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_REMOTE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.REMOTE;
@@ -55,6 +65,7 @@ public class McpFunctionBuilder extends AbstractFunctionBuilder {
 
     private static final String MCP_FUNCTION_MODEL_LOCATION = "functions/mcp_tool.json";
     private static final String TOOL_DESCRIPTION_PROPERTY = "toolDescription";
+    private static final String HEADER_SCHEMA_KEY = "header";
 
     // Documentation format constants
     private static final String DOC_COMMENT_PREFIX = "# ";
@@ -279,17 +290,6 @@ public class McpFunctionBuilder extends AbstractFunctionBuilder {
                 .findFirst();
     }
 
-    /**
-     * Finds the first TextEdit in the result map.
-     *
-     * @param textEdits Map of text edits
-     * @return Optional containing the first TextEdit
-     */
-    private static Optional<TextEdit> findFirstEdit(Map<String, List<TextEdit>> textEdits) {
-        return textEdits.values().stream()
-                .flatMap(List::stream)
-                .findFirst();
-    }
 
     /**
      * Parses the markdown documentation string and populates the function model.
@@ -380,33 +380,73 @@ public class McpFunctionBuilder extends AbstractFunctionBuilder {
         String toolDescription = extractToolDescription(context.function());
         String returnType = getReturnTypeDescription(context.function());
 
-        Optional<TextEdit> firstEdit = findFirstEdit(result);
-        if (firstEdit.isEmpty()) {
-            return result;
-        }
-
-        TextEdit edit = firstEdit.get();
-        String originalText = edit.getNewText();
-
-        if (originalText == null) {
-            return result;
-        }
-
-        String stripped = originalText.stripLeading();
-
-        if (stripped.startsWith("#")) {
-            // Has documentation - keep it and add tool desc + return type
-            updateDocumentationEdit(edit, originalText, toolDescription, returnType);
-        } else if (stripped.isEmpty()) {
-            // Empty string - add only tool desc and return type
-            String newDoc = buildCompleteDocumentation(toolDescription, "", returnType);
-            edit.setNewText(newDoc);
+        Optional<TextEdit> docEdit = findDocumentationEdit(result);
+        if (docEdit.isPresent()) {
+            TextEdit edit = docEdit.get();
+            String originalText = edit.getNewText();
+            if (originalText != null && originalText.stripLeading().startsWith("#")) {
+                // Existing doc comment - keep it and add tool desc + return type
+                updateDocumentationEdit(edit, originalText, toolDescription, returnType);
+            } else {
+                // Empty doc edit - replace with a full doc comment
+                edit.setNewText(buildCompleteDocumentation(toolDescription, "", returnType));
+            }
         } else {
-            // Non-documentation content - skip update
-            // This could be other code content that shouldn't have documentation prepended
+            // No doc edit at all - the tool has no doc comment. Insert one before the function so the
+            // description (which the mcp compiler reads from the doc) is actually written.
+            insertNewDocumentation(context, result, toolDescription, returnType);
         }
 
         return result;
+    }
+
+    /**
+     * Finds the edit that carries the function's documentation (its text is empty or starts with '#').
+     *
+     * @param textEdits the update edits
+     * @return the documentation edit, if any
+     */
+    private static Optional<TextEdit> findDocumentationEdit(Map<String, List<TextEdit>> textEdits) {
+        return textEdits.values().stream()
+                .flatMap(List::stream)
+                .filter(edit -> {
+                    String text = edit.getNewText();
+                    if (text == null) {
+                        return false;
+                    }
+                    String stripped = text.stripLeading();
+                    return stripped.isEmpty() || stripped.startsWith("#");
+                })
+                .findFirst();
+    }
+
+    /**
+     * Inserts a fresh doc comment before a tool that has none, so its description is written.
+     *
+     * @param context         the update context
+     * @param result          the update edits to append to
+     * @param toolDescription the tool description
+     * @param returnType      the return type description
+     */
+    private static void insertNewDocumentation(UpdateModelContext context, Map<String, List<TextEdit>> result,
+                                               String toolDescription, String returnType) {
+        if (toolDescription == null || toolDescription.trim().isEmpty()) {
+            return;
+        }
+        List<TextEdit> edits = result.get(context.filePath());
+        if (edits == null) {
+            return;
+        }
+        FunctionDefinitionNode functionNode = context.functionNode();
+        Token firstToken = functionNode.qualifierList().isEmpty()
+                ? functionNode.functionKeyword() : functionNode.qualifierList().get(0);
+        LinePosition startLine = firstToken.lineRange().startLine();
+        String indent = SPACE.repeat(startLine.offset());
+        String doc = DOC_COMMENT_PREFIX + toolDescription + NEW_LINE
+                + indent + "#" + NEW_LINE
+                + indent + "# + return - " + returnType + NEW_LINE
+                + indent;
+        edits.add(new TextEdit(Utils.toRange(startLine), doc));
     }
 
     @Override
@@ -423,7 +463,117 @@ public class McpFunctionBuilder extends AbstractFunctionBuilder {
             }
         }
 
+        // Enrich transport-bound tool params (Streamable HTTP) so the tool form can render them as
+        // header / advanced params instead of ordinary tool inputs.
+        enrichTransportParams(function, functionNode);
+
+        // Seed the advanced toggles (Request, Headers, Metadata) and the header schema the same way a
+        // new tool gets them, so the tool form is driven entirely by the model.
+        reconcileAdvancedSeeds(function);
+
+        // A tool is a `remote` function, but the generic read-back leaves it as OBJECT_METHOD. Reflect
+        // the real kind so add and update both route to this builder (matching a newly-created tool).
+        boolean isRemote = functionNode.qualifierList().stream()
+                .anyMatch(qualifier -> qualifier.text().trim().equals(REMOTE));
+        if (isRemote) {
+            function.setKind(KIND_REMOTE);
+        }
+
         return function;
+    }
+
+    /**
+     * Ensures the read-back model carries the same advanced seeds (Request, Headers, Metadata) and
+     * header schema a new tool gets from the template, so the tool form does not have to synthesize
+     * them. A seed is added (disabled) only when the source does not already bind that param.
+     *
+     * @param function the function model built from source
+     */
+    private static void reconcileAdvancedSeeds(Function function) {
+        Optional<Function> template = getMcpFunctionModel();
+        if (template.isEmpty()) {
+            return;
+        }
+        Function templateModel = template.get();
+
+        // Make the header schema available for the "Add Header" editor. getSchema() may return an
+        // immutable map (Map.of(...)), so copy it into a mutable one before adding.
+        Map<String, Parameter> schema = function.getSchema() == null
+                ? new HashMap<>() : new HashMap<>(function.getSchema());
+        function.setSchema(schema);
+        Map<String, Parameter> templateSchema = templateModel.getSchema();
+        if (templateSchema != null && templateSchema.containsKey(HEADER_SCHEMA_KEY)
+                && !schema.containsKey(HEADER_SCHEMA_KEY)) {
+            schema.put(HEADER_SCHEMA_KEY, templateSchema.get(HEADER_SCHEMA_KEY));
+        }
+
+        List<Parameter> parameters = function.getParameters() == null
+                ? new ArrayList<>() : new ArrayList<>(function.getParameters());
+        function.setParameters(parameters);
+        for (Parameter seed : templateModel.getParameters()) {
+            Optional<Parameter> bound = parameters.stream()
+                    .filter(param -> matchesSeedType(param, seed))
+                    .findFirst();
+            if (bound.isPresent()) {
+                // Overlay the template's canonical label/description so the tool form shows a
+                // consistent metadata regardless of the source variable name.
+                bound.get().setMetadata(seed.getMetadata());
+            } else {
+                parameters.add(seed);
+            }
+        }
+    }
+
+    private static boolean matchesSeedType(Parameter param, Parameter seed) {
+        String paramType = normalizeParamType(param);
+        String seedType = normalizeParamType(seed);
+        if (seedType.startsWith("mcp:Meta")) {
+            return paramType.startsWith("mcp:Meta");
+        }
+        return paramType.equals(seedType);
+    }
+
+    private static String normalizeParamType(Parameter param) {
+        if (param.getType() == null || param.getType().getValue() == null) {
+            return "";
+        }
+        return param.getType().getValue().replaceAll("\\s", "");
+    }
+
+    /**
+     * Marks `@http:Header` parameters with their HTTP param type and header name so they round-trip in
+     * the tool form's Headers section. Raw `http:Request` / `http:Headers` params are recognised by the
+     * webview from their type value, so they need no enrichment here.
+     *
+     * @param function     the function model built from source
+     * @param functionNode the function definition node
+     */
+    private static void enrichTransportParams(Function function, FunctionDefinitionNode functionNode) {
+        List<Parameter> parameters = function.getParameters();
+        if (parameters == null || parameters.isEmpty()) {
+            return;
+        }
+        Map<String, Parameter> paramsByName = new HashMap<>();
+        for (Parameter parameter : parameters) {
+            if (parameter.getName() != null && parameter.getName().getValue() != null) {
+                paramsByName.put(parameter.getName().getValue(), parameter);
+            }
+        }
+        for (ParameterNode parameterNode : functionNode.functionSignature().parameters()) {
+            Optional<Parameter> paramModel = getParameterModel(parameterNode);
+            if (paramModel.isEmpty()) {
+                continue;
+            }
+            Parameter parameter = paramsByName.get(paramModel.get().getName().getValue());
+            if (parameter == null) {
+                continue;
+            }
+            NodeList<AnnotationNode> paramAnnotations = Utils.getParamAnnotations(parameterNode);
+            Optional<String> httpParamType = HttpUtil.getHttpParamTypeAndSetHeaderName(parameter, paramAnnotations);
+            if (httpParamType.isPresent() && httpParamType.get().equals(HTTP_HEADER_PARAM_ANNOTATION)) {
+                parameter.setHttpParamType(HTTP_PARAM_TYPE_HEADER);
+            }
+        }
     }
 
     @Override

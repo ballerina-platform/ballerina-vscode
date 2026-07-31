@@ -132,7 +132,7 @@
             "character": 3
           }
         },
-        "newText": "\nlistener mcp:Listener mcpListener = new (8080);\n@mcp:ServiceConfig {\n\tinfo: {\n\t\tname: \"Health Care MCP\",\n\t\tversion: \"1.0.0\"\n\t}\n}\nservice mcp:Service /mcp on mcpListener {\n\n}\n"
+        "newText": "\nlistener mcp:StreamableHttpListener mcpListener = new (8080);\n@mcp:StreamableHttpServiceConfig {\n\tinfo: {\n\t\tname: \"Health Care MCP\",\n\t\tversion: \"1.0.0\"\n\t}\n}\nservice mcp:StreamableHttpService /mcp on mcpListener {\n\n}\n"
       }
     ]
   }

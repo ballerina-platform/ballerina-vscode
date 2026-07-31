@@ -120,7 +120,7 @@
     "mcp": {
       "1.0.1": [
         {
-          "symbolName": "Listener",
+          "symbolName": "StreamableHttpListener",
           "args": "0",
           "index": 4
         }

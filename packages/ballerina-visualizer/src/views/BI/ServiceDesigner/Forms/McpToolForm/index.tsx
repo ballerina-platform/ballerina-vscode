@@ -31,12 +31,24 @@ import {
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 import { getImportsForProperty } from "../../../../../utils/bi";
 import ArtifactForm from "../../../Forms/ArtifactForm";
+import {
+    McpTransportParams,
+    deriveMcpAdvancedParams,
+    deriveMcpMetaParam,
+    isMcpAdvancedType,
+    isMcpHeaderParam,
+    isMcpMetaParam,
+    isMcpSessionParam,
+} from "./McpTransportParams";
 
 interface McpToolFormProps {
     model: FunctionModel;
     filePath: string;
     lineRange: LineRange;
     isServiceClass?: boolean;
+    // True when the enclosing service is an mcp:StreamableHttpService, which is the only case where
+    // tools may bind transport-specific request info (@http:Header, http:Request, http:Headers).
+    isStreamableHttp?: boolean;
     onSave: (model: FunctionModel) => void;
     onClose: () => void;
     isSaving: boolean;
@@ -44,9 +56,12 @@ interface McpToolFormProps {
 
 export function McpToolForm(props: McpToolFormProps) {
     console.log("McpToolForm props: ", props);
-    const { model: initialModel, onSave, onClose, filePath, lineRange, isServiceClass, isSaving } = props;
+    const { model: initialModel, onSave, onClose, filePath, lineRange, isServiceClass, isStreamableHttp, isSaving } = props;
     const [fields, setFields] = useState<FormField[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
+    const [headerParams, setHeaderParams] = useState<ParameterModel[]>([]);
+    const [advancedParams, setAdvancedParams] = useState<ParameterModel[]>([]);
+    const [metaParam, setMetaParam] = useState<ParameterModel | undefined>(() => deriveMcpMetaParam(initialModel.parameters ?? []));
     const [model] = useState<FunctionModel>(() => {
         const cloned = structuredClone(initialModel);
         const properties = cloned.properties ?? {};
@@ -152,6 +167,26 @@ export function McpToolForm(props: McpToolFormProps) {
         return paramList;
     };
 
+    // Split out params that render in the Advanced Configurations section (Metadata, and — for
+    // Streamable HTTP — headers and raw http:Request/http:Headers) so they don't show in the
+    // ordinary parameter manager.
+    const isTransportParam = (param: ParameterModel) =>
+        isMcpHeaderParam(param) || isMcpAdvancedType(param.type?.value);
+
+    const regularParameters = model.parameters.filter(
+        (param) => !isMcpMetaParam(param) && !isTransportParam(param)
+    );
+
+    // Initialize advanced param state (meta always; headers + raw objects for Streamable HTTP)
+    useEffect(() => {
+        setMetaParam(deriveMcpMetaParam(model.parameters));
+        if (!isStreamableHttp) {
+            return;
+        }
+        setHeaderParams(model.parameters.filter((param) => isMcpHeaderParam(param)));
+        setAdvancedParams(deriveMcpAdvancedParams(model.parameters));
+    }, [model, isStreamableHttp]);
+
     // Initialize form fields
     useEffect(() => {
         const initialFields: FormField[] = [
@@ -176,9 +211,9 @@ export function McpToolForm(props: McpToolFormProps) {
                 editable: true,
                 enabled: true,
                 documentation: "",
-                value: model.parameters.map((param, index) => convertParameterToParamValue(param, index)),
+                value: regularParameters.map((param, index) => convertParameterToParamValue(param, index)),
                 paramManagerProps: {
-                    paramValues: model.parameters.map((param, index) => convertParameterToParamValue(param, index)),
+                    paramValues: regularParameters.map((param, index) => convertParameterToParamValue(param, index)),
                     formFields: convertSchemaToFormFields(model.schema),
                     handleParameter: handleParamChange,
                 },
@@ -245,7 +280,19 @@ export function McpToolForm(props: McpToolFormProps) {
     const handleFunctionCreate = (data: FormValues, formImports: FormImports) => {
         console.log("Function create with data:", data);
         const { name, returnType, parameters: params } = data;
-        const paramList = params ? getFunctionParametersList(params) : [];
+        const regularParams = params ? getFunctionParametersList(params) : [];
+        // Assemble parameters in the order the mcp compiler plugin requires: mcp:Session first,
+        // mcp:Meta? last, with the tool inputs and any transport params in between.
+        const sessionParams = regularParams.filter(isMcpSessionParam);
+        const toolArgs = regularParams.filter((param) => !isMcpSessionParam(param));
+        const paramList: ParameterModel[] = [...sessionParams, ...toolArgs];
+        if (isStreamableHttp) {
+            paramList.push(...headerParams);
+            paramList.push(...advancedParams.filter((param) => param.enabled));
+        }
+        if (metaParam?.enabled) {
+            paramList.push(metaParam);
+        }
         const newFunctionModel = { ...model };
         newFunctionModel.name.value = name;
         newFunctionModel.returnType.value = returnType;
@@ -258,6 +305,26 @@ export function McpToolForm(props: McpToolFormProps) {
         });
         onSave(newFunctionModel);
     };
+
+    // Rendered for every MCP tool: Metadata is available to all, the Transport Parameters subsection
+    // only to Streamable HTTP services.
+    const injectedComponents = [
+        {
+            index: Number.MAX_SAFE_INTEGER,
+            component: (
+                <McpTransportParams
+                    showTransport={!!isStreamableHttp}
+                    metaParam={metaParam}
+                    onMetaChange={setMetaParam}
+                    headerSchema={model.schema?.header as ParameterModel}
+                    headerParams={headerParams}
+                    advancedParams={advancedParams}
+                    onHeaderParamsChange={setHeaderParams}
+                    onAdvancedParamsChange={setAdvancedParams}
+                />
+            ),
+        },
+    ];
 
     return (
         <>
@@ -273,6 +340,7 @@ export function McpToolForm(props: McpToolFormProps) {
                     isSaving={isSaving}
                     preserveFieldOrder={true}
                     recordTypeFields={recordTypeFields}
+                    injectedComponents={injectedComponents}
                 />
             )}
         </>
@@ -341,6 +409,11 @@ function convertConfigToFormFields(model: FunctionModel): FormField[] {
     const formFields: FormField[] = [];
     for (const key in model?.properties) {
         const property = model?.properties[key];
+        // Skip properties with no `types` (e.g. annotation attachments) — they can't be form fields.
+        // They're still preserved on the saved model.
+        if (!property?.types || property.types.length === 0) {
+            continue;
+        }
         const formField: FormField = {
             key: key,
             label: property?.metadata.label || key,
