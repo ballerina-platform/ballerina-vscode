@@ -19,11 +19,16 @@
 package io.ballerina.flowmodelgenerator.core.copilot.util;
 
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Annotatable;
+import io.ballerina.compiler.api.symbols.AnnotationAttachPoint;
+import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
+import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
@@ -32,9 +37,12 @@ import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.flowmodelgenerator.core.copilot.builder.TypeDefDataBuilder;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Annotation;
+import io.ballerina.flowmodelgenerator.core.copilot.model.AnnotationAttachment;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Client;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Field;
 import io.ballerina.flowmodelgenerator.core.copilot.model.LibraryFunction;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Parameter;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Type;
 import io.ballerina.flowmodelgenerator.core.copilot.model.TypeDef;
 import io.ballerina.modelgenerator.commons.CommonUtils;
@@ -44,14 +52,17 @@ import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.TypeDefData;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverter.functionDataToModel;
 import static io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverter.initMethodToModel;
 import static io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverter.typeDefDataToModel;
+import static io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverter.typeSymbolToModel;
 
 /**
  * Processes module symbols and extracts structured data (clients, functions, typedefs).
@@ -71,11 +82,13 @@ public class SymbolProcessor {
         private final List<Client> clients;
         private final List<LibraryFunction> functions;
         private final List<TypeDef> typeDefs;
+        private final List<Annotation> annotations;
 
         public SymbolProcessingResult() {
             this.clients = new ArrayList<>();
             this.functions = new ArrayList<>();
             this.typeDefs = new ArrayList<>();
+            this.annotations = new ArrayList<>();
         }
 
         public List<Client> getClients() {
@@ -88,6 +101,10 @@ public class SymbolProcessor {
 
         public List<TypeDef> getTypeDefs() {
             return typeDefs;
+        }
+
+        public List<Annotation> getAnnotations() {
+            return annotations;
         }
     }
 
@@ -115,6 +132,8 @@ public class SymbolProcessor {
                 processTypeDefSymbol(typeDefSymbol, org, packageName, result);
             } else if (symbol instanceof ConstantSymbol constantSymbol) {
                 processConstantSymbol(constantSymbol, org, packageName, result);
+            } else if (symbol instanceof AnnotationSymbol annotationSymbol) {
+                processAnnotationSymbol(annotationSymbol, org, packageName, result);
             }
         }
         return result;
@@ -151,6 +170,8 @@ public class SymbolProcessor {
 
         // Add the constructor/init function first
         LibraryFunction constructor = functionDataToModel(classData, org, packageName);
+        classSymbol.initMethod().ifPresent(
+                initMethod -> applyFunctionAnnotations(initMethod, constructor, org, packageName));
         functions.add(initMethodToModel(classSymbol, constructor));
 
         // Then add all other methods (remote functions, resource functions, etc.)
@@ -177,17 +198,23 @@ public class SymbolProcessor {
                 if (methodSymbol.deprecated()) {
                     methodFunc.setDeprecated(true);
                 }
+                applyFunctionAnnotations(methodSymbol, methodFunc, org, packageName);
             }
 
             functions.add(methodFunc);
         }
 
         boolean classDeprecated = classSymbol.deprecated();
+        List<AnnotationAttachment> classAnnotations =
+                AnnotationAttachmentExtractor.extract(classSymbol, org, packageName);
         if (isClient) {
             Client client = new Client(className, classData.description());
             client.setFunctions(functions);
             if (classDeprecated) {
                 client.setDeprecated(true);
+            }
+            if (!classAnnotations.isEmpty()) {
+                client.setAnnotations(classAnnotations);
             }
             result.getClients().add(client);
         } else {
@@ -197,6 +224,9 @@ public class SymbolProcessor {
             typeDef.setFunctions(functions);
             if (classDeprecated) {
                 typeDef.setDeprecated(true);
+            }
+            if (!classAnnotations.isEmpty()) {
+                typeDef.setAnnotations(classAnnotations);
             }
             result.getTypeDefs().add(typeDef);
         }
@@ -236,6 +266,8 @@ public class SymbolProcessor {
             function.setDeprecated(true);
         }
 
+        applyFunctionAnnotations(functionSymbol, function, org, packageName);
+
         result.getFunctions().add(function);
     }
 
@@ -256,6 +288,14 @@ public class SymbolProcessor {
             typeDef.setDeprecated(true);
         }
         markDeprecatedFields(typeDefSymbol, typeDef);
+
+        List<AnnotationAttachment> typeAnnotations =
+                AnnotationAttachmentExtractor.extract(typeDefSymbol, org, packageName);
+        if (!typeAnnotations.isEmpty()) {
+            typeDef.setAnnotations(typeAnnotations);
+        }
+        applyFieldAnnotations(typeDefSymbol, typeDef, org, packageName);
+
         result.getTypeDefs().add(typeDef);
     }
 
@@ -325,6 +365,129 @@ public class SymbolProcessor {
         Type varType = new Type(varTypeName);
         typeDef.setVarType(varType);
 
+        List<AnnotationAttachment> constAnnotations =
+                AnnotationAttachmentExtractor.extract(constantSymbol, org, packageName);
+        if (!constAnnotations.isEmpty()) {
+            typeDef.setAnnotations(constAnnotations);
+        }
+
         result.getTypeDefs().add(typeDef);
+    }
+
+    /**
+     * Processes an ANNOTATION declaration symbol into the definition catalog.
+     * Emits one {@link Annotation} entry per declared attachment point.
+     */
+    private static void processAnnotationSymbol(AnnotationSymbol annotationSymbol,
+                                                String org,
+                                                String packageName,
+                                                SymbolProcessingResult result) {
+        if (!annotationSymbol.qualifiers().contains(Qualifier.PUBLIC)) {
+            return;
+        }
+
+        Optional<String> optName = annotationSymbol.getName();
+        if (optName.isEmpty()) {
+            return;
+        }
+        String name = optName.get();
+
+        Type constraintType = annotationSymbol.typeDescriptor()
+                .map(typeSymbol -> typeSymbolToModel(typeSymbol, org, packageName))
+                .orElse(null);
+        String description = annotationSymbol.documentation()
+                .flatMap(Documentation::description)
+                .orElse(null);
+
+        for (AnnotationAttachPoint attachPoint : annotationSymbol.attachPoints()) {
+            Annotation annotation = new Annotation();
+            annotation.setName(name);
+            annotation.setAttachmentPoint(attachPoint.name());
+            annotation.setDescription(description);
+            annotation.setTypeConstraint(constraintType);
+            result.getAnnotations().add(annotation);
+        }
+    }
+
+    /**
+     * Applies the annotation attachments present on a function/method symbol to its model,
+     * including per-parameter attachments (matched by name).
+     */
+    private static void applyFunctionAnnotations(FunctionSymbol functionSymbol,
+                                                 LibraryFunction function,
+                                                 String org,
+                                                 String packageName) {
+        List<AnnotationAttachment> fnAnnotations =
+                AnnotationAttachmentExtractor.extract(functionSymbol, org, packageName);
+        if (!fnAnnotations.isEmpty()) {
+            function.setAnnotations(fnAnnotations);
+        }
+
+        List<Parameter> parameters = function.getParameters();
+        if (parameters == null || parameters.isEmpty()) {
+            return;
+        }
+
+        FunctionTypeSymbol functionTypeSymbol = functionSymbol.typeDescriptor();
+        Optional<List<ParameterSymbol>> optParams = functionTypeSymbol.params();
+        if (optParams.isEmpty()) {
+            return;
+        }
+
+        Map<String, ParameterSymbol> paramsByName = new HashMap<>();
+        for (ParameterSymbol paramSymbol : optParams.get()) {
+            paramSymbol.getName().ifPresent(paramName -> paramsByName.put(paramName, paramSymbol));
+        }
+        functionTypeSymbol.restParam()
+                .ifPresent(restParam -> restParam.getName().ifPresent(n -> paramsByName.put(n, restParam)));
+
+        for (Parameter parameter : parameters) {
+            ParameterSymbol paramSymbol = paramsByName.get(parameter.getName());
+            if (paramSymbol == null) {
+                continue;
+            }
+            List<AnnotationAttachment> paramAnnotations =
+                    AnnotationAttachmentExtractor.extract(paramSymbol, org, packageName);
+            if (!paramAnnotations.isEmpty()) {
+                parameter.setAnnotations(paramAnnotations);
+            }
+        }
+    }
+
+    /**
+     * Applies record-field annotation attachments to the {@link TypeDef} fields (matched by name).
+     * The {@code TypeDef#getFields} list is only populated for record types.
+     */
+    private static void applyFieldAnnotations(TypeDefinitionSymbol typeDefSymbol,
+                                              TypeDef typeDef,
+                                              String org,
+                                              String packageName) {
+        List<Field> fields = typeDef.getFields();
+        if (fields == null || fields.isEmpty()) {
+            return;
+        }
+
+        TypeSymbol rawType = CommonUtils.getRawType(typeDefSymbol.typeDescriptor());
+        if (!(rawType instanceof RecordTypeSymbol recordType)) {
+            return;
+        }
+
+        Map<String, RecordFieldSymbol> fieldSymbolsByName = new HashMap<>();
+        for (Map.Entry<String, RecordFieldSymbol> entry : recordType.fieldDescriptors().entrySet()) {
+            RecordFieldSymbol fieldSymbol = entry.getValue();
+            fieldSymbolsByName.put(fieldSymbol.getName().orElse(entry.getKey()), fieldSymbol);
+        }
+
+        for (Field field : fields) {
+            RecordFieldSymbol fieldSymbol = fieldSymbolsByName.get(field.getName());
+            if (fieldSymbol == null) {
+                continue;
+            }
+            List<AnnotationAttachment> fieldAnnotations =
+                    AnnotationAttachmentExtractor.extract(fieldSymbol, org, packageName);
+            if (!fieldAnnotations.isEmpty()) {
+                field.setAnnotations(fieldAnnotations);
+            }
+        }
     }
 }

@@ -29,11 +29,18 @@ export interface Link {
 
 export type Category = "internal" | "external";
 
+export interface AnnotationAttachment {
+    name: string;
+    module?: string;
+    value?: string;
+}
+
 export interface Parameter {
     name: string;
     description: string;
     type: Type;
     default?: string;
+    annotations?: AnnotationAttachment[];
 }
 
 export interface ParameterDef {
@@ -59,6 +66,7 @@ export interface Field {
     type: Type;
     default?: string;
     isDeprecated?: boolean;
+    annotations?: AnnotationAttachment[];
 }
 
 export interface UnionValue {
@@ -76,6 +84,7 @@ export interface TypeDefinitionBase {
     description: string;
     type: string;
     isDeprecated?: boolean;
+    annotations?: AnnotationAttachment[];
 }
 
 export interface ConstantTypeDefinition extends TypeDefinitionBase {
@@ -113,6 +122,7 @@ export interface AbstractFunction {
     parameters: Parameter[];
     return: Return;
     isDeprecated?: boolean;
+    annotations?: AnnotationAttachment[];
 }
 
 export interface ResourceFunction extends AbstractFunction {
@@ -139,6 +149,7 @@ export interface Client {
     description: string;
     functions: (RemoteFunction | ResourceFunction)[];
     isDeprecated?: boolean;
+    annotations?: AnnotationAttachment[];
 }
 
 export interface Listener {

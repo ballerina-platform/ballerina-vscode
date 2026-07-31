@@ -22,6 +22,7 @@ import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.flowmodelgenerator.core.copilot.builder.TypeLinkBuilder;
 import io.ballerina.flowmodelgenerator.core.copilot.model.EnumValue;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Field;
@@ -390,6 +391,47 @@ public class LibraryModelConverter {
             }
         }
         return parameter;
+    }
+
+    /**
+     * Converts a {@link TypeSymbol} to a {@link Type} POJO with internal/external type links.
+     * Used for annotation constraint types in the definition catalog; mirrors the return-type
+     * handling in {@link #functionDataToModel}.
+     *
+     * @param typeSymbol     the type symbol to convert
+     * @param currentOrg     the current package organization
+     * @param currentPackage the current package name
+     * @return the Type POJO, or {@code null} when the symbol is {@code null}
+     */
+    public static Type typeSymbolToModel(TypeSymbol typeSymbol, String currentOrg, String currentPackage) {
+        if (typeSymbol == null) {
+            return null;
+        }
+
+        String typeName = typeSymbol.signature();
+        String simpleTypeName = typeName;
+        if (typeName != null && typeName.contains(":")) {
+            simpleTypeName = typeName.substring(typeName.lastIndexOf(':') + 1);
+        }
+
+        boolean isGenericType = simpleTypeName != null && simpleTypeName.contains("<");
+        boolean isPrimitiveType = isPrimitiveOrDefaultType(simpleTypeName);
+
+        String nameToUse = simpleTypeName;
+        List<TypeLink> links = null;
+        if (!isGenericType && !isPrimitiveType && currentOrg != null && currentPackage != null) {
+            links = extractTypeLinksFromSymbol(typeSymbol, currentOrg, currentPackage);
+            links = TypeLinkBuilder.filterInternalExternal(links);
+            if (links != null && !links.isEmpty()) {
+                nameToUse = extractRecordName(typeSymbol);
+            }
+        }
+
+        Type type = new Type(nameToUse);
+        if (links != null && !links.isEmpty()) {
+            type.setLinks(links);
+        }
+        return type;
     }
 
     /**

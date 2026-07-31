@@ -127,6 +127,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.CopilotLibraryServicesParityTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.CopilotLibraryAnnotationsTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.CopilotDeprecationTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.CopilotAnnotationTest"/>
         </classes>
 
         <packages>

@@ -38,6 +38,7 @@ public class TypeDef {
     private Type varType;
     @SerializedName("isDeprecated")
     private Boolean deprecated;
+    private List<AnnotationAttachment> annotations;
 
     public TypeDef() {
     }
@@ -112,5 +113,13 @@ public class TypeDef {
 
     public void setDeprecated(Boolean deprecated) {
         this.deprecated = deprecated;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

@@ -488,6 +488,7 @@ function selectClients(originalClients: Client[], funcResponse: GetFunctionRespo
             name: originalClient.name,
             description: originalClient.description,
             functions: [],
+            annotations: originalClient.annotations,
         };
 
         const output: (RemoteFunction | ResourceFunction)[] = [];

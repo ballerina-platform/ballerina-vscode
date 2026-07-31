@@ -20,6 +20,8 @@ package io.ballerina.flowmodelgenerator.core.copilot.model;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 /**
  * Represents a record field or enum member.
  *
@@ -34,6 +36,7 @@ public class Field {
     private Boolean optional;
     @SerializedName("isDeprecated")
     private Boolean deprecated;
+    private List<AnnotationAttachment> annotations;
 
     public Field() {
     }
@@ -84,5 +87,13 @@ public class Field {
 
     public void setDeprecated(Boolean deprecated) {
         this.deprecated = deprecated;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

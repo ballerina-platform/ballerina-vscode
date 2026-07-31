@@ -34,6 +34,7 @@ public class Client {
     private List<LibraryFunction> functions;
     @SerializedName("isDeprecated")
     private Boolean deprecated;
+    private List<AnnotationAttachment> annotations;
 
     public Client(String name, String description) {
         this.name = name;
@@ -71,5 +72,13 @@ public class Client {
 
     public void setDeprecated(Boolean deprecated) {
         this.deprecated = deprecated;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

@@ -35,11 +35,30 @@ import {
     ParameterDef,
     PathParameter,
     Annotation,
+    AnnotationAttachment,
 } from "./library-types";
 
 const ATTACHMENT_POINT_LABELS: Record<string, string> = {
+    // Curated service-index points (kept verbatim for backward compatibility).
     SERVICE: "service",
     OBJECT_METHOD: "service_function",
+    // Points supplemented from the Semantic Model, mapped to their Ballerina `on`-clause tokens.
+    TYPE: "type",
+    OBJECT: "object",
+    FUNCTION: "function",
+    RESOURCE: "resource function",
+    PARAMETER: "parameter",
+    RETURN: "return",
+    CLASS: "class",
+    FIELD: "field",
+    OBJECT_FIELD: "object field",
+    RECORD_FIELD: "record field",
+    LISTENER: "listener",
+    ANNOTATION: "annotation",
+    EXTERNAL: "external",
+    VAR: "var",
+    CONST: "const",
+    WORKER: "worker",
 };
 
 /**
@@ -118,6 +137,47 @@ function buildSpecialAgentNote(externalLinks: ExternalLinkInfo[]): string {
 }
 
 /**
+ * Renders a single annotation attachment as `@[prefix:]Name [value]`.
+ * The module prefix is derived from the attachment's `module` (e.g. "ballerina/http" -> "http");
+ * when absent, the annotation belongs to the current library and is rendered bare.
+ */
+function renderAttachmentName(annotation: AnnotationAttachment): string {
+    const prefix = annotation.module ? deriveModulePrefix(annotation.module) : "";
+    const qualifiedName = prefix ? `${prefix}:${annotation.name}` : annotation.name;
+    return annotation.value ? `@${qualifiedName} ${annotation.value}` : `@${qualifiedName}`;
+}
+
+/**
+ * Renders annotation attachments as one line each, prefixed with `indent`.
+ */
+function renderAttachmentLines(annotations: AnnotationAttachment[] | undefined, indent: string): string[] {
+    if (!annotations || annotations.length === 0) {
+        return [];
+    }
+    return annotations.map((annotation) => `${indent}${renderAttachmentName(annotation)}`);
+}
+
+/**
+ * Renders annotation attachments as a block (lines + trailing newline) for string-concatenation
+ * renderers. Returns "" when there are none.
+ */
+function renderAttachmentBlock(annotations: AnnotationAttachment[] | undefined, indent: string): string {
+    const lines = renderAttachmentLines(annotations, indent);
+    return lines.length > 0 ? lines.join("\n") + "\n" : "";
+}
+
+/**
+ * Renders annotation attachments inline (space-separated, trailing space) for a parameter
+ * declaration. Returns "" when there are none.
+ */
+function renderInlineAttachments(annotations: AnnotationAttachment[] | undefined): string {
+    if (!annotations || annotations.length === 0) {
+        return "";
+    }
+    return annotations.map(renderAttachmentName).join(" ") + " ";
+}
+
+/**
  * Renders a description as `#` comment lines.
  */
 function renderDescription(description: string | undefined): string {
@@ -139,6 +199,7 @@ function renderRecord(typeDef: RecordTypeDefinition): string {
     if (typeDef.isDeprecated) {
         lines.push("@deprecated");
     }
+    lines.push(...renderAttachmentLines(typeDef.annotations, ""));
     lines.push(`type ${typeDef.name} record {`);
 
     for (const field of typeDef.fields) {
@@ -148,8 +209,9 @@ function renderRecord(typeDef: RecordTypeDefinition): string {
         const defaultVal = field.default !== undefined ? ` = ${field.default}` : "";
         const fieldDesc = field.description ? `    # ${field.description}\n` : "";
         const fieldDeprecated = field.isDeprecated ? "    @deprecated\n" : "";
+        const fieldAnnotations = renderAttachmentBlock(field.annotations, "    ");
         const agentNote = buildSpecialAgentNote(externalLinks);
-        lines.push(`${fieldDesc}${fieldDeprecated}    ${typeName} ${field.name}${optional}${defaultVal};${agentNote}`);
+        lines.push(`${fieldDesc}${fieldDeprecated}${fieldAnnotations}    ${typeName} ${field.name}${optional}${defaultVal};${agentNote}`);
     }
 
     lines.push("};");
@@ -169,6 +231,7 @@ function renderEnum(typeDef: EnumTypeDefinition): string {
     if (typeDef.isDeprecated) {
         lines.push("@deprecated\n");
     }
+    lines.push(renderAttachmentBlock(typeDef.annotations, ""));
     const members = typeDef.members.map((m) => m.name).join(",\n    ");
     lines.push(`enum ${typeDef.name} {\n    ${members}\n}`);
     return lines.join("");
@@ -180,11 +243,12 @@ function renderEnum(typeDef: EnumTypeDefinition): string {
 function renderUnion(typeDef: UnionTypeDefinition): string {
     const desc = renderDescription(typeDef.description);
     const dep = renderDeprecation(typeDef.isDeprecated);
+    const ann = renderAttachmentBlock(typeDef.annotations, "");
     if (!typeDef.members || typeDef.members.length === 0) {
-        return `${desc}${dep}type ${typeDef.name};`;
+        return `${desc}${dep}${ann}type ${typeDef.name};`;
     }
     const members = typeDef.members.map((m) => m.name).join("|");
-    return `${desc}${dep}type ${typeDef.name} ${members};`;
+    return `${desc}${dep}${ann}type ${typeDef.name} ${members};`;
 }
 
 /**
@@ -193,8 +257,9 @@ function renderUnion(typeDef: UnionTypeDefinition): string {
 function renderConstant(typeDef: ConstantTypeDefinition): string {
     const desc = renderDescription(typeDef.description);
     const dep = renderDeprecation(typeDef.isDeprecated);
+    const ann = renderAttachmentBlock(typeDef.annotations, "");
     const value = typeDef.varType.name === "string" ? `"${typeDef.value}"` : typeDef.value;
-    return `${desc}${dep}const ${typeDef.varType.name} ${typeDef.name} = ${value};`;
+    return `${desc}${dep}${ann}const ${typeDef.varType.name} ${typeDef.name} = ${value};`;
 }
 
 /**
@@ -203,7 +268,8 @@ function renderConstant(typeDef: ConstantTypeDefinition): string {
 function renderClass(typeDef: ClassTypeDefinition): string {
     const desc = renderDescription(typeDef.description);
     const dep = renderDeprecation(typeDef.isDeprecated);
-    return `${desc}${dep}class ${typeDef.name} {\n}`;
+    const ann = renderAttachmentBlock(typeDef.annotations, "");
+    return `${desc}${dep}${ann}class ${typeDef.name} {\n}`;
 }
 
 /**
@@ -257,7 +323,8 @@ function renderParam(param: Parameter): string {
     const typeName = applyPrefixToTypeName(param.type.name, externalLinks);
     const optional = (param as any).optional;
     const defaultVal = (param as any).default !== undefined ? ` = ${(param as any).default}` : "";
-    return `${typeName} ${param.name}${defaultVal}`;
+    const annotations = renderInlineAttachments(param.annotations);
+    return `${annotations}${typeName} ${param.name}${defaultVal}`;
 }
 
 /**
@@ -268,7 +335,8 @@ function renderConstructor(func: RemoteFunction): string {
     const params = func.parameters.map(renderParam).join(", ");
     const returnStr = func.return?.type ? ` returns ${applyPrefixToTypeName(func.return.type.name, allExternalLinks)}` : "";
     const agentNote = buildSpecialAgentNote(allExternalLinks);
-    return `    function init(${params})${returnStr};${agentNote}`;
+    const anns = renderAttachmentBlock(func.annotations, "    ");
+    return `${anns}    function init(${params})${returnStr};${agentNote}`;
 }
 
 /**
@@ -278,10 +346,11 @@ function renderRemoteFunction(func: RemoteFunction, indent: string = "    "): st
     const allExternalLinks = collectFunctionExternalLinks(func.parameters, func.return?.type);
     const desc = func.description ? `${indent}# ${func.description.split("\n").join(`\n${indent}# `)}\n` : "";
     const dep = func.isDeprecated ? `${indent}@deprecated\n` : "";
+    const anns = renderAttachmentBlock(func.annotations, indent);
     const params = func.parameters.map(renderParam).join(", ");
     const returnStr = func.return?.type ? ` returns ${applyPrefixToTypeName(func.return.type.name, allExternalLinks)}` : "";
     const agentNote = buildSpecialAgentNote(allExternalLinks);
-    return `${desc}${dep}${indent}remote function ${func.name}(${params})${returnStr};${agentNote}`;
+    return `${desc}${dep}${anns}${indent}remote function ${func.name}(${params})${returnStr};${agentNote}`;
 }
 
 /**
@@ -291,6 +360,7 @@ function renderResourceFunction(func: ResourceFunction, indent: string = "    ")
     const allExternalLinks = collectFunctionExternalLinks(func.parameters, func.return?.type);
     const desc = func.description ? `${indent}# ${func.description.split("\n").join(`\n${indent}# `)}\n` : "";
     const dep = func.isDeprecated ? `${indent}@deprecated\n` : "";
+    const anns = renderAttachmentBlock(func.annotations, indent);
 
     // Build path string
     const pathSegments = func.paths.map((p) => {
@@ -312,7 +382,7 @@ function renderResourceFunction(func: ResourceFunction, indent: string = "    ")
 
     const returnStr = func.return?.type ? ` returns ${applyPrefixToTypeName(func.return.type.name, allExternalLinks)}` : "";
     const agentNote = buildSpecialAgentNote(allExternalLinks);
-    return `${desc}${dep}${indent}resource function ${func.accessor} ${pathStr}(${params})${returnStr};${agentNote}`;
+    return `${desc}${dep}${anns}${indent}resource function ${func.accessor} ${pathStr}(${params})${returnStr};${agentNote}`;
 }
 
 /**
@@ -322,7 +392,8 @@ function renderClient(client: Client): string {
     const lines: string[] = [];
     const desc = client.description ? renderDescription(client.description) : "";
     const dep = client.isDeprecated ? "@deprecated\n" : "";
-    lines.push(`${desc}${dep}client class ${client.name} {`);
+    const anns = renderAttachmentBlock(client.annotations, "");
+    lines.push(`${desc}${dep}${anns}client class ${client.name} {`);
 
     for (const func of client.functions) {
         if ("type" in func && func.type === "Constructor") {
@@ -369,6 +440,8 @@ function renderStandaloneFunction(func: RemoteFunction): string {
     if (func.isDeprecated) {
         lines.push("@deprecated");
     }
+
+    lines.push(...renderAttachmentLines(func.annotations, ""));
 
     const params = func.parameters.map(renderParam).join(", ");
     const returnStr = func.return?.type ? ` returns ${applyPrefixToTypeName(func.return.type.name, allExternalLinks)}` : "";

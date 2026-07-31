@@ -20,6 +20,8 @@ package io.ballerina.flowmodelgenerator.core.copilot.model;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.List;
+
 /**
  * Represents a function or method parameter.
  *
@@ -32,6 +34,7 @@ public class Parameter {
     private Boolean optional;
     @SerializedName("default")
     private String defaultValue;
+    private List<AnnotationAttachment> annotations;
 
     public Parameter() {
     }
@@ -74,5 +77,13 @@ public class Parameter {
 
     public void setDefaultValue(String defaultValue) {
         this.defaultValue = defaultValue;
+    }
+
+    public List<AnnotationAttachment> getAnnotations() {
+        return annotations;
+    }
+
+    public void setAnnotations(List<AnnotationAttachment> annotations) {
+        this.annotations = annotations;
     }
 }

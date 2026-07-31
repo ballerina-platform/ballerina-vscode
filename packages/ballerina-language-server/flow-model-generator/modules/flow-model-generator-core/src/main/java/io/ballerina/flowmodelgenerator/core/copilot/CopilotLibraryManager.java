@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,10 @@ public class CopilotLibraryManager {
     private static final Gson GSON = new Gson();
     private static final String EXCLUSION_JSON_PATH = "/copilot/exclusion.json";
     private static final String TYPE_GENERIC = "generic";
+    // Attachment points owned by the curated service-index catalog (kept as-is; not supplemented
+    // from the Semantic Model).
+    private static final String SERVICE_ATTACH_POINT = "SERVICE";
+    private static final String OBJECT_METHOD_ATTACH_POINT = "OBJECT_METHOD";
 
     // Libraries for which README content should be included in the filtered response.
     private static final Set<String> README_WHITELIST = Set.of(
@@ -169,8 +174,24 @@ public class CopilotLibraryManager {
 
             JsonArray annotationsJson = AnnotationLoader.loadFromServiceIndex(libraryName);
             List<Annotation> annotations = new ArrayList<>();
+            Set<String> seenAnnotations = new HashSet<>();
             for (JsonElement annotationElement : annotationsJson) {
-                annotations.add(GSON.fromJson(annotationElement, Annotation.class));
+                Annotation annotation = GSON.fromJson(annotationElement, Annotation.class);
+                annotations.add(annotation);
+                seenAnnotations.add(annotation.getName() + "::" + annotation.getAttachmentPoint());
+            }
+            // Supplement the curated service-index catalog with Semantic-Model annotation
+            // definitions for the remaining attachment points. The service-index owns the
+            // SERVICE and OBJECT_METHOD points, so those are left untouched here.
+            for (Annotation annotation : symbolResult.getAnnotations()) {
+                String attachmentPoint = annotation.getAttachmentPoint();
+                if (SERVICE_ATTACH_POINT.equals(attachmentPoint)
+                        || OBJECT_METHOD_ATTACH_POINT.equals(attachmentPoint)) {
+                    continue;
+                }
+                if (seenAnnotations.add(annotation.getName() + "::" + attachmentPoint)) {
+                    annotations.add(annotation);
+                }
             }
             library.setAnnotations(annotations);
 
