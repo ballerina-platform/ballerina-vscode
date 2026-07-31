@@ -200,7 +200,7 @@ version = "0.8.2"
 [[dependency]]
 org = "ballerina"
 name = "workflow"
-version = "0.7.0"
+version = "0.8.0"
 
 [[dependency]]
 org = "ballerina"

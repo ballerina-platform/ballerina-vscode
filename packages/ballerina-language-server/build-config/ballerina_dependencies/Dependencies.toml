@@ -556,8 +556,9 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "workflow"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
+	{org = "ballerina", name = "ai"},
 	{org = "ballerina", name = "email"},
 	{org = "ballerina", name = "http"},
 	{org = "ballerina", name = "jballerina.java"},
