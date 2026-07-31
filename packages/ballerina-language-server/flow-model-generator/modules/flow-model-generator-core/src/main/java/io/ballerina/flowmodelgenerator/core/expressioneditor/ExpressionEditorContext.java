@@ -22,6 +22,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
@@ -117,15 +119,13 @@ public class ExpressionEditorContext {
     // `<type> __reserved__ = <expr>;` probe parses as a module-level variable declaration.
     private LinePosition normalizeStatementPosition(LinePosition position) {
         try {
-            io.ballerina.compiler.syntax.tree.ModulePartNode rootNode =
-                    documentContext.document().syntaxTree().rootNode();
+            ModulePartNode rootNode = documentContext.document().syntaxTree().rootNode();
             TextDocument textDocument = documentContext.document().textDocument();
             int textPosition = textDocument.textPositionFrom(position);
-            io.ballerina.compiler.syntax.tree.NonTerminalNode node =
-                    rootNode.findNode(TextRange.from(textPosition, 0), true);
-            io.ballerina.compiler.syntax.tree.NonTerminalNode current = node;
+            NonTerminalNode node = rootNode.findNode(TextRange.from(textPosition, 0), true);
+            NonTerminalNode current = node;
             boolean insideFunction = false;
-            io.ballerina.compiler.syntax.tree.NonTerminalNode moduleVarDecl = null;
+            NonTerminalNode moduleVarDecl = null;
             while (current != null) {
                 SyntaxKind kind = current.kind();
                 if (kind == SyntaxKind.FUNCTION_DEFINITION || kind == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION

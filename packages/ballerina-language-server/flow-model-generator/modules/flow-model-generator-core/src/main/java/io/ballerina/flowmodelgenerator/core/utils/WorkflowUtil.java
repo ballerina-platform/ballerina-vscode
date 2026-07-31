@@ -34,20 +34,41 @@ import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.ParameterNode;
+import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
+import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
+import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
+import io.ballerina.projects.Project;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import io.ballerina.tools.text.TextRange;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -274,7 +295,7 @@ public class WorkflowUtil {
         }
         SemanticModel semanticModel = FileSystemUtils.getSemanticModel(sourceBuilder.workspaceManager,
                 sourceFile);
-        for (io.ballerina.compiler.syntax.tree.ParameterNode parameter
+        for (ParameterNode parameter
                 : agentFunction.functionSignature().parameters()) {
             Optional<Symbol> symbol = semanticModel.symbol(parameter);
             if (symbol.isEmpty() || symbol.get().kind() != SymbolKind.PARAMETER) {
@@ -435,16 +456,16 @@ public class WorkflowUtil {
         if (declaration == null) {
             throw new IllegalStateException("Cannot locate the durable agent declaration: " + agentVarName);
         }
-        io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config = declaration.config();
+        MappingConstructorExpressionNode config = declaration.config();
 
-        io.ballerina.tools.text.LinePosition insertAt = null;
+        LinePosition insertAt = null;
         String newText = null;
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
-            if (field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField
+        for (MappingFieldNode field : config.fields()) {
+            if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())
                     && specificField.valueExpr().isPresent()
                     && specificField.valueExpr().get()
-                            instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list) {
+                            instanceof ListConstructorExpressionNode list) {
                 insertAt = list.closeBracket().lineRange().startLine();
                 newText = (list.expressions().isEmpty() ? "" : ", ") + entryText;
                 break;
@@ -491,48 +512,48 @@ public class WorkflowUtil {
     }
 
     private record AgentDeclaration(Path filePath,
-            io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config) {
+            MappingConstructorExpressionNode config) {
     }
 
     // Scans the default module for `final workflow:DurableAgent <name> = check new ({...})`
     // and returns the config mapping plus the declaring file.
     private static AgentDeclaration findAgentDeclaration(SourceBuilder sourceBuilder, String agentVarName) {
-        io.ballerina.projects.Project project;
+        Project project;
         try {
             project = sourceBuilder.workspaceManager.loadProject(sourceBuilder.filePath);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load the project for " + sourceBuilder.filePath, e);
         }
-        io.ballerina.projects.Module module = project.currentPackage().getDefaultModule();
-        for (io.ballerina.projects.DocumentId documentId : module.documentIds()) {
+        Module module = project.currentPackage().getDefaultModule();
+        for (DocumentId documentId : module.documentIds()) {
             Document document = module.document(documentId);
             ModulePartNode root = document.syntaxTree().rootNode();
-            for (io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode member : root.members()) {
-                if (!(member instanceof io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode varDecl)) {
+            for (ModuleMemberDeclarationNode member : root.members()) {
+                if (!(member instanceof ModuleVariableDeclarationNode varDecl)) {
                     continue;
                 }
                 if (!(varDecl.typedBindingPattern().bindingPattern()
-                        instanceof io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode capture)
+                        instanceof CaptureBindingPatternNode capture)
                         || !agentVarName.equals(capture.variableName().text())) {
                     continue;
                 }
                 if (varDecl.initializer().isEmpty()) {
                     continue;
                 }
-                io.ballerina.compiler.syntax.tree.ExpressionNode initializer = varDecl.initializer().get();
-                if (initializer instanceof io.ballerina.compiler.syntax.tree.CheckExpressionNode checkExpr) {
+                ExpressionNode initializer = varDecl.initializer().get();
+                if (initializer instanceof CheckExpressionNode checkExpr) {
                     initializer = checkExpr.expression();
                 }
-                if (!(initializer instanceof io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode newExpr)
+                if (!(initializer instanceof ImplicitNewExpressionNode newExpr)
                         || newExpr.parenthesizedArgList().isEmpty()
                         || newExpr.parenthesizedArgList().get().arguments().isEmpty()) {
                     continue;
                 }
-                io.ballerina.compiler.syntax.tree.FunctionArgumentNode firstArg =
+                FunctionArgumentNode firstArg =
                         newExpr.parenthesizedArgList().get().arguments().get(0);
-                if (firstArg instanceof io.ballerina.compiler.syntax.tree.PositionalArgumentNode positional
+                if (firstArg instanceof PositionalArgumentNode positional
                         && positional.expression()
-                                instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config) {
+                                instanceof MappingConstructorExpressionNode config) {
                     return new AgentDeclaration(project.documentPath(documentId).orElse(sourceBuilder.filePath),
                             config);
                 }
@@ -549,19 +570,19 @@ public class WorkflowUtil {
      * @param filePath         the file the form is opened in
      * @return dropdown options, one per durable agent variable
      */
-    public static List<io.ballerina.flowmodelgenerator.core.model.Option> durableAgentOptions(
+    public static List<Option> durableAgentOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath) {
-        List<io.ballerina.flowmodelgenerator.core.model.Option> options = new java.util.ArrayList<>();
-        io.ballerina.projects.Package currentPackage =
-                io.ballerina.modelgenerator.commons.PackageUtil.loadProject(workspaceManager, filePath)
+        List<Option> options = new ArrayList<>();
+        Package currentPackage =
+                PackageUtil.loadProject(workspaceManager, filePath)
                         .currentPackage();
-        io.ballerina.modelgenerator.commons.PackageUtil.getCompilation(currentPackage);
+        PackageUtil.getCompilation(currentPackage);
         currentPackage.modules().forEach(module ->
                 module.getCompilation().getSemanticModel().moduleSymbols().stream()
                         .filter(symbol -> symbol.kind() == SymbolKind.VARIABLE)
                         .filter(WorkflowUtil::isDurableAgentVariable)
                         .forEach(symbol -> symbol.getName().ifPresent(name -> options.add(
-                                new io.ballerina.flowmodelgenerator.core.model.Option(name, name)))));
+                                new Option(name, name)))));
         return options;
     }
 
@@ -574,7 +595,7 @@ public class WorkflowUtil {
      * @param filePath         the file the form is opened in
      * @return dropdown options, one per declared event channel (deduplicated, source order)
      */
-    public static List<io.ballerina.flowmodelgenerator.core.model.Option> declaredAgentEventOptions(
+    public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath) {
         return declaredAgentEventOptions(workspaceManager, filePath, null);
     }
@@ -588,21 +609,21 @@ public class WorkflowUtil {
      * @param targetAgent      the agent variable name to scope to, or {@code null} for all agents
      * @return dropdown options, one per declared event channel (deduplicated, source order)
      */
-    public static List<io.ballerina.flowmodelgenerator.core.model.Option> declaredAgentEventOptions(
+    public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent) {
         java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-        io.ballerina.projects.Project project;
+        Project project;
         try {
             project = workspaceManager.loadProject(filePath);
         } catch (Exception e) {
             return List.of();
         }
-        io.ballerina.projects.Module module = project.currentPackage().getDefaultModule();
-        for (io.ballerina.projects.DocumentId documentId : module.documentIds()) {
+        Module module = project.currentPackage().getDefaultModule();
+        for (DocumentId documentId : module.documentIds()) {
             Document document = module.document(documentId);
             ModulePartNode root = document.syntaxTree().rootNode();
-            for (io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode member : root.members()) {
+            for (ModuleMemberDeclarationNode member : root.members()) {
                 if (!(member instanceof ModuleVariableDeclarationNode varDecl) || varDecl.initializer().isEmpty()) {
                     continue;
                 }
@@ -613,58 +634,57 @@ public class WorkflowUtil {
                 }
                 if (targetAgent != null && !targetAgent.isBlank()
                         && (!(varDecl.typedBindingPattern().bindingPattern()
-                                instanceof io.ballerina.compiler.syntax.tree.CaptureBindingPatternNode capture)
+                                instanceof CaptureBindingPatternNode capture)
                             || !targetAgent.equals(capture.variableName().text()))) {
                     continue;
                 }
-                io.ballerina.compiler.syntax.tree.ExpressionNode initializer = varDecl.initializer().get();
-                if (initializer instanceof io.ballerina.compiler.syntax.tree.CheckExpressionNode checkExpr) {
+                ExpressionNode initializer = varDecl.initializer().get();
+                if (initializer instanceof CheckExpressionNode checkExpr) {
                     initializer = checkExpr.expression();
                 }
-                io.ballerina.compiler.syntax.tree.SeparatedNodeList
-                        <io.ballerina.compiler.syntax.tree.FunctionArgumentNode> args;
-                if (initializer instanceof io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode newExpr
+                SeparatedNodeList<FunctionArgumentNode> args;
+                if (initializer instanceof ImplicitNewExpressionNode newExpr
                         && newExpr.parenthesizedArgList().isPresent()) {
                     args = newExpr.parenthesizedArgList().get().arguments();
                 } else if (initializer
-                        instanceof io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode explicitNew) {
+                        instanceof ExplicitNewExpressionNode explicitNew) {
                     args = explicitNew.parenthesizedArgList().arguments();
                 } else {
                     continue;
                 }
                 if (args.isEmpty()
-                        || !(args.get(0) instanceof io.ballerina.compiler.syntax.tree.PositionalArgumentNode pos)
+                        || !(args.get(0) instanceof PositionalArgumentNode pos)
                         || !(pos.expression()
-                                instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode conf)) {
+                                instanceof MappingConstructorExpressionNode conf)) {
                     continue;
                 }
                 collectDeclaredEventNames(conf, names);
             }
         }
         return names.stream()
-                .map(name -> new io.ballerina.flowmodelgenerator.core.model.Option(name, name))
+                .map(name -> new Option(name, name))
                 .toList();
     }
 
     // Collects the `name` field of each mapping entry in the config's `events` list.
     private static void collectDeclaredEventNames(
-            io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config,
+            MappingConstructorExpressionNode config,
             java.util.Set<String> names) {
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
-            if (!(field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField)
+        for (MappingFieldNode field : config.fields()) {
+            if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
                     || !"events".equals(specificField.fieldName().toSourceCode().trim())
                     || !(specificField.valueExpr().get()
-                            instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                            instanceof ListConstructorExpressionNode list)) {
                 continue;
             }
             for (Node item : list.expressions()) {
                 if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
                     continue;
                 }
-                for (io.ballerina.compiler.syntax.tree.MappingFieldNode entryField
-                        : ((io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode) item).fields()) {
-                    if (entryField instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode entry
+                for (MappingFieldNode entryField
+                        : ((MappingConstructorExpressionNode) item).fields()) {
+                    if (entryField instanceof SpecificFieldNode entry
                             && entry.valueExpr().isPresent()
                             && "name".equals(entry.fieldName().toSourceCode().trim())) {
                         String raw = entry.valueExpr().get().toSourceCode().trim();
@@ -745,11 +765,11 @@ public class WorkflowUtil {
         if (declaration == null) {
             throw new IllegalStateException("Cannot locate the durable agent declaration: " + agentVarName);
         }
-        io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config = declaration.config();
+        MappingConstructorExpressionNode config = declaration.config();
         org.eclipse.lsp4j.Range range = null;
         String newText = null;
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
-            if (field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField
+        for (MappingFieldNode field : config.fields()) {
+            if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())
                     && specificField.valueExpr().isPresent()) {
                 LineRange valueRange = specificField.valueExpr().get().lineRange();
@@ -763,14 +783,14 @@ public class WorkflowUtil {
             }
         }
         if (range == null) {
-            io.ballerina.tools.text.LinePosition closeBrace = config.closeBrace().lineRange().startLine();
+            LinePosition closeBrace = config.closeBrace().lineRange().startLine();
             org.eclipse.lsp4j.Position position =
                     new org.eclipse.lsp4j.Position(closeBrace.line(), closeBrace.offset());
             range = new org.eclipse.lsp4j.Range(position, position);
             newText = (config.fields().isEmpty() ? "" : ", ") + fieldName + ": " + valueText;
         }
         Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-        edits.put(declaration.filePath(), new java.util.ArrayList<>(
+        edits.put(declaration.filePath(), new ArrayList<>(
                 List.of(new org.eclipse.lsp4j.TextEdit(range, newText))));
         return edits;
     }
@@ -784,7 +804,7 @@ public class WorkflowUtil {
     public static void mergeTextEdits(Map<Path, List<org.eclipse.lsp4j.TextEdit>> target,
                                       Map<Path, List<org.eclipse.lsp4j.TextEdit>> additions) {
         additions.forEach((path, edits) ->
-                target.computeIfAbsent(path, key -> new java.util.ArrayList<>()).addAll(edits));
+                target.computeIfAbsent(path, key -> new ArrayList<>()).addAll(edits));
     }
 
     /** Property key the front end sets to request removal of a capability entry. */
@@ -818,21 +838,21 @@ public class WorkflowUtil {
         if (declaration == null || entryRange == null) {
             throw new IllegalStateException("Cannot locate the durable agent capability entry to remove");
         }
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : declaration.config().fields()) {
-            if (!(field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField)
+        for (MappingFieldNode field : declaration.config().fields()) {
+            if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
                     || !(specificField.valueExpr().get()
-                            instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                            instanceof ListConstructorExpressionNode list)) {
                 continue;
             }
             var expressions = list.expressions();
             for (int i = 0; i < expressions.size(); i++) {
-                io.ballerina.compiler.syntax.tree.Node item = expressions.get(i);
+                Node item = expressions.get(i);
                 if (!item.lineRange().startLine().equals(entryRange.startLine())) {
                     continue;
                 }
-                io.ballerina.tools.text.LinePosition from;
-                io.ballerina.tools.text.LinePosition to;
+                LinePosition from;
+                LinePosition to;
                 if (expressions.size() == 1) {
                     // Only element: clear the list interior, leaving `field: []`.
                     from = list.openBracket().lineRange().endLine();
@@ -847,7 +867,7 @@ public class WorkflowUtil {
                     to = expressions.get(1).lineRange().startLine();
                 }
                 Map<Path, List<org.eclipse.lsp4j.TextEdit>> edits = new HashMap<>();
-                edits.put(declaration.filePath(), new java.util.ArrayList<>(List.of(
+                edits.put(declaration.filePath(), new ArrayList<>(List.of(
                         new org.eclipse.lsp4j.TextEdit(new org.eclipse.lsp4j.Range(
                                 new org.eclipse.lsp4j.Position(from.line(), from.offset()),
                                 new org.eclipse.lsp4j.Position(to.line(), to.offset())), ""))));
@@ -874,11 +894,11 @@ public class WorkflowUtil {
         if (declaration == null) {
             throw new IllegalStateException("Cannot locate the durable agent declaration: " + agentVarName);
         }
-        io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config = declaration.config();
-        List<org.eclipse.lsp4j.TextEdit> edits = new java.util.ArrayList<>();
+        MappingConstructorExpressionNode config = declaration.config();
+        List<org.eclipse.lsp4j.TextEdit> edits = new ArrayList<>();
         java.util.LinkedHashMap<String, String> missing = new java.util.LinkedHashMap<>(fields);
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
-            if (field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField
+        for (MappingFieldNode field : config.fields()) {
+            if (field instanceof SpecificFieldNode specificField
                     && specificField.valueExpr().isPresent()) {
                 String name = specificField.fieldName().toSourceCode().trim();
                 String replacement = missing.remove(name);
@@ -902,7 +922,7 @@ public class WorkflowUtil {
                 insertion.append(entry.getKey()).append(": ").append(entry.getValue());
                 first = false;
             }
-            io.ballerina.tools.text.LinePosition closeBrace = config.closeBrace().lineRange().startLine();
+            LinePosition closeBrace = config.closeBrace().lineRange().startLine();
             org.eclipse.lsp4j.Position position =
                     new org.eclipse.lsp4j.Position(closeBrace.line(), closeBrace.offset());
             edits.add(new org.eclipse.lsp4j.TextEdit(

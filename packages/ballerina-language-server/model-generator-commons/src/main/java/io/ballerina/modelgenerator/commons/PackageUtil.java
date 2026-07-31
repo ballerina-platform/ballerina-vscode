@@ -42,6 +42,7 @@ import io.ballerina.projects.environment.ResolutionOptions;
 import io.ballerina.projects.environment.ResolutionRequest;
 import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
+import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -215,7 +216,7 @@ public class PackageUtil {
         // central; fall back to the local repository, where such builds are published.
         return resolveModulePackage(buildProject,
                 PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version),
-                        io.ballerina.projects.util.ProjectConstants.LOCAL_REPOSITORY_NAME));
+                        ProjectConstants.LOCAL_REPOSITORY_NAME));
     }
 
     private static Optional<Package> resolveModulePackage(BuildProject buildProject,

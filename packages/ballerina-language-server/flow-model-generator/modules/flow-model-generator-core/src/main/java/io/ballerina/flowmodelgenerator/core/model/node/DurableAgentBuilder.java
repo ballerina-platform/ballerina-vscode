@@ -25,6 +25,7 @@ import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -155,7 +156,7 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
             Package currentPackage = PackageUtil
                     .loadProject(sourceBuilder.workspaceManager, sourceBuilder.filePath).currentPackage();
             PackageUtil.getCompilation(currentPackage);
-            for (io.ballerina.projects.Module module : currentPackage.modules()) {
+            for (Module module : currentPackage.modules()) {
                 List<Option> options = DurableAgentRunBuilder.modelProviderOptions(
                         module.getCompilation().getSemanticModel());
                 if (!options.isEmpty()) {

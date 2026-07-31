@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
+import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
@@ -76,7 +77,7 @@ public class DurableAgentStartBuilder extends FunctionCall {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         setConcreteConstData();
-        io.ballerina.compiler.api.SemanticModel semanticModel =
+        SemanticModel semanticModel =
                 FileSystemUtils.getSemanticModel(context.workspaceManager(), context.filePath());
 
         properties().custom()

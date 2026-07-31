@@ -29,9 +29,20 @@ import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Automation;
@@ -368,41 +379,41 @@ public class DesignModelGenerator {
         if (root == null) {
             return;
         }
-        for (io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode member : root.members()) {
+        for (ModuleMemberDeclarationNode member : root.members()) {
             // The symbol's location is the variable-name token, so match by line containment.
-            if (!(member instanceof io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode varDecl)
+            if (!(member instanceof ModuleVariableDeclarationNode varDecl)
                     || varDecl.lineRange().startLine().line() > lineRange.startLine().line()
                     || varDecl.lineRange().endLine().line() < lineRange.startLine().line()
                     || varDecl.initializer().isEmpty()) {
                 continue;
             }
-            io.ballerina.compiler.syntax.tree.ExpressionNode initializer = varDecl.initializer().get();
-            if (initializer instanceof io.ballerina.compiler.syntax.tree.CheckExpressionNode checkExpr) {
+            ExpressionNode initializer = varDecl.initializer().get();
+            if (initializer instanceof CheckExpressionNode checkExpr) {
                 initializer = checkExpr.expression();
             }
-            if (!(initializer instanceof io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode newExpr)
+            if (!(initializer instanceof ImplicitNewExpressionNode newExpr)
                     || newExpr.parenthesizedArgList().isEmpty()
                     || newExpr.parenthesizedArgList().get().arguments().isEmpty()
                     || !(newExpr.parenthesizedArgList().get().arguments().get(0)
-                            instanceof io.ballerina.compiler.syntax.tree.PositionalArgumentNode configArg)
+                            instanceof PositionalArgumentNode configArg)
                     || !(configArg.expression()
-                            instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode config)) {
+                            instanceof MappingConstructorExpressionNode config)) {
                 continue;
             }
-            for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : config.fields()) {
-                if (!(field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField)
+            for (MappingFieldNode field : config.fields()) {
+                if (!(field instanceof SpecificFieldNode specificField)
                         || specificField.valueExpr().isEmpty()) {
                     continue;
                 }
                 String fieldName = specificField.fieldName().toSourceCode().trim();
-                io.ballerina.compiler.syntax.tree.ExpressionNode valueExpr = specificField.valueExpr().get();
+                ExpressionNode valueExpr = specificField.valueExpr().get();
                 // The model provider is a module-level client — link it so the overview draws
                 // the agent -> model-provider connection edge.
                 if ("model".equals(fieldName)) {
                     linkAgentModelProvider(intermediateModel, agent, valueExpr);
                     continue;
                 }
-                if (!(valueExpr instanceof io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode list)) {
+                if (!(valueExpr instanceof ListConstructorExpressionNode list)) {
                     continue;
                 }
                 switch (fieldName) {
@@ -418,9 +429,9 @@ public class DesignModelGenerator {
     }
 
     private void populateAgentEvents(Workflow agent,
-                                     io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode events) {
-        for (io.ballerina.compiler.syntax.tree.Node item : events.expressions()) {
-            if (!(item instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode entry)) {
+                                     ListConstructorExpressionNode events) {
+        for (Node item : events.expressions()) {
+            if (!(item instanceof MappingConstructorExpressionNode entry)) {
                 continue;
             }
             String name = getMappingStringField(entry, "name");
@@ -432,9 +443,9 @@ public class DesignModelGenerator {
     }
 
     private void populateAgentHumanTasks(Workflow agent,
-                                         io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode tasks) {
-        for (io.ballerina.compiler.syntax.tree.Node item : tasks.expressions()) {
-            if (!(item instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode entry)) {
+                                         ListConstructorExpressionNode tasks) {
+        for (Node item : tasks.expressions()) {
+            if (!(item instanceof MappingConstructorExpressionNode entry)) {
                 continue;
             }
             String name = getMappingStringField(entry, "name");
@@ -448,7 +459,7 @@ public class DesignModelGenerator {
     // resolve the variable to its overview connection (keyed by the symbol location, same as
     // populateModuleLevelConnections) and record the edge on the agent.
     private void linkAgentModelProvider(IntermediateModel intermediateModel, Workflow agent,
-                                        io.ballerina.compiler.syntax.tree.ExpressionNode valueExpr) {
+                                        ExpressionNode valueExpr) {
         if (valueExpr.kind() != SyntaxKind.SIMPLE_NAME_REFERENCE) {
             return;
         }
@@ -470,12 +481,12 @@ public class DesignModelGenerator {
     // Declared activity functions link the agent to the shared activities column, exactly like
     // ctx->callActivity does for workflow functions.
     private void linkAgentActivities(IntermediateModel intermediateModel, Workflow agent,
-                                     io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode activities) {
-        for (io.ballerina.compiler.syntax.tree.Node item : activities.expressions()) {
+                                     ListConstructorExpressionNode activities) {
+        for (Node item : activities.expressions()) {
             String activityName = null;
             if (item.kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
                 activityName = item.toSourceCode().trim();
-            } else if (item instanceof io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode entry) {
+            } else if (item instanceof MappingConstructorExpressionNode entry) {
                 activityName = getMappingRawField(entry, "activity");
             }
             if (activityName == null) {
@@ -490,7 +501,7 @@ public class DesignModelGenerator {
     }
 
     private static String getMappingStringField(
-            io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode mapping, String fieldName) {
+            MappingConstructorExpressionNode mapping, String fieldName) {
         String raw = getMappingRawField(mapping, fieldName);
         if (raw != null && raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
             return raw.substring(1, raw.length() - 1);
@@ -499,9 +510,9 @@ public class DesignModelGenerator {
     }
 
     private static String getMappingRawField(
-            io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode mapping, String fieldName) {
-        for (io.ballerina.compiler.syntax.tree.MappingFieldNode field : mapping.fields()) {
-            if (field instanceof io.ballerina.compiler.syntax.tree.SpecificFieldNode specificField
+            MappingConstructorExpressionNode mapping, String fieldName) {
+        for (MappingFieldNode field : mapping.fields()) {
+            if (field instanceof SpecificFieldNode specificField
                     && fieldName.equals(specificField.fieldName().toSourceCode().trim())
                     && specificField.valueExpr().isPresent()) {
                 return specificField.valueExpr().get().toSourceCode().trim();
