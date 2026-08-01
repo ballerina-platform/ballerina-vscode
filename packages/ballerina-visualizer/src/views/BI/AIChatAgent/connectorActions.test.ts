@@ -221,6 +221,17 @@ describe("fetchConnectorActions", () => {
         expect(actions[0].metadata.description).toContain("Does not simply trash it.");
     });
 
+    it("shows a rest path as a placeholder, not the LS's fake endpoint", async () => {
+        const rpcClient = makeRpcClient(
+            docsWith({ resourceMethods: [{ name: "", accessor: "post", resourcePath: "[PathParamType ...path]" }] })
+        );
+
+        const actions = await fetchConnectorActions(rpcClient, REDIS_CONNECTOR);
+
+        expect(actions[0].codedata.resourcePath).toBe("/path/to/subdirectory");
+        expect(actions[0].metadata.label).toBe("POST /[path...]");
+    });
+
     it("falls back to the signature when a resource action has no description", async () => {
         const rpcClient = makeRpcClient(
             docsWith({
