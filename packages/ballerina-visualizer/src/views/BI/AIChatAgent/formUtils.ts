@@ -311,6 +311,7 @@ export function buildAgentToolFields(nameValue: string, descriptionValue: string
             key: "description",
             label: "Description",
             type: "TEXTAREA",
+            growRange: { start: 3, offset: 12 },
             optional: true,
             editable: true,
             documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",

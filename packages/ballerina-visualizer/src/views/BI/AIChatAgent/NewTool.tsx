@@ -19,6 +19,7 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
+import { Button, ThemeColors } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
@@ -32,6 +33,19 @@ const LoaderContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
+`;
+
+const ErrorNotice = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 12px 16px;
+    padding: 12px;
+    border: 1px solid ${ThemeColors.ERROR};
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--vscode-foreground);
 `;
 
 export enum NewToolSelectionMode {
@@ -56,6 +70,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
     const agentNode = agentNodeProp ?? null;
     const [savingForm, setSavingForm] = useState<boolean>(false);
     const [ready, setReady] = useState<boolean>(false);
+    const [error, setError] = useState<string>("");
 
     const agentFilePath = useRef<string>("");
     const projectPath = useRef<string>("");
@@ -149,12 +164,13 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
             flowNode = data.flowNode;
-            connection = data.selectedCodeData.parentSymbol || "";
+            connection = data.connectionName || data.selectedCodeData.parentSymbol || "";
         }
 
         setSavingForm(true);
 
         try {
+
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
                 flowNode.codedata.lineRange = {
@@ -184,14 +200,16 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     undefined, data.includeContext),
             });
 
-            if (!toolResponse) {
-                console.error("Tool generation failed");
+            if (!toolResponse || toolResponse.error) {
+                console.error("Tool generation failed", { error: toolResponse?.error });
+                setError("The tool could not be generated. Please try again.");
                 return;
             }
 
             const updatedAgentNode = await addToolToAgentNode(agentNode, data.toolName);
             if (!updatedAgentNode) {
                 console.error("Failed to add tool to agent node");
+                setError("The tool was created but could not be attached to the agent.");
                 return;
             }
             await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse.artifacts);
@@ -209,6 +227,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
         } catch (error) {
             console.error("Error saving tool", { error });
+            setError(`The tool could not be saved. ${error instanceof Error ? error.message : ""}`.trim());
         } finally {
             setSavingForm(false);
         }
@@ -216,6 +235,12 @@ export function NewTool(props: NewToolProps): JSX.Element {
 
     return (
         <>
+            {error && (
+                <ErrorNotice>
+                    <span>{error}</span>
+                    <Button appearance="secondary" onClick={() => setError("")}>Dismiss</Button>
+                </ErrorNotice>
+            )}
             {ready && !savingForm && (
                 mode === NewToolSelectionMode.CUSTOM_TOOL ? (
                     <AgentToolForm
