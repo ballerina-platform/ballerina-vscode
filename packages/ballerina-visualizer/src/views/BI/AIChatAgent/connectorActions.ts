@@ -19,7 +19,7 @@
 // Enumerating a connector's actions before any connection exists in the source. No LS
 // endpoint does this, so we read the Central docs API via library-browser/getLibraryData.
 
-import { AvailableNode, CodeData, NodeKind } from "@wso2/ballerina-core";
+import { AvailableNode, Category, CodeData, Item, NodeKind } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
 // Local, not from src/constants: that pulls in the ballerina-core barrel and breaks tests.
@@ -211,6 +211,29 @@ export async function fetchConnectorActions(
 
     actions.sort((a, b) => (a.metadata?.label ?? "").localeCompare(b.metadata?.label ?? ""));
     return actions;
+}
+
+/** A search with `q` returns a flat node list in `categories`; wrap it. Drops empty categories. */
+export function normalizeConnectorSearchCategories(
+    categories: Item[] | undefined,
+    searchResultLabel = "Search Results"
+): Category[] {
+    const grouped: Category[] = [];
+    const flat: AvailableNode[] = [];
+    (categories ?? []).forEach((entry) => {
+        if (entry && Array.isArray((entry as Category).items)) {
+            const category = entry as Category;
+            if (category.items.length > 0) {
+                grouped.push(category);
+            }
+        } else if ((entry as AvailableNode)?.codedata) {
+            flat.push(entry as AvailableNode);
+        }
+    });
+    if (flat.length > 0) {
+        grouped.push({ metadata: { label: searchResultLabel, description: "" }, items: flat });
+    }
+    return grouped;
 }
 
 /**
