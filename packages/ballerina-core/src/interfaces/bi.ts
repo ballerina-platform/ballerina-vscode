@@ -79,6 +79,7 @@ export type AgentToolData = Record<string, CodeDataValue> & (
         agentVarName: string;
         includeContext: boolean;
         description: string;
+        returnType?: string;
         node?: never;
         connection?: never;
     }

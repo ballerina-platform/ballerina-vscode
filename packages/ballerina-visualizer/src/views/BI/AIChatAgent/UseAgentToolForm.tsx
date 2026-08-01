@@ -27,8 +27,8 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
-import { OAUTH_GROUP } from "./connectorActions";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { OAUTH_GROUP, RESULT_TYPE_GROUP } from "./connectorActions";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
@@ -78,6 +78,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const [saving, setSaving] = useState<boolean>(false);
     const [includeContext, setIncludeContext] = useState<boolean>(false);
     const [oauthProperties, setOauthProperties] = useState<{ key: string; property: Property }[]>([]);
+    const [defaultReturnType, setDefaultReturnType] = useState<string>("");
 
     useEffect(() => {
         (async () => {
@@ -88,6 +89,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                 })).filePath;
             setAgentFilePath(filePath);
             setOauthProperties(await fetchOAuthConfigProperties(rpcClient, filePath));
+            setDefaultReturnType(await fetchAgentRunReturnType(rpcClient, filePath, agentVarName,
+                hostClass?.className));
             setReady(true);
         })();
     }, [agentNode]);
@@ -102,9 +105,12 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     );
 
     const groups = useMemo<FieldGroup[]>(
-        () => oauthFields.length > 0
-            ? [{ id: OAUTH_GROUP, label: "OAuth Client Configuration", defaultCollapsed: true }]
-            : [],
+        () => [
+            ...(oauthFields.length > 0
+                ? [{ id: OAUTH_GROUP, label: "OAuth Client Configuration", defaultCollapsed: true }]
+                : []),
+            { id: RESULT_TYPE_GROUP, label: "Result Type", defaultCollapsed: true },
+        ],
         [oauthFields]
     );
 
@@ -127,7 +133,26 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
         ),
         ...oauthFields,
+        {
+            key: "returnType",
+            label: "Result Type",
+            type: "TYPE",
+            optional: true,
+            editable: true,
+            documentation: "The data type this tool will return to the agent.",
+            value: defaultReturnType,
+            placeholder: "string",
+            types: [{ fieldType: "TYPE", selected: true }],
+            group: RESULT_TYPE_GROUP,
+            advanced: false,
+            enabled: true,
+        },
     ];
+
+    // Send only an edited value. Passing the prefill back would make the LS skip its own
+    // resolution, which is what adds the import for a type from another module.
+    const overriddenReturnType = (submitted: string): string =>
+        submitted.trim() === defaultReturnType.trim() ? "" : submitted;
 
     const handleSubmit = async (data: FormValues) => {
         if (saving) {
@@ -140,7 +165,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const description = stripCodeFencesInline(String(data["description"] ?? ""));
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
             const toolNode = buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
-                hostClass, agentReceiver);
+                hostClass, agentReceiver, overriddenReturnType(String(data["returnType"] ?? "")));
 
             // Same shape the connection tool form uses: codedata.data.auth.
             const authConfig: Record<string, string> = {};
