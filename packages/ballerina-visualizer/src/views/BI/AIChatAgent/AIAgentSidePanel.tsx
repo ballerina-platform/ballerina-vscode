@@ -787,7 +787,30 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         return extractRecordTypeFieldsFromEntries(entries);
     };
 
-    const loadFunctionCallFields = async (node: AvailableNode): Promise<void> => {
+    // Return-type fields get their own card; the supported-types docs dwarf the form.
+    const isResultTypeField = (field: FormField) =>
+        field.key === "type"
+        || field.key === "targetType"
+        || field.key === "rowType"
+        || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
+        || getPrimaryInputType(field.types)?.fieldType === "TYPE";
+
+    /** Mappings default to identity, so both paths put them in collapsible cards. */
+    const buildGroupedInputFields = (toolInputFields: FormField[], parameterFields: FormField[]): FormField[] =>
+        [
+            ...toolInputFields,
+            ...parameterFields.map((field) => ({
+                ...field,
+                value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value,
+            })),
+        ].map((field) => ({
+            ...field,
+            group: isResultTypeField(field) ? RESULT_TYPE_GROUP : TOOL_INPUT_GROUP,
+            // The advanced split is redundant inside a card.
+            advanced: false,
+        }));
+
+    const loadFunctionCallFields = async (node: AvailableNode, options?: { suggestedToolName?: string }): Promise<void> => {
         try {
             const functionNodeResponse = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
                 functionName: node.codedata.symbol,
@@ -859,15 +882,17 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
             setFields((prevFields) => [
-                ...prevFields.map((field) =>
-                    field.key === "description" ? { ...field, value: templateDescription } : field
-                ),
-                ...toolInputFields,
-                ...functionParameterFields.map(field => ({
-                    ...field,
-                    value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value
-                })),
-                ...oauthFields,
+                ...prevFields.map((field) => {
+                    if (field.key === "description") {
+                        return { ...field, value: templateDescription };
+                    }
+                    if (field.key === "name" && options?.suggestedToolName) {
+                        return { ...field, value: options.suggestedToolName };
+                    }
+                    return field;
+                }),
+                ...buildGroupedInputFields(toolInputFields, functionParameterFields),
+                ...oauthFields.map((field) => ({ ...field, group: OAUTH_GROUP, advanced: false })),
             ]);
         } catch (error) {
             console.error(">>> Error fetching function node or template", error);
@@ -945,27 +970,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const oauthRecordTypeFields = extractRecordTypeFieldsFromEntries(oauthProperties);
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
-            // Mappings default to identity, so move them into a collapsible card. Return-type
-            // fields get their own card: the supported-types documentation dwarfs the form.
-            const isResultTypeField = (field: FormField) =>
-                field.key === "type"
-                || field.key === "targetType"
-                || field.key === "rowType"
-                || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
-                || getPrimaryInputType(field.types)?.fieldType === "TYPE";
-
-            const groupedInputFields = [
-                ...toolInputFields,
-                ...nodeParameterFields.map((field) => ({
-                    ...field,
-                    value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value,
-                })),
-            ].map((field) => ({
-                ...field,
-                group: isResultTypeField(field) ? RESULT_TYPE_GROUP : TOOL_INPUT_GROUP,
-                // The advanced split is redundant inside a card.
-                advanced: false,
-            }));
+            const groupedInputFields = buildGroupedInputFields(toolInputFields, nodeParameterFields);
 
             setFields((prevFields) => [
                 ...prevFields.map((field) => {
@@ -1011,7 +1016,9 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setSelectedNodeCodeData(node.codedata);
 
             if (nodeId === FUNCTION_CALL) {
-                await loadFunctionCallFields(node);
+                await loadFunctionCallFields(node, {
+                    suggestedToolName: suggestToolNameForAction(node.codedata),
+                });
             } else if (nodeId === REMOTE_ACTION_CALL || nodeId === RESOURCE_ACTION_CALL || nodeId === METHOD_CALL) {
                 await loadConnectionCallFields(node, {
                     suggestedToolName: suggestToolNameForAction(node.codedata),
