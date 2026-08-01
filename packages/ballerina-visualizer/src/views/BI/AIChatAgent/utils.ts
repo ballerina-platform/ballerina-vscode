@@ -225,6 +225,37 @@ export const fetchOAuthConfigProperties = async (
     }
 };
 
+/**
+ * The agent's own `run` return type, for prefilling Result Type. `string` for a dependently-typed
+ * agent, the baked type for a fixed-typed one.
+ */
+export const fetchAgentRunReturnType = async (
+    rpcClient: BallerinaRpcClient,
+    filePath: string,
+    agentVarName: string,
+    hostClassName?: string
+): Promise<string> => {
+    try {
+        const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+            position: { line: 0, offset: 0 },
+            filePath,
+            id: {
+                node: "AGENT_TOOL",
+                data: {
+                    toolKind: "AGENT_CALL",
+                    agentVarName,
+                    ...(hostClassName ? { hostClassName } : {}),
+                },
+            } as CodeData,
+        });
+        const value = (response?.flowNode?.properties as any)?.type?.value;
+        return typeof value === "string" ? value.trim() : "";
+    } catch (error) {
+        console.error("Error resolving the agent run return type:", error);
+        return "";
+    }
+};
+
 export const getNodeTemplate = async (
     rpcClient: BallerinaRpcClient,
     codeData: CodeData,
@@ -616,12 +647,14 @@ export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, desc
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
-    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string): FlowNode {
+    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string,
+    returnType?: string): FlowNode {
     const data: AgentToolData = {
         toolKind: "AGENT_CALL",
         agentVarName,
         includeContext,
         description,
+        ...(returnType?.trim() ? { returnType: returnType.trim() } : {}),
         ...(agentReceiver ? { agentReceiver } : {}),
         ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
     };
