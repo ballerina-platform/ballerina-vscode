@@ -83,6 +83,21 @@ const OptionDescription = styled.div`
     line-height: 1.4;
 `;
 
+/** Card titles, reused by the panel header so the two cannot drift apart. */
+export const TOOL_OPTION_LABELS = {
+    CONNECTION: "Use Connection",
+    FUNCTION: "Use Function",
+    AGENT: "Use Agent",
+    MCP: "Use MCP Server",
+    CUSTOM: "Create Custom Tool",
+} as const;
+
+export const ADD_TOOL_TITLE = "Add Tool";
+
+/** Panel header for a chosen option, e.g. "Add Tool - Use Connection". */
+export const addToolTitle = (option: keyof typeof TOOL_OPTION_LABELS): string =>
+    `${ADD_TOOL_TITLE} - ${TOOL_OPTION_LABELS[option]}`;
+
 interface AddToolProps {
     agentNode: FlowNode;
     onCreateCustomTool?: () => void;
@@ -129,11 +144,11 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionIcon>
                             <Icon name="bi-connection" />
                         </OptionIcon>
-                        <OptionTitle>Use Connection</OptionTitle>
+                        <OptionTitle>{TOOL_OPTION_LABELS.CONNECTION}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Turn an existing connection (HTTP client, database, message broker) into an agent tool.
-                        Your agent will be able to make requests and interact with these services.
+                        Call an action on an HTTP client, database, or message broker. Pick the action
+                        first, then the connection it runs on.
                     </OptionDescription>
                 </OptionCard>
 
@@ -142,11 +157,11 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionIcon>
                             <Icon name="bi-function" />
                         </OptionIcon>
-                        <OptionTitle>Use Function</OptionTitle>
+                        <OptionTitle>{TOOL_OPTION_LABELS.FUNCTION}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Create a tool from an existing function in your integration or from a library function.
-                        This gives your agent the ability to execute specific business logic.
+                        Turn a function from your integration, or one from a library, into a tool the
+                        agent can call for specific business logic.
                     </OptionDescription>
                 </OptionCard>
 
@@ -155,11 +170,11 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionIcon>
                             <Icon name="bi-ai-agent" />
                         </OptionIcon>
-                        <OptionTitle>Use Agent</OptionTitle>
+                        <OptionTitle>{TOOL_OPTION_LABELS.AGENT}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Delegate to another agent in your integration. The selected agent is wrapped as a tool,
-                        so this agent can hand off relevant requests to it and use its response.
+                        Delegate to another agent in your integration. It is wrapped as a tool, so this
+                        agent can hand off requests and use the response.
                     </OptionDescription>
                 </OptionCard>
 
@@ -168,11 +183,11 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionIcon>
                             <Icon name="bi-mcp" />
                         </OptionIcon>
-                        <OptionTitle>Use MCP Server</OptionTitle>
+                        <OptionTitle>{TOOL_OPTION_LABELS.MCP}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Connect to a Model Context Protocol (MCP) server to access pre-built tools and resources.
-                        MCP servers provide standardized access to external systems and data sources.
+                        Connect to a Model Context Protocol (MCP) server for pre-built tools and
+                        standardized access to external systems.
                     </OptionDescription>
                 </OptionCard>
 
@@ -181,11 +196,11 @@ export function AddTool(props: AddToolProps): JSX.Element {
                         <OptionIcon>
                             <Icon name="bi-flowchart" />
                         </OptionIcon>
-                        <OptionTitle>Create Custom Tool</OptionTitle>
+                        <OptionTitle>{TOOL_OPTION_LABELS.CUSTOM}</OptionTitle>
                     </OptionHeader>
                     <OptionDescription>
-                        Build a new tool from scratch using the visual flow editor.
-                        Define the tool's logic, inputs, and outputs to give your agent customized capabilities tailored to your exact needs.
+                        Build a tool from scratch in the visual flow editor, defining its logic, inputs,
+                        and outputs to match your exact needs.
                     </OptionDescription>
                 </OptionCard>
             </Column>

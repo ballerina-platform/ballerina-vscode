@@ -35,7 +35,7 @@ import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { ArtifactForm } from "../Forms/ArtifactForm";
 import { AgentToolHostClass, buildAgentToolNode, parseToolsString, removeToolFromAgentNode } from "../AIChatAgent/utils";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "../AIChatAgent/AIAgentSidePanel";
-import { AddTool } from "../AIChatAgent/AddTool";
+import { ADD_TOOL_TITLE, AddTool, addToolTitle } from "../AIChatAgent/AddTool";
 import { NewToolSelectionMode } from "../AIChatAgent/NewTool";
 import { AddMcpServer } from "../AIChatAgent/AddMcpServer";
 import { AgentInfoCard } from "../AIChatAgent/AddAgentPopup/AgentInfoCard";
@@ -1173,7 +1173,13 @@ export function AgentDefinitionDesigner(props: AgentDefinitionDesignerProps) {
         (f) => f.kind !== "INIT" && !agentTools.some((t) => t.name === f.name.value)
     );
     const hasAdvanced = Boolean(initFunction) || methods.length > 0;
-    const toolPanelTitle = editingMcpNode ? "Edit MCP Server" : "Add Tool";
+    const toolPanelTitle = editingMcpNode
+        ? "Edit MCP Server"
+        : toolPanel === "CONNECTION" ? addToolTitle("CONNECTION")
+            : toolPanel === "FUNCTION" ? addToolTitle("FUNCTION")
+                : toolPanel === "CUSTOM" ? addToolTitle("CUSTOM")
+                    : toolPanel === "MCP" ? addToolTitle("MCP")
+                        : ADD_TOOL_TITLE;
     const targetLineRange = {
         startLine: { line: position.startLine, offset: position.startColumn },
         endLine: { line: position.endLine, offset: position.endColumn },

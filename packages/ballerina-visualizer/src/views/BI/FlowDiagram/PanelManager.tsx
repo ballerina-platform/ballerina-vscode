@@ -36,6 +36,7 @@ import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
 import { NewActivityFromConnection } from "./NewActivityFromConnection";
+import { ADD_TOOL_TITLE, addToolTitle } from "../AIChatAgent/AddTool";
 import { AgentEditorPanelContent } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorController } from "../AIChatAgent/useAgentEditorController";
 
@@ -693,18 +694,21 @@ export function PanelManager(props: PanelManagerProps) {
         switch (sidePanelView) {
             case SidePanelView.AGENT_MEMORY_MANAGER:
                 return "Configure Memory";
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
-                return "Use Agent";
+                return addToolTitle("AGENT");
             case SidePanelView.ADD_MCP_SERVER:
-                return "Add MCP Server";
+                return addToolTitle("MCP");
             case SidePanelView.EDIT_MCP_SERVER:
                 return "Edit MCP Server";
-            case SidePanelView.ADD_TOOL:
-            case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+                return addToolTitle("CONNECTION");
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-            case SidePanelView.NEW_TOOL_FROM_AGENT:
-                return "Add Tool";
+                return addToolTitle("FUNCTION");
+            case SidePanelView.NEW_TOOL_CUSTOM:
+                return addToolTitle("CUSTOM");
+            case SidePanelView.ADD_TOOL:
+                return ADD_TOOL_TITLE;
             default:
                 return undefined;
         }
