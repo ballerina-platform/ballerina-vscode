@@ -115,9 +115,14 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                         iconUrl,
                     };
                 });
-            setSelectItems(ensureValueInItems(
+            const resolved = ensureValueInItems(
                 applyNodeReferenceFilter([...staticItems, ...items]), value, searchNodesKind
-            ));
+            );
+            setSelectItems(resolved);
+            // Fetched items arrive after the mount-time staticItems preselect.
+            if (!value && resolved.length > 0) {
+                onChange(resolved[0].value, resolved[0].value.length);
+            }
         }).finally(() => {
             if (requestId === requestIdRef.current) setLoading(false);
         });
