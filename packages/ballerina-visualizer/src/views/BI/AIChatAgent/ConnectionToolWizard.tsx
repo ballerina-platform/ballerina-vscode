@@ -16,16 +16,16 @@
  * under the License.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, NodeList } from "@wso2/ballerina-side-panel";
-import { AvailableNode, BISearchRequest, Category, LinePosition } from "@wso2/ballerina-core";
+import { AvailableNode, BISearchRequest, Item, LinePosition } from "@wso2/ballerina-core";
 import { Button, ThemeColors } from "@wso2/ui-toolkit";
 
 import { convertBICategoriesToSidePanelCategories } from "../../../utils/bi";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { fetchConnectorActions } from "./connectorActions";
+import { fetchConnectorActions, normalizeConnectorSearchCategories } from "./connectorActions";
 import { ConnectorActionList } from "./ConnectorActionList";
 import { NEW_CONNECTION } from "../../../constants";
 
@@ -70,6 +70,7 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
 
     const [step, setStep] = useState<WizardStep>(WizardStep.CONNECTOR_LIST);
     const [connectorCategories, setConnectorCategories] = useState<PanelCategory[]>([]);
+    // Initial load only.
     const [loadingConnectors, setLoadingConnectors] = useState<boolean>(true);
     const [searchText, setSearchText] = useState<string>("");
 
@@ -78,6 +79,9 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
     const [actions, setActions] = useState<AvailableNode[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(false);
     const [actionError, setActionError] = useState<string>("");
+    const [searchingConnectors, setSearchingConnectors] = useState<boolean>(false);
+    const latestConnectorRequest = useRef(0);
+    const lastConnectorQuery = useRef<string | undefined>(undefined);
 
     useEffect(() => {
         void loadConnectors("");
@@ -100,24 +104,32 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
     }, [step]);
 
     const loadConnectors = async (query: string) => {
-        setLoadingConnectors(true);
+        const requestId = ++latestConnectorRequest.current;
+        lastConnectorQuery.current = query;
+        setSearchingConnectors(true);
         try {
             const request: BISearchRequest = {
                 position: { startLine: target, endLine: target },
                 filePath: agentFilePath,
-                queryMap: query.trim() ? { q: query.trim(), limit: 30, offset: 0 } : { limit: 60 },
+                queryMap: query.trim() ? { q: query.trim(), limit: 60, offset: 0 } : { limit: 60 },
                 searchKind: "CONNECTOR",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
-            const categories = (response?.categories ?? []) as Category[];
-            // "Local" is empty in most projects.
-            const withItems = categories.filter((category) => (category.items ?? []).length > 0);
-            setConnectorCategories(convertBICategoriesToSidePanelCategories(withItems));
+            if (requestId !== latestConnectorRequest.current) {
+                return;
+            }
+            const categories = normalizeConnectorSearchCategories(response?.categories as Item[]);
+            setConnectorCategories(convertBICategoriesToSidePanelCategories(categories));
         } catch (error) {
             console.error(">>> Error searching connectors", error);
-            setConnectorCategories([]);
+            if (requestId === latestConnectorRequest.current) {
+                setConnectorCategories([]);
+            }
         } finally {
-            setLoadingConnectors(false);
+            if (requestId === latestConnectorRequest.current) {
+                setLoadingConnectors(false);
+                setSearchingConnectors(false);
+            }
         }
     };
 
@@ -145,6 +157,16 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
         () => [...visibleConnectionCategories, ...connectorCategories],
         [visibleConnectionCategories, connectorCategories]
     );
+
+    // NodeList debounces this call, and drops its skeleton as soon as `categories` changes
+    // identity — so `loading` has to cover until the results land.
+    const handleSearchTextChange = (text: string) => {
+        setSearchText(text);
+        if (text === lastConnectorQuery.current) {
+            return;
+        }
+        void loadConnectors(text);
+    };
 
     const handleSelectConnector = async (connector: AvailableNode, category?: string) => {
         setSelectedConnector(connector);
@@ -194,7 +216,7 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
         <>
             {step === WizardStep.CONNECTOR_LIST && (
                 <>
-                    {loadingConnectors && connectorListCategories.length === 0 ? (
+                    {loadingConnectors ? (
                         <LoaderWrapper>
                             <RelativeLoader />
                         </LoaderWrapper>
@@ -202,10 +224,8 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
                         <NodeList
                             categories={connectorListCategories}
                             onSelect={handleListSelect}
-                            onSearchTextChange={(text) => {
-                                setSearchText(text);
-                                void loadConnectors(text);
-                            }}
+                            onSearchTextChange={handleSearchTextChange}
+                            loading={searchingConnectors}
                             title={"Connections"}
                             description={
                                 "Pick an existing connection or a connector to browse its actions. "

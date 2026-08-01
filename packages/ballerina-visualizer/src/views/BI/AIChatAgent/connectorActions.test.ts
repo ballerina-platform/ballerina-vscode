@@ -25,6 +25,7 @@ import {
     buildConnectionSelectField,
     buildToolFormGroups,
     getExistingToolNames,
+    normalizeConnectorSearchCategories,
     resourceToolNameSeed,
     suggestToolName,
     toResourcePathTemplate,
@@ -348,6 +349,49 @@ describe("fetchConnectorActions", () => {
     it("returns empty rather than throwing when the client has no methods", async () => {
         const rpcClient = makeRpcClient(docsWith({ remoteMethods: [], resourceMethods: [] }));
         await expect(fetchConnectorActions(rpcClient, REDIS_CONNECTOR)).resolves.toEqual([]);
+    });
+});
+
+describe("normalizeConnectorSearchCategories", () => {
+    const node = (label: string) =>
+        ({ metadata: { label }, codedata: { node: "NEW_CONNECTION", module: label }, enabled: true } as any);
+
+    it("wraps a flat node list in one category", () => {
+        const result = normalizeConnectorSearchCategories([node("calendar"), node("gcalendar")]);
+        expect(result).toHaveLength(1);
+        expect(result[0].metadata.label).toBe("Search Results");
+        expect(result[0].items).toHaveLength(2);
+    });
+
+    it("uses the supplied label for the wrapper", () => {
+        const result = normalizeConnectorSearchCategories([node("calendar")], "Connectors");
+        expect(result[0].metadata.label).toBe("Connectors");
+    });
+
+    it("passes categories through", () => {
+        const categories = [{ metadata: { label: "SaaS" }, items: [node("calendar")] }] as any;
+        expect(normalizeConnectorSearchCategories(categories)).toEqual(categories);
+    });
+
+    it("drops empty categories", () => {
+        const result = normalizeConnectorSearchCategories([
+            { metadata: { label: "Local" }, items: [] },
+            { metadata: { label: "SaaS" }, items: [node("calendar")] },
+        ] as any);
+        expect(result.map((category) => category.metadata.label)).toEqual(["SaaS"]);
+    });
+
+    it("keeps both shapes when they are mixed", () => {
+        const result = normalizeConnectorSearchCategories([
+            { metadata: { label: "SaaS" }, items: [node("calendar")] },
+            node("gcalendar"),
+        ] as any);
+        expect(result.map((category) => category.metadata.label)).toEqual(["SaaS", "Search Results"]);
+    });
+
+    it("ignores entries that are neither", () => {
+        expect(normalizeConnectorSearchCategories([undefined, null, {}] as any)).toEqual([]);
+        expect(normalizeConnectorSearchCategories(undefined)).toEqual([]);
     });
 });
 
