@@ -139,8 +139,7 @@ export namespace S {
     export const HeaderContainer = styled.div({
         display: 'flex',
         alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        minHeight: '26px'
+        justifyContent: 'space-between'
     });
 
     export const Header = styled.div({
@@ -635,7 +634,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
             : `${field.documentation}.`
         : '';
 
-    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled ? (
+    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled && !field.hideModeSwitcher ? (
         <S.FieldInfoSection>
             {isLoading ? (
                 <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
