@@ -43,6 +43,7 @@ import {
     ValidationResult
 } from "@wso2/ballerina-core";
 import {
+    FieldGroup,
     FormField,
     FormValues,
     Form,
@@ -128,6 +129,8 @@ interface ArtifactFormProps {
     secondarySubmitText?: string;
     onSecondarySubmit?: (data: FormValues, formImports?: FormImports, importsCodedata?: CodeData) => void;
     hideInfoBanner?: boolean;
+    groups?: FieldGroup[];
+    onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
@@ -167,6 +170,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         onChange,
         hideSaveButton,
         hideInfoBanner,
+        groups,
+        onCreateNode,
         customDiagnosticFilter,
         onValidityChange,
         recordsOnly,
@@ -1115,6 +1120,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
                     hideInfoBanner={hideInfoBanner}
+                    groups={groups}
+                    onCreateNode={onCreateNode}
                     footerActionButton={footerActionButton}
                     onValidityChange={onValidityChange}
                     secondarySubmitButton={
