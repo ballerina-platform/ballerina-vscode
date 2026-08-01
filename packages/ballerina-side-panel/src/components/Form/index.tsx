@@ -188,7 +188,6 @@ namespace S {
     export const GroupTitle = styled.span`
         font-family: var(--vscode-font-family);
         font-size: 13px;
-        font-weight: 500;
         color: var(--vscode-editor-foreground);
     `;
 
