@@ -40,14 +40,21 @@ export function Library(props: LibraryProps) {
 
     const onClickOnLibrary = async () => {
         libraryDataFetchingHandler(true);
-        const response = await libraryBrowserRpcClient.getLibraryData({
-            orgName,
-            moduleName: id,
-            version
-        });
+        try {
+            const response = await libraryBrowserRpcClient.getLibraryData({
+                orgName,
+                moduleName: id,
+                version
+            });
 
-        if (response) {
-            libraryBrowsingHandler(response);
+            if (response) {
+                libraryBrowsingHandler(response);
+            }
+        } catch (error) {
+            // Central can fail (offline, unpublished). Don't leave the browser spinning.
+            // tslint:disable-next-line: no-console
+            console.error("Failed to fetch library data", { orgName, moduleName: id, version, error });
+        } finally {
             libraryDataFetchingHandler(false);
         }
     }
