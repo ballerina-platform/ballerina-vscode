@@ -69,13 +69,21 @@ export function firstSentence(value: string): string {
     return end === -1 ? text : text.slice(0, end + 1);
 }
 
-/** `get` + `/users/[userId]/drafts` -> "GET /users/[userId]/drafts". */
-export function formatResourceSignature(accessor: string, resourcePath: string): string {
-    return `${(accessor || "").toUpperCase()} ${resourcePath || ""}`.trim();
-}
-
 /** Mirrors `ParamUtils.REST_RESOURCE_PATH` in the LS. */
 const REST_RESOURCE_PATH = "/path/to/subdirectory";
+
+/** Shown instead of the LS placeholder, which reads like a real endpoint. */
+const REST_PATH_DISPLAY = "/[path...]";
+
+/** Never show the LS's rest-path placeholder to the user. */
+export function displayResourcePath(resourcePath: string | undefined): string {
+    return resourcePath === REST_RESOURCE_PATH ? REST_PATH_DISPLAY : (resourcePath || "");
+}
+
+/** `get` + `/users/[userId]/drafts` -> "GET /users/[userId]/drafts". */
+export function formatResourceSignature(accessor: string, resourcePath: string): string {
+    return `${(accessor || "").toUpperCase()} ${displayResourcePath(resourcePath)}`.trim();
+}
 
 /**
  * Docs path -> the template `FunctionDataBuilder.buildResourcePathTemplate` produces, which

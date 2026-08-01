@@ -75,6 +75,7 @@ import {
     TOOL_INPUT_GROUP,
     buildConnectionSelectField,
     buildToolFormGroups,
+    displayResourcePath,
     getExistingToolNames,
     resourceToolNameSeed,
     suggestToolName,
@@ -557,7 +558,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             || "";
         switch (codeData.node) {
             case RESOURCE_ACTION_CALL:
-                return `${receiver} -> ${codeData.symbol} ${codeData.resourcePath}`;
+                return `${receiver} -> ${codeData.symbol} ${displayResourcePath(codeData.resourcePath)}`;
             case REMOTE_ACTION_CALL:
                 return `${receiver} -> ${codeData.symbol}`;
             case FUNCTION_CALL:
