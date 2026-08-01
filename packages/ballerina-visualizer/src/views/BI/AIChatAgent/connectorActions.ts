@@ -222,7 +222,8 @@ export function buildConnectionSelectField(
     ballerinaType: string | undefined,
     value: string
 ): Record<string, unknown> {
-    // `exact`: a Redis client must never be offered for an HTTP action.
+    // `exact`: a Redis client must never be offered for an HTTP action. No version — the LS
+    // compares it literally, and the project's resolved patch rarely matches Central's latest.
     const targetType = connectorCodeData.module && connectorCodeData.object
         ? {
             relation: "exact",
@@ -230,7 +231,6 @@ export function buildConnectionSelectField(
             ...(connectorCodeData.packageName && { packageName: connectorCodeData.packageName }),
             module: connectorCodeData.module,
             name: connectorCodeData.object,
-            ...(connectorCodeData.version && { version: connectorCodeData.version }),
         }
         : undefined;
 

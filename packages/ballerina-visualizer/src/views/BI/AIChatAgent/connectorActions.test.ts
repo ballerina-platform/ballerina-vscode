@@ -378,8 +378,14 @@ describe("buildConnectionSelectField", () => {
             packageName: "http",
             module: "http",
             name: "Client",
-            version: "2.14.1",
         });
+    });
+
+    // The LS compares the version literally, so Central's latest would exclude a connection
+    // built against the patch the project actually resolved.
+    it("omits the version from the type constraint", () => {
+        const field = buildConnectionSelectField(httpConnector as any, "http:Client", "") as any;
+        expect(field.codedata.targetType).not.toHaveProperty("version");
     });
 
     it("carries the connector codedata so 'Create New' builds the right connection", () => {
