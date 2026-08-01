@@ -16,16 +16,19 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
-import { ArtifactData, FlowNode, NodePosition } from "@wso2/ballerina-core";
-import { FormField, FormValues } from "@wso2/ballerina-side-panel";
+import { ArtifactData, FlowNode, getPrimaryInputType, NodePosition, Property, RecordTypeField }
+    from "@wso2/ballerina-core";
+import { FieldGroup, FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { convertNodePropertyToFormField } from "../../../utils/bi";
+import { OAUTH_GROUP } from "./connectorActions";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
@@ -74,25 +77,57 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
     const [includeContext, setIncludeContext] = useState<boolean>(false);
+    const [oauthProperties, setOauthProperties] = useState<{ key: string; property: Property }[]>([]);
 
     useEffect(() => {
-        if (hostClass) {
-            setAgentFilePath(hostClass.filePath);
-            setReady(true);
-            return;
-        }
         (async () => {
-            const fileName = agentNode?.codedata?.lineRange?.fileName ?? "agents.bal";
-            const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] });
+            const filePath = hostClass
+                ? hostClass.filePath
+                : (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                    segments: [agentNode?.codedata?.lineRange?.fileName ?? "agents.bal"],
+                })).filePath;
             setAgentFilePath(filePath);
+            setOauthProperties(await fetchOAuthConfigProperties(rpcClient, filePath));
             setReady(true);
         })();
     }, [agentNode]);
 
-    const fields: FormField[] = buildAgentToolFields(
-        `${agentVarName}Tool`,
-        `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
+    const oauthFields = useMemo<FormField[]>(
+        () => oauthProperties.map(({ key, property }) => ({
+            ...convertNodePropertyToFormField(key, property),
+            group: OAUTH_GROUP,
+            advanced: false,
+        })),
+        [oauthProperties]
     );
+
+    const groups = useMemo<FieldGroup[]>(
+        () => oauthFields.length > 0
+            ? [{ id: OAUTH_GROUP, label: "OAuth Client Configuration", defaultCollapsed: true }]
+            : [],
+        [oauthFields]
+    );
+
+    const recordTypeFields = useMemo<RecordTypeField[]>(
+        () => oauthProperties
+            .filter(({ property }) => getPrimaryInputType(property?.types)?.typeMembers
+                ?.some((member) => member.kind === "RECORD_TYPE"))
+            .map(({ key, property }) => ({
+                key,
+                property,
+                recordTypeMembers: getPrimaryInputType(property?.types)?.typeMembers
+                    .filter((member) => member.kind === "RECORD_TYPE"),
+            })),
+        [oauthProperties]
+    );
+
+    const fields: FormField[] = [
+        ...buildAgentToolFields(
+            `${agentVarName}Tool`,
+            `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
+        ),
+        ...oauthFields,
+    ];
 
     const handleSubmit = async (data: FormValues) => {
         if (saving) {
@@ -104,10 +139,24 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
             const description = stripCodeFencesInline(String(data["description"] ?? ""));
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
+            const toolNode = buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
+                hostClass, agentReceiver);
+
+            // Same shape the connection tool form uses: codedata.data.auth.
+            const authConfig: Record<string, string> = {};
+            for (const { key } of oauthProperties) {
+                const value = data[key];
+                if (value !== undefined && value !== "") {
+                    authConfig[key] = String(value);
+                }
+            }
+            if (Object.keys(authConfig).length > 0) {
+                toolNode.codedata.data = { ...toolNode.codedata.data, auth: JSON.stringify(authConfig) };
+            }
+
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: toolFilePath,
-                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
-                    hostClass, agentReceiver),
+                flowNode: toolNode,
                 artifactData,
             });
             let agentPosition: NodePosition | undefined;
@@ -147,7 +196,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             fileName={agentFilePath}
             targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
             fields={fields}
-            recordTypeFields={[]}
+            groups={groups}
+            recordTypeFields={recordTypeFields}
             onSubmit={handleSubmit}
             submitText={submitText}
             isSaving={saving}
