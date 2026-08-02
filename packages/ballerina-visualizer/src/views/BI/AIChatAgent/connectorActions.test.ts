@@ -19,6 +19,7 @@
 import { AvailableNode } from "@wso2/ballerina-core";
 import {
     fetchConnectorActions,
+    actionDisplayLabel,
     formatActionLabel,
     OAUTH_GROUP,
     TOOL_INPUT_GROUP,
@@ -131,25 +132,46 @@ describe("resourceToolNameSeed", () => {
 });
 
 describe("formatActionLabel", () => {
-    // Must match the labels the LS produces for a bound connection.
     it.each([
         ["append", "Append"],
-        ["bitCount", "Bit Count"],
-        ["bitOpAnd", "Bit Op And"],
-        ["decrBy", "Decr By"],
-        ["getRange", "Get Range"],
+        ["bitCount", "Bit count"],
+        ["bitOpAnd", "Bit op and"],
+        ["decrBy", "Decr by"],
+        ["getRange", "Get range"],
         ["'commit", "Commit"],
-        ["batch_execute", "Batch Execute"],
+        ["batch_execute", "Batch execute"],
+        ["listBuckets", "List buckets"],
+        ["createMultipartUpload", "Create multipart upload"],
     ])("formats %s as %s", (symbol, expected) => {
         expect(formatActionLabel(symbol)).toBe(expected);
     });
 
-    it("keeps acronyms readable", () => {
-        expect(formatActionLabel("getHTTPResponse")).toBe("Get HTTP Response");
+    it("keeps acronyms shouted", () => {
+        expect(formatActionLabel("getHTTPResponse")).toBe("Get HTTP response");
+        expect(formatActionLabel("createPresignedUrl")).toBe("Create presigned URL");
+        expect(formatActionLabel("getObjectId")).toBe("Get object ID");
     });
 
     it("survives empty input", () => {
         expect(formatActionLabel("")).toBe("");
+    });
+});
+
+describe("actionDisplayLabel", () => {
+    it("formats an identifier label from the language server", () => {
+        expect(actionDisplayLabel("listBuckets")).toBe("List buckets");
+    });
+
+    it.each([
+        "Lists the drafts in the user's mailbox.",
+        "get/users/[string userId]/drafts",
+        "List buckets",
+    ])("leaves %s alone", (label) => {
+        expect(actionDisplayLabel(label)).toBe(label);
+    });
+
+    it("survives a missing label", () => {
+        expect(actionDisplayLabel(undefined)).toBe("");
     });
 });
 
