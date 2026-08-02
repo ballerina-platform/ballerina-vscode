@@ -103,7 +103,9 @@ export default function createTests() {
                 // Click the "Save" button at the bottom of the panel
                 const saveBtn = handlerConfigPanel.locator('vscode-button[appearance="primary"]').filter({ hasText: 'Save' });
                 await saveBtn.first().waitFor({ state: 'visible', timeout: 5000 });
-                await saveBtn.first().click();
+                // Force the click: the Copilot chat input overlays the panel
+                // and intercepts pointer events.
+                await saveBtn.first().click({ force: true });
 
                 // Wait for the panel to disappear after save
                 await handlerConfigPanel.getByText('Message Handler Configuration').waitFor({ state: 'detached', timeout: 10000 });

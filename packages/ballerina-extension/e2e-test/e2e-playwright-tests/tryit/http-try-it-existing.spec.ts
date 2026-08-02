@@ -89,8 +89,21 @@ async function openServiceDesignerForExistingService(webview: WebView) {
     logStep('Open Service Designer for the pre-existing HTTP service');
     const serviceNode = webview.getByText('http:Service', { exact: false }).first();
     await serviceNode.waitFor({ timeout: 30000 });
-    await serviceNode.click({ force: true });
-    await webview.getByText('Try It', { exact: true }).first().waitFor({ timeout: 30000 });
+
+    // The architecture diagram renders its nodes before the click handlers are
+    // wired, so a single click can land on a dead node — and then we wait out
+    // the whole budget for a Service Designer nobody opened. Re-click until it
+    // actually navigates, inside the same 30s.
+    const tryIt = webview.getByText('Try It', { exact: true }).first();
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+        await serviceNode.click({ force: true }).catch(() => { });
+        const opened = await tryIt.waitFor({ timeout: 5000 }).then(() => true, () => false);
+        if (opened) {
+            return;
+        }
+    }
+    throw new Error('Service Designer did not open for the pre-existing http:Service node');
 }
 
 /**

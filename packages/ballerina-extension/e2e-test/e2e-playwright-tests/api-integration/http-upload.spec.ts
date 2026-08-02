@@ -124,23 +124,35 @@ async function addReturnNodeFromDiagram(locatorOwner: ReturnType<typeof switchTo
     }
     await expect(locatorOwner.getByText('Connections', { exact: true })).toBeVisible({ timeout: 30000 });
     await expect(locatorOwner.getByText('Control', { exact: true })).toBeVisible({ timeout: 30000 });
+    // 'Control' can render collapsed, leaving Return present but not visible.
+    if (!await locatorOwner.getByText('Return', { exact: true }).isVisible().catch(() => false)) {
+        await locatorOwner.getByText('Control', { exact: true }).click({ force: true });
+    }
     await locatorOwner.getByText('Return', { exact: true }).click({ force: true });
     await expect(locatorOwner.getByText('Return value.', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.locator('[data-testid="ex-editor-expression"]').click({ force: true });
-    await locatorOwner.getByRole('button', { name: 'Open Helper Panel' }).click({ force: true });
-    await expect(locatorOwner.getByText('Inputs', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.getByText('Inputs', { exact: true }).click({ force: true });
-    await expect(locatorOwner.getByText('payload', { exact: true })).toBeVisible({ timeout: 30000 });
-    await locatorOwner.getByText('payload', { exact: true }).click({ force: true });
-    await expect.poll(async () => locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content').evaluate((element) => element.textContent)).toBe('payload');
-    await locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content').click({ force: true });
-    await page.page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
-    await page.page.keyboard.type('{key: string `uploads/${name}`, size: payload.content.length()}');
-    await locatorOwner.getByRole('button', { name: 'Close Helper Panel' }).click({ force: true }).catch(() => {});
-    await locatorOwner.getByText('Return value.', { exact: true }).click({ force: true }).catch(() => {});
-    await locatorOwner.getByRole('button', { name: 'Save' }).click({ force: true });
-    await expect(locatorOwner.getByText(/uploads\/\$\{name\}|uploads/).first()).toBeVisible({ timeout: 60000 });
-    await expect.poll(() => FileUtils.readProjectFile('main.bal')).toContain('return {key: string `uploads/${name}`, size: payload.content.length()};');
+
+    // Set the expression through the CodeMirror view. Typing it loses every
+    // '{' to the editor's bracket/helper handling — the expression arrives as
+    // ": string `uploads/name`, ..." — which leaves Save disabled.
+    const expression = '{key: string `uploads/${name}`, size: payload.content.length()}';
+    const cmContent = locatorOwner.locator('[data-testid="ex-editor-expression"] .cm-content');
+    await cmContent.waitFor({ state: 'attached', timeout: 30000 });
+    await cmContent.evaluate((element, text) => {
+        const view = (element as HTMLElement & { cmView?: { view?: any } }).cmView?.view;
+        if (!view) {
+            throw new Error('CodeMirror view not found in ex-editor container');
+        }
+        view.focus();
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+    }, expression);
+    await expect.poll(() => cmContent.evaluate((element) => element.textContent), { timeout: 30000 }).toBe(expression);
+
+    await page.page.keyboard.press('Escape');
+    await locatorOwner.getByRole('button', { name: 'Save' }).last().click({ force: true });
+    // The panel closing is the real save signal — matching 'uploads' while the
+    // editor is still open passes even when nothing was written to the file.
+    await locatorOwner.getByTestId('side-panel').waitFor({ state: 'hidden', timeout: 60000 });
+    await expect.poll(() => FileUtils.readProjectFile('main.bal'), { timeout: 30000 }).toContain(`return ${expression};`);
 }
 
 export default function createTests() {
@@ -189,7 +201,16 @@ export default function createTests() {
             logStep('Run integration');
             await FileUtils.openProjectFileInEditor('main.bal');
 
-            await page.executePaletteCommand('BI.project.run');
+            // executePaletteCommand types the command and presses Enter with no
+            // wait, so Enter can fire before the list narrows to Run Integration.
+            await page.page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+p' : 'Control+Shift+p');
+            await page.page.keyboard.type('BI.project.run');
+            await page.page.locator('.quick-input-list .monaco-list-row', { hasText: 'Run Integration' })
+                .first().waitFor({ state: 'visible', timeout: 30000 });
+            await page.page.keyboard.press('Enter');
+            // Confirm the run started instead of polling a port nothing is on yet.
+            await page.page.locator('.xterm-screen', { hasText: 'Running executable' })
+                .first().waitFor({ timeout: 180000 });
 
             logStep('Verify upload endpoint response');
             const result = await waitForEndpoint('http://localhost:9090/upload?name=probe.txt', 120000);

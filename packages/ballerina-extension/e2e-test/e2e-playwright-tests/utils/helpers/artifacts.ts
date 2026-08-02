@@ -29,12 +29,14 @@ export async function addArtifact(artifactName: string, testId: string) {
     if (!artifactWebView) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
     }
-    // Navigate to the overview page
-    await artifactWebView.getByRole('button', { name: ' Add Artifact' }).click();
+    // Navigate to the overview page. Force the clicks: the Copilot chat input
+    // ("Message WSO2 Integrator Copilot") overlays the overview and intercepts
+    // pointer events, which otherwise retries until the 30s click timeout.
+    await artifactWebView.getByRole('button', { name: ' Add Artifact' }).click({ force: true });
     // how to get element by id
     const addArtifactBtn = artifactWebView.locator(`#${testId}`);
     await addArtifactBtn.waitFor();
-    await addArtifactBtn.click();
+    await addArtifactBtn.click({ force: true });
 }
 
 /**

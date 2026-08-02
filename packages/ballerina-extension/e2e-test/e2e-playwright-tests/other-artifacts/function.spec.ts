@@ -73,7 +73,9 @@ export default function createTests() {
                     }
                 }
             });
-            await form.submit('Save');
+            // Force the click: the Copilot chat input overlays the form and
+            // intercepts pointer events on Save.
+            await form.submit('Save', true);
             // Both the diagram node's title and the diagram's own title-bar
             // breadcrumb render the function name, so a plain text= locator
             // (substring match) resolves to 2 elements — .first() is enough

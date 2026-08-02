@@ -42,13 +42,25 @@ export class ProjectExplorer {
 
     public async init() {
         const wso2IntegratorActivityTab = this.page.locator(`[role="tab"][aria-label="${BI_INTEGRATOR_LABEL}"]`).first();
-        const isChecked = await wso2IntegratorActivityTab.evaluate((el) => el.classList.contains('checked'));
+        // On a cold start the activity bar item may not be rendered yet. Wait
+        // for it rather than letting evaluate() throw on a missing element.
+        await wso2IntegratorActivityTab.waitFor({ state: 'visible', timeout: 30000 }).catch(() => { });
+        const isChecked = await wso2IntegratorActivityTab
+            .evaluate((el) => el.classList.contains('checked'))
+            .catch(() => false);
+        // Only click when inactive — clicking the active item toggles the
+        // sidebar shut.
         if (!isChecked) {
-            await wso2IntegratorActivityTab.click();
+            await wso2IntegratorActivityTab.click().catch(() => { });
         }
     }
 
     public async findItem(path: string[]) {
+        // The tree resolves only while the WSO2 Integrator view is the active
+        // viewlet. Most callers never call init() themselves, so a run that
+        // starts with another viewlet focused makes every level time out.
+        await this.init();
+
         let currentItem;
         for (let i = 0; i < path.length; i++) {
 

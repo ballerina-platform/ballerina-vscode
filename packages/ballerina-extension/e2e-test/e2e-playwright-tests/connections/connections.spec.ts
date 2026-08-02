@@ -137,7 +137,9 @@ export default function createTests() {
                     }
                 }
             });
-            await form.submit('Save Connection');
+            // Force the click: the Copilot chat input overlays the form and
+            // intercepts pointer events on Save Connection.
+            await form.submit('Save Connection', true);
 
             // Verify via the project explorer tree (decoupled from the
             // webview's own re-render timing) rather than racing the side

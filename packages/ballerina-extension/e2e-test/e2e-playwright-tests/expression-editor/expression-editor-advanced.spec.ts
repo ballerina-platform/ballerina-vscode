@@ -512,7 +512,13 @@ export default function createTests() {
             await loading.waitFor({ state: 'hidden', timeout: 300000 }).catch(() => { });
             const connNameBox = frame.getByRole('textbox', { name: /Connection Name/i }).first();
             await connNameBox.waitFor({ state: 'visible', timeout: 60000 });
-            await frame.getByRole('button', { name: 'Save Connection' }).last().click({ force: true });
+            // The connector form stays disabled until its schema finishes
+            // loading. Force-clicking Save before then is a silent no-op that
+            // leaves connections.bal untouched, which only surfaces later as a
+            // pollGenerated timeout pointing at the wrong thing.
+            const saveConnection = frame.getByRole('button', { name: 'Save Connection' }).last();
+            await expect.poll(() => saveConnection.isEnabled().catch(() => false), { timeout: 60000 }).toBe(true);
+            await saveConnection.click({ force: true });
             await pollGenerated('connections.bal', 'final mysql:Client mysqlClient = check new ()', 300000);
             logStep('connections.bal has mysql:Client');
 
