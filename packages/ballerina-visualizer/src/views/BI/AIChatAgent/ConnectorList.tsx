@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
-const POPULAR_LIMIT = 12;
+const POPULAR_CATEGORY = "Popular";
 
 const Container = styled.div`
     display: flex;
@@ -319,12 +319,22 @@ export function ConnectorList(props: ConnectorListProps) {
 
     const query = searchText.trim().toLowerCase();
 
-    const connectorSections = useMemo<Section[]>(
+    const allConnectorSections = useMemo<Section[]>(
         () =>
             connectorCategories
                 .map((c) => ({ key: c.title, title: c.title, category: c.title, nodes: nodesOf(c) }))
                 .filter((s) => s.nodes.length > 0),
         [connectorCategories]
+    );
+
+    const popularSection = useMemo(() => {
+        const found = allConnectorSections.find((s) => s.category === POPULAR_CATEGORY);
+        return found ? { ...found, category: "" } : undefined;
+    }, [allConnectorSections]);
+
+    const connectorSections = useMemo(
+        () => allConnectorSections.filter((s) => s.category !== POPULAR_CATEGORY),
+        [allConnectorSections]
     );
 
     const connectionSections = useMemo<Section[]>(
@@ -375,17 +385,12 @@ export function ConnectorList(props: ConnectorListProps) {
             return connectorSections.filter((s) => s.category === category);
         }
 
-        const popular = connectorSections
-            .map((s) => s.nodes[0])
-            .filter(Boolean)
-            .slice(0, POPULAR_LIMIT);
-
         return [
             ...connectionSections,
-            ...(popular.length ? [{ key: "popular", title: "Popular", category: "", nodes: popular }] : []),
+            ...(popularSection ? [popularSection] : []),
             ...connectorSections,
         ];
-    }, [query, category, connectionSections, connectorSections, extraCategories]);
+    }, [query, category, connectionSections, connectorSections, popularSection, extraCategories]);
 
     const flatNodes = useMemo(
         () => sections.flatMap((s) => s.nodes.map((node) => ({ node, category: s.category }))),

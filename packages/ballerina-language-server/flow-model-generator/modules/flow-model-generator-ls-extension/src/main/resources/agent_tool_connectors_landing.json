@@ -1,4 +1,18 @@
 {
+  "Popular": [
+    "http:Client",
+    "salesforce:Client",
+    "sap:Client",
+    "snowflake:Client",
+    "postgresql:Client",
+    "mysql:Client",
+    "mssql:Client",
+    "kafka:Producer",
+    "aws.s3:Client",
+    "github:Client",
+    "slack:Client",
+    "googleapis.sheets:Client"
+  ],
   "Network": [
     "http:Client",
     "graphql:Client",
