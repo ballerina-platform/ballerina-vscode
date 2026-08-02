@@ -63,7 +63,13 @@ import java.util.Set;
 public class ConnectorSearchCommand extends SearchCommand {
 
     private static final String CONNECTORS_LANDING_JSON = "connectors_landing.json";
+    private static final String AGENT_TOOL_CONNECTORS_LANDING_JSON = "agent_tool_connectors_landing.json";
     private static final String AGENT_SUPPORT_CONNECTORS_JSON = "agent_support_connectors.json";
+
+    private static final String CONNECTOR_SET_KEY = "connectorSet";
+    private static final String AGENT_TOOL_CONNECTOR_SET = "AGENT_TOOL";
+
+    private static final int AGENT_TOOL_CATEGORY_LIMIT = 1000;
     private static final Type CONNECTION_CATEGORY_LIST_TYPE = new TypeToken<Map<String, List<String>>>() { }.getType();
     private static final Type AGENT_SUPPORT_CONNECTORS_LIST_TYPE = new TypeToken<Set<String>>() { }.getType();
 
@@ -77,8 +83,12 @@ public class ConnectorSearchCommand extends SearchCommand {
         return BLACKLISTED_CONNECTOR_NAME_PATTERNS.stream().anyMatch(connectorName::contains);
     }
 
+    private final boolean agentToolConnectorSet;
+
     public ConnectorSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
+        this.agentToolConnectorSet =
+                queryMap != null && AGENT_TOOL_CONNECTOR_SET.equals(queryMap.get(CONNECTOR_SET_KEY));
     }
 
     @Override
@@ -150,13 +160,17 @@ public class ConnectorSearchCommand extends SearchCommand {
 
     @Override
     protected Map<String, List<SearchResult>> fetchPopularItems() {
-        Map<String, List<String>> categories = LocalIndexCentral.getInstance()
-                .readJsonResource(CONNECTORS_LANDING_JSON, CONNECTION_CATEGORY_LIST_TYPE);
+        Map<String, List<String>> categories = LocalIndexCentral.getInstance().readJsonResource(
+                agentToolConnectorSet ? AGENT_TOOL_CONNECTORS_LANDING_JSON : CONNECTORS_LANDING_JSON,
+                CONNECTION_CATEGORY_LIST_TYPE);
+        int categoryLimit = agentToolConnectorSet ? AGENT_TOOL_CATEGORY_LIMIT : limit;
+        int categoryOffset = agentToolConnectorSet ? 0 : offset;
 
         Map<String, List<SearchResult>> defaultView = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> category : categories.entrySet()) {
             List<String> packageList = category.getValue();
-            List<SearchResult> searchResults = dbManager.searchConnectorsByPackage(packageList, limit, offset);
+            List<SearchResult> searchResults =
+                    dbManager.searchConnectorsByPackage(packageList, categoryLimit, categoryOffset);
             SearchResult.sortByPackageListOrder(searchResults, packageList);
             List<SearchResult> filteredResults = searchResults.stream()
                     .filter(result -> !isBlacklisted(result.name()))
