@@ -122,6 +122,24 @@ runs:
         COPILOT_DEV_ROOT_URL: ${{ inputs.COPILOT_DEV_ROOT_URL }}
         APPINSIGHTS_INSTRUMENTATION_KEY: ${{ inputs.APPINSIGHTS_INSTRUMENTATION_KEY }}
 
+    # Guards the federated BI project form consumed by the WSO2 Integrator webview.
+    # A missing remote is invisible until runtime, so fail here rather than upload a
+    # VSIX that cannot federate. See packages/ballerina-extension/scripts/copy-federation.js.
+    - name: Verify federation assets in the VSIX
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        vsix="packages/ballerina-extension/vsix/ballerina-${version}.vsix"
+        entry='extension/resources/jslibs/federation/remoteEntry.js'
+        if ! unzip -l "$vsix" | grep -qF "$entry"; then
+          echo "::error::${vsix} is missing ${entry}; the BI project form cannot be federated."
+          unzip -l "$vsix" | grep -F 'resources/jslibs/federation' || echo "No federation files at all."
+          exit 1
+        fi
+        count=$(unzip -l "$vsix" | grep -cF 'extension/resources/jslibs/federation/')
+        echo "Federation assets present in ${vsix}: ${count} file(s)."
+
     - name: Compress build
       shell: bash
       run: |
