@@ -41,6 +41,9 @@ export { getWebview } from './webview';
 // Re-export from artifacts
 export { addArtifact, createArtifactAndGetWebview, enableICP } from './artifacts';
 
+// Re-export from copilotOverlay
+export { dismissCopilotOverlay } from './copilotOverlay';
+
 // Re-export from serviceActions
 export { confirmSaveChangesAndGoBack, deleteArtifactFromTree } from './serviceActions';
 

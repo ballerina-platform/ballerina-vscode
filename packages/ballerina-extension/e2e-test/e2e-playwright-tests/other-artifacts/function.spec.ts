@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from '@playwright/test';
-import { createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { createArtifactAndGetWebview, deleteArtifactFromTree, dismissCopilotOverlay, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { FileUtils } from '../utils/helpers/fileSystem';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
@@ -74,9 +74,15 @@ export default function createTests() {
                     }
                 }
             });
-            // Force the click: the Copilot chat input overlays the form and
-            // intercepts pointer events on Save.
-            await form.submit('Save', true);
+            // Save sits at the form footer, right under the Copilot orb's docked
+            // invite box. A forced click still dispatches at Save's coordinates, so
+            // the overlay receives it and the edit is silently discarded. Move the
+            // overlay aside, then click through the DOM so no hit-test is involved.
+            await dismissCopilotOverlay(artifactWebView);
+            const saveBtn = artifactWebView.locator('vscode-button:has-text("Save")').first();
+            await saveBtn.waitFor({ timeout: 30000 });
+            await expect(saveBtn).toBeEnabled({ timeout: 10000 });
+            await saveBtn.evaluate((element: HTMLElement) => element.click());
             // Both the diagram node's title and the diagram's own title-bar
             // breadcrumb render the function name, so a plain text= locator
             // (substring match) resolves to 2 elements — .first() is enough

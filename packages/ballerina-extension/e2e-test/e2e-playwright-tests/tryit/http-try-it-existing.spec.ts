@@ -19,7 +19,7 @@ import { expect, test } from '@playwright/test';
 import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, logStep, newProjectPath, page, toggleNotifications } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, dismissCopilotOverlay, initTest, logStep, newProjectPath, page, toggleNotifications } from '../utils/helpers';
 import { switchToIFrame } from '@wso2/playwright-vscode-tester';
 
 type WebView = NonNullable<Awaited<ReturnType<typeof switchToIFrame>>>;
@@ -94,6 +94,10 @@ async function openServiceDesignerForExistingService(webview: WebView) {
     // wired, so a single click can land on a dead node — and then we wait out
     // the whole budget for a Service Designer nobody opened. Re-click until it
     // actually navigates, inside the same 30s.
+    // An open mini chat panel covers the middle of the diagram, where the service
+    // node sits, and a forced click would land on the panel instead of the node —
+    // indistinguishable here from the dead-node case below, so rule it out first.
+    await dismissCopilotOverlay(webview);
     const tryIt = webview.getByText('Try It', { exact: true }).first();
     const deadline = Date.now() + 30000;
     while (Date.now() < deadline) {
