@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { FileUtils } from '../utils/helpers/fileSystem';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -81,6 +82,22 @@ export default function createTests() {
             // (substring match) resolves to 2 elements — .first() is enough
             // since this just confirms the name rendered somewhere.
             await artifactWebView.locator(`text=${functionName}`).first().waitFor();
+            // The name is set at creation and untouched here, so the locator above
+            // cannot tell a saved edit from a discarded one. Function artifacts are
+            // generated into functions.bal, so assert the edited return type reached
+            // the source. Matched loosely rather than as a full signature, to stay
+            // independent of how the generator formats params and whitespace.
+            // functions.bal is created on demand — tolerate it being absent on the
+            // first polls instead of throwing out of the poll callback.
+            const readFunctionsBal = () => {
+                try {
+                    return FileUtils.readProjectFile('functions.bal');
+                } catch {
+                    return '';
+                }
+            };
+            await expect.poll(readFunctionsBal, { timeout: 30000 })
+                .toMatch(new RegExp(`function\\s+${functionName}\\b[^)]*\\)\\s*returns\\s+string`));
         });
 
         test('Delete Function Artifact', async ({ }, testInfo) => {

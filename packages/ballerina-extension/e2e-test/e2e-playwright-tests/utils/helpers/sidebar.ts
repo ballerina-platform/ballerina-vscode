@@ -52,8 +52,15 @@ export async function waitForBISidebarTreeView(page: ExtendedPage, timeout: numb
         }
 
         for (const selector of selectors) {
+            // Clamp to what is left of the budget: four selectors x 1s each can
+            // otherwise start after the deadline and overrun `timeout` by seconds.
+            // Never pass 0 — Playwright reads that as 'no timeout' and would hang.
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) {
+                break;
+            }
             const attached = await page.page
-                .waitForSelector(selector, { timeout: 1000, state: 'attached' })
+                .waitForSelector(selector, { timeout: Math.min(1000, remaining), state: 'attached' })
                 .then(() => true, () => false);
             if (attached) {
                 return;

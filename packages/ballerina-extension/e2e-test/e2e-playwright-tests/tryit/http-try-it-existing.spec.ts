@@ -98,7 +98,14 @@ async function openServiceDesignerForExistingService(webview: WebView) {
     const deadline = Date.now() + 30000;
     while (Date.now() < deadline) {
         await serviceNode.click({ force: true }).catch(() => { });
-        const opened = await tryIt.waitFor({ timeout: 5000 }).then(() => true, () => false);
+        // Clamp to the remaining budget so a wait started just before the deadline
+        // does not push the whole loop 5s past it. Never pass 0 — Playwright reads
+        // that as 'no timeout' and would hang.
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+            break;
+        }
+        const opened = await tryIt.waitFor({ timeout: Math.min(5000, remaining) }).then(() => true, () => false);
         if (opened) {
             return;
         }
