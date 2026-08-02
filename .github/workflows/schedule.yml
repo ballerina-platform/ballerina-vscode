@@ -418,6 +418,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.sync-nightly.outputs.version }}
+          SHA: ${{ needs.sync-nightly.outputs.sha }}
         run: |
           set -euo pipefail
           cd nightly-vsix
@@ -433,9 +434,9 @@ jobs:
           gh release delete nightly --yes || true
           gh release create nightly "$vsix" \
             --title "Nightly ${VERSION}" \
-            --notes "Nightly build ${VERSION} from ${{ needs.sync-nightly.outputs.sha }}. Overwritten on every successful nightly run." \
+            --notes "Nightly build ${VERSION} from ${SHA}. Overwritten on every successful nightly run." \
             --prerelease \
-            --target "${{ needs.sync-nightly.outputs.sha }}"
+            --target "${SHA}"
 
   # ─────────────────────────────────────────────────────────────────────────
   # Notifications
