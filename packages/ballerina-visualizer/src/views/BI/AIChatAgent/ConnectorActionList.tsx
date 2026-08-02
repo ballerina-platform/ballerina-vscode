@@ -39,7 +39,7 @@ const HeaderArea = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px;
+    padding: 16px 16px 12px;
     flex-shrink: 0;
 `;
 
@@ -63,10 +63,12 @@ const InfoIcon = styled.div`
     background-color: ${ThemeColors.SURFACE_CONTAINER};
     flex-shrink: 0;
 
-    & > div {
+    & > * {
         display: flex;
         align-items: center;
         justify-content: center;
+        line-height: 1;
+        font-size: 22px;
     }
 
     /* Descendant, not child: ConnectorIcon wraps its svg, which would otherwise size freely. */
@@ -131,7 +133,7 @@ const InfoDescription = styled(MarkdownDescription)`
 const ScrollArea = styled.div`
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px 16px;
+    padding: 0 0 16px 16px;
 `;
 
 const RowList = styled.div`
@@ -188,8 +190,18 @@ const RowIcon = styled.div`
     align-items: center;
     justify-content: center;
 
-    & svg,
-    & img {
+    & > *:not(.action-badge) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        font-size: 18px;
+    }
+
+    & > *:not(.action-badge) svg,
+    & > *:not(.action-badge) img,
+    & > svg,
+    & > img {
         width: 18px;
         height: 18px;
         object-fit: contain;

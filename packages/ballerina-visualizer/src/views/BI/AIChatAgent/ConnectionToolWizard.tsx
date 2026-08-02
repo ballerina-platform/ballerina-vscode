@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Category as PanelCategory, NodeList } from "@wso2/ballerina-side-panel";
+import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { AvailableNode, BISearchRequest, Item, LinePosition } from "@wso2/ballerina-core";
 import { Button, ThemeColors } from "@wso2/ui-toolkit";
 
@@ -27,6 +27,7 @@ import { convertBICategoriesToSidePanelCategories } from "../../../utils/bi";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { fetchConnectorActions, normalizeConnectorSearchCategories } from "./connectorActions";
 import { ConnectorActionList } from "./ConnectorActionList";
+import { ConnectorList } from "./ConnectorList";
 import { NEW_CONNECTION } from "../../../constants";
 
 export enum WizardStep {
@@ -69,7 +70,8 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
     const { rpcClient } = useRpcContext();
 
     const [step, setStep] = useState<WizardStep>(WizardStep.CONNECTOR_LIST);
-    const [connectorCategories, setConnectorCategories] = useState<PanelCategory[]>([]);
+    const [catalogCategories, setCatalogCategories] = useState<PanelCategory[]>([]);
+    const [centralCategories, setCentralCategories] = useState<PanelCategory[]>([]);
     // Initial load only.
     const [loadingConnectors, setLoadingConnectors] = useState<boolean>(true);
     const [searchText, setSearchText] = useState<string>("");
@@ -79,9 +81,9 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
     const [actions, setActions] = useState<AvailableNode[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(false);
     const [actionError, setActionError] = useState<string>("");
-    const [searchingConnectors, setSearchingConnectors] = useState<boolean>(false);
     const latestConnectorRequest = useRef(0);
     const lastConnectorQuery = useRef<string | undefined>(undefined);
+    const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
 
     useEffect(() => {
         void loadConnectors("");
@@ -106,12 +108,13 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
     const loadConnectors = async (query: string) => {
         const requestId = ++latestConnectorRequest.current;
         lastConnectorQuery.current = query;
-        setSearchingConnectors(true);
         try {
             const request: BISearchRequest = {
                 position: { startLine: target, endLine: target },
                 filePath: agentFilePath,
-                queryMap: query.trim() ? { q: query.trim(), limit: 60, offset: 0 } : { limit: 60 },
+                queryMap: query.trim()
+                    ? { q: query.trim(), limit: 60, offset: 0, connectorSet: "AGENT_TOOL" }
+                    : { limit: 60, connectorSet: "AGENT_TOOL" },
                 searchKind: "CONNECTOR",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -119,53 +122,71 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
                 return;
             }
             const categories = normalizeConnectorSearchCategories(response?.categories as Item[]);
-            setConnectorCategories(convertBICategoriesToSidePanelCategories(categories));
+            const panelCategories = convertBICategoriesToSidePanelCategories(categories);
+            if (query.trim()) {
+                setCentralCategories(panelCategories);
+            } else {
+                setCatalogCategories(panelCategories);
+                setCentralCategories([]);
+            }
         } catch (error) {
             console.error(">>> Error searching connectors", error);
             if (requestId === latestConnectorRequest.current) {
-                setConnectorCategories([]);
+                setCentralCategories([]);
             }
         } finally {
             if (requestId === latestConnectorRequest.current) {
                 setLoadingConnectors(false);
-                setSearchingConnectors(false);
             }
         }
     };
 
-    // Filtered here because onSearchTextChange disables NodeList's own filtering.
-    const visibleConnectionCategories = useMemo(() => {
-        const query = searchText.trim().toLowerCase();
-        // "Connections" shows when empty, which would be a bare, unactionable header.
-        const nonEmpty = existingConnectionCategories.filter((category) => category.items?.length > 0);
-        if (!query) {
-            return nonEmpty;
-        }
-        return nonEmpty
-            .map((category) => ({
-                ...category,
-                items: category.items.filter((item) =>
-                    "title" in item
-                        ? item.title.toLowerCase().includes(query)
-                        : (item.label ?? "").toLowerCase().includes(query)
-                ),
-            }))
-            .filter((category) => category.items.length > 0);
-    }, [existingConnectionCategories, searchText]);
-
-    const connectorListCategories = useMemo(
-        () => [...visibleConnectionCategories, ...connectorCategories],
-        [visibleConnectionCategories, connectorCategories]
+    const visibleConnectionCategories = useMemo(
+        () => existingConnectionCategories.filter((category) => category.items?.length > 0),
+        [existingConnectionCategories]
     );
 
-    // NodeList debounces this call, and drops its skeleton as soon as `categories` changes
-    // identity — so `loading` has to cover until the results land.
     const handleSearchTextChange = (text: string) => {
         setSearchText(text);
-        if (text === lastConnectorQuery.current) {
+        if (searchDebounce.current) {
+            clearTimeout(searchDebounce.current);
+        }
+        if (!text.trim()) {
+            setCentralCategories([]);
+            lastConnectorQuery.current = "";
             return;
         }
-        void loadConnectors(text);
+        searchDebounce.current = setTimeout(() => {
+            if (text !== lastConnectorQuery.current) {
+                void loadConnectors(text);
+            }
+        }, 300);
+    };
+
+    useEffect(() => () => {
+        if (searchDebounce.current) {
+            clearTimeout(searchDebounce.current);
+        }
+    }, []);
+
+    const handleSelectConnection = (connectionName: string, connectionActions: PanelNode[]) => {
+        const actionNodes = connectionActions
+            .map((item) => item.metadata as AvailableNode)
+            .filter(Boolean);
+        const first = actionNodes.at(0);
+        setSelectedConnector({
+            metadata: {
+                label: connectionName,
+                description: first?.metadata?.description ?? "",
+                icon: first?.metadata?.icon,
+            },
+            codedata: first?.codedata,
+            enabled: true,
+        } as AvailableNode);
+        setSelectedCategory("Connections");
+        setActionError("");
+        setActions(actionNodes);
+        setStep(WizardStep.ACTION_LIST);
     };
 
     const handleSelectConnector = async (connector: AvailableNode, category?: string) => {
@@ -221,17 +242,15 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
                             <RelativeLoader />
                         </LoaderWrapper>
                     ) : (
-                        <NodeList
-                            categories={connectorListCategories}
-                            onSelect={handleListSelect}
+                        <ConnectorList
+                            connectionCategories={visibleConnectionCategories}
+                            connectorCategories={catalogCategories}
+                            extraCategories={centralCategories}
+                            searchText={searchText}
                             onSearchTextChange={handleSearchTextChange}
-                            loading={searchingConnectors}
-                            title={"Connections"}
-                            description={
-                                "Pick an existing connection or a connector to browse its actions. "
-                            }
-                            searchPlaceholder={"Search connections and connectors"}
-                            panelBodySx={{ height: "calc(100vh - 140px)" }}
+                            onSelect={handleListSelect}
+                            onSelectConnection={handleSelectConnection}
+                            description="Pick an existing connection or a connector to browse its actions."
                         />
                     )}
                 </>
