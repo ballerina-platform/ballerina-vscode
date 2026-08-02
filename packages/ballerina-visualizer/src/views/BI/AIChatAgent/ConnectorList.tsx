@@ -75,6 +75,7 @@ const CategorySelect = styled.select`
 const ScrollArea = styled.div`
     flex: 1;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     margin-top: 12px;
     padding: 0 0 16px 16px;
     &::-webkit-scrollbar {
@@ -97,17 +98,23 @@ const ScrollArea = styled.div`
 
 const Section = styled.div`
     background-color: rgba(255, 255, 255, 0.02);
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 5px;
     margin-bottom: 16px;
-    overflow: hidden;
 `;
 
 const SectionHeader = styled.div`
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 12px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 5px 5px 0 0;
+    background: linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02)),
+        ${ThemeColors.SURFACE_DIM};
+    box-shadow: 0 -3px 0 3px ${ThemeColors.SURFACE_DIM};
 `;
 
 const SectionTitle = styled.div`
@@ -117,6 +124,16 @@ const SectionTitle = styled.div`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+`;
+
+const SectionTag = styled.div`
+    flex-shrink: 0;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    background-color: ${ThemeColors.SURFACE_CONTAINER};
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 
 const SectionCount = styled.div`
@@ -132,9 +149,10 @@ const Row = styled.button`
     gap: 12px;
     align-items: start;
     width: 100%;
+    box-sizing: border-box;
     padding: 12px;
-    border: none;
-    border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-bottom: none;
     background: transparent;
     color: ${ThemeColors.ON_SURFACE};
     font-family: inherit;
@@ -150,6 +168,15 @@ const Row = styled.button`
     &:focus-visible {
         outline: 1px solid ${ThemeColors.PRIMARY};
         outline-offset: -1px;
+    }
+
+    &:first-of-type {
+        border-top: none;
+    }
+
+    &:last-of-type {
+        border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border-radius: 0 0 5px 5px;
     }
 `;
 
@@ -215,6 +242,7 @@ interface Section {
     title: string;
     nodes: PanelNode[];
     category: string;
+    tag?: string;
 }
 
 interface ConnectorListProps {
@@ -307,6 +335,7 @@ export function ConnectorList(props: ConnectorListProps) {
                     title: c.title,
                     category: c.title,
                     nodes: connectionRowsOf(c),
+                    tag: "In this integration",
                 }))
                 .filter((s) => s.nodes.length > 0),
         [connectionCategories]
@@ -420,7 +449,7 @@ export function ConnectorList(props: ConnectorListProps) {
                             aria-label="Filter by category"
                             onChange={(event) => setCategory(event.target.value)}
                         >
-                            <option value="">All categories ({totalConnectors})</option>
+                            <option value="">All Categories ({totalConnectors})</option>
                             {connectorSections.map((s) => (
                                 <option key={s.key} value={s.category}>
                                     {s.title} ({s.nodes.length})
@@ -443,6 +472,7 @@ export function ConnectorList(props: ConnectorListProps) {
                         <Section key={section.key}>
                             <SectionHeader>
                                 <SectionTitle>{section.title}</SectionTitle>
+                                {section.tag && <SectionTag>{section.tag}</SectionTag>}
                                 <SectionCount>{section.nodes.length}</SectionCount>
                             </SectionHeader>
                             {section.nodes.map((node) => {
