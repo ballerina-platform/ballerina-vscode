@@ -17,6 +17,7 @@
  */
 
 import { getWebview } from "./webview";
+import { dismissCopilotOverlay } from "./copilotOverlay";
 import { page } from "./setup";
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR } from "./constants";
 
@@ -29,12 +30,19 @@ export async function addArtifact(artifactName: string, testId: string) {
     if (!artifactWebView) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
     }
-    // Navigate to the overview page
-    await artifactWebView.getByRole('button', { name: ' Add Artifact' }).click();
+    // Get the Copilot overlays off the cards first. Force alone is not enough:
+    // it skips the actionability checks but still dispatches at the target's
+    // coordinates, so an open mini chat panel swallows the card click and the
+    // creation form never opens — the caller then times out waiting for 'Create'.
+    await dismissCopilotOverlay(artifactWebView);
+    // Navigate to the overview page. Force the clicks: the Copilot chat input
+    // ("Message WSO2 Integrator Copilot") overlays the overview and intercepts
+    // pointer events, which otherwise retries until the 30s click timeout.
+    await artifactWebView.getByRole('button', { name: ' Add Artifact' }).click({ force: true });
     // how to get element by id
     const addArtifactBtn = artifactWebView.locator(`#${testId}`);
     await addArtifactBtn.waitFor();
-    await addArtifactBtn.click();
+    await addArtifactBtn.click({ force: true });
 }
 
 /**

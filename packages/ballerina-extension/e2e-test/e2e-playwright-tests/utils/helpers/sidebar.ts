@@ -29,18 +29,6 @@ import { BI_INTEGRATOR_LABEL, BI_SIDEBAR_VIEW_ID } from "./constants";
  * ProjectExplorer.init() opens it), then wait for its pane to attach.
  */
 export async function waitForBISidebarTreeView(page: ExtendedPage, timeout: number = 30000): Promise<void> {
-    try {
-        const activityTab = page.page.locator(`[role="tab"][aria-label="${BI_INTEGRATOR_LABEL}"]`).first();
-        await activityTab.waitFor({ state: 'visible', timeout: Math.min(timeout, 15000) });
-        const isActive = await activityTab.evaluate((el) => el.classList.contains('checked')).catch(() => false);
-        if (!isActive) {
-            await activityTab.click();
-        }
-    } catch {
-        // Activity tab not ready yet; fall through to selector polling below,
-        // which throws with a detailed error if the view never appears.
-    }
-
     const selectors = [
         `div.composite.viewlet#${BI_SIDEBAR_VIEW_ID} div.monaco-pane-view`,
         `div.composite.viewlet[id^="${BI_SIDEBAR_VIEW_ID}"] div.monaco-pane-view`,
@@ -48,13 +36,35 @@ export async function waitForBISidebarTreeView(page: ExtendedPage, timeout: numb
         `div.composite.viewlet[id^="${BI_SIDEBAR_VIEW_ID}"]`,
     ];
 
-    const eachSelectorTimeout = Math.max(1000, Math.floor(timeout / selectors.length));
-    for (const selector of selectors) {
-        try {
-            await page.page.waitForSelector(selector, { timeout: eachSelectorTimeout, state: 'attached' });
-            return;
-        } catch {
-            // Try next selector variant.
+    // On a cold start the extension can still be activating, so the activity
+    // tab does not exist on the first pass. Retry the open on every iteration:
+    // giving up after a single attempt leaves the viewlet unopened, and the
+    // selector polling below then waits out the full budget for a view that
+    // nobody ever asked for.
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        const activityTab = page.page.locator(`[role="tab"][aria-label="${BI_INTEGRATOR_LABEL}"]`).first();
+        if (await activityTab.isVisible().catch(() => false)) {
+            const isActive = await activityTab.evaluate((el) => el.classList.contains('checked')).catch(() => false);
+            if (!isActive) {
+                await activityTab.click().catch(() => { });
+            }
+        }
+
+        for (const selector of selectors) {
+            // Clamp to what is left of the budget: four selectors x 1s each can
+            // otherwise start after the deadline and overrun `timeout` by seconds.
+            // Never pass 0 — Playwright reads that as 'no timeout' and would hang.
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) {
+                break;
+            }
+            const attached = await page.page
+                .waitForSelector(selector, { timeout: Math.min(1000, remaining), state: 'attached' })
+                .then(() => true, () => false);
+            if (attached) {
+                return;
+            }
         }
     }
 

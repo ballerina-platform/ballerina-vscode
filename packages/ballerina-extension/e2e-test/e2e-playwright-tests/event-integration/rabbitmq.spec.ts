@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from '@playwright/test';
-import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { expect, test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, dismissCopilotOverlay, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -103,7 +103,15 @@ export default function createTests() {
                 // Click the "Save" button at the bottom of the panel
                 const saveBtn = handlerConfigPanel.locator('vscode-button[appearance="primary"]').filter({ hasText: 'Save' });
                 await saveBtn.first().waitFor({ state: 'visible', timeout: 5000 });
-                await saveBtn.first().click();
+                // force skips the enabled check, so poll for it — Save stays
+                // disabled until the JSON type selection has been applied, and a
+                // click that lands before then is silently dropped.
+                await expect.poll(() => saveBtn.first().isEnabled(), { timeout: 10000 }).toBe(true);
+                // The Copilot orb's invite box docks over the panel footer, and a
+                // forced click still dispatches at Save's coordinates — so it would
+                // land on the overlay. Move it aside before clicking.
+                await dismissCopilotOverlay(artifactWebView);
+                await saveBtn.first().click({ force: true });
 
                 // Wait for the panel to disappear after save
                 await handlerConfigPanel.getByText('Message Handler Configuration').waitFor({ state: 'detached', timeout: 10000 });

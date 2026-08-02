@@ -18,7 +18,7 @@
 import fs from 'fs';
 import path from 'path';
 import { expect, test, Frame } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, logStep, newProjectPath, page } from '../utils/helpers';
+import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, dismissCopilotOverlay, initTest, logStep, newProjectPath, page } from '../utils/helpers';
 import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
 import { Diagram, SidePanel } from '../utils/pages';
 
@@ -512,7 +512,19 @@ export default function createTests() {
             await loading.waitFor({ state: 'hidden', timeout: 300000 }).catch(() => { });
             const connNameBox = frame.getByRole('textbox', { name: /Connection Name/i }).first();
             await connNameBox.waitFor({ state: 'visible', timeout: 60000 });
-            await frame.getByRole('button', { name: 'Save Connection' }).last().click({ force: true });
+            // The connector form stays disabled until its schema finishes
+            // loading. Force-clicking Save before then is a silent no-op that
+            // leaves connections.bal untouched, which only surfaces later as a
+            // pollGenerated timeout pointing at the wrong thing.
+            const saveConnection = frame.getByRole('button', { name: 'Save Connection' }).last();
+            await expect.poll(() => saveConnection.isEnabled().catch(() => false), { timeout: 60000 }).toBe(true);
+            // Enabled is only half of it: Save Connection sits at the form footer
+            // under the Copilot orb's invite box, and force still dispatches at the
+            // button's coordinates — so the overlay takes the click and
+            // connections.bal stays untouched, which is precisely the pollGenerated
+            // timeout the comment above warns about.
+            await dismissCopilotOverlay(frame);
+            await saveConnection.click({ force: true });
             await pollGenerated('connections.bal', 'final mysql:Client mysqlClient = check new ()', 300000);
             logStep('connections.bal has mysql:Client');
 

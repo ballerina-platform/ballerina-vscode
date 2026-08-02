@@ -17,7 +17,7 @@
  */
 import { Frame, Locator, test } from '@playwright/test';
 import * as path from 'path';
-import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page, logStep, newProjectPath } from '../utils/helpers';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, dismissCopilotOverlay, initTest, page, logStep, newProjectPath } from '../utils/helpers';
 import { switchToIFrame, Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer, Diagram, SidePanel } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -137,7 +137,13 @@ export default function createTests() {
                     }
                 }
             });
-            await form.submit('Save Connection');
+            // Save Connection spans the form footer, directly under the Copilot
+            // orb's docked invite box. A forced click still dispatches at the
+            // button's coordinates, so the overlay receives it and the connection is
+            // never created — which surfaced only as 'httpClient connection did not
+            // appear in the project explorer tree'. Move the overlay aside first.
+            await dismissCopilotOverlay(artifactWebView);
+            await form.submit('Save Connection', true);
 
             // Verify via the project explorer tree (decoupled from the
             // webview's own re-render timing) rather than racing the side

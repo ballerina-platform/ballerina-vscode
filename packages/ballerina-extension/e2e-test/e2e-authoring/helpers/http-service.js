@@ -107,24 +107,26 @@ globalThis.addReturnNodeFromDiagram = async (
   await waitForText('Control', 30000);
   await frame.getByText('Return', { exact: true }).click({ force: true });
   await waitForText('Return value.', 30000);
-  await frame.locator('[data-testid="ex-editor-expression"]').click({ force: true });
-  await frame.getByRole('button', { name: 'Open Helper Panel' }).click({ force: true });
-  await waitForText('Inputs', 30000);
-  await frame.getByText('Inputs', { exact: true }).click({ force: true });
-  await waitForText('payload', 30000);
-  await frame.getByText('payload', { exact: true }).click({ force: true });
-  await frame.locator('[data-testid="ex-editor-expression"] .cm-content').evaluate((element) => {
-    if (element.textContent !== 'payload') {
-      throw new Error(`Expected helper to insert "payload", found "${element.textContent}"`);
-    }
-  });
-  await frame.locator('[data-testid="ex-editor-expression"] .cm-content').click({ force: true });
-  await window.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
-  await window.keyboard.type(expression);
-  await frame.getByRole('button', { name: 'Close Helper Panel' }).click({ force: true }).catch(() => {});
-  await frame.getByText('Return value.', { exact: true }).click({ force: true }).catch(() => {});
-  await frame.getByRole('button', { name: 'Save' }).click({ force: true });
-  await waitForText('Return', 60000);
+
+  // Set the expression through the CodeMirror view. keyboard.type loses every
+  // '{' to the editor's bracket/helper handling, which leaves Save disabled.
+  const cmContent = frame.locator('[data-testid="ex-editor-expression"] .cm-content');
+  await cmContent.waitFor({ state: 'attached', timeout: 30000 });
+  await cmContent.evaluate((element, text) => {
+    const view = element.cmView && element.cmView.view;
+    if (!view) throw new Error('CodeMirror view not found in ex-editor container');
+    view.focus();
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+  }, expression);
+  const applied = await cmContent.evaluate((element) => element.textContent);
+  if (applied !== expression) {
+    throw new Error(`Expression editor holds "${applied}", expected "${expression}"`);
+  }
+
+  await window.keyboard.press('Escape');
+  await frame.getByRole('button', { name: 'Save' }).last().click({ force: true });
+  // The panel closing is the real save signal.
+  await frame.getByTestId('side-panel').waitFor({ state: 'hidden', timeout: 60000 });
   const mainBal = fs.readFileSync(path.join(newProjectPath, 'main.bal'), 'utf8');
   if (!mainBal.includes('return {key: string `uploads/${name}`, size: payload.content.length()};')) {
     throw new Error(`Return node was not saved to main.bal:\n${mainBal}`);
@@ -144,7 +146,17 @@ globalThis.openProjectFileInEditor = async (fileName) => {
 
 globalThis.runIntegrationAndWaitForUpload = async () => {
   await openProjectFileInEditor('main.bal');
-  await extendedPage.executePaletteCommand('BI.project.run');
+  // executePaletteCommand presses Enter without waiting for the list to
+  // filter, so select the command explicitly and confirm the run started.
+  await window.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+p' : 'Control+Shift+p');
+  await window.keyboard.type('BI.project.run');
+  await window.locator('.quick-input-list .monaco-list-row', { hasText: 'Run Integration' })
+    .first()
+    .waitFor({ state: 'visible', timeout: 30000 });
+  await window.keyboard.press('Enter');
+  await window.locator('.xterm-screen', { hasText: 'Running executable' })
+    .first()
+    .waitFor({ timeout: 180000 });
   return waitForEndpoint('http://localhost:9090/upload?name=probe.txt', 120000, {
     method: 'POST',
     body: '{"content":"hello"}',
