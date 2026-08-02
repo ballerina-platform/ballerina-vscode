@@ -24,6 +24,8 @@ import { BALLERINA } from "../../../constants";
 
 export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
 
+export const ZERO_LINE_RANGE: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
+
 const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
     node: "MODEL_PROVIDER",
     org: "ballerina",

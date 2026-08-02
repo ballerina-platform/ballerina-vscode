@@ -28,7 +28,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
 import { OAUTH_GROUP, RESULT_TYPE_GROUP } from "./connectorActions";
-import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
@@ -219,7 +219,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         <ArtifactForm
             preserveFieldOrder={false}
             fileName={agentFilePath}
-            targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
+            targetLineRange={ZERO_LINE_RANGE}
             fields={fields}
             groups={groups}
             recordTypeFields={recordTypeFields}

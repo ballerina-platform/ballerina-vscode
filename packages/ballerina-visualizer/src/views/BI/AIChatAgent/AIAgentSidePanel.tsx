@@ -64,7 +64,7 @@ import { buildAgentToolFields, createDefaultParameterValue, createToolInputField
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { fetchOAuthConfigProperties } from "./utils";
+import { fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
@@ -401,6 +401,7 @@ export interface ExtendedAgentToolRequest {
 // Ensure "io", "log", and "time" module functions always appear under "Standard Library",
 // even if they've been imported (which moves them to "Imported Functions" from the LS)
 const STANDARD_LIB_MODULES = ["io", "log", "time"];
+
 function ensureStandardLibModules(categories: PanelCategory[]): PanelCategory[] {
     const stdLib = categories.find((cat) => cat.title === "Standard Library");
     const imported = categories.find((cat) => cat.title?.includes("Imported"));
@@ -493,7 +494,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const handleCreateNode = useCreateNode(
         agentFilePath.current,
         targetRef.current,
-        () => { void fetchNodes(); },
+        () => { void fetchNodes(true); },
         { preferModal: true }
     );
 
@@ -587,11 +588,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [rpcClient]);
 
-    const fetchNodes = async () => {
-        setLoading(true);
+    const fetchNodes = async (silent = false) => {
+        const settleLoading = () => { if (!silent) setLoading(false); };
+        if (!silent) setLoading(true);
 
         if (mode === NewToolSelectionMode.CUSTOM_TOOL) {
-            setLoading(false);
+            settleLoading();
             return;
         }
 
@@ -603,7 +605,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 setCategories(categories);
                 initialCategoriesRef.current = categories;
             } catch { } finally {
-                setLoading(false);
+                settleLoading();
             }
             return;
         }
@@ -690,7 +692,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setCategories(filteredCategories);
             initialCategoriesRef.current = filteredCategories;
         } finally {
-            setLoading(false);
+            settleLoading();
         }
     };
 
@@ -1713,7 +1715,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 <ArtifactForm
                     preserveFieldOrder={false}
                     fileName={agentFilePath.current}
-                    targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
+                    targetLineRange={ZERO_LINE_RANGE}
                     fields={fields}
                     recordTypeFields={recordTypeFields}
                     onSubmit={handleToolSubmit}
