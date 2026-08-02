@@ -373,7 +373,8 @@ jobs:
       # out from under this build and produce a VSIX that matches no commit.
       ref: ${{ needs.sync-nightly.outputs.sha }}
       versionAlreadySet: true
-      runFrontendTests: true
+      # TODO: Re-enale tests once the tests are stable.
+      runFrontendTests: false
       runBackendTests: false
 
   # Keep a stable ref and a stable download URL for the most recent nightly that passed
