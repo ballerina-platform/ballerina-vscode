@@ -21,27 +21,21 @@
 
 import { AvailableNode, Category, CodeData, Item, NodeKind } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { formatMethodName } from "@wso2/ballerina-side-panel";
 
 // Local, not from src/constants: that pulls in the ballerina-core barrel and breaks tests.
 const REMOTE_ACTION_CALL: NodeKind = "REMOTE_ACTION_CALL";
 const RESOURCE_ACTION_CALL: NodeKind = "RESOURCE_ACTION_CALL";
 
-/** `bitOpAnd` -> "Bit Op And". Matches the labels the LS produces for bound connections. */
 export function formatActionLabel(symbol: string): string {
-    const cleaned = (symbol || "").trim().replace(/^[^\w]+/, "");
-    if (!cleaned) {
-        return symbol ?? "";
-    }
-    return cleaned
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-        .replace(/_/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .split(" ")
-        .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ""))
-        .filter(Boolean)
-        .join(" ");
+    return formatMethodName(symbol, { casing: "sentence" });
+}
+
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+export function actionDisplayLabel(label: string | undefined): string {
+    const text = label ?? "";
+    return IDENTIFIER.test(text) ? formatActionLabel(text) : text;
 }
 
 // The parts of `docsData.modules[].clients[]` we use.

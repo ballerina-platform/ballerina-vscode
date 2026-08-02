@@ -24,7 +24,7 @@ import { AvailableNode } from "@wso2/ballerina-core";
 import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon, NodeIcon } from "@wso2/bi-diagram";
 import { MarkdownDescription } from "@wso2/ballerina-side-panel";
-import { formatResourceSignature } from "./connectorActions";
+import { actionDisplayLabel, formatResourceSignature } from "./connectorActions";
 
 const isResourceAction = (action: AvailableNode): boolean =>
     action.codedata?.node === "RESOURCE_ACTION_CALL" && Boolean(action.codedata?.resourcePath);
@@ -134,6 +134,7 @@ const ScrollArea = styled.div`
     flex: 1;
     overflow-y: auto;
     padding: 0 0 16px 16px;
+    scrollbar-gutter: stable;
 `;
 
 const RowList = styled.div`
@@ -291,7 +292,8 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
             return actions;
         }
         return actions.filter((action) => {
-            const label = action.metadata?.label?.toLowerCase() ?? "";
+            const label = `${action.metadata?.label ?? ""} ${actionDisplayLabel(action.metadata?.label)}`
+                .toLowerCase();
             const description = action.metadata?.description?.toLowerCase() ?? "";
             const symbol = action.codedata?.symbol?.toLowerCase() ?? "";
             // So "drafts" finds a resource action by its path.
@@ -362,7 +364,7 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
                                     </RowBadge>
                                 </RowIcon>
                                 <RowText>
-                                    <RowLabel>{action.metadata?.label}</RowLabel>
+                                    <RowLabel>{actionDisplayLabel(action.metadata?.label)}</RowLabel>
                                     {isResourceAction(action) ? (
                                         <RowSignature>
                                             {formatResourceSignature(
