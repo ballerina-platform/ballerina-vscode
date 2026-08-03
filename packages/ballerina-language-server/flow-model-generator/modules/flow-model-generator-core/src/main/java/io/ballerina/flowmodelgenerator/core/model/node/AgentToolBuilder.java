@@ -29,30 +29,20 @@ import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
-import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
-import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
-import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
-import io.ballerina.compiler.syntax.tree.ExpressionNode;
-import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
-import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
-import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
-import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
-import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
-import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NonTerminalNode;
-import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
-import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.Token;
 import io.ballerina.compiler.syntax.tree.TypeDefinitionNode;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
+import io.ballerina.flowmodelgenerator.core.ClassMemberManager;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
@@ -112,8 +102,6 @@ public class AgentToolBuilder extends NodeBuilder {
 
     private static final String RUN = "run";
     private static final String RESPONSE_VAR = "response";
-    private static final String INIT = "init";
-    private static final String TOOLS_ARG = "tools";
     private static final String CLASS_MEMBER_INDENT = "    ";
     private static final Gson gson = new Gson();
 
@@ -176,7 +164,7 @@ public class AgentToolBuilder extends NodeBuilder {
         Map<Path, List<TextEdit>> textEdits = generate(kind, context);
         if (hostClassName != null) {
             relocateToolIntoClass(textEdits, sb.filePath, hostClassName, toolName, sourceBuilder.workspaceManager,
-                    semanticModel, agentVarName);
+                    semanticModel);
         }
         return textEdits;
     }
@@ -194,7 +182,7 @@ public class AgentToolBuilder extends NodeBuilder {
 
     private static void relocateToolIntoClass(Map<Path, List<TextEdit>> textEdits, Path classFile, String className,
                                               String toolName, WorkspaceManager workspaceManager,
-                                              SemanticModel semanticModel, String agentVarName) {
+                                              SemanticModel semanticModel) {
         List<TextEdit> classEdits = textEdits.get(classFile);
         if (classEdits == null || classEdits.isEmpty()) {
             throw new IllegalStateException("Agent tool edits not found: " + className);
@@ -221,7 +209,7 @@ public class AgentToolBuilder extends NodeBuilder {
         functionEdit.setNewText(CLASS_MEMBER_INDENT
                 + functionEdit.getNewText().replace("\n", "\n" + CLASS_MEMBER_INDENT));
 
-        classEdits.add(wireToolIntoList(classNode, toolName, agentVarName)
+        classEdits.add(ClassMemberManager.wireToolIntoList(classNode, toolName)
                 .orElseThrow(() -> new IllegalStateException("Agent tools list not found: " + className)));
     }
 
@@ -237,68 +225,6 @@ public class AgentToolBuilder extends NodeBuilder {
         for (ModuleMemberDeclarationNode member : root.members()) {
             if (member instanceof ClassDefinitionNode classDef && classDef.className().text().equals(className)) {
                 return classDef;
-            }
-        }
-        return null;
-    }
-
-    private static Optional<TextEdit> wireToolIntoList(ClassDefinitionNode classNode, String toolName,
-                                                        String agentVarName) {
-        ListConstructorExpressionNode toolsList = findInnerToolsList(classNode, agentVarName);
-        if (toolsList == null) {
-            return Optional.empty();
-        }
-        String element = "self." + toolName;
-        boolean isEmpty = toolsList.expressions().isEmpty();
-        LinePosition position = isEmpty ? toolsList.openBracket().lineRange().endLine()
-                : toolsList.expressions().get(toolsList.expressions().size() - 1).lineRange().endLine();
-        return Optional.of(new TextEdit(CommonUtils.toRange(position), isEmpty ? element : ", " + element));
-    }
-
-    private static ListConstructorExpressionNode findInnerToolsList(ClassDefinitionNode classNode,
-                                                                     String agentVarName) {
-        for (Node member : classNode.members()) {
-            if (!(member instanceof FunctionDefinitionNode func) || !func.functionName().text().equals(INIT)
-                    || !(func.functionBody() instanceof FunctionBodyBlockNode body)) {
-                continue;
-            }
-            for (StatementNode statement : body.statements()) {
-                ListConstructorExpressionNode tools = extractToolsFromAssignment(statement, agentVarName);
-                if (tools != null) {
-                    return tools;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static ListConstructorExpressionNode extractToolsFromAssignment(StatementNode statement,
-                                                                              String agentVarName) {
-        if (!(statement instanceof AssignmentStatementNode assignment)) {
-            return null;
-        }
-        if (!agentVarName.isBlank() && !assignment.varRef().toSourceCode().trim().equals("self." + agentVarName)) {
-            return null;
-        }
-        ExpressionNode expression = assignment.expression();
-        if (expression instanceof CheckExpressionNode checkExpr) {
-            expression = checkExpr.expression();
-        }
-        SeparatedNodeList<FunctionArgumentNode> args;
-        if (expression instanceof ImplicitNewExpressionNode implicitNew) {
-            if (implicitNew.parenthesizedArgList().isEmpty()) {
-                return null;
-            }
-            args = implicitNew.parenthesizedArgList().get().arguments();
-        } else if (expression instanceof ExplicitNewExpressionNode explicitNew) {
-            args = explicitNew.parenthesizedArgList().arguments();
-        } else {
-            return null;
-        }
-        for (FunctionArgumentNode arg : args) {
-            if (arg instanceof NamedArgumentNode namedArg && namedArg.argumentName().name().text().equals(TOOLS_ARG)
-                    && namedArg.expression() instanceof ListConstructorExpressionNode list) {
-                return list;
             }
         }
         return null;
@@ -976,7 +902,7 @@ public class AgentToolBuilder extends NodeBuilder {
             return "string";
         }
         Optional<TypeSymbol> optReturn = runMethod.typeDescriptor().returnTypeDescriptor();
-        if (optReturn.isEmpty()) {
+        if (optReturn.isEmpty() || hasInferredTypedescReturn(runMethod, optReturn.get())) {
             return "string";
         }
         acceptTypeImports(optReturn.get(), hostModule, sourceBuilder);
@@ -985,6 +911,22 @@ public class AgentToolBuilder extends NodeBuilder {
             return "string";
         }
         return signature;
+    }
+
+    private static boolean hasInferredTypedescReturn(MethodSymbol runMethod, TypeSymbol returnType) {
+        Set<String> typedescParams = runMethod.typeDescriptor().params().orElse(List.of()).stream()
+                .filter(param -> CommonUtils.getRawType(param.typeDescriptor()).typeKind() == TypeDescKind.TYPEDESC)
+                .map(param -> param.getName().orElse(""))
+                .filter(name -> !name.isEmpty())
+                .collect(Collectors.toSet());
+        return !typedescParams.isEmpty() && referencesName(returnType, typedescParams);
+    }
+
+    private static boolean referencesName(TypeSymbol type, Set<String> names) {
+        if (type instanceof UnionTypeSymbol union) {
+            return union.memberTypeDescriptors().stream().anyMatch(member -> referencesName(member, names));
+        }
+        return names.contains(type.getName().orElse(""));
     }
 
     private static ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
