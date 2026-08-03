@@ -284,6 +284,31 @@ export const TOOL_INPUT_GROUP = "toolInputs";
 export const RESULT_TYPE_GROUP = "resultType";
 export const OAUTH_GROUP = "oauthConfig";
 
+export const INCLUDE_CONTEXT_KEY = "includeContext";
+
+/**
+ * `ai:Context ctx` becomes the tool's first parameter, so this belongs with the inputs — pass no
+ * group for a form with no inputs card. A real FLAG field rather than an injected checkbox, so the
+ * value arrives through the form and can sit inside a card.
+ */
+export function buildIncludeContextField(group?: string): Record<string, unknown> {
+    return {
+        key: INCLUDE_CONTEXT_KEY,
+        label: "Pass agent context",
+        type: "FLAG",
+        documentation: "Adds ai:Context ctx as the first parameter so this tool can access the "
+            + "invoking agent's context.",
+        optional: true,
+        editable: true,
+        enabled: true,
+        hidden: false,
+        advanced: false,
+        value: false,
+        types: [{ fieldType: "FLAG", selected: true }],
+        ...(group ? { group } : {}),
+    };
+}
+
 interface GroupableField {
     group?: string;
     hidden?: boolean;
