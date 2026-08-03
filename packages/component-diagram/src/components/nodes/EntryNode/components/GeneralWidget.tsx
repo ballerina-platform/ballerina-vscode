@@ -149,6 +149,12 @@ function getCustomEntryNodeIcon(type: string) {
             return <Icon name="bi-hubspot" sx={{ color: "#FF7A59" }} />;
         case "trigger.twilio":
             return <Icon name="bi-twilio" />;
+        case "telegram":
+            return <Icon name="bi-telegram" sx={{ color: "#229ED9" }} />;
+        case "whatsapp.business":
+            return <Icon name="bi-whatsapp" sx={{ color: "#25D366" }} />;
+        case "googleapis.chat":
+            return <Icon name="bi-google-chat" sx={{ color: "#00AC47" }} />;
         default:
             return null;
     }

@@ -31,6 +31,8 @@ interface EventIntegrationPanelProps {
     triggers: TriggerModelsResponse;
 };
 
+const CHAT_APPS_MODULES = ["telegram", "whatsapp.business", "googleapis.chat"];
+
 export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
     const { rpcClient } = useRpcContext();
     const isDisabled = props.scope && (props.scope !== SCOPE.EVENT_INTEGRATION && props.scope !== SCOPE.ANY);
@@ -62,7 +64,7 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
                 {props.triggers.local.length === 0 && <RelativeLoader />}
                 {
                     props.triggers.local
-                        .filter((t) => t.type === "event")
+                        .filter((t) => t.type === "event" && !CHAT_APPS_MODULES.includes(t.moduleName))
                         .map((item, index) => {
                             return (
                                 <ButtonCard

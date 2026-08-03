@@ -29,6 +29,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.AsbServiceBu
 import io.ballerina.servicemodelgenerator.extension.builder.service.DefaultServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.FTPServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.GithubTriggerServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.builder.service.GoogleChatServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.GraphqlServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.HubspotTriggerServiceBuilder;
@@ -41,6 +42,8 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.RabbitMQServ
 import io.ballerina.servicemodelgenerator.extension.builder.service.ShopifyTriggerServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.SolaceServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.TCPServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.builder.service.TelegramServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.builder.service.WhatsAppBusinessServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceMetadata;
@@ -65,6 +68,7 @@ import java.util.function.Supplier;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ASB;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FTP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.GOOGLE_CHAT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KAFKA;
@@ -75,9 +79,11 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.POSTGR
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.RABBITMQ;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SOLACE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TELEGRAM;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TRIGGER_GITHUB;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TRIGGER_HUBSPOT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TRIGGER_SHOPIFY;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.WHATSAPP_BUSINESS;
 
 /**
  * ServiceBuilderRouter is responsible for routing service building requests to the appropriate service builder
@@ -104,6 +110,9 @@ public class ServiceBuilderRouter {
         put(TRIGGER_GITHUB, GithubTriggerServiceBuilder::new);
         put(TRIGGER_SHOPIFY, ShopifyTriggerServiceBuilder::new);
         put(TRIGGER_HUBSPOT, HubspotTriggerServiceBuilder::new);
+        put(TELEGRAM, TelegramServiceBuilder::new);
+        put(WHATSAPP_BUSINESS, WhatsAppBusinessServiceBuilder::new);
+        put(GOOGLE_CHAT, GoogleChatServiceBuilder::new);
     }};
 
     public static ServiceNodeBuilder getServiceBuilder(String protocol) {

@@ -56,8 +56,7 @@
           "typeConstraint": "http:HttpResourceConfig"
         }
       },
-      "initForm": {
-      },
+      "initForm": {},
       "readOnlyMetadata": [
         {
           "key": "basePath",
@@ -988,8 +987,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "agent"
       },
-      "serviceTypes": {
-      }
+      "serviceTypes": {}
     },
     {
       "name": "mcp",
@@ -1016,8 +1014,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "mcp"
       },
-      "serviceTypes": {
-      },
+      "serviceTypes": {},
       "annotations": {
         "ServiceConfig": {
           "attachmentPoints": [
@@ -1640,8 +1637,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "event"
       },
-      "serviceTypes": {
-      },
+      "serviceTypes": {},
       "initForm": {
         "basePath": {
           "label": "Event Channel",
@@ -1709,8 +1705,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "event"
       },
-      "serviceTypes": {
-      },
+      "serviceTypes": {},
       "initForm": {
         "basePath": {
           "label": "Event Channel",
@@ -1799,8 +1794,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "agent"
       },
-      "serviceTypes": {
-      }
+      "serviceTypes": {}
     },
     {
       "name": "trigger.twilio",
@@ -1825,8 +1819,7 @@
         "listenerKind": "MULTIPLE_SELECT_LISTENER",
         "kind": "event"
       },
-      "serviceTypes": {
-      },
+      "serviceTypes": {},
       "initForm": {
         "basePath": {
           "label": "Event Channel",
@@ -4181,6 +4174,1084 @@
           "kind": "SERVICE_DESCRIPTION"
         }
       ]
+    },
+    {
+      "name": "telegram",
+      "version": "0.9.0",
+      "serviceTypeSkipList": [],
+      "serviceDeclaration": {
+        "displayName": "Telegram Event Integration",
+        "description": "Create a service to handle Telegram bot events",
+        "optionalTypeDescriptor": 1,
+        "typeDescriptorLabel": "Service Type",
+        "typeDescriptorDescription": "The Telegram service type",
+        "typeDescriptorDefaultValue": "TelegramService",
+        "addDefaultTypeDescriptor": 0,
+        "optionalAbsoluteResourcePath": 1,
+        "absoluteResourcePathLabel": "Service Base Path",
+        "absoluteResourcePathDescription": "",
+        "absoluteResourcePathDefaultValue": "",
+        "optionalStringLiteral": 1,
+        "stringLiteralLabel": "Service Base Path",
+        "stringLiteralDescription": "",
+        "stringLiteralDefaultValue": "",
+        "listenerKind": "MULTIPLE_SELECT_LISTENER",
+        "kind": "event"
+      },
+      "serviceTypes": {
+        "TelegramService": {
+          "name": "TelegramService",
+          "description": "Telegram bot event handlers",
+          "functions": [
+            {
+              "name": "onMessage",
+              "description": "Triggered when a new message is received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "message",
+                  "label": "message",
+                  "description": "The Telegram message that triggered this event",
+                  "kind": "REQUIRED",
+                  "type": "telegram:Message",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onEditedMessage",
+              "description": "Triggered when a message is edited.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "editedMessage",
+                  "label": "editedMessage",
+                  "description": "The Telegram message that was edited",
+                  "kind": "REQUIRED",
+                  "type": "telegram:Message",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onChannelPost",
+              "description": "Triggered when a new channel post is received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "channelPost",
+                  "label": "channelPost",
+                  "description": "The new channel post",
+                  "kind": "REQUIRED",
+                  "type": "telegram:Message",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onEditedChannelPost",
+              "description": "Triggered when a channel post is edited.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "editedChannelPost",
+                  "label": "editedChannelPost",
+                  "description": "The channel post that was edited",
+                  "kind": "REQUIRED",
+                  "type": "telegram:Message",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onCallbackQuery",
+              "description": "Triggered when a callback query is received from an inline keyboard.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "callbackQuery",
+                  "label": "callbackQuery",
+                  "description": "The inline keyboard button press",
+                  "kind": "REQUIRED",
+                  "type": "telegram:CallbackQuery",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onInlineQuery",
+              "description": "Triggered when an inline query is received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "inlineQuery",
+                  "label": "inlineQuery",
+                  "description": "The inline query",
+                  "kind": "REQUIRED",
+                  "type": "telegram:InlineQuery",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onPoll",
+              "description": "Triggered when there is a new poll state.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "poll",
+                  "label": "poll",
+                  "description": "The poll whose state changed",
+                  "kind": "REQUIRED",
+                  "type": "telegram:Poll",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onPreCheckoutQuery",
+              "description": "Triggered when a pre-checkout query is received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "preCheckoutQuery",
+                  "label": "preCheckoutQuery",
+                  "description": "The pre-checkout query",
+                  "kind": "REQUIRED",
+                  "type": "telegram:PreCheckoutQuery",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onShippingQuery",
+              "description": "Triggered when a shipping query is received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "shippingQuery",
+                  "label": "shippingQuery",
+                  "description": "The shipping query",
+                  "kind": "REQUIRED",
+                  "type": "telegram:ShippingQuery",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "initForm": {
+        "basePath": {
+          "label": "Service Type",
+          "description": "The Telegram service type",
+          "defaultValue": "TelegramService",
+          "placeholder": "TelegramService",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "telegram:TelegramService",
+              "options": [
+                {
+                  "label": "TelegramService",
+                  "value": "TelegramService"
+                }
+              ]
+            }
+          ],
+          "sourceKind": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "listenOn": {
+          "label": "Webhook Listener Port",
+          "description": "The port on which the webhook listener accepts incoming HTTP requests",
+          "defaultValue": "8090",
+          "placeholder": "8090",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_REQUIRED"
+        },
+        "token": {
+          "label": "Bot Token",
+          "description": "Telegram bot token. Required to derive the webhook secret token and to auto-register the webhook together with the public URL.",
+          "defaultValue": "",
+          "placeholder": "\"123456:ABC-DEF...\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_INCLUDED_FIELD"
+        },
+        "publicUrl": {
+          "label": "Public URL",
+          "description": "Publicly reachable URL of this listener. Required together with the bot token so the webhook can be registered automatically on start.",
+          "defaultValue": "",
+          "placeholder": "\"https://my-bot.example.com\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_INCLUDED_FIELD"
+        },
+        "secretToken": {
+          "label": "Secret Token",
+          "description": "Secret token to validate incoming webhook updates. Optional \u2014 if omitted, it's derived automatically from the bot token.",
+          "defaultValue": "",
+          "placeholder": "\"my-secret-token\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+        }
+      }
+    },
+    {
+      "name": "whatsapp.business",
+      "version": "2.0.0",
+      "serviceTypeSkipList": [],
+      "serviceDeclaration": {
+        "displayName": "WhatsApp Event Integration",
+        "description": "Create a service to handle WhatsApp Business Cloud webhook events",
+        "optionalTypeDescriptor": 1,
+        "typeDescriptorLabel": "Service Type",
+        "typeDescriptorDescription": "The WhatsApp service type",
+        "typeDescriptorDefaultValue": "WhatsAppService",
+        "addDefaultTypeDescriptor": 0,
+        "optionalAbsoluteResourcePath": 1,
+        "absoluteResourcePathLabel": "Service Base Path",
+        "absoluteResourcePathDescription": "",
+        "absoluteResourcePathDefaultValue": "",
+        "optionalStringLiteral": 1,
+        "stringLiteralLabel": "Service Base Path",
+        "stringLiteralDescription": "",
+        "stringLiteralDefaultValue": "",
+        "listenerKind": "MULTIPLE_SELECT_LISTENER",
+        "kind": "event"
+      },
+      "serviceTypes": {
+        "WhatsAppService": {
+          "name": "WhatsAppService",
+          "description": "WhatsApp Business Cloud webhook event handlers",
+          "functions": [
+            {
+              "name": "onMessages",
+              "description": "Triggered when inbound messages or message-status updates are received.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "notification",
+                  "label": "notification",
+                  "description": "The messages notification (a batch of inbound messages or message-status updates)",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:MessagesNotification",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onAccountReviewUpdate",
+              "description": "Triggered when the WhatsApp Business account review status changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The account-review-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:AccountReviewUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onAccountUpdate",
+              "description": "Triggered when the WhatsApp Business account is updated.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The account-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:AccountUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onBusinessCapabilityUpdate",
+              "description": "Triggered when the business capabilities change.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The business-capability-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:BusinessCapabilityUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onMessageTemplateQualityUpdate",
+              "description": "Triggered when a message template's quality rating changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The message-template-quality-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:MessageTemplateQualityUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onMessageTemplateStatusUpdate",
+              "description": "Triggered when a message template's status changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The message-template-status-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:MessageTemplateStatusUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onPhoneNumberNameUpdate",
+              "description": "Triggered when the display name of a phone number changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The phone-number-name-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:PhoneNumberNameUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onPhoneNumberQualityUpdate",
+              "description": "Triggered when the quality rating of a phone number changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The phone-number-quality-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:PhoneNumberQualityUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onSecurity",
+              "description": "Triggered on security-related account notifications.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "security",
+                  "label": "security",
+                  "description": "The security event details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:Security",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onTemplateCategoryUpdate",
+              "description": "Triggered when a message template's category changes.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "update",
+                  "label": "update",
+                  "description": "The template-category-update details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:TemplateCategoryUpdate",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onError",
+              "description": "Triggered when any handler returns an error.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "handlerError",
+                  "label": "handlerError",
+                  "description": "The handler-error details",
+                  "kind": "REQUIRED",
+                  "type": "whatsapp:HandlerError",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "initForm": {
+        "basePath": {
+          "label": "Service Type",
+          "description": "The WhatsApp service type",
+          "defaultValue": "WhatsAppService",
+          "placeholder": "WhatsAppService",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "whatsapp:WhatsAppService",
+              "options": [
+                {
+                  "label": "WhatsAppService",
+                  "value": "WhatsAppService"
+                }
+              ]
+            }
+          ],
+          "sourceKind": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "listenOn": {
+          "label": "Webhook Listener Port",
+          "description": "The port on which the webhook listener accepts incoming HTTP requests",
+          "defaultValue": "8090",
+          "placeholder": "8090",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_REQUIRED"
+        },
+        "verifyToken": {
+          "label": "Verify Token",
+          "description": "Token you choose and also set in the Meta webhook configuration; matched against hub.verify_token during the subscription handshake.",
+          "defaultValue": "",
+          "placeholder": "\"my-verify-token\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_INCLUDED_FIELD"
+        },
+        "appSecret": {
+          "label": "App Secret",
+          "description": "Meta app secret used to verify inbound notifications via the X-Hub-Signature-256 header.",
+          "defaultValue": "",
+          "placeholder": "\"my-app-secret\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_INCLUDED_FIELD"
+        }
+      }
+    },
+    {
+      "name": "googleapis.chat",
+      "version": "0.1.0",
+      "serviceTypeSkipList": [],
+      "serviceDeclaration": {
+        "displayName": "Google Chat Event Integration",
+        "description": "Create a service to handle Google Chat interaction events",
+        "optionalTypeDescriptor": 1,
+        "typeDescriptorLabel": "Service Type",
+        "typeDescriptorDescription": "The Google Chat service type",
+        "typeDescriptorDefaultValue": "ChatService",
+        "addDefaultTypeDescriptor": 0,
+        "optionalAbsoluteResourcePath": 1,
+        "absoluteResourcePathLabel": "Service Base Path",
+        "absoluteResourcePathDescription": "",
+        "absoluteResourcePathDefaultValue": "",
+        "optionalStringLiteral": 1,
+        "stringLiteralLabel": "Service Base Path",
+        "stringLiteralDescription": "",
+        "stringLiteralDefaultValue": "",
+        "listenerKind": "MULTIPLE_SELECT_LISTENER",
+        "kind": "event"
+      },
+      "serviceTypes": {
+        "ChatService": {
+          "name": "ChatService",
+          "description": "Google Chat interaction event handlers",
+          "functions": [
+            {
+              "name": "onMessage",
+              "description": "Triggered when a user sends a message, @mentions the app, or invokes a slash command.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The Google Chat message event",
+                  "kind": "REQUIRED",
+                  "type": "chat:MessageEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the message event",
+                  "kind": "REQUIRED",
+                  "type": "chat:MessageCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onAddedToSpace",
+              "description": "Triggered when the app is added to a space.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The added-to-space event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the added-to-space event",
+                  "kind": "REQUIRED",
+                  "type": "chat:MessageCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onRemovedFromSpace",
+              "description": "Triggered when the app is removed from a space.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The removed-from-space event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onCardClicked",
+              "description": "Triggered when a user clicks a button or interactive element on a card.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The card-clicked event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the card-clicked event",
+                  "kind": "REQUIRED",
+                  "type": "chat:CardClickedCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onWidgetUpdated",
+              "description": "Triggered when a widget requests an autocomplete or similar update.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The widget-updated event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the widget-updated event",
+                  "kind": "REQUIRED",
+                  "type": "chat:WidgetUpdatedCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onAppCommand",
+              "description": "Triggered when a user invokes a slash command.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The app-command event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the app-command event",
+                  "kind": "REQUIRED",
+                  "type": "chat:MessageCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onAppHome",
+              "description": "Triggered when a user opens the app's home page.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The app-home event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the app-home event",
+                  "kind": "REQUIRED",
+                  "type": "chat:AppHomeCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            },
+            {
+              "name": "onSubmitForm",
+              "description": "Triggered when a user submits a dialog or form.",
+              "accessor": "",
+              "kind": "REMOTE",
+              "returnType": "error?",
+              "returnError": 1,
+              "returnTypeEditable": 0,
+              "enable": 0,
+              "optional": 1,
+              "parameters": [
+                {
+                  "name": "event",
+                  "label": "event",
+                  "description": "The submit-form event",
+                  "kind": "REQUIRED",
+                  "type": "chat:ChatEvent",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                },
+                {
+                  "name": "caller",
+                  "label": "caller",
+                  "description": "Caller for responding to the submit-form event",
+                  "kind": "REQUIRED",
+                  "type": "chat:SubmitFormCaller",
+                  "defaultValue": "",
+                  "importStatements": "",
+                  "nameEditable": 1,
+                  "typeEditable": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "initForm": {
+        "basePath": {
+          "label": "Service Type",
+          "description": "The Google Chat service type",
+          "defaultValue": "ChatService",
+          "placeholder": "ChatService",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "chat:ChatService",
+              "options": [
+                {
+                  "label": "ChatService",
+                  "value": "ChatService"
+                }
+              ]
+            }
+          ],
+          "sourceKind": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "listenOn": {
+          "label": "Webhook Listener Port",
+          "description": "The port on which the webhook listener accepts incoming HTTP requests",
+          "defaultValue": "8090",
+          "placeholder": "8090",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_REQUIRED"
+        },
+        "authFilePath": {
+          "label": "Service Account Key Path",
+          "description": "Path to the Google Cloud service account JSON key file used to authenticate the internal Chat API client. Only the service-account auth mode is supported here; edit the generated code for OAuth2 or bearer-token auth.",
+          "defaultValue": "",
+          "placeholder": "\"./service-account-key.json\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_CONFIG_FIELD"
+        },
+        "endpointUrl": {
+          "label": "HTTP Endpoint URL",
+          "description": "The public HTTPS URL of this listener, exactly as entered in the Chat app's HTTP endpoint URL configuration. Used to validate the audience claim of incoming requests. Only the endpoint-URL verification mode is supported here; edit the generated code to use a project number instead.",
+          "defaultValue": "",
+          "placeholder": "\"https://my-app.example.com\"",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string"
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string"
+            }
+          ],
+          "sourceKind": "LISTENER_PARAM_CONFIG_FIELD"
+        }
+      }
     }
   ]
 }

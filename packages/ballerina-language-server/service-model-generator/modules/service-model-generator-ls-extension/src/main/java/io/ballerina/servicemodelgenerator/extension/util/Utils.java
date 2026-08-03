@@ -34,6 +34,7 @@ import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.FunctionSignatureNode;
 import io.ballerina.compiler.syntax.tree.IdentifierToken;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.IncludedRecordParameterNode;
 import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.MarkdownDocumentationLineNode;
@@ -1201,6 +1202,42 @@ public final class Utils {
      */
     public static String getImportStmt(String org, String module) {
         return String.format(Constants.IMPORT_STMT_TEMPLATE, org, module);
+    }
+
+    /**
+     * Resolves the module prefix that generated code should qualify types with: the alias of an already
+     * existing import for the given organization/module (or its implicit default prefix, the last dot-separated
+     * segment of the module name, if that import has no {@code as} clause), falling back to {@code defaultPrefix}
+     * when no such import exists yet.
+     *
+     * @param node          module part node
+     * @param org           organization name
+     * @param module        module name
+     * @param defaultPrefix prefix to use when the import does not already exist
+     * @return the module prefix to qualify generated types with
+     */
+    public static String resolveImportPrefix(ModulePartNode node, String org, String module, String defaultPrefix) {
+        return node.imports().stream()
+                .filter(importDeclarationNode -> {
+                    String moduleName = importDeclarationNode.moduleName().stream()
+                            .map(IdentifierToken::text)
+                            .collect(Collectors.joining("."));
+                    return importDeclarationNode.orgName().isPresent() &&
+                            org.equals(importDeclarationNode.orgName().get().orgName().text()) &&
+                            module.equals(moduleName);
+                })
+                .findFirst()
+                .map(Utils::importPrefix)
+                .orElse(defaultPrefix);
+    }
+
+    private static String importPrefix(ImportDeclarationNode importDeclarationNode) {
+        return importDeclarationNode.prefix()
+                .map(importPrefixNode -> importPrefixNode.prefix().text().trim())
+                .orElseGet(() -> {
+                    NodeList<IdentifierToken> moduleName = importDeclarationNode.moduleName();
+                    return moduleName.get(moduleName.size() - 1).text().trim();
+                });
     }
 
     public static boolean filterTriggers(TriggerProperty triggerProperty, TriggerListRequest request) {

@@ -168,5 +168,42 @@
       "event"
     ],
     "triggerName": "HubSpot"
+  },
+  "17": {
+    "name": "telegram",
+    "orgName": "ballerinax",
+    "packageName": "telegram",
+    "keywords": [
+      "telegram",
+      "messaging",
+      "bot",
+      "event"
+    ],
+    "triggerName": "Telegram"
+  },
+  "18": {
+    "name": "whatsapp.business",
+    "orgName": "ballerinax",
+    "packageName": "whatsapp.business",
+    "keywords": [
+      "whatsapp",
+      "messaging",
+      "meta",
+      "event"
+    ],
+    "triggerName": "WhatsApp"
+  },
+  "19": {
+    "name": "googleapis.chat",
+    "orgName": "ballerinax",
+    "packageName": "googleapis.chat",
+    "keywords": [
+      "google",
+      "chat",
+      "hangouts",
+      "messaging",
+      "event"
+    ],
+    "triggerName": "Google Chat"
   }
 }
