@@ -70,7 +70,6 @@ public class ModuleNodesTest extends AbstractLSTest {
                 // TODO: remove after deprecated ballerinax/ai imports are migrated
                 // agent source imports ballerinax/ai (removed from offline cache)
                 "agent_model.json",
-                // TODO: Capture expected snapshot for the custom *ai:FixedReturnAgentType fixture.
                 "agent_type.json"
         };
     }

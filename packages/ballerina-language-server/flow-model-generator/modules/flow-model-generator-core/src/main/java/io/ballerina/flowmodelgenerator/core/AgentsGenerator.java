@@ -327,7 +327,6 @@ public class AgentsGenerator {
                                     String description, Path filePath, WorkspaceManager workspaceManager) {
         ModuleInfo hostModule = resolveHostModule(filePath, workspaceManager);
 
-        // Synthetic node: AGENT + isNew routes the SourceBuilder to write at the end of agents.bal.
         Codedata codedata = new Codedata.Builder<>(null).node(NodeKind.AGENT).isNew().build();
         FlowNode flowNode = new FlowNode(null, null, codedata, false, null, null, null, 0);
         SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath);
@@ -341,7 +340,6 @@ public class AgentsGenerator {
         sourceBuilder.token().parameterDoc("query", "The request to send to the " + agentVarName + " agent.");
         sourceBuilder.token().returnDoc("The response from the " + agentVarName + " agent.");
 
-        // ai:Context is hidden from the LLM; passing it threads the caller's context to the delegated agent.
         String paramList = includeContext ? "ai:Context context, string query" : "string query";
         String runArgs = includeContext ? "query, context = context" : "query";
 
@@ -390,7 +388,6 @@ public class AgentsGenerator {
         }
     }
 
-    // Wrapper return type from <agentVarName>.run(...); built-in/unresolvable/anydata fall back to string.
     private String resolveAgentRunReturnType(String agentVarName, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
         if (semanticModel == null) {
             return "string";

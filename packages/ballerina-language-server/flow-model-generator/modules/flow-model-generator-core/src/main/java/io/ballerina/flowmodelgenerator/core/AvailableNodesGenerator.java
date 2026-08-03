@@ -600,7 +600,6 @@ public class AvailableNodesGenerator {
             if (persistClient) {
                 persistIcon.ifPresent(metadataBuilder::icon);
                 metadataBuilder.addData(CONNECTOR_TYPE, PERSIST);
-                // Only the persist path uses resolvedPackage; skip the costly Central lookup otherwise.
                 Optional<Package> resolvedPackage = moduleInfo != null
                         ? PackageUtil.resolveModulePackage(moduleInfo.org(), moduleInfo.packageName(),
                                 moduleInfo.version())
@@ -625,7 +624,6 @@ public class AvailableNodesGenerator {
     private Optional<Category> getAgent(Symbol symbol) {
         return getCategory(symbol, classSymbol -> {
             try {
-                // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType.
                 return isAgentClass(classSymbol)
                         || isAiFixedReturnAgent(classSymbol)
                         || isAiInferredReturnAgent(classSymbol);

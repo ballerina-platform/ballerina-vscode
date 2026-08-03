@@ -90,7 +90,6 @@ public class AgentToolBuilder extends NodeBuilder {
     public static final String LABEL = "Agent Tool";
     public static final String DESCRIPTION = "Expose a function, action, or connection as an agent tool";
 
-    // codedata.data keys carrying the parts that drive the generated body.
     public static final String WRAPPED_NODE_KEY = "node";
     public static final String CONNECTION_KEY = "connection";
     public static final String DESCRIPTION_KEY = "description";
@@ -110,8 +109,6 @@ public class AgentToolBuilder extends NodeBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        // The tool signature (function name + parameters) is supplied by the caller; the wrapped node / connection
-        // ride in codedata.data. A function-shaped template is provided for completeness.
         properties().functionNameTemplate("tool", context.getAllVisibleSymbolNames());
         FunctionDefinitionBuilder.setMandatoryProperties(this, "", "", "");
         FunctionDefinitionBuilder.setOptionalProperties(this);
@@ -494,7 +491,6 @@ public class AgentToolBuilder extends NodeBuilder {
             }
         }
 
-        // Build a lookup of tool input variable names keyed by parameter name
         Map<String, String> toolInputVarNames = new LinkedHashMap<>();
         Optional<Property> funcCallArgs = flowNode.getProperty(Property.PARAMETERS_KEY);
         if (funcCallArgs.isPresent() && funcCallArgs.get().value() instanceof Map<?, ?> paramMap) {
@@ -513,9 +509,6 @@ public class AgentToolBuilder extends NodeBuilder {
 
         List<String> args = new ArrayList<>();
         if (nodeKind == NodeKind.FUNCTION_CALL && flowNode.properties() != null) {
-            // FUNCTION_CALL: iterate properties in order to preserve argument position.
-            // Only include properties that are actual function call arguments (have a
-            // codedata.kind like REQUIRED or DEFAULTABLE), not metadata properties.
             for (Map.Entry<String, Property> entry : flowNode.properties().entrySet()) {
                 String key = entry.getKey();
                 Property prop = entry.getValue();
@@ -528,7 +521,6 @@ public class AgentToolBuilder extends NodeBuilder {
 
                 String toolInputVar = toolInputVarNames.get(key);
                 if (toolInputVar != null) {
-                    // Has a tool input — use mapping override if set, otherwise the variable name
                     if (prop.value() instanceof List<?> valueList) {
                         List<String> listArgs = extractListArgs(valueList);
                         if (!listArgs.isEmpty()) {
@@ -546,12 +538,10 @@ public class AgentToolBuilder extends NodeBuilder {
                     List<String> listArgs = extractListArgs(valueList);
                     args.addAll(listArgs);
                 } else if (prop.value() != null && !prop.value().toString().isEmpty()) {
-                    // No tool input — use the mapping expression directly
                     args.add(prop.value().toString());
                 }
             }
         } else {
-            // FUNCTION_DEFINITION: arguments come only from the parameters map
             args.addAll(toolInputVarNames.values());
         }
 
@@ -782,7 +772,6 @@ public class AgentToolBuilder extends NodeBuilder {
             if (propCodedata != null
                     && ParameterData.Kind.PARAM_FOR_TYPE_INFER.name().equals(propCodedata.kind())) {
                 String paramName = entry.getKey();
-                // Use user-provided value if set, otherwise fall back to defaultValue
                 String resolvedType;
                 Object value = entry.getValue().value();
                 if (value != null && !value.toString().isEmpty()) {
@@ -803,7 +792,6 @@ public class AgentToolBuilder extends NodeBuilder {
         if (flowNode.codedata().inferredReturnType() != null && hasRecordFieldSelector(flowNode)) {
             Optional<Property> variable = flowNode.getProperty(Property.VARIABLE_KEY);
             if (variable.isPresent()) {
-                // Ensure the variable name produces a unique type name by checking types.bal
                 Property varProp = variable.get();
                 Path typesFilePath = sourceBuilder.filePath.resolveSibling("types.bal");
                 Document typesDoc = FileSystemUtils.getDocument(
@@ -818,12 +806,8 @@ public class AgentToolBuilder extends NodeBuilder {
                     String candidateTypeName = varName.substring(0, 1).toUpperCase(Locale.ROOT)
                             + varName.substring(1) + "Type";
                     if (existingTypeNames.contains(candidateTypeName)) {
-                        // Strip trailing digits to get the base prefix (e.g. "var1" -> "var"),
-                        // matching how the LS generates unique variable names (var, var1, var2...)
                         String baseVarName = varName.replaceAll("\\d+$", "");
-                        // Convert type names to their variable form for collision checking
                         Set<String> usedVarNames = new HashSet<>();
-                        // Include the base name so numbering starts from 1 (var1, var2...)
                         usedVarNames.add(baseVarName);
                         for (String typeName : existingTypeNames) {
                             if (typeName.endsWith("Type") && typeName.length() > 4) {
@@ -873,7 +857,6 @@ public class AgentToolBuilder extends NodeBuilder {
                 .collect(Collectors.toList());
     }
 
-    // Wrapper return type from <agentVarName>.run(...); built-in/unresolvable/anydata fall back to string.
     private static String resolveAgentRunReturnType(SemanticModel semanticModel, String agentVarName,
                                                     ModuleInfo hostModule, SourceBuilder sourceBuilder) {
         if (semanticModel == null) {
@@ -984,11 +967,9 @@ public class AgentToolBuilder extends NodeBuilder {
         return null;
     }
 
-    // decl is the full declaration, e.g. "string city".
     private record ToolParam(String decl, String name, String doc) {
     }
 
-    // typeName is "" when there is no return type.
     private record ReturnInfo(String typeName, boolean checkError, String doc) {
     }
 
