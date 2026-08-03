@@ -322,7 +322,7 @@ public final class ClassMemberManager {
                 .findFirst();
     }
 
-    private static Optional<TextEdit> wireToolIntoList(ClassDefinitionNode classDefinition, String fieldName) {
+    public static Optional<TextEdit> wireToolIntoList(ClassDefinitionNode classDefinition, String fieldName) {
         ListConstructorExpressionNode toolsList = findInnerToolsList(classDefinition);
         if (toolsList == null) {
             return Optional.empty();
