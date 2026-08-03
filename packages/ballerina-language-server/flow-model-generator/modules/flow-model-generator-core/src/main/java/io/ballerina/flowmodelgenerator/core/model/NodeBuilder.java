@@ -30,6 +30,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.AgentBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AgentCallBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AgentIdAuthConfigBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AgentRunBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.AgentTypeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AssignBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.AutomationBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.BinaryBuilder;
@@ -172,6 +173,7 @@ public abstract class NodeBuilder implements DiagnosticHandler.DiagnosticCapable
         put(NodeKind.PARALLEL_FLOW, ParallelFlowBuilder::new);
         put(NodeKind.WAIT, WaitBuilder::new);
         put(NodeKind.AGENT, AgentBuilder::new);
+        put(NodeKind.AGENT_TYPE, AgentTypeBuilder::new);
         put(NodeKind.AGENT_CALL, AgentCallBuilder::new);
         put(NodeKind.AGENT_RUN, AgentRunBuilder::new);
         put(NodeKind.CLASS_INIT, ClassInitBuilder::new);

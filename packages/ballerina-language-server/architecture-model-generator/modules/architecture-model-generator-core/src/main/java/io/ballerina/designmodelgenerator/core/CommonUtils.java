@@ -72,6 +72,8 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
+    private static final String FIXED_RETURN_AGENT_TYPE_NAME = "FixedReturnAgent";
+    private static final String INFERRED_RETURN_AGENT_TYPE_NAME = "InferredReturnAgent";
 
     private static final String WSO2_MODEL_PROVIDER = "Wso2ModelProvider";
     private static final String WSO2_EMBEDDING_PROVIDER = "Wso2EmbeddingProvider";
@@ -285,6 +287,16 @@ public class CommonUtils {
         return symbol.getName().isPresent() && symbol.getName().get().equals(AGENT);
     }
 
+    public static boolean isAiFixedReturnAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, FIXED_RETURN_AGENT_TYPE_NAME);
+    }
+
+    public static boolean isAiInferredReturnAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, INFERRED_RETURN_AGENT_TYPE_NAME);
+    }
+
     public static boolean isAiMemory(Symbol symbol) {
         ClassSymbol classSymbol = getClassSymbol(symbol);
         return classSymbol != null && (hasAiTypeInclusion(classSymbol, MEMORY_TYPE_NAME));
@@ -304,8 +316,8 @@ public class CommonUtils {
     }
 
     public static boolean isHiddenAiClass(Symbol symbol) {
-        return isAgentClass(symbol) || isAiKnowledgeBase(symbol) || isAiMemory(symbol) ||
-                isAiShortTermMemoryStore(symbol);
+        return isAgentClass(symbol) || isAiFixedReturnAgent(symbol) || isAiInferredReturnAgent(symbol)
+                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol);
     }
 
     private static boolean hasAiTypeInclusion(ObjectTypeSymbol objectTypeSymbol, String includedTypeName) {

@@ -1,0 +1,5 @@
+{
+  "description": "Custom *ai:FixedReturnAgentType class should be classified as Type.AGENT in the sidebar. Snapshot capture pending.",
+  "source": "agent_type.bal",
+  "output": {}
+}
