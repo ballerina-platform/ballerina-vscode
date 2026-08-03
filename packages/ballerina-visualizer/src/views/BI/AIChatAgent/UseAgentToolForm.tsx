@@ -27,7 +27,7 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
-import { OAUTH_GROUP, RESULT_TYPE_GROUP } from "./connectorActions";
+import { INCLUDE_CONTEXT_KEY, OAUTH_GROUP, RESULT_TYPE_GROUP, buildIncludeContextField } from "./connectorActions";
 import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
@@ -36,23 +36,6 @@ const LoaderContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ContextOption = styled.label`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-    margin-top: 4px;
-`;
-
-const ContextHint = styled.div`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 2px;
-    line-height: 1.4;
 `;
 
 interface UseAgentToolFormProps {
@@ -76,7 +59,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
     const [agentFilePath, setAgentFilePath] = useState<string>("");
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
-    const [includeContext, setIncludeContext] = useState<boolean>(false);
     const [oauthProperties, setOauthProperties] = useState<{ key: string; property: Property }[]>([]);
     const [defaultReturnType, setDefaultReturnType] = useState<string>("");
 
@@ -132,6 +114,9 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             `${agentVarName}Tool`,
             `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
         ),
+        // No inputs card on this form — the delegated call's only input is the query — so the
+        // context flag sits with the fields instead.
+        buildIncludeContextField() as FormField,
         ...oauthFields,
         {
             key: "returnType",
@@ -164,8 +149,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
             const description = stripCodeFencesInline(String(data["description"] ?? ""));
             const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
-            const toolNode = buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
-                hostClass, agentReceiver, overriddenReturnType(String(data["returnType"] ?? "")));
+            const toolNode = buildAgentCallToolNode(toolName, agentVarName, data[INCLUDE_CONTEXT_KEY] === true,
+                description, hostClass, agentReceiver, overriddenReturnType(String(data["returnType"] ?? "")));
 
             // Same shape the connection tool form uses: codedata.data.auth.
             const authConfig: Record<string, string> = {};
@@ -236,26 +221,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                         </ImplementationBadge>
                     ),
                     index: 0,
-                },
-                {
-                    component: (
-                        <ContextOption>
-                            <input
-                                type="checkbox"
-                                checked={includeContext}
-                                onChange={(e) => setIncludeContext(e.target.checked)}
-                            />
-                            <div>
-                                Pass agent context
-                                <ContextHint>
-                                    Adds ai:Context ctx as the first parameter so this tool can access the invoking
-                                    agent's context.
-                                </ContextHint>
-                            </div>
-                        </ContextOption>
-                    ),
-                    index: 2,
-                    advanced: true,
                 },
             ]}
         />

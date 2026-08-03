@@ -70,10 +70,12 @@ import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddC
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
 import { ActionSelection, ConnectionToolWizard, WizardStep } from "./ConnectionToolWizard";
 import {
+    INCLUDE_CONTEXT_KEY,
     OAUTH_GROUP,
     RESULT_TYPE_GROUP,
     TOOL_INPUT_GROUP,
     buildConnectionSelectField,
+    buildIncludeContextField,
     buildToolFormGroups,
     displayResourcePath,
     getExistingToolNames,
@@ -112,22 +114,6 @@ const PopupLoaderContainer = styled.div`
     p {
         font-size: 13px;
     }
-`;
-
-const ContextOption = styled.label`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-`;
-
-const ContextHint = styled.div`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 2px;
-    line-height: 1.4;
 `;
 
 const DependencyFormContainer = styled.div`
@@ -461,7 +447,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const [fields, setFields] = useState<FormField[]>(INITIAL_FIELDS);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [showOAuthConfig, setShowOAuthConfig] = useState<boolean>(false);
-    const [includeContext, setIncludeContext] = useState<boolean>(false);
 
     const targetRef = useRef<LineRange>(
         dependencyMode && agentNode?.codedata?.lineRange
@@ -801,6 +786,8 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     /** Mappings default to identity, so both paths put them in collapsible cards. */
     const buildGroupedInputFields = (toolInputFields: FormField[], parameterFields: FormField[]): FormField[] =>
         [
+            // First row of the inputs card: ctx is prepended to the tool's parameter list.
+            buildIncludeContextField(TOOL_INPUT_GROUP) as FormField,
             ...toolInputFields,
             ...parameterFields.map((field) => ({
                 ...field,
@@ -1403,7 +1390,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         const toolModel: ExtendedAgentToolRequest = {
             toolName: cleanName,
             description: data["description"],
-            includeContext,
+            includeContext: data[INCLUDE_CONTEXT_KEY] === true,
             selectedCodeData: selectedNodeCodeData,
             toolParameters: toolParameters,
             functionNode: clonedFunctionNode,
@@ -1746,26 +1733,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                 </ImplementationBadge>
                             ),
                             index: 0,
-                        },
-                        {
-                            component: (
-                                <ContextOption>
-                                    <input
-                                        type="checkbox"
-                                        checked={includeContext}
-                                        onChange={(event) => setIncludeContext(event.target.checked)}
-                                    />
-                                    <div>
-                                        Pass agent context
-                                        <ContextHint>
-                                            Adds ai:Context ctx as the first parameter so this tool can access the
-                                            invoking agent's context.
-                                        </ContextHint>
-                                    </div>
-                                </ContextOption>
-                            ),
-                            index: 0,
-                            advanced: true,
                         },
                     ]}
                 />

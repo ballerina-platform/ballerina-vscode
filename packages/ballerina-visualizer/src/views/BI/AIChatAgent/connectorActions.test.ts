@@ -24,7 +24,9 @@ import {
     OAUTH_GROUP,
     TOOL_INPUT_GROUP,
     buildConnectionSelectField,
+    buildIncludeContextField,
     buildToolFormGroups,
+    INCLUDE_CONTEXT_KEY,
     getExistingToolNames,
     normalizeConnectorSearchCategories,
     resourceToolNameSeed,
@@ -523,6 +525,32 @@ describe("buildToolFormGroups", () => {
 
     it("ignores ungrouped fields", () => {
         expect(buildToolFormGroups([{ optional: false, value: "" } as any])).toEqual([]);
+    });
+
+    it("keeps inputs collapsed for the optional context flag alone", () => {
+        const [inputs] = buildToolFormGroups([buildIncludeContextField(TOOL_INPUT_GROUP) as any]);
+        expect(inputs.id).toBe(TOOL_INPUT_GROUP);
+        expect(inputs.defaultCollapsed).toBe(true);
+    });
+});
+
+describe("buildIncludeContextField", () => {
+    it("is an optional, unchecked FLAG in the inputs card", () => {
+        const field = buildIncludeContextField(TOOL_INPUT_GROUP);
+        expect(field.key).toBe(INCLUDE_CONTEXT_KEY);
+        expect(field.type).toBe("FLAG");
+        expect(field.value).toBe(false);
+        expect(field.optional).toBe(true);
+        expect(field.group).toBe(TOOL_INPUT_GROUP);
+    });
+
+    // A single type keeps EditorFactory on the checkbox rather than the expression editor.
+    it("declares exactly one type", () => {
+        expect(buildIncludeContextField(TOOL_INPUT_GROUP).types).toEqual([{ fieldType: "FLAG", selected: true }]);
+    });
+
+    it("omits the group when a form has no card to host it", () => {
+        expect(buildIncludeContextField()).not.toHaveProperty("group");
     });
 });
 
