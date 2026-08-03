@@ -26,7 +26,6 @@ import {
     goToAgent,
     refreshNodeLineRangeFromArtifacts,
     removeAgentNode,
-    removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
 } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
