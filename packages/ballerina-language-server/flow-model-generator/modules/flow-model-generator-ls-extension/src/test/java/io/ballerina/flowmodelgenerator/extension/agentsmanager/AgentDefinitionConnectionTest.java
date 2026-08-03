@@ -165,14 +165,16 @@ public class AgentDefinitionConnectionTest extends AbstractLSTest {
 
         JsonObject response = getResponse(request, "flowDesignService/deleteClassMember");
         Map<String, List<TextEdit>> edits = gson.fromJson(response.getAsJsonObject("textEdits"), TEXT_EDITS_TYPE);
-        String generated = edits.values().stream().flatMap(List::stream).map(TextEdit::getNewText)
-                .reduce("", (left, right) -> left + "\n" + right);
 
         Assert.assertTrue(edits.values().stream().flatMap(List::stream)
                 .anyMatch(edit -> edit.getNewText().isEmpty()),
                 "Removing an MCP toolkit should delete field, assignment, and generated helper source ranges");
-        Assert.assertTrue(generated.contains("[self.askSpecialist]"));
-        Assert.assertFalse(generated.contains("self.weatherMcp"));
+        Assert.assertTrue(edits.values().stream().flatMap(List::stream)
+                .anyMatch(edit -> edit.getRange().getStart().getLine() == 15
+                        && edit.getRange().getStart().getCharacter() == 21
+                        && edit.getRange().getEnd().getLine() == 15
+                        && edit.getRange().getEnd().getCharacter() == 37),
+                "Removing an MCP toolkit should delete its entry from the agent's tool list");
     }
 
     @Override

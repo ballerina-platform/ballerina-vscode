@@ -135,7 +135,7 @@
             "character": 0
           }
         },
-        "newText": "# Looks up a value.\n# + query - The lookup query.\n# + return - The matching value.\n@ai:AgentTool {\n    auth: {\n        baseAuthUrl: \"https://auth.example.com\",\n        isPkceEnabled: true,\n        scopes: [string `read`]\n    }\n}\nisolated function lookup(string query) returns string {\n}"
+        "newText": "# Looks up a value.\n# + query - The lookup query.\n# + return - The matching value.\n@ai:AgentTool {\n    auth: {\n        baseAuthUrl: \"https://auth.example.com\",\n        isPkceEnabled: true,\n        scopes: [string `read`]\n    }\n}\nisolated function lookup(string query) returns string {\n    panic error(\"not implemented\");\n}"
       }
     ]
   }
