@@ -1,0 +1,146 @@
+{
+  "ai": {
+    "displayName": "AI Agent Services",
+    "icon": {
+      "glyph": "bi-ai-agent",
+      "kind": "ai"
+    }
+  },
+  "asb": {
+    "displayName": "Azure Service Bus Event Integration",
+    "icon": {
+      "glyph": "bi-asb",
+      "kind": "event"
+    }
+  },
+  "file": {
+    "displayName": "Local Files",
+    "icon": {
+      "glyph": "bi-file",
+      "kind": "file"
+    }
+  },
+  "ftp": {
+    "displayName": "FTP Integration",
+    "icon": {
+      "glyph": "bi-ftp",
+      "kind": "file"
+    },
+    "labelFields": [
+      "path"
+    ]
+  },
+  "graphql": {
+    "displayName": "GraphQL Service",
+    "icon": {
+      "glyph": "bi-graphql",
+      "kind": "graphql"
+    }
+  },
+  "http": {
+    "displayName": "HTTP Service",
+    "icon": {
+      "kind": "http"
+    }
+  },
+  "kafka": {
+    "displayName": "Kafka Event Integration",
+    "icon": {
+      "glyph": "bi-kafka",
+      "kind": "event"
+    }
+  },
+  "mqtt": {
+    "displayName": "MQTT Event Integration",
+    "icon": {
+      "glyph": "bi-mqtt",
+      "kind": "event"
+    }
+  },
+  "mssql": {
+    "displayName": "CDC MSSQL Service",
+    "icon": {
+      "glyph": "bi-mssql",
+      "kind": "event"
+    },
+    "labelFields": [
+      "tables"
+    ]
+  },
+  "mysql": {
+    "displayName": "CDC MySQL Service",
+    "icon": {
+      "glyph": "bi-mysql",
+      "kind": "event"
+    },
+    "labelFields": [
+      "tables"
+    ]
+  },
+  "postgresql": {
+    "displayName": "CDC PostgreSQL Service",
+    "icon": {
+      "glyph": "bi-postgresql",
+      "kind": "event"
+    },
+    "labelFields": [
+      "tables"
+    ]
+  },
+  "rabbitmq": {
+    "displayName": "RabbitMQ Event Integration",
+    "icon": {
+      "glyph": "bi-rabbitmq",
+      "color": "#f60",
+      "kind": "event"
+    },
+    "labelFields": [
+      "queueName"
+    ]
+  },
+  "salesforce": {
+    "displayName": "Salesforce Event Integration",
+    "icon": {
+      "glyph": "bi-salesforce",
+      "kind": "event"
+    }
+  },
+  "solace": {
+    "displayName": "Solace Event Integration",
+    "icon": {
+      "glyph": "bi-solace",
+      "kind": "event"
+    },
+    "labelFields": [
+      "queueName",
+      "topicName"
+    ]
+  },
+  "tcp": {
+    "displayName": "TCP Service",
+    "icon": {
+      "glyph": "bi-tcp",
+      "kind": "listener"
+    }
+  },
+  "trigger.github": {
+    "displayName": "GitHub Event Integration",
+    "icon": {
+      "glyph": "bi-github",
+      "kind": "event"
+    }
+  },
+  "trigger.shopify": {
+    "displayName": "Shopify Event Integration",
+    "icon": {
+      "glyph": "bi-shopify",
+      "kind": "event"
+    }
+  },
+  "trigger.twilio": {
+    "displayName": "Twilio Event Integration",
+    "icon": {
+      "kind": "event"
+    }
+  }
+}
