@@ -21,6 +21,9 @@ package io.ballerina.flowmodelgenerator.core.model;
 
 import io.ballerina.tools.text.LineRange;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Represents the codedata of a property.
  *
@@ -31,10 +34,11 @@ import io.ballerina.tools.text.LineRange;
  * @param searchNodesKind   For {@link Property.ValueType#CONNECTION} properties, the connection
  *                          category id (e.g., {@code "HTTP"}) used by the UI to filter the
  *                          picker and to surface a "create new connection" shortcut.
+ * @param data              Additional data (e.g. the connector identity for a connection-select param)
  * @since 1.0.0
  */
 public record PropertyCodedata(String kind, String originalName, String dependentProperty, LineRange lineRange,
-                               String searchNodesKind) {
+                               String searchNodesKind, Map<String, Object> data) {
 
     public static class Builder<T> extends FacetedBuilder<T> {
 
@@ -43,6 +47,7 @@ public record PropertyCodedata(String kind, String originalName, String dependen
         private String dependentProperty;
         private LineRange lineRange;
         private String searchNodesKind;
+        private Map<String, Object> data;
 
         public Builder(T parentBuilder) {
             super(parentBuilder);
@@ -73,6 +78,14 @@ public record PropertyCodedata(String kind, String originalName, String dependen
             return this;
         }
 
+        public Builder<T> addData(String key, Object value) {
+            if (data == null) {
+                data = new LinkedHashMap<>();
+            }
+            data.put(key, value);
+            return this;
+        }
+
         /**
          * Copies all fields from the given {@link PropertyCodedata} into this builder.
          * Centralises field-by-field copy logic so callers don't need to update when new
@@ -90,11 +103,12 @@ public record PropertyCodedata(String kind, String originalName, String dependen
             this.dependentProperty = source.dependentProperty();
             this.lineRange = source.lineRange();
             this.searchNodesKind = source.searchNodesKind();
+            this.data = source.data();
             return this;
         }
 
         public PropertyCodedata build() {
-            return new PropertyCodedata(kind, originalName, dependentProperty, lineRange, searchNodesKind);
+            return new PropertyCodedata(kind, originalName, dependentProperty, lineRange, searchNodesKind, data);
         }
     }
 }
