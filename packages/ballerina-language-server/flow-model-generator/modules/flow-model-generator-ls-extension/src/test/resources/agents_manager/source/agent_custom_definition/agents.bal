@@ -1,6 +1,8 @@
 import ballerina/ai;
 
 class CustomAgent {
+    *ai:FixedTypedAgent;
+
     private final ai:Agent agent;
 
     public function init(ai:ModelProvider model) returns error? {
