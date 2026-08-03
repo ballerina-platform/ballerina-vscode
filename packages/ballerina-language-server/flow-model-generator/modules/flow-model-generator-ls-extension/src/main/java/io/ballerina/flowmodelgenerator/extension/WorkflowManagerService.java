@@ -18,25 +18,37 @@
 
 package io.ballerina.flowmodelgenerator.extension;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.FutureTypeSymbol;
+import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
+import io.ballerina.compiler.api.symbols.ResourceMethodSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
+import io.ballerina.compiler.api.symbols.VariableSymbol;
+import io.ballerina.flowmodelgenerator.core.ActionSignatureAnalyzer;
+import io.ballerina.flowmodelgenerator.core.ActivityGenerator;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.flowmodelgenerator.extension.request.AnalyzeActivityActionRequest;
+import io.ballerina.flowmodelgenerator.extension.request.GenActivityRequest;
 import io.ballerina.flowmodelgenerator.extension.request.GetAllDataRequest;
+import io.ballerina.flowmodelgenerator.extension.response.AnalyzeActivityActionResponse;
+import io.ballerina.flowmodelgenerator.extension.response.GenActivityResponse;
 import io.ballerina.flowmodelgenerator.extension.response.GetAllDataResponse;
+import io.ballerina.projects.Module;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -104,6 +116,87 @@ public class WorkflowManagerService implements ExtendedLanguageServerService {
                 }
 
                 response.setData(dataArray);
+            } catch (Exception e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    /**
+     * Generates a {@code @workflow:Activity} function that wraps a connection action call, following
+     * the built-in activity pattern: the connection is the first parameter of the activity function.
+     *
+     * @param request The request containing the action call flow node, activity name/description,
+     *                activity parameters and the source connection name
+     * @return Response containing the text edits to apply
+     */
+    @JsonRequest
+    public CompletableFuture<GenActivityResponse> genActivity(GenActivityRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            GenActivityResponse response = new GenActivityResponse();
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                Optional<SemanticModel> semanticModel = this.workspaceManager.semanticModel(filePath);
+                Optional<Module> module = this.workspaceManager.module(filePath);
+                if (semanticModel.isEmpty() || module.isEmpty()) {
+                    throw new IllegalStateException(
+                            "Failed to resolve the semantic model or module for the file: " + filePath);
+                }
+                ActivityGenerator activityGenerator = new ActivityGenerator(semanticModel.get());
+                response.setTextEdits(activityGenerator.genActivity(request.flowNode(), request.activityName(),
+                        request.activityParameters(), request.connection(), request.description(),
+                        request.streamElementType(), request.connectionAsParam(),
+                        filePath, this.workspaceManager));
+            } catch (Exception e) {
+                response.setError(e);
+            }
+            return response;
+        });
+    }
+
+    /**
+     * Analyzes a connector action's signature for the create-activity-from-action wizard: derives the
+     * activity parameters (required/optional, data types only) and return type, or reports why the
+     * action cannot be wrapped automatically.
+     *
+     * @param request The request identifying the connection, action name, and action node kind
+     * @return Response carrying the analysis (supported, reasons, params, returnType, streamElementType)
+     */
+    @JsonRequest
+    public CompletableFuture<AnalyzeActivityActionResponse> analyzeActivityAction(
+            AnalyzeActivityActionRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            AnalyzeActivityActionResponse response = new AnalyzeActivityActionResponse();
+            try {
+                Path filePath = Path.of(request.filePath());
+                this.workspaceManager.loadProject(filePath);
+                SemanticModel semanticModel = FileSystemUtils.getSemanticModel(workspaceManager, filePath);
+
+                ClassSymbol connectionClass = semanticModel.moduleSymbols().stream()
+                        .filter(symbol -> symbol.kind() == SymbolKind.VARIABLE)
+                        .filter(symbol -> symbol.getName().orElse("").equals(request.connection()))
+                        .findFirst()
+                        .flatMap(symbol -> WorkflowUtil.resolveConnectionClass(
+                                ((VariableSymbol) symbol).typeDescriptor()))
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Connection '" + request.connection() + "' is not found in the module"));
+
+                // Connectors may define both a remote and a resource method with the same name
+                // (e.g. http:Client's get); the node kind disambiguates.
+                boolean wantResource = "RESOURCE_ACTION_CALL".equals(request.nodeKind());
+                MethodSymbol actionMethod = connectionClass.methods().values().stream()
+                        .filter(method -> method.getName().orElse("").equals(request.actionName()))
+                        .filter(method -> (method instanceof ResourceMethodSymbol) == wantResource)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "Action '" + request.actionName() + "' is not found on the connection '"
+                                        + request.connection() + "'"));
+
+                ActionSignatureAnalyzer.Analysis analysis =
+                        ActionSignatureAnalyzer.analyze(actionMethod, semanticModel);
+                response.setAnalysis(new Gson().toJsonTree(analysis));
             } catch (Exception e) {
                 response.setError(e);
             }

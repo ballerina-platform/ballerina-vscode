@@ -17,8 +17,8 @@
  * under the License.
  */
 import { test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { createArtifactAndGetWebview, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
@@ -30,12 +30,8 @@ export default function createTests() {
         test('Create Natural Function Artifact', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new natural function in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('Natural Function Artifact', 'bi-ai-function');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+
+            const artifactWebView = await createArtifactAndGetWebview('Natural Function Artifact', 'bi-ai-function');
             functionName = `sample${testAttempt}`;
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
@@ -48,23 +44,16 @@ export default function createTests() {
                 }
             });
             await form.submit('Create');
-            const context = artifactWebView.locator(`text=${functionName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${functionName}`).waitFor();
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `${functionName}`]);
-            const updateArtifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!updateArtifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
         });
 
         test('Editing Natural Function Artifact', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a natural function in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
+
             const editBtn = artifactWebView.locator('#bi-edit');
             await editBtn.waitFor();
             await editBtn.click({ force: true });
@@ -80,8 +69,7 @@ export default function createTests() {
                 }
             });
             await form.submit('Save');
-            const context = artifactWebView.locator(`text=${functionName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${functionName}`).waitFor();
             const contextReturnType = artifactWebView.locator('span:has(i.fw-bi-return)', { hasText: 'string' });
             await contextReturnType.waitFor();
         });

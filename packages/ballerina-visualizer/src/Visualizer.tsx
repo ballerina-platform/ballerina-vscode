@@ -27,6 +27,7 @@ import { DownloadIcon } from "./components/DownloadIcon";
 import { WebviewErrorBoundary } from "./components/WebviewErrorBoundary";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { LoadingRing } from "./components/Loader";
+import { AgentStatusOrb } from "./components/AgentStatusOrb";
 
 const MainPanel = React.lazy(() => import("./MainPanel"));
 const AIPanel = React.lazy(() => import("./views/AIPanel/AIPanel"));
@@ -142,7 +143,7 @@ export function Visualizer({ mode }: { mode: string }) {
                 {(() => {
                     switch (mode) {
                         case MODES.VISUALIZER:
-                            return <VisualizerComponent state={state} />
+                            return <><VisualizerComponent state={state} /><AgentStatusOrb /></>
                         case MODES.RUNTIME_SERVICES:
                             return <MainPanel />
                         case MODES.AI:

@@ -14,93 +14,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { DataMapperModelRequest, DataMappingRecord, DMModel, EnumType, IORoot, Mapping, RecordType } from "@wso2/ballerina-core";
-
-// =============================================================================
-// DATA MAPPING REQUEST/RESPONSE
-// =============================================================================
-
-export interface PackageInfo {
-    moduleName: string;
-    packageFilePath: string;
-}
+import { DataMappingRecord } from "@wso2/ballerina-core";
 
 export interface TypesGenerationResult {
     typesCode: string;
     filePath: string;
     recordMap: Map<string, DataMappingRecord>;
-}
-
-export interface DataModelStructure {
-    inputs: IORoot[];
-    output: IORoot;
-    refs: Record<string, RecordType | EnumType>;
-}
-
-// =============================================================================
-// DATAMAPPER CODE GENERATION
-// =============================================================================
-
-export interface DatamapperResponse {
-    mappings: Mapping[];
-}
-
-// =============================================================================
-// DATAMAPPER CODE REPAIR
-// =============================================================================
-
-export interface RepairedMapping {
-    output: string;     
-    expression: string;
-}
-
-export interface RepairedMappings {
-    repairedMappings: RepairedMapping[];
-}
-
-export interface DMModelDiagnosticsResult {
-    dataMapperMetadata: DataMapperModelRequest;
-    dmModel: DMModel;
-}
-
-export interface CodeRepairResult {
-    finalContent: string;
-    customFunctionsContent: string;
-}
-
-// =============================================================================
-// MAPPING HINTS
-// =============================================================================
-
-export interface MappingField {
-    MAPPING_TIP: string;
-    INPUT_FIELDS: string[];
-}
-
-export type MappingFields = MappingField | { [key: string]: MappingFields };
-
-// =============================================================================
-// CHAT API
-// =============================================================================
-
-export interface ChatMessage {
-    role: string;
-    content: string;
-}
-
-export interface ChatChoice {
-    message: ChatMessage;
-    index: number;
-    finish_reason: string;
-}
-
-export interface ChatResponse {
-    choices: ChatChoice[];
-    usage?: {
-        prompt_tokens: number;
-        completion_tokens: number;
-        total_tokens: number;
-    };
 }
 
 // =============================================================================
@@ -122,15 +41,17 @@ export type ContentPart = {
 
 export type FileTypeHandler = (file: FileData, includeFileName: boolean) => ContentPart;
 
-export type ProcessType = "mapping_instruction" | "records" | "requirements";
+export enum ProcessType {
+    Records = "records",
+    Requirements = "requirements",
+}
 
-export type DataMapperRequest = {
+export type AttachmentProcessRequest = {
     files: FileData[];
     text?: string;
     processType: ProcessType;
-    isRequirementAnalysis?: boolean; //TODO: Why is this
 };
 
-export type DataMapperResponse = {
+export type AttachmentProcessResponse = {
     fileContent: string;
 };

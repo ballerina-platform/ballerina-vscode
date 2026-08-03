@@ -1,0 +1,309 @@
+name: Release / Pre-release Build
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      isPreRelease:
+        description: 'Pre-release: an even snapshot minor becomes the previous odd minor with a timestamped patch, and the VSIX is packaged with --pre-release. Unchecked = a real release at the extension version minus -SNAPSHOT'
+        required: true
+        type: boolean
+        default: true
+      githubRelease:
+        description: 'Create the GitHub Release and tag with both VSIX and LS JAR assets, and publish the LS Maven package to GitHub Packages. For a real release, also perform release branch/follow-up PR handling. Unchecked = build artifacts only'
+        required: false
+        type: boolean
+        default: false
+      runFrontendTests:
+        description: 'Run frontend tests (jest fast tests + Ballerina e2e)'
+        type: boolean
+        required: false
+        default: false
+      runBackendTests:
+        description: 'Run backend tests (Ballerina language server tests)'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  Build:
+    name: Build branch - ${{ github.ref_name }}
+    uses: ./.github/workflows/reusable-build.yml
+    secrets:
+      COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
+      COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
+      APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+    with:
+      runOnAWS: false
+      isPreRelease: ${{ inputs.isPreRelease }}
+      enableCache: false
+      ballerina: true
+      isReleaseBuild: true
+      runFastTests: ${{ inputs.runFrontendTests }}
+      runBalE2ETests: ${{ inputs.runFrontendTests }}
+      runLSTests: ${{ inputs.runBackendTests }}
+
+  Release:
+    name: Release VSIX and language server
+    needs: Build
+    if: ${{ inputs.githubRelease }}
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.11.0
+          node: 22.x
+          cache-rush: false
+          cache-pnpm: false
+          set-env: false
+          rush-install: true
+
+      - name: Set up JDK 21 for language-server publication
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: 'temurin'
+          java-version: 21.0.3
+
+      - name: Setup Gradle for language-server publication
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Set up Ballerina for language-server publication
+        uses: ./.github/actions/setup-ballerina
+
+      - name: Get version
+        id: vsix
+        run: |
+          file=$(ls ballerina-[0-9]*.[0-9]*.[0-9]*.vsix)
+          vsixName=$(basename "$file" .vsix)
+          echo "numericVersion=${vsixName#ballerina-}" >> $GITHUB_OUTPUT
+
+      - name: Initiate release thread
+        env:
+          CHAT_API: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+        run: |
+          # Unset on a fork, where this step would otherwise curl a URL that is just the
+          # query string, fail, and take the job down before the release is created.
+          if [ -z "${CHAT_API}" ]; then
+            echo "::notice::EDITOR_TEAM_CHAT_API is not set; skipping the release thread."
+            exit 0
+          fi
+          RELEASE_TYPE=${{ inputs.isPreRelease == true && 'Pre-release' || 'Release' }}
+          body=$(cat << EOF
+          {
+            "thread": {"threadKey": "ballerina-release-${{ github.run_id }}"},
+            "cards": [
+              {
+                "header": {
+                  "title": "Ballerina v${{ steps.vsix.outputs.numericVersion }} $RELEASE_TYPE",
+                  "subtitle": "${{ github.ref_name }} · triggered by ${{ github.actor }}"
+                },
+                "sections": [
+                  {
+                    "widgets": [
+                      {
+                        "keyValue": {
+                          "topLabel": "Status",
+                          "content": "Release workflow started",
+                          "button": {
+                            "textButton": {
+                              "text": "View Workflow",
+                              "onClick": {
+                                "openLink": {
+                                  "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+          curl -X POST \
+            -H 'Content-Type: application/json' \
+            "${CHAT_API}&messageReplyOption=REPLY_MESSAGE_FALLBACK_TO_NEW_THREAD" \
+            -d "$body"
+
+      # Both release modes create a GitHub release. Pre-releases use the timestamped
+      # version derived during the build; releases use the concrete extension version.
+      - name: Create a release in ${{ github.repository }} repo
+        uses: ./.github/actions/release
+        with:
+          repo: ${{ github.repository }}
+          name: ballerina
+          # The workflow sends its single completion announcement only after the
+          # matching LS Maven package has also been published.
+          chatAPI: ''
+          # Real releases only: commit the version the build packaged (updateVersion wrote it
+          # into the working tree, so it exists in no commit yet) and push 'release/<version>'
+          # at that commit, which is then what the tag points at. Pre-releases keep tagging
+          # the dispatched commit and create no branch.
+          releaseBranch: ${{ inputs.isPreRelease == false }}
+          ballerina: true
+          # The GitHub label follows the operator's flag, rather than being created as a
+          # pre-release and demoted by publish-vsix.yml — a release cut without running
+          # that workflow would otherwise stay mislabelled with nothing to signal it.
+          prerelease: ${{ inputs.isPreRelease }}
+          # Attach the bundled language server too, so it is downloadable on its own —
+          # debugging an LS regression, or pointing an existing install at it via the
+          # ballerina.langServerPath setting. This is the exact jar inside the VSIX
+          # (the extension's copyLS command put it there) packed at the same version,
+          # so the two assets can never disagree about what was built.
+          extraAssets: packages/ballerina-extension/ls/ballerina-language-server-*.jar
+
+      # Publish only after the GitHub Release and its assets exist. Publication uses
+      # the exact jar already bundled in the VSIX and uploaded to the release. On a
+      # rerun, a Maven 409 is accepted only after downloading the existing package
+      # and proving that its SHA-256 matches this canonical jar.
+      - name: Publish language server to GitHub Packages
+        working-directory: packages/ballerina-language-server
+        env:
+          packageUser: ${{ secrets.BALLERINA_BOT_USERNAME }}
+          packagePAT: ${{ secrets.BALLERINA_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${packageUser}" ] || [ -z "${packagePAT}" ]; then
+            echo "::error::BALLERINA_BOT_USERNAME and BALLERINA_BOT_TOKEN are required to publish the language-server package."
+            exit 1
+          fi
+
+          version=$(node -p "require('../ballerina-extension/package.json').version")
+          canonicalJar="../ballerina-extension/ls/ballerina-language-server-${version}.jar"
+          if [ ! -f "${canonicalJar}" ]; then
+            echo "::error::Canonical language-server jar is missing: ${canonicalJar}"
+            exit 1
+          fi
+          echo "Publishing io.ballerina:ballerina-language-server:${version} to GitHub Packages"
+
+          set +e
+          ./gradlew -Pversion="${version}" \
+            -PpublicationArtifact="${canonicalJar}" \
+            publishMavenJavaPublicationToGitHubPackagesRepository \
+            -x check -x test 2>&1 | tee publish.log
+          publishStatus=${PIPESTATUS[0]}
+          set -e
+
+          if [ "${publishStatus}" -eq 0 ]; then
+            exit 0
+          fi
+          if grep -Eq 'status code 409|409 Conflict' publish.log; then
+            existingJar=$(mktemp "${RUNNER_TEMP}/ballerina-language-server.XXXXXX.jar")
+            packageUrl="https://maven.pkg.github.com/ballerina-platform/ballerina-language-server/io/ballerina/ballerina-language-server/${version}/ballerina-language-server-${version}.jar"
+            if ! curl --fail --silent --show-error --location \
+              --user "${packageUser}:${packagePAT}" \
+              --output "${existingJar}" \
+              "${packageUrl}"; then
+              echo "::error::The package version exists, but its jar could not be downloaded for identity verification."
+              exit "${publishStatus}"
+            fi
+
+            canonicalHash=$(sha256sum "${canonicalJar}" | cut -d ' ' -f 1)
+            existingHash=$(sha256sum "${existingJar}" | cut -d ' ' -f 1)
+            if [ "${canonicalHash}" != "${existingHash}" ]; then
+              echo "::error::Existing language-server package ${version} does not match the canonical release jar."
+              echo "::error::Canonical SHA-256: ${canonicalHash}; package SHA-256: ${existingHash}"
+              exit 1
+            fi
+
+            echo "::notice::Language-server package ${version} already exists and matches the canonical release jar."
+            exit 0
+          fi
+          exit "${publishStatus}"
+
+      - name: Release Announcement
+        env:
+          CHAT_API: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+        run: |
+          if [ -z "${CHAT_API}" ]; then
+            echo "::notice::EDITOR_TEAM_CHAT_API is not set; skipping the release announcement."
+            exit 0
+          fi
+          body=$(cat << EOF
+          {
+            "cards": [
+              {
+                "header": {
+                  "title": "Ballerina v${{ steps.vsix.outputs.numericVersion }} Released",
+                  "subtitle": "VS Code Extension"
+                },
+                "sections": [
+                  {
+                    "widgets": [
+                      {
+                        "keyValue": {
+                          "topLabel": "Release",
+                          "content": "v${{ steps.vsix.outputs.numericVersion }}",
+                          "button": {
+                            "textButton": {
+                              "text": "Download",
+                              "onClick": {
+                                "openLink": {
+                                  "url": "https://github.com/${{ github.repository }}/releases/tag/v${{ steps.vsix.outputs.numericVersion }}"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+          curl -X POST \
+            -H 'Content-Type: application/json' \
+            "${CHAT_API}" \
+            -d "$body"
+
+      # No 'version' input: the action reads the released version from the extension package.json,
+      # which is what the build packaged. Passing it in meant passing the VSIX basename.
+      - name: Create PR and notify
+        uses: ./.github/actions/pr
+        with:
+          isPreRelease: ${{ inputs.isPreRelease }}
+          ref_name: ${{ github.ref_name }}
+          chatAPI: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+          threadKey: ballerina-release-${{ github.run_id }}
+
+  Notify:
+    needs: [Release]
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: "Failure Notification"
+        uses: ./.github/actions/failure-notification
+        with:
+          title: "Release Build Failed"
+          run_id: ${{ github.run_id }}
+          chat_api: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+          repository: ${{ github.repository }}
+          thread_key: ballerina-release-${{ github.run_id }}

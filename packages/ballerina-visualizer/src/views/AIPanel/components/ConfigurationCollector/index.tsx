@@ -16,11 +16,11 @@
  * under the License.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "@emotion/styled";
 import { Button, Codicon, ThemeColors } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ConfigurationCollectorMetadata, ParentPopupData } from "@wso2/ballerina-core";
+import { ConfigurationCollectorMetadata, ManagedConnectionGroup, ParentPopupData } from "@wso2/ballerina-core";
 import {
     PopupOverlay,
     PopupContainer,
@@ -176,6 +176,67 @@ const FooterHint = styled.span`
 
 const ActionButton = styled(Button)``;
 
+// One managed group per card: the Connect action, then the configurables it fills.
+const GroupCard = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 8px;
+`;
+
+const ManagedAction = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 0;
+`;
+
+// Holds the glyph outside the Button's slot — a Codicon there renders in a 14px box around a
+// 16px glyph and overlaps the label.
+const ManagedNote = styled.div<{ connected: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    text-align: center;
+    color: ${(props: { connected: boolean }) =>
+        props.connected ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE_VARIANT};
+`;
+
+const ConnectionErrorText = styled.div`
+    font-size: 12px;
+    color: ${ThemeColors.ERROR};
+    text-align: center;
+`;
+
+const Divider = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    font-size: 12px;
+
+    &::before,
+    &::after {
+        content: "";
+        flex: 1;
+        border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    }
+`;
+
+const GroupFields = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+`;
+
 const LoadingContainer = styled.div`
     display: flex;
     align-items: center;
@@ -250,6 +311,16 @@ function getFieldConfig(type: string | undefined): FieldConfig {
 
 function isPlaceholderValue(value: string | undefined | null): boolean {
     return typeof value === "string" && /^\$\{[^}]+\}$/.test(value);
+}
+
+// Providers arrive as catalog slugs ("google-sheets"). Done in JS, not `text-transform`, because
+// the label sits in a web-component slot and capitalize would mangle "GitHub".
+function formatVendor(vendor: string): string {
+    return vendor
+        .split(/[-_.\s]+/)
+        .filter(Boolean)
+        .map((word) => (word === word.toLowerCase() ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+        .join(" ");
 }
 
 function getEmptyFieldNames(
@@ -368,6 +439,14 @@ export const ConfigurationCollector: React.FC<ConfigurationCollectorProps> = ({ 
     const [mode, setMode] = useState<CollectorMode>("editing");
     const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
     const [submitError, setSubmitError] = useState<string | null>(null);
+    // Every write replaces the whole entry, so loading/connected/error never disagree.
+    const [connectionState, setConnectionState] = useState<Record<string, { loading: boolean; connected?: boolean; error?: string }>>({});
+    // Bumped by cancel or a new attempt, so an in-flight attempt can tell its result is no longer
+    // wanted — a cancelled attempt still resolves, as a failure the user didn't cause.
+    const connectionRunId = useRef(0);
+    // `data` is rebuilt on every visualizer-location fetch, so only requestId tells a new request
+    // apart from a refetch of the same one.
+    const shownRequestId = useRef(data?.requestId);
 
     useEffect(() => {
         setConfigValues(buildInitialValues(data));
@@ -375,7 +454,83 @@ export const ConfigurationCollector: React.FC<ConfigurationCollectorProps> = ({ 
         setErrors({});
         setMode("editing");
         setSubmitError(null);
+        setConnectionState({});
+        // A new request invalidates any in-flight connect from the previous one, so its result
+        // cannot write stale credentials into this form.
+        if (data?.requestId !== shownRequestId.current) {
+            shownRequestId.current = data?.requestId;
+            connectionRunId.current++;
+        }
     }, [data]);
+
+    // Takes the group, not a key: `vendor` is not unique across groups, so looking up by vendor
+    // would fill the wrong client's fields. All per-group state is keyed by `group.id`.
+    const handleConnect = useCallback(async (group: ManagedConnectionGroup) => {
+        const runId = ++connectionRunId.current;
+        setConnectionState((prev) => ({ ...prev, [group.id]: { loading: true } }));
+
+        try {
+            const response = await rpcClient.getAiPanelRpcClient().createManagedConnection({
+                vendor: group.vendor,
+                authType: group.authType,
+            });
+
+            // Superseded by a cancel or a newer attempt — drop this result entirely rather
+            // than filling fields or reporting a failure the user already walked away from.
+            if (connectionRunId.current !== runId) { return; }
+
+            if (response.success && response.credentials) {
+                // Functional update: the consent round-trip takes minutes, so a snapshot from
+                // click time would silently revert any edits made meanwhile.
+                setConfigValues((prev) => {
+                    const next = { ...prev };
+                    for (const variable of group.variables) {
+                        const value = response.credentials[variable.credentialField];
+                        if (value) {
+                            next[variable.name] = value;
+                        }
+                    }
+                    // The proxy /token endpoint, returned per connection. Refresh grant only.
+                    if (group.refreshUrlVar && response.credentials.refreshUrl) {
+                        next[group.refreshUrlVar] = response.credentials.refreshUrl;
+                    }
+                    return next;
+                });
+                setErrors((prev) => {
+                    const next = { ...prev };
+                    for (const variable of group.variables) {
+                        delete next[variable.name];
+                    }
+                    if (group.refreshUrlVar) {
+                        delete next[group.refreshUrlVar];
+                    }
+                    return next;
+                });
+                setMode((current) => (current === "confirming" ? "editing" : current));
+                setSubmitError(null);
+                setConnectionState((prev) => ({ ...prev, [group.id]: { loading: false, connected: true } }));
+            } else {
+                setConnectionState((prev) => ({
+                    ...prev,
+                    [group.id]: { loading: false, error: response.error || "Could not create the managed connection." },
+                }));
+            }
+        } catch (error: any) {
+            if (connectionRunId.current !== runId) { return; }
+            setConnectionState((prev) => ({
+                ...prev,
+                [group.id]: { loading: false, error: error.message || "Could not create the managed connection." },
+            }));
+        }
+    }, [rpcClient]);
+
+    // Invalidate the run id first so the abandoned attempt returns to an already-reset card
+    // instead of flashing an error.
+    const handleCancelConnect = useCallback((group: ManagedConnectionGroup) => {
+        connectionRunId.current++;
+        setConnectionState((prev) => ({ ...prev, [group.id]: { loading: false } }));
+        rpcClient.getAiPanelRpcClient().cancelManagedConnection();
+    }, [rpcClient]);
 
     const handleInputChange = (variableName: string, value: string) => {
         setConfigValues((prev) => ({ ...prev, [variableName]: value }));
@@ -506,18 +661,95 @@ export const ConfigurationCollector: React.FC<ConfigurationCollectorProps> = ({ 
                 </PopupHeader>
                 <PopupContent>
                     <FormSection>
-                        {data.variables?.map((variable) => (
-                            <ConfigField
-                                key={variable.name}
-                                variable={variable}
-                                value={configValues[variable.name] ?? ""}
-                                error={errors[variable.name]}
-                                isVisible={visibleFields[variable.name] ?? false}
-                                onToggleVisibility={() => setVisibleFields((prev) => ({ ...prev, [variable.name]: !prev[variable.name] }))}
-                                onChange={handleInputChange}
-                                onKeyDown={handleKeyDown}
-                            />
-                        ))}
+                        {data.managedConnections?.map((group) => {
+                            const vendorState = connectionState[group.id] || { loading: false };
+                            const anyConnectionLoading = Object.values(connectionState).some((s) => s.loading);
+                            const groupVarNames = new Set(group.variables.map((v) => v.name));
+                            // refreshUrl is auto-filled by Connect but still user-editable, so it
+                            // belongs to the group's field list.
+                            const groupFields = (data.variables ?? []).filter(
+                                (v) => groupVarNames.has(v.name) || v.name === group.refreshUrlVar
+                            );
+                            return (
+                                <GroupCard key={group.id}>
+                                    {/* Above the fields: Connect populates them, so below it would
+                                        read as the form's submit button. */}
+                                    <ManagedAction>
+                                        {vendorState.loading ? (
+                                            <Button
+                                                appearance="secondary"
+                                                onClick={() => handleCancelConnect(group)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                appearance="primary"
+                                                onClick={() => handleConnect(group)}
+                                                disabled={anyConnectionLoading || mode === "processing"}
+                                            >
+                                                {`Connect ${formatVendor(group.vendor)}`}
+                                            </Button>
+                                        )}
+                                        <ManagedNote connected={!!vendorState.connected}>
+                                            <Codicon name={vendorState.connected ? "check" : "plug"} />
+                                            <span>
+                                                {vendorState.loading
+                                                    ? "Complete the sign-in in your browser."
+                                                    : vendorState.connected
+                                                        ? "Connected"
+                                                        : "Creates a WSO2-managed connection."}
+                                            </span>
+                                        </ManagedNote>
+                                        {vendorState.error && (
+                                            <ConnectionErrorText>{vendorState.error}</ConnectionErrorText>
+                                        )}
+                                    </ManagedAction>
+                                    <Divider>or enter custom credentials</Divider>
+                                    <GroupFields>
+                                        {groupFields.map((variable) => (
+                                            <ConfigField
+                                                key={variable.name}
+                                                variable={variable}
+                                                value={configValues[variable.name] ?? ""}
+                                                error={errors[variable.name]}
+                                                isVisible={visibleFields[variable.name] ?? false}
+                                                onToggleVisibility={() => setVisibleFields((prev) => ({ ...prev, [variable.name]: !prev[variable.name] }))}
+                                                onChange={handleInputChange}
+                                                onKeyDown={handleKeyDown}
+                                            />
+                                        ))}
+                                    </GroupFields>
+                                </GroupCard>
+                            );
+                        })}
+                        {(() => {
+                            const managedVarNames = new Set(
+                                (data.managedConnections || []).flatMap((g) => [
+                                    ...g.variables.map((v) => v.name),
+                                    ...(g.refreshUrlVar ? [g.refreshUrlVar] : []),
+                                ])
+                            );
+                            const remainingVars = data.variables?.filter((v) => !managedVarNames.has(v.name)) || [];
+                            if (remainingVars.length === 0) return null;
+                            return (
+                                <>
+                                    {data.managedConnections?.length ? <Divider>Other Configuration</Divider> : null}
+                                    {remainingVars.map((variable) => (
+                                        <ConfigField
+                                            key={variable.name}
+                                            variable={variable}
+                                            value={configValues[variable.name] ?? ""}
+                                            error={errors[variable.name]}
+                                            isVisible={visibleFields[variable.name] ?? false}
+                                            onToggleVisibility={() => setVisibleFields((prev) => ({ ...prev, [variable.name]: !prev[variable.name] }))}
+                                            onChange={handleInputChange}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                    ))}
+                                </>
+                            );
+                        })()}
                     </FormSection>
                 </PopupContent>
                 {mode === "confirming" && emptyNames.length > 0 && (

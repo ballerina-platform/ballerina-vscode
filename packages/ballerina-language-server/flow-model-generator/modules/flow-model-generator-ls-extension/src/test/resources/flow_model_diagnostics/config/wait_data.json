@@ -4,7 +4,7 @@
   "flowNode": {
     "id": "31",
     "metadata": {
-      "label": "Wait for Data",
+      "label": "Await Data",
       "description": "Wait for workflow data to be received"
     },
     "codedata": {
@@ -332,9 +332,9 @@
   "output": {
     "id": "35788",
     "metadata": {
-      "label": "Wait for Data",
+      "label": "Await Data",
       "description": "Wait for workflow data to be received",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.5.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
     },
     "codedata": {
       "node": "WAIT_DATA",
@@ -343,7 +343,7 @@
       "packageName": "workflow",
       "object": "Context",
       "symbol": "await",
-      "version": "0.5.0",
+      "version": "0.7.0",
       "lineRange": {
         "fileName": "functions.bal",
         "startLine": {
@@ -386,12 +386,12 @@
           "kind": "DEFAULTABLE",
           "originalName": "minCount"
         },
-        "defaultValue": "<int:Unsigned32>futures.length()"
+        "defaultValue": "0"
       },
       "timeout": {
         "metadata": {
           "label": "Timeout",
-          "description": "Maximum wait duration; returns error on timeout"
+          "description": "Maximum wait duration; returns an error on timeout"
         },
         "types": [
           {

@@ -1,5 +1,5 @@
 # Custom Library Instructions for Copilot 
-This directory contains custom instructions to enhance the performance specific library usages of BI Copilot.
+This directory contains custom instructions to enhance the performance specific library usages of WSO2 Integrator Copilot.
 
 
 ## How to Contribute

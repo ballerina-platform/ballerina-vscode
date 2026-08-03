@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import * as vscode from 'vscode';
 import { commands, window, workspace as vscodeWorkspace } from 'vscode';
 import { BallerinaExtension, ExtendedLangClient } from '../../core';
 import { activateCopilotLoginCommand, resetBIAuth } from './completions';
@@ -40,12 +41,25 @@ import { resolveProjectPath } from '../../utils/project-utils';
 import { MESSAGES } from '../project';
 import { AICommandConfig } from './executors/base/AICommandExecutor';
 import { AgentExecutor } from './agent/AgentExecutor';
-import { initMcpClientManager, disposeMcpClientManager, watchMcpConfig, getMcpClientManager, type EnabledOverrideStore } from './agent/mcp';
+import {
+    initMcpClientManager,
+    disposeMcpClientManager,
+    watchMcpConfig,
+    getMcpClientManager,
+    isMcpToolsEnabled,
+    MCP_ENABLE_SETTING_KEY,
+    type EnabledOverrideStore,
+    type McpClientManager
+} from './agent/mcp';
 import { registerAgentsMdWatcher } from './agent/agents-md';
 import { resolveProjectRootPath } from './agent';
 import { extension } from '../../BalExtensionContext';
 import { notifyMcpServersChanged, notifyMcpLoadErrorsChanged } from '../../RPCLayer';
 import { sendConfigChangeNotification } from './utils/ai-utils';
+import { captureWorkspaceSnapshot, restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
+import { integrateCodeToWorkspace } from './agent/utils';
+import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
+import { agentStatusManager } from './state/AgentStatusManager';
 
 /**
  * Parameters for test-mode code generation
@@ -80,6 +94,9 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
     resetBIAuth();
     activateMcp();
     extension.context?.subscriptions.push(registerAgentsMdWatcher());
+    if (extension.context) {
+        agentStatusManager.init(extension.context);
+    }
 
     // Register commands in test environment to test the AI features
     if (process.env.AI_TEST_ENV) {
@@ -156,6 +173,20 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
 
         commands.registerCommand('ballerina.test.ai.toMaximizedLibrariesFromLibJson', async (functionResponses: any[], originalLibraries: any[]) => {
             return await toMaximizedLibrariesFromLibJson(functionResponses, originalLibraries);
+        });
+
+        // Checkpoint/revert and live-integration test commands (exercise the real, activated
+        // extension instance rather than a freshly re-required, unactivated module copy).
+        commands.registerCommand('ballerina.test.ai.captureCheckpoint', async (messageId: string): Promise<Checkpoint | null> => {
+            return await captureWorkspaceSnapshot(messageId);
+        });
+
+        commands.registerCommand('ballerina.test.ai.restoreCheckpoint', async (checkpoint: Checkpoint, skipArtifactWait?: boolean): Promise<void> => {
+            return await restoreWorkspaceSnapshot(checkpoint, skipArtifactWait);
+        });
+
+        commands.registerCommand('ballerina.test.ai.integrateCodeToWorkspace', async (tempProjectPath: string, modifiedFiles: string[], ctx: ExecutionContext): Promise<void> => {
+            return await integrateCodeToWorkspace(tempProjectPath, new Set(modifiedFiles), ctx);
         });
     }
 
@@ -242,87 +273,99 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
     });
 }
 
-const MCP_ENABLED_OVERRIDE_KEY = 'ballerina.copilot.mcp.enabledOverrides';
-const MCP_ENABLE_SETTING = 'copilot.enableMcpTools';
-
-let mcpWatchDisposer: (() => void) | null = null;
-let mcpTrustDisposable: { dispose(): void } | null = null;
-
-// MCP runs only when the user enabled it.
+// MCP runs when the user enabled it, or when the project carries a `.mcp.json`.
 function isMcpEnabled(): boolean {
-    return vscodeWorkspace.getConfiguration('ballerina').get<boolean>(MCP_ENABLE_SETTING, false);
+    return isMcpToolsEnabled(resolveProjectRootPath() || undefined);
 }
 
-function setupMcp(): void {
-    if (getMcpClientManager()) {
-        // Already set up; nothing to do.
+/** Pushes the given manager's current state to the webview, unless it's since been torn down. */
+function pushMcpUpdate(manager: McpClientManager): void {
+    if (getMcpClientManager() !== manager) {
         return;
     }
+    try {
+        notifyMcpServersChanged(manager.listServers());
+        notifyMcpLoadErrorsChanged(manager.getLoadErrors());
+    } catch (err) {
+        console.warn('[mcp] Failed to push servers-changed notification:', err);
+    }
+}
+
+// Returns the manager's initial-refresh promise so callers can await first setup finishing
+// before a subsequent queued transition (e.g. a rapid disable) is allowed to run.
+function setupMcp(): Promise<void> {
+    if (getMcpClientManager()) {
+        // Already set up; nothing to do.
+        return Promise.resolve();
+    }
     // Override store keys are `${scope}:${name}` (e.g. `workspace:foo`).
+    function readMcpOverrideMap(): Record<string, boolean> {
+        const mcp = vscodeWorkspace.getConfiguration('ballerina.copilot').get<any>('mcp', {});
+        const map: Record<string, boolean> = {};
+        for (const k of mcp.disabledServers ?? []) { map[k] = false; }
+        for (const k of mcp.enabledServers  ?? []) { map[k] = true;  }
+        return map;
+    }
+
+    function mcpConfigTarget(): vscode.ConfigurationTarget {
+        return vscodeWorkspace.workspaceFolders?.length
+            ? vscode.ConfigurationTarget.Workspace
+            : vscode.ConfigurationTarget.Global;
+    }
+
     const overrides: EnabledOverrideStore = {
         get(scopedKey) {
-            const map = extension.context?.globalState.get<Record<string, boolean>>(MCP_ENABLED_OVERRIDE_KEY) ?? {};
+            const map = readMcpOverrideMap();
             return Object.prototype.hasOwnProperty.call(map, scopedKey) ? map[scopedKey] : undefined;
         },
         async set(scopedKey, enabled) {
-            const map = { ...(extension.context?.globalState.get<Record<string, boolean>>(MCP_ENABLED_OVERRIDE_KEY) ?? {}) };
-            map[scopedKey] = enabled;
-            await extension.context?.globalState.update(MCP_ENABLED_OVERRIDE_KEY, map);
+            const cfg = vscodeWorkspace.getConfiguration('ballerina.copilot');
+            const target = mcpConfigTarget();
+            const di = cfg.inspect<any>('mcp');
+            const mcp = { ...(target === vscode.ConfigurationTarget.Workspace
+                ? (di?.workspaceValue ?? {}) : (di?.globalValue ?? {})) };
+            mcp.disabledServers = (mcp.disabledServers ?? []).filter((k: string) => k !== scopedKey);
+            mcp.enabledServers  = (mcp.enabledServers  ?? []).filter((k: string) => k !== scopedKey);
+            if (enabled) { mcp.enabledServers.push(scopedKey); } else { mcp.disabledServers.push(scopedKey); }
+            await cfg.update('mcp', mcp, target);
+            if (target === vscode.ConfigurationTarget.Workspace) {
+                const gv = { ...(di?.globalValue ?? {}) };
+                gv.disabledServers = (gv.disabledServers ?? []).filter((k: string) => k !== scopedKey);
+                gv.enabledServers  = (gv.enabledServers  ?? []).filter((k: string) => k !== scopedKey);
+                await cfg.update('mcp', gv, vscode.ConfigurationTarget.Global);
+            }
         },
         async delete(scopedKey) {
-            const current = extension.context?.globalState.get<Record<string, boolean>>(MCP_ENABLED_OVERRIDE_KEY) ?? {};
-            if (!Object.prototype.hasOwnProperty.call(current, scopedKey)) { return; }
-            const map = { ...current };
-            delete map[scopedKey];
-            await extension.context?.globalState.update(MCP_ENABLED_OVERRIDE_KEY, map);
+            const cfg = vscodeWorkspace.getConfiguration('ballerina.copilot');
+            const target = mcpConfigTarget();
+            const di = cfg.inspect<any>('mcp');
+            const mcp = { ...(target === vscode.ConfigurationTarget.Workspace
+                ? (di?.workspaceValue ?? {}) : (di?.globalValue ?? {})) };
+            mcp.disabledServers = (mcp.disabledServers ?? []).filter((k: string) => k !== scopedKey);
+            mcp.enabledServers  = (mcp.enabledServers  ?? []).filter((k: string) => k !== scopedKey);
+            await cfg.update('mcp', mcp, target);
+            if (target === vscode.ConfigurationTarget.Workspace) {
+                const gv = { ...(di?.globalValue ?? {}) };
+                gv.disabledServers = (gv.disabledServers ?? []).filter((k: string) => k !== scopedKey);
+                gv.enabledServers  = (gv.enabledServers  ?? []).filter((k: string) => k !== scopedKey);
+                await cfg.update('mcp', gv, vscode.ConfigurationTarget.Global);
+            }
         },
-        keys() {
-            return Object.keys(extension.context?.globalState.get<Record<string, boolean>>(MCP_ENABLED_OVERRIDE_KEY) ?? {});
-        },
+        keys() { return Object.keys(readMcpOverrideMap()); },
     };
     const workspacePath = resolveProjectRootPath() || undefined;
     const workspaceTrusted = vscodeWorkspace.isTrusted;
     const manager = initMcpClientManager(overrides, workspacePath, workspaceTrusted);
-    const pushUpdate = () => {
-        // A refresh in flight at teardown could otherwise re-publish this disposed
-        // manager's state after the empty disabled state was already sent.
-        if (getMcpClientManager() !== manager) {
-            return;
-        }
-        try {
-            notifyMcpServersChanged(manager.listServers());
-            notifyMcpLoadErrorsChanged(manager.getLoadErrors());
-        } catch (err) {
-            console.warn('[mcp] Failed to push servers-changed notification:', err);
-        }
-    };
-    // Initial connect — fire and forget; failures are recorded per-server, not thrown.
-    manager.refresh()
+    // Trust changes and file edits both flow through reevaluate()'s single reconciler
+    // below, which keeps an already-running manager's trust flag and config in sync —
+    // no separate trust listener needed here.
+    return manager.refresh()
         .then(() => manager.pruneOrphanOverrides())
-        .then(pushUpdate)
+        .then(() => pushMcpUpdate(manager))
         .catch(err => console.warn('[mcp] Initial refresh failed:', err));
-    // Project-tree .mcp.json is watched too; the watcher fires whether or not
-    // workspace trust has been granted, but loadMcpConfig will skip the file
-    // until trust + workspace path are both set.
-    mcpWatchDisposer = watchMcpConfig(workspacePath, () => {
-        manager.refresh().then(pushUpdate).catch(err => console.warn('[mcp] Watch-triggered refresh failed:', err));
-    });
-    // React to workspace trust being granted mid-session — workspace-scope
-    // servers come online without a window reload.
-    mcpTrustDisposable = vscodeWorkspace.onDidGrantWorkspaceTrust(() => {
-        manager.setWorkspaceTrusted(true).then(pushUpdate).catch(err => console.warn('[mcp] Trust-grant refresh failed:', err));
-    });
 }
 
 async function teardownMcp(): Promise<void> {
-    if (mcpWatchDisposer) {
-        try { mcpWatchDisposer(); } catch { /* ignore */ }
-        mcpWatchDisposer = null;
-    }
-    if (mcpTrustDisposable) {
-        try { mcpTrustDisposable.dispose(); } catch { /* ignore */ }
-        mcpTrustDisposable = null;
-    }
     await disposeMcpClientManager();
     try {
         notifyMcpServersChanged([]);
@@ -344,19 +387,45 @@ function activateMcp(): void {
     if (isMcpEnabled()) {
         setupMcp();
     }
-    const disposable = vscodeWorkspace.onDidChangeConfiguration((e) => {
-        const enableChanged = e.affectsConfiguration(`ballerina.${MCP_ENABLE_SETTING}`);
-        if (!enableChanged) {
-            return;
-        }
+    // Single reconciler for every trigger: a setting change, trust being granted, or a
+    // project-scope file being created/edited/deleted. Recomputes whether MCP should be
+    // running and, if it already is, opportunistically refreshes it (covers edits that
+    // don't flip the on/off decision — e.g. adding a server to an already-loaded file).
+    const reevaluate = () => {
+        const enabled = isMcpEnabled();
         queueMcpLifecycleTransition(async () => {
-            if (isMcpEnabled()) {
-                setupMcp();
-            } else {
+            const existing = getMcpClientManager();
+            if (enabled) {
+                if (existing) {
+                    // Sync the trust flag first (a cheap no-op if it hasn't changed — see
+                    // McpClientManager.setWorkspaceTrusted), then always refresh so a plain
+                    // file edit still picks up, regardless of what triggered this reconcile.
+                    await existing.setWorkspaceTrusted(vscodeWorkspace.isTrusted)
+                        .then(() => existing.refresh())
+                        .then(() => pushMcpUpdate(existing))
+                        .catch(err => console.warn('[mcp] Watch-triggered refresh failed:', err));
+                } else {
+                    await setupMcp();
+                }
+            } else if (existing) {
                 await teardownMcp();
             }
         });
-        sendConfigChangeNotification('mcpToolsEnabled', isMcpEnabled());
-    });
-    extension.context?.subscriptions.push(disposable);
+        sendConfigChangeNotification('mcpToolsEnabled', enabled);
+    };
+    const subscriptions: vscode.Disposable[] = [
+        vscodeWorkspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration(MCP_ENABLE_SETTING_KEY)) {
+                reevaluate();
+            }
+        }),
+        // Trust unlocks the project `.mcp.json`, which may be the only opt-in signal.
+        vscodeWorkspace.onDidGrantWorkspaceTrust(() => reevaluate()),
+    ];
+    // One watcher covers the user-global file plus every project-scope path (primary and
+    // additional), whether or not MCP is currently on — a file appearing/disappearing may
+    // flip the implicit opt-in, and an edit to an already-loaded file needs a refresh.
+    const disposeMcpWatcher = watchMcpConfig(resolveProjectRootPath() || undefined, reevaluate);
+    subscriptions.push({ dispose: disposeMcpWatcher });
+    extension.context?.subscriptions.push(...subscriptions);
 }

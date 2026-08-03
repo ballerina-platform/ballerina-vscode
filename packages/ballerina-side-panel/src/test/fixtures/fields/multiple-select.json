@@ -1,0 +1,16 @@
+{
+    "description": "MULTIPLE_SELECT field type must render the MultiSelectEditor",
+    "expectedEditor": "MultiSelectEditor",
+    "fieldInputType": { "fieldType": "MULTIPLE_SELECT" },
+    "field": {
+        "key": "listeners",
+        "label": "Listeners",
+        "type": "MULTIPLE_SELECT",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "MULTIPLE_SELECT", "selected": false }],
+        "enabled": true
+    }
+}

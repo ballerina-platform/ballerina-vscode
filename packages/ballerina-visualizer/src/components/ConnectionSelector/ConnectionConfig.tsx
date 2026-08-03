@@ -17,7 +17,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlowNode, LineRange, NodeKind, NodeProperties, getPrimaryInputType } from "@wso2/ballerina-core";
+import { FlowNode, LineRange, NodeKind, NodeProperties, PropertyTypeMemberInfo, RecordTypeField, getPrimaryInputType } from "@wso2/ballerina-core";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ArtifactForm } from "../../views/BI/Forms/ArtifactForm";
@@ -38,6 +38,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
 
     const [selectedConnectionValue, setSelectedConnectionValue] = useState<string>();
     const [selectedConnectionFields, setSelectedConnectionFields] = useState<FormField[]>([]);
+    const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [savingForm, setSavingForm] = useState<boolean>(false);
     const [, forceRender] = useState(0);
@@ -108,6 +109,34 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
         return fields;
     };
 
+    const getConnectionRecordTypeFields = (connectionValue: string): RecordTypeField[] => {
+        const connectionNode = connectionNodesMap.current.get(connectionValue);
+        if (!connectionNode) return [];
+
+        const { variable, ...restProperties } = connectionNode.properties;
+        return Object.entries(restProperties)
+            .filter(([_, property]) => {
+                const primaryInputType = getPrimaryInputType(property?.types);
+                return primaryInputType?.typeMembers?.some((member: PropertyTypeMemberInfo) => member.kind === "RECORD_TYPE");
+            })
+            .map(([key, property]) => {
+                const primaryInputType = getPrimaryInputType(property?.types);
+                return {
+                    key,
+                    property: {
+                        ...property,
+                        metadata: {
+                            ...property.metadata,
+                            label: property.metadata?.label || key,
+                            description: property.metadata?.description || "",
+                        },
+                    },
+                    recordTypeMembers:
+                        primaryInputType?.typeMembers?.filter((member: PropertyTypeMemberInfo) => member.kind === "RECORD_TYPE") ?? [],
+                };
+            });
+    };
+
     const updateFieldsForConnection = (connectionValue: string) => {
         const connectionSelectField = createConnectionSelectField(connectionValue, config, onCreateNewConnection, connectionKind, connectionNodesMap.current);
         const isExpression = connectionValue && !connectionNodesMap.current.has(connectionValue);
@@ -119,6 +148,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
         }
         const configFields = isExpression ? [] : (connectionValue ? getConnectionConfigFields(connectionValue) : []);
         connectionConfigFields.current = configFields;
+        setRecordTypeFields(isExpression || !connectionValue ? [] : getConnectionRecordTypeFields(connectionValue));
         setSelectedConnectionValue(connectionValue);
         setSelectedConnectionFields([connectionSelectField, ...configFields]);
     };
@@ -226,6 +256,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
                         disableSaveButton={savingForm}
                         isSaving={savingForm}
                         helperPaneSide="left"
+                        recordTypeFields={recordTypeFields}
                         injectedComponents={injectedComponents}
                     />
                 </>

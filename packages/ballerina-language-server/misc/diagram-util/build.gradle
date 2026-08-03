@@ -156,6 +156,7 @@ task buildAndCopyLangserverStdlib() {
 test {
     dependsOn copyRuntime
     dependsOn unpackJballerinaTools
+    dependsOn copyStdlibs
     dependsOn buildAndCopyLangserverStdlib
 
     systemProperty "ballerina.home", balDistribution

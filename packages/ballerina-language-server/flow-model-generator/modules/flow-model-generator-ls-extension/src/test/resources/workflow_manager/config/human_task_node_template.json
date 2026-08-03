@@ -1,0 +1,302 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 15,
+    "offset": 0
+  },
+  "description": "Await human task node template",
+  "codedata": {
+    "node": "HUMAN_TASK"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Await Human Task",
+      "description": "Create a human task and wait for a human to complete it"
+    },
+    "codedata": {
+      "node": "HUMAN_TASK",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "awaitHumanTask",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "taskName": {
+        "metadata": {
+          "label": "Task Name",
+          "description": "Identifies the task type"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "taskName"
+        }
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "User Roles",
+          "description": "One or more roles permitted to complete this task"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "string[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "TEXT",
+                  "ballerinaType": "string",
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "userRoles"
+        }
+      },
+      "payload": {
+        "metadata": {
+          "label": "Payload",
+          "description": "Read-only JSON object shown alongside the form"
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_MAP",
+            "ballerinaType": "map<json>",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "json",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "map<json>",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "payload"
+        },
+        "defaultValue": "{}"
+      },
+      "title": {
+        "metadata": {
+          "label": "Title",
+          "description": "Short summary shown in the inbox"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "title"
+        },
+        "defaultValue": "()"
+      },
+      "$description": {
+        "metadata": {
+          "label": "Description",
+          "description": "Additional context shown alongside the form. Optional"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "description"
+        },
+        "defaultValue": "()"
+      },
+      "timeout": {
+        "metadata": {
+          "label": "Timeout",
+          "description": "Maximum time to wait; omit to wait indefinitely"
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "time:Duration",
+            "typeMembers": [
+              {
+                "type": "Duration",
+                "packageInfo": "ballerina:time:2.8.1",
+                "packageName": "time",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "time:Duration?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "timeout"
+        },
+        "imports": {
+          "time": "ballerina/time"
+        },
+        "defaultValue": "()"
+      },
+      "databindingType": {
+        "metadata": {
+          "label": "Completion Type",
+          "description": "The type of the data returned when the human task is completed"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "anydata",
+            "selected": true
+          }
+        ],
+        "value": "boolean",
+        "placeholder": "anydata",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "PARAM_FOR_TYPE_INFER",
+          "originalName": "databindingType"
+        },
+        "defaultValue": "anydata"
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "result",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

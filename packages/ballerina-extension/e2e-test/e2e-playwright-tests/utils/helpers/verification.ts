@@ -74,3 +74,36 @@ export async function verifyGeneratedSource(
 
     expect(normalizedActual).toBe(normalizedExpected);
 }
+
+/**
+ * Verify that a generated record type declares the given fields, scoped to
+ * that type's block so matches elsewhere in the file don't cause false
+ * positives.
+ * @param generatedFileName - Name of the generated file (e.g., 'types.bal')
+ * @param typeName - Name of the record type to look for (e.g., 'PersonJson1')
+ * @param fieldNames - Field names expected to be declared within the record
+ */
+export async function verifyRecordFields(
+    generatedFileName: string,
+    typeName: string,
+    fieldNames: string[]
+): Promise<void> {
+    const { expect } = await import('@playwright/test');
+
+    const generatedFilePath = path.join(newProjectPath, generatedFileName);
+    if (!fs.existsSync(generatedFilePath)) {
+        throw new Error(`Generated file not found at: ${generatedFilePath}`);
+    }
+
+    const content = fs.readFileSync(generatedFilePath, 'utf-8');
+    const recordMatch = content.match(
+        new RegExp(`type\\s+${typeName}\\s+record\\s*{[|]?\\s*([\\s\\S]*?)\\};`)
+    );
+    expect(recordMatch, `Record type '${typeName}' not found in ${generatedFileName}`).toBeTruthy();
+
+    const recordBody = recordMatch![1];
+    for (const fieldName of fieldNames) {
+        const fieldDeclared = new RegExp(`\\b${fieldName}\\s*;`).test(recordBody);
+        expect(fieldDeclared, `Field '${fieldName}' not declared in record '${typeName}'`).toBe(true);
+    }
+}

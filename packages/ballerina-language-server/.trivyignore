@@ -1,0 +1,4 @@
+# CVE-2026-54515: no patched jackson-databind release exists yet in the 2.x line
+# (2.18.9/2.21.5/2.22.1 unpublished; only fix is Jackson 3.x, a breaking migration).
+# Revisit when a 2.x patch ships.
+CVE-2026-54515

@@ -14,7 +14,6 @@
       "packageName": "ai",
       "object": "Wso2ModelProvider",
       "symbol": "init",
-      "version": "1.1.0",
       "isNew": true
     },
     "returning": false,

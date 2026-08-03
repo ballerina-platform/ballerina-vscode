@@ -153,7 +153,10 @@ public class ModuleNodeAnalyzer extends NodeVisitor {
         String returnType = functionDefinitionNode.functionSignature().returnTypeDesc()
                 .map(type -> type.type().toSourceCode().strip())
                 .orElse("");
-        if (nodeKind != NodeKind.AUTOMATION) {
+        if (nodeKind == NodeKind.WORKFLOW) {
+            // Match the create form's workflow identifier doc when editing an existing workflow.
+            nodeBuilder.properties().functionName(functionDefinitionNode.functionName(), WorkflowBuilder.NAME_DOC);
+        } else if (nodeKind != NodeKind.AUTOMATION) {
             nodeBuilder.properties().functionName(functionDefinitionNode.functionName());
         }
         // TODO: Check how we can do this using FunctionDefinitionBuilder as the super class

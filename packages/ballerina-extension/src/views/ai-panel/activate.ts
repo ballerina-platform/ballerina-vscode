@@ -21,6 +21,8 @@ import { AIPanelPrompt, EVENT_TYPE, MACHINE_VIEW, ProjectInfo, SHARED_COMMANDS }
 import { closeAIWebview, openAIWebview } from './aiMachine';
 import { BallerinaExtension } from '../../core';
 import { notifyAiWebview } from '../../RPCLayer';
+// TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
+// import { initAutoDream, setDreamSettingsProvider, setDreamCallbacks, setMemorySettingsProvider } from '../../features/ai/memory/autoDream';
 import { openView, StateMachine } from '../../stateMachine';
 import { MESSAGES } from '../../features/project/cmds/cmd-runner';
 import { VisualizerWebview } from '../visualizer/webview';
@@ -28,8 +30,22 @@ import { selectPackageOrPrompt, needsProjectDiscovery, requiresPackageSelection 
 import { getCurrentProjectRoot, tryGetCurrentBallerinaFile } from '../../utils/project-utils';
 import { findBallerinaPackageRoot } from '../../utils';
 import { findWorkspaceTypeFromWorkspaceFolders } from '../../rpc-managers/common/utils';
+import { AiPanelWebview } from './webview';
+import { setCompanionTextEditor, setCompanionVisualizer } from './activeFileContext';
+import { chatStateStorage } from './chatStateStorage';
+import { sendGenerationStatusNotification } from '../../features/ai/utils/ai-utils';
+import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 
 export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
+    setCompanionTextEditor(vscode.window.activeTextEditor);
+    ballerinaExtInstance.context.subscriptions.push({
+        dispose: chatStateStorage.onGenerationStatusChanged((generationId, status) => {
+            sendGenerationStatusNotification(generationId, status);
+            if (status === 'accepted' || status === 'reverted') {
+                approvalViewManager.clearReviewData(generationId);
+            }
+        })
+    });
     ballerinaExtInstance.context.subscriptions.push(
         vscode.commands.registerCommand(SHARED_COMMANDS.OPEN_AI_PANEL, handleOpenAIPanel)
     );
@@ -39,16 +55,82 @@ export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
         })
     );
     ballerinaExtInstance.context.subscriptions.push(
-        vscode.window.onDidChangeActiveColorTheme((event) => {
+        vscode.window.onDidChangeActiveColorTheme((_event) => {
             notifyAiWebview();
         })
     );
+    ballerinaExtInstance.context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) => {
+            // VS Code reports undefined when focus moves into a webview. Retain
+            // the preceding surface so the AI panel can describe what is beside it.
+            if (editor) {
+                setCompanionTextEditor(editor);
+            }
+        })
+    );
+
+    // TODO(auto-memory): auto-memory / auto-dream wiring temporarily disabled for this release — restore once the memory feature is refined.
+    // // Wire VS Code settings providers (read dynamically so toggling takes effect without restart)
+    // setMemorySettingsProvider(() => ({
+    //     autoMemoryEnabled: vscode.workspace.getConfiguration('ballerina.ai.autoMemory').get<boolean>('enabled', false),
+    // }));
+    // setDreamSettingsProvider(() => ({
+    //     autoDreamEnabled: vscode.workspace.getConfiguration('ballerina.ai.autoDream').get<boolean>('enabled', true),
+    // }));
+    //
+    // // Status bar for auto-dream visibility
+    // const dreamStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+    // dreamStatusBar.tooltip = 'WSO2 Integrator Copilot memory consolidation';
+    // ballerinaExtInstance.context.subscriptions.push(dreamStatusBar);
+    //
+    // let dreamHideTimeout: ReturnType<typeof setTimeout> | undefined;
+    //
+    // setDreamCallbacks({
+    //     onDreamStart: () => {
+    //         // Cancel any pending hide from a previous dream's completion timer
+    //         // so the spinning indicator is not hidden while a new dream is running.
+    //         clearTimeout(dreamHideTimeout);
+    //         dreamHideTimeout = undefined;
+    //         dreamStatusBar.text = '$(sync~spin) Copilot Dreaming...';
+    //         dreamStatusBar.show();
+    //     },
+    //     onDreamComplete: () => {
+    //         dreamStatusBar.text = '$(check) Memory updated';
+    //         dreamStatusBar.show();
+    //         dreamHideTimeout = setTimeout(() => dreamStatusBar.hide(), 5_000);
+    //     },
+    //     onDreamFail: () => {
+    //         clearTimeout(dreamHideTimeout);
+    //         dreamHideTimeout = undefined;
+    //         dreamStatusBar.hide();
+    //     },
+    // });
+    //
+    // // Initialise background memory consolidation
+    // initAutoDream();
+    //
+    // // Clear the dream-status timer on extension deactivation
+    // ballerinaExtInstance.context.subscriptions.push({
+    //     dispose: () => {
+    //         clearTimeout(dreamHideTimeout);
+    //         dreamHideTimeout = undefined;
+    //     },
+    // });
+
     console.log("AI Panel Activated");
 }
 
 // --- AI Panel Command Helpers ---
 
 async function handleOpenAIPanel(defaultPrompt?: AIPanelPrompt): Promise<void> {
+    if (!AiPanelWebview.currentPanel?.getWebview()?.active) {
+        if (VisualizerWebview.isVisualizerActive()) {
+            setCompanionVisualizer();
+        } else {
+            setCompanionTextEditor(vscode.window.activeTextEditor);
+        }
+    }
+
     const { projectInfo, projectPath, view, workspacePath } = StateMachine.context();
     const isWebviewOpen = VisualizerWebview.currentPanel !== undefined;
     const hasActiveTextEditor = !!vscode.window.activeTextEditor;

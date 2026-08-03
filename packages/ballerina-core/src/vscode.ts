@@ -28,14 +28,39 @@ import type { WebviewApi } from "vscode-webview";
  * enabled by acquireVsCodeApi.
  */
 class VSCodeAPIWrapper {
-  private readonly vsCodeApi: WebviewApi<unknown> | undefined;
+  private vsCodeApi: WebviewApi<unknown> | undefined;
+  private initialized = false;
 
-  constructor() {
-    // Check if the acquireVsCodeApi function exists in the current development
-    // context (i.e. VS Code development window or web browser)
-    if (typeof acquireVsCodeApi === "function") {
-      this.vsCodeApi = acquireVsCodeApi();
+  /**
+   * Resolves the VS Code webview API lazily, on first use.
+   *
+   * Deliberately NOT done in the constructor: this module is also bundled into
+   * the federated BI-form remote, which is loaded into ANOTHER extension's
+   * webview (the WSO2 Integrator welcome view). That host has already called
+   * `acquireVsCodeApi()`, and a second call throws "An instance of the VS Code
+   * API has already been acquired" — which, at module scope, breaks loading of
+   * the whole remote. Lazily resolving (and swallowing the double-acquire)
+   * keeps the embed working; there the form talks over the WS bridge and never
+   * needs this API. The instance is cached on `globalThis` so any other copy
+   * of this module in the same page reuses it instead of re-acquiring.
+   */
+  private api(): WebviewApi<unknown> | undefined {
+    if (!this.initialized) {
+      this.initialized = true;
+      const g = globalThis as { __ballerinaVsCodeApi?: WebviewApi<unknown> };
+      if (g.__ballerinaVsCodeApi) {
+        this.vsCodeApi = g.__ballerinaVsCodeApi;
+      } else if (typeof acquireVsCodeApi === "function") {
+        try {
+          this.vsCodeApi = acquireVsCodeApi();
+          g.__ballerinaVsCodeApi = this.vsCodeApi;
+        } catch {
+          // Already acquired by the embedding host (federated embed) — leave
+          // undefined and fall back to the browser shims below.
+        }
+      }
     }
+    return this.vsCodeApi;
   }
 
   /**
@@ -47,8 +72,9 @@ class VSCodeAPIWrapper {
    * @param message Abitrary data (must be JSON serializable) to send to the extension context.
    */
   public postMessage(message: unknown) {
-    if (this.vsCodeApi) {
-      this.vsCodeApi.postMessage(message);
+    const api = this.api();
+    if (api) {
+      api.postMessage(message);
     } else {
       console.log(message);
     }
@@ -63,8 +89,9 @@ class VSCodeAPIWrapper {
    * @return The current state or `undefined` if no state has been set.
    */
   public getState(): unknown | undefined {
-    if (this.vsCodeApi) {
-      return this.vsCodeApi.getState();
+    const api = this.api();
+    if (api) {
+      return api.getState();
     } else {
       const state = localStorage.getItem("vscodeState");
       return state ? JSON.parse(state) : undefined;
@@ -83,8 +110,9 @@ class VSCodeAPIWrapper {
    * @return The new state.
    */
   public setState<T extends unknown | undefined>(newState: T): T {
-    if (this.vsCodeApi) {
-      return this.vsCodeApi.setState(newState);
+    const api = this.api();
+    if (api) {
+      return api.setState(newState) as T;
     } else {
       localStorage.setItem("vscodeState", JSON.stringify(newState));
       return newState;

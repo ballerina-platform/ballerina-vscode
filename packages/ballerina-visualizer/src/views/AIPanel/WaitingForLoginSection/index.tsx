@@ -22,7 +22,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
 import { AlertBox } from "../AlertBox";
 import { useEffect, useState } from "react";
-import { Codicon } from "@wso2/ui-toolkit";
+import { Codicon, RadioButtonGroup } from "@wso2/ui-toolkit";
 import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
 
 const Container = styled.div`
@@ -170,6 +170,32 @@ const ErrorMessage = styled.div`
     width: 100%;
 `;
 
+const AuthModeToggle = styled.div`
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 4px;
+    overflow: hidden;
+    width: 100%;
+`;
+
+const AuthModeButton = styled.button<{ active: boolean }>`
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border: none;
+    background: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-background)' : 'transparent'};
+    color: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-foreground)' : 'var(--vscode-foreground)'};
+    &:hover {
+        background: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-hoverBackground)' : 'var(--vscode-toolbar-hoverBackground)'};
+    }
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+`;
+
 interface WaitingForLoginProps {
     loginMethod?: LoginMethod;
     isValidating?: boolean;
@@ -189,6 +215,20 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
     const [showAccessKey, setShowAccessKey] = useState(false);
     const [showSecretKey, setShowSecretKey] = useState(false);
     const [showSessionToken, setShowSessionToken] = useState(false);
+    const [awsServiceMode, setAwsServiceMode] = useState<'bedrock' | 'anthropic_aws'>('bedrock');
+    const [anthropicAwsAuthMode, setAnthropicAwsAuthMode] = useState<'sigv4' | 'apikey'>('sigv4');
+    const [anthropicAwsCredentials, setAnthropicAwsCredentials] = useState({
+        region: "",
+        workspaceId: "",
+        accessKeyId: "",
+        secretAccessKey: "",
+        sessionToken: "",
+        apiKey: ""
+    });
+    const [showAnthropicAwsSecretKey, setShowAnthropicAwsSecretKey] = useState(false);
+    const [showAnthropicAwsAccessKey, setShowAnthropicAwsAccessKey] = useState(false);
+    const [showAnthropicAwsSessionToken, setShowAnthropicAwsSessionToken] = useState(false);
+    const [showAnthropicAwsApiKey, setShowAnthropicAwsApiKey] = useState(false);
     const [vertexAiCredentials, setVertexAiCredentials] = useState({
         projectId: "",
         location: "global",
@@ -285,6 +325,38 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
         }));
     };
 
+    const connectWithAnthropicAwsCredentials = () => {
+        const { region, workspaceId, accessKeyId, secretAccessKey, sessionToken, apiKey } = anthropicAwsCredentials;
+        const commonValid = region.trim() && workspaceId.trim();
+        const modeValid = anthropicAwsAuthMode === 'apikey'
+            ? apiKey.trim()
+            : (accessKeyId.trim() && secretAccessKey.trim());
+        if (commonValid && modeValid) {
+            rpcClient.sendAIStateEvent({
+                type: AIMachineEventType.SUBMIT_ANTHROPIC_AWS_CREDENTIALS,
+                payload: {
+                    region: region.trim(),
+                    workspaceId: workspaceId.trim(),
+                    authMode: anthropicAwsAuthMode,
+                    ...(anthropicAwsAuthMode === 'apikey'
+                        ? { apiKey: apiKey.trim() }
+                        : {
+                            accessKeyId: accessKeyId.trim(),
+                            secretAccessKey: secretAccessKey.trim(),
+                            sessionToken: sessionToken.trim() || undefined
+                        })
+                },
+            });
+        }
+    };
+
+    const handleAnthropicAwsCredentialChange = (field: keyof typeof anthropicAwsCredentials) => (e: any) => {
+        setAnthropicAwsCredentials(prev => ({
+            ...prev,
+            [field]: e.target.value
+        }));
+    };
+
     if (loginMethod === LoginMethod.ANTHROPIC_KEY) {
         return (
             <Container>
@@ -343,9 +415,282 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
         );
     }
 
+    if (loginMethod === LoginMethod.AWS_UNIFIED) {
+        const isBedrockFormValid = !!(
+            awsCredentials.accessKeyId.trim() &&
+            awsCredentials.secretAccessKey.trim() &&
+            awsCredentials.region.trim()
+        );
+        const isAnthropicAwsFormValid = !!(
+            anthropicAwsCredentials.region.trim() &&
+            anthropicAwsCredentials.workspaceId.trim() &&
+            (anthropicAwsAuthMode === 'apikey'
+                ? anthropicAwsCredentials.apiKey.trim()
+                : (anthropicAwsCredentials.accessKeyId.trim() && anthropicAwsCredentials.secretAccessKey.trim()))
+        );
+        const isFormValid = awsServiceMode === 'bedrock' ? isBedrockFormValid : isAnthropicAwsFormValid;
+
+        return (
+            <Container>
+                <AlertContainer variant="primary">
+                    <Title>Connect with AWS</Title>
+                    <SubTitle>
+                        Choose your AWS-based AI provider. Use AWS Bedrock to access Claude via Amazon's inference service,
+                        or Claude Platform on AWS for Anthropic's native API with same-day feature parity.
+                    </SubTitle>
+
+                    <AuthModeToggle>
+                        <AuthModeButton
+                            active={awsServiceMode === 'bedrock'}
+                            onClick={() => setAwsServiceMode('bedrock')}
+                            disabled={isValidating}
+                        >
+                            AWS Bedrock
+                        </AuthModeButton>
+                        <AuthModeButton
+                            active={awsServiceMode === 'anthropic_aws'}
+                            onClick={() => setAwsServiceMode('anthropic_aws')}
+                            disabled={isValidating}
+                        >
+                            Claude Platform on AWS
+                        </AuthModeButton>
+                    </AuthModeToggle>
+
+                    {awsServiceMode === 'bedrock' && (
+                        <>
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showAccessKey ? "text" : "password"}
+                                        placeholder="AWS Access Key ID (AKIA...)"
+                                        value={awsCredentials.accessKeyId}
+                                        onInput={handleAwsCredentialChange('accessKeyId')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={toggleAccessKeyVisibility}
+                                        title={showAccessKey ? "Hide access key" : "Show access key"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showAccessKey ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showSecretKey ? "text" : "password"}
+                                        placeholder="AWS Secret Access Key"
+                                        value={awsCredentials.secretAccessKey}
+                                        onInput={handleAwsCredentialChange('secretAccessKey')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={toggleSecretKeyVisibility}
+                                        title={showSecretKey ? "Hide secret key" : "Show secret key"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showSecretKey ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type="text"
+                                        placeholder="AWS Region (e.g., us-east-1)"
+                                        value={awsCredentials.region}
+                                        onInput={handleAwsCredentialChange('region')}
+                                        disabled={isValidating}
+                                    />
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showSessionToken ? "text" : "password"}
+                                        placeholder="Session Token (optional)"
+                                        value={awsCredentials.sessionToken}
+                                        onInput={handleAwsCredentialChange('sessionToken')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={toggleSessionTokenVisibility}
+                                        title={showSessionToken ? "Hide session token" : "Show session token"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showSessionToken ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+                        </>
+                    )}
+
+                    {awsServiceMode === 'anthropic_aws' && (
+                        <>
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type="text"
+                                        placeholder="AWS Region (e.g., us-west-2)"
+                                        value={anthropicAwsCredentials.region}
+                                        onInput={handleAnthropicAwsCredentialChange('region')}
+                                        disabled={isValidating}
+                                    />
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type="text"
+                                        placeholder="Workspace ID (e.g., wrkspc_...)"
+                                        value={anthropicAwsCredentials.workspaceId}
+                                        onInput={handleAnthropicAwsCredentialChange('workspaceId')}
+                                        disabled={isValidating}
+                                    />
+                                </InputRow>
+                            </InputContainer>
+
+                            <RadioButtonGroup
+                                orientation="horizontal"
+                                value={anthropicAwsAuthMode}
+                                onChange={(e: any) => setAnthropicAwsAuthMode((e.target as HTMLInputElement).value as 'sigv4' | 'apikey')}
+                                options={[
+                                    { value: 'sigv4', content: 'IAM Credentials', disabled: isValidating },
+                                    { value: 'apikey', content: 'API Key', disabled: isValidating },
+                                ]}
+                            />
+
+                            {anthropicAwsAuthMode === 'sigv4' && (
+                                <>
+                                    <InputContainer>
+                                        <InputRow>
+                                            <StyledTextField
+                                                type={showAnthropicAwsAccessKey ? "text" : "password"}
+                                                placeholder="AWS Access Key ID (AKIA...)"
+                                                value={anthropicAwsCredentials.accessKeyId}
+                                                onInput={handleAnthropicAwsCredentialChange('accessKeyId')}
+                                                disabled={isValidating}
+                                            />
+                                            <EyeButton
+                                                type="button"
+                                                onClick={() => setShowAnthropicAwsAccessKey(v => !v)}
+                                                title={showAnthropicAwsAccessKey ? "Hide access key" : "Show access key"}
+                                                disabled={isValidating}
+                                            >
+                                                <Codicon name={showAnthropicAwsAccessKey ? "eye-closed" : "eye"} />
+                                            </EyeButton>
+                                        </InputRow>
+                                    </InputContainer>
+
+                                    <InputContainer>
+                                        <InputRow>
+                                            <StyledTextField
+                                                type={showAnthropicAwsSecretKey ? "text" : "password"}
+                                                placeholder="AWS Secret Access Key"
+                                                value={anthropicAwsCredentials.secretAccessKey}
+                                                onInput={handleAnthropicAwsCredentialChange('secretAccessKey')}
+                                                disabled={isValidating}
+                                            />
+                                            <EyeButton
+                                                type="button"
+                                                onClick={() => setShowAnthropicAwsSecretKey(v => !v)}
+                                                title={showAnthropicAwsSecretKey ? "Hide secret key" : "Show secret key"}
+                                                disabled={isValidating}
+                                            >
+                                                <Codicon name={showAnthropicAwsSecretKey ? "eye-closed" : "eye"} />
+                                            </EyeButton>
+                                        </InputRow>
+                                    </InputContainer>
+
+                                    <InputContainer>
+                                        <InputRow>
+                                            <StyledTextField
+                                                type={showAnthropicAwsSessionToken ? "text" : "password"}
+                                                placeholder="Session Token (optional)"
+                                                value={anthropicAwsCredentials.sessionToken}
+                                                onInput={handleAnthropicAwsCredentialChange('sessionToken')}
+                                                disabled={isValidating}
+                                            />
+                                            <EyeButton
+                                                type="button"
+                                                onClick={() => setShowAnthropicAwsSessionToken(v => !v)}
+                                                title={showAnthropicAwsSessionToken ? "Hide session token" : "Show session token"}
+                                                disabled={isValidating}
+                                            >
+                                                <Codicon name={showAnthropicAwsSessionToken ? "eye-closed" : "eye"} />
+                                            </EyeButton>
+                                        </InputRow>
+                                    </InputContainer>
+                                </>
+                            )}
+
+                            {anthropicAwsAuthMode === 'apikey' && (
+                                <InputContainer>
+                                    <InputRow>
+                                        <StyledTextField
+                                            type={showAnthropicAwsApiKey ? "text" : "password"}
+                                            placeholder="API Key (aws-external-anthropic-api-key-...)"
+                                            value={anthropicAwsCredentials.apiKey}
+                                            onInput={handleAnthropicAwsCredentialChange('apiKey')}
+                                            disabled={isValidating}
+                                        />
+                                        <EyeButton
+                                            type="button"
+                                            onClick={() => setShowAnthropicAwsApiKey(v => !v)}
+                                            title={showAnthropicAwsApiKey ? "Hide API key" : "Show API key"}
+                                            disabled={isValidating}
+                                        >
+                                            <Codicon name={showAnthropicAwsApiKey ? "eye-closed" : "eye"} />
+                                        </EyeButton>
+                                    </InputRow>
+                                </InputContainer>
+                            )}
+                        </>
+                    )}
+
+                    {errorMessage && (
+                        <ErrorMessage>
+                            <Codicon name="error" />
+                            <span>{errorMessage}</span>
+                        </ErrorMessage>
+                    )}
+
+                    <ButtonContainer>
+                        <VSCodeButton
+                            appearance="primary"
+                            onClick={awsServiceMode === 'bedrock' ? connectWithAwsCredentials : connectWithAnthropicAwsCredentials}
+                            disabled={isValidating || !isFormValid}
+                        >
+                            {isValidating
+                                ? "Validating..."
+                                : awsServiceMode === 'bedrock'
+                                    ? "Connect with AWS Bedrock"
+                                    : "Connect with Claude Platform on AWS"}
+                        </VSCodeButton>
+                        <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Cancel
+                        </VSCodeButton>
+                    </ButtonContainer>
+                </AlertContainer>
+            </Container>
+        );
+    }
+
     if (loginMethod === LoginMethod.AWS_BEDROCK) {
-        const isFormValid = awsCredentials.accessKeyId.trim() && 
-                           awsCredentials.secretAccessKey.trim() && 
+        const isFormValid = awsCredentials.accessKeyId.trim() &&
+                           awsCredentials.secretAccessKey.trim() &&
                            awsCredentials.region.trim();
 
         return (
@@ -361,7 +706,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                         <InputRow>
                             <StyledTextField
                                 type={showAccessKey ? "text" : "password"}
-                                placeholder="AWS Access Key ID"
+                                placeholder="AWS Access Key ID (AKIA...)"
                                 value={awsCredentials.accessKeyId}
                                 onInput={handleAwsCredentialChange('accessKeyId')}
                                 disabled={isValidating}
@@ -522,6 +867,179 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                             disabled={submitDisabled}
                         >
                             {isValidating ? "Validating..." : "Validate & Connect"}
+                        </VSCodeButton>
+                        <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Cancel
+                        </VSCodeButton>
+                    </ButtonContainer>
+                </AlertContainer>
+            </Container>
+        );
+    }
+
+    if (loginMethod === LoginMethod.ANTHROPIC_AWS) {
+        const isFormValid = !!(
+            anthropicAwsCredentials.region.trim() &&
+            anthropicAwsCredentials.workspaceId.trim() &&
+            (anthropicAwsAuthMode === 'apikey'
+                ? anthropicAwsCredentials.apiKey.trim()
+                : (anthropicAwsCredentials.accessKeyId.trim() && anthropicAwsCredentials.secretAccessKey.trim()))
+        );
+
+        return (
+            <Container>
+                <AlertContainer variant="primary">
+                    <Title>Connect with Claude Platform on AWS</Title>
+                    <SubTitle>
+                        Anthropic's native API through AWS with same-day feature parity and AWS Marketplace billing.
+                        Use IAM credentials or an API key provisioned by your Anthropic account representative.
+                    </SubTitle>
+
+                    <InputContainer>
+                        <InputRow>
+                            <StyledTextField
+                                type="text"
+                                placeholder="AWS Region (e.g., us-west-2)"
+                                value={anthropicAwsCredentials.region}
+                                onInput={handleAnthropicAwsCredentialChange('region')}
+                                disabled={isValidating}
+                            />
+                        </InputRow>
+                    </InputContainer>
+
+                    <InputContainer>
+                        <InputRow>
+                            <StyledTextField
+                                type="text"
+                                placeholder="Workspace ID (e.g., wrkspc_...)"
+                                value={anthropicAwsCredentials.workspaceId}
+                                onInput={handleAnthropicAwsCredentialChange('workspaceId')}
+                                disabled={isValidating}
+                            />
+                        </InputRow>
+                    </InputContainer>
+
+                    <AuthModeToggle>
+                        <AuthModeButton
+                            active={anthropicAwsAuthMode === 'sigv4'}
+                            onClick={() => setAnthropicAwsAuthMode('sigv4')}
+                            disabled={isValidating}
+                        >
+                            IAM Credentials
+                        </AuthModeButton>
+                        <AuthModeButton
+                            active={anthropicAwsAuthMode === 'apikey'}
+                            onClick={() => setAnthropicAwsAuthMode('apikey')}
+                            disabled={isValidating}
+                        >
+                            API Key
+                        </AuthModeButton>
+                    </AuthModeToggle>
+
+                    {anthropicAwsAuthMode === 'sigv4' && (
+                        <>
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showAnthropicAwsAccessKey ? "text" : "password"}
+                                        placeholder="AWS Access Key ID (AKIA...)"
+                                        value={anthropicAwsCredentials.accessKeyId}
+                                        onInput={handleAnthropicAwsCredentialChange('accessKeyId')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={() => setShowAnthropicAwsAccessKey(v => !v)}
+                                        title={showAnthropicAwsAccessKey ? "Hide access key" : "Show access key"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showAnthropicAwsAccessKey ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showAnthropicAwsSecretKey ? "text" : "password"}
+                                        placeholder="AWS Secret Access Key"
+                                        value={anthropicAwsCredentials.secretAccessKey}
+                                        onInput={handleAnthropicAwsCredentialChange('secretAccessKey')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={() => setShowAnthropicAwsSecretKey(v => !v)}
+                                        title={showAnthropicAwsSecretKey ? "Hide secret key" : "Show secret key"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showAnthropicAwsSecretKey ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+
+                            <InputContainer>
+                                <InputRow>
+                                    <StyledTextField
+                                        type={showAnthropicAwsSessionToken ? "text" : "password"}
+                                        placeholder="Session Token (optional)"
+                                        value={anthropicAwsCredentials.sessionToken}
+                                        onInput={handleAnthropicAwsCredentialChange('sessionToken')}
+                                        disabled={isValidating}
+                                    />
+                                    <EyeButton
+                                        type="button"
+                                        onClick={() => setShowAnthropicAwsSessionToken(v => !v)}
+                                        title={showAnthropicAwsSessionToken ? "Hide session token" : "Show session token"}
+                                        disabled={isValidating}
+                                    >
+                                        <Codicon name={showAnthropicAwsSessionToken ? "eye-closed" : "eye"} />
+                                    </EyeButton>
+                                </InputRow>
+                            </InputContainer>
+                        </>
+                    )}
+
+                    {anthropicAwsAuthMode === 'apikey' && (
+                        <InputContainer>
+                            <InputRow>
+                                <StyledTextField
+                                    type={showAnthropicAwsApiKey ? "text" : "password"}
+                                    placeholder="API Key (aws-external-anthropic-api-key-...)"
+                                    value={anthropicAwsCredentials.apiKey}
+                                    onInput={handleAnthropicAwsCredentialChange('apiKey')}
+                                    disabled={isValidating}
+                                />
+                                <EyeButton
+                                    type="button"
+                                    onClick={() => setShowAnthropicAwsApiKey(v => !v)}
+                                    title={showAnthropicAwsApiKey ? "Hide API key" : "Show API key"}
+                                    disabled={isValidating}
+                                >
+                                    <Codicon name={showAnthropicAwsApiKey ? "eye-closed" : "eye"} />
+                                </EyeButton>
+                            </InputRow>
+                        </InputContainer>
+                    )}
+
+                    {errorMessage && (
+                        <ErrorMessage>
+                            <Codicon name="error" />
+                            <span>{errorMessage}</span>
+                        </ErrorMessage>
+                    )}
+
+                    <ButtonContainer>
+                        <VSCodeButton
+                            appearance="primary"
+                            onClick={connectWithAnthropicAwsCredentials}
+                            disabled={isValidating || !isFormValid}
+                        >
+                            {isValidating ? "Validating..." : "Connect with Claude Platform on AWS"}
                         </VSCodeButton>
                         <VSCodeButton
                             appearance="secondary"

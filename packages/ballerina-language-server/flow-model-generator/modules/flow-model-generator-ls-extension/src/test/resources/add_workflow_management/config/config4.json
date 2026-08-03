@@ -1,0 +1,21 @@
+{
+  "projectPath": "proj4",
+  "description": "Project with both functions.bal and main.bal; import added to functions.bal",
+  "output": {
+    "proj4/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow.management as _;\n"
+      }
+    ]
+  }
+}

@@ -92,6 +92,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [showConnectionPanel, setShowConnectionPanel] = useState(false);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [connectionView, setConnectionView] = useState<SidePanelView.CONNECTION_CONFIG | SidePanelView.CONNECTION_SELECT | SidePanelView.CONNECTION_CREATE>();
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
     const selectedNodeRef = useRef<FlowNode>();
     const nodeTemplateRef = useRef<FlowNode>();
@@ -364,18 +365,18 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             filePath: model.fileName,
             id: node.codedata,
         }).then((response) => {
-                const nodesWithCustomForms = ["IF", "FORK"];
-                // if node doesn't have properties. don't show edit form
-                if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
-                    console.log(">>> Node doesn't have properties. Don't show edit form", response.flowNode);
-                    setShowProgressIndicator(false);
-                    showEditForm.current = false;
-                    return;
-                }
+            const nodesWithCustomForms = ["IF", "FORK"];
+            // if node doesn't have properties. don't show edit form
+            if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
+                console.log(">>> Node doesn't have properties. Don't show edit form", response.flowNode);
+                setShowProgressIndicator(false);
+                showEditForm.current = false;
+                return;
+            }
 
-                nodeTemplateRef.current = response.flowNode;
-                showEditForm.current = true;
-            })
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = true;
+        })
             .finally(() => {
                 setShowProgressIndicator(false);
             });
@@ -719,6 +720,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                             connectionKind={selectedConnectionKind}
                             selectedNode={selectedNodeRef.current}
                             onSelect={handleSelectConnection}
+                            expandedGroupId={expandedGroupId}
+                            onExpandedGroupChange={setExpandedGroupId}
                         />
                     )}
                     {connectionView === SidePanelView.CONNECTION_CREATE && (

@@ -92,7 +92,7 @@
         "metadata": {
           "label": "Run Workflow",
           "description": "Run a workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.5.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
         },
         "codedata": {
           "node": "WORKFLOW_RUN",
@@ -116,99 +116,38 @@
         },
         "returning": false,
         "properties": {
-          "processFunction": {
+          "input": {
             "metadata": {
-              "label": "Process Function",
-              "description": "The workflow function (must have `@Workflow`)"
+              "label": "Input",
+              "description": "Input data for the workflow"
             },
             "types": [
               {
+                "fieldType": "RECORD_MAP_EXPRESSION",
+                "ballerinaType": "OrderInput",
+                "typeMembers": [
+                  {
+                    "type": "OrderInput",
+                    "packageInfo": "$anon:.:0.0.0",
+                    "packageName": ".",
+                    "kind": "RECORD_TYPE",
+                    "selected": false
+                  }
+                ],
+                "selected": false
+              },
+              {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "function",
-                "selected": true
+                "ballerinaType": "OrderInput",
+                "selected": false
               }
             ],
-            "value": "orderWorkflow",
+            "value": "{orderId: \"123\", customerName: \"John\"}",
             "placeholder": "",
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "REQUIRED",
-              "originalName": "processFunction"
-            }
-          },
-          "input": {
-            "metadata": {
-              "label": "Input",
-              "description": "Optional input data for the workflow"
-            },
-            "types": [
-              {
-                "fieldType": "REPEATABLE_MAP",
-                "ballerinaType": "map<anydata>",
-                "template": {
-                  "types": [
-                    {
-                      "fieldType": "EXPRESSION",
-                      "ballerinaType": "anydata",
-                      "selected": false
-                    }
-                  ],
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
-                "selected": true
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "map<anydata>?",
-                "selected": false
-              }
-            ],
-            "value": {
-              "orderId": {
-                "types": [
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "anydata",
-                    "selected": true
-                  }
-                ],
-                "value": "\"123\"",
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
-              },
-              "customerName": {
-                "types": [
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "anydata",
-                    "selected": true
-                  }
-                ],
-                "value": "\"John\"",
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
-              }
-            },
-            "placeholder": "()",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "input"
-            },
-            "defaultValue": "()"
+            "hidden": false
           },
           "checkError": {
             "metadata": {
@@ -410,7 +349,7 @@
         "metadata": {
           "label": "Send Data",
           "description": "Send data to an existing workflow instance",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.5.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
         },
         "codedata": {
           "node": "SEND_DATA",
@@ -418,7 +357,7 @@
           "module": "workflow",
           "packageName": "workflow",
           "symbol": "sendData",
-          "version": "0.5.0",
+          "version": "0.7.0",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {

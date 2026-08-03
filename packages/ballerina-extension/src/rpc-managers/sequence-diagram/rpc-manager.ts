@@ -20,6 +20,7 @@
 import { SequenceDiagramAPI, SequenceModelRequest, SequenceModelResponse } from "@wso2/ballerina-core";
 import { Uri } from "vscode";
 import { StateMachine } from "../../stateMachine";
+import { isAiSourceParseable } from "../diagram-validity";
 
 export class SequenceDiagramRpcManager implements SequenceDiagramAPI {
     async getSequenceModel(): Promise<SequenceModelResponse> {
@@ -42,8 +43,12 @@ export class SequenceDiagramRpcManager implements SequenceDiagramAPI {
             console.log(">>> requesting sequence model from backend ...", params);
             StateMachine.langClient()
                 .getSequenceDiagramModel(params)
-                .then((model) => {
+                .then(async (model) => {
                     console.log(">>> sequence model from backend:", model);
+                    if (model && !(await isAiSourceParseable([params.filePath]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     if (model) {
                         resolve(model);
                     }

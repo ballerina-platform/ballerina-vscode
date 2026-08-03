@@ -1,0 +1,3 @@
+[config_tests.stringescapeconfigs]
+windowsPath = "C:\\wso2\\default"
+quotedText = "He said \"hi\""

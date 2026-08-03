@@ -27,6 +27,7 @@ import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.common.utils.PositionUtil;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
 
 /**
@@ -48,8 +49,19 @@ public class DiagnosticHandler {
     }
 
     public DiagnosticHandler(Collection<Diagnostic> diagnostics) {
+        // The handler advances a single cursor while nodes are visited in source order, so the
+        // diagnostics must be sorted by file and position. Package compilation diagnostics append
+        // compiler-plugin diagnostics (e.g., the workflow plugin's WORKFLOW_1xx codes) after the
+        // semantic-phase ones, which breaks the within-file position order and would cause
+        // plugin diagnostics to be skipped and never attached to flow nodes.
         iterator = diagnostics.stream()
-                .filter(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR).iterator();
+                .filter(diagnostic -> diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR)
+                .sorted(Comparator
+                        .comparing((Diagnostic diagnostic) -> diagnostic.location().lineRange().fileName(),
+                                Comparator.nullsFirst(Comparator.naturalOrder()))
+                        .thenComparingInt(diagnostic -> diagnostic.location().lineRange().startLine().line())
+                        .thenComparingInt(diagnostic -> diagnostic.location().lineRange().startLine().offset()))
+                .iterator();
         hasNodeAnnotated = false;
         if (iterator.hasNext()) {
             currentDiagnostic = iterator.next();

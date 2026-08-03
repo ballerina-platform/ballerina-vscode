@@ -806,7 +806,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     );
 
     const formDiagnosticsFixTooltip = !isAiUserAuthenticated
-        ? "You need to be logged into BI Copilot to fix diagnostics"
+        ? "You need to be logged into WSO2 Integrator Copilot to fix diagnostics"
         : !diagnosticsTargetRange
             ? "No source location available for diagnostics"
             : formDiagnostics.length === 0

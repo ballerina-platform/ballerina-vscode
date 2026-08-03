@@ -803,8 +803,7 @@
             "node": "FUNCTION_CALL",
             "org": "ballerina",
             "module": "log",
-            "symbol": "printInfo",
-            "version": "2.10.0"
+            "symbol": "printInfo"
           },
           "enabled": true
         },
@@ -818,8 +817,7 @@
             "node": "FUNCTION_CALL",
             "org": "ballerina",
             "module": "log",
-            "symbol": "printError",
-            "version": "2.10.0"
+            "symbol": "printError"
           },
           "enabled": true
         },
@@ -833,8 +831,7 @@
             "node": "FUNCTION_CALL",
             "org": "ballerina",
             "module": "log",
-            "symbol": "printWarn",
-            "version": "2.10.0"
+            "symbol": "printWarn"
           },
           "enabled": true
         },
@@ -848,8 +845,7 @@
             "node": "FUNCTION_CALL",
             "org": "ballerina",
             "module": "log",
-            "symbol": "printDebug",
-            "version": "2.10.0"
+            "symbol": "printDebug"
           },
           "enabled": true
         }

@@ -10,15 +10,14 @@
     "org": "ballerina",
     "module": "time",
     "packageName": "time",
-    "symbol": "utcFromCivil",
-    "version": "2.5.0"
+    "symbol": "utcFromCivil"
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "utcFromCivil",
-      "description": "Converts a given `Civil` value to an `Utc` timestamp.\n```ballerina\ntime:Civil civil = time:utcToCivil(time:utcNow());\ntime:Utc utc = time:utcFromCivil(civil);\n```",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.5.0.png"
+      "description": "Converts a given civil value to a UTC timestamp.\n```ballerina\ntime:Civil civil = time:utcToCivil(time:utcNow());\ntime:Utc utc = time:utcFromCivil(civil);\n```",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_time_2.8.1.png"
     },
     "codedata": {
       "node": "FUNCTION_CALL",
@@ -26,7 +25,6 @@
       "module": "time",
       "packageName": "time",
       "symbol": "utcFromCivil",
-      "version": "2.5.0",
       "isNew": true
     },
     "returning": false,
@@ -34,7 +32,7 @@
       "civilTime": {
         "metadata": {
           "label": "Civil Time",
-          "description": "`time:Civil` time"
+          "description": "The civil value to be converted"
         },
         "types": [
           {
@@ -43,7 +41,7 @@
             "typeMembers": [
               {
                 "type": "Civil",
-                "packageInfo": "ballerina:time:2.5.0",
+                "packageInfo": "ballerina:time:2.8.1",
                 "packageName": "time",
                 "kind": "RECORD_TYPE",
                 "selected": false

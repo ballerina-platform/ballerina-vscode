@@ -6,8 +6,7 @@
     "module": "ai.devant",
     "packageName": "ai.devant",
     "object": "BinaryDataLoader",
-    "symbol": "init",
-    "version": "1.0.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Data Loader",
         "description": "Creates a new `BinaryDataLoader` instance.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
       },
       "codedata": {
         "node": "DATA_LOADER",
@@ -23,7 +22,7 @@
         "module": "ai.devant",
         "packageName": "ai.devant",
         "object": "BinaryDataLoader",
-        "version": "1.0.0",
+        "version": "1.0.4",
         "isNew": true
       },
       "returning": false,

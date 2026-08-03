@@ -72,6 +72,11 @@ export interface ReopenApprovalViewRequest {
     requestId: string;
 }
 
+export interface NavigateReviewModeRequest {
+    generationId: string;
+    index: number;
+}
+
 export interface SaveEvalThreadRequest {
     filePath: string;
     updatedEvalSet: EvalSet;

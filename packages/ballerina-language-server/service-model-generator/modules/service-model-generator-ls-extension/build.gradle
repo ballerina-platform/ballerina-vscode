@@ -132,8 +132,6 @@ jar {
     }
 }
 
-test.dependsOn rootProject.pullBallerinaModule('ftp', ballerinaFtpVersion, 'ballerina')
-test.dependsOn rootProject.pullBallerinaModule('data.csv', ballerinaDataCsvVersion, 'ballerina')
 
 compileJava {
     doFirst {

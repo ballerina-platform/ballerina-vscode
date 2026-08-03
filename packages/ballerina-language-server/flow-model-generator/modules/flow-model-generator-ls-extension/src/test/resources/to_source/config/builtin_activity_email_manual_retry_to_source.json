@@ -1,0 +1,179 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Create Send Email (SMTP) builtin activity call with ManualRetry policy (retryPolicy = workflow:ManualRetry)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Send Email (SMTP)",
+      "description": "Send an email via SMTP as a workflow activity"
+    },
+    "codedata": {
+      "node": "ACTIVITY_CALL",
+      "org": "ballerina",
+      "module": "workflow.activity",
+      "symbol": "sendEmail",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "types": [
+          {
+            "fieldType": "CONNECTION",
+            "selected": true
+          }
+        ],
+        "value": "smtpClient",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "to": {
+        "metadata": {
+          "label": "To",
+          "description": "Recipient email address"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "\"user@example.com\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "subject": {
+        "metadata": {
+          "label": "Subject",
+          "description": "Email subject"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "\"Order update\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "body": {
+        "metadata": {
+          "label": "Body",
+          "description": "Email body"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "\"Your order has shipped.\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy",
+          "description": "Retry strategy to apply when the activity call fails"
+        },
+        "types": [
+          {
+            "fieldType": "DROPDOWN_CHOICE",
+            "selected": true
+          }
+        ],
+        "value": "ManualRetry",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    }
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/email;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow.activity;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\ncheck context->callActivity(activity:sendEmail, {connection: smtpClient, to: \"user@example.com\", subject: \"Order update\", body: \"Your order has shipped.\"}, retryPolicy = workflow:ManualRetry);"
+      }
+    ]
+  }
+}

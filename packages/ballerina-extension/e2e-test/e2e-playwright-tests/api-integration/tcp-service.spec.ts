@@ -15,9 +15,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
@@ -29,14 +29,9 @@ export default function createTests() {
         test('Create TCP Service', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('TCP Service', 'tcp-service-card');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
 
-            // Create a new listener
+            const artifactWebView = await createArtifactAndGetWebview('TCP Service', 'tcp-service-card');
+
             listenerName = `tcpListener`;
             const listenerPort = `6060`;
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
@@ -54,25 +49,16 @@ export default function createTests() {
             console.log('Submitting TCP Service form');
             await form.submit('Create', true);
 
-            const context = artifactWebView.locator(`text="onConnect"`);
-            await context.waitFor();
+            await artifactWebView.locator(`text="onConnect"`).waitFor();
 
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `TCP Service`]);
-
-            const updateArtifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!updateArtifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
         });
 
         test('Editing TCP Service', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a service in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
             const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
             await editBtn.waitFor();
@@ -85,39 +71,17 @@ export default function createTests() {
             await selectedListener.waitFor();
 
             await form.submit('Save', true);
+            await confirmSaveChangesAndGoBack(artifactWebView);
 
-            // Wait for the save changes button inside the container with id "save-changes-btn",
-            // ensuring the disabled attribute is present and the button text is "Save Changes"
-            const saveChangesBtn = artifactWebView.locator('#save-changes-btn vscode-button[appearance="primary"]');
-            await saveChangesBtn.waitFor({ state: 'visible' });
-            await expect(saveChangesBtn).toHaveClass('disabled', { timeout: 5000 });
-            await expect(saveChangesBtn).toHaveText('Save Changes');
-            // Click back button
-            const backBtn = artifactWebView.locator('[data-testid="back-button"]');
-            await backBtn.waitFor();
-            await backBtn.click();
-
-            const context = artifactWebView.locator(`text="onConnect"`);
-            await context.waitFor();
+            await artifactWebView.locator(`text="onConnect"`).waitFor();
         });
 
         test('Delete TCP Service', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Deleting a service in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            const projectExplorer = new ProjectExplorer(page.page);
-            const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `TCP Service`]);
-            await serviceTreeItem.click({ button: 'right' });
-            const deleteButton = page.page.getByRole('button', { name: 'Delete' }).first();
-            await deleteButton.waitFor({ timeout: 5000 });
-            await deleteButton.click();
-            await page.page.waitForTimeout(500);
 
-            await expect(serviceTreeItem).not.toBeVisible({ timeout: 10000 });
-
+            await getWebview(BI_INTEGRATOR_LABEL, page);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `TCP Service`]);
         });
     });
 }

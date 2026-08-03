@@ -8,12 +8,39 @@ inputs:
     description: 'File name'
     required: true
   chatAPI:
-    description: 'Google chat API'
-    required: true
+    description: 'Google chat API. When empty, the notification is skipped.'
+    required: false
+    default: ''
   threadKey:
     description: 'Google Chat thread key for grouping release notifications'
     required: false
     default: ''
+  extraAssets:
+    description: >-
+      Additional files to attach to the release, one path or glob per line
+      (e.g. the language-server jar bundled in the VSIX). Each is uploaded with
+      the same verified-upload semantics as the VSIX. A glob that matches nothing
+      fails the job — a silently missing asset is worse than a red build.
+    required: false
+    default: ''
+  prerelease:
+    description: >-
+      Mark the GitHub release as a pre-release. A real release passes false.
+    required: false
+    default: 'true'
+  releaseBranch:
+    description: >-
+      Commit the resolved version and push 'release/<version>', then tag that
+      commit instead of the workflow's own. Set only for a real release; the
+      version that was packaged lives in the working tree (updateVersion wrote it
+      during the build) and is otherwise never committed anywhere. Left false for
+      pre-releases.
+    required: false
+    default: 'false'
+  ballerina:
+    description: 'Stage the Ballerina version files when committing'
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
@@ -23,29 +50,264 @@ runs:
       id: vsix
       run: |
         file=$(ls ${{ inputs.name }}-[0-9]*.[0-9]*.[0-9]*.vsix)
-        fileName=${file##*-}
-        version=${fileName%.*}
         extension=${{ inputs.name }}
+        # Strip the '<name>-' prefix and the '.vsix' suffix rather than cutting at
+        # the last '-': the name itself contains a '-', and a version may carry a
+        # prerelease id, either of which a trailing-dash cut would mangle.
+        version=${file#${extension}-}
+        version=${version%.vsix}
         extensionName="$(echo "$extension" | sed 's/.*/\u&/')"
         echo "vsixName=$file" >> $GITHUB_OUTPUT
         echo "version=$version" >> $GITHUB_OUTPUT
         echo "extensionName=$extensionName" >> $GITHUB_OUTPUT
+        echo "releaseTag=v${version}" >> $GITHUB_OUTPUT
+        if [ "${{ inputs.prerelease }}" = "true" ]; then
+          echo "releaseName=Pre-release v${version}" >> $GITHUB_OUTPUT
+        else
+          echo "releaseName=Release v${version}" >> $GITHUB_OUTPUT
+        fi
+
+    # ── Release refs ─────────────────────────────────────────────────────────
+    # Only for a real release. The version the build packaged exists solely in the
+    # working tree — updateVersion wrote it there during the build — so committing it
+    # here is what gives the release a commit whose tree actually carries its version,
+    # and the tag below then points at that commit rather than at the dispatched one.
+    - name: Config git
+      if: ${{ inputs.releaseBranch == 'true' }}
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+
+    - name: Resolve release refs
+      if: ${{ inputs.releaseBranch == 'true' }}
+      shell: bash
+      id: refs
+      env:
+        VSIX_VERSION: ${{ steps.vsix.outputs.version }}
+      run: |
+        set -euo pipefail
+        version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        case "${version}" in
+          *-SNAPSHOT)
+            echo "::error::Refusing to release the snapshot version '${version}';" \
+                 "updateVersion should have resolved it before packaging."
+            exit 1
+            ;;
+        esac
+        # The VSIX is named from this extension manifest, so the two must agree. If
+        # they do not, the artifact about to be tagged is not the one this version describes.
+        if [ "${version}" != "${VSIX_VERSION}" ]; then
+          echo "::error::Extension package.json says ${version} but the VSIX is ${VSIX_VERSION}."
+          exit 1
+        fi
+        # Even minors are release lines, odd minors the pre-release channel, so a release
+        # always belongs to the 'X.Y.x' line of its own minor.
+        line=$(node -e '
+          const [major, minor] = process.argv[1].split(".");
+          console.log(`${major}.${minor}.x`);
+        ' "${version}")
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        echo "line=${line}" >> "$GITHUB_OUTPUT"
+        echo "branch=release/${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Stage Ballerina version files
+      if: ${{ inputs.releaseBranch == 'true' && inputs.ballerina == 'true' }}
+      shell: bash
+      # The extension manifest is the authored version and Gradle reads it directly.
+      run: git add packages/ballerina-extension/package.json
+
+    - name: Commit version and push the release branch
+      if: ${{ inputs.releaseBranch == 'true' }}
+      shell: bash
+      id: release_branch
+      run: |
+        set -euo pipefail
+        branch="${{ steps.refs.outputs.branch }}"
+        git diff --staged --quiet || git commit -m "Update version to ${{ steps.refs.outputs.version }}"
+
+        # A re-run may reuse the branch only when it contains exactly the tree this
+        # invocation intends to release. Adopting a different tree would make the tag
+        # disagree with the VSIX that was just built.
+        if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+          sha=$(git ls-remote --heads origin "${branch}" | cut -f1)
+          git fetch --depth=1 origin "${branch}"
+          localTree=$(git rev-parse "HEAD^{tree}")
+          remoteTree=$(git rev-parse "${sha}^{tree}")
+          if [ "${remoteTree}" != "${localTree}" ]; then
+            echo "::error::${branch} already exists at ${sha}, but its tree does not match the release being built."
+            echo "::error::Expected tree ${localTree}; found ${remoteTree}. Refusing to tag an incompatible branch."
+            exit 1
+          fi
+          echo "::notice::${branch} already exists at ${sha}; leaving it untouched."
+        else
+          sha=$(git rev-parse HEAD)
+          git push origin "${sha}:refs/heads/${branch}"
+          echo "Created ${branch} at ${sha}"
+        fi
+        echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
     - name: Create a release in ${{ inputs.repo }} repo
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ inputs.repo }}
+        TAG: ${{ steps.vsix.outputs.releaseTag }}
+        RELEASE_NAME: ${{ steps.vsix.outputs.releaseName }}
+        VSIX: ${{ steps.vsix.outputs.vsixName }}
+        EXTRA_ASSETS: ${{ inputs.extraAssets }}
+        TARGET_COMMIT: ${{ steps.release_branch.outputs.sha || github.sha }}
+        PRERELEASE: ${{ inputs.prerelease }}
       run: |
-        createResponse=`curl -X POST  -H "Accept: application/vnd.github.v3+json" \
-        -H "Authorization:token ${{ github.token }}" -d '{"tag_name":"v${{ steps.vsix.outputs.version }}", \
-        "draft":false, "name": "Release v${{ steps.vsix.outputs.version }}", "prerelease":true}' \
-        https://api.github.com/repos/${{ inputs.repo }}/releases` \
-          && id=`echo "$createResponse" | sed -n -e 's/"id":\ \([0-9]\+\),/\1/p' | head -n 1 | sed 's/[[:blank:]]//g'` && \
-          uploadResponse=`curl -X POST -H "Authorization:token ${{ github.token }}" -H "Content-Type:application/octet-stream" \
-          --data-binary @${{ steps.vsix.outputs.vsixName }} \
-          https://uploads.github.com/repos/${{ inputs.repo }}/releases/$id/assets?name=${{ steps.vsix.outputs.vsixName }}`
+        set -euo pipefail
+        API="https://api.github.com/repos/${REPO}"
+
+        # Validated before it reaches jq below: --argjson parses the value as JSON, so
+        # anything other than a bare true/false would fail with an opaque jq error
+        # partway through releasing.
+        case "${PRERELEASE}" in
+          true|false) ;;
+          *)
+            echo "::error::prerelease must be 'true' or 'false', got '${PRERELEASE}'" >&2
+            exit 1
+            ;;
+        esac
+
+        # Bounded timeouts so a hung GitHub API call can't stall the job until
+        # the job-level timeout. The metadata calls are small; the asset upload
+        # ships a ~100MB VSIX, so it gets a much larger budget.
+        CURL_API=(curl -sS --connect-timeout 15 --max-time 60)
+        CURL_UPLOAD=(curl -sS --connect-timeout 15 --max-time 900)
+
+        createResponse=$("${CURL_API[@]}" -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization:token ${GH_TOKEN}" \
+          "${API}/releases" \
+          -d "$(jq -n \
+            --arg tag "${TAG}" \
+            --arg name "${RELEASE_NAME}" \
+            --arg commit "${TARGET_COMMIT}" \
+            --argjson prerelease "${PRERELEASE}" \
+            '{tag_name: $tag, target_commitish: $commit, draft: false, name: $name, prerelease: $prerelease}')")
+        id=$(echo "${createResponse}" | jq -r '.id // empty')
+        if [ -z "${id}" ]; then
+          tagAlreadyExists=$(echo "${createResponse}" | jq -r \
+            'any(.errors[]?; .code == "already_exists" and .field == "tag_name")')
+          if [ "${tagAlreadyExists}" != "true" ]; then
+            echo "Failed to create release:" >&2
+            echo "${createResponse}" >&2
+            exit 1
+          fi
+
+          existingRelease=$("${CURL_API[@]}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases/tags/${TAG}")
+          id=$(echo "${existingRelease}" | jq -r '.id // empty')
+          if [ -z "${id}" ]; then
+            echo "The release tag already exists, but its GitHub Release could not be loaded:" >&2
+            echo "${existingRelease}" >&2
+            exit 1
+          fi
+          echo "::notice::Reusing existing release ${id} for ${TAG}."
+        fi
+
+        existingAssets=$("${CURL_API[@]}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -H "Authorization:token ${GH_TOKEN}" \
+          "${API}/releases/${id}/assets?per_page=100")
+        if ! echo "${existingAssets}" | jq -e 'type == "array"' >/dev/null; then
+          echo "Failed to load assets for release ${id}:" >&2
+          echo "${existingAssets}" >&2
+          exit 1
+        fi
+
+        # Uploads one file. The temporary name ensures an incomplete upload is never
+        # exposed as the final release asset.
+        publish_asset() {
+          local file="$1"
+          local name
+          name="$(basename "${file}")"
+
+          # Clear any temp asset left behind by a previously failed run, or this
+          # upload would 422.
+          local staleId
+          staleId=$(echo "${existingAssets}" | jq -r --arg n "${name}.new" \
+            '.[] | select(.name == $n) | .id' | head -n 1)
+          if [ -n "${staleId}" ]; then
+            echo "Removing stale temp asset ${staleId} (${name}.new)"
+            "${CURL_API[@]}" -X DELETE -H "Authorization:token ${GH_TOKEN}" \
+              "${API}/releases/assets/${staleId}"
+          fi
+
+          # curl exits 0 on a non-2xx HTTP response, so 'set -e' alone would let a
+          # rejected upload (auth, size limit, rate limit) pass as success, leaving
+          # a release whose artifact silently never arrived.
+          local uploadResponse assetId
+          uploadResponse=$("${CURL_UPLOAD[@]}" -X POST \
+            -H "Authorization:token ${GH_TOKEN}" \
+            -H "Content-Type:application/octet-stream" \
+            --data-binary "@${file}" \
+            "https://uploads.github.com/repos/${REPO}/releases/${id}/assets?name=${name}.new")
+          assetId=$(echo "${uploadResponse}" | jq -r '.id // empty')
+          if [ -z "${assetId}" ]; then
+            echo "Failed to upload ${file} to release ${id}:" >&2
+            echo "${uploadResponse}" >&2
+            return 1
+          fi
+
+          # The new artifact is safely uploaded — only now retire the old one.
+          local oldId
+          oldId=$(echo "${existingAssets}" | jq -r --arg n "${name}" \
+            '.[] | select(.name == $n) | .id' | head -n 1)
+          if [ -n "${oldId}" ]; then
+            echo "Deleting superseded asset ${oldId} (${name})"
+            "${CURL_API[@]}" -X DELETE -H "Authorization:token ${GH_TOKEN}" \
+              "${API}/releases/assets/${oldId}"
+          fi
+
+          local renameResponse
+          renameResponse=$("${CURL_API[@]}" -X PATCH \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization:token ${GH_TOKEN}" \
+            "${API}/releases/assets/${assetId}" \
+            -d "$(jq -n --arg name "${name}" '{name: $name}')")
+          if [ -z "$(echo "${renameResponse}" | jq -r '.id // empty')" ]; then
+            echo "Failed to rename asset ${assetId} to ${name}:" >&2
+            echo "${renameResponse}" >&2
+            return 1
+          fi
+          echo "Uploaded ${name} as asset ${assetId}"
+        }
+
+        publish_asset "${VSIX}"
+
+        # Extra assets (e.g. the bundled language-server jar). Globs are expanded
+        # here rather than by the caller so the workflow can name the artifact
+        # without knowing the timestamped version.
+        while IFS= read -r pattern; do
+          [ -n "${pattern}" ] || continue
+          # shellcheck disable=SC2206 # deliberate glob expansion
+          matches=(${pattern})
+          if [ ! -e "${matches[0]}" ]; then
+            echo "No file matched extra asset pattern '${pattern}'" >&2
+            exit 1
+          fi
+          for file in "${matches[@]}"; do
+            publish_asset "${file}"
+          done
+        done <<< "${EXTRA_ASSETS}"
 
     - name: "Release Notification"
       shell: bash
       run: |
+        # Unset on a fork, where the curl below would target a bare query string, fail, and
+        # fail the job even though the release itself succeeded.
+        if [ -z "${{ inputs.chatAPI }}" ]; then
+          echo "::notice::chatAPI is empty; skipping the release notification."
+          exit 0
+        fi
         THREAD_KEY="${{ inputs.threadKey }}"
         if [ -n "${THREAD_KEY}" ]; then
           THREAD_FIELD='"thread": {"threadKey": "'"${THREAD_KEY}"'"},'
@@ -71,7 +333,7 @@ runs:
                         "content": "v${{ steps.vsix.outputs.version }}",
                         "onClick": {
                           "openLink": {
-                            "url": "https://github.com/${{ inputs.repo }}/releases/tag/v${{ steps.vsix.outputs.version }}"
+                            "url": "https://github.com/${{ inputs.repo }}/releases/tag/${{ steps.vsix.outputs.releaseTag }}"
                           }
                         },
                         "iconUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Visual_Studio_Code_1.35_icon.svg/512px-Visual_Studio_Code_1.35_icon.svg.png",
@@ -80,7 +342,7 @@ runs:
                             "text": "Download VSIX",
                             "onClick": {
                               "openLink": {
-                                "url": "https://github.com/${{ inputs.repo }}/releases/download/v${{ steps.vsix.outputs.version }}/${{ steps.vsix.outputs.vsixName }}"
+                                "url": "https://github.com/${{ inputs.repo }}/releases/download/${{ steps.vsix.outputs.releaseTag }}/${{ steps.vsix.outputs.vsixName }}"
                               }
                             }
                           }

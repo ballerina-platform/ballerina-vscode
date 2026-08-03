@@ -132,7 +132,7 @@ export function Diagram(props: DiagramProps) {
     } = props;
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
-    const [nodeComments, setNodeComments] = useState<Map<string, FlowNode>>(new Map());
+    const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
     const [showComponentPanel, setShowComponentPanel] = useState(false);
@@ -286,7 +286,8 @@ export function Diagram(props: DiagramProps) {
             diagramEngine.getModel().removeLayer(overlayLayer);
         }
 
-        if (nodes.length < 3 || !hasDiagramZoomAndPosition(model.fileName)) {
+        // Fit only on first render per file; preserve zoom/pan on later updates.
+        if (!hasDiagramZoomAndPosition(model.fileName)) {
             resetDiagramZoomAndPosition(model.fileName);
         }
         loadDiagramZoomAndPosition(diagramEngine);

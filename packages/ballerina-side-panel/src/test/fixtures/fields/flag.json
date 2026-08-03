@@ -1,0 +1,16 @@
+{
+    "description": "FLAG field type with a single type must render the CheckBoxEditor",
+    "expectedEditor": "CheckBoxEditor",
+    "fieldInputType": { "fieldType": "FLAG" },
+    "field": {
+        "key": "enabled",
+        "label": "Enabled",
+        "type": "FLAG",
+        "optional": true,
+        "editable": true,
+        "documentation": "",
+        "value": "false",
+        "types": [{ "fieldType": "FLAG", "selected": true }],
+        "enabled": true
+    }
+}

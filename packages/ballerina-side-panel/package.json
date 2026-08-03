@@ -9,11 +9,13 @@
     "types": "lib/index.d.ts",
     "scripts": {
         "build": "tsc --pretty && npm run copy:assets",
-        "test": "npm run build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/typeCompletionUtils.test.mjs test/formValidationUtils.test.mjs",
+        "test": "jest --coverage",
+        "test:watch": "jest --watch",
         "storybook": "start-storybook -p 6006",
         "watch": "tsc --pretty --watch",
         "build-storybook": "build-storybook",
-        "copy:assets": "copyfiles -u 1 \"src/**/*.svg\"  \"src/**/*.css\" \"src/resources/assets/font/*.*\" lib/"
+        "copy:assets": "copyfiles -u 1 \"src/**/*.svg\"  \"src/**/*.css\" \"src/resources/assets/font/*.*\" lib/",
+        "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "keywords": [],
     "author": "",
@@ -57,11 +59,23 @@
         "@lezer/highlight": "1.2.3"
     },
     "devDependencies": {
+        "@babel/core": "7.29.6",
+        "@babel/preset-env": "7.27.2",
+        "@babel/preset-react": "7.27.1",
+        "@babel/preset-typescript": "7.27.1",
         "@storybook/react": "6.5.16",
+        "@testing-library/dom": "10.4.0",
+        "@testing-library/react": "16.3.0",
+        "@types/jest": "29.5.14",
         "@types/lodash": "4.17.16",
         "@types/react": "18.2.0",
         "@types/react-dom": "18.2.0",
+        "@wso2/test-config": "workspace:*",
+        "babel-jest": "29.7.0",
         "copyfiles": "2.4.1",
+        "jest": "29.7.0",
+        "jest-environment-jsdom": "29.7.0",
+        "ts-jest": "29.3.4",
         "typescript": "5.8.3"
     }
 }

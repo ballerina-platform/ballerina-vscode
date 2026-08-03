@@ -122,6 +122,10 @@ interface ArtifactFormProps {
     changeOptionalFieldTitle?: string;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
     hideSaveButton?: boolean;
+    // Optional extra primary action next to the submit button (e.g. a "Next" that submits and
+    // continues to a following step). Validated through the same path as submit.
+    secondarySubmitText?: string;
+    onSecondarySubmit?: (data: FormValues, formImports?: FormImports, importsCodedata?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
@@ -160,7 +164,9 @@ export function ArtifactForm(props: ArtifactFormProps) {
         hideSaveButton,
         customDiagnosticFilter,
         onValidityChange,
-        recordsOnly
+        recordsOnly,
+        secondarySubmitText,
+        onSecondarySubmit
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -1101,6 +1107,17 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
                     onValidityChange={onValidityChange}
+                    secondarySubmitButton={
+                        onSecondarySubmit
+                            ? {
+                                  text: secondarySubmitText || "Next",
+                                  onClick: (values: FormValues) => {
+                                      onSecondarySubmit(values, formImports, importsCodedataRef.current);
+                                      importsCodedataRef.current = {};
+                                  },
+                              }
+                            : undefined
+                    }
                 />
             )}
             {

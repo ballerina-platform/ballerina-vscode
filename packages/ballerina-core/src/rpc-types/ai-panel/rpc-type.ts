@@ -17,7 +17,7 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
-import { LoginMethod } from "../../state-machine-types";
+import { LoginMethod, FollowupSuggestion } from "../../state-machine-types";
 import {
     TestGenerationMentions,
     RequirementSpecification,
@@ -33,6 +33,7 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
     ApproveTaskRequest,
@@ -41,10 +42,14 @@ import {
     ConnectorSpecCancelRequest,
     ConfigurationProvideRequest,
     ConfigurationCancelRequest,
+    CreateManagedConnectionRequest,
+    CreateManagedConnectionResponse,
     UIChatMessage,
     CheckpointInfo,
     AbortAIGenerationRequest,
     UsageResponse,
+    QuotaRequestParams,
+    QuotaRequestResult,
     OpenFileDiffRequest,
     WebToolApprovalRequest,
     CompactConversationRequest,
@@ -62,7 +67,6 @@ import {
     DeleteSkillRequest,
     SkillEnableRequest,
     SkillEnableCancelRequest,
-    SetSkillsEnabledRequest,
     McpServerStatusDTO,
     SetMcpServerEnabledRequest,
     AddMcpServerRequest,
@@ -76,6 +80,15 @@ import {
     AgentsMdFileInfoDTO,
     ParseSkillFileRequest,
     ParseSkillFileResponse,
+    ThreadSummary,
+    SwitchThreadRequest,
+    DeleteThreadRequest,
+    RenameThreadRequest,
+    // TODO(auto-memory): temporarily disabled for this release.
+    // ClearMemoryRequest,
+    // OpenMemoryRequest,
+    GetRunStatusRequest,
+    GetRunStatusResponse,
 } from "./interfaces";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
@@ -107,8 +120,7 @@ export const isUserAuthenticated: RequestType<void, boolean> = { method: `${_pre
 export const openAIPanel: RequestType<AIPanelPrompt, void> = { method: `${_preFix}/openAIPanel` };
 export const getSemanticDiff: RequestType<SemanticDiffRequest, SemanticDiffResponse> = { method: `${_preFix}/getSemanticDiff` };
 export const isWorkspaceProject: RequestType<void, boolean> = { method: `${_preFix}/isWorkspaceProject` };
-export const acceptChanges: RequestType<void, void> = { method: `${_preFix}/acceptChanges` };
-export const declineChanges: RequestType<void, void> = { method: `${_preFix}/declineChanges` };
+export const revertGeneration: RequestType<RevertGenerationRequest, void> = { method: `${_preFix}/revertGeneration` };
 export const approvePlan: RequestType<PlanApprovalRequest, void> = { method: `${_preFix}/approvePlan` };
 export const declinePlan: RequestType<PlanApprovalRequest, void> = { method: `${_preFix}/declinePlan` };
 export const approveTask: RequestType<ApproveTaskRequest, void> = { method: `${_preFix}/approveTask` };
@@ -117,13 +129,18 @@ export const provideConnectorSpec: RequestType<ConnectorSpecRequest, void> = { m
 export const cancelConnectorSpec: RequestType<ConnectorSpecCancelRequest, void> = { method: `${_preFix}/cancelConnectorSpec` };
 export const provideConfiguration: RequestType<ConfigurationProvideRequest, void> = { method: `${_preFix}/provideConfiguration` };
 export const cancelConfiguration: RequestType<ConfigurationCancelRequest, void> = { method: `${_preFix}/cancelConfiguration` };
+export const createManagedConnection: RequestType<CreateManagedConnectionRequest, CreateManagedConnectionResponse> = { method: `${_preFix}/createManagedConnection` };
+export const cancelManagedConnection: NotificationType<void> = { method: `${_preFix}/cancelManagedConnection` };
 export const getChatMessages: NotificationType<void> = { method: `${_preFix}/getChatMessages` };
 export const getCheckpoints: NotificationType<void> = { method: `${_preFix}/getCheckpoints` };
 export const restoreCheckpoint: RequestType<RestoreCheckpointRequest, void> = { method: `${_preFix}/restoreCheckpoint` };
 export const clearChat: RequestType<void, void> = { method: `${_preFix}/clearChat` };
 export const updateChatMessage: RequestType<UpdateChatMessageRequest, void> = { method: `${_preFix}/updateChatMessage` };
 export const getActiveTempDir: RequestType<void, string> = { method: `${_preFix}/getActiveTempDir` };
+export const getRunStatus: RequestType<GetRunStatusRequest, GetRunStatusResponse> = { method: `${_preFix}/getRunStatus` };
+export const getLatestFollowupSuggestions: RequestType<void, FollowupSuggestion[]> = { method: `${_preFix}/getLatestFollowupSuggestions` };
 export const getUsage: RequestType<void, UsageResponse | undefined> = { method: `${_preFix}/getUsage` };
+export const requestQuota: RequestType<QuotaRequestParams, QuotaRequestResult> = { method: `${_preFix}/requestQuota` };
 export const openFileDiff: NotificationType<OpenFileDiffRequest> = { method: `${_preFix}/openFileDiff` };
 export const approveWebTool: RequestType<WebToolApprovalRequest, void> = { method: `${_preFix}/approveWebTool` };
 export const declineWebTool: RequestType<WebToolApprovalRequest, void> = { method: `${_preFix}/declineWebTool` };
@@ -142,8 +159,6 @@ export const getSkills: RequestType<void, GetSkillsResponse> = { method: `${_pre
 export const addSkill: RequestType<AddSkillRequest, boolean> = { method: `${_preFix}/addSkill` };
 export const toggleSkill: RequestType<ToggleSkillRequest, boolean> = { method: `${_preFix}/toggleSkill` };
 export const deleteSkill: RequestType<DeleteSkillRequest, boolean> = { method: `${_preFix}/deleteSkill` };
-export const getSkillsEnabled: RequestType<void, boolean> = { method: `${_preFix}/getSkillsEnabled` };
-export const setSkillsEnabled: RequestType<SetSkillsEnabledRequest, void> = { method: `${_preFix}/setSkillsEnabled` };
 export const enableSkillFromChat: RequestType<SkillEnableRequest, boolean> = { method: `${_preFix}/enableSkillFromChat` };
 export const cancelSkillEnable: RequestType<SkillEnableCancelRequest, void> = { method: `${_preFix}/cancelSkillEnable` };
 export const parseSkillFile: RequestType<ParseSkillFileRequest, ParseSkillFileResponse> = { method: `${_preFix}/parseSkillFile` };
@@ -162,3 +177,10 @@ export const mcpLoadErrorsChanged: NotificationType<McpLoadErrorsDTO> = { method
 export const getAgentsMdFileInfo: RequestType<void, AgentsMdFileInfoDTO> = { method: `${_preFix}/getAgentsMdFileInfo` };
 export const openOrCreateAgentsMd: RequestType<void, void> = { method: `${_preFix}/openOrCreateAgentsMd` };
 export const agentsMdFileInfoChanged: NotificationType<AgentsMdFileInfoDTO> = { method: `${_preFix}/agentsMdFileInfoChanged` };
+export const listThreads: RequestType<void, ThreadSummary[]> = { method: `${_preFix}/listThreads` };
+export const switchThread: RequestType<SwitchThreadRequest, void> = { method: `${_preFix}/switchThread` };
+export const deleteThread: RequestType<DeleteThreadRequest, void> = { method: `${_preFix}/deleteThread` };
+export const renameThread: RequestType<RenameThreadRequest, void> = { method: `${_preFix}/renameThread` };
+// TODO(auto-memory): temporarily disabled for this release.
+// export const clearMemory: RequestType<ClearMemoryRequest, void> = { method: `${_preFix}/clearMemory` };
+// export const openMemoryFiles: NotificationType<OpenMemoryRequest> = { method: `${_preFix}/openMemoryFiles` };

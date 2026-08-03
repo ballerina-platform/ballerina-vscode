@@ -36,7 +36,7 @@ import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffColors, getDiffStrokeDasharray, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeStyles } from "./IfNodeWidget";
 import NodeIcon from "../../NodeIcon";
@@ -160,6 +160,7 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
 
     const disabled = model.node.suggested;
     const hasError = nodeHasError(model.node);
+    const diffColors = getDiffColors(model.node);
     const condition = (
         model.node.properties.condition?.value ||
         model.node.properties.matchTarget?.value ||
@@ -208,14 +209,18 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
                             rx="5"
                             ry="5"
                             fill={
-                                isActiveBreakpoint
+                                diffColors
+                                    ? diffColors.background
+                                    : isActiveBreakpoint
                                     ? NODE_BG_BREAKPOINT_COLOR
                                     : isHovered && !disabled && !readOnly
                                     ? NODE_BG_HOVER_COLOR
                                     : NODE_BG_COLOR
                             }
                             stroke={
-                                hasError
+                                diffColors
+                                    ? diffColors.border
+                                    : hasError
                                     ? NODE_BORDER_ERROR_COLOR
                                     : isSelected && !disabled
                                         ? ThemeColors.SECONDARY
@@ -224,7 +229,7 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
                                             : ThemeColors.OUTLINE_VARIANT
                             }
                             strokeWidth={NODE_BORDER_WIDTH}
-                            strokeDasharray={disabled ? "5 5" : "none"}
+                            strokeDasharray={disabled ? "5 5" : getDiffStrokeDasharray(model.node)}
                             opacity={disabled ? 0.7 : 1}
                             transform="rotate(45 28 28)"
                         />
@@ -235,7 +240,7 @@ export function MatchNodeWidget(props: MatchNodeWidgetProps) {
                     <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
                 </NodeStyles.Column>
                 <NodeStyles.Header onClick={handleOnClick}>
-                    <NodeStyles.Title>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
+                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
                     <NodeStyles.Description>{condition}</NodeStyles.Description>
                 </NodeStyles.Header>
                 {hasError && (

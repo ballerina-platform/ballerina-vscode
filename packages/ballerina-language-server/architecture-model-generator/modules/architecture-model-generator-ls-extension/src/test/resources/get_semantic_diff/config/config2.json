@@ -6,6 +6,38 @@
     "semanticDiffs": [
       {
         "changeType": "MODIFICATION",
+        "nodeKind": "OBJECT_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 11,
+            "offset": 5
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 11,
+            "offset": 5
+          }
+        },
+        "metadata": {
+          "accessor": "post",
+          "servicePath": "/api",
+          "resourcePath": "patients"
+        }
+      },
+      {
+        "changeType": "MODIFICATION",
         "nodeKind": "TYPE_DEFINITION",
         "uri": "ai:///types.bal",
         "lineRange": {
@@ -16,6 +48,17 @@
           },
           "endLine": {
             "line": 25,
+            "offset": 3
+          }
+        },
+        "previousLineRange": {
+          "fileName": "types.bal",
+          "startLine": {
+            "line": 20,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 24,
             "offset": 3
           }
         },

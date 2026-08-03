@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { NodeTypes } from "../../../resources/constants";
 import { WorkflowRunNodeModel } from "./WorkflowRunNodeModel";
 import { WorkflowRunNodeWidget } from "./WorkflowRunNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class WorkflowRunNodeFactory extends AbstractReactFactory<WorkflowRunNodeModel, DiagramEngine> {
     constructor() {
@@ -33,6 +34,10 @@ export class WorkflowRunNodeFactory extends AbstractReactFactory<WorkflowRunNode
     }
 
     generateReactWidget(event: GenerateWidgetEvent<WorkflowRunNodeModel>) {
-        return <WorkflowRunNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <WorkflowRunNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

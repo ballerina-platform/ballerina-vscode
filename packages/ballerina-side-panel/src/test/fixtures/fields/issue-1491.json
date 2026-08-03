@@ -1,0 +1,16 @@
+{
+    "description": "#1491: array param (mysqlClient batchExecute) must use the array editor, not SQL/text",
+    "expectedEditor": "FormArrayEditorWrapper",
+    "fieldInputType": { "fieldType": "REPEATABLE_LIST" },
+    "field": {
+        "key": "f_REPEATABLE_LIST",
+        "label": "REPEATABLE_LIST field",
+        "type": "REPEATABLE_LIST",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": [],
+        "types": [{ "fieldType": "REPEATABLE_LIST", "selected": false }],
+        "enabled": true
+    }
+}

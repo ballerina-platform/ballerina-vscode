@@ -18,7 +18,7 @@
 
 import { ImportIntegrationResponse, ProjectMigrationResult } from "@wso2/ballerina-core";
 import { CoverageLevel, MigrationDisplayState } from "./types";
-import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { BiWsClient } from "../wsManager/WsClient";
 
 export const SELECTION_TEXT = "To begin, choose a source platform from the options above.";
 
@@ -81,11 +81,11 @@ export const getMigrationDisplayState = (
     showButtonsAfterLogs: !migrationCompleted || (migrationCompleted && !migrationSuccessful)
 });
 
-export const handleMultiProjectReportOpening = (
+export const handleMultiProjectReportOpening = async (
     migrationResponse: ImportIntegrationResponse,
     projects: Array<ProjectMigrationResult>,
-    rpcClient: BallerinaRpcClient
-) => {
+    wsClient: BiWsClient
+): Promise<void> => {
     // Build a map of project reports from the projects array
     const subProjectReports: { [projectName: string]: string } = {};
 
@@ -98,8 +98,7 @@ export const handleMultiProjectReportOpening = (
     // Store the sub-project reports via RPC so they can be retrieved on link clicks
     if (Object.keys(subProjectReports).length > 0) {
         try {
-            const migrateRpcClient = rpcClient.getMigrateIntegrationRpcClient();
-            migrateRpcClient.storeSubProjectReports({
+            await wsClient.storeSubProjectReports({
                 reports: subProjectReports
             });
             console.log("Stored sub-project reports:", Object.keys(subProjectReports));

@@ -1,0 +1,7 @@
+{
+  "projectPath": "proj4",
+  "description": "ICP enabled + workflow function but management already enabled -> do not re-enable",
+  "response": {
+    "enabled": false
+  }
+}

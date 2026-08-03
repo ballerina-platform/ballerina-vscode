@@ -48,7 +48,7 @@ import { useDiagramContext } from "../../DiagramContext";
 import { PromptNodeModel } from "./PromptNodeModel";
 import { ELineRange, ExpressionProperty, NodeMetadata } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { cloneDeep } from "lodash";
 
 export namespace NodeStyles {
@@ -423,6 +423,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
                 hasError={hasError}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
@@ -446,7 +447,7 @@ export function PromptNodeWidget(props: PromptNodeWidgetProps) {
                     </NodeStyles.Icon>
                     <NodeStyles.Row>
                         <NodeStyles.Header onClick={handleOnClick}>
-                            <NodeStyles.Title>Prompt</NodeStyles.Title>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>Prompt</NodeStyles.Title>
                         </NodeStyles.Header>
                         <NodeStyles.ActionButtonGroup>
                             {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}

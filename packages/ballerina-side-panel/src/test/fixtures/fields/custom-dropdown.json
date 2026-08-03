@@ -1,0 +1,16 @@
+{
+    "description": "CUSTOM_DROPDOWN -> CustomDropdownEditor",
+    "expectedEditor": "CustomDropdownEditor",
+    "fieldInputType": { "fieldType": "CUSTOM_DROPDOWN" },
+    "field": {
+        "key": "f_CUSTOM_DROPDOWN",
+        "label": "CUSTOM_DROPDOWN field",
+        "type": "CUSTOM_DROPDOWN",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "CUSTOM_DROPDOWN", "selected": false }],
+        "enabled": true
+    }
+}

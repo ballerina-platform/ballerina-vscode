@@ -648,6 +648,16 @@ export interface ICPEnabledResponse {
     stacktrace?: string;
 }
 
+export interface WorkflowManagementRequest {
+    projectPath: string;
+}
+
+export interface WorkflowManagementResponse {
+    enabled?: boolean;
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
 export interface GetTestFunctionRequest {
     filePath: string;
     functionName: string;
@@ -1002,6 +1012,59 @@ export interface WorkflowDataResponse {
         events?: WorkflowData[];
     };
     events?: WorkflowData[];
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
+export interface GenActivityRequest {
+    filePath: string;
+    flowNode: FlowNode;
+    activityName: string;
+    description: string;
+    connection: string;
+    activityParameters?: ToolParameters;
+    /** When the action returns a stream, its element type T: the activity collects it and returns T[]. */
+    streamElementType?: string;
+    /** When true, the connection is exposed as the activity's first parameter (built-in activity style). */
+    connectionAsParam?: boolean;
+}
+
+export interface GenActivityResponse {
+    artifacts?: ProjectStructureArtifactResponse[];
+    textEdits?: {
+        [key: string]: TextEdit[];
+    };
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
+export interface AnalyzeActivityActionRequest {
+    filePath: string;
+    /** Name of the module-level connection variable the action belongs to. */
+    connection: string;
+    /** Name of the action (method) to analyze. */
+    actionName: string;
+    /** REMOTE_ACTION_CALL or RESOURCE_ACTION_CALL — disambiguates same-named remote/resource methods. */
+    nodeKind: string;
+}
+
+export interface ActivityActionAnalysis {
+    /** Whether an activity can be generated from the action automatically. */
+    supported: boolean;
+    /** When unsupported, the human-readable reasons. */
+    reasons: string[];
+    /** The derived activity parameters. */
+    params: { name: string; type: string; required: boolean; description?: string }[];
+    /** The derived activity return type (success type, without |error). */
+    returnType: string;
+    /** When the action returns a stream, its element type T (the activity returns T[]); else absent. */
+    streamElementType?: string;
+    /** True when the return type is inferred from a typedesc param — the user provides the type T. */
+    dependentReturn?: boolean;
+}
+
+export interface AnalyzeActivityActionResponse {
+    analysis?: ActivityActionAnalysis;
     errorMsg?: string;
     stacktrace?: string;
 }
@@ -2138,6 +2201,8 @@ export interface BIInterface extends BaseLangClientInterface {
     getSimpleTypeOfExpression: (params: GetSimpleTypeOfExpressionRequest) => Promise<GetSimpleTypeOfExpressionResponse>;
     updateType: (params: UpdateTypeRequest) => Promise<UpdateTypeResponse>;
     getAllData: (params: WorkflowDataRequest) => Promise<WorkflowDataResponse>;
+    genActivity: (params: GenActivityRequest) => Promise<GenActivityResponse>;
+    analyzeActivityAction: (params: AnalyzeActivityActionRequest) => Promise<AnalyzeActivityActionResponse>;
     updateImports: (params: UpdateImportsRequest) => Promise<ImportsInfoResponse>;
     addFunction: (params: AddFunctionRequest) => Promise<AddImportItemResponse>;
     convertJsonToRecordType: (params: JsonToRecordParams) => Promise<TypeDataWithReferences>;

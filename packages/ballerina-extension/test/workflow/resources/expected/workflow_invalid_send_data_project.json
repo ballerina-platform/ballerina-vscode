@@ -1,0 +1,199 @@
+{
+  "automation": {
+    "name": "automation",
+    "location": {
+      "filePath": "main.bal",
+      "startLine": {
+        "line": 2,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 5,
+        "offset": 1
+      }
+    },
+    "connections": [],
+    "workflows": [
+      "<uuid-4>"
+    ],
+    "type": "automation",
+    "uuid": "<uuid-1>",
+    "enableFlowModel": true,
+    "sortText": "Z"
+  },
+  "connections": [],
+  "listeners": [
+    {
+      "symbol": "ANON",
+      "location": {
+        "filePath": "service.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 1
+        }
+      },
+      "attachedServices": [
+        "<uuid-3>"
+      ],
+      "kind": 0,
+      "type": "http:Listener",
+      "args": [
+        {
+          "key": "port",
+          "value": "8090"
+        }
+      ],
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+      "uuid": "<uuid-2>",
+      "enableFlowModel": false,
+      "sortText": "service.bal3"
+    }
+  ],
+  "services": [
+    {
+      "location": {
+        "filePath": "service.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 1
+        }
+      },
+      "attachedListeners": [
+        "<uuid-2>"
+      ],
+      "connections": [],
+      "workflows": [],
+      "functions": [],
+      "remoteFunctions": [],
+      "resourceFunctions": [
+        {
+          "accessor": "post",
+          "path": "dynamic",
+          "location": {
+            "filePath": "service.bal",
+            "startLine": {
+              "line": 16,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 18,
+              "offset": 5
+            }
+          },
+          "connections": [],
+          "workflows": [],
+          "workflowSendData": {},
+          "invalidWorkflowSendData": [
+            "<uuid-4>"
+          ]
+        },
+        {
+          "accessor": "post",
+          "path": "payment",
+          "location": {
+            "filePath": "service.bal",
+            "startLine": {
+              "line": 6,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 8,
+              "offset": 5
+            }
+          },
+          "connections": [],
+          "workflows": [],
+          "workflowSendData": {
+            "<uuid-4>": [
+              "paymentReceived"
+            ]
+          },
+          "invalidWorkflowSendData": []
+        },
+        {
+          "accessor": "post",
+          "path": "renamed",
+          "location": {
+            "filePath": "service.bal",
+            "startLine": {
+              "line": 11,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 13,
+              "offset": 5
+            }
+          },
+          "connections": [],
+          "workflows": [],
+          "workflowSendData": {},
+          "invalidWorkflowSendData": [
+            "<uuid-4>"
+          ]
+        }
+      ],
+      "absolutePath": "/orders ",
+      "type": "http:Service",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+      "uuid": "<uuid-3>",
+      "enableFlowModel": true,
+      "sortText": "service.bal3"
+    }
+  ],
+  "workflows": [
+    {
+      "symbol": "orderWorkflow",
+      "location": {
+        "filePath": "workflows.bal",
+        "startLine": {
+          "line": 3,
+          "offset": 9
+        },
+        "endLine": {
+          "line": 3,
+          "offset": 22
+        }
+      },
+      "attachedServices": [],
+      "attachedFunctions": [
+        "<uuid-1>"
+      ],
+      "events": [
+        {
+          "name": "paymentReceived",
+          "type": "PaymentData",
+          "attachedServices": [
+            "<uuid-3>"
+          ],
+          "attachedFunctions": []
+        },
+        {
+          "name": "shipmentReady",
+          "type": "string",
+          "attachedServices": [],
+          "attachedFunctions": []
+        }
+      ],
+      "humanTasks": [],
+      "activities": [],
+      "invalidSendDataServices": [
+        "<uuid-3>"
+      ],
+      "invalidSendDataFunctions": [
+        "<uuid-1>"
+      ],
+      "uuid": "<uuid-4>",
+      "enableFlowModel": true,
+      "sortText": "workflows.bal3"
+    }
+  ],
+  "activities": []
+}

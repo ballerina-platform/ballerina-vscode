@@ -83,6 +83,9 @@ export interface CommandsResponse {
 
 export interface FileOrDirResponse {
     path: string;
+    /** True when the selected path is a directory, false when a file. Undefined if
+     *  the host could not determine it (callers should fall back to a heuristic). */
+    isDirectory?: boolean;
 }
 export interface FileOrDirRequest {
     isFile?: boolean;

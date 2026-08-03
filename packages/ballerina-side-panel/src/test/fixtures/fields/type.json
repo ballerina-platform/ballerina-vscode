@@ -1,0 +1,16 @@
+{
+    "description": "TYPE (editable, no items) -> TypeEditor",
+    "expectedEditor": "TypeEditor",
+    "fieldInputType": { "fieldType": "TYPE" },
+    "field": {
+        "key": "f_TYPE",
+        "label": "TYPE field",
+        "type": "TYPE",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "TYPE", "selected": false }],
+        "enabled": true
+    }
+}

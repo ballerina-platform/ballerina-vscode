@@ -50,6 +50,11 @@ export function updateFormFieldWithImports(formField: FormField, fieldImports: F
     return formField;
 }
 
+// A connection selector seeds its value with this sentinel (the LS "new connection" marker). It is a
+// placeholder for the "add a new connection" affordance, not a real selection, so a required
+// connection field must still count as incomplete until the user picks or creates a connection.
+const NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
+
 export function hasIncompleteRequiredFormFields(
     formFields: FormField[] = [],
     values: Record<string, unknown> = {}
@@ -62,7 +67,11 @@ export function hasIncompleteRequiredFormFields(
         const value = values[field.key];
         const isEmptyString = typeof value === "string" && value.trim() === "";
         const isEmptyArray = Array.isArray(value) && value.length === 0;
-        const hasValue = value !== undefined && value !== null && !isEmptyString && !isEmptyArray;
+        // An unselected connection selector still holds the sentinel; treat it as no value.
+        const isUnselectedConnection =
+            getPrimaryInputType(field.types)?.fieldType === "CONNECTION" && value === NEW_CONNECTION_SENTINEL;
+        const hasValue =
+            value !== undefined && value !== null && !isEmptyString && !isEmptyArray && !isUnselectedConnection;
 
         if (field.optional && !hasValue) {
             return false;

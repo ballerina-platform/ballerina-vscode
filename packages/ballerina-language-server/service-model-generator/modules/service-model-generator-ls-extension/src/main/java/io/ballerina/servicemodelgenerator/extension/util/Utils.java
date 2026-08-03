@@ -1275,6 +1275,13 @@ public final class Utils {
         if (Files.exists(packagePath)) {
             return;
         }
+        // Tests run offline (-Dls.test.offline): never contact Ballerina Central to pull a module.
+        // Distribution-bundled packages (e.g. ballerina/file, ballerina/mcp) are resolved by the
+        // downstream builder from the build-provisioned distribution; a package that is genuinely
+        // unavailable offline fails loudly there instead of being pulled. Production is unchanged.
+        if (PackageUtil.isOffline()) {
+            return;
+        }
         CentralAPI centralApi = RemoteCentral.getInstance();
         String latestVersion = centralApi.latestPackageVersion(orgName, packageName);
         ModuleInfo moduleInfo = new ModuleInfo(orgName, packageName, moduleName, latestVersion);

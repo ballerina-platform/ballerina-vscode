@@ -38,6 +38,16 @@ export async function addArtifact(artifactName: string, testId: string) {
 }
 
 /**
+ * Add an artifact and return its just-opened creation webview. Shared by
+ * every artifact's create test — `addArtifact` followed by an iframe fetch
+ * is identical across artifact types.
+ */
+export async function createArtifactAndGetWebview(artifactName: string, testId: string) {
+    await addArtifact(artifactName, testId);
+    return getWebview(BI_INTEGRATOR_LABEL, page);
+}
+
+/**
  * Enable ICP (Integration Control Plane)
  */
 export async function enableICP() {

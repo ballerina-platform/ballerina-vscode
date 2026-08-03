@@ -11,6 +11,7 @@
 		"watch": "tsc --watch",
 		"build": "tsc && pnpm run copy:assets",
 		"test": "jest --coverage",
+		"test:typecheck": "tsc --noEmit -p tsconfig.spec.json",
 		"test:watch": "jest --watch",
 		"test:updateSnapshots": "jest --updateSnapshot",
 		"copy:assets": "copyfiles -u 1 \"src/**/*.scss\" \"src/**/*.svg\"  \"src/**/*.css\" \"src/**/*.png\" \"src/**/*.txt\" \"src/**/*.json\" \"src/resources/assets/font/*.*\" lib/",
@@ -50,6 +51,7 @@
 		"@testing-library/dom": "10.4.0",
 		"@testing-library/jest-dom": "6.6.3",
 		"@testing-library/react": "16.3.0",
+		"@wso2/test-config": "workspace:*",
 		"@types/jest": "29.5.14",
 		"@types/react": "18.2.0",
 		"@types/react-dom": "18.2.0",
@@ -69,7 +71,7 @@
 		"ts-loader": "9.4.1",
 		"webpack": "5.104.1",
 		"webpack-cli": "6.0.1",
-		"webpack-dev-server": "5.2.5"
+		"webpack-dev-server": "5.2.6"
 	},
 	"author": "wso2",
 	"license": "UNLICENSED"

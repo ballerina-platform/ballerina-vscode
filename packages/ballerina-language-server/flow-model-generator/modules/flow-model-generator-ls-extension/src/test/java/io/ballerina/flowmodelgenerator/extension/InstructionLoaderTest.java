@@ -20,6 +20,7 @@ package io.ballerina.flowmodelgenerator.extension;
 
 import io.ballerina.flowmodelgenerator.core.InstructionLoader;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Optional;
@@ -32,33 +33,6 @@ import java.util.Optional;
 public class InstructionLoaderTest {
 
     @Test
-    public void testLoadLibraryInstruction() {
-        // Test loading library instruction for ballerina/ai
-        Optional<String> instruction = InstructionLoader.loadLibraryInstruction("ballerina/ai");
-        Assert.assertTrue(instruction.isPresent(), "Library instruction for ballerina/ai should exist");
-        Assert.assertTrue(instruction.get().contains("Ballerina AI Library"),
-                "Library instruction should contain expected content");
-    }
-
-    @Test
-    public void testLoadServiceInstruction() {
-        // Test loading service instruction for ballerina/http
-        Optional<String> instruction = InstructionLoader.loadServiceInstruction("ballerina/http");
-        Assert.assertTrue(instruction.isPresent(), "Service instruction for ballerina/http should exist");
-        Assert.assertTrue(instruction.get().contains("Service writing instructions"),
-                "Service instruction should contain expected content");
-    }
-
-    @Test
-    public void testLoadTestInstruction() {
-        // Test loading test instruction for ballerina/http
-        Optional<String> instruction = InstructionLoader.loadTestInstruction("ballerina/http");
-        Assert.assertTrue(instruction.isPresent(), "Test instruction for ballerina/http should exist");
-        Assert.assertTrue(instruction.get().contains("Test Generation Instructions"),
-                "Test instruction should contain expected content");
-    }
-
-    @Test
     public void testLoadNonExistentInstruction() {
         // Test loading instruction for non-existent package
         Optional<String> instruction = InstructionLoader.loadLibraryInstruction("non/existent");
@@ -67,46 +41,33 @@ public class InstructionLoaderTest {
     }
 
     @Test
-    public void testLoadInstructionForPackageWithoutFile() {
-        // Test loading library instruction for package that has service.md but no library.md
-        Optional<String> libraryInstruction = InstructionLoader.loadLibraryInstruction("ballerina/http");
-        Assert.assertFalse(libraryInstruction.isPresent(),
-                "Library instruction for ballerina/http should not exist");
-
-        // But service instruction should exist
-        Optional<String> serviceInstruction = InstructionLoader.loadServiceInstruction("ballerina/http");
-        Assert.assertTrue(serviceInstruction.isPresent(),
-                "Service instruction for ballerina/http should exist");
-    }
-
-    @Test
     public void testLoadTestInstructionForBallerina() {
-        // Test loading test instruction for ballerina/test (library.md)
+        // ballerina/test is distribution-bundled with no docs/README.md or docs/Package.md, so its
+        // guidance cannot ship through package documentation and stays bundled here.
         Optional<String> instruction = InstructionLoader.loadLibraryInstruction("ballerina/test");
         Assert.assertTrue(instruction.isPresent(), "Library instruction for ballerina/test should exist");
     }
 
-    @Test
-    public void testLoadGraphQLServiceInstruction() {
-        // Test loading service instruction for ballerina/graphql
-        Optional<String> instruction = InstructionLoader.loadServiceInstruction("ballerina/graphql");
-        Assert.assertTrue(instruction.isPresent(), "Service instruction for ballerina/graphql should exist");
+    @Test(dataProvider = "packagesWithMigratedInstructions")
+    public void testMigratedPackagesHaveNoBundledInstruction(String packageName) {
+        Assert.assertFalse(InstructionLoader.loadLibraryInstruction(packageName).isPresent(),
+                "Bundled library instruction should be gone for " + packageName);
+        Assert.assertFalse(InstructionLoader.loadServiceInstruction(packageName).isPresent(),
+                "Bundled service instruction should be gone for " + packageName);
+        Assert.assertFalse(InstructionLoader.loadTestInstruction(packageName).isPresent(),
+                "Bundled test instruction should be gone for " + packageName);
     }
 
-    @Test
-    public void testLoadAIServiceInstruction() {
-        // Test loading service instruction for ballerina/ai
-        Optional<String> instruction = InstructionLoader.loadServiceInstruction("ballerina/ai");
-        Assert.assertTrue(instruction.isPresent(), "Service instruction for ballerina/ai should exist");
-    }
-
-    @Test
-    public void testLoadClientConfigLibraryInstruction() {
-        // Test loading library instruction for ballerinax/client.config
-        Optional<String> instruction = InstructionLoader.loadLibraryInstruction("ballerinax/client.config");
-        Assert.assertTrue(instruction.isPresent(),
-                "Library instruction for ballerinax/client.config should exist");
-        Assert.assertTrue(instruction.get().contains("ballerinax/'client.config"),
-                "Library instruction should contain import statement with escaped keyword");
+    @DataProvider(name = "packagesWithMigratedInstructions")
+    public Object[][] packagesWithMigratedInstructions() {
+        return new Object[][]{
+                {"ballerina/ai"},
+                {"ballerina/graphql"},
+                {"ballerina/http"},
+                {"ballerina/sql"},
+                {"ballerina/workflow"},
+                {"ballerinax/client.config"},
+                {"ballerinax/mailchimp.transactional"}
+        };
     }
 }

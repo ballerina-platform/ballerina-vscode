@@ -1,0 +1,110 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Generate activity call with ManualRetry policy (retryPolicy = workflow:ManualRetry)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "sendNotification",
+      "description": "Call a workflow activity function"
+    },
+    "codedata": {
+      "node": "ACTIVITY_CALL",
+      "org": "test",
+      "module": "workflow_function",
+      "symbol": "sendNotification",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "time": {
+        "metadata": {
+          "label": "Time"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "int",
+        "value": "10",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "input": {
+        "metadata": {
+          "label": "Input"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "NotificationInput",
+        "value": "{message: \"Hello\", recipient: \"user@example.com\"}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result Variable",
+          "description": "Variable name to store the activity result."
+        },
+        "valueType": "IDENTIFIER",
+        "value": "result",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the activity result."
+        },
+        "valueType": "TYPE",
+        "value": "int",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy",
+          "description": "Retry strategy to apply when the activity call fails"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "ManualRetry",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nint result = check context->callActivity(sendNotification, {time: 10, input: {message: \"Hello\", recipient: \"user@example.com\"}}, retryPolicy = workflow:ManualRetry);"
+      }
+    ]
+  }
+}

@@ -47,6 +47,8 @@ export class ContextTypesExecutor extends AICommandExecutor<ProcessContextTypeCr
         const tempProjectPath = this.config.executionContext.tempProjectPath!;
 
         try {
+            this.finalizePreviousGeneration();
+
             // Capture checkpoint BEFORE execution
             this.addGeneration(
                 'Generate context types from attachments',
@@ -65,12 +67,17 @@ export class ContextTypesExecutor extends AICommandExecutor<ProcessContextTypeCr
                 tempProjectPath  // Pass temp project path from base class
             );
 
+            // TODO: emit a review component so these edits get the same revert affordance as agent turns.
+            this.settleGeneration('accepted');
+
             return {
                 tempProjectPath,
                 modifiedFiles: result.modifiedFiles,
                 sourceFiles: result.sourceFiles,
             };
         } catch (error) {
+            this.settleGeneration('error');
+
             // Error handling done by base class in run()
             return {
                 tempProjectPath,

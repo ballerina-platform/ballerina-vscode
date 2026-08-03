@@ -52,7 +52,7 @@ import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { css, keyframes } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
@@ -864,6 +864,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -907,7 +908,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         <NodeStyles.Row readOnly={readOnly}>
                             <NodeStyles.Header onClick={handleOnClick}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80}px` }}>
-                                    <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                                     {model.node.properties?.credential?.value && (
                                         <NodeStyles.AgentIdBadge
                                             title=""

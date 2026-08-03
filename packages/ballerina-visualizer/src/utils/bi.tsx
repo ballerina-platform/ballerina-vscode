@@ -46,7 +46,6 @@ import {
     Item,
     FunctionKind,
     functionKinds,
-    Diagnostic,
     FUNCTION_TYPE,
     FunctionNode,
     FocusFlowDiagramView,
@@ -74,7 +73,7 @@ import { cloneDeep } from "lodash";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import hljs from "highlight.js";
-import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation } from "@wso2/ui-toolkit";
+import { COMPLETION_ITEM_KIND, CompletionItem, CompletionItemKind, convertCompletionItemKind, FnSignatureDocumentation, getAIModuleIcon } from "@wso2/ui-toolkit";
 import { FunctionDefinition, STNode } from "@wso2/syntax-tree";
 import { DocSection } from "../components/ExpressionEditor";
 
@@ -132,6 +131,49 @@ function convertAvailableNodeToPanelNode(
     };
 }
 
+
+// Central icon URLs are `…/{org}_{package}_{version}.png`; the middle segment is the package key.
+function getPackageKeyFromIconUrl(iconUrl?: string): string | undefined {
+    const fileName = iconUrl?.split("/").pop();
+    const parts = fileName?.split("_");
+    return parts && parts.length >= 3 ? parts[1] : undefined;
+}
+
+// Prefer the embedded provider SVG so monochrome logos stay visible in dark mode.
+function resolveChildBadgeIcon(codedata: any, iconUrl?: string): React.ReactElement {
+    const embedded =
+        getAIModuleIcon(getPackageKeyFromIconUrl(iconUrl), 14) ?? getAIModuleIcon(codedata?.object, 14);
+    if (embedded) {
+        return embedded;
+    }
+    return <img src={iconUrl} style={{ width: 14, height: 14 }} />;
+}
+
+// Keeps the package icon on the group header and gives each child its own @display icon.
+function applyGroupedChildIcons(group: PanelCategory, rawItems: any[]): void {
+    const rawGroup = rawItems?.find(
+        (r) => r && !("codedata" in r) && r.metadata?.label === group.title
+    );
+    const packageIconUrl: string | undefined = rawGroup?.metadata?.icon;
+
+    if (packageIconUrl) {
+        group.icon = (
+            <ConnectorIcon url={packageIconUrl} style={{ width: "20px", height: "20px", fontSize: "20px" }} />
+        );
+    }
+
+    group.items?.forEach((child) => {
+        const childNode = child as PanelNode;
+        const codedata = childNode.metadata?.codedata;
+        const childIconUrl: string | undefined = childNode.metadata?.metadata?.icon;
+        const hasClassIcon = Boolean(childIconUrl) && childIconUrl !== packageIconUrl;
+        child.icon = hasClassIcon ? (
+            resolveChildBadgeIcon(codedata, childIconUrl)
+        ) : (
+            <NodeIcon type={codedata?.node} size={14} />
+        );
+    });
+}
 
 function convertDiagramCategoryToSidePanelCategory(category: Category, functionType?: FUNCTION_TYPE): PanelCategory {
     const connectorType = (category?.metadata?.data as NodeMetadata)?.connectorType;
@@ -234,18 +276,15 @@ export function convertFunctionCategoriesToSidePanelCategories(
 
 export function convertModelProviderCategoriesToSidePanelCategories(categories: Category[]): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
-    panelCategories.forEach((category) => {
+    panelCategories.forEach((category, index) => {
         category.items?.forEach((item) => {
             if ((item as PanelNode).metadata?.codedata) {
                 const codedata = (item as PanelNode).metadata.codedata;
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 const iconType = codedata?.module == "ai" ? codedata.object : codedata?.module;
                 item.icon = <AIModelIcon type={iconType} codedata={codedata} iconUrl={iconUrl} />;
-            } else if (((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.codedata) {
-                const codedata = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata.codedata;
-                const iconUrl = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.metadata?.icon;
-                const iconType = codedata?.module == "ai" ? codedata.object : codedata?.module;
-                item.icon = <AIModelIcon type={iconType} codedata={codedata} iconUrl={iconUrl} />;
+            } else if ((item as PanelCategory).items) {
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
             }
         });
     });
@@ -279,16 +318,14 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
     iconFactory: (codedata: any, iconUrl?: string) => React.ReactElement
 ): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
-    panelCategories.forEach((category) => {
+    panelCategories.forEach((category, index) => {
         category.items?.forEach((item) => {
             if ((item as PanelNode).metadata?.codedata) {
                 const codedata = (item as PanelNode).metadata.codedata;
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 item.icon = iconFactory(codedata, iconUrl);
-            } else if (((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.codedata) {
-                const codedata = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata.codedata;
-                const iconUrl = ((item as PanelCategory).items.at(0) as PanelNode)?.metadata?.metadata?.icon;
-                item.icon = iconFactory(codedata, iconUrl);
+            } else if ((item as PanelCategory).items) {
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
             }
         });
     });
@@ -315,16 +352,13 @@ export function convertMemoryStoreCategoriesToSidePanelCategories(categories: Ca
     });
 }
 
-import {
-    convertNodePropertiesToFormFields,
-    convertNodePropertyToFormField,
-    updateNodeProperties,
-    handleRepeatableProperty,
-} from "./node-property-utils";
 export {
     convertNodePropertiesToFormFields,
     convertNodePropertyToFormField,
     updateNodeProperties,
+    // convertConfig moved to node-property-utils (unit-tested there); re-exported so
+    // existing `utils/bi` importers are unaffected.
+    convertConfig,
 } from "./node-property-utils";
 
 export function getFormProperties(flowNode: FlowNode): NodeProperties {
@@ -582,51 +616,17 @@ export function convertBalCompletion(completion: ExpressionCompletionItem): Comp
     };
 }
 
-export function updateLineRange(lineRange: LineRange, offset: number) {
-    if (
-        lineRange.startLine.line === 0 &&
-        lineRange.startLine.offset === 0 &&
-        lineRange.endLine.line === 0 &&
-        lineRange.endLine.offset === 0
-    ) {
-        return {
-            startLine: {
-                line: lineRange.startLine.line,
-                offset: lineRange.startLine.offset + offset,
-            },
-            endLine: {
-                line: lineRange.endLine.line,
-                offset: lineRange.endLine.offset + offset,
-            },
-        };
-    }
-    return lineRange;
-}
+// Pure range/offset math lives in ./range (unit-tested there); re-exported here
+// so existing `utils/bi` importers are unaffected.
+export { updateLineRange, calculateExpressionOffsets } from "./range";
 
-/**
- * Remove duplicate diagnostics based on the range and message
- * @param diagnostics The diagnostics array to remove duplicates from
- * @returns The unique diagnostics array
- */
-export function removeDuplicateDiagnostics(diagnostics: Diagnostic[]) {
-    const uniqueDiagnostics = diagnostics?.filter((diagnostic, index, self) => {
-        return (
-            self.findIndex((item) => {
-                const itemRange = item.range;
-                const diagnosticRange = diagnostic.range;
-                return (
-                    itemRange.start.line === diagnosticRange.start.line &&
-                    itemRange.start.character === diagnosticRange.start.character &&
-                    itemRange.end.line === diagnosticRange.end.line &&
-                    itemRange.end.character === diagnosticRange.end.character &&
-                    item.message === diagnostic.message
-                );
-            }) === index
-        );
-    });
-
-    return uniqueDiagnostics;
-}
+// Pure diagnostic-mapping helpers live in ./diagnostics (unit-tested there);
+// re-exported here so existing `utils/bi` importers are unaffected.
+export {
+    removeDuplicateDiagnostics,
+    filterUnsupportedDiagnostics,
+    filterToolInputSymbolDiagnostics,
+} from "./diagnostics";
 
 // TRIGGERS RELATED HELPERS
 export function convertTriggerServiceTypes(trigger: Trigger): Record<string, FunctionField> {
@@ -951,27 +951,6 @@ export function extractFunctionInsertText(template: string): CompletionInsertTex
 }
 
 
-export function convertConfig(properties: NodeProperties, skipKeys: string[] = [], sortKeys: boolean = true): FormField[] {
-    const formFields: FormField[] = [];
-    const sortedKeys = sortKeys ? Object.keys(properties).sort() : Object.keys(properties);
-
-    for (const key of sortedKeys) {
-        if (skipKeys.includes(key)) {
-            continue;
-        }
-        const property = properties[key as keyof NodeProperties];
-        const formField = convertNodePropertyToFormField(key, property);
-
-        if (getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_PROPERTY") {
-            handleRepeatableProperty(property, formField);
-        }
-
-        formFields.push(formField);
-    }
-
-    return formFields;
-}
-
 export function isNaturalFunction(node: STNode, view: FocusFlowDiagramView): node is FunctionDefinition {
     return view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
 }
@@ -983,27 +962,6 @@ export function getFlowNodeForNaturalFunction(node: FunctionNode): FlowNode {
         branches: [],
     };
     return flowNode;
-}
-
-/**
- * Returns the line and the character offset of the expression
- *
- * @param expression
- * @returns { lineOffset: number, charOffset: number }
- */
-export function calculateExpressionOffsets(
-    expression: string,
-    cursorPosition: number
-): { lineOffset: number, charOffset: number } {
-    const effectiveExpression = expression.slice(0, cursorPosition);
-    const lines = effectiveExpression.split(/\n/g);
-    const lineCount = lines.length - 1;
-    const charOffset = lines[lineCount].length;
-
-    return {
-        lineOffset: lineCount,
-        charOffset: charOffset
-    };
 }
 
 export const getImportsForProperty = (key: string, imports: FormImports): Imports | undefined => {
@@ -1022,49 +980,6 @@ export function getImportsForFormFields(formFields: FormField[]): FormImports {
         }
     }
     return imports;
-}
-
-/**
- * Filters the unsupported diagnostics for local connections
- * @param diagnostics - Diagnostics to filter
- * @returns Filtered diagnostics
- */
-export function filterUnsupportedDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
-    return diagnostics.filter((diagnostic) => {
-        return !diagnostic.message.startsWith('unknown type') && !diagnostic.message.startsWith('undefined module');
-    });
-}
-
-/**
- * Filter out "undefined symbol" diagnostics when the symbol is a known Tool Input parameter
- * @param diagnostics - Array of diagnostics to filter
- * @param toolInputParameterNames - Array of Tool Input parameter names to exclude from diagnostics
- * @returns Filtered diagnostics array
- */
-export function filterToolInputSymbolDiagnostics(
-    diagnostics: Diagnostic[],
-    toolInputs?: { type: string, variable: string }[]
-): Diagnostic[] {
-    if (!toolInputs || toolInputs.length === 0) {
-        return diagnostics;
-    }
-
-    return diagnostics.filter((diagnostic) => {
-        // Only filter "undefined symbol" diagnostics
-        if (!diagnostic.message.includes('undefined symbol')) {
-            return true;
-        }
-
-        // Extract symbol name from message like "undefined symbol 'code'"
-        const match = diagnostic.message.match(/['"`]([^'"`]+)['"`]/);
-        if (!match) {
-            return true; // Keep diagnostic if we can't parse it
-        }
-
-        const symbolName = match[1];
-        // Filter out if symbol is a Tool Input parameter
-        return !toolInputs.some(input => input.variable === symbolName);
-    });
 }
 
 /**

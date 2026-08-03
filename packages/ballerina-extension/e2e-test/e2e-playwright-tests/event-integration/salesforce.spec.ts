@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
@@ -30,13 +30,8 @@ export default function createTests() {
         test('Create Salesforce Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('Salesforce Integration', 'trigger-salesforce');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
 
+            const artifactWebView = await createArtifactAndGetWebview('Salesforce Integration', 'trigger-salesforce');
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
             await form.fill({
@@ -51,34 +46,23 @@ export default function createTests() {
             await form.submit('Create');
             console.log('Form submitted, waiting for service creation to complete.');
 
-            const onCreate = artifactWebView.locator(`text="onCreate"`);
-            await onCreate.waitFor();
-
-            const onUpdate = artifactWebView.locator(`text="onUpdate"`);
-            await onUpdate.waitFor();
-
-            const onDelete = artifactWebView.locator(`text="onDelete"`);
-            await onDelete.waitFor();
-
-            const onRestore = artifactWebView.locator(`text="onRestore"`);
-            await onRestore.waitFor();
+            await artifactWebView.locator(`text="onCreate"`).waitFor();
+            await artifactWebView.locator(`text="onUpdate"`).waitFor();
+            await artifactWebView.locator(`text="onDelete"`).waitFor();
+            await artifactWebView.locator(`text="onRestore"`).waitFor();
 
             console.log('Service created successfully, proceeding with assertions.');
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `Salesforce Event Integration - "/data/ChangeEvents"`]);
 
             listenerName = `salesforceListener`;
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
 
         test('Editing Salesforce Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a service in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
             const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
             await editBtn.waitFor();
@@ -98,38 +82,18 @@ export default function createTests() {
                 }
             });
             await form.submit('Save Changes');
-
-            const saveChangesBtn = artifactWebView.locator('#save-changes-btn vscode-button[appearance="primary"]');
-            await saveChangesBtn.waitFor({ state: 'visible' });
-            await expect(saveChangesBtn).toHaveClass('disabled', { timeout: 5000 });
-            await expect(saveChangesBtn).toHaveText('Save Changes');
-
-            const backBtn = artifactWebView.locator('[data-testid="back-button"]');
-            await backBtn.waitFor();
-            await backBtn.click();
+            await confirmSaveChangesAndGoBack(artifactWebView);
 
             await editBtn.waitFor();
-
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
 
         test('Delete Salesforce Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Deleting Salesforce integration in test attempt: ', testAttempt);
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            const projectExplorer = new ProjectExplorer(page.page);
-            const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `Salesforce Event Integration - "/data/ChangeEvents"`]);
-            await serviceTreeItem.click({ button: 'right' });
-            const deleteButton = page.page.getByRole('button', { name: 'Delete' }).first();
-            await deleteButton.waitFor({ timeout: 5000 });
-            await deleteButton.click();
-            await page.page.waitForTimeout(500);
-            await expect(serviceTreeItem).not.toBeVisible({ timeout: 10000 });
+            await getWebview(BI_INTEGRATOR_LABEL, page);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `Salesforce Event Integration - "/data/ChangeEvents"`]);
         });
     });
 }

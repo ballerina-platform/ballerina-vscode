@@ -79,7 +79,7 @@
     "flags": 0
   },
   "output": {
-    "workflow_function_empty/functions.bal": [
+    "workflow_function_empty/workflow.bal": [
       {
         "range": {
           "start": {
@@ -104,7 +104,7 @@
             "character": 0
           }
         },
-        "newText": "# Workflow that calls activities\n@workflow:Workflow\nfunction processWithActivity(OrderInput input) returns string|error {\n}"
+        "newText": "# Workflow that calls activities\n@workflow:Workflow\nfunction processWithActivity(workflow:Context ctx, OrderInput input) returns string|error {\n}"
       }
     ]
   }

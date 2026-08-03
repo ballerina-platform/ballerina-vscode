@@ -114,6 +114,16 @@ namespace S {
         width: 100%;
     `;
 
+    // A field rendered indented under the field above it, so the two read as grouped (e.g. a
+    // fixed-value input that belongs to the checkbox above it).
+    export const IndentedRow = styled(Row)`
+        width: calc(100% - 14px);
+        margin-left: 14px;
+        padding-left: 10px;
+        border-left: 2px solid ${ThemeColors.OUTLINE_VARIANT};
+        box-sizing: border-box;
+    `;
+
     export const CategoryRow = styled.div<{ bottomBorder?: boolean; topBorder?: boolean }>`
         display: flex;
         flex-direction: column;
@@ -353,6 +363,9 @@ export interface FormProps {
     hideSaveButton?: boolean; // Option to hide the save button
     footerActionButton?: boolean; // Render save button as footer action button
     onValidityChange?: (isValid: boolean) => void; // Callback for form validity status
+    // Optional extra primary action rendered next to the save button (e.g. a "Next" that submits the
+    // form but continues to a following step). Validated through the same path as save.
+    secondarySubmitButton?: { text: string; onClick: (data: FormValues, dirtyFields?: any) => void };
     changeOptionalFieldTitle?: string; // Option to change the title of optional fields
     openFormTypeEditor?: (open: boolean, newType?: string, editingField?: FormField) => void;
     derivedFields?: FieldDerivation[]; // Configuration for auto-deriving field values from other fields
@@ -403,6 +416,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         hideSaveButton = false,
         footerActionButton = false,
         onValidityChange,
+        secondarySubmitButton,
         changeOptionalFieldTitle = undefined,
         openFormTypeEditor,
         derivedFields = [],
@@ -765,10 +779,28 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         });
     }, [advancedChoiceFields, getValues, setValue]);
 
+    // Drop react-hook-form state for fields that were removed from formFields. A dynamic form can
+    // remove a field (e.g. a required parameter's inline value field disappears when its checkbox is
+    // re-checked); react-hook-form otherwise keeps that field's last value and any validation error,
+    // which leaves the form invalid (Save/Next disabled) even though the field is gone. Unregister the
+    // removed keys and revalidate so validity reflects only the fields currently on screen.
+    const prevFieldKeysRef = useRef<string[]>([]);
+    useEffect(() => {
+        const currentKeys = new Set(formFields.map((field) => field.key));
+        const removedKeys = prevFieldKeysRef.current.filter((key) => !currentKeys.has(key));
+        if (removedKeys.length > 0) {
+            unregister(removedKeys);
+            trigger();
+        }
+        prevFieldKeysRef.current = Array.from(currentKeys);
+    }, [formFields, unregister, trigger]);
+
     // has advance fields
     const hasAdvanceFields = formFields.some((field) => field.advanced && field.enabled && !field.hidden) || advancedChoiceFields.length > 0;
     const variableField = formFields.find((field) => field.key === "variable");
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && getPrimaryInputType(field.types)?.fieldType === "TYPE");
+    // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
+    // rendered via targetTypeField below, so matching them here too would render the same field twice.
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
     const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
     const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER");
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
@@ -1013,6 +1045,33 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         )();
     };
 
+    // Mirrors handleOnSaveClick for the optional secondary action ("Next"): validate through the same
+    // path, then route to the caller's handler instead of the save handler.
+    const handleOnSecondaryClick = () => {
+        if (!secondarySubmitButton) {
+            return;
+        }
+        setSavingButton('secondary');
+        handleSubmit(
+            async (data) => {
+                try {
+                    const isValidForm = await runExternalFormValidation(data);
+                    if (!isValidForm) {
+                        setSavingButton(null);
+                        return;
+                    }
+                    secondarySubmitButton.onClick(data, dirtyFields);
+                } catch (error) {
+                    console.error(">>> Error validating form before secondary action", error);
+                    setSavingButton(null);
+                }
+            },
+            () => {
+                setSavingButton(null);
+            }
+        )();
+    };
+
     const formContent = (
         <>
             {actionButton && <S.ActionButtonContainer>{actionButton}</S.ActionButtonContainer>}
@@ -1097,8 +1156,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         }
 
                         const updatedField = updateFormFieldWithImports(field, formImports);
+                        const RowComponent = updatedField.indent ? S.IndentedRow : S.Row;
                         renderedComponents.push(
-                            <S.Row key={updatedField.key}>
+                            <RowComponent key={updatedField.key}>
                                 <FieldFactory
                                     field={updatedField}
                                     selectedNode={selectedNode}
@@ -1124,7 +1184,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     updateImports={updateImports}
                                 />
                                 {updatedField.key === "scope" && scopeFieldAddon}
-                            </S.Row>
+                            </RowComponent>
                         );
                         renderedFieldCount++;
                     });
@@ -1371,6 +1431,19 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                         {isSaving && savingButton === 'functionEditor' ? (
                                             <Typography variant="progress">{submitText || "Opening in Function Editor..."}</Typography>
                                         ) : submitText || "Open in Function Editor"}
+                                    </Button>
+                                )}
+                                {secondarySubmitButton && (
+                                    <Button
+                                        appearance="secondary"
+                                        onClick={handleOnSecondaryClick}
+                                        disabled={disableSaveButton || isSaving}
+                                    >
+                                        {isSaving && savingButton === 'secondary' ? (
+                                            <Typography variant="progress">{secondarySubmitButton.text}</Typography>
+                                        ) : (
+                                            secondarySubmitButton.text
+                                        )}
                                     </Button>
                                 )}
                                 <Button

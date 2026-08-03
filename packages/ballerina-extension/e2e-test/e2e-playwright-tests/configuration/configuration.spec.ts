@@ -209,16 +209,6 @@ export default function createTests() {
             await configEditor.verifyConfigurableVariable('destination', '', 'new-destination-value');
         });
 
-        // test('Package Selection and Configuration', async () => {
-        //     const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);
-        //     await configEditor.init();
-
-        //     // Add value to library config variable
-        //     await configEditor.selectPackage('ballerinax/wso2.controlplane');
-        //     await configEditor.addConfigTomlValue('dashboard', 'example-dashboard');
-        //     await configEditor.verifyConfigurableVariable('dashboard', '', 'example-dashboard');
-        // });
-
         test('Run Integration Successfully', async () => {
             const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);
             await configEditor.init();

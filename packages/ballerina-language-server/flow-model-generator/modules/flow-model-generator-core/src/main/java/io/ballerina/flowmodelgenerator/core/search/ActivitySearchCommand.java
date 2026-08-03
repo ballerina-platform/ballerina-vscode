@@ -18,6 +18,7 @@
 
 package io.ballerina.flowmodelgenerator.core.search;
 
+import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
@@ -36,6 +37,18 @@ import io.ballerina.tools.text.LineRange;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.ACTIVITY_MODULE;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_EMAIL_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_EMAIL_FUNCTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_EMAIL_LABEL;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_REST_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_REST_FUNCTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_REST_LABEL;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_SOAP_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_SOAP_FUNCTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_SOAP_LABEL;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 
 /**
  * Represents a command to search for workflow activity functions within a project.
@@ -86,9 +99,17 @@ class ActivitySearchCommand extends SearchCommand {
         // Create the category for current integration activities
         Category.Builder activityCategory = rootBuilder.stepIn(Category.Name.CURRENT_ACTIVITIES);
 
-        // Search for functions with @workflow:Activity annotation in all modules
+        // Search for functions with @workflow:Activity annotation in all modules. A module whose
+        // compilation fails (e.g. an unresolvable dependency pinned in Dependencies.toml) is skipped
+        // so the rest of the list — including the prebuilt activities — still renders.
         currentPackage.modules().forEach(module -> {
-            module.getCompilation().getSemanticModel().moduleSymbols().stream()
+            SemanticModel semanticModel;
+            try {
+                semanticModel = module.getCompilation().getSemanticModel();
+            } catch (RuntimeException e) {
+                return;
+            }
+            semanticModel.moduleSymbols().stream()
                     .filter(symbol -> symbol.kind() == SymbolKind.FUNCTION)
                     .map(symbol -> (FunctionSymbol) symbol)
                     .filter(WorkflowUtil::isActivityFunction)
@@ -99,7 +120,6 @@ class ActivitySearchCommand extends SearchCommand {
                                 .flatMap(doc -> doc.description())
                                 .orElse("Workflow activity function");
 
-                        // Build the codedata with ACTIVITY_CALL node kind
                         Codedata codedata = new Codedata.Builder<>(null)
                                 .node(NodeKind.ACTIVITY_CALL)
                                 .org(orgName)
@@ -113,10 +133,32 @@ class ActivitySearchCommand extends SearchCommand {
                                 .description(description)
                                 .build();
 
-                        AvailableNode node = new AvailableNode(metadata, codedata, true);
-                        activityCategory.node(node);
+                        activityCategory.node(new AvailableNode(metadata, codedata, true));
                     });
         });
+
+        // Add prebuilt activities section
+        Category.Builder builtinCategory = rootBuilder.stepIn(Category.Name.BUILTIN_ACTIVITIES);
+        addBuiltinNode(builtinCategory, BUILTIN_REST_LABEL, BUILTIN_REST_DESCRIPTION, BUILTIN_REST_FUNCTION);
+        addBuiltinNode(builtinCategory, BUILTIN_SOAP_LABEL, BUILTIN_SOAP_DESCRIPTION, BUILTIN_SOAP_FUNCTION);
+        addBuiltinNode(builtinCategory, BUILTIN_EMAIL_LABEL, BUILTIN_EMAIL_DESCRIPTION, BUILTIN_EMAIL_FUNCTION);
+    }
+
+    private void addBuiltinNode(Category.Builder category, String label, String description, String symbol) {
+        if (!matchesQuery(label)) {
+            return;
+        }
+        Codedata codedata = new Codedata.Builder<>(null)
+                .node(NodeKind.BUILTIN_ACTIVITY)
+                .org(WORKFLOW_ORG)
+                .module(ACTIVITY_MODULE)
+                .symbol(symbol)
+                .build();
+        Metadata metadata = new Metadata.Builder<>(null)
+                .label(label)
+                .description(description)
+                .build();
+        category.node(new AvailableNode(metadata, codedata, true));
     }
 
     /**

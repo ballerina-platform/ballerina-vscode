@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { Task, MACHINE_VIEW, ClarifyQuestion } from "@wso2/ballerina-core/lib/state-machine-types";
+import { Task, MACHINE_VIEW, ClarifyQuestion, ManagedConnectionGroup } from "@wso2/ballerina-core/lib/state-machine-types";
 import { SkillEnableStage } from "@wso2/ballerina-core";
 import { CopilotEventHandler } from "../utils/events";
 import { ConfigVariable } from "../../../utils/toml-utils";
@@ -79,6 +79,10 @@ interface PromiseResolver<T> {
     timeoutId?: NodeJS.Timeout;
 }
 
+interface PlanApprovalResolver extends PromiseResolver<PlanApprovalResponse> {
+    eventHandler: CopilotEventHandler;
+}
+
 /**
  * A queued approval item — holds the emit function that fires the UI event.
  * The queue processes one item at a time so UI prompts never overlap.
@@ -98,7 +102,7 @@ interface ApprovalQueueItem {
 export class ApprovalManager {
     private static instance: ApprovalManager;
 
-    private planApprovals = new Map<string, PromiseResolver<PlanApprovalResponse>>();
+    private planApprovals = new Map<string, PlanApprovalResolver>();
     private taskApprovals = new Map<string, PromiseResolver<TaskApprovalResponse>>();
     private connectorSpecs = new Map<string, PromiseResolver<ConnectorSpecResponse>>();
     private configurationRequests = new Map<string, PromiseResolver<ConfigurationResponse>>();
@@ -161,7 +165,7 @@ export class ApprovalManager {
                 reject(new Error(`Plan approval timeout for request ${requestId}`));
             }, this.DEFAULT_TIMEOUT_MS);
 
-            this.planApprovals.set(requestId, { resolve, reject, timeoutId });
+            this.planApprovals.set(requestId, { resolve, reject, timeoutId, eventHandler });
         });
     }
 
@@ -180,6 +184,16 @@ export class ApprovalManager {
         }
 
         console.log(`[ApprovalManager] Resolving plan approval: ${requestId}, approved: ${approved}`);
+
+        // Persist the user's decision in the run event stream. A reopened panel
+        // can now reconstruct the final plan card instead of merely hiding the
+        // already-resolved approval footer.
+        resolver.eventHandler({
+            type: "plan_approval_resolved",
+            requestId,
+            approved,
+            comment,
+        });
 
         // Clear timeout
         if (resolver.timeoutId) {
@@ -351,9 +365,10 @@ export class ApprovalManager {
         existingValues: Record<string, string>,
         eventHandler: CopilotEventHandler,
         isTestConfig?: boolean,
-        message?: string
+        message?: string,
+        managedConnections?: ManagedConnectionGroup[]
     ): Promise<ConfigurationResponse> {
-        console.log(`[ApprovalManager] Requesting ${isTestConfig ? 'test ' : ''}configuration: ${requestId}`);
+        console.log(`[ApprovalManager] Requesting ${isTestConfig ? 'test ' : ''}configuration: ${requestId}${managedConnections?.length ? ` (OAuth vendors: ${managedConnections.map(g => g.vendor).join(', ')})` : ''}`);
 
         // Use provided message or generate default
         const displayMessage = message || `Please provide ${variables.length} configuration value(s)`;
@@ -385,6 +400,7 @@ export class ApprovalManager {
                         existingValues,
                         message: displayMessage,
                         isTestConfig,
+                        managedConnections,
                     },
                 },
             }
@@ -715,6 +731,58 @@ export class ApprovalManager {
                 this.notificationHandlers.get(type)?.(false);
             }
         }
+    }
+
+    /**
+     * Cancel only the interactive requests that cannot be recovered after the AI panel is closed
+     * and reopened, and tear down transient UI. Called when the panel is *disposed* (not aborted).
+     *
+     * Popup-based requests (the configuration collector, whose popup view is torn down here) are
+     * resolved as skipped because they cannot be replayed into the reopened chat — leaving them
+     * pending would strand the run. In-chat prompts (plan/task/connector/web-tool/clarify/skill)
+     * are intentionally LEFT PENDING: the agent run survives the panel in the extension host, and
+     * these prompts are re-surfaced from the event buffer on reopen so the user can still answer
+     * them. (Full cancellation still happens on explicit abort via cancelAllPending.)
+     */
+    cancelOnPanelClose(reason: string): void {
+        console.log(`[ApprovalManager] Panel closed — preserving in-chat prompts, cancelling popup-based ones: ${reason}`);
+
+        // Close popup approval views (currently only the configuration collector).
+        approvalViewManager.cleanupAllViews();
+
+        // Resolve configuration requests as skipped — popup-based, not replayable into the chat.
+        for (const [, resolver] of this.configurationRequests.entries()) {
+            if (resolver.timeoutId) {
+                clearTimeout(resolver.timeoutId);
+            }
+            resolver.resolve({ provided: false, comment: reason });
+        }
+        this.configurationRequests.clear();
+
+        // Reset notification counters and fire handlers (e.g. turn off the web-search globe).
+        for (const [type, count] of this.notificationCounters.entries()) {
+            if (count > 0) {
+                this.notificationCounters.set(type, 0);
+                this.notificationHandlers.get(type)?.(false);
+            }
+        }
+    }
+
+    /**
+     * All request ids that are currently awaiting a user response, across every interactive type.
+     * Used on reopen to decide which buffered prompt to re-surface (still pending) vs. skip
+     * (already resolved earlier in the run).
+     */
+    getPendingRequestIds(): string[] {
+        return [
+            ...this.planApprovals.keys(),
+            ...this.taskApprovals.keys(),
+            ...this.connectorSpecs.keys(),
+            ...this.configurationRequests.keys(),
+            ...this.webToolApprovals.keys(),
+            ...this.clarifyRequests.keys(),
+            ...this.skillEnableRequests.keys(),
+        ];
     }
 
     /**

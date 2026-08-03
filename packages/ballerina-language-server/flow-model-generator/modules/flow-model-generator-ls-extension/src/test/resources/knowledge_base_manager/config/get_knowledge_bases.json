@@ -29,7 +29,6 @@
                   "packageName": "ai",
                   "object": "VectorKnowledgeBase",
                   "symbol": "ingest",
-                  "version": "1.10.0",
                   "parentSymbol": "vectorKnowledgeBase",
                   "resourcePath": ""
                 },
@@ -48,7 +47,6 @@
                   "packageName": "ai",
                   "object": "VectorKnowledgeBase",
                   "symbol": "retrieve",
-                  "version": "1.10.0",
                   "parentSymbol": "vectorKnowledgeBase",
                   "resourcePath": ""
                 },
@@ -67,7 +65,6 @@
                   "packageName": "ai",
                   "object": "VectorKnowledgeBase",
                   "symbol": "deleteByFilter",
-                  "version": "1.10.0",
                   "parentSymbol": "vectorKnowledgeBase",
                   "resourcePath": ""
                 },

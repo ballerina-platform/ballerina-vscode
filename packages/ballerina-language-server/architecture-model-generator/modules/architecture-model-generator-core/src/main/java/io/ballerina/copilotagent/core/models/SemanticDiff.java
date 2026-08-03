@@ -29,10 +29,16 @@ import java.util.Map;
  * @param nodeKind node kind
  * @param uri file URI
  * @param lineRange line range of the change
+ * @param previousLineRange corresponding line range in the original source for modifications
  * @param metadata additional metadata about the changed node
  *
  * @since 1.5.0
  */
 public record SemanticDiff(ChangeType changeType, NodeKind nodeKind, String uri, LineRange lineRange,
-                           Map<String, String> metadata) {
+                           LineRange previousLineRange, Map<String, String> metadata) {
+
+    public SemanticDiff(ChangeType changeType, NodeKind nodeKind, String uri, LineRange lineRange,
+                        Map<String, String> metadata) {
+        this(changeType, nodeKind, uri, lineRange, null, metadata);
+    }
 }

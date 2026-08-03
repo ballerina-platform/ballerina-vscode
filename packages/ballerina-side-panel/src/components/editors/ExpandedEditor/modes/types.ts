@@ -21,7 +21,10 @@ import { CompletionItem, FnSignatureDocumentation, HelperPaneHeight } from "@wso
 import { LineRange } from "@wso2/ballerina-core/lib/interfaces/common";
 import { DiagnosticMessage } from "@wso2/ballerina-core";
 import { FieldError } from "react-hook-form";
-import { InputMode } from "../..";
+// Import InputMode from its defining module, not the `../..` editors barrel: the barrel
+// re-exports it, creating a circular init where `InputMode` is undefined when
+// EXPANDABLE_MODES below evaluates (order-dependent; fragile in prod, breaks under jest).
+import { InputMode } from "../../MultiModeExpressionEditor/ChipExpressionEditor/types";
 
 /**
  * Base props that all editor mode components must implement

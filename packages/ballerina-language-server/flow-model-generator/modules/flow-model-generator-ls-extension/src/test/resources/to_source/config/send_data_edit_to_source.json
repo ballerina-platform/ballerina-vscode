@@ -1,0 +1,167 @@
+{
+  "source": "workflow_function_empty/main.bal",
+  "description": "Update workflow:sendData call with a changed data event name",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Send Data",
+      "description": "Send data to an existing workflow instance"
+    },
+    "codedata": {
+      "node": "SEND_DATA",
+      "org": "ballerina",
+      "module": "workflow",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 1,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 1,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "workflow": {
+        "metadata": {
+          "label": "Workflow Name",
+          "description": "The workflow function to send the data to"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "workflow1",
+                "value": "workflow1"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "workflow1",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "modified": false
+      },
+      "workflowId": {
+        "metadata": {
+          "label": "Target Workflow Id",
+          "description": "The unique workflow ID to send the data to (obtained from `run`)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "workflowIde3",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "modified": true
+      },
+      "dataName": {
+        "metadata": {
+          "label": "Data Name",
+          "description": "The name of the data field to send"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "string",
+            "options": [
+              {
+                "label": "paymentReceived",
+                "value": "paymentReceived"
+              },
+              {
+                "label": "y",
+                "value": "y"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "paymentReceived",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        },
+        "modified": true
+      },
+      "data": {
+        "metadata": {
+          "label": "Data",
+          "description": "The data to send to the workflow"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": true
+          }
+        ],
+        "placeholder": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "data"
+        },
+        "modified": true,
+        "value": "2"
+      }
+    },
+    "flags": 1
+  },
+  "output": {
+    "workflow_function_empty/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 1,
+            "character": 0
+          },
+          "end": {
+            "line": 1,
+            "character": 0
+          }
+        },
+        "newText": "\ncheck workflow:sendData(workflow1, workflowIde3, \"paymentReceived\", 2);"
+      }
+    ]
+  }
+}

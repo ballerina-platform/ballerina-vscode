@@ -12,6 +12,11 @@
   "projects": [
     // Ballerina packages (moved from wso2-vscode-extensions/workspaces/ballerina)
     {
+      "packageName": "@wso2/test-config",
+      "projectFolder": "packages/test-config",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@wso2/ballerina-core",
       "projectFolder": "packages/ballerina-core",
       "versionPolicyName": "ballerina-extension"
@@ -129,6 +134,10 @@
     {
       "packageName": "@wso2/ui-toolkit",
       "projectFolder": "submodules/wso2-vscode-extensions/workspaces/common-libs/ui-toolkit"
+    },
+    {
+      "packageName": "@wso2/webview-giga-bridge",
+      "projectFolder": "submodules/wso2-vscode-extensions/workspaces/common-libs/vscode-webview-bridge"
     },
     {
       "packageName": "@wso2/playwright-vscode-tester",

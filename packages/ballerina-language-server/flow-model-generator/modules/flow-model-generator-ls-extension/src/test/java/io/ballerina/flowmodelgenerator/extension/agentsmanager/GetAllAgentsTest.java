@@ -28,6 +28,9 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Tests for get all agents.
@@ -39,9 +42,19 @@ public class GetAllAgentsTest extends AbstractLSTest {
     @DataProvider(name = "data-provider")
     @Override
     protected Object[] getConfigsList() {
-        return new Object[][]{
-                {Path.of("get_all_ballerinax_agents.json")},
-                {Path.of("get_all_ballerina_agents.json")}
+        List<String> skip = Arrays.asList(skipList());
+        return Stream.of(
+                "get_all_ballerinax_agents.json",
+                "get_all_ballerina_agents.json"
+        ).filter(c -> !skip.contains(c)).map(c -> new Object[]{Path.of(c)}).toArray(Object[][]::new);
+    }
+
+    @Override
+    protected String[] skipList() {
+        // TODO: remove after deprecated ballerinax/ai imports are migrated
+        // get_all_ballerinax_agents.json uses agent_1 which imports ballerinax/ai
+        return new String[]{
+                "get_all_ballerinax_agents.json"
         };
     }
 

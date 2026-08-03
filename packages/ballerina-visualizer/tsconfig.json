@@ -33,7 +33,8 @@
       "node_modules/@types"
     ],
     "paths": {
-      "react": ["./node_modules/@types/react"]
+      "react": ["./node_modules/@types/react"],
+      "@wso2/webview-giga-bridge/webview": ["./node_modules/@wso2/webview-giga-bridge/dist/webview"]
     }
   },
   "include": ["src"],

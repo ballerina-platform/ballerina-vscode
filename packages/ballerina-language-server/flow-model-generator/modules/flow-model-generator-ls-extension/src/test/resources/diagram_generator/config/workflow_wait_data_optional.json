@@ -48,7 +48,7 @@
       {
         "id": "42830",
         "metadata": {
-          "label": "Wait for Data",
+          "label": "Await Data",
           "description": "Wait for workflow data to be received"
         },
         "codedata": {
@@ -256,7 +256,7 @@
           "timeout": {
             "metadata": {
               "label": "Timeout",
-              "description": "Maximum wait duration; returns error on timeout"
+              "description": "Maximum wait duration; returns an error on timeout"
             },
             "types": [
               {
@@ -265,7 +265,7 @@
                 "typeMembers": [
                   {
                     "type": "Duration",
-                    "packageInfo": "ballerina:time:2.8.0",
+                    "packageInfo": "ballerina:time:2.8.1",
                     "packageName": "time",
                     "kind": "RECORD_TYPE",
                     "selected": false

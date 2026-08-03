@@ -142,7 +142,7 @@
         "metadata": {
           "label": "set",
           "description": "Adds or updates an entry in the context.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
         },
         "codedata": {
           "node": "METHOD_CALL",
@@ -151,7 +151,7 @@
           "packageName": "ai",
           "object": "Context",
           "symbol": "set",
-          "version": "1.11.2",
+          "version": "1.12.0",
           "lineRange": {
             "fileName": "agent.bal",
             "startLine": {

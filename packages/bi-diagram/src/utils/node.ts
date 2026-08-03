@@ -16,9 +16,79 @@
  * under the License.
  */
 
-import { Branch, FlowNode } from "./types";
+import { CSSProperties } from "react";
 
-const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA"]);
+import {
+    DIFF_ADDED_BG_COLOR,
+    DIFF_ADDED_COLOR,
+    DIFF_MODIFIED_BG_COLOR,
+    DIFF_MODIFIED_COLOR,
+    DIFF_REMOVED_BG_COLOR,
+    DIFF_REMOVED_COLOR,
+} from "../resources/constants";
+import { Branch, FlowNode, FlowNodeDiffState } from "./types";
+
+const WORKFLOW_NODE_KINDS = new Set(["WORKFLOW_RUN", "ACTIVITY_CALL", "SEND_DATA", "WAIT_DATA", "HUMAN_TASK"]);
+
+export interface DiffStatePresentation {
+    symbol: "+" | "−" | "~";
+    label: "Added" | "Removed" | "Modified";
+    borderStyle: "solid" | "dashed" | "dotted";
+    strokeDasharray?: string;
+}
+
+const DIFF_STATE_PRESENTATIONS: Record<FlowNodeDiffState, DiffStatePresentation> = {
+    added: { symbol: "+", label: "Added", borderStyle: "solid" },
+    removed: { symbol: "−", label: "Removed", borderStyle: "dashed", strokeDasharray: "6 4" },
+    modified: { symbol: "~", label: "Modified", borderStyle: "dotted", strokeDasharray: "2 2" },
+};
+
+export function getDiffStatePresentation(state?: FlowNodeDiffState): DiffStatePresentation | undefined {
+    return state ? DIFF_STATE_PRESENTATIONS[state] : undefined;
+}
+
+// Colors for a node in the unified review-diff diagram, keyed by its diff state.
+// Raw strings so both `style`-prop consumers and SVG fill/stroke attributes can use them.
+export function getDiffColors(node: FlowNode): { background: string; border: string } | undefined {
+    switch (node?.diffState) {
+        case "removed":
+            return { background: DIFF_REMOVED_BG_COLOR, border: DIFF_REMOVED_COLOR };
+        case "added":
+            return { background: DIFF_ADDED_BG_COLOR, border: DIFF_ADDED_COLOR };
+        case "modified":
+            return { background: DIFF_MODIFIED_BG_COLOR, border: DIFF_MODIFIED_COLOR };
+        default:
+            return undefined;
+    }
+}
+
+// Inline style overrides for nodes rendered inside the unified review-diff diagram.
+// Applied on top of the widget's styled-component so every node kind gets the same treatment.
+export function getDiffContainerStyles(node: FlowNode): CSSProperties | undefined {
+    const colors = getDiffColors(node);
+    const presentation = getDiffStatePresentation(node?.diffState);
+    if (!colors || !presentation) {
+        return undefined;
+    }
+    return {
+        backgroundColor: colors.background,
+        borderColor: colors.border,
+        borderStyle: presentation.borderStyle,
+        outline: "1px solid var(--vscode-contrastBorder, transparent)",
+        outlineOffset: "2px",
+    };
+}
+
+export function getDiffStrokeDasharray(node: FlowNode): string | undefined {
+    return getDiffStatePresentation(node?.diffState)?.strokeDasharray;
+}
+
+export function getDiffTitleStyles(node: FlowNode): CSSProperties | undefined {
+    if (!node?.diffState) {
+        return undefined;
+    }
+    return node.diffState === "removed" ? { textDecoration: "line-through" } : undefined;
+}
 
 export function getNodeIdFromModel(node: FlowNode, prefix?: string) {
     if (!node) {
@@ -151,7 +221,18 @@ export function getNodeTitle(node: FlowNode) {
         return "wait";
     }
 
-    if (node.codedata?.node === "ACTIVITY_CALL") {
+    if (node.codedata?.node === "ACTIVITY_CALL" || node.codedata?.node === "CONNECTION_ACTIVITY_CALL") {
+        // Builtin activities (ballerina/workflow.activity) carry a friendly label ("Call REST API");
+        // older language servers set the generic "callActivity" method name — fall through for those.
+        const label = node.metadata?.label;
+        if (
+            node.codedata?.org === "ballerina" &&
+            node.codedata?.module === "workflow.activity" &&
+            label &&
+            label !== "callActivity"
+        ) {
+            return label;
+        }
         const activityFunction =
             getFunctionName(getPropertyString("activityFunction")) ||
             getFunctionName(typeof node.codedata?.symbol === "string" ? node.codedata.symbol : undefined);

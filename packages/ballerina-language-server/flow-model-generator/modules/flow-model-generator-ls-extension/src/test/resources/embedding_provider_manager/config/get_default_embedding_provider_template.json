@@ -5,8 +5,7 @@
     "org": "ballerina",
     "module": "ai",
     "packageName": "ai",
-    "symbol": "getDefaultEmbeddingProvider",
-    "version": "1.1.0"
+    "symbol": "getDefaultEmbeddingProvider"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -14,7 +13,7 @@
       "metadata": {
         "label": "Embedding Provider",
         "description": "Creates a default embedding provider based on the provided `wso2ProviderConfig`. The embedding vectors have a dimension of 1536.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "EMBEDDING_PROVIDER",
@@ -22,7 +21,7 @@
         "module": "ai",
         "packageName": "ai",
         "symbol": "getDefaultEmbeddingProvider",
-        "version": "1.1.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,

@@ -128,7 +128,7 @@ export interface DiagramContextState {
     setLockCanvas?: (lock: boolean) => void;
     isUserAuthenticated?: boolean;
     expressionContext: ExpressionContextProps;
-    nodeComments?: Map<string, FlowNode>;
+    nodeComments?: Map<string, FlowNode[]>;
     entrypointContext?: {
         serviceName?: string;
         functionName?: string;

@@ -56,6 +56,60 @@
           "enabled": true
         }
       ]
+    },
+    {
+      "metadata": {
+        "label": "Prebuilt Activities",
+        "description": "Prebuilt activities for common integrations",
+        "keywords": [
+          "REST",
+          "SOAP",
+          "Email",
+          "Workflow",
+          "Activity"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Call REST API",
+            "description": "Call a REST API endpoint"
+          },
+          "codedata": {
+            "node": "BUILTIN_ACTIVITY",
+            "org": "ballerina",
+            "module": "workflow.activity",
+            "symbol": "callRestAPI"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Call SOAP API",
+            "description": "Call a SOAP web service"
+          },
+          "codedata": {
+            "node": "BUILTIN_ACTIVITY",
+            "org": "ballerina",
+            "module": "workflow.activity",
+            "symbol": "callSoapAPI"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Send Email (SMTP)",
+            "description": "Send an email via SMTP"
+          },
+          "codedata": {
+            "node": "BUILTIN_ACTIVITY",
+            "org": "ballerina",
+            "module": "workflow.activity",
+            "symbol": "sendEmail"
+          },
+          "enabled": true
+        }
+      ]
     }
   ]
 }

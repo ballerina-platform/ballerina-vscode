@@ -26,10 +26,12 @@ import { TraceEmptyState } from "./components/TraceEmptyState";
 import { SpanTree, AISpanTreeContainer } from "./components/SpanTree";
 import { SearchInput } from "./components/SearchInput";
 import { ExportDropdown } from "./components/ExportDropdown";
+import { AgentFlow } from "./components/AgentFlow";
 import {
     timeContainsSpan,
     sortSpansByUmbrellaFirst,
-    isAISpan
+    isAISpan,
+    getAttributeValue
 } from "./utils";
 
 // ============================================================================
@@ -251,6 +253,32 @@ const ActionButton = styled.button`
     }
 `;
 
+const AgentFlowEntryButton = styled.button`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px;
+    padding: 8px 12px;
+    background-color: transparent;
+    border: 1px solid var(--vscode-focusBorder);
+    border-radius: 6px;
+    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--vscode-font-family);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+
+    &:active {
+        transform: scale(0.99);
+    }
+`;
+
 // ============================================================================
 // COMPONENT DEFINITIONS
 // ============================================================================
@@ -262,7 +290,8 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
     // Rename state to capture user preference specifically
     const [userAdvancedModePreference, setUserAdvancedModePreference] = useState<boolean>(false);
 
-    const [viewMode, setViewMode] = useState<'tree' | 'timeline'>('tree');
+    const [viewMode, setViewMode] = useState<'tree' | 'timeline' | 'agents'>('tree');
+    const [preAgentMode, setPreAgentMode] = useState<'tree' | 'timeline'>('tree');
     const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(
         showSidebar !== undefined ? showSidebar : !(isAgentChat && focusSpanId !== undefined)
     );
@@ -298,6 +327,14 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
     //   - If there ARE AI spans, use the user's preference
     const hasAISpans = totalSpanCounts.aiCount > 0;
     const isAdvancedMode = !isAgentChat || !hasAISpans || userAdvancedModePreference;
+
+    // Show the Agents mode when the trace has at least two agent invocations.
+    const hasMultiAgent = useMemo(() => {
+        const invokeCount = traceData.spans.filter(span =>
+            (getAttributeValue(span.attributes, 'gen_ai.operation.name') || '').startsWith('invoke_agent')
+        ).length;
+        return invokeCount >= 2;
+    }, [traceData.spans]);
 
     // Helper to get immediate AI children of a span (defined early for reuse)
     const getAIChildSpans = (spanId: string): SpanData[] => {
@@ -501,6 +538,13 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
             resizeObserver.disconnect();
         };
     }, [spanViewWidth, isSidebarVisible]);
+
+    // Fall back to Tree if Agents mode is active but the trace isn't multi-agent.
+    useEffect(() => {
+        if (viewMode === 'agents' && !hasMultiAgent) {
+            setViewMode('tree');
+        }
+    }, [viewMode, hasMultiAgent]);
 
     const toggleSpanExpansion = (spanId: string) => {
         const newExpanded = new Set(expandedSpans);
@@ -861,6 +905,23 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
         // isAdvancedMode is now a calculated value based on content + user preference
         const shouldShowAdvancedView = isAdvancedMode;
 
+        // Agents mode: dedicated multi-agent flow canvas + shared inspector.
+        if (viewMode === 'agents' && hasMultiAgent) {
+            return (
+                <AgentFlow
+                    traceData={traceData}
+                    selectedSpanId={selectedSpanId}
+                    onSelectSpan={selectSpan}
+                    totalInputTokens={totalInputTokens}
+                    totalOutputTokens={totalOutputTokens}
+                    showInternalSpans={shouldShowAdvancedView}
+                    onClose={() => setViewMode(preAgentMode)}
+                    onExportJson={handleExportTrace}
+                    onExportEvalset={handleExportAsEvalset}
+                />
+            );
+        }
+
         return (
             <TraceLogsContainer>
                 <SpanViewContainer width={isSidebarVisible ? spanViewWidth : 48} isResizing={isResizing} onMouseDown={isSidebarVisible ? handleMouseDown : undefined}>
@@ -925,6 +986,23 @@ export function TraceDetails({ traceData, isAgentChat, focusSpanId, onViewSessio
                                     />
                                 </ActionButton>
                             </SearchInputWrapper>
+
+                            {hasMultiAgent && (
+                                <AgentFlowEntryButton
+                                    onClick={() => {
+                                        setPreAgentMode(viewMode === 'timeline' ? 'timeline' : 'tree');
+                                        setViewMode('agents');
+                                    }}
+                                    title="Visualize how agents delegate work across this trace"
+                                >
+                                    <Icon
+                                        name="bi-ai-agent"
+                                        sx={{ fontSize: '16px', width: '16px', height: '16px' }}
+                                        iconSx={{ fontSize: '16px' }}
+                                    />
+                                    View Agent Flow
+                                </AgentFlowEntryButton>
+                            )}
 
                             {viewMode === 'tree' && (
                                 <AISpanTreeContainer>

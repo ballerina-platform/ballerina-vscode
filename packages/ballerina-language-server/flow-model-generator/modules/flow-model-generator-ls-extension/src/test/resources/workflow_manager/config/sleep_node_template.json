@@ -1,0 +1,86 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 15,
+    "offset": 0
+  },
+  "description": "Sleep node template",
+  "codedata": {
+    "node": "SLEEP"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Sleep",
+      "description": "Pause workflow execution for a specified duration"
+    },
+    "codedata": {
+      "node": "SLEEP",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "sleep",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "duration": {
+        "metadata": {
+          "label": "Duration",
+          "description": "The duration to sleep"
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "time:Duration",
+            "typeMembers": [
+              {
+                "type": "Duration",
+                "packageInfo": "ballerina:time:2.8.1",
+                "packageName": "time",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "time:Duration",
+            "selected": false
+          }
+        ],
+        "placeholder": "{}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "duration"
+        },
+        "imports": {
+          "time": "ballerina/time"
+        }
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

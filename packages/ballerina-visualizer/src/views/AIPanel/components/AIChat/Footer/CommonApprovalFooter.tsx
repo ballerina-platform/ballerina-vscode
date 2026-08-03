@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { FooterContainer } from "./index";
 import { ActionButton } from "../../AgentStreamView/styles";
 import { FooterBox, FooterBoxPrompt, FooterDivider, FooterTextInputRow, FooterInput, FooterIconBtn } from "./styles";
+import { AmbientFrame } from "../../../../../components/AgentStatusOrb/shared";
 
 // ── Web tool styles (footer-specific, not shared) ─────────────────────────────
 
@@ -86,18 +87,20 @@ const CommonApprovalFooter: React.FC<CommonApprovalFooterProps> = (props) => {
         const label = toolName === "web_search" ? "Web Search" : "Web Fetch";
         return (
             <FooterContainer>
-                <FooterBox>
-                    <WebToolHeader>
-                        <span className="codicon codicon-globe" />
-                        {label}
-                    </WebToolHeader>
-                    <WebToolContent>{content}</WebToolContent>
-                    <FooterDivider />
-                    <WebToolActions>
-                        <ActionButton onClick={onAllow}>Allow</ActionButton>
-                        <ActionButton variant="secondary" onClick={onDeny}>Deny</ActionButton>
-                    </WebToolActions>
-                </FooterBox>
+                <AmbientFrame $variant="composer" $state="awaiting-input">
+                    <FooterBox>
+                        <WebToolHeader>
+                            <span className="codicon codicon-globe" />
+                            {label}
+                        </WebToolHeader>
+                        <WebToolContent>{content}</WebToolContent>
+                        <FooterDivider />
+                        <WebToolActions>
+                            <ActionButton onClick={onAllow}>Allow</ActionButton>
+                            <ActionButton variant="secondary" onClick={onDeny}>Deny</ActionButton>
+                        </WebToolActions>
+                    </FooterBox>
+                </AmbientFrame>
             </FooterContainer>
         );
     }
@@ -106,18 +109,20 @@ const CommonApprovalFooter: React.FC<CommonApprovalFooterProps> = (props) => {
         const { skillName, onEnable, onSkip } = props;
         return (
             <FooterContainer>
-                <FooterBox>
-                    <WebToolHeader>
-                        <span className="codicon codicon-extensions" />
-                        Skill Disabled
-                    </WebToolHeader>
-                    <WebToolContent>{skillName}</WebToolContent>
-                    <FooterDivider />
-                    <WebToolActions>
-                        <ActionButton onClick={onEnable}>Enable skill</ActionButton>
-                        <ActionButton variant="secondary" onClick={onSkip}>Continue without it</ActionButton>
-                    </WebToolActions>
-                </FooterBox>
+                <AmbientFrame $variant="composer" $state="awaiting-input">
+                    <FooterBox>
+                        <WebToolHeader>
+                            <span className="codicon codicon-extensions" />
+                            Skill Disabled
+                        </WebToolHeader>
+                        <WebToolContent>{skillName}</WebToolContent>
+                        <FooterDivider />
+                        <WebToolActions>
+                            <ActionButton onClick={onEnable}>Enable skill</ActionButton>
+                            <ActionButton variant="secondary" onClick={onSkip}>Continue without it</ActionButton>
+                        </WebToolActions>
+                    </FooterBox>
+                </AmbientFrame>
             </FooterContainer>
         );
     }
@@ -148,35 +153,37 @@ const CommonApprovalFooter: React.FC<CommonApprovalFooterProps> = (props) => {
 
     return (
         <FooterContainer>
-            <FooterBox>
-                <FooterBoxPrompt>{promptText}</FooterBoxPrompt>
-                <FooterDivider />
-                <ActionButton
-                    onClick={() => onApprove(false)}
-                    disabled={isSubmitting}
-                    style={{ justifyContent: "flex-start", gap: "6px" }}
-                >
-                    <span className={`codicon ${approveIcon}`} style={{ fontSize: "12px" }} />
-                    {approveButtonText}
-                </ActionButton>
-                <FooterTextInputRow>
-                    <FooterInput
-                        type="text"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="What should be different?"
+            <AmbientFrame $variant="composer" $state="awaiting-input">
+                <FooterBox>
+                    <FooterBoxPrompt>{promptText}</FooterBoxPrompt>
+                    <FooterDivider />
+                    <ActionButton
+                        onClick={() => onApprove(false)}
                         disabled={isSubmitting}
-                    />
-                    <FooterIconBtn
-                        onClick={handleRejectSubmit}
-                        disabled={!comment.trim() || isSubmitting}
-                        title="Request Revision"
+                        style={{ justifyContent: "flex-start", gap: "6px" }}
                     >
-                        <span className="codicon codicon-send" style={{ fontSize: "14px" }} />
-                    </FooterIconBtn>
-                </FooterTextInputRow>
-            </FooterBox>
+                        <span className={`codicon ${approveIcon}`} style={{ fontSize: "12px" }} />
+                        {approveButtonText}
+                    </ActionButton>
+                    <FooterTextInputRow>
+                        <FooterInput
+                            type="text"
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="What should be different?"
+                            disabled={isSubmitting}
+                        />
+                        <FooterIconBtn
+                            onClick={handleRejectSubmit}
+                            disabled={!comment.trim() || isSubmitting}
+                            title="Request Revision"
+                        >
+                            <span className="codicon codicon-send" style={{ fontSize: "14px" }} />
+                        </FooterIconBtn>
+                    </FooterTextInputRow>
+                </FooterBox>
+            </AmbientFrame>
         </FooterContainer>
     );
 };

@@ -1,0 +1,198 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Create REST builtin activity call with NoRetry policy (no retryPolicy arg emitted)",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Call REST API",
+      "description": "Call a REST API endpoint as a workflow activity"
+    },
+    "codedata": {
+      "node": "ACTIVITY_CALL",
+      "org": "ballerina",
+      "module": "workflow.activity",
+      "symbol": "callRestAPI",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "connection": {
+        "metadata": {
+          "label": "Connection",
+          "description": "Connection to use"
+        },
+        "types": [
+          {
+            "fieldType": "CONNECTION",
+            "selected": true
+          }
+        ],
+        "value": "httpClient",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "method": {
+        "metadata": {
+          "label": "Method",
+          "description": "HTTP method to invoke"
+        },
+        "types": [
+          {
+            "fieldType": "DROPDOWN_CHOICE",
+            "selected": true
+          }
+        ],
+        "value": "GET",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "path": {
+        "metadata": {
+          "label": "Path",
+          "description": "Resource path"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "string `/users/1`",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Databinding",
+          "description": "Response data binding type"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "json",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result Variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "result",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy",
+          "description": "Retry strategy to apply when the activity call fails"
+        },
+        "types": [
+          {
+            "fieldType": "DROPDOWN_CHOICE",
+            "selected": true
+          }
+        ],
+        "value": "NoRetry",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    }
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/http;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/workflow.activity;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\njson result = check context->callActivity(activity:callRestAPI, {connection: httpClient, method: \"GET\", path: \"/users/1\"});"
+      }
+    ]
+  }
+}

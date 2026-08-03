@@ -44,6 +44,7 @@ import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
+import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -105,13 +106,18 @@ const HeaderControls = styled.div`
     align-items: center;
 `;
 
-const MainContent = styled.div<{ fullWidth?: boolean }>`
+const MainContent = styled.div<{ fullWidth?: boolean; withHero?: boolean }>`
     padding: 16px;
     display: grid;
     grid-template-columns: ${(props: { fullWidth?: boolean }) => props.fullWidth ? '1fr' : '3fr 1fr'};
     min-height: 0; // Prevents grid blowout
     overflow: auto;
-    max-height: calc(100vh - 90px); // Adjust based on header and any margins
+    // Adjust based on header and any margins; the hero prompt row adds ~87px.
+    max-height: ${(props: { withHero?: boolean }) => props.withHero ? 'calc(100vh - 177px)' : 'calc(100vh - 90px)'};
+`;
+
+const HeroRow = styled.div`
+    margin: 16px 16px 0 16px;
 `;
 
 const DiagramPanel = styled.div<{ noPadding?: boolean, noBorder?: boolean }>`
@@ -577,6 +583,29 @@ function IntegrationControlPlane({ enabled, handleICP }: IntegrationControlPlane
     );
 }
 
+interface WorkflowManagementProps {
+    enabled: boolean;
+    handleWorkflowManagement: (checked: boolean) => void;
+}
+
+function WorkflowManagement({ enabled, handleWorkflowManagement }: WorkflowManagementProps) {
+    return (
+        <div>
+            <Title variant="h3">Workflow</Title>
+            <p>
+                {"Manage long-running workflows in this integration, including human tasks, activities, and execution state."}
+            </p>
+            <div style={{ paddingLeft: 10 }}>
+                <CheckBox
+                    checked={enabled}
+                    onChange={handleWorkflowManagement}
+                    label="Enable Workflow Management"
+                />
+            </div>
+        </div>
+    );
+}
+
 const LocalICPBody = styled.div<DeploymentBodyProps>`
     max-height: ${(props: DeploymentBodyProps) => props.isExpanded ? '400px' : '0'};
     visibility: ${(props: DeploymentBodyProps) => props.isExpanded ? 'visible' : 'hidden'};
@@ -790,6 +819,7 @@ export function PackageOverview(props: PackageOverviewProps) {
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const { platformExtState } = usePlatformExtContext();
     const [enabled, setEnableICP] = useState(false);
+    const [workflowMgmtEnabled, setWorkflowMgmtEnabled] = useState(false);
     const [showAlert, setShowAlert] = React.useState(false);
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
     const [isInProject, setIsInProject] = useState(false);
@@ -822,6 +852,13 @@ export function PackageOverview(props: PackageOverviewProps) {
             .isIcpEnabled({ projectPath: '' })
             .then((res) => {
                 setEnableICP(res.enabled);
+            });
+
+        rpcClient
+            .getWorkflowManagementRpcClient()
+            .isWorkflowManagementEnabled({ projectPath })
+            .then((res) => {
+                setWorkflowMgmtEnabled(res.enabled);
             });
 
         rpcClient
@@ -890,6 +927,8 @@ export function PackageOverview(props: PackageOverviewProps) {
             (validConnections.length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.LISTENER] || projectStructure.directoryMap[DIRECTORY_MAP.LISTENER].length === 0) &&
             (!projectStructure.directoryMap[DIRECTORY_MAP.SERVICE] || projectStructure.directoryMap[DIRECTORY_MAP.SERVICE].length === 0) &&
+            (!projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW] || projectStructure.directoryMap[DIRECTORY_MAP.WORKFLOW].length === 0) &&
+            (!projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY] || projectStructure.directoryMap[DIRECTORY_MAP.ACTIVITY].length === 0) &&
             (!projectStructure.directoryMap.agents || projectStructure.directoryMap.agents.length === 0)
         );
     }
@@ -917,27 +956,44 @@ export function PackageOverview(props: PackageOverviewProps) {
         });
     };
 
+    const refreshWorkflowManagementState = () => {
+        rpcClient.getWorkflowManagementRpcClient().isWorkflowManagementEnabled({ projectPath })
+            .then((res) => setWorkflowMgmtEnabled(res.enabled));
+    };
+
     const handleICP = (icpEnabled: boolean) => {
+        // Update the checkbox state optimistically so it doesn't flicker while the RPC is in flight.
+        setEnableICP(icpEnabled);
         if (icpEnabled) {
             rpcClient.getICPRpcClient().addICP({ projectPath: '' })
                 .then(() => {
                     setEnableICP(true);
-                }
-                );
+                    // Enabling ICP may auto-enable Workflow Management (when the integration has
+                    // workflow functions), so re-sync that checkbox from the language server.
+                    refreshWorkflowManagementState();
+                })
+                .catch(() => setEnableICP(false));
         } else {
             rpcClient.getICPRpcClient().disableICP({ projectPath: '' })
-                .then(() => {
-                    setEnableICP(false);
-                }
-                );
+                .then(() => setEnableICP(false))
+                .catch(() => setEnableICP(true));
         }
     };
 
-    const handleGenerate = () => {
-        rpcClient.getBIDiagramRpcClient().openAIChat({
-            readme: false,
-            planMode: true,
-        });
+    const handleWorkflowManagement = (wfEnabled: boolean) => {
+        // Optimistic update to avoid checkbox flicker during the RPC round-trip.
+        setWorkflowMgmtEnabled(wfEnabled);
+        if (wfEnabled) {
+            rpcClient.getWorkflowManagementRpcClient().addWorkflowManagement({ projectPath })
+                // The RPC reports failures via errorMsg (it resolves rather than rejects), so roll
+                // back to the pre-toggle state instead of trusting enabled on a reported failure.
+                .then((res) => setWorkflowMgmtEnabled(res.errorMsg ? false : (res.enabled ?? true)))
+                .catch(() => setWorkflowMgmtEnabled(false));
+        } else {
+            rpcClient.getWorkflowManagementRpcClient().disableWorkflowManagement({ projectPath })
+                .then((res) => setWorkflowMgmtEnabled(res.errorMsg ? true : (res.enabled ?? false)))
+                .catch(() => setWorkflowMgmtEnabled(true));
+        }
     };
 
     const handleGenerateWithReadme = () => {
@@ -1071,7 +1127,12 @@ export function PackageOverview(props: PackageOverviewProps) {
                         </HeaderControls>
                     </HeaderRow>
                 )}
-                <MainContent fullWidth={isLibrary}>
+                {!isLibrary && (
+                    <HeroRow>
+                        <CopilotHeroBox />
+                    </HeroRow>
+                )}
+                <MainContent fullWidth={isLibrary} withHero={!isLibrary}>
                     <LeftContent>
                         <DiagramPanel noPadding={true} noBorder={isLibrary}>
                             {showAlert && (
@@ -1097,9 +1158,6 @@ export function PackageOverview(props: PackageOverviewProps) {
                                     <Title variant="h2">Design</Title>
                                     {!isEmptyIntegration() && (
                                         <ActionContainer>
-                                            <Button appearance="secondary" onClick={handleGenerate}>
-                                                <Icon name="bi-ai-chat" sx={{ marginRight: 8 }} iconSx={{ width: "16px", height: "16px", fontSize: "16px" }} /> Generate with AI
-                                            </Button>
                                             <Button appearance="primary" onClick={handleAddConstruct}>
                                                 <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifact
                                             </Button>
@@ -1119,14 +1177,12 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                 variant="body1"
                                                 sx={{ marginBottom: "24px", color: "var(--vscode-descriptionForeground)" }}
                                             >
-                                                Start by adding artifacts or use AI to generate your integration structure
+                                                Add an artifact to get started, or describe what you want to build in
+                                                the Copilot box above
                                             </Typography>
                                             <ButtonContainer>
                                                 <Button appearance="primary" onClick={handleAddConstruct}>
                                                     <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifact
-                                                </Button>
-                                                <Button appearance="secondary" onClick={handleGenerate}>
-                                                    <Icon name="bi-ai-chat" sx={{ marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} /> Generate with AI
                                                 </Button>
                                             </ButtonContainer>
                                         </EmptyStateContainer>
@@ -1183,6 +1239,15 @@ export function PackageOverview(props: PackageOverviewProps) {
                                     <div style={{ marginTop: 8 }}>
                                         <LocalICPDeployment />
                                     </div>
+                                    {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
+                                        <>
+                                            <Divider sx={{ margin: "16px 0" }} />
+                                            <WorkflowManagement
+                                                enabled={workflowMgmtEnabled}
+                                                handleWorkflowManagement={handleWorkflowManagement}
+                                            />
+                                        </>
+                                    )}
                                 </>
                             }
                             {isInDevant &&

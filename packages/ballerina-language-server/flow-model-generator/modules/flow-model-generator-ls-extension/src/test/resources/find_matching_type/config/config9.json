@@ -3,7 +3,7 @@
   "typeMembers": [
     {
       "type": "ServiceConfiguration",
-      "packageInfo": "ballerinax:ibm.ibmmq:1.4.0",
+      "packageInfo": "ballerinax:ibm.ibmmq:1.4.4",
       "packageName": "ibm.ibmmq",
       "kind": "RECORD_TYPE",
       "selected": true
@@ -63,7 +63,7 @@
                 "name": "AcknowledgementMode",
                 "orgName": "ballerinax",
                 "moduleName": "ibm.ibmmq",
-                "version": "1.4.0"
+                "version": "1.4.4"
               },
               "defaultable": true,
               "documentation": "Configuration indicating how messages received by the session will be acknowledged",
@@ -107,7 +107,7 @@
             "name": "QueueConfig",
             "orgName": "ballerinax",
             "moduleName": "ibm.ibmmq",
-            "version": "1.4.0"
+            "version": "1.4.4"
           },
           "defaultable": false,
           "isRestType": false,
@@ -173,7 +173,7 @@
                 "name": "ConsumerType",
                 "orgName": "ballerinax",
                 "moduleName": "ibm.ibmmq",
-                "version": "1.4.0"
+                "version": "1.4.4"
               },
               "defaultable": true,
               "documentation": "",
@@ -229,7 +229,7 @@
                 "name": "AcknowledgementMode",
                 "orgName": "ballerinax",
                 "moduleName": "ibm.ibmmq",
-                "version": "1.4.0"
+                "version": "1.4.4"
               },
               "defaultable": true,
               "documentation": "Configuration indicating how messages received by the session will be acknowledged",
@@ -276,7 +276,7 @@
             "name": "TopicConfig",
             "orgName": "ballerinax",
             "moduleName": "ibm.ibmmq",
-            "version": "1.4.0"
+            "version": "1.4.4"
           },
           "defaultable": false,
           "isRestType": false,

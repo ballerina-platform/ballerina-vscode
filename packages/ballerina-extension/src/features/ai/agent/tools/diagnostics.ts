@@ -23,7 +23,7 @@ const DiagnosticsInputSchema = z.object({
  * This tool checks the current Ballerina package for compilation errors using the language server.
  * It operates on all files in the current project/package being modified.
  *
- * @param tempProjectPath - Path to the temporary project directory
+ * @param tempProjectPath - Path to the project root (the real workspace/project directory)
  * @param eventHandler - Event handler to emit tool execution events to the visualizer
  * @returns Tool instance for checking compilation errors
  */

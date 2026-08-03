@@ -15,7 +15,6 @@
       "packageName": "http",
       "object": "Client",
       "symbol": "get",
-      "version": "2.16.2",
       "isNew": true,
       "inferredReturnType": "targetType",
       "lineRange": {

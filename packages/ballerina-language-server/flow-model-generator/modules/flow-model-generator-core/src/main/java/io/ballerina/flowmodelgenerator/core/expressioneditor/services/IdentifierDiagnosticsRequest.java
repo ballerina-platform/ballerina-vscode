@@ -106,11 +106,16 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
                             || symbol.kind() == SymbolKind.WORKER);
         }
 
-        // Check for redeclared symbols
+        // Check for redeclared symbols. The property's original value is only excluded when the
+        // property is bound to an existing declaration (edit/rename flow) — there, the matching
+        // symbol is the node's own variable. For a new node no declaration exists yet, so any
+        // visible symbol with the same name (including one matching the generated default) is a
+        // genuine duplicate and must be reported.
         Set<Diagnostic> diagnostics = new HashSet<>();
         String inputValue = context.info().expression();
-        boolean redeclaredSymbol =
-                symbolStream.anyMatch(symbol -> symbol.nameEquals(inputValue) && !symbol.nameEquals(value));
+        boolean existingDeclaration = property.hasExistingDeclaration();
+        boolean redeclaredSymbol = symbolStream.anyMatch(symbol -> symbol.nameEquals(inputValue)
+                && !(existingDeclaration && symbol.nameEquals(value)));
         if (redeclaredSymbol) {
             String message = String.format(REDECLARED_SYMBOL, inputValue);
             diagnostics.add(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),

@@ -20,21 +20,24 @@ import { AICommandExecutor, AICommandConfig, AIExecutionResult } from '../execut
 import { Command, GenerateAgentCodeRequest, ProjectSource, ExecutionContext, SemanticDiff, ReviewModeData, PROJECT_KIND, LoginMethod } from '@wso2/ballerina-core';
 import { StateMachine } from '../../../stateMachine';
 import { ModelMessage, stepCountIs, streamText, TextStreamPart } from 'ai';
-import { getAnthropicClient, getProviderCacheControl, addCacheControlToMessages, ANTHROPIC_SONNET_4 } from '../utils/ai-client';
-import { populateHistoryForAgent, getErrorMessage, buildChatError } from '../utils/ai-utils';
+import { getAnthropicClient, getProviderCacheControl, getProviderModelOptions, addCacheControlToMessages, ANTHROPIC_SONNET } from '../utils/ai-client';
+import { populateHistoryForAgent, getErrorMessage, getErrorCode, buildChatError } from '../utils/ai-utils';
 import { sendAgentDidOpenForFreshProjects } from '../utils/project/ls-schema-notifications';
 import { getSystemPrompt, getUserPrompt } from './prompts';
+import { FollowupSituation, startFollowupSuggestions } from './followups';
 import { prepareAgentsMdForTurn } from './agents-md';
+// TODO(auto-memory): temporarily disabled for this release.
+// import { executeAutoDream, isMemoryEnabled } from '../memory/autoDream';
 import { GenerationType } from '../utils/libs/libraries';
 import { createToolRegistry } from './tool-registry';
 import { loadSkillsContext } from './skills/context';
 
 import { refreshMcpClientManager } from './mcp';
-import { getProjectSource, cleanupTempProject } from '../utils/project/temp-project';
-import { integrateCodeToWorkspace } from './utils';
+import { getProjectSource } from '../utils/project/temp-project';
 import { getWorkspaceTomlValues } from '../../../utils';
 import { StreamContext } from './stream-handlers/stream-context';
 import { checkCompilationErrors } from './tools/diagnostics-utils';
+import { TASK_WRITE_TOOL_NAME } from './tools/task-writer';
 import { updateAndSaveChat, calculateTotalCost } from '../utils/events';
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import * as path from 'path';
@@ -81,7 +84,8 @@ function supportsCompaction(loginMethod: LoginMethod): boolean {
     // support the `compact-2026-01-12` beta, so server-side compaction is disabled there.
     return loginMethod === LoginMethod.ANTHROPIC_KEY
         || loginMethod === LoginMethod.BI_INTEL
-        || loginMethod === LoginMethod.VERTEX_AI;
+        || loginMethod === LoginMethod.VERTEX_AI
+        || loginMethod === LoginMethod.ANTHROPIC_AWS;
 }
 
 function buildCompactionProviderOptions(loginMethod: LoginMethod, floorTokens: number) {
@@ -215,8 +219,27 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
     /** Tracks in-flight tool-call start times keyed by toolCallId for duration logging. */
     private readonly _pendingToolCalls = new Map<string, number>();
 
+    /** A turn can reach both the finish and abort paths; suggestions must be scheduled once. */
+    private _followupsScheduled = false;
+
     constructor(config: AICommandConfig<GenerateAgentCodeRequest>) {
         super(config);
+    }
+
+    protected async prepareForExecution(): Promise<void> {
+        if (!this.config.chatStorage) {
+            return;
+        }
+        const { projectRootPath, threadId } = this.config.chatStorage;
+        if (chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId)) {
+            return;
+        }
+        const params = this.config.params;
+        this.addGeneration(params.usecase, {
+            isPlanMode: params.isPlanMode,
+            operationType: params.operationType,
+            generationType: "agent",
+        });
     }
 
     /**
@@ -247,16 +270,17 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 this.config.executionContext
             );
 
-            // 2. Send didOpen only if creating NEW temp (not reusing for review continuation)
-            if (!this.config.lifecycle?.existingTempPath) {
-                // Fresh project - Both schemas - correct
+            // 2. Seed the ai:// baseline, unless the caller explicitly asked to skip it
+            // (migration reusing the same directory across sequential stages).
+            if (!this.config.lifecycle?.skipFreshProjectSetup) {
                 sendAgentDidOpenForFreshProjects(tempProjectPath, projects);
             } else {
-                console.log(`[AgentExecutor] Skipping didOpen (reusing temp for review continuation)`);
+                console.log(`[AgentExecutor] Skipping ai:// baseline seed (skipFreshProjectSetup)`);
             }
 
             const workspaceId = this.config.executionContext.workspacePath || this.config.executionContext.projectPath;
-            const threadId = (this.config.executionContext as any).threadId || 'default';
+            // Use chatStorage.threadId so onStepFinish writes to the same thread that addGeneration created.
+            const threadId = this.config.chatStorage?.threadId ?? 'default';
             const projectState = {
                 modifiedFiles: modifiedFiles,
                 tempProjectPath,
@@ -265,31 +289,44 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
 
             // Resolve model and login method
             const loginMethod = await getLoginMethod();
-            const model = await getAnthropicClient(ANTHROPIC_SONNET_4);
+            const model = await getAnthropicClient(ANTHROPIC_SONNET);
 
             const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
             const agentsMd = await prepareAgentsMdForTurn(workspaceId || '', threadId);
+            if (agentsMd.hashToPersist !== undefined) {
+                const generation = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
+                if (generation) {
+                    chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
+                        metadata: {
+                            ...generation.metadata,
+                            agentsMdLastReadHash: agentsMd.hashToPersist,
+                        },
+                    });
+                }
+            }
 
             const { allDisabled, projectSkills, userSkills, disabledSkillMetas } =
                 loadSkillsContext(projectRootPath || null);
 
             const userMessageContent = getUserPrompt(params, tempProjectPath, projects, projectSkills, agentsMd.text);
 
+            // Estimate fixed overhead (system prompt + codebase) to decide if compaction is viable
+            // TODO(auto-memory): memory-augmented prompt disabled for this release — using base system prompt.
             const systemPromptText = getSystemPrompt(projects, params.operationType, userSkills, allDisabled, disabledSkillMetas);
             const floorTokens = estimateFloorTokens(systemPromptText, JSON.stringify(userMessageContent));
 
-            const providerOptions = buildCompactionProviderOptions(loginMethod, floorTokens);
-            if (supportsCompaction(loginMethod) && providerOptions === undefined) {
+
+            const compactionOptions = buildCompactionProviderOptions(loginMethod, floorTokens);
+            if (supportsCompaction(loginMethod) && compactionOptions === undefined) {
                 warnCompactionDisabledOnce(projectRootPath, this.config.eventHandler);
             }
+            const modelOptions = await getProviderModelOptions('xhigh');
+            const providerOptions = compactionOptions
+                ? { anthropic: { ...(modelOptions as { anthropic?: object }).anthropic, ...compactionOptions.anthropic } }
+                : modelOptions;
 
-            // 3. Add generation to chat storage (if enabled)
-            this.addGeneration(params.usecase, {
-                isPlanMode: params.isPlanMode,
-                operationType: params.operationType,
-                generationType: 'agent',
-                agentsMdLastReadHash: agentsMd.hashToPersist,
-            });
+            // Ensure the pre-edit snapshot exists before any tool can run.
+            await chatStateStorage.waitForCheckpointCapture(this.config.generationId);
 
             // 4. Get chat history from storage (if enabled) — AFTER pre-turn compaction
             const chatHistory = this.getChatHistory();
@@ -302,7 +339,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const allMessages: ModelMessage[] = [
                 {
                     role: "system",
-                    content: getSystemPrompt(projects, params.operationType, userSkills, allDisabled, disabledSkillMetas),
+                    content: systemPromptText,
                     providerOptions: cacheOptions,
                 },
                 ...historyMessages,
@@ -330,11 +367,13 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 generationType: GenerationType.CODE_GENERATION,
                 projectRootPath: this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '',
                 generationId: this.config.generationId,
-                threadId: 'default',
+                threadId,
                 migrationSourcePath: this.config.toolOptions?.migrationSourcePath,
                 runningServices: runningServicesManager,
                 webSearchEnabled: params.webSearchEnabled ?? false,
                 ctx: this.config.executionContext,
+                // TODO(auto-memory): temporarily disabled for this release.
+                // autoMemoryEnabled: isMemoryEnabled(),
             });
 
             // Accumulate tool call/result character counts across steps for breakdown estimation
@@ -354,7 +393,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
             const { fullStream, response, usage, totalUsage } = streamText({
                 model,
                 maxOutputTokens: 8192,
-                temperature: 0,
                 messages: allMessages,
                 tools,
                 abortSignal: this.config.abortController.signal,
@@ -416,7 +454,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                         );
                         this.config.eventHandler({
                             type: "usage_metrics",
-                            model: ANTHROPIC_SONNET_4,
+                            model: ANTHROPIC_SONNET,
                             usage: {
                                 inputTokens,
                                 cacheCreationInputTokens: cacheWriteTokens,
@@ -440,7 +478,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                 modifiedFiles,
                 allModifiedFiles,
                 projects,
-                shouldCleanup: false, // Review mode - don't cleanup immediately
                 messageId: this.config.generationId,
                 userMessageContent,
                 response,
@@ -467,6 +504,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 isCompactionBlock = false;
                                 const summary = extractCompactionSummary(compactionContent);
                                 cleanedCompactionSummary = summary || compactionContent;
+                                streamContext.wasCompactionTurn = true;
                                 this.config.eventHandler({ type: 'compaction_end', summary: summary ?? undefined });
                                 // Reset context widget to near-zero after compaction
                                 this.config.eventHandler({
@@ -541,7 +579,6 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                     }
 
                     const projectRootPath = this.config.executionContext.workspacePath || this.config.executionContext.projectPath || '';
-                    const threadId = 'default';
                     if (partialLLMMessages.length > 0) {
                         chatStateStorage.updateGeneration(projectRootPath, threadId, this.config.generationId, {
                             modelMessages: [
@@ -550,7 +587,7 @@ export class AgentExecutor extends AICommandExecutor<GenerateAgentCodeRequest> {
                                 {
                                     role: "user",
                                     content: `<abort_notification>
-Generation stopped by user. The last in-progress task was not saved. Files have been reverted to the previous completed task state. Please redo the last task if needed.
+Generation stopped by user. The last in-progress task was not saved. Any completed edits remain in the workspace and can be reverted if unwanted. Please redo the last task if needed.
 </abort_notification>`,
                                 },
                             ],
@@ -558,11 +595,24 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
                     }
                     // Emit save_chat so any pre-step-boundary streamed text is persisted into uiResponse.
                     updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
-                    // Clear review state
-                    const pendingReview = chatStateStorage.getPendingReviewGeneration(projectRootPath, threadId);
-                    if (pendingReview && pendingReview.id === this.config.generationId) {
-                        console.log("[AgentExecutor] Clearing review state due to abort");
-                        chatStateStorage.declineAllReviews(projectRootPath, threadId);
+                    // Leave any live edits in place — the user may want to continue from them.
+                    // Only an explicit revert (revertGeneration) restores the checkpoint.
+                    const abortedGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
+                    if (abortedGeneration && !['accepted', 'reverted', 'error'].includes(abortedGeneration.reviewState.status)) {
+                        const generationModifiedFiles = Array.from(new Set([...allModifiedFiles, ...modifiedFiles]));
+                        if (generationModifiedFiles.length > 0) {
+                            console.log("[AgentExecutor] Generation stopped with partial edits — leaving them in place");
+                            chatStateStorage.updateReviewState(projectRootPath, threadId, this.config.generationId, {
+                                status: 'done',
+                                tempProjectPath,
+                                modifiedFiles: generationModifiedFiles,
+                            });
+                        } else {
+                            chatStateStorage.updateReviewState(projectRootPath, threadId, this.config.generationId, {
+                                status: 'error',
+                                errorMessage: 'Stopped by user before any changes were made',
+                            });
+                        }
                     }
 
                     // Send telemetry for generation abort
@@ -586,6 +636,11 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
                             [{ role: "user", content: streamContext.userMessageContent }, ...partialLLMMessages],
                             'aborted'
                         );
+                    }
+
+                    // Only meaningful once the turn produced something to pivot away from.
+                    if (partialLLMMessages.length > 0) {
+                        this.maybeScheduleFollowups(streamContext, partialLLMMessages, 'aborted');
                     }
 
                     // Note: Abort event is sent by base class handleExecutionError()
@@ -664,6 +719,42 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
                 }
                 break;
 
+            case "tool-error": {
+                // A tool whose execute() throws never reaches its own
+                // emitFileToolResult/eventHandler call, because tools emit their
+                // tool_call/tool_result events from inside execute(). Without a
+                // compensating result the UI leaves that tool_call open forever:
+                // a spinner stuck in the transcript, and — since the composer's
+                // loading indicator reads the same events — a step label that
+                // keeps claiming a finished operation is still running.
+                //
+                // Unlike "error" above, this must not rethrow: the SDK feeds the
+                // tool failure back to the model and the run continues.
+                const failedToolName = (part as any).toolName;
+                const failedToolCallId = (part as any).toolCallId;
+                this._pendingToolCalls.delete(failedToolCallId);
+
+                // TaskWrite is deliberately excluded. Its tool_result drives the
+                // task rail through applyTaskWriteResult, where an empty task
+                // list closes the running task and reopens a floating entry —
+                // corrupting the transcript rather than just marking a failure.
+                // A failed TaskWrite is left to the turn's own error handling.
+                if (failedToolName && failedToolName !== TASK_WRITE_TOOL_NAME) {
+                    const reason = (part as any).error;
+                    context.eventHandler({
+                        type: "tool_result",
+                        toolName: failedToolName,
+                        toolCallId: failedToolCallId,
+                        failed: true,
+                        toolOutput: {
+                            success: false,
+                            error: reason instanceof Error ? reason.message : String(reason ?? "Tool execution failed"),
+                        },
+                    });
+                }
+                break;
+            }
+
             default:
                 // All other stream part types (step-finish, etc.) are handled by the SDK.
                 break;
@@ -678,22 +769,28 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
         console.error("[Agent] Stream error:", error);
 
         const tempProjectPath = context.ctx.tempProjectPath!;
-        if (context.shouldCleanup) {
-            // Note: cleanupTempProject now handles sendAgentDidClose internally
-            await cleanupTempProject(tempProjectPath);
-        }
 
-        // Clear review state for this generation
+        // Leave any live edits in place — the user may want to continue from them. Only an
+        // explicit revert (revertGeneration) restores the checkpoint.
         const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
-        const threadId = 'default';
-        const pendingReview = chatStateStorage.getPendingReviewGeneration(projectRootPath, threadId);
+        const threadId = this.config.chatStorage?.threadId ?? 'default';
+        const erroredGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, context.messageId);
 
-        if (pendingReview && pendingReview.id === context.messageId) {
-            console.log("[AgentExecutor] Clearing review state due to error");
-            chatStateStorage.updateReviewState(projectRootPath, threadId, context.messageId, {
-                status: 'error',
-                errorMessage: getErrorMessage(error),
-            });
+        if (erroredGeneration && !['accepted', 'reverted', 'error'].includes(erroredGeneration.reviewState.status)) {
+            const generationModifiedFiles = Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles]));
+            if (generationModifiedFiles.length > 0) {
+                console.log("[AgentExecutor] Generation errored with partial edits — leaving them in place");
+                chatStateStorage.updateReviewState(projectRootPath, threadId, context.messageId, {
+                    status: 'done',
+                    tempProjectPath,
+                    modifiedFiles: generationModifiedFiles,
+                });
+            } else {
+                chatStateStorage.updateReviewState(projectRootPath, threadId, context.messageId, {
+                    status: 'error',
+                    errorMessage: getErrorMessage(error),
+                });
+            }
         }
 
         // Send telemetry for generation failed
@@ -733,6 +830,11 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
             });
             updateAndSaveChat(context.messageId, Command.Agent, context.eventHandler);
         }
+
+        // A quota failure gets a Continue chip with no model call — the webview keeps it hidden
+        // until the limit resets, so the user can pick the work back up then.
+        const situation: FollowupSituation = getErrorCode(error) === 'usage_limit' ? 'usage_limit' : 'error';
+        this.maybeScheduleFollowups(context, messagesToSave, situation, getErrorMessage(error));
     }
 
     /**
@@ -768,7 +870,7 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
         );
 
         const totalCost = calculateTotalCost(
-            ANTHROPIC_SONNET_4,
+            ANTHROPIC_SONNET,
             { inputTokens, outputTokens, cacheReadTokens: totalCacheRead, cacheWriteTokens: totalCacheWrite },
             context.toolModelUsage
         );
@@ -812,35 +914,58 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
         // Update chat state storage
         await this.updateChatState(context, assistantMessages, tempProjectPath);
 
-        // Integrate generated code into workspace immediately so user sees changes during review.
-        // Skip only when the temp path IS the real workspace directory (migration wizard in-place
-        // editing). A review-continuation run also sets existingTempPath but to a temp dir, so we
-        // compare resolved paths rather than just checking existingTempPath presence.
-        const workspaceRoot = context.ctx.workspacePath || context.ctx.projectPath;
-        const isInPlaceEditing =
-            !!workspaceRoot &&
-            path.resolve(tempProjectPath) === path.resolve(workspaceRoot);
-        if (!isInPlaceEditing) {
+        // Every edit already landed live in the real workspace via persistLiveEdit (see
+        // text-editor.ts) — no re-integration needed here. In workspace mode, still resolve the
+        // active project path from the generation's modified files if it wasn't already known.
+        if (!context.ctx.projectPath && context.ctx.workspacePath) {
             const generationFiles = new Set([...context.allModifiedFiles, ...context.modifiedFiles]);
-            if (generationFiles.size > 0) {
-                const integrationCtx = { ...context.ctx };
-                // In workspace mode, resolve project path from modified files if not set
-                if (!integrationCtx.projectPath && integrationCtx.workspacePath) {
-                    const firstBalFile = Array.from(generationFiles).find(f => f.endsWith('.bal'));
-                    if (firstBalFile) {
-                        const packageName = firstBalFile.split('/')[0];
-                        if (packageName) {
-                            integrationCtx.projectPath = path.join(integrationCtx.workspacePath, packageName);
-                            StateMachine.context().projectPath = integrationCtx.projectPath;
-                        }
-                    }
+            const firstBalFile = Array.from(generationFiles).find(f => f.endsWith('.bal'));
+            if (firstBalFile) {
+                const packageName = firstBalFile.split('/')[0];
+                if (packageName) {
+                    StateMachine.context().projectPath = path.join(context.ctx.workspacePath, packageName);
                 }
-                await integrateCodeToWorkspace(tempProjectPath, generationFiles, integrationCtx);
             }
         }
 
         // Emit UI events
         await this.emitReviewActions(context);
+
+        // Follow-up suggestions — best-effort, non-blocking.
+        this.maybeScheduleFollowups(context, assistantMessages, 'completed');
+
+        // TODO(auto-memory): auto-dream consolidation temporarily disabled for this release.
+        // // autoDream consolidation — skipped on compaction turns (no real user activity)
+        // const workspacePath = context.ctx.workspacePath || context.ctx.projectPath || '';
+        // if (workspacePath && !context.wasCompactionTurn) {
+        //     executeAutoDream({ workspacePath });
+        // }
+    }
+
+    /** Hands the finished turn to the follow-up suggestion flow; at most once per turn. */
+    private maybeScheduleFollowups(
+        context: StreamContext,
+        assistantMessages: any[],
+        situation: FollowupSituation,
+        errorMessage?: string
+    ): void {
+        // Migration and evals drive this executor with their own handlers and no chat storage —
+        // suggestions there would burn a call and leak chips into the wrong panel.
+        if (this._followupsScheduled || !this.config.chatStorage?.enabled) {
+            return;
+        }
+        this._followupsScheduled = startFollowupSuggestions({
+            situation,
+            messageId: context.messageId,
+            projectRootPath: context.ctx.workspacePath || context.ctx.projectPath || '',
+            threadId: this.config.chatStorage.threadId,
+            assistantMessages,
+            userQuery: this.config.params.usecase ?? '',
+            isPlanMode: this.config.params.isPlanMode,
+            abortSignal: this.config.abortController.signal,
+            errorMessage,
+            eventHandler: this.config.eventHandler,
+        });
     }
 
     /**
@@ -852,7 +977,7 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
         tempProjectPath: string
     ): Promise<void> {
         const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
-        const threadId = 'default';
+        const threadId = this.config.chatStorage?.threadId ?? 'default';
 
         const generationModifiedFiles = Array.from(new Set([...context.allModifiedFiles, ...context.modifiedFiles]));
 
@@ -882,15 +1007,14 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
             tempProjectPath
         );
 
-        // Update review state — modifiedFiles is per-generation only
+        // Status stays put here: 'done' means revertible, and it is emitReviewActions that
+        // produces the data that makes it so. Announcing it earlier leaves a window where a
+        // panel reload reads the generation as settled and never hears otherwise.
         chatStateStorage.updateReviewState(projectRootPath, threadId, context.messageId, {
-            status: 'under_review',
             tempProjectPath,
             modifiedFiles: generationModifiedFiles,
             affectedPackagePaths: affectedPackagePaths,
         });
-
-        // ReviewMode will be opened with data from emitReviewActions
     }
 
     /**
@@ -898,10 +1022,8 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
      */
     private async emitReviewActions(context: StreamContext): Promise<void> {
         const workspaceId = context.ctx.workspacePath || context.ctx.projectPath;
-        const threadId = 'default';
+        const threadId = this.config.chatStorage?.threadId ?? 'default';
 
-        // Show review for the current generation only; older under-review ones are treated as accepted.
-        // TODO: refactor generation review state so older generations are explicitly marked accepted.
         const currentGeneration = chatStateStorage.getGeneration(workspaceId, threadId, context.messageId);
         const accumulatedModifiedFiles = currentGeneration?.reviewState.modifiedFiles ?? [];
         const cachedAffectedPackages = currentGeneration?.reviewState.affectedPackagePaths ?? [];
@@ -912,14 +1034,15 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
             let affectedPackages: string[] = [];
             const diffPackageMap: string[] = [];
             const langClient = StateMachine.context().langClient;
-            const tempDir = context.ctx.tempProjectPath!;
+            // The execution's working root: the real workspace in direct-edit mode.
+            const workingProjectPath = context.ctx.tempProjectPath!;
             affectedPackages = cachedAffectedPackages.length > 0
                 ? cachedAffectedPackages
-                : await determineAffectedPackages(accumulatedModifiedFiles, context.projects, context.ctx, tempDir);
+                : await determineAffectedPackages(accumulatedModifiedFiles, context.projects, context.ctx, workingProjectPath);
             const isWorkspace = StateMachine.context().projectInfo?.projectKind === PROJECT_KIND.WORKSPACE_PROJECT;
             for (const pkg of affectedPackages) {
                 // Skip workspace root — it only contains Ballerina.toml, not a real package
-                if (isWorkspace && pkg === tempDir) { continue; }
+                if (isWorkspace && pkg === workingProjectPath) { continue; }
                 const pkgName = path.basename(pkg);
                 try {
                     const res = await langClient.getSemanticDiff({ projectPath: pkg });
@@ -944,11 +1067,22 @@ Generation stopped by user. The last in-progress task was not saved. Files have 
                 loadDesignDiagrams,
                 affectedPackages,
                 modifiedFiles: accumulatedModifiedFiles,
-                tempProjectPath: context.ctx.tempProjectPath!,
+                tempProjectPath: workingProjectPath,
                 isWorkspace,
             };
 
-            approvalViewManager.openReviewMode(reviewData, false);
+            approvalViewManager.openReviewMode(context.messageId, reviewData, false);
+
+            // Keep what the diff view needs on the generation itself, so reopening resolves against
+            // the thread that owns it rather than a workspace-wide slot.
+            // 'done' = finished and revertible, so it lands with the data that makes it revertible.
+            chatStateStorage.updateReviewState(workspaceId, threadId, context.messageId, {
+                status: 'done',
+                tempProjectPath: workingProjectPath,
+                modifiedFiles: accumulatedModifiedFiles,
+                affectedPackagePaths: affectedPackages,
+                reviewView: { semanticDiffs, loadDesignDiagrams, isWorkspace },
+            });
 
             context.eventHandler({
                 type: "chat_component",

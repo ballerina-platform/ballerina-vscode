@@ -99,7 +99,7 @@ already covers extension + tests + LS attach.
 
 ### "Reproduce a CI failure locally"
 
-The PR workflow (`.github/workflows/pull-request.yml`) calls `.github/workflows/build.yml`
+The PR workflow (`.github/workflows/pull-request.yml`) calls `.github/workflows/reusable-build.yml`
 which delegates to the composite action at `.github/actions/build/action.yml`.
 That action ultimately does:
 
@@ -111,12 +111,17 @@ Running that exact command locally is the closest reproduction.
 
 ### "Change the LS jar shipped in the vsix"
 
-`packages/ballerina-extension/scripts/copy-ls.js` decides which jar lands in
-`ls/`. Read it before changing anything LS-related. Override knobs:
+The extension package's `copyLS` command copies the exact versioned jar into `ls/`.
+Rush builds or restores `ballerina-language-server` first through the `workspace:*`
+dependency. The jar is always that project's local `pack` output — there is no download
+path and nothing to select. To change the shipped jar, rebuild the LS
+(`rush build --to ballerina-language-server`).
 
-- `BALLERINA_LS_SOURCE=download` — always download from GH releases
-- `BALLERINA_LS_TAG=<tag>` — pin a specific release
-- *(default)* — prefer the local pack output, fall back to download
+**The version is authored in exactly one file:
+`packages/ballerina-extension/package.json`.** `vsce` reads it directly, and the
+language-server Gradle build reads the same manifest at configuration time. To change the
+extension and LS version, edit that field and nothing else. `-Pversion=<v>` remains
+available for a one-off Gradle build without changing the manifest.
 
 ### "Add a dependency to a package"
 
@@ -131,6 +136,28 @@ Running that exact command locally is the closest reproduction.
 1. Create the dir with a `package.json` (name + version + scripts).
 2. Register it in `rush.json` under `projects[]`.
 3. Run `rush update`.
+
+## Writing tests
+
+**Read [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) first — it has, per level, what it is / how to run / how to add / example files to copy.** This is the authoritative how-to; the rules below are the non-negotiables.
+
+**Levels & where they run.** Four **scope levels** ordered by how much of the system each test runs — L1 unit/contract (pure logic + shared-type/enum invariants), L2 component (render), L3 LS-integration, L4 E2E — plus an **orthogonal Perf/QA suite** (performance is non-functional and cuts across L1–L4, so it isn't a numbered level). L1 and L2 are **fast, PR-gated** — a package's tests run in CI **only** via a file named exactly `jest.config.js`. L3 (headless LS), L4 (E2E), and perf need Java + a Ballerina distribution (or VSCode) and **must use another config filename** (`jest.ls-integration.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`, `jest.perf.config.js`) so they never run on every PR; they `describe.skip` when no distro is found. **Never rename an LS/E2E/perf config to `jest.config.js`.**
+
+**Core rules (apply at every level):**
+- **Invariants over per-issue tests.** Assert a *rule over a corpus* ("every array-typed field renders an array editor"), not one reported case. A bug fix ⇒ a fixture feeding the relevant invariant, named `issue-<n>.json`.
+- **Don't touch production code to make something testable** — except the one sanctioned move: if a pure function is trapped in a heavy module (e.g. `bi.tsx`), **extract it into a narrow-import sibling and re-export** so importers are unaffected (see `utils/diagnostics.ts`, `utils/range.ts`). Verify importers still resolve + `tsc --noEmit` clean.
+- **New test file** = WSO2 Apache-2.0 header, year **2026**. Copy from any existing test.
+- **Before pushing:** the affected package's `test` is green (or intentionally red with a documented comment + issue link). L3/L4 + perf need the distro.
+
+**Adding tests to a package with none** (3 lines): add the devDeps + `@wso2/test-config`, create `jest.config.js` = `{ ...require('@wso2/test-config/jest-preset'), rootDir: '.' }` (add `testEnvironment: 'node'` for host-side), `rush update`. Recipe: [`packages/test-config/README.md`](packages/test-config/README.md). Also add a `tsconfig.spec.json` (copy a sibling's) + a `test:typecheck` script.
+
+**Type-check your test code.** Test files aren't type-checked by the build (excluded) or by babel/ts-jest at run time, so run `node scripts/typecheck-tests.js` before pushing — it `tsc --noEmit`s every package's `tsconfig.spec.json` and gates on test-file errors (a wrong prop, a removed export, a mis-shaped fixture). Don't silence a real error with `as any`; fix the type.
+
+**L2 — the one rule:** *render the component with the context it needs, feed it synthetic data for invariants/edge-cases or a captured fixture for fidelity/drift.*
+- Context = what the component reads: props → `render(<C {...data}/>)`; `useFormContext` → `renderWithForm` (`ballerina-side-panel/src/test/formHarness.tsx`); `useRpcContext` → `renderWithRpc` + a **fake rpc client** (`rpcHarness.tsx`; mock the `@wso2/ballerina-rpc-client` barrel to delegate to the harness so component + Provider share one context).
+- Synthetic data (hand-authored) → fast, PR, for edge cases the LS won't hand you. Captured real data → the **capture→file→render split**: a nightly `*.capture.test.ts` writes/drift-checks `fixture.json` from the live LS; a fast `*.render.test.tsx` loads it and snapshots the render.
+- **god-managers (bi-diagram rpc-manager) can't be imported** — their graph pulls all of `core/extension.ts`. Cover them via captured fixtures, never by importing.
+- **jsdom limits** (don't fight): CodeMirror expression/chip editors don't instantiate; interaction that advances `requestAnimationFrame` (array add/remove, save-button enable) throws `IndexSizeError`. Push those to L4 (E2E).
 
 ## Things that look broken but aren't
 
@@ -154,6 +181,7 @@ When in doubt about behavior, read these instead of guessing:
 | Why is CI doing X? | `.github/workflows/*.yml` + `.github/actions/*/action.yml` + `.github/workflows/README.md` |
 | What version of pnpm/node/rush? | `rush.json` (top), `common/config/rush/pnpm-config.json` |
 | What changed recently? | `git log --oneline -30` — commit messages here are descriptive |
+| How do I write/run/add a test? | [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) — per-level explain / run / add / example files |
 
 ## Migration history (for context)
 

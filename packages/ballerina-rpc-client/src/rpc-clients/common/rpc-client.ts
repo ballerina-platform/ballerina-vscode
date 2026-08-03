@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    AgentRunStatus,
     BallerinaDiagnosticsRequest,
     BallerinaDiagnosticsResponse,
     CommandsRequest,
@@ -42,6 +43,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
     getDefaultOrgName,
@@ -98,6 +100,10 @@ export class CommonRpcClient implements CommonRPCAPI {
 
     executeCommand(params: CommandsRequest): Promise<CommandsResponse> {
         return this._messenger.sendRequest(executeCommand, HOST_EXTENSION, params);
+    }
+
+    getAgentRunStatus(): Promise<AgentRunStatus> {
+        return this._messenger.sendRequest(getAgentRunStatus, HOST_EXTENSION);
     }
 
     runBackgroundTerminalCommand(params: RunExternalCommandRequest): Promise<RunExternalCommandResponse> {

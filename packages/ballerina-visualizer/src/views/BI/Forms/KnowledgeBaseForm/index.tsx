@@ -16,11 +16,11 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Codicon } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 
-import { EditorConfig, FlowNode, LineRange, SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { EditorConfig, FlowNode, getPrimaryInputType, LineRange, RecordTypeField, SubPanel, SubPanelView } from "@wso2/ballerina-core";
 import {
     FormValues,
     ExpressionFormField,
@@ -40,6 +40,9 @@ import {
 } from "../form-utils";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
 import { ConnectionKind } from "../../../../components/ConnectionSelector";
+import { useModalStack } from "../../../../Context";
+import DynamicModal from "../../../../components/Modal";
+import { ConfigureRecordPage } from "../../HelperPaneNew/Views/RecordConfigModal";
 
 const DEFAULT_CHUNKER_VALUE = "ai:AUTO";
 
@@ -111,11 +114,20 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
     } = props;
 
     const { rpcClient } = useRpcContext();
+    const { addModal, closeModal, popModal } = useModalStack();
     const [knowledgeBaseFields, setKnowledgeBaseFields] = useState<FormField[]>([]);
     const [formImports, setFormImports] = useState<FormImports>({});
     const [isFormValid, setIsFormValid] = useState(true);
     const [knowledgeBaseFormValues, setKnowledgeBaseFormValues] = useState<FormValues>({});
     const [saving, setSaving] = useState<boolean>(false);
+    const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
+    const [recordConfigPageState, setRecordConfigPageState] = useState<{
+        isOpen: boolean;
+        fieldKey?: string;
+        currentValue?: string;
+        recordTypeField?: RecordTypeField;
+        onChangeCallback?: (value: string) => void;
+    }>({ isOpen: false });
 
     useEffect(() => {
         initializeForm();
@@ -164,6 +176,23 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
 
     const initializeForm = async () => {
         const formProperties = getFormProperties(node);
+
+        const recordFields = Object.entries(formProperties)
+            .filter(([_, property]) => {
+                const primaryInputType = getPrimaryInputType(property?.types);
+                return primaryInputType?.typeMembers?.some((member) => member.kind === "RECORD_TYPE");
+            })
+            .map(([key, property]) => {
+                const primaryInputType = getPrimaryInputType(property?.types);
+                return {
+                    key,
+                    property,
+                    recordTypeMembers:
+                        primaryInputType?.typeMembers?.filter((member) => member.kind === "RECORD_TYPE") ?? [],
+                };
+            });
+        setRecordTypeFields(recordFields);
+
         const fields = convertNodePropertiesToFormFields(formProperties);
         const actionFields = ["vectorStore", "embeddingModel", "chunker"];
         fields.forEach((field) => {
@@ -224,7 +253,32 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         }
     };
 
+    const openRecordConfigPage = useCallback((
+        fieldKey: string,
+        currentValue: string,
+        recordTypeField: RecordTypeField,
+        onChangeCallback: (value: string) => void
+    ) => {
+        setRecordConfigPageState({ isOpen: true, fieldKey, currentValue, recordTypeField, onChangeCallback });
+    }, []);
+
+    const closeRecordConfigPage = () => {
+        setRecordConfigPageState({ isOpen: false });
+    };
+
+    const popupManager = {
+        addPopup: addModal,
+        removeLastPopup: popModal,
+        closePopup: closeModal,
+    };
+
+    const formExpressionEditor = useMemo(
+        () => ({ ...expressionEditor, onOpenRecordConfigPage: openRecordConfigPage }),
+        [expressionEditor, openRecordConfigPage]
+    );
+
     return (
+        <>
         <S.Container footerActionButton={footerActionButton}>
             <S.ScrollableContent>
                 <S.Content>
@@ -235,7 +289,8 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
                                 fileName={fileName}
                                 targetLineRange={targetLineRange}
                                 selectedNode={node.codedata.node}
-                                expressionEditor={expressionEditor}
+                                expressionEditor={formExpressionEditor}
+                                recordTypeFields={recordTypeFields}
                                 openSubPanel={openSubPanel}
                                 subPanelView={subPanelView}
                                 updatedExpressionField={updatedExpressionField}
@@ -258,6 +313,45 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
                 </S.Content>
             </S.ScrollableContent>
         </S.Container>
+        {recordConfigPageState.isOpen &&
+            recordConfigPageState.fieldKey &&
+            recordConfigPageState.recordTypeField &&
+            recordConfigPageState.onChangeCallback && (
+                <DynamicModal
+                    width={800}
+                    height={600}
+                    anchorRef={undefined}
+                    title="Record Configuration"
+                    openState={recordConfigPageState.isOpen}
+                    setOpenState={(isOpen: boolean) => {
+                        if (!isOpen) {
+                            closeRecordConfigPage();
+                        }
+                    }}
+                    closeOnBackdropClick={true}
+                    closeButtonIcon="minimize"
+                >
+                    <ConfigureRecordPage
+                        fileName={fileName}
+                        targetLineRange={targetLineRange}
+                        onChange={(value: string) => {
+                            recordConfigPageState.onChangeCallback!(value);
+                        }}
+                        currentValue={recordConfigPageState.currentValue || ""}
+                        recordTypeField={recordConfigPageState.recordTypeField}
+                        onClose={closeRecordConfigPage}
+                        getHelperPane={expressionEditor.getHelperPane}
+                        field={knowledgeBaseFields.find((f) => f.key === recordConfigPageState.fieldKey)}
+                        triggerCharacters={expressionEditor.triggerCharacters}
+                        formContext={{
+                            expressionEditor: formExpressionEditor,
+                            popupManager: popupManager,
+                            nodeInfo: { kind: node.codedata.node },
+                        }}
+                    />
+                </DynamicModal>
+            )}
+        </>
     );
 }
 

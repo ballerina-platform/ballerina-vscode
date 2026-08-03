@@ -29,7 +29,6 @@ import io.ballerina.tools.text.LineRange;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Handles the search command for knowledge bases.
@@ -38,8 +37,6 @@ import java.util.stream.Collectors;
  */
 public class KnowledgeBaseSearchCommand extends SearchCommand {
 
-    private static final String KNOWLEDGE_BASE_LABEL = "Knowledge Bases";
-
     public KnowledgeBaseSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
     }
@@ -47,21 +44,15 @@ public class KnowledgeBaseSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         List<AvailableNode> knowledgeBases = AiUtils.getKnowledgeBases(project);
-        Category category = new Category.Builder(null).metadata().label(KNOWLEDGE_BASE_LABEL)
-                .stepOut().items(List.copyOf(knowledgeBases)).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.KNOWLEDGE_BASE.label(), knowledgeBases,
+                null));
     }
 
     @Override
     protected List<Item> search() {
         List<AvailableNode> knowledgeBases = AiUtils.getKnowledgeBases(project);
-        List<Item> matchingBases = knowledgeBases.stream()
-                .filter(node -> AiUtils.matchesQuery(node, query))
-                .collect(Collectors.toList());
-
-        Category category = new Category.Builder(null).metadata().label(KNOWLEDGE_BASE_LABEL)
-                .stepOut().items(matchingBases).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.KNOWLEDGE_BASE.label(), knowledgeBases,
+                query));
     }
 
     @Override

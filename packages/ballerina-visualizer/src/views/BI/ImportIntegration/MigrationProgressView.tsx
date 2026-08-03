@@ -16,15 +16,38 @@
  * under the License.
  */
 
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ActionButtons, Typography } from "@wso2/ui-toolkit";
-import { useEffect, useMemo, useState } from "react";
-import { BodyText } from "../../styles";
+import { ActionButtons, Button, Codicon, ProgressRing, Typography } from "@wso2/ui-toolkit";
+import styled from "@emotion/styled";
+import { useEffect, useState } from "react";
 import { MigrationLogs } from "./components/MigrationLogs";
-import { MigrationStatusContent } from "./components/MigrationStatusContent";
-import { ButtonWrapper, NextButtonWrapper, StepWrapper } from "./styles";
-import { MigrationProgressProps, MigrationReportJSON } from "./types";
-import { getMigrationDisplayState, getMigrationProgressHeaderData, handleMultiProjectReportOpening } from "./utils";
+import {
+    AIEnhancementSection,
+    AIEnhancementTitle,
+    BodyText,
+    ButtonWrapper,
+    RadioContent,
+    RadioDescription,
+    RadioGroup,
+    RadioInput,
+    RadioOption,
+    RadioTitle,
+} from "./styles";
+import { MigrationProgressProps } from "./types";
+import { getMigrationDisplayState, getMigrationProgressHeaderData } from "./utils";
+
+const StatusRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--wso2-brand-accent) 20%, var(--vscode-widget-border));
+    background: color-mix(in srgb, var(--wso2-brand-accent) 6%, transparent);
+    padding: 10px 12px;
+`;
+
+const StatusText = styled.span`
+    color: var(--vscode-foreground);
+`;
 
 export function MigrationProgressView({
     migrationState,
@@ -34,94 +57,59 @@ export function MigrationProgressView({
     migrationResponse,
     projects,
     isMultiProject,
-    onNext,
+    onStartAIEnhancement,
+    onDone,
+    onOpenProject,
     onBack,
+    toolPullFailed,
+    toolPullFailureMessage,
+    migrationToolCommandName,
 }: MigrationProgressProps) {
-    const [isLogsOpen, setIsLogsOpen] = useState(false);
-    const { rpcClient } = useRpcContext();
+    const [isLogsOpen, setIsLogsOpen] = useState(true);
+    const [aiEnhancementEnabled, setAiEnhancementEnabled] = useState(true);
 
-    // Parse migration report JSON when available
-    const parsedReportData = useMemo(() => {
-        if (!migrationResponse?.jsonReport) return null;
-        try {
-            const reportData = typeof migrationResponse.jsonReport === "string"
-                ? JSON.parse(migrationResponse.jsonReport)
-                : migrationResponse.jsonReport;
-            return reportData as MigrationReportJSON;
-        } catch (error) {
-            console.error("Failed to parse migration report JSON:", error);
-        }
-    }, [migrationResponse?.jsonReport]);
-
-    // Auto-open logs during migration and auto-collapse when completed
     useEffect(() => {
-        if (!migrationCompleted && migrationLogs.length > 0) {
-            // Migration is in progress and we have logs - open the dropdown
-            setIsLogsOpen(true);
-        } else if (migrationCompleted) {
-            // Migration is completed - collapse the dropdown
+        if (migrationCompleted) {
             setIsLogsOpen(false);
+        } else if (migrationLogs.length > 0) {
+            setIsLogsOpen(true);
         }
     }, [migrationCompleted, migrationLogs.length]);
 
-    const handleViewReport = async () => {
-        console.log("View report clicked", { migrationResponse });
-        try {
-            if (migrationResponse?.report) {
-                handleMultiProjectReportOpening(migrationResponse, projects, rpcClient);
-                console.log("Report found, opening via RPC...");
-                rpcClient.getMigrateIntegrationRpcClient().openMigrationReport({
-                    reportContent: migrationResponse.report,
-                    fileName: "migration-report.html",
-                });
-            }
-        } catch (error) {
-            console.error("Failed to open migration report:", error);
-        }
-    };
-
-    const handleSaveReport = async () => {
-        console.log("Save report clicked", { migrationResponse, isMultiProject, projects });
-        try {
-            if (!migrationResponse?.report) {
-                console.error("No report content available to save");
-                return;
-            }
-
-            // Check if this is a multi-project migration
-            const hasMultipleProjects = isMultiProject && projects && projects.length > 0;
-
-            if (hasMultipleProjects) {
-                // For multi-project scenarios, extract reports from projects array
-                const projectReports: { [projectName: string]: string } = {};
-
-                projects.forEach((project) => {
-                    if (project.projectName && project.report) {
-                        projectReports[project.projectName] = project.report;
-                    }
-                });
-
-                console.log("Saving multi-project reports via VSCode folder dialog...", { projectReports });
-                rpcClient.getMigrateIntegrationRpcClient().saveMigrationReport({
-                    reportContent: migrationResponse.report,
-                    defaultFileName: "aggregate_migration_report.html",
-                    projectReports: projectReports,
-                });
-            } else {
-                // Single project - use simple save dialog
-                console.log("Saving single project report via VSCode save dialog...");
-                rpcClient.getMigrateIntegrationRpcClient().saveMigrationReport({
-                    reportContent: migrationResponse.report,
-                    defaultFileName: "migration-report.html",
-                });
-            }
-        } catch (error) {
-            console.error("Failed to save migration report:", error);
-        }
-    };
-
-    const displayState = getMigrationDisplayState(migrationCompleted, migrationSuccessful, !!parsedReportData);
+    const displayState = getMigrationDisplayState(migrationCompleted, migrationSuccessful, false);
     const { headerText, headerDesc } = getMigrationProgressHeaderData(displayState, isMultiProject);
+    const openProjectDisabled = projects.length > 15;
+
+    if (toolPullFailed) {
+        return (
+            <>
+                <div>
+                    <Typography variant="h2">Tool Installation Failed</Typography>
+                    <BodyText>
+                        {toolPullFailureMessage || "An error occurred while installing the migration tool."}
+                    </BodyText>
+                    <BodyText style={{ marginTop: 12 }}>
+                        You can install the tool manually by running the following command in your terminal:
+                    </BodyText>
+                    <pre style={{
+                        fontFamily: "var(--vscode-editor-font-family, monospace)",
+                        background: "color-mix(in srgb, var(--vscode-editor-background) 80%, var(--vscode-panel-border))",
+                        border: "1px solid var(--vscode-panel-border)",
+                        borderRadius: 6,
+                        padding: "8px 12px",
+                        marginTop: 8,
+                        fontSize: "0.9em",
+                        overflowX: "auto",
+                    }}>
+                        {`bal tool pull ${migrationToolCommandName ?? "migrate-mule"}`}
+                    </pre>
+                </div>
+                <ButtonWrapper>
+                    <Button appearance="secondary" onClick={onBack}>Back</Button>
+                </ButtonWrapper>
+            </>
+        );
+    }
 
     return (
         <>
@@ -129,34 +117,12 @@ export function MigrationProgressView({
                 <Typography variant="h2">{headerText}</Typography>
                 <BodyText>{headerDesc}</BodyText>
             </div>
-            <StepWrapper>
-                <MigrationStatusContent
-                    state={displayState}
-                    migrationState={migrationState}
-                    migrationResponse={migrationResponse}
-                    parsedReportData={parsedReportData}
-                    onViewReport={handleViewReport}
-                    onSaveReport={handleSaveReport}
-                    isMultiProject={isMultiProject}
-                />
-                {displayState.showButtonsInStep && (
-                    <NextButtonWrapper>
-                        <ActionButtons
-                            primaryButton={{
-                                text: "Next",
-                                onClick: onNext,
-                                disabled: !migrationCompleted || !migrationSuccessful
-                            }}
-                            secondaryButton={{
-                                text: "Back",
-                                onClick: onBack,
-                                disabled: false
-                            }}
-                        />
-                    </NextButtonWrapper>
-                )}
-            </StepWrapper>
-
+            {displayState.isInProgress && (
+                <StatusRow>
+                    <ProgressRing sx={{ width: 14, height: 14 }} color="var(--vscode-foreground)" />
+                    <StatusText>{migrationState || "Starting migration..."}</StatusText>
+                </StatusRow>
+            )}
             <MigrationLogs
                 migrationLogs={migrationLogs}
                 migrationCompleted={migrationCompleted}
@@ -170,8 +136,8 @@ export function MigrationProgressView({
                 <ButtonWrapper>
                     <ActionButtons
                         primaryButton={{
-                            text: "Next",
-                            onClick: onNext,
+                            text: "Configure Destination",
+                            onClick: onDone,
                             disabled: !migrationCompleted || !migrationSuccessful
                         }}
                         secondaryButton={{
@@ -181,6 +147,54 @@ export function MigrationProgressView({
                         }}
                     />
                 </ButtonWrapper>
+            )}
+
+            {/* Show AI enhancement options and action buttons after successful migration */}
+            {displayState.isSuccess && (
+                <>
+                    <AIEnhancementSection>
+                        <AIEnhancementTitle>
+                            <Codicon name="sparkle" sx={{ fontSize: "14px", color: "var(--wso2-brand-accent)" }} />
+                            AI Enhancement (Recommended)
+                        </AIEnhancementTitle>
+                        <RadioGroup role="radiogroup" aria-label="AI Enhancement mode">
+                            <RadioOption selected={aiEnhancementEnabled} onClick={() => setAiEnhancementEnabled(true)}>
+                                <RadioInput type="radio" name="ai-enhancement-mode-report" checked={aiEnhancementEnabled} onChange={() => setAiEnhancementEnabled(true)} />
+                                <RadioContent>
+                                    <RadioTitle>Enhance with AI</RadioTitle>
+                                    <RadioDescription>AI will automatically resolve unmapped elements, fix build errors, and improve migration quality.</RadioDescription>
+                                </RadioContent>
+                            </RadioOption>
+                            <RadioOption selected={!aiEnhancementEnabled} onClick={() => setAiEnhancementEnabled(false)}>
+                                <RadioInput type="radio" name="ai-enhancement-mode-report" checked={!aiEnhancementEnabled} onChange={() => setAiEnhancementEnabled(false)} />
+                                <RadioContent>
+                                    <RadioTitle>Skip for Now, Enhance Later</RadioTitle>
+                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from the WSO2 Integrator Copilot.</RadioDescription>
+                                </RadioContent>
+                            </RadioOption>
+                        </RadioGroup>
+                    </AIEnhancementSection>
+                    <ButtonWrapper>
+                        {aiEnhancementEnabled ? (
+                            <Button appearance="primary" onClick={onStartAIEnhancement}>Start AI Enhancement</Button>
+                        ) : openProjectDisabled ? (
+                            <ActionButtons
+                                primaryButton={{ text: "Done", onClick: onDone }}
+                                secondaryButton={{
+                                    text: isMultiProject ? "Open Workspace" : "Open Project",
+                                    onClick: onOpenProject,
+                                    disabled: true,
+                                    tooltip: `Opening ${projects.length} projects simultaneously may cause the editor to become unresponsive. Navigate to the destination path to open them manually.`,
+                                }}
+                            />
+                        ) : (
+                            <ActionButtons
+                                primaryButton={{ text: isMultiProject ? "Open Workspace" : "Open Project", onClick: onOpenProject }}
+                                secondaryButton={{ text: "Done", onClick: onDone, disabled: false }}
+                            />
+                        )}
+                    </ButtonWrapper>
+                </>
             )}
         </>
     );

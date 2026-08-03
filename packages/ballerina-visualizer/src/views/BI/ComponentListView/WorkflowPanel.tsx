@@ -38,14 +38,18 @@ export function WorkflowPanel() {
     return (
         <PanelViewMore>
             <TitleWrapper>
-                <Title variant="h2">Workflow</Title>
-                <BodyText>Create and manage workflows for your integration.</BodyText>
+                <Title variant="h2">Durable Workflow</Title>
+                <BodyText>
+                    Design static workflow logic that can be interrupted by events, use timer-based
+                    activities, involve human tasks, and run for long periods with crash recovery enabled.
+                </BodyText>
             </TitleWrapper>
             <CardGrid>
                 <ButtonCard
                     id="workflow"
-                    icon={<Icon name="bi-workflow" />}
-                    title="Workflow"
+                    icon={<Icon name="bi-flowchart" />}
+                    title="Durable Workflow"
+                    tooltip="Long-running workflow logic with events, timers, human tasks, and crash recovery."
                     onClick={handleClick}
                 />
             </CardGrid>

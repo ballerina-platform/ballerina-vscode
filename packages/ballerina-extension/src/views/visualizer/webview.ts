@@ -20,6 +20,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { Uri, ViewColumn, Webview } from "vscode";
 import { RPCLayer } from "../../RPCLayer";
+import { DefaultServer } from "../../webview-communication/DefaultServer";
 import { debounce } from "lodash";
 import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } from "../../utils/webview-utils";
 import { extension } from "../../BalExtensionContext";
@@ -32,6 +33,9 @@ import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager
 import { StateMachinePopup } from "../../stateMachinePopup";
 import { clearFormState } from "../../rpc-managers/bi-diagram/form-state";
 import { isInWI } from "../../utils/config";
+import { chatStateStorage } from "../ai-panel/chatStateStorage";
+import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
+import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
 
 export class VisualizerWebview {
     public static currentPanel: VisualizerWebview | undefined;
@@ -47,6 +51,10 @@ export class VisualizerWebview {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.html = this.getWebviewContent(this._panel.webview);
         RPCLayer.create(this._panel);
+        // Attach the BI migrated-forms WS-manager bridge (proxy mode) to this panel,
+        // so the federated project/import forms can talk to the extension over the
+        // giga-bridge transport in the standalone visualizer.
+        this._disposables.push(DefaultServer.getInstance().registerVisualizerPanel(this._panel));
 
         // Handle the text change and diagram update with rpc notification
         const sendUpdateNotificationToWebview = debounce(async (refreshTreeView?: boolean) => {
@@ -66,9 +74,16 @@ export class VisualizerWebview {
         }, 500);
 
         vscode.workspace.onDidChangeTextDocument(async (document) => {
+            // A Copilot generation's own live edits already save themselves (persistLiveEdit ->
+            // addToIntegration does workspace.applyEdit + saveAll) and shouldn't reset the
+            // diagram's undo/redo history on every edit — only genuine, concurrent user edits
+            // to other files should. Files the current generation hasn't touched are unaffected.
+            const isCopilotLiveEdit = chatStateStorage.hasAnyActiveExecution()
+                && isAiTouchedFile(document.document.uri.fsPath);
+
             // Save the document only if it is not already opened in a visible editor or the webview is active
             const isOpened = vscode.window.visibleTextEditors.some(editor => editor.document.uri.toString() === document.document.uri.toString());
-            if (!isOpened || this._panel?.active) {
+            if (!isCopilotLiveEdit && (!isOpened || this._panel?.active)) {
                 await document.document.save();
             }
 
@@ -76,7 +91,7 @@ export class VisualizerWebview {
             const projectPath = StateMachine.context().projectPath;
             const isDocumentUnderProject = isPathInside(projectPath, document.document.uri.fsPath);
             // Reset visualizer the undo-redo stack if user did changes in the editor
-            if (isOpened && isDocumentUnderProject && !this._panel?.active && !undoRedoManager?.isBatchInProgress()) {
+            if (!isCopilotLiveEdit && isOpened && isDocumentUnderProject && !this._panel?.active && !undoRedoManager?.isBatchInProgress()) {
                 undoRedoManager.reset();
             }
 
@@ -132,6 +147,9 @@ export class VisualizerWebview {
 
         this._panel.onDidChangeViewState(() => {
             vscode.commands.executeCommand('setContext', 'isBalVisualizerActive', this._panel?.active);
+            if (this._panel?.active) {
+                setCompanionVisualizer();
+            }
             // Refresh the webview when becomes active
             const state = StateMachine.state();
             const popupState = StateMachinePopup.state();

@@ -55,10 +55,15 @@ export type FlowNode = {
     flags?: number;
     returning: boolean;
     suggested?: boolean;
+    diffState?: FlowNodeDiffState;
+    /** Previous source/text of a modified node, set by the review-diff merge (rendered by the note chip for COMMENT nodes). */
+    diffPreviousText?: string;
     viewState?: ViewState;
     hasBreakpoint?: boolean;
     isActiveBreakpoint?: boolean;
 };
+
+export type FlowNodeDiffState = "added" | "removed" | "modified";
 
 export type FunctionNode = {
     id: string;
@@ -527,6 +532,7 @@ export type NodeKind =
     | "ACTION_OR_EXPRESSION"
     | "ACTIVITY"
     | "ACTIVITY_CALL"
+    | "CONNECTION_ACTIVITY_CALL"
     | "AGENTS"
     | "AGENT"
     | "AGENT_CALL"
@@ -546,6 +552,7 @@ export type NodeKind =
     | "DATA_MAPPER_CALL"
     | "DATA_MAPPER_DEFINITION"
     | "DATA_MAPPER_CREATION"
+    | "DIFF_HUNK"
     | "DRAFT"
     | "ELSE"
     | "EMPTY"
@@ -597,12 +604,14 @@ export type NodeKind =
     | "RETRY"
     | "ROLLBACK"
     | "SEND_DATA"
+    | "SLEEP"
     | "START"
     | "STOP"
     | "TRANSACTION"
     | "UPDATE_DATA"
     | "WAIT"
     | "WAIT_DATA"
+    | "HUMAN_TASK"
     | "WHILE"
     | "WORKFLOW"
     | "WORKFLOW_RUN"

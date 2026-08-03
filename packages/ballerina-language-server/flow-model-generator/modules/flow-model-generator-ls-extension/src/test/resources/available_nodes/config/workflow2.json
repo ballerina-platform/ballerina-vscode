@@ -8,157 +8,6 @@
   "categories": [
     {
       "metadata": {
-        "label": "Connections",
-        "description": "The connections used in the flow"
-      },
-      "items": []
-    },
-    {
-      "metadata": {
-        "label": "AI",
-        "description": "AI components available in the flow"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Direct LLM",
-            "description": "AI components that connect directly with a large language model"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Model Provider",
-                "description": "Model providers available within the integration for connecting to an LLM"
-              },
-              "codedata": {
-                "node": "MODEL_PROVIDERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Call Natural Function",
-                "description": "Call a natural programming function",
-                "icon": "https://gist.github.com/user-attachments/assets/903c5c16-7d67-4af8-8113-ce7c59ccdaab"
-              },
-              "codedata": {
-                "node": "NP_FUNCTION"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "RAG",
-            "description": "AI components specific to Retrieval-Augmented Generation workflows"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Knowledge Base",
-                "description": "Knowledge bases available in the integration"
-              },
-              "codedata": {
-                "node": "KNOWLEDGE_BASES",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "object": "KnowledgeBase",
-                "symbol": "init"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Data Loader",
-                "description": "Data loaders available in the integration"
-              },
-              "codedata": {
-                "node": "DATA_LOADERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Recursive Document Chunker"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "symbol": "chunkDocumentRecursively"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Chunker",
-                "description": "Chunkers available in the integration"
-              },
-              "codedata": {
-                "node": "CHUNKERS"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Augment Query"
-              },
-              "codedata": {
-                "node": "FUNCTION_CALL",
-                "org": "ballerina",
-                "module": "ai",
-                "packageName": "ai",
-                "symbol": "augmentUserQuery"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Vector Store",
-                "description": "Vector stores available in the integration"
-              },
-              "codedata": {
-                "node": "VECTOR_STORES"
-              },
-              "enabled": true
-            },
-            {
-              "metadata": {
-                "label": "Embedding Provider",
-                "description": "Embedding providers available in the integration for connecting to an embedding model"
-              },
-              "codedata": {
-                "node": "EMBEDDING_PROVIDERS"
-              },
-              "enabled": true
-            }
-          ]
-        },
-        {
-          "metadata": {
-            "label": "Agent",
-            "description": "Represents an AI Agent within a workflow"
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "Agent",
-                "description": "Create or reuse an Agent."
-              },
-              "codedata": {
-                "node": "AGENTS"
-              },
-              "enabled": true
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "metadata": {
         "label": "Workflow",
         "description": "Workflow orchestration components"
       },
@@ -175,65 +24,31 @@
         },
         {
           "metadata": {
-            "label": "Wait for Data",
+            "label": "Await Human Task",
+            "description": "Create a human task and wait for a human to complete it"
+          },
+          "codedata": {
+            "node": "HUMAN_TASK"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Await Data",
             "description": "Wait for workflow data to be received"
           },
           "codedata": {
             "node": "WAIT_DATA"
           },
           "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Workflow Activities",
-        "description": "Pre-curated activities for common integrations",
-        "keywords": [
-          "REST",
-          "SOAP",
-          "Email",
-          "Workflow",
-          "Activity"
-        ]
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Call REST API",
-            "description": "Call a REST API endpoint"
-          },
-          "codedata": {
-            "node": "BUILTIN_ACTIVITY",
-            "org": "ballerina",
-            "module": "workflow.activity",
-            "symbol": "callRestAPI"
-          },
-          "enabled": true
         },
         {
           "metadata": {
-            "label": "Call SOAP API",
-            "description": "Call a SOAP web service"
+            "label": "Sleep",
+            "description": "Pause workflow execution for a specified duration"
           },
           "codedata": {
-            "node": "BUILTIN_ACTIVITY",
-            "org": "ballerina",
-            "module": "workflow.activity",
-            "symbol": "callSoapAPI"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Send Email (SMTP)",
-            "description": "Send an email via SMTP"
-          },
-          "codedata": {
-            "node": "BUILTIN_ACTIVITY",
-            "org": "ballerina",
-            "module": "workflow.activity",
-            "symbol": "sendEmail"
+            "node": "SLEEP"
           },
           "enabled": true
         }
@@ -375,175 +190,6 @@
           },
           "codedata": {
             "node": "PANIC"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Concurrency",
-        "description": "Concurrency nodes"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Fork",
-            "description": "Create parallel workers"
-          },
-          "codedata": {
-            "node": "FORK"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Parallel Flow",
-            "description": "Create parallel flows"
-          },
-          "codedata": {
-            "node": "PARALLEL_FLOW"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Wait",
-            "description": "Wait for a set of futures to complete"
-          },
-          "codedata": {
-            "node": "WAIT"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Lock",
-            "description": "Allow to access mutable states safely"
-          },
-          "codedata": {
-            "node": "LOCK"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Start",
-            "description": "Execute a function or a method invocation in a new strand"
-          },
-          "codedata": {
-            "node": "START"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Transaction",
-            "description": "Handle transaction."
-          },
-          "codedata": {
-            "node": "TRANSACTION"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Commit",
-            "description": "Commit transaction"
-          },
-          "codedata": {
-            "node": "COMMIT"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Rollback",
-            "description": "Rollback the transaction"
-          },
-          "codedata": {
-            "node": "ROLLBACK"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Retry Block",
-            "description": "Retry block."
-          },
-          "codedata": {
-            "node": "RETRY"
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
-        "label": "Logging"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Log Info",
-            "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
-          },
-          "codedata": {
-            "node": "FUNCTION_CALL",
-            "org": "ballerina",
-            "module": "log",
-            "packageName": "log",
-            "symbol": "printInfo",
-            "version": "2.10.0"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Log Error",
-            "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
-          },
-          "codedata": {
-            "node": "FUNCTION_CALL",
-            "org": "ballerina",
-            "module": "log",
-            "packageName": "log",
-            "symbol": "printError",
-            "version": "2.10.0"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Log Warn",
-            "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
-          },
-          "codedata": {
-            "node": "FUNCTION_CALL",
-            "org": "ballerina",
-            "module": "log",
-            "packageName": "log",
-            "symbol": "printWarn",
-            "version": "2.10.0"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Log Debug",
-            "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n\n",
-            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
-          },
-          "codedata": {
-            "node": "FUNCTION_CALL",
-            "org": "ballerina",
-            "module": "log",
-            "packageName": "log",
-            "symbol": "printDebug",
-            "version": "2.10.0"
           },
           "enabled": true
         }

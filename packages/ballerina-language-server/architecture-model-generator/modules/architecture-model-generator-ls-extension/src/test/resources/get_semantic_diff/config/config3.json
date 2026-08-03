@@ -76,6 +76,17 @@
             "offset": 1
           }
         },
+        "previousLineRange": {
+          "fileName": "functions.bal",
+          "startLine": {
+            "line": 12,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 17,
+            "offset": 1
+          }
+        },
         "metadata": {
           "name": "divide"
         }
@@ -95,6 +106,17 @@
             "offset": 5
           }
         },
+        "previousLineRange": {
+          "fileName": "functions.bal",
+          "startLine": {
+            "line": 33,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 35,
+            "offset": 5
+          }
+        },
         "metadata": {
           "name": "power"
         }
@@ -106,12 +128,23 @@
         "lineRange": {
           "fileName": "functions.bal",
           "startLine": {
-            "line": 7,
-            "offset": 4
+            "line": 6,
+            "offset": 0
           },
           "endLine": {
-            "line": 7,
-            "offset": 32
+            "line": 8,
+            "offset": 1
+          }
+        },
+        "previousLineRange": {
+          "fileName": "functions.bal",
+          "startLine": {
+            "line": 8,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 10,
+            "offset": 1
           }
         },
         "metadata": {

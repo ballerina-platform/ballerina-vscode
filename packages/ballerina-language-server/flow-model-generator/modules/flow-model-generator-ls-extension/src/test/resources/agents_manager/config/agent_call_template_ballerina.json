@@ -12,15 +12,14 @@
     "packageName": "ai",
     "object": "Agent",
     "symbol": "run",
-    "parentSymbol": "agentRun",
-    "version": "1.0.0"
+    "parentSymbol": "agentRun"
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "run",
       "description": "Executes the agent for a given user query.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.0.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
     },
     "codedata": {
       "node": "AGENT_CALL",
@@ -29,8 +28,8 @@
       "packageName": "ai",
       "object": "Agent",
       "symbol": "run",
-      "version": "1.0.0",
-      "isNew": true
+      "isNew": true,
+      "inferredReturnType": "td"
     },
     "returning": false,
     "properties": {
@@ -46,7 +45,7 @@
             "typeMembers": [
               {
                 "type": "SystemPrompt",
-                "packageInfo": "ballerina:ai:1.0.0",
+                "packageInfo": "ballerina:ai:1.11.2",
                 "packageName": "ai",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -111,7 +110,7 @@
                   "typeMembers": [
                     {
                       "type": "ToolConfig",
-                      "packageInfo": "ballerina:ai:1.0.0",
+                      "packageInfo": "ballerina:ai:1.11.2",
                       "packageName": "ai",
                       "kind": "RECORD_TYPE",
                       "selected": false
@@ -152,7 +151,7 @@
       "maxIter": {
         "metadata": {
           "label": "Maximum Iterations",
-          "description": "The maximum number of iterations the agent performs to complete the task.\nBy default, it is set to the number of tools + 1."
+          "description": "The maximum number of iterations the agent performs to complete the task.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
         },
         "types": [
           {
@@ -208,7 +207,7 @@
       "memory": {
         "metadata": {
           "label": "Memory",
-          "description": "The memory used by the agent to store and manage conversation history"
+          "description": "The memory used by the agent to store and manage conversation history.\nDefaults to use an in-memory message store that trims on overflow, if unspecified."
         },
         "types": [
           {
@@ -226,7 +225,81 @@
           "kind": "INCLUDED_FIELD",
           "originalName": "memory"
         },
-        "defaultValue": "new MessageWindowChatMemory()"
+        "defaultValue": "()"
+      },
+      "toolLoadingStrategy": {
+        "metadata": {
+          "label": "Tool Loading Strategy",
+          "description": "Defines the strategies for loading tool schemas into an Agent. \nBy default, all tools are loaded without any filtering."
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "NO_FILTER",
+                "value": "\"NO_FILTER\""
+              },
+              {
+                "label": "LLM_FILTER",
+                "value": "\"LLM_FILTER\""
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:ToolLoadingStrategy",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"LLM_FILTER\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "toolLoadingStrategy"
+        },
+        "defaultValue": "NO_FILTER"
+      },
+      "credential": {
+        "metadata": {
+          "label": "Agent Credential",
+          "description": "Optional authentication details of the agent."
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "ai:Credential",
+            "typeMembers": [
+              {
+                "type": "Credential",
+                "packageInfo": "ballerina:ai:1.11.2",
+                "packageName": "ai",
+                "kind": "RECORD_TYPE",
+                "selected": false
+              }
+            ],
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:Credential",
+            "selected": false
+          }
+        ],
+        "placeholder": "{id: \"\", secret: \"\"}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "credential"
+        },
+        "defaultValue": "{id: \"\", secret: \"\"}"
       },
       "type": {
         "metadata": {
@@ -239,7 +312,7 @@
             "selected": true
           }
         ],
-        "value": "string",
+        "value": "td",
         "placeholder": "var",
         "optional": false,
         "editable": false,
@@ -366,7 +439,6 @@
             "selected": false
           }
         ],
-        "value": "agentRun",
         "optional": false,
         "editable": false,
         "advanced": false,
@@ -426,6 +498,62 @@
           "originalName": "sessionId"
         },
         "defaultValue": "sessionId"
+      },
+      "context": {
+        "metadata": {
+          "label": "Context",
+          "description": "The additional context that can be used during agent tool execution"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "ai:Context",
+            "selected": false
+          }
+        ],
+        "placeholder": "new ()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "context"
+        },
+        "defaultValue": "new"
+      },
+      "td": {
+        "metadata": {
+          "label": "Type Descriptor",
+          "description": "Type descriptor specifying the expected return type format"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "string",
+                "value": "string"
+              },
+              {
+                "label": "ai:Trace",
+                "value": "ai:Trace"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "string",
+        "placeholder": "ai:Trace|string",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "PARAM_FOR_TYPE_INFER",
+          "originalName": "td"
+        },
+        "defaultValue": "ai:Trace|string"
       }
     },
     "flags": 0

@@ -58,6 +58,10 @@ import { createClarifyTool, CLARIFY_TOOL } from './tools/clarify';
 import { createSkillTool, SKILL_TOOL_NAME } from './tools/skill-tool';
 import { REGISTERED_SKILLS } from './skills';
 import { getMcpTools } from './mcp';
+// TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
+// import { createSaveMemoryTool, SAVE_MEMORY_TOOL_NAME } from './tools/save-memory';
+// import { createDeleteMemoryTool, DELETE_MEMORY_TOOL_NAME } from './tools/delete-memory';
+// import { createConsolidateMemoriesTool, CONSOLIDATE_MEMORIES_TOOL_NAME } from './tools/consolidate-memories';
 
 export interface ToolRegistryOptions {
     eventHandler: CopilotEventHandler;
@@ -75,6 +79,9 @@ export interface ToolRegistryOptions {
     runningServices: RunningServicesManager;
     webSearchEnabled: boolean;
     ctx: ExecutionContext;
+    // TODO(auto-memory): temporarily disabled for this release.
+    // /** When true, registers save_memory and consolidate_memories tools in the main agent registry. */
+    // autoMemoryEnabled?: boolean;
 }
 
 export function createToolRegistry(opts: ToolRegistryOptions) {
@@ -115,26 +122,26 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
             modifiedFiles
         ),
         [FILE_WRITE_TOOL_NAME]: createWriteTool(
-            createWriteExecute(eventHandler, tempProjectPath, modifiedFiles)
+            createWriteExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
         ),
         [FILE_SINGLE_EDIT_TOOL_NAME]: createEditTool(
-            createEditExecute(eventHandler, tempProjectPath, modifiedFiles)
+            createEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
         ),
         [FILE_BATCH_EDIT_TOOL_NAME]: createBatchEditTool(
-            createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles)
+            createMultiEditExecute(eventHandler, tempProjectPath, modifiedFiles, allModifiedFiles, ctx)
         ),
         [FILE_READ_TOOL_NAME]: createReadTool(
             createReadExecute(eventHandler, tempProjectPath)
         ),
         [DIAGNOSTICS_TOOL_NAME]: createDiagnosticsTool(tempProjectPath, eventHandler),
-        [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler, modifiedFiles, allModifiedFiles, ctx),
+        [TEST_RUNNER_TOOL_NAME]: createTestRunnerTool(tempProjectPath, eventHandler),
         // Migration source tools — registered only when a source project path is available
         ...(migrationSourcePath ? {
             [MIGRATION_SOURCE_LIST_TOOL]: createMigrationSourceListTool(eventHandler, migrationSourcePath),
             [MIGRATION_SOURCE_READ_TOOL]: createMigrationSourceReadTool(eventHandler, migrationSourcePath),
         } : {}),
         [HURL_TOOL_NAME]: createHurlTool(eventHandler),
-        [BALLERINA_RUN_TOOL_NAME]: createBallerinaRunTool(tempProjectPath, opts.runningServices, eventHandler, modifiedFiles, allModifiedFiles, ctx),
+        [BALLERINA_RUN_TOOL_NAME]: createBallerinaRunTool(tempProjectPath, opts.runningServices, eventHandler),
         [BALLERINA_GET_LOGS_TOOL_NAME]: createBallerinaGetLogsTool(opts.runningServices, eventHandler),
         [BALLERINA_STOP_TOOL_NAME]: createBallerinaStopTool(opts.runningServices, eventHandler),
         [WEB_SEARCH_TOOL_NAME]: createWebSearchTool(eventHandler, webSearchEnabled),
@@ -142,5 +149,12 @@ export function createToolRegistry(opts: ToolRegistryOptions) {
         [CLARIFY_TOOL]: createClarifyTool(eventHandler),
         [SKILL_TOOL_NAME]: createSkillTool(REGISTERED_SKILLS, projectRootPath, eventHandler),
         ...getMcpTools(eventHandler),
+        // TODO(auto-memory): memory tools temporarily disabled for this release — restore once the memory feature is refined.
+        // // Memory tools — registered only when auto-memory is enabled and a workspace root is known
+        // ...(autoMemoryEnabled && projectRootPath ? {
+        //     [SAVE_MEMORY_TOOL_NAME]:          createSaveMemoryTool(projectRootPath, eventHandler),
+        //     [DELETE_MEMORY_TOOL_NAME]:        createDeleteMemoryTool(projectRootPath, eventHandler),
+        //     [CONSOLIDATE_MEMORIES_TOOL_NAME]: createConsolidateMemoriesTool(projectRootPath, eventHandler),
+        // } : {}),
     };
 }

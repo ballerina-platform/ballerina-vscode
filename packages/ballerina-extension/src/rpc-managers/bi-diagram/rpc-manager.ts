@@ -49,6 +49,10 @@ import {
     BISearchNodesResponse,
     BISearchRequest,
     BISearchResponse,
+    GenActivityRequest,
+    GenActivityResponse,
+    AnalyzeActivityActionRequest,
+    AnalyzeActivityActionResponse,
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
@@ -218,7 +222,7 @@ import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
-import { chatStateStorage } from "../../views/ai-panel/chatStateStorage";
+import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot } from "../platform-ext/platform-utils";
 import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
@@ -291,8 +295,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             if (params?.filePath && params?.startLine && params?.endLine) {
                 console.log(">>> using params to create request");
                 let filePath = params.filePath;
-                // When useFileSchema is set, use file:// scheme to show original content
-                if (params.useFileSchema) {
+                // filePath defaults to ai:// (the frozen baseline, used for "old"); convert
+                // to file:// (live) unless the caller explicitly wants the old view.
+                if (!params.useFileSchema) {
                     filePath = this.convertAiToFileScheme(filePath);
                 }
                 request = {
@@ -331,8 +336,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             StateMachine.langClient()
                 .getFlowModel(request)
-                .then((model) => {
+                .then(async (model) => {
                     console.log(">>> bi flow model received from ls");
+                    if (model?.flowModel && !(await isAiSourceParseable([request.filePath]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(model);
                 })
                 .catch((error) => {
@@ -1750,9 +1759,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
     async getEnclosedFunction(params: BIGetEnclosedFunctionRequest): Promise<BIGetEnclosedFunctionResponse> {
         console.log(">>> requesting parent functin definition", params);
-        // When useFileSchema is set, use file:// scheme to show original content
         let filePath = params.filePath;
-        if (params.useFileSchema) {
+        if (!params.useFileSchema) {
             filePath = this.convertAiToFileScheme(filePath);
         }
         const request = { filePath, position: params.position, findClass: params.findClass };
@@ -1839,11 +1847,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             let projectPath: string;
             if (params?.projectPath) {
                 if (params.useFileSchema) {
-                    // Use file:// scheme to show original content
-                    projectPath = Uri.file(params.projectPath).toString();
+                    // ai:// is the frozen baseline — the "old" view
+                    projectPath = Uri.file(params.projectPath).with({ scheme: 'ai' }).toString();
                 } else {
-                    const uri = Uri.file(params.projectPath);
-                    projectPath = uri.with({ scheme: 'ai' }).toString();
+                    projectPath = Uri.file(params.projectPath).toString();
                 }
             } else {
                 projectPath = StateMachine.context().projectPath;
@@ -1851,8 +1858,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             StateMachine.langClient()
                 .getDesignModel({ projectPath })
-                .then((model) => {
+                .then(async (model) => {
                     console.log(">>> design model from ls", model);
+                    if (model?.designModel && !(await isAiSourceParseable([]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(model);
                 })
                 .catch((error) => {
@@ -1881,15 +1892,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             });
         }
 
-        // When useFileSchema is set, use file:// scheme to show original content
-        if (params.useFileSchema) {
+        if (!params.useFileSchema) {
             filePath = this.convertAiToFileScheme(filePath);
         }
 
         return new Promise((resolve, reject) => {
             StateMachine.langClient()
                 .getTypes({ filePath })
-                .then((types) => {
+                .then(async (types) => {
+                    if (types?.types && !(await isAiSourceParseable([filePath]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(types);
                 }).catch((error) => {
                     console.log(">>> error fetching types from ls", error);
@@ -2172,6 +2186,25 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 reject(error);
             });
         });
+    }
+
+    async genActivity(params: GenActivityRequest): Promise<GenActivityResponse> {
+        if (!params.description) {
+            params.description = "";
+        }
+        const response = await StateMachine.langClient().genActivity(params);
+        if (response.errorMsg) {
+            throw new Error(response.errorMsg);
+        }
+        if (!response.textEdits) {
+            throw new Error("No text edits were returned for the generated activity.");
+        }
+        const artifacts = await updateSourceCode({ textEdits: response.textEdits });
+        return { artifacts, textEdits: response.textEdits };
+    }
+
+    async analyzeActivityAction(params: AnalyzeActivityActionRequest): Promise<AnalyzeActivityActionResponse> {
+        return StateMachine.langClient().analyzeActivityAction(params);
     }
 
     async getRecordNames(): Promise<RecordsInWorkspaceMentions> {

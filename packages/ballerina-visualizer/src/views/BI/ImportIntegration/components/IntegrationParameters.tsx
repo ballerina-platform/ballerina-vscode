@@ -17,37 +17,10 @@
  */
 
 import { MigrationTool } from "@wso2/ballerina-core";
-import { CheckBox, Dropdown, OptionProps, TextField, Typography } from "@wso2/ui-toolkit";
+import { Dropdown, OptionProps, TextField, Typography } from "@wso2/ui-toolkit";
 import React from "react";
-import { ParameterItem, ParametersSection } from "../styles";
-import { BodyText } from "../../../styles";
+import { BodyText, ParameterItem, ParametersSection } from "../styles";
 import styled from "@emotion/styled";
-
-const Label = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-editor-foreground);
-    text-align: left;
-    text-transform: capitalize;
-`;
-
-const Description = styled.div`
-    font-family: var(--font-family);
-    color: var(--vscode-list-deemphasizedForeground);
-    text-align: left;
-`;
-
-const LabelGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-`;
-
-const BoxGroup = styled.div`
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    align-items: flex-start;
-`;
 
 const ParametersContainer = styled.div`
     display: flex;
@@ -67,14 +40,8 @@ export const IntegrationParameters: React.FC<IntegrationParametersProps> = ({
     integrationParams,
     onParameterChange,
 }) => {
-    if (!selectedIntegration || !selectedIntegration.parameters.length) return null;
-
-    const getBooleanValue = (value: any): boolean => {
-        if (typeof value === "string") {
-            return value === "true";
-        }
-        return value === true;
-    };
+    const nonBoolParams = selectedIntegration?.parameters.filter(p => p.valueType !== "boolean") ?? [];
+    if (!selectedIntegration || !nonBoolParams.length) return null;
 
     return (
         <ParametersSection>
@@ -83,21 +50,9 @@ export const IntegrationParameters: React.FC<IntegrationParametersProps> = ({
             </Typography>
             <BodyText>{`Configure additional settings for ${selectedIntegration.title} migration.`}</BodyText>
             <ParametersContainer>
-                {selectedIntegration.parameters.map((param) => (
+                {nonBoolParams.map((param) => (
                     <ParameterItem key={param.key}>
-                        {param.valueType === "boolean" ? (
-                            <BoxGroup>
-                                <CheckBox
-                                    checked={getBooleanValue(integrationParams[param.key])}
-                                    onChange={(checked) => onParameterChange(param.key, checked)}
-                                    label=""
-                                />
-                                <LabelGroup>
-                                    <Label>{param.label}</Label>
-                                    {param.description && <Description>{param.description}</Description>}
-                                </LabelGroup>
-                            </BoxGroup>
-                        ) : param.valueType === "enum" && param.options ? (
+                        {param.valueType === "enum" && param.options ? (
                             <Dropdown
                                 id={`${param.key}-dropdown`}
                                 label={param.label}

@@ -55,8 +55,9 @@ export class NodeFactoryVisitor implements BaseVisitor {
     private hasSuggestedNode = false;
     private linkCounter = 0;
     private visibleBtnCounter = 0;
-    private pendingComment: FlowNode | undefined = undefined; // comment node awaiting attachment to next node
-    private nodeComments: Map<string, FlowNode> = new Map(); // maps node id -> preceding comment node
+    private pendingComments: FlowNode[] = []; // comment nodes awaiting attachment to the next node
+    private nodeComments: Map<string, FlowNode[]> = new Map(); // maps node id -> preceding/trailing comments
+    private lastCommentTargetId: string | undefined;
 
     constructor() {
         // console.log(">>> node factory visitor started");
@@ -71,10 +72,11 @@ export class NodeFactoryVisitor implements BaseVisitor {
     }
 
     private updateNodeLinks(node: FlowNode, nodeModel: NodeModel, options?: NodeLinkModelOptions): void {
-        // Associate any preceding comment node with this node
-        if (this.pendingComment) {
-            this.nodeComments.set(node.id, this.pendingComment);
-            this.pendingComment = undefined;
+        // Synthetic empty nodes have no widget. Keep comments pending until a real node,
+        // or attach them to the preceding real node when a branch/flow ends.
+        if (node.codedata.node !== "EMPTY") {
+            this.flushPendingComments(node.id);
+            this.lastCommentTargetId = node.id;
         }
         if (node.viewState?.startNodeId) {
             // new sub flow start
@@ -91,6 +93,15 @@ export class NodeFactoryVisitor implements BaseVisitor {
             }
         }
         this.lastNodeModel = nodeModel;
+    }
+
+    private flushPendingComments(targetId: string | undefined = this.lastCommentTargetId): void {
+        if (!targetId || this.pendingComments.length === 0) {
+            return;
+        }
+        const existing = this.nodeComments.get(targetId) ?? [];
+        this.nodeComments.set(targetId, [...existing, ...this.pendingComments]);
+        this.pendingComments = [];
     }
 
     private createBaseNode(node: FlowNode): NodeModel {
@@ -161,33 +172,50 @@ export class NodeFactoryVisitor implements BaseVisitor {
     }
 
     private getBranchStartNode(branch: Branch): NodeModel | undefined {
-        let firstChildId = branch.children.at(0).id;
-        if (branch.children.at(0).codedata.node === "ERROR_HANDLER") {
-            firstChildId = getCustomNodeId(branch.children.at(0).id, START_CONTAINER);
+        // Comments render as note chips on the following node, not as widgets — skip them
+        const firstChild = branch.children.find((child) => child.codedata.node !== "COMMENT");
+        if (!firstChild) {
+            return undefined;
+        }
+        let firstChildId = firstChild.id;
+        if (firstChild.codedata.node === "ERROR_HANDLER" || firstChild.codedata.node === "DIFF_HUNK") {
+            firstChildId = getCustomNodeId(firstChild.id, START_CONTAINER);
         }
         return this.nodes.find((n) => n.getID() === firstChildId);
     }
 
+    private getBranchLastFlowNode(branch: Branch): FlowNode | undefined {
+        // Comments render as note chips on the following node, not as widgets — skip them
+        for (let i = branch.children.length - 1; i >= 0; i--) {
+            const child = branch.children[i];
+            if (child.codedata.node !== "COMMENT") {
+                return child;
+            }
+        }
+        return undefined;
+    }
+
     private getBranchEndNode(branch: Branch): NodeModel | undefined {
         // get last child node model
-        const lastNode = branch.children.at(-1);
+        const lastNode = this.getBranchLastFlowNode(branch);
         if (!lastNode) {
             return;
         }
         let lastChildNodeModel: NodeModel | undefined;
-        if (branch.children.at(-1).codedata.node === "IF" || branch.children.at(-1).codedata.node === "MATCH") {
+        if (lastNode.codedata.node === "IF" || lastNode.codedata.node === "MATCH") {
             // if last child is IF, find endIf node
             lastChildNodeModel = this.nodes.find((n) => n.getID() === `${lastNode.id}-endif`);
         } else if (
-            branch.children.at(-1).codedata.node === "ERROR_HANDLER" &&
-            branch.children.at(-1)?.branches.find((b) => b.codedata.node === "ON_FAILURE")?.viewState
+            lastNode.codedata.node === "ERROR_HANDLER" &&
+            lastNode.branches.find((b) => b.codedata.node === "ON_FAILURE")?.viewState
         ) {
             lastChildNodeModel = this.nodes.find((n) => n.getID() === getCustomNodeId(lastNode.id, END_CONTAINER));
         } else if (
-            branch.children.at(-1).codedata.node === "WHILE" ||
-            branch.children.at(-1).codedata.node === "FOREACH" ||
-            branch.children.at(-1).codedata.node === "FORK" ||
-            branch.children.at(-1).codedata.node === "LOCK"
+            lastNode.codedata.node === "WHILE" ||
+            lastNode.codedata.node === "FOREACH" ||
+            lastNode.codedata.node === "FORK" ||
+            lastNode.codedata.node === "LOCK" ||
+            lastNode.codedata.node === "DIFF_HUNK"
         ) {
             // if last child is WHILE or FOREACH, find endwhile node
             lastChildNodeModel = this.nodes.find((n) => n.getID() === getCustomNodeId(lastNode.id, END_CONTAINER));
@@ -365,19 +393,105 @@ export class NodeFactoryVisitor implements BaseVisitor {
         this.endVisitIf(node, parent);
     }
 
+    // Synthetic review-diff container: no widget of its own — an invisible fork anchor
+    // connects the previous node to the removed/added lanes, and an invisible join
+    // anchor connects the lanes back to the next node.
+    beginVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        const forkAnchor = this.createEmptyNode(
+            getCustomNodeId(node.id, START_CONTAINER),
+            node.viewState.x + node.viewState.lw - EMPTY_NODE_WIDTH / 2,
+            node.viewState.y - EMPTY_NODE_WIDTH / 2,
+            false
+        );
+        forkAnchor.setParentFlowNode(node);
+        // Link from the previous node directly (not via updateNodeLinks) so a pending
+        // comment chip stays available for the first real node inside the lanes.
+        if (this.lastNodeModel) {
+            const link = this.createNodeLinkWithCounter(this.lastNodeModel, forkAnchor);
+            if (link) {
+                this.links.push(link);
+            }
+        }
+        this.lastNodeModel = undefined;
+    }
+
+    endVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        const forkAnchor = this.nodes.find((n) => n.getID() === getCustomNodeId(node.id, START_CONTAINER));
+        if (!forkAnchor) {
+            console.error("Diff hunk fork anchor not found", node);
+            return;
+        }
+
+        const joinAnchor = this.createEmptyNode(
+            getCustomNodeId(node.id, END_CONTAINER),
+            node.viewState.x + node.viewState.lw - EMPTY_NODE_WIDTH / 2,
+            node.viewState.y + node.viewState.ch - EMPTY_NODE_WIDTH / 2,
+            false
+        );
+        joinAnchor.setParentFlowNode(node);
+
+        node.branches?.forEach((branch) => {
+            if (!branch.children || branch.children.length === 0) {
+                console.error("Diff hunk branch has no children", branch);
+                return;
+            }
+
+            const firstChildNodeModel = this.getBranchStartNode(branch);
+            if (firstChildNodeModel) {
+                const inLink = this.createNodeLinkWithCounter(forkAnchor, firstChildNodeModel, {
+                    id: getBranchInLinkId(node.id, branch.label, 0),
+                    showAddButton: false,
+                });
+                if (inLink) {
+                    this.links.push(inLink);
+                }
+            }
+
+            const lastNode = this.getBranchLastFlowNode(branch);
+            const lastChildNodeModel = this.getBranchEndNode(branch);
+            if (lastChildNodeModel) {
+                const outLink = this.createNodeLinkWithCounter(lastChildNodeModel, joinAnchor, {
+                    alignBottom: true,
+                    brokenLine: lastNode?.returning,
+                    showAddButton: false,
+                });
+                if (outLink) {
+                    this.links.push(outLink);
+                }
+            }
+
+            // Lane with no renderable node (safety net): keep the flow connected
+            if (!firstChildNodeModel && !lastChildNodeModel) {
+                const passThroughLink = this.createNodeLinkWithCounter(forkAnchor, joinAnchor, {
+                    showAddButton: false,
+                });
+                if (passThroughLink) {
+                    this.links.push(passThroughLink);
+                }
+            }
+        });
+
+        this.lastNodeModel = joinAnchor;
+    }
+
     endVisitConditional(node: Branch, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
+        this.flushPendingComments();
         this.lastNodeModel = undefined;
     }
 
     endVisitBody(node: Branch, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         // `Body` is inside `Foreach` node
+        this.flushPendingComments();
         this.lastNodeModel = undefined;
     }
 
     endVisitElse(node: Branch, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
+        this.flushPendingComments();
         this.lastNodeModel = undefined;
     }
 
@@ -631,6 +745,7 @@ export class NodeFactoryVisitor implements BaseVisitor {
 
     endVisitWorker(node: Branch, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
+        this.flushPendingComments();
         this.lastNodeModel = undefined;
     }
 
@@ -645,6 +760,17 @@ export class NodeFactoryVisitor implements BaseVisitor {
     beginVisitActivityCall(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         if (node.id) {
+            this.createCallActivityNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
+    beginVisitConnectionActivityCall(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            // Connection-backed activity calls render with the same double-line activity box as
+            // plain activity calls; the widget adds a dashed link per connection (it is a local
+            // activity invocation, not a remote call, so no arrowhead).
             this.createCallActivityNode(node);
             this.addSuggestionsButton(node);
         }
@@ -720,12 +846,15 @@ export class NodeFactoryVisitor implements BaseVisitor {
 
     beginVisitComment(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
-        // Store the comment as pending; it will be attached to the next non-comment node
-        // as a note chip rather than rendered as a standalone node in the diagram.
-        this.pendingComment = node;
+        // Keep every adjacent comment. A single pending slot made an inserted note overwrite
+        // the existing note before either could be rendered.
+        this.pendingComments.push(node);
     }
 
-    getNodeComments(): Map<string, FlowNode> {
+    getNodeComments(): Map<string, FlowNode[]> {
+        // A final comment has no following node; attach it to the preceding real node so it
+        // remains visible instead of being silently dropped.
+        this.flushPendingComments();
         return this.nodeComments;
     }
 

@@ -349,3 +349,34 @@ export function updateNodeProperties(
 
     return updatedNodeProperties;
 }
+
+/**
+ * Assemble the form fields for a node's properties: one FormField per property key
+ * (in sorted order unless `sortKeys` is false), excluding `skipKeys`. Moved here from
+ * `utils/bi.tsx` to sit with its siblings and be unit-testable; `bi.tsx` re-exports it.
+ *
+ * Note: this faithfully emits a field for EVERY non-skipped key — it does not dedupe by
+ * label. When two keys carry the same `metadata.label` (e.g. `rowType` + `type` both
+ * "Row Type"), both fields appear; suppressing the redundant one is the caller's job via
+ * `skipKeys` (see #1487).
+ */
+export function convertConfig(properties: NodeProperties, skipKeys: string[] = [], sortKeys: boolean = true): FormField[] {
+    const formFields: FormField[] = [];
+    const sortedKeys = sortKeys ? Object.keys(properties).sort() : Object.keys(properties);
+
+    for (const key of sortedKeys) {
+        if (skipKeys.includes(key)) {
+            continue;
+        }
+        const property = properties[key as keyof NodeProperties];
+        const formField = convertNodePropertyToFormField(key, property);
+
+        if (getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_PROPERTY") {
+            handleRepeatableProperty(property, formField);
+        }
+
+        formFields.push(formField);
+    }
+
+    return formFields;
+}

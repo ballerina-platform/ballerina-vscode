@@ -39,7 +39,7 @@ import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffColors, getDiffStrokeDasharray, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import NodeIcon from "../../NodeIcon";
 import { NodeNoteChip } from "../../NodeNoteChip";
@@ -79,6 +79,8 @@ export namespace NodeStyles {
         position: absolute;
         top: -14px;
         right: -50px;
+        display: flex;
+        gap: 2px;
     `;
 
     export const ErrorIcon = styled.div`
@@ -158,7 +160,7 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
     const { onNodeSelect, goToSource, onDeleteNode, addBreakpoint, removeBreakpoint, readOnly, selectedNodeId, nodeComments } =
         useDiagramContext();
 
-    const noteComment = nodeComments?.get(model.node.id);
+    const noteComments = nodeComments?.get(model.node.id) ?? [];
 
     const isSelected = selectedNodeId === model.node.id;
 
@@ -268,6 +270,7 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
 
     const disabled = model.node.suggested;
     const hasError = nodeHasError(model.node);
+    const diffColors = getDiffColors(model.node);
 
     return (
         <NodeStyles.Node
@@ -311,14 +314,18 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
                             rx="5"
                             ry="5"
                             fill={
-                                isActiveBreakpoint
+                                diffColors
+                                    ? diffColors.background
+                                    : isActiveBreakpoint
                                     ? NODE_BG_BREAKPOINT_COLOR
                                     : (isHovered || isNoteActive) && !disabled && !readOnly
                                     ? NODE_BG_HOVER_COLOR
                                     : NODE_BG_COLOR
                             }
                             stroke={
-                                hasError
+                                diffColors
+                                    ? diffColors.border
+                                    : hasError
                                     ? NODE_BORDER_ERROR_COLOR
                                     : isSelected && !disabled
                                         ? ThemeColors.SECONDARY
@@ -327,7 +334,7 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
                                             : ThemeColors.OUTLINE_VARIANT
                             }
                             strokeWidth={NODE_BORDER_WIDTH}
-                            strokeDasharray={disabled ? "5 5" : "none"}
+                            strokeDasharray={disabled ? "5 5" : getDiffStrokeDasharray(model.node)}
                             opacity={disabled ? 0.7 : 1}
                             transform="rotate(45 28 28)"
                         />
@@ -338,7 +345,7 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
                     <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
                 </NodeStyles.Column>
                 <NodeStyles.Header onClick={handleOnClick}>
-                    <NodeStyles.Title>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
+                    <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
                     {/* <NodeStyles.Description>
                         {model.node.branches.at(0).properties.condition.value}
                     </NodeStyles.Description> */}
@@ -348,9 +355,17 @@ export function IfNodeWidget(props: IfNodeWidgetProps) {
                         <DiagnosticsPopUp node={model.node} engine={engine} />
                     </NodeStyles.ErrorIcon>
                 )}
-                {noteComment && (
+                {noteComments.length > 0 && (
                     <NodeStyles.NoteChipWrapper>
-                        <NodeNoteChip commentNode={noteComment} engine={engine} onOpen={() => setIsNoteActive(true)} onClose={() => { setIsNoteActive(false); setIsHovered(false); }} />
+                        {noteComments.map((noteComment) => (
+                            <NodeNoteChip
+                                key={noteComment.id}
+                                commentNode={noteComment}
+                                engine={engine}
+                                onOpen={() => setIsNoteActive(true)}
+                                onClose={() => { setIsNoteActive(false); setIsHovered(false); }}
+                            />
+                        ))}
                     </NodeStyles.NoteChipWrapper>
                 )}
                 <NodeStyles.StyledButton

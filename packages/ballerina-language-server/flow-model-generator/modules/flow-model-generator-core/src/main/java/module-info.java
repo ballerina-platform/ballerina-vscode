@@ -59,6 +59,7 @@ module io.ballerina.flow.model.generator {
     exports io.ballerina.flowmodelgenerator.core.expressioneditor.semantictokens;
     exports io.ballerina.flowmodelgenerator.core.copilot.adapters;
     exports io.ballerina.flowmodelgenerator.core.copilot.builder;
+    exports io.ballerina.flowmodelgenerator.core.copilot.central;
     exports io.ballerina.flowmodelgenerator.core.copilot.database;
     exports io.ballerina.flowmodelgenerator.core.copilot.model;
     exports io.ballerina.flowmodelgenerator.core.copilot.service;

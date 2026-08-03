@@ -16,40 +16,45 @@
  * under the License.
  */
 import { test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import * as path from 'path';
+import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
+import { switchToIFrame, Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer, Diagram, SidePanel } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
+import { waitForBISidebarTreeView } from '../utils/helpers/sidebar';
+
+// Fixture with an Automation already created (per the e2e-writer rule that
+// scenarios must not re-create through the UI what another spec already
+// covers as its own scenario — automation.spec.ts owns "Create Automation").
+const AUTOMATION_PROJECT_TEMPLATE = path.join(__dirname, '..', 'data', 'automation_project');
 
 export default function createTests() {
-    test.describe.serial('Automation Tests', {
+    test.describe.serial('Diagram Tests', {
     }, async () => {
-        initTest();
-        test('Create Automation for Diagram', async () => {
-            // 1. Click on the "Add Artifact" button
-            // 2. Verify the Artifacts menu is displayed
-            // 3. Under "Automation" section, click on "Automation" option
-            await addArtifact('Automation', 'automation');
+        initTest(true, true, undefined, undefined, AUTOMATION_PROJECT_TEMPLATE);
+        test('Add variables and if-else logic to diagram', async () => {
+            // Open the pre-baked automation via the Entry Points tree item
+            // instead of creating one through the UI. Cold start on a fresh
+            // fixture: the sidebar tree isn't guaranteed to be the active
+            // viewlet yet and the LS needs time to index the project.
+            await waitForBISidebarTreeView(page, 60000);
+            const projectExplorer = new ProjectExplorer(page.page);
+            await projectExplorer.init().catch(() => undefined);
+            await page.page
+                .locator(ProjectExplorer.treeItemSelector(DEFAULT_PROJECT_NAME))
+                .first()
+                .waitFor({ timeout: 90000 });
+            const mainEntryPoint = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main']);
+            await mainEntryPoint.click();
 
             const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page, 30000);
             if (!artifactWebView) {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
 
-            // 8. Click on the "Create" button
-            await artifactWebView.getByRole('button', { name: 'Create' }).click();
-
-            // 9. Verify the Automation is created and the automation designer view is displayed
+            // Verify the automation designer view is displayed
             const diagramCanvas = artifactWebView.locator('#bi-diagram-canvas');
             await diagramCanvas.waitFor({ state: 'visible', timeout: 30000 });
-
-            // 10. Verify the automation name is displayed (default: "main")
-            const diagramTitle = artifactWebView.locator('h2', { hasText: 'Automation' });
-            await diagramTitle.waitFor();
-
-            // 14. Verify the tree view shows the automation name under "Entry Points" section
-            const projectExplorer = new ProjectExplorer(page.page);
-            await projectExplorer.findItem([DEFAULT_PROJECT_NAME, 'Entry Points', 'main']);
 
             // 15. Add first variable with value "foo"
             const diagram = new Diagram(page.page);
@@ -156,6 +161,16 @@ export default function createTests() {
             await sidePanel.clickNode('Log Info');
 
             await form.switchToFormView(false, artifactWebView);
+            // Confirmed locally (not just on CI): Form.fill()'s cmEditor handling
+            // silently no-ops if the field's `div[data-testid="ex-editor-msg"]`
+            // container isn't mounted yet when it runs — no error, no retry, the
+            // field is just left empty, which is why Save then stays disabled
+            // forever (there's nothing that will ever change it). This form sits
+            // inside an if/else branch, one level deeper than the flat
+            // declare-variable steps above (whose identical fill+Save has never
+            // flaked here), so it can render slightly later. Wait for the real
+            // container Form.fill() itself looks for before calling it.
+            await artifactWebView.locator('div[data-testid="ex-editor-msg"]').waitFor({ state: 'visible', timeout: 15000 });
             await form.fill({
                 values: {
                     'msg': {
@@ -165,7 +180,15 @@ export default function createTests() {
                     }
                 }
             });
-            await artifactWebView.getByRole('button', { name: 'Save' }).click();
+            // Belt-and-braces: if the field still ended up empty for some other
+            // reason, fail with that fact up front instead of a bare "Save never
+            // enabled" timeout.
+            const msgFieldContent = await artifactWebView.locator('div[data-testid="ex-editor-msg"] .cm-content')
+                .first().textContent().catch(() => null);
+            if (!msgFieldContent) {
+                throw new Error(`msg field is empty after form.fill() — got "${msgFieldContent}"`);
+            }
+            await artifactWebView.getByRole('button', { name: 'Save' }).click({ timeout: 30000 });
             await page.page.waitForTimeout(1000);
 
             // 19. Add log statement in the else block (false case - Not Equal)

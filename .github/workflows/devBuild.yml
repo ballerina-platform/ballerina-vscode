@@ -1,0 +1,64 @@
+name: Development Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      runFrontendTests:
+        description: 'Run frontend tests (jest fast tests + Ballerina e2e)'
+        required: false
+        type: boolean
+        default: false
+      runBackendTests:
+        description: 'Run Ballerina language server tests'
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Commit to build; used by the scheduled nightly workflow'
+        required: false
+        type: string
+        default: ''
+      versionAlreadySet:
+        description: 'The selected ref already contains its timestamped version'
+        required: false
+        type: boolean
+        default: false
+      runFrontendTests:
+        required: false
+        type: boolean
+        default: false
+      runBackendTests:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      COPILOT_ROOT_URL:
+        required: false
+      COPILOT_DEV_ROOT_URL:
+        required: false
+      APPINSIGHTS_INSTRUMENTATION_KEY:
+        required: false
+
+jobs:
+  Build:
+    name: Pre-release build - ${{ github.ref_name }}
+    uses: ./.github/workflows/reusable-build.yml
+    secrets:
+      COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
+      COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
+      APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+    with:
+      ref: ${{ inputs.ref }}
+      runOnAWS: false
+      isPreRelease: true
+      nightly: true
+      enableCache: false
+      # A scheduled nightly is stamped and committed by schedule.yml. A manual
+      # custom-branch build derives the timestamp here from that branch's extension version.
+      ballerina: ${{ inputs.versionAlreadySet != true }}
+      isReleaseBuild: false
+      runFastTests: ${{ inputs.runFrontendTests }}
+      runBalE2ETests: ${{ inputs.runFrontendTests }}
+      runLSTests: ${{ inputs.runBackendTests }}

@@ -41,6 +41,7 @@ import {
     DefaultOrgNameResponse,
     PublishToCentralResponse
 } from "./interfaces";
+import { AgentRunStatus } from "../../state-machine-types";
 
 export interface CommonRPCAPI {
     getTypeCompletions: () => Promise<TypeResponse>;
@@ -48,6 +49,7 @@ export interface CommonRPCAPI {
     getWorkspaceFiles: (params: WorkspaceFileRequest) => Promise<WorkspacesFileResponse>;
     getBallerinaDiagnostics: (params: BallerinaDiagnosticsRequest) => Promise<BallerinaDiagnosticsResponse>;
     executeCommand: (params: CommandsRequest) => Promise<CommandsResponse>;
+    getAgentRunStatus: () => Promise<AgentRunStatus>;
     runBackgroundTerminalCommand: (params: RunExternalCommandRequest) => Promise<RunExternalCommandResponse>;
     openExternalUrl: (params: OpenExternalUrlRequest) => void;
     selectFileOrDirPath: (params: FileOrDirRequest) => Promise<FileOrDirResponse>;

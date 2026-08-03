@@ -46,7 +46,7 @@ import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getNodeTitle, nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 
@@ -372,6 +372,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -401,7 +402,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                     </NodeStyles.Icon>
                     <NodeStyles.Row>
                         <NodeStyles.Header onClick={handleOnClick}>
-                            <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                             <NodeStyles.Description>
                                 {model.node.properties.variable?.value as ReactNode}
                             </NodeStyles.Description>

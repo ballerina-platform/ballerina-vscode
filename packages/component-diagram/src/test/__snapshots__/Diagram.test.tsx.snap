@@ -10,7 +10,6 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-30 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
-.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -18,6 +17,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -303,6 +303,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -336,7 +337,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -378,6 +381,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -405,7 +409,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -581,6 +587,7 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -611,7 +618,9 @@ exports[`Component Diagram - Snapshot Tests renders ai agent complex correctly: 
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -831,7 +840,6 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-30 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
-.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -839,6 +847,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -1070,6 +1079,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -1103,7 +1113,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -1145,6 +1157,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -1172,7 +1185,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1274,6 +1289,7 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -1304,7 +1320,9 @@ exports[`Component Diagram - Snapshot Tests renders connections complex correctl
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1442,13 +1460,13 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
 .css-4 svg:first-child {z-index: 1;}
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-15 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
-.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-8 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -1554,6 +1572,7 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
             >
               <div
                 class="css-11"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-12"
@@ -1584,7 +1603,9 @@ exports[`Component Diagram - Snapshot Tests renders empty project correctly: emp
                 <div
                   class="css-16 css-17"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -1646,7 +1667,6 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-31 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
-.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -1654,6 +1674,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -1994,6 +2015,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -2027,7 +2049,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -2213,6 +2237,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -2240,7 +2265,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -2342,6 +2369,7 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -2372,7 +2400,9 @@ exports[`Component Diagram - Snapshot Tests renders graphql complex correctly: g
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -2671,7 +2701,6 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-26 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-31 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
-.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-20 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -2679,6 +2708,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-21 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -3019,6 +3049,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             />
             <div
               class="css-10"
+              data-testid="connection-node-redisClient"
             >
               <div
                 class="css-11"
@@ -3052,7 +3083,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
               <div
                 class="css-17 css-18"
               >
-                <vscode-button>
+                <vscode-button
+                  data-testid="connection-node-redisClient-menu"
+                >
                   <svg
                     height="24"
                     viewBox="0 0 24 24"
@@ -3238,6 +3271,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             >
               <div
                 class="css-22"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-23"
@@ -3265,7 +3299,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -3367,6 +3403,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
             >
               <div
                 class="css-22"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-23"
@@ -3397,7 +3434,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple connections complex
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -3694,7 +3733,6 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-16 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
 .css-22 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%;}
-.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-8 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -3702,6 +3740,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -3877,6 +3916,7 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
             >
               <div
                 class="css-11"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-12"
@@ -3904,7 +3944,9 @@ exports[`Component Diagram - Snapshot Tests renders multiple services correctly:
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -4101,13 +4143,13 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
 .css-4 svg:first-child {z-index: 1;}
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-15 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
-.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-8 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -4213,6 +4255,7 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
             >
               <div
                 class="css-11"
+                data-testid="entry-node-automation"
               >
                 <div
                   class="css-12"
@@ -4243,7 +4286,9 @@ exports[`Component Diagram - Snapshot Tests renders only automation correctly: o
                 <div
                   class="css-16 css-17"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-automation-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"
@@ -4302,7 +4347,6 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
 .css-4 svg:first-child {z-index: 1;}
 .css-4 {height: 100%; -webkit-background-size: 16px 16px; background-size: 16px 16px; display: flex; background-image: radial-gradient(var(--vscode-editor-inactiveSelectionBackground) 10%, transparent 0px); font-family: "GilmerRegular";}
 .css-16 {font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; color: var(--vscode-foreground); opacity: 0.7;}
-.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-9 {margin-top: -3px;}
 .css-5 {position: relative; cursor: move; overflow: hidden;}
 .css-8 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground);}
@@ -4310,6 +4354,7 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-10 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: start; -ms-flex-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 8px; width: 100%; position: relative; border: 1.5px solid var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); padding: 8px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
 .css-3>*:last-child {border-top-left-radius: 0; border-top-right-radius: 0;}
@@ -4483,6 +4528,7 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
             >
               <div
                 class="css-11"
+                data-testid="entry-node-service"
               >
                 <div
                   class="css-12"
@@ -4510,7 +4556,9 @@ exports[`Component Diagram - Snapshot Tests renders simple service correctly: si
                 <div
                   class="css-17 css-18"
                 >
-                  <vscode-button>
+                  <vscode-button
+                    data-testid="entry-node-service-menu"
+                  >
                     <svg
                       height="24"
                       viewBox="0 0 24 24"

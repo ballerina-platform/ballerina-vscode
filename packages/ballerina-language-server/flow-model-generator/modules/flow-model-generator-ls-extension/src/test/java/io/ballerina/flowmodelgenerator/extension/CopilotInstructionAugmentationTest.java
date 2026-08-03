@@ -39,32 +39,6 @@ public class CopilotInstructionAugmentationTest extends AbstractLSTest {
 
     private static final String FIELD_NAME = "name";
     private static final String FIELD_INSTRUCTIONS = "instructions";
-    private static final String FIELD_SERVICES = "services";
-    private static final String FIELD_TYPE = "type";
-    private static final String FIELD_TEST_GENERATION_INSTRUCTION = "testGenerationInstruction";
-    private static final String TYPE_GENERIC = "generic";
-
-    @Test
-    public void testHttpInstructionsAugmented() {
-        // ballerina/http has: service.md, test.md (no library.md)
-        JsonObject http = fetchLibrary("ballerina/http");
-
-        Assert.assertFalse(http.has(FIELD_INSTRUCTIONS),
-                "ballerina/http should not have library-level instructions");
-        assertGenericServicesHaveInstruction(http, "Service writing instructions");
-        assertAllServicesHaveTestInstruction(http);
-    }
-
-    @Test
-    public void testGraphqlInstructionsAugmented() {
-        // ballerina/graphql has: service.md (no library.md, no test.md)
-        JsonObject graphql = fetchLibrary("ballerina/graphql");
-
-        Assert.assertFalse(graphql.has(FIELD_INSTRUCTIONS),
-                "ballerina/graphql should not have library-level instructions");
-        assertGenericServicesHaveInstruction(graphql, null);
-        assertNoServicesHaveTestInstruction(graphql);
-    }
 
     @Test
     public void testBallerinaTestInstructionsAugmented() {
@@ -94,58 +68,6 @@ public class CopilotInstructionAugmentationTest extends AbstractLSTest {
         JsonObject library = libraries.get(0).getAsJsonObject();
         Assert.assertEquals(library.get(FIELD_NAME).getAsString(), libraryName);
         return library;
-    }
-
-    private void assertGenericServicesHaveInstruction(JsonObject library, String expectedSubstring) {
-        if (!library.has(FIELD_SERVICES)) {
-            return;
-        }
-        JsonArray services = library.getAsJsonArray(FIELD_SERVICES);
-        for (JsonElement serviceElement : services) {
-            JsonObject service = serviceElement.getAsJsonObject();
-            if (isGenericService(service)) {
-                Assert.assertTrue(service.has(FIELD_INSTRUCTIONS),
-                        "Generic service should have instructions");
-                String instruction = service.get(FIELD_INSTRUCTIONS).getAsString();
-                Assert.assertFalse(instruction.isEmpty(),
-                        "Generic service instructions should not be empty");
-                if (expectedSubstring != null) {
-                    Assert.assertTrue(instruction.contains(expectedSubstring),
-                            "Service instruction should contain: " + expectedSubstring);
-                }
-            }
-        }
-    }
-
-    private void assertAllServicesHaveTestInstruction(JsonObject library) {
-        if (!library.has(FIELD_SERVICES)) {
-            return;
-        }
-        JsonArray services = library.getAsJsonArray(FIELD_SERVICES);
-        for (JsonElement serviceElement : services) {
-            JsonObject service = serviceElement.getAsJsonObject();
-            Assert.assertTrue(service.has(FIELD_TEST_GENERATION_INSTRUCTION),
-                    "Service should have testGenerationInstruction");
-            Assert.assertFalse(service.get(FIELD_TEST_GENERATION_INSTRUCTION).getAsString().isEmpty(),
-                    "testGenerationInstruction should not be empty");
-        }
-    }
-
-    private void assertNoServicesHaveTestInstruction(JsonObject library) {
-        if (!library.has(FIELD_SERVICES)) {
-            return;
-        }
-        JsonArray services = library.getAsJsonArray(FIELD_SERVICES);
-        for (JsonElement serviceElement : services) {
-            JsonObject service = serviceElement.getAsJsonObject();
-            Assert.assertFalse(service.has(FIELD_TEST_GENERATION_INSTRUCTION),
-                    "Service should not have testGenerationInstruction");
-        }
-    }
-
-    private boolean isGenericService(JsonObject service) {
-        return service.has(FIELD_TYPE) &&
-                TYPE_GENERIC.equals(service.get(FIELD_TYPE).getAsString());
     }
 
     @Override

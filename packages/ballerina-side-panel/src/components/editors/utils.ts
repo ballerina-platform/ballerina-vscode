@@ -74,6 +74,36 @@ export const buildRequiredRule = ({ isRequired, label, message }: RequiredRuleOp
     };
 };
 
+/**
+ * Translates a raw Ballerina compiler diagnostic for an identifier/name field into a
+ * clearer, user-facing message. Validity is still decided entirely by the language server;
+ * this only rewords the common cryptic diagnostics and falls back to the original message
+ * when no friendly mapping is known.
+ */
+export function getFriendlyIdentifierMessage(rawMessage: string, label?: string): string {
+    if (!rawMessage) {
+        return rawMessage;
+    }
+    const name = (label ?? "name").toLowerCase();
+    const msg = rawMessage.toLowerCase();
+    if (msg.includes("redeclared") || msg.includes("already exists") || msg.includes("already defined")) {
+        return `This ${name} is already used. Please choose a different name.`;
+    }
+    if (msg.includes("reserved keyword") || msg.includes("reserved-keyword")) {
+        return `'${name}' cannot be a reserved keyword. Please choose a different name.`;
+    }
+    if (
+        msg.includes("missing identifier") ||
+        msg.includes("invalid token") ||
+        msg.includes("invalid identifier") ||
+        msg.includes("expected an identifier") ||
+        msg.includes("identifier expected")
+    ) {
+        return `Invalid ${name}. Use letters, digits or underscores, and start with a letter or underscore.`;
+    }
+    return rawMessage;
+}
+
 export function sanitizeType(type: string) {
     if (type.includes('{') || type.includes('}') || (type.match(/:/g) || []).length > 1) {
         return type;

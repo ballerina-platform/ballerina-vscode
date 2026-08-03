@@ -21,9 +21,11 @@ package io.ballerina.flowmodelgenerator.core.utils;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.RecordFieldSymbol;
 import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
@@ -191,5 +193,25 @@ public class WorkflowUtil {
         TypeSymbol typeDesc = TypeUtils.resolveTypeReference(paramSymbol.typeDescriptor());
         return WorkflowUtil.isWorkflowModule(typeDesc.getModule())
                 && typeDesc.getName().map(Constants.Workflow.CONTEXT_CLASS_NAME::equals).orElse(false);
+    }
+
+    /**
+     * Resolves the given type to a client class symbol, if it is one. Activities generated from a
+     * connection take the connection client (e.g. {@code http:Client}) as their first parameter; this
+     * detects such a parameter so a connection-backed activity call can be modelled with a connection
+     * association (and rendered with a connection arrow) rather than as a plain data argument.
+     *
+     * @param typeSymbol the parameter type to inspect
+     * @return the client {@link ClassSymbol} if {@code typeSymbol} resolves to a {@code client} class
+     */
+    public static Optional<ClassSymbol> resolveConnectionClass(TypeSymbol typeSymbol) {
+        if (typeSymbol == null) {
+            return Optional.empty();
+        }
+        TypeSymbol resolved = TypeUtils.resolveTypeReference(typeSymbol);
+        if (resolved instanceof ClassSymbol classSymbol && classSymbol.qualifiers().contains(Qualifier.CLIENT)) {
+            return Optional.of(classSymbol);
+        }
+        return Optional.empty();
     }
 }

@@ -1,11 +1,11 @@
 {
   "description": "Test getting http listener model",
   "codedata": {
+    "type": "Listener",
     "orgName": "ballerina",
     "packageName": "http",
     "moduleName": "http",
-    "version": "2.15.3",
-    "type": "Listener"
+    "version": "2.16.6"
   },
   "filePath": "sample1/main.bal",
   "response": {
@@ -16,10 +16,10 @@
       "description": "Gets invoked during module initialization to initialize the listener.\n",
       "moduleName": "http",
       "orgName": "ballerina",
-      "version": "2.15.3",
+      "version": "2.16.6",
       "packageName": "http",
       "listenerProtocol": "http",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.15.3.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png",
       "properties": {
         "variableNameKey": {
           "metadata": {
@@ -132,7 +132,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerHttp1Settings",
-                  "packageInfo": "ballerina:http:2.15.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -169,7 +169,7 @@
               "typeMembers": [
                 {
                   "type": "ListenerSecureSocket",
-                  "packageInfo": "ballerina:http:2.15.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -304,7 +304,7 @@
               "typeMembers": [
                 {
                   "type": "RequestLimitConfigs",
-                  "packageInfo": "ballerina:http:2.15.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -369,7 +369,7 @@
               "typeMembers": [
                 {
                   "type": "ServerSocketConfig",
-                  "packageInfo": "ballerina:http:2.15.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false

@@ -37,6 +37,7 @@ import {
 } from "../../../resources/constants";
 import { Button, Item, Menu, MenuItem, Popover, Tooltip } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
+import { getDiffContainerStyles, getDiffTitleStyles } from "../../../utils/node";
 import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 
@@ -238,6 +239,7 @@ export function CommentNodeWidget(props: CommentNodeWidgetProps) {
                 disabled={model.node.suggested}
                 isSelected={isSelected}
                 readOnly={readOnly}
+                style={getDiffContainerStyles(model.node)}
             >
                 <NodeStyles.Row>
                     <NodeStyles.Header onClick={handleOnClick}>
@@ -245,7 +247,7 @@ export function CommentNodeWidget(props: CommentNodeWidgetProps) {
                             content={model.node.metadata.description}
                             sx={{ maxWidth: COMMENT_NODE_WIDTH, textWrap: "wrap" }}
                         >
-                            <NodeStyles.Description>{model.node.metadata.description || "..."}</NodeStyles.Description>
+                            <NodeStyles.Description style={getDiffTitleStyles(model.node)}>{model.node.metadata.description || "..."}</NodeStyles.Description>
                         </Tooltip>
                     </NodeStyles.Header>
                     <NodeStyles.StyledButton disabled={readOnly} appearance="icon" onClick={handleOnMenuClick}>

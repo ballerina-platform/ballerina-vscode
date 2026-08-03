@@ -16,7 +16,7 @@
 
 import { generateText } from "ai";
 import { PayloadContext } from "@wso2/ballerina-core";
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from "../utils/ai-client";
+import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../utils/ai-client";
 import { getPayloadGenerationSystemPrompt, getPayloadGenerationUserPrompt } from "./prompts";
 
 /**
@@ -32,9 +32,9 @@ export async function generateExamplePayload(context: PayloadContext): Promise<o
 
     try {
         const { text } = await generateText({
-            model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+            model: await getAnthropicClient(ANTHROPIC_SONNET),
             maxOutputTokens: 4096 * 2,
-            temperature: 0,
+            providerOptions: await getProviderModelOptions(),
             system: systemPrompt,
             prompt: userPrompt,
             abortSignal: new AbortController().signal,

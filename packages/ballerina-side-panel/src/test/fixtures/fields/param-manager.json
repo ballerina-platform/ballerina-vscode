@@ -1,0 +1,16 @@
+{
+    "description": "PARAM_MANAGER -> ParamManagerEditor",
+    "expectedEditor": "ParamManagerEditor",
+    "fieldInputType": { "fieldType": "PARAM_MANAGER" },
+    "field": {
+        "key": "f_PARAM_MANAGER",
+        "label": "PARAM_MANAGER field",
+        "type": "PARAM_MANAGER",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "PARAM_MANAGER", "selected": false }],
+        "enabled": true
+    }
+}

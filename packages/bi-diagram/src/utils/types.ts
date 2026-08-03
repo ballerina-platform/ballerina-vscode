@@ -56,6 +56,7 @@ export type {
     ClientKind,
     ClientScope,
     FlowNode,
+    FlowNodeDiffState,
     NodeKind,
     Branch,
     LineRange,

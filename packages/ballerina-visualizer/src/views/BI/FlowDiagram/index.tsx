@@ -21,6 +21,7 @@ import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import { removeMcpServerFromAgentNode, findAgentNodeFromAgentCallNode, findFlowNode, removeAgentNode, confirmAgentCallDeletion } from "../AIChatAgent/utils";
+import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram, setTraceAnimationActive, setTraceAnimationInactive } from "@wso2/bi-diagram";
 import {
     BIAvailableNodesRequest,
@@ -83,9 +84,10 @@ import {
     removeToolFromAgentNode,
 } from "../AIChatAgent/utils";
 import { DiagramSkeleton } from "../../../components/Skeletons";
-import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LOADING_MESSAGE } from "../../../constants";
+import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER, LOADING_MESSAGE } from "../../../constants";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
+import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 
 const Container = styled.div`
     width: 100%;
@@ -122,6 +124,16 @@ type NodePromptLaunchOptions = {
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
 
+// AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
+const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
+    SidePanelView.MODEL_PROVIDERS,
+    SidePanelView.VECTOR_STORES,
+    SidePanelView.EMBEDDING_PROVIDERS,
+    SidePanelView.KNOWLEDGE_BASES,
+    SidePanelView.DATA_LOADERS,
+    SidePanelView.CHUNKERS,
+];
+
 export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const { projectPath, breakpointState, syntaxTree, onUpdate, onReady, onSave } = props;
     const { rpcClient } = useRpcContext();
@@ -133,6 +145,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
     const [categories, setCategories] = useState<PanelCategory[]>([]); //
     const [searchText, setSearchText] = useState<string>("");
+    // Kept here so an expanded AI package group survives switching to a form and back.
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
     const [fetchingAiSuggestions, setFetchingAiSuggestions] = useState(false);
     const [showProgressIndicator, setShowProgressIndicator] = useState(false);
     const [showProgressSpinner, setShowProgressSpinner] = useState<boolean>(false);
@@ -174,6 +188,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const selectedClientName = useRef<string>();
     const initialCategoriesRef = useRef<any[]>([]);
     const showEditForm = useRef<boolean>(false);
+    // True while the call form open is step 3 of the create-activity-from-connection wizard.
     const selectedNodeMetadata = useRef<{ nodeId: string; metadata: any; fileName: string }>();
     const shouldUpdateLineRangeRef = useRef<boolean>(false);
     const updatedNodeRef = useRef<FlowNode>(undefined);
@@ -334,7 +349,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const debouncedGetFlowModel = useCallback(
         debounce(() => {
             getFlowModel();
-        }, 1000),
+        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
         [hasDraft]
     );
 
@@ -900,6 +915,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const resetNodeSelectionStates = () => {
         setShowSidePanel(false);
         setSidePanelView(SidePanelView.NODE_LIST);
+        setExpandedGroupId(null);
         setSubPanel({ view: SubPanelView.UNDEFINED });
         setSelectedNodeId(undefined);
         selectedNodeRef.current = undefined;
@@ -1062,8 +1078,12 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             autoSubmit: options?.autoSubmit ?? false,
         };
 
-        // Use the standard pattern - import from utils/commands
-        rpcClient.getAiPanelRpcClient().openAIPanel(aiPrompt);
+        // Auto-submitted actions (currently diagnostics fixes) retain their
+        // full-panel flow. The between-node magic wand is interactive, so keep
+        // it in the ambient mini chat and carry the insertion context with it.
+        if (options?.autoSubmit || !requestMiniChatOpen(aiPrompt)) {
+            rpcClient.getAiPanelRpcClient().openAIPanel(aiPrompt);
+        }
     };
 
     const handleSearch = useCallback(async (searchText: string, functionType: FUNCTION_TYPE, searchKind: SearchKind) => {
@@ -1229,7 +1249,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         await handleSearch(searchText, functionType, "FUNCTION");
     };
 
-     const handleSearchWorkflow = async (searchText: string, functionType: FUNCTION_TYPE) => {
+    const handleSearchWorkflow = async (searchText: string, functionType: FUNCTION_TYPE) => {
         // NOTE: Backend payloads may still contain legacy "WORKFLOW_START" in some environments.
         // FE is intentionally standardized on "WORKFLOW_RUN"; align API/LS payloads to avoid mismatches.
         await handleSearch(searchText, functionType, "WORKFLOW_RUN");
@@ -1399,6 +1419,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         // Push current state to navigation stack before navigating
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+
+        const showFormLoader = AI_COMPONENT_PICKER_VIEWS.includes(sidePanelView);
 
         switch (node.codedata.node) {
             case "FUNCTION":
@@ -1734,6 +1756,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 // default node
                 selectedClientName.current = category;
                 setShowProgressIndicator(true);
+                if (showFormLoader) {
+                    setShowProgressSpinner(true);
+                    setProgressTitle(node.metadata?.label || LOADING_MESSAGE);
+                    setProgressMessage(FORM_LOADING_MESSAGE);
+                }
                 rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                     position: targetRef.current.startLine,
                     filePath: model?.fileName || fileName,
@@ -1755,6 +1782,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     })
                     .finally(() => {
                         setShowProgressIndicator(false);
+                        if (showFormLoader) {
+                            setShowProgressSpinner(false);
+                            setProgressMessage(LOADING_MESSAGE);
+                        }
                     });
                 break;
         }
@@ -1764,6 +1795,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         // Push current state to navigation stack before navigating
         pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
         setShowProgressIndicator(true);
+        setShowProgressSpinner(true);
+        setProgressTitle("");
+        setProgressMessage(FORM_LOADING_MESSAGE);
 
         try {
             const { flowNode, connectionKind } = await getNodeTemplateForConnection(
@@ -1780,6 +1814,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             setShowSidePanel(true);
         } finally {
             setShowProgressIndicator(false);
+            setShowProgressSpinner(false);
+            setProgressMessage(LOADING_MESSAGE);
         }
     };
 
@@ -2343,6 +2379,104 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
+    const handleOnAddActivityFromConnection = () => {
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        setSidePanelView(SidePanelView.ACTIVITY_FROM_CONNECTION);
+        setShowSidePanel(true);
+    };
+
+    const handleActivityFromConnectionCreated = async (activityName: string) => {
+        // After the activity function is generated, open its call form with the new activity selected —
+        // the workflow data is wired into the call there.
+        setShowProgressIndicator(true);
+        try {
+            // The activity is generated in functions.bal, so the workflow file is untouched and the
+            // original insertion point (targetRef, from the diagram "+") stays valid — use it so the
+            // call is inserted inside the workflow body.
+            const insertLine = targetRef.current.startLine;
+
+            const response = await rpcClient.getBIDiagramRpcClient().search({
+                position: { startLine: insertLine, endLine: insertLine },
+                filePath: model?.fileName,
+                queryMap: undefined,
+                searchKind: "ACTIVITY_CALL",
+            });
+            const panelCategories = convertFunctionCategoriesToSidePanelCategories(
+                response.categories as Category[],
+                FUNCTION_TYPE.REGULAR
+            );
+            const currentIntegrationCategory = findCurrentIntegrationCategory(panelCategories);
+            const newActivityNode = (currentIntegrationCategory?.items || [])
+                .map((item) => (item && "metadata" in item ? (item.metadata as AvailableNode) : undefined))
+                .find((node) => node?.codedata?.symbol === activityName);
+
+            if (newActivityNode) {
+                const template = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                    position: insertLine,
+                    filePath: model?.fileName,
+                    id: newActivityNode.codedata,
+                });
+                selectedNodeRef.current = template.flowNode;
+                nodeTemplateRef.current = template.flowNode;
+                showEditForm.current = false;
+                // The activity list frame pushed on entry stays on the stack, so the form's back
+                // button returns to the activity list.
+                setSidePanelView(SidePanelView.FORM);
+                setShowSidePanel(true);
+                return;
+            }
+            // Fallback: could not resolve the new activity — just refresh the activity list.
+            await handleActivityAdded();
+        } catch (error) {
+            console.error(">>> Error opening call form for the created activity", error);
+            await handleActivityAdded();
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
+    // "Create Activity": after generating the activity, return to the activity selection screen instead
+    // of opening the call form. The activity goes to functions.bal, so the workflow file — and the
+    // insertion point the flow was launched from — is unchanged; just reload the list so the new
+    // activity is selectable, and keep the existing targetRef for the eventual call insertion.
+    const handleActivityFromConnectionCreatedReturnToList = async () => {
+        // Restore the activity-list frame (the form's back-button target) before the async refresh, so
+        // the panel lands on the activity list even when the stack lookup below finds nothing.
+        popNavigationStackUntilView(SidePanelView.ACTIVITY_LIST);
+        setShowProgressIndicator(true);
+        try {
+            // The activity is generated in functions.bal, so the workflow file this flow was launched
+            // from is untouched and the original insertion point (targetRef, from the diagram "+") is
+            // still valid — keep it so the selected activity's call is inserted inside the workflow body.
+            const insertLine = targetRef.current.startLine;
+
+            // Reload the activity list at that position so the newly created activity appears and can be
+            // selected. Done inline (rather than via handleActivityAdded) so the list always reloads —
+            // handleActivityAdded closes the panel when ACTIVITY_LIST is missing from the stack.
+            const response = await rpcClient.getBIDiagramRpcClient().search({
+                position: { startLine: insertLine, endLine: insertLine },
+                filePath: model?.fileName,
+                queryMap: undefined,
+                searchKind: "ACTIVITY_CALL",
+            });
+            const panelCategories = convertFunctionCategoriesToSidePanelCategories(
+                response.categories as Category[],
+                FUNCTION_TYPE.REGULAR
+            );
+            const currentIntegrationCategory = findCurrentIntegrationCategory(panelCategories);
+            if (currentIntegrationCategory && !currentIntegrationCategory.items.length) {
+                currentIntegrationCategory.description = "No activities defined. Click below to create a new activity.";
+            }
+            setCategories(panelCategories);
+            setSidePanelView(SidePanelView.ACTIVITY_LIST);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error returning to the activity list after activity creation", error);
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
     const handleOnAddActivity = () => {
         isCreatingNewActivity.current = true;
         setShowProgressIndicator(true);
@@ -2367,7 +2501,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
-   
+
 
     const handleOnAddNPFunction = () => {
         rpcClient.getVisualizerRpcClient().openView({
@@ -3284,6 +3418,9 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onAddFunction={handleOnAddFunction}
                 onAddWorkflow={handleOnAddWorkflow}
                 onAddActivity={handleOnAddActivity}
+                onAddActivityFromConnection={handleOnAddActivityFromConnection}
+                onActivityFromConnectionCreated={handleActivityFromConnectionCreated}
+                onActivityFromConnectionCreatedReturnToList={handleActivityFromConnectionCreatedReturnToList}
                 onAddNPFunction={handleOnAddNPFunction}
                 onAddDataMapper={handleOnAddDataMapper}
                 onAddModelProvider={handleOnAddNewModelProvider}
@@ -3304,6 +3441,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSearchNpFunction={handleSearchNpFunction}
                 onSearchTextChange={handleSearchTextChange}
                 searchText={searchText}
+                expandedGroupId={expandedGroupId}
+                onExpandedGroupChange={setExpandedGroupId}
                 // isSearching={isSearching}
                 onSearchModelProvider={handleSearchModelProvider}
                 onSearchVectorStore={handleSearchVectorStore}

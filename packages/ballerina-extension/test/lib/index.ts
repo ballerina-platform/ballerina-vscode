@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { downloadAndUnzipVSCode, resolveCliPathFromVSCodeExecutablePath } from '@vscode/test-electron';
+import { downloadAndUnzipVSCode, resolveCliArgsFromVSCodeExecutablePath } from '@vscode/test-electron';
 import { defaultCachePath } from '@vscode/test-electron/out/download';
 import { TestOptions } from '@vscode/test-electron/out/runTest';
 import { killTree } from '@vscode/test-electron/out/util';
@@ -32,12 +32,15 @@ const packageJson = require('../../../package.json')
 export async function runTests(options: TestOptions): Promise<number> {
 	if (!options.vscodeExecutablePath) {
 		options.vscodeExecutablePath = await downloadAndUnzipVSCode();
-		const [cli, ...args] = resolveCliPathFromVSCodeExecutablePath(options.vscodeExecutablePath)
+		const [cli, ...args] = resolveCliArgsFromVSCodeExecutablePath(options.vscodeExecutablePath)
 		if (packageJson.extensionDependencies && packageJson.extensionDependencies.length > 0) {
 			console.log(`Installing ${packageJson.extensionDependencies.length} extension dependencies...`);
 			for (const extensionId of packageJson.extensionDependencies) {
 				console.log(`Installing extension: ${extensionId}`);
-				cp.spawnSync(cli, [...args, '--install-extension', extensionId], {
+				// Install into the same extensions dir the test instance is launched with
+				// (see getProfileArguments), so the dependency is visible at activation time
+				cp.spawnSync(cli, [...args, '--extensions-dir', path.join(defaultCachePath, 'extensions'),
+					'--install-extension', extensionId], {
 					encoding: 'utf-8',
 					stdio: 'inherit',
 				})

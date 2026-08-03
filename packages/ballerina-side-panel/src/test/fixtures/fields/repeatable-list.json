@@ -1,0 +1,16 @@
+{
+    "description": "REPEATABLE_LIST (array) field type must render the array editor, not a text/SQL editor (cf. issue #1491 class)",
+    "expectedEditor": "FormArrayEditorWrapper",
+    "fieldInputType": { "fieldType": "REPEATABLE_LIST" },
+    "field": {
+        "key": "values",
+        "label": "Values",
+        "type": "REPEATABLE_LIST",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": [],
+        "types": [{ "fieldType": "REPEATABLE_LIST", "selected": false }],
+        "enabled": true
+    }
+}

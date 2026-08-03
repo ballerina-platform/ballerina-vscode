@@ -1,0 +1,29 @@
+// Type-checks test code. Excluded from the emitting build (tsconfig.json) and not
+// type-checked by babel/ts-jest at run time, so this closes that gap. include is all of
+// src (production modules give the ambient context the test imports need); the CI wrapper
+// (scripts/typecheck-tests.js) reports only errors located in test files. rootDir is
+// widened so a test's cross-package src import doesn't trip TS6059. Run: pnpm run test:typecheck
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "skipLibCheck": true,
+        "rootDir": "../.."
+    },
+    "files": [
+        "node_modules/@wso2/test-config/jest-matchers.d.ts"
+    ],
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.tsx"
+    ],
+    "exclude": [
+        "node_modules",
+        "lib",
+        "build",
+        // Grandfathered: pre-existing test (predates the test framework) whose fixtures don't
+        // match the current Metadata / NodeProperties types. Tracked separately; remove this
+        // line once its 21 type errors are fixed.
+        "src/utils/bi.test.ts"
+    ]
+}

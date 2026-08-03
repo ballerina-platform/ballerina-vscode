@@ -17,59 +17,117 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-
-export const GLOBAL_SKILLS_CONFIG_PATH = path.join(
-    os.homedir(), '.ballerina', 'copilot', 'skills.config.json'
-);
+import * as vscode from 'vscode';
 
 export interface SkillsConfig {
     disabledSkills: string[];
     enabledSkills: string[];
 }
 
-export function getSkillsConfig(configPath: string): SkillsConfig {
-    try {
-        if (fs.existsSync(configPath)) {
-            const raw = fs.readFileSync(configPath, 'utf-8');
-            const parsed = JSON.parse(raw);
-            return {
-                disabledSkills: Array.isArray(parsed.disabledSkills) ? parsed.disabledSkills : [],
-                enabledSkills: Array.isArray(parsed.enabledSkills) ? parsed.enabledSkills : [],
-            };
-        }
-    } catch { /* fall through to default */ }
-    return { disabledSkills: [], enabledSkills: [] };
+export function getSkillsConfig(projectRootPath: string | null): SkillsConfig {
+    const cfg = projectRootPath
+        ? vscode.workspace.getConfiguration('ballerina.copilot', vscode.Uri.file(projectRootPath))
+        : vscode.workspace.getConfiguration('ballerina.copilot');
+    const di = cfg.inspect<any>('skills');
+    const globalSkills = di?.globalValue ?? { disabled: [], enabled: [] };
+    const wsSkills     = di?.workspaceFolderValue ?? di?.workspaceValue ?? null;
+
+    if (!wsSkills) {
+        return {
+            disabledSkills: [...(globalSkills.disabled ?? [])],
+            enabledSkills:  [...(globalSkills.enabled  ?? [])],
+        };
+    }
+
+    // Workspace overrides global on a per-skill basis (not a plain union merge).
+    // workspace.disabled adds to the disabled set; workspace.enabled removes from it.
+    const disabled = new Set<string>(globalSkills.disabled ?? []);
+    const enabled  = new Set<string>(globalSkills.enabled  ?? []);
+    for (const k of wsSkills.disabled ?? []) { disabled.add(k);    enabled.delete(k); }
+    for (const k of wsSkills.enabled  ?? []) { enabled.add(k);     disabled.delete(k); }
+    return {
+        disabledSkills: [...disabled],
+        enabledSkills:  [...enabled],
+    };
 }
 
-/**
- * @param isDefaultFalse - When true, the skill uses the `enabledSkills` list for opt-in tracking
- *   (because its built-in default is disabled). Otherwise uses the `disabledSkills` list.
- */
-export function setSkillEnabled(configPath: string, skillId: string, enabled: boolean, isDefaultFalse = false): void {
-    const config = getSkillsConfig(configPath);
+export async function setSkillEnabled(
+    skillId: string,
+    enabled: boolean,
+    isDefaultFalse = false,
+    scope: 'user' | 'workspace' = 'user'
+): Promise<void> {
+    const target = scope === 'workspace'
+        ? vscode.ConfigurationTarget.Workspace
+        : vscode.ConfigurationTarget.Global;
+
+    const cfg = vscode.workspace.getConfiguration('ballerina.copilot');
+    const di  = cfg.inspect<any>('skills');
+    const scopedSkills = scope === 'workspace'
+        ? { ...(di?.workspaceFolderValue ?? di?.workspaceValue ?? {}) }
+        : { ...(di?.globalValue ?? {}) };
+    const disabledList = [...(scopedSkills.disabled ?? [])];
+    const enabledList  = [...(scopedSkills.enabled  ?? [])];
+
     if (isDefaultFalse) {
         if (enabled) {
-            if (!config.enabledSkills.includes(skillId)) {
-                config.enabledSkills.push(skillId);
-            }
-            config.disabledSkills = config.disabledSkills.filter(id => id !== skillId);
+            if (!enabledList.includes(skillId)) { enabledList.push(skillId); }
+            const i = disabledList.indexOf(skillId);
+            if (i !== -1) { disabledList.splice(i, 1); }
         } else {
-            config.enabledSkills = config.enabledSkills.filter(id => id !== skillId);
+            const i = enabledList.indexOf(skillId);
+            if (i !== -1) { enabledList.splice(i, 1); }
         }
     } else {
         if (enabled) {
-            config.disabledSkills = config.disabledSkills.filter(id => id !== skillId);
+            const i = disabledList.indexOf(skillId);
+            if (i !== -1) { disabledList.splice(i, 1); }
+            if (!enabledList.includes(skillId)) { enabledList.push(skillId); }
         } else {
-            if (!config.disabledSkills.includes(skillId)) {
-                config.disabledSkills.push(skillId);
+            if (!disabledList.includes(skillId)) { disabledList.push(skillId); }
+            const ei = enabledList.indexOf(skillId);
+            if (ei !== -1) { enabledList.splice(ei, 1); }
+        }
+    }
+
+    await cfg.update('skills', { disabled: disabledList, enabled: enabledList }, target);
+
+    // When writing a workspace-scope change, remove any stale global entry for
+    // this skill so global doesn't silently conflict with workspace state.
+    if (scope === 'workspace') {
+        const globalVal = di?.globalValue;
+        if (globalVal) {
+            const globalDisabled = (globalVal.disabled ?? []).filter((k: string) => k !== skillId);
+            const globalEnabled  = (globalVal.enabled  ?? []).filter((k: string) => k !== skillId);
+            const changed = globalDisabled.length !== (globalVal.disabled ?? []).length
+                         || globalEnabled.length  !== (globalVal.enabled  ?? []).length;
+            if (changed) {
+                try {
+                    await cfg.update('skills', { disabled: globalDisabled, enabled: globalEnabled }, vscode.ConfigurationTarget.Global);
+                } catch { /* best-effort */ }
             }
         }
     }
-    const dir = path.dirname(configPath);
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+
+    // When writing a user-scope (global) change, remove any stale workspace entry for
+    // this skill so workspace doesn't silently override the global state.
+    if (scope === 'user') {
+        const wsVal = di?.workspaceFolderValue ?? di?.workspaceValue;
+        if (wsVal) {
+            const wsDisabled = (wsVal.disabled ?? []).filter((k: string) => k !== skillId);
+            const wsEnabled  = (wsVal.enabled  ?? []).filter((k: string) => k !== skillId);
+            const changed = wsDisabled.length !== (wsVal.disabled ?? []).length
+                         || wsEnabled.length  !== (wsVal.enabled  ?? []).length;
+            if (changed) {
+                const wsTarget = di?.workspaceFolderValue !== undefined
+                    ? vscode.ConfigurationTarget.WorkspaceFolder
+                    : vscode.ConfigurationTarget.Workspace;
+                try {
+                    await cfg.update('skills', { disabled: wsDisabled, enabled: wsEnabled }, wsTarget);
+                } catch { /* best-effort */ }
+            }
+        }
     }
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
 
 function validatePathSegment(segment: string, label: string): void {

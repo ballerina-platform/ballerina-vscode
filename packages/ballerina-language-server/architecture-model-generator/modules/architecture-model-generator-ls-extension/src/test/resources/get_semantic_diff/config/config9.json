@@ -19,6 +19,17 @@
             "offset": 5
           }
         },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 7,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 10,
+            "offset": 5
+          }
+        },
         "metadata": {
           "accessor": "get",
           "servicePath": "/api",

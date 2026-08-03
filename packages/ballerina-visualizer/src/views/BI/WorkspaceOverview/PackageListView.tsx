@@ -221,7 +221,7 @@ const getTypeIcon = (type: SCOPE): { name: string; source: 'icon' | 'codicon' } 
         [SCOPE.AI_AGENT]: { name: 'bi-ai-agent', source: 'icon' },
         [SCOPE.MCP]: { name: 'bi-mcp', source: 'icon' },
         [SCOPE.LIBRARY]: { name: 'library', source: 'codicon' },
-        [SCOPE.WORKFLOW]: { name: 'bi-workflow', source: 'icon' },
+        [SCOPE.WORKFLOW]: { name: 'bi-flowchart', source: 'icon' },
         [SCOPE.ANY]: { name: 'package', source: 'codicon' }
     };
     return icons[type];

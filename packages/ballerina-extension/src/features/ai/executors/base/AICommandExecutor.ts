@@ -16,12 +16,16 @@
  * under the License.
  */
 
-import { ExecutionContext, Command } from '@wso2/ballerina-core';
+import { ExecutionContext, Command, GenerationReviewState } from '@wso2/ballerina-core';
 import { CopilotEventHandler } from '../../utils/events';
 import { chatStateStorage, ChatStateStorage } from '../../../../views/ai-panel/chatStateStorage';
 import { getTempProject, cleanupTempProject } from '../../utils/project/temp-project';
 import { buildChatError } from '../../utils/ai-utils';
+import { finalizeRevertibleGeneration } from '../../utils/generation-response';
+import { runEventStore } from '../../utils/run-event-store';
+import { agentStatusManager } from '../../state/AgentStatusManager';
 import { MigrationDebugLogger } from '../../migration/debug-logger';
+import { clearAiTouchedFiles } from '../../../../rpc-managers/diagram-validity';
 
 /**
  * Unified configuration for all AI command executors
@@ -54,10 +58,33 @@ export interface AICommandConfig<TParams = any> {
         enabled: boolean;
     };
 
+    /**
+     * Whether this run's events target the AI chat panel and should be buffered
+     * for panel reconnection (`getRunStatus` replay). Set only for the agent
+     * chat path; other executors (migration panel, data mapper) leave it unset
+     * so they don't register themselves as the buffered "current run".
+     */
+    trackForReconnection?: boolean;
+
     /** Optional lifecycle configuration */
     lifecycle?: {
-        /** Existing temp path to reuse (for review continuation) */
+        /**
+         * Path to operate on directly instead of having AICommandExecutor create a temp
+         * copy. Two distinct callers rely on this: the normal agent flow (agent/index.ts)
+         * sets it to the real project/workspace root, since edits already land live there
+         * (no copy needed); the migration wizard sets it to a real package path for
+         * in-place editing across multiple sequential stages/executions.
+         */
         existingTempPath?: string;
+        /**
+         * Skip sendAgentDidOpenForFreshProjects (the ai:// baseline seed). Set by callers
+         * that reuse the same existingTempPath across multiple executions of the same
+         * directory (migration's per-stage runs), where the LS already has it open from
+         * an earlier execution and re-seeding would overwrite the baseline with
+         * already-edited content. The normal agent flow leaves this unset — each chat
+         * generation is independent and always needs a fresh baseline.
+         */
+        skipFreshProjectSetup?: boolean;
         /** Cleanup strategy: 'immediate' (DataMapper) or 'review' (Agent) */
         cleanupStrategy: 'immediate' | 'review';
     };
@@ -156,14 +183,22 @@ export abstract class AICommandExecutor<TParams = any> {
         try {
             console.log(`[AICommandExecutor] Starting ${this.getCommandType()} execution: ${this.config.generationId}`);
 
+            clearAiTouchedFiles();
+            await this.initializeWorkspaceThread();
+            await this.prepareForExecution();
+
             // Stage 1: Register active execution for abort support
             chatStateStorage.setActiveExecution(projectRootPath, threadId, {
                 generationId: this.config.generationId,
                 abortController: this.config.abortController
             });
 
-            // Stage 2: Initialize workspace/thread in chat storage
-            await this.initializeWorkspaceThread();
+            // Start buffering emitted events so a panel that closes/reopens
+            // mid-run can reconnect and replay what it missed (agent chat only).
+            if (this.config.trackForReconnection) {
+                runEventStore.beginRun(projectRootPath, threadId, this.config.generationId);
+                agentStatusManager.runStarted(this.config.generationId);
+            }
 
             // Stage 3: Temp project initialization
             await this.initializeTempProject();
@@ -182,8 +217,22 @@ export abstract class AICommandExecutor<TParams = any> {
             throw error;
         } finally {
             // Stage 6: Always clear active execution on completion (success or error)
-        chatStateStorage.clearActiveExecution(projectRootPath, threadId);
+            chatStateStorage.clearActiveExecution(projectRootPath, threadId);
+            // Mark the run ended (buffer kept so an in-flight poll can still pick
+            // up a terminal event).
+            if (this.config.trackForReconnection) {
+                runEventStore.endRun(projectRootPath, threadId, this.config.generationId);
+                agentStatusManager.runEnded();
+            }
         }
+    }
+
+    /**
+     * Hook for subclasses that must persist turn metadata before an execution
+     * is exposed through the reconnection store.
+     */
+    protected async prepareForExecution(): Promise<void> {
+        return;
     }
 
     /**
@@ -266,6 +315,12 @@ export abstract class AICommandExecutor<TParams = any> {
         const tempProjectPath = this.config.executionContext.tempProjectPath;
         if (!tempProjectPath) {
             console.log(`[AICommandExecutor] No temp project to cleanup`);
+            return;
+        }
+
+        // A caller-supplied existingTempPath (direct-edit mode) is never a temp copy —
+        // there's nothing to clean up, and cleanupTempProject must never be pointed at it.
+        if (this.config.lifecycle?.existingTempPath === tempProjectPath) {
             return;
         }
 
@@ -361,6 +416,23 @@ export abstract class AICommandExecutor<TParams = any> {
             metadata,
             this.config.generationId
         );
+    }
+
+    /** Implicitly accepts whichever generation is still in the revertible 'done' window. */
+    protected finalizePreviousGeneration(): void {
+        if (!this.config.chatStorage) {
+            return;
+        }
+        const { projectRootPath, threadId } = this.config.chatStorage;
+        finalizeRevertibleGeneration(projectRootPath, threadId);
+    }
+
+    protected settleGeneration(status: GenerationReviewState['status']): void {
+        if (!this.config.chatStorage) {
+            return;
+        }
+        const { projectRootPath, threadId } = this.config.chatStorage;
+        chatStateStorage.updateReviewState(projectRootPath, threadId, this.config.generationId, { status });
     }
 
     /**

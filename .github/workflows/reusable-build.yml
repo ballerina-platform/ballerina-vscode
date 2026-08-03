@@ -1,0 +1,395 @@
+name: Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      runOnAWS:
+        default: false
+        type: boolean
+      awsRunnerId:
+        default: 'codebuild-ballerina-vscode-${{ github.run_id }}-${{ github.run_attempt }}'
+        type: string
+      ref:
+        description: >-
+          Git ref (branch, tag or SHA) to build. Defaults to the calling
+          workflow's ref. The scheduled build pins the nightly commit SHA here.
+        type: string
+        required: false
+        default: ''
+      isPreRelease:
+        default: true
+        type: boolean
+      nightly:
+        description: >-
+          Nightly build — stamp the version derived from the extension package.json's
+          '-SNAPSHOT' version (major.(minor-1).<minutes since 2020-01-01 UTC>). Independent of
+          isPreRelease, which selects 'vsce package --pre-release'; a nightly
+          passes both.
+        default: false
+        type: boolean
+      enableCache:
+        default: true
+        type: boolean
+      ballerina:
+        description: Update Ballerina extension version
+        type: boolean
+        required: false
+        default: false
+      version:
+        description: Explicit version override, or N/A to derive it from the extension package.json
+        default: 'N/A'
+        type: string
+        required: false
+      isReleaseBuild:
+        type: boolean
+        default: false
+      runTests:
+        type: boolean
+        required: false
+        default: false
+      runFastTests:
+        description: Run the jest fast tests (unit + component + contract)
+        type: boolean
+        required: false
+        default: true
+      runBalE2ETests:
+        type: boolean
+        required: false
+        default: false
+      runLSTests:
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      COPILOT_ROOT_URL:
+        required: false
+      COPILOT_DEV_ROOT_URL:
+        required: false
+      APPINSIGHTS_INSTRUMENTATION_KEY:
+        required: false
+
+jobs:
+  Build_Stage:
+    name: Build repo
+    timeout-minutes: 45
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    outputs:
+      runBalExtTests: ${{ steps.testMatrix.outputs.runBalExtTests }}
+      ballerinaVersion: ${{ steps.build.outputs.ballerinaVersion }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # A reusable workflow always resolves its own definition from the caller's
+          # ref, but the tree it builds is whatever is checked out here. The daily
+          # build passes the nightly commit SHA so the VSIX is built from that exact
+          # commit, not from wherever the schedule happens to run.
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 2
+          submodules: recursive
+
+      - name: Analyze diff
+        shell: bash
+        id: diff
+        run: |
+          echo "hasBalDiff=false" >> $GITHUB_OUTPUT
+
+          if [[ ${{ inputs.isReleaseBuild }} = 'true' ]]; then
+            git fetch origin main
+            CHANGED_DIRS=$(git diff --name-only HEAD..refs/remotes/origin/main | grep -E "^/*" || true)
+          else
+            CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
+          fi
+
+          echo "$CHANGED_DIRS"
+
+          # Ballerina-relevant changes: extension code, sibling packages,
+          # the LS, shared submodule common-libs, rush config, or workflows.
+          if echo "$CHANGED_DIRS" | grep -qE \
+              "^(packages/|submodules/wso2-vscode-extensions/workspaces/common-libs/|common/|rush\.json$|rush-config\.json$|\.github/)"; then
+            echo "hasBalDiff=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set test matrix
+        shell: bash
+        id: testMatrix
+        run: |
+          echo "Ballerina Tests: ${{ steps.diff.outputs.hasBalDiff }}"
+          echo "runBalExtTests=${{ steps.diff.outputs.hasBalDiff }}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        id: build
+        uses: ./.github/actions/build
+        with:
+          isPreRelease: ${{ inputs.isPreRelease }}
+          nightly: ${{ inputs.nightly }}
+          enableCache: ${{ inputs.enableCache }}
+          ballerina: ${{ inputs.ballerina }}
+          version: ${{ inputs.version }}
+          COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
+          COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
+          APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          timeout: '10m'
+          # LS test-resource trees contain sample maven/npm/etc projects with
+          # intentionally-old dependencies. They are parser inputs (the LS
+          # ingests them as text in tests), never built or shipped, so trivy
+          # findings against them are false positives.
+          # Must be a single line: trivy splits on ',' verbatim. A folded
+          # YAML string (>-) introduces a space after each comma, which
+          # makes every entry except the first start with ' ' and never match.
+          skip-dirs: 'common/temp,submodules,packages/ballerina-language-server/**/src/test/resources,packages/ballerina-language-server/**/src/test/data,packages/ballerina-language-server/**/build/resources/test'
+          ignore-unfixed: true
+          # All entries must stay plain-format: the action refuses to mix YAML
+          # and plain ignore files, and the submodule's file is plain.
+          trivyignores: .trivyignore,submodules/wso2-vscode-extensions/.trivyignore
+
+  ExtTest_Ballerina:
+    name: Run Ballerina extension tests
+    needs: Build_Stage
+    if: false
+    # Re-enable once unit tests are stable in CI:
+    # if: ${{ inputs.runTests || (inputs.isReleaseBuild && inputs.ballerina) || needs.Build_Stage.outputs.runBalExtTests == 'true' || endsWith(github.base_ref, '.x') }}
+    timeout-minutes: 45
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Set up Ballerina
+        id: set-version
+        run: |
+          cd packages/ballerina-extension
+          mkdir extractedDistribution
+          ballerinaVersion="${{ needs.Build_Stage.outputs.ballerinaVersion }}"
+          wget "https://github.com/ballerina-platform/ballerina-distribution/releases/download/v${ballerinaVersion}/ballerina-${ballerinaVersion}-swan-lake.zip"
+          unzip -qq "./ballerina-${ballerinaVersion}-swan-lake.zip" -d ./extractedDistribution
+          rm "ballerina-${ballerinaVersion}-swan-lake.zip"
+          balVersion=$(ls ./extractedDistribution)
+          balHome=./extractedDistribution/$balVersion
+          echo "balVersion=$balVersion" >> $GITHUB_OUTPUT
+          echo "balHome=$balHome" >> $GITHUB_OUTPUT
+          echo "$balHome/bin" >> $GITHUB_PATH
+
+      - name: Run Test
+        run: |
+          cd packages/ballerina-extension
+          xvfb-run --auto-servernum pnpm run test
+        env:
+          balVersion: ${{ steps.set-version.outputs.balVersion }}
+          balHome: ${{ steps.set-version.outputs.balHome }}
+
+  # Fast, deterministic tests (unit / component / contract) that run on every PR.
+  # Auto-discovers every package that has a jest.config.js, so new jest packages
+  # from the test-coverage rollout (docs/TEST_PLAN.md, docs/TEST_BACKLOG.md) are
+  # picked up automatically — no edits to this workflow needed.
+  fast-tests:
+    name: Fast tests (unit + component + contract)
+    needs: Build_Stage
+    if: ${{ inputs.runFastTests }}
+    timeout-minutes: 20
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Run jest across all packages with a jest.config.js
+        run: |
+          set -uo pipefail
+          shopt -s nullglob
+          failed=0
+          for cfg in packages/*/jest.config.js; do
+            pkg=$(dirname "$cfg")
+            echo "::group::jest ${pkg}"
+            if ! ( cd "$pkg" && xvfb-run --auto-servernum node --experimental-require-module ./node_modules/jest/bin/jest.js --coverage --ci ); then
+              echo "::error::jest failed in ${pkg}"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $failed
+
+      - name: Type-check test code
+        # Test files are excluded from the emitting build and babel/ts-jest don't type-check
+        # at run time, so this catches type errors in test code. Reports only test-file errors
+        # (pre-existing production / cross-package errors are tallied but don't gate).
+        run: node scripts/typecheck-tests.js
+
+      - name: Upload coverage (per-package lcov)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fast-tests-coverage
+          path: packages/*/coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 5
+
+  BalE2ETest:
+    name: Run Ballerina e2e Test
+    needs: Build_Stage
+    timeout-minutes: 60
+    if: ${{ inputs.runBalE2ETests }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [group1, group2, group3, group4]
+    runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Install Ballerina distribution
+        uses: ./.github/actions/setup-ballerina
+
+      - name: Check for previous test results
+        shell: bash
+        if: github.run_attempt > 1
+        run: |
+          PREVIOUS_ATTEMPT=$((${{ github.run_attempt }} - 1))
+          echo "PREVIOUS_ATTEMPT=$PREVIOUS_ATTEMPT" >> $GITHUB_ENV
+
+      - name: Download previous test results
+        id: check-results
+        if: github.run_attempt > 1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        continue-on-error: true
+        with:
+          name: Ballerina-e2e-test-results-linux-${{ matrix.group }}-${{ env.PREVIOUS_ATTEMPT }}
+          path: packages/ballerina-extension/test-results
+
+      - name: Install packages
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb ffmpeg gnome-keyring libsecret-1.0 dbus-x11
+          cd packages/ballerina-extension && npx playwright install
+
+      - name: Run Ballerina e2e Test (First Attempt)
+        shell: bash
+        id: run-tests-first
+        if: github.run_attempt == 1 || steps.check-results.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          export $(dbus-launch)
+          export DISPLAY=:98.0
+          cd packages/ballerina-extension
+          xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ matrix.group }}"
+
+      - name: Run Failed Ballerina e2e Test (Re-run)
+        shell: bash
+        if: steps.run-tests-first.outcome == 'failure' || steps.check-results.outcome == 'success'
+        run: |
+          rm -rf packages/ballerina-extension/e2e-test/data/new-project
+          export $(dbus-launch)
+          export DISPLAY=:98.0
+          cd packages/ballerina-extension
+          xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ matrix.group }} --last-failed"
+
+      - name: Upload Ballerina e2e Test results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: Ballerina-e2e-test-results-linux-${{ matrix.group }}-${{ github.run_attempt }}
+          path: packages/ballerina-extension/test-results/**
+          retention-days: 5
+          include-hidden-files: true
+
+      - name: Upload Ballerina e2e Test recordings
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: Ballerina-e2e-test-recording-linux-${{ matrix.group }}-${{ github.run_attempt }}
+          path: |
+            packages/ballerina-extension/e2e-test/test-resources/videos/**
+            packages/ballerina-extension/e2e-test/test-resources/screenshots/**
+            packages/ballerina-extension/e2e-test/test-resources/snapshots/**
+            packages/ballerina-extension/record.mp4
+          retention-days: 5
+
+      - name: Upload Ballerina e2e Test project data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: Ballerina-e2e-test-project-linux-${{ matrix.group }}-${{ github.run_attempt }}
+          path: |
+            packages/ballerina-extension/e2e-test/data/new-project/**
+          retention-days: 5
+
+  LSTest_Ballerina:
+    name: Run Ballerina LS tests (${{ matrix.os }})
+    timeout-minutes: 60
+    if: ${{ inputs.runLSTests }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable long paths for Git
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --system core.longpaths true
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Run LS tests
+        uses: ./.github/actions/ls-test
+        with:
+          cache-branch: ${{ github.base_ref || github.ref_name }}
+          package-user: ${{ github.actor }}
+          package-pat: ${{ secrets.GITHUB_TOKEN }}

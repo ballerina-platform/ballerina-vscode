@@ -43,7 +43,7 @@ import { buildRequiredRule, getPropertyFromFormField, sanitizeType } from "./uti
 import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import ReactMarkdown from "react-markdown";
-import { getPrimaryInputType, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
+import { getFieldTypeLabel, NodeProperties, PropertyModel } from "@wso2/ballerina-core";
 
 const isGraphQLScalarType = (type: string): boolean => {
     const scalarTypes = [
@@ -590,12 +590,12 @@ export function ActionTypeEditor(props: ActionTypeEditorProps) {
                     })()
                     }
                 </S.Header>
-                {getPrimaryInputType(field.types)?.ballerinaType &&
+                {getFieldTypeLabel(field.types) &&
                     <S.Type
                         isVisible={focused}
-                        title={getPrimaryInputType(field.types)?.ballerinaType}
+                        title={getFieldTypeLabel(field.types)}
                     >
-                        {sanitizeType(getPrimaryInputType(field.types)?.ballerinaType)}
+                        {sanitizeType(getFieldTypeLabel(field.types))}
                     </S.Type>
                 }
             </S.HeaderContainer>

@@ -21,6 +21,7 @@ import * as fs from 'fs';
 import { AIUserToken, LoginMethod, AuthCredentials } from '@wso2/ballerina-core';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
+import { createAnthropicAws } from '@ai-sdk/anthropic-aws';
 import { createVertexAnthropic } from '@ai-sdk/google-vertex/anthropic';
 import { generateText } from 'ai';
 import { extension } from '../../BalExtensionContext';
@@ -311,5 +312,84 @@ export const validateVertexAiCredentials = async (credentials: {
             throw new Error(`Quota exceeded. Your GCP project may have 0 quota for this Anthropic model — request a quota increase in GCP Console → IAM & Admin → Quotas. (${detail})`);
         }
         throw new Error(`Validation failed: ${detail}`);
+    }
+};
+
+export const validateAnthropicAwsCredentials = async (credentials: {
+    region: string;
+    workspaceId: string;
+    authMode: 'sigv4' | 'apikey';
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    sessionToken?: string;
+    apiKey?: string;
+}): Promise<AIUserToken> => {
+    const { region, workspaceId, authMode, accessKeyId, secretAccessKey, sessionToken, apiKey } = credentials;
+
+    if (!region || !workspaceId) {
+        throw new Error('Region and workspace ID are required.');
+    }
+
+    if (!workspaceId.startsWith('wrkspc_')) {
+        throw new Error('Please enter a valid workspace ID (format: wrkspc_...).');
+    }
+
+    let anthropicAws: ReturnType<typeof createAnthropicAws>;
+
+    if (authMode === 'apikey') {
+        if (!apiKey) {
+            throw new Error('API key is required.');
+        }
+        if (!apiKey.startsWith('aws-external-anthropic-api-key-') || apiKey.length < 20) {
+            throw new Error('Please enter a valid API key (format: aws-external-anthropic-api-key-...).');
+        }
+        anthropicAws = createAnthropicAws({ region, workspaceId, apiKey });
+    } else {
+        if (!accessKeyId || !secretAccessKey) {
+            throw new Error('Access key ID and secret access key are required.');
+        }
+        if (!accessKeyId.startsWith('AKIA') && !accessKeyId.startsWith('ASIA')) {
+            throw new Error('Please enter a valid AWS access key ID.');
+        }
+        if (secretAccessKey.length < 20) {
+            throw new Error('Please enter a valid AWS secret access key.');
+        }
+        anthropicAws = createAnthropicAws({ region, workspaceId, accessKeyId, secretAccessKey, sessionToken });
+    }
+
+    try {
+        await generateText({
+            model: anthropicAws('claude-haiku-4-5-20251001'),
+            maxOutputTokens: 1,
+            messages: [{ role: 'user', content: 'Hi' }]
+        });
+
+        const authCredentials: AuthCredentials = {
+            loginMethod: LoginMethod.ANTHROPIC_AWS,
+            secrets: { region, workspaceId, authMode, accessKeyId, secretAccessKey, sessionToken, apiKey }
+        };
+        await storeAuthCredentials(authCredentials);
+
+        return { credentials: authCredentials };
+
+    } catch (error) {
+        console.error('Claude Platform on AWS validation failed:', error);
+        const detail = error instanceof Error ? error.message : String(error);
+        if (detail.includes('401') || detail.includes('UnauthorizedException') || detail.includes('InvalidSignatureException') || detail.includes('authentication_error')) {
+            if (authMode === 'apikey') {
+                throw new Error('Invalid API key. Please check your key and try again.');
+            }
+            throw new Error('Invalid AWS credentials. Please check your access key ID and secret access key.');
+        } else if (detail.includes('403') || detail.includes('AccessDeniedException')) {
+            if (authMode === 'apikey') {
+                throw new Error('Access denied. Ensure your workspace ID is correct and your API key has access.');
+            }
+            throw new Error('Access denied. Ensure your IAM user has AnthropicInferenceAccess policy and the workspace ID is correct.');
+        } else if (detail.includes('404') || detail.includes('ResourceNotFoundException')) {
+            throw new Error('Workspace not found. Please verify your workspace ID from the Claude Console.');
+        } else if (detail.includes('429') || detail.includes('ThrottlingException')) {
+            throw new Error('Too many requests. Please wait a moment and try again.');
+        }
+        throw new Error(`Validation failed. Please check your credentials and try again. (${detail})`);
     }
 };

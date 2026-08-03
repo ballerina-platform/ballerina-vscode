@@ -14,7 +14,6 @@
       "module": "http",
       "object": "Client",
       "symbol": "post",
-      "version": "2.12.2",
       "lineRange": {
         "fileName": "http_post_node.bal",
         "startLine": {
@@ -130,8 +129,12 @@
           "originalName": "params"
         },
         "value": [
-          {"param1": "\"value1\""},
-          {"param2": "12"}
+          {
+            "param1": "\"value1\""
+          },
+          {
+            "param2": "12"
+          }
         ]
       },
       "checkError": {

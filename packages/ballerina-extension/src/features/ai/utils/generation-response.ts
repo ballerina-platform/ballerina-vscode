@@ -23,6 +23,29 @@ import {
     CMP_BALLERINA_AI_GENERATION
 } from "../../telemetry";
 import { getHashedProjectId } from "../../telemetry/common/project-id";
+import { Command } from "@wso2/ballerina-core";
+import { chatStateStorage } from "../../../views/ai-panel/chatStateStorage";
+import { sendSaveChatNotification } from "./ai-utils";
+
+/**
+ * Implicitly accept whichever generation is still revertible, with the reporting that goes with
+ * it. Lives here rather than in agent/index.ts so executors can share it without importing the
+ * module that imports them.
+ *
+ * @returns true if a generation was finalized
+ */
+export function finalizeRevertibleGeneration(projectRootPath: string, threadId: string): boolean {
+    const finalized = chatStateStorage.finalizeLastGenerationIfDone(projectRootPath, threadId);
+    if (!finalized) {
+        return false;
+    }
+
+    sendGenerationKeptTelemetry(finalized.id).catch((error) =>
+        console.error('[Agent] Failed to send generation-kept telemetry:', error));
+    sendSaveChatNotification(Command.Agent, finalized.id);
+    console.log(`[Agent] Accepted generation: ${finalized.id}`);
+    return true;
+}
 
 /**
  * Sends a telemetry event when the user keeps an AI-generated response.

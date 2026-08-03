@@ -23,6 +23,7 @@ import { CommentNodeModel } from "./CommentNodeModel";
 import { CommentNodeWidget } from "./CommentNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
 import { NodeKind } from "../../../utils/types";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class CommentNodeFactory extends AbstractReactFactory<CommentNodeModel, DiagramEngine> {
     constructor() {
@@ -34,6 +35,10 @@ export class CommentNodeFactory extends AbstractReactFactory<CommentNodeModel, D
     }
 
     generateReactWidget(event: GenerateWidgetEvent<CommentNodeModel>) {
-        return <CommentNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <CommentNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

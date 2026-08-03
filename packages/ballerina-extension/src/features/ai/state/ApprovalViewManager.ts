@@ -17,13 +17,37 @@
  */
 
 import { MACHINE_VIEW, EVENT_TYPE, VisualizerLocation, PopupVisualizerLocation, AgentMetadata, navigateReviewIndex, reviewModeOpened, reviewModeClosed, ReviewModeData } from '@wso2/ballerina-core';
+import * as path from 'path';
 import { AiPanelWebview } from '../../../views/ai-panel/webview';
+import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
+import { sendReviewRestoreDidOpenBatch } from '../utils/project/ls-schema-notifications';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
 import { openView as openMainView, StateMachine } from '../../../stateMachine';
 import { openPopupView, StateMachinePopup } from '../../../stateMachinePopup';
 import { notifyApprovalOverlayState, RPCLayer } from '../../../RPCLayer';
 
 export type ApprovalType = 'configuration' | 'task' | 'plan' | 'connector_spec';
+
+const REVIEW_NAVIGATION_DEBOUNCE_MS = 150;
+const REVIEW_MODE_READY_TIMEOUT_MS = 15_000;
+
+/**
+ * ReviewMode matches these against the semantic diffs' URIs, so they have to be absolute. A
+ * modified file's first path segment is its package, matching how the review bar groups them.
+ */
+function deriveAffectedPackages(projectRootPath: string, modifiedFiles: string[], isWorkspace: boolean): string[] {
+    if (!isWorkspace) {
+        return [projectRootPath];
+    }
+    const packagePaths = new Set<string>();
+    for (const modifiedFile of modifiedFiles) {
+        const separatorIndex = modifiedFile.replace(/\\/g, '/').indexOf('/');
+        packagePaths.add(separatorIndex === -1
+            ? projectRootPath
+            : path.join(projectRootPath, modifiedFile.slice(0, separatorIndex)));
+    }
+    return Array.from(packagePaths);
+}
 
 interface OpenedApprovalView {
     requestId: string;
@@ -343,42 +367,237 @@ export class ApprovalViewManager {
     }
 
     private cachedReviewData: ReviewModeData | null = null;
+    // The cache is a single slot, so it must say whose data it holds: several threads can each
+    // hold a revertible generation, and serving one thread's diffs for another's bar is silent
+    // and wrong.
+    private cachedReviewGenerationId: string | null = null;
+    // Whose views the open ReviewMode is showing, so a bare index is never applied to another
+    // generation's list.
+    private openReviewGenerationId: string | null = null;
+    // Shared while a restore-rebuild is running so concurrent navigateReviewMode calls
+    // await the same result instead of each re-opening the same LS documents.
+    private rebuildInFlight: Promise<ReviewModeData | null> | null = null;
+    // Chat entries send fire-and-forget navigation notifications. Keep a single open
+    // transition in flight and coalesce rapid clicks to the most recent requested view.
+    private reviewOpenInFlight: Promise<void> | null = null;
+    private queuedReviewIndex: number | null = null;
+    private queuedReviewGenerationId: string | null = null;
+    private reviewNavigationTimer: ReturnType<typeof setTimeout> | null = null;
+    private reviewOpenAttempt = 0;
+    private lastReviewNavigationRequestAt = 0;
+
+    private isReviewModeReady(): boolean {
+        return StateMachine.isReady()
+            && StateMachine.context().view === MACHINE_VIEW.ReviewMode
+            && !!VisualizerWebview.currentPanel;
+    }
+
+    private async waitForReviewModeReady(attempt: number): Promise<boolean> {
+        const timeoutAt = Date.now() + REVIEW_MODE_READY_TIMEOUT_MS;
+        while (attempt === this.reviewOpenAttempt && Date.now() < timeoutAt) {
+            if (this.isReviewModeReady()) {
+                return true;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return false;
+    }
+
+    private async waitForReviewNavigationQuiet(attempt: number): Promise<boolean> {
+        while (attempt === this.reviewOpenAttempt) {
+            const remaining = this.lastReviewNavigationRequestAt
+                + REVIEW_NAVIGATION_DEBOUNCE_MS
+                - Date.now();
+            if (remaining <= 0) {
+                return true;
+            }
+            await new Promise((resolve) => setTimeout(resolve, remaining));
+        }
+        return false;
+    }
+
+    private scheduleQueuedReviewNavigation(): void {
+        if (this.reviewNavigationTimer) {
+            clearTimeout(this.reviewNavigationTimer);
+        }
+        // The small trailing-edge delay both collapses click bursts and lets the newly
+        // mounted ReviewMode register its navigateReviewIndex listener.
+        this.reviewNavigationTimer = setTimeout(() => {
+            this.reviewNavigationTimer = null;
+            const index = this.queuedReviewIndex;
+            if (index === null || !this.isReviewModeReady()) {
+                return;
+            }
+            this.queuedReviewIndex = null;
+            RPCLayer._messenger.sendNotification(navigateReviewIndex, {
+                type: 'webview',
+                webviewType: VisualizerWebview.viewType
+            }, index);
+        }, REVIEW_NAVIGATION_DEBOUNCE_MS);
+    }
+
+    private resetReviewNavigationState(): void {
+        this.reviewOpenAttempt++;
+        this.queuedReviewIndex = null;
+        this.queuedReviewGenerationId = null;
+        this.openReviewGenerationId = null;
+        this.lastReviewNavigationRequestAt = 0;
+        if (this.reviewNavigationTimer) {
+            clearTimeout(this.reviewNavigationTimer);
+            this.reviewNavigationTimer = null;
+        }
+    }
+
+    private async openQueuedReviewMode(): Promise<void> {
+        const pendingAttempt = this.reviewOpenAttempt;
+        const generationId = this.queuedReviewGenerationId;
+        if (!generationId) {
+            this.queuedReviewIndex = null;
+            return;
+        }
+        if (this.cachedReviewGenerationId !== generationId) {
+            this.rebuildInFlight ??= this.rebuildReviewDataFromStorage(generationId);
+            try {
+                const rebuiltReviewData = await this.rebuildInFlight;
+                if (pendingAttempt !== this.reviewOpenAttempt) {
+                    return;
+                }
+                this.cachedReviewData = rebuiltReviewData;
+                this.cachedReviewGenerationId = rebuiltReviewData ? generationId : null;
+            } finally {
+                this.rebuildInFlight = null;
+            }
+        }
+        if (!this.cachedReviewData) {
+            this.queuedReviewIndex = null;
+            return;
+        }
+
+        // Wait for a trailing-edge pause before opening so a burst chooses one initial
+        // index instead of loading the first diagram and immediately replacing it.
+        if (!await this.waitForReviewNavigationQuiet(pendingAttempt)) {
+            return;
+        }
+
+        const initialIndex = this.queuedReviewIndex ?? 0;
+        this.queuedReviewIndex = null;
+        const attempt = ++this.reviewOpenAttempt;
+        this.openReviewGenerationId = generationId;
+        openMainView(EVENT_TYPE.OPEN_VIEW, {
+            view: MACHINE_VIEW.ReviewMode,
+            reviewData: { ...this.cachedReviewData, currentIndex: initialIndex }
+        });
+        RPCLayer._messenger.sendNotification(reviewModeOpened, {
+            type: 'webview',
+            webviewType: AiPanelWebview.viewType
+        });
+
+        if (await this.waitForReviewModeReady(attempt)) {
+            if (this.queuedReviewIndex !== null) {
+                this.scheduleQueuedReviewNavigation();
+            }
+        } else if (attempt === this.reviewOpenAttempt) {
+            console.warn('[ApprovalViewManager] Timed out waiting for ReviewMode to become ready');
+            this.queuedReviewIndex = null;
+        }
+    }
 
     /**
      * Open ReviewMode with review data passed via OPEN_VIEW reviewData field.
      * Data is cached for chip re-clicks while review is active.
      */
-    openReviewMode(data: ReviewModeData, autoOpen: boolean = true): void {
-        if (!AiPanelWebview.currentPanel) { return; }
+    openReviewMode(generationId: string, data: ReviewModeData, autoOpen: boolean = true): void {
+        // Cache regardless of panel state: a run can finish while the AI panel is
+        // closed, and the chip click after reopen must hit this cache — the
+        // storage-rebuild fallback re-opens the LS documents and is meant for the
+        // extension-host-restart case only.
         this.cachedReviewData = data;
+        this.cachedReviewGenerationId = generationId;
+        if (!AiPanelWebview.currentPanel) { return; }
         if (!autoOpen) { return; }
-        openMainView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.ReviewMode, reviewData: data });
-        RPCLayer._messenger.sendNotification(reviewModeOpened, { type: 'webview', webviewType: AiPanelWebview.viewType });
+        void this.navigateReviewMode(generationId, data.currentIndex).catch((error) =>
+            console.error('[ApprovalViewManager] Failed to open ReviewMode:', error));
     }
 
     /**
      * Navigate ReviewMode to a specific index.
-     * If ReviewMode is already open, sends navigateReviewIndex notification directly.
-     * If not open and data is cached, re-opens ReviewMode with cached data then navigates.
+     * If ReviewMode is already open, reveals the panel and coalesces rapid index requests before notifying it.
+     * If not open, opens it with cached data — rebuilt from the persisted review
+     * state when the cache is gone (extension host restarted mid-review). Concurrent
+     * requests share one open transition so they cannot create competing view loads.
      */
-    navigateReviewMode(index: number): void {
+    async navigateReviewMode(generationId: string, index: number): Promise<void> {
         if (!AiPanelWebview.currentPanel) { return; }
-        const isReviewModeOpen = StateMachine.context().view === MACHINE_VIEW.ReviewMode && !!VisualizerWebview.currentPanel;
-        if (isReviewModeOpen) {
-            RPCLayer._messenger.sendNotification(navigateReviewIndex, {
-                type: 'webview',
-                webviewType: VisualizerWebview.viewType
-            }, index);
-        } else if (this.cachedReviewData) {
-            openMainView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.ReviewMode, reviewData: { ...this.cachedReviewData, currentIndex: index } });
-            RPCLayer._messenger.sendNotification(reviewModeOpened, { type: 'webview', webviewType: AiPanelWebview.viewType });
+        this.queuedReviewGenerationId = generationId;
+        this.queuedReviewIndex = index;
+        this.lastReviewNavigationRequestAt = Date.now();
+
+        // Navigating by bare index is only meaningful against the generation whose views are
+        // loaded; another generation's bar has to reload ReviewMode, not scroll this one.
+        if (this.isReviewModeReady() && this.openReviewGenerationId === generationId) {
+            VisualizerWebview.currentPanel?.getWebview()?.reveal();
+            this.scheduleQueuedReviewNavigation();
+            return;
         }
+
+        if (!this.reviewOpenInFlight) {
+            const openPromise = this.openQueuedReviewMode();
+            this.reviewOpenInFlight = openPromise;
+        }
+        const openPromise = this.reviewOpenInFlight;
+        try {
+            await openPromise;
+        } finally {
+            if (this.reviewOpenInFlight === openPromise) {
+                this.reviewOpenInFlight = null;
+            }
+        }
+    }
+
+    /**
+     * Rebuild ReviewModeData for one generation, for a panel that lost its cached copy — the
+     * extension host may have restarted, taking the in-memory copy and the Language Server's
+     * ai:// (original) and file:// (modified) documents with it, so the files are re-opened first
+     * from the generation's checkpoint.
+     *
+     * `tempProjectPath` and `affectedPackagePaths` are re-derived rather than read: they are
+     * absolute paths, and a persisted one silently outlives a moved workspace.
+     */
+    private async rebuildReviewDataFromStorage(generationId: string): Promise<ReviewModeData | null> {
+        const ctx = StateMachine.context();
+        const projectRootPath = ctx.workspacePath || ctx.projectPath || '';
+        const generation = chatStateStorage.findGenerationScope(projectRootPath, generationId)?.generation;
+        const review = generation?.reviewState;
+        if (!review?.reviewView) {
+            return null;
+        }
+
+        const tempProjectPath = review.tempProjectPath ?? projectRootPath;
+        sendReviewRestoreDidOpenBatch(
+            tempProjectPath,
+            review.modifiedFiles,
+            undefined,
+            generation.checkpoint?.workspaceSnapshot
+        );
+
+        return {
+            views: [],
+            currentIndex: 0,
+            semanticDiffs: review.reviewView.semanticDiffs,
+            loadDesignDiagrams: review.reviewView.loadDesignDiagrams,
+            affectedPackages: review.affectedPackagePaths
+                ?? deriveAffectedPackages(tempProjectPath, review.modifiedFiles, review.reviewView.isWorkspace),
+            modifiedFiles: review.modifiedFiles,
+            tempProjectPath,
+            isWorkspace: review.reviewView.isWorkspace,
+        };
     }
 
     /**
      * Notify the AI panel webview that ReviewMode has been closed.
      */
     notifyReviewModeClosed(): void {
+        this.resetReviewNavigationState();
         if (!AiPanelWebview.currentPanel) { return; }
         RPCLayer._messenger.sendNotification(reviewModeClosed, { type: 'webview', webviewType: AiPanelWebview.viewType });
     }
@@ -386,8 +605,19 @@ export class ApprovalViewManager {
     /**
      * Clear cached review data after accept or discard.
      */
-    clearReviewData(): void {
+    /**
+     * @param generationId Settle only this generation's review; omit to clear whatever is held.
+     * Another thread settling must not tear down the review a different one has open.
+     */
+    clearReviewData(generationId?: string): void {
+        if (generationId
+            && this.cachedReviewGenerationId !== generationId
+            && this.openReviewGenerationId !== generationId) {
+            return;
+        }
+        this.resetReviewNavigationState();
         this.cachedReviewData = null;
+        this.cachedReviewGenerationId = null;
     }
 }
 

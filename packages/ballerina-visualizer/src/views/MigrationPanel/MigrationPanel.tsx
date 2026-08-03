@@ -497,7 +497,7 @@ export function MigrationPanel() {
                         title="Select LLM model"
                     >
                         <option value="copilot">VS Code Copilot</option>
-                        <option value="wso2">WSO2 BI Copilot</option>
+                        <option value="wso2">WSO2 Integrator Copilot</option>
                         <option value="anthropic">Anthropic (API Key)</option>
                     </ModelSelector>
                 </HeaderActions>
@@ -603,7 +603,7 @@ export function MigrationPanel() {
                 ) : (
                     <>
                         <span style={{ opacity: 0.6 }}>
-                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? "WSO2 BI Copilot" : "Anthropic"}
+                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? "WSO2 Integrator Copilot" : "Anthropic"}
                         </span>
                         {messages.length > 0 && (
                             <ActionButton

@@ -135,7 +135,14 @@ public class ConnectionActionProvider {
         Map<String, Boolean> compatibilityMap = includeAgentToolCompatibility
                 ? getAgentToolCompatibilityMap(classSymbol, semanticModel)
                 : Map.of();
-        return bindForParentSymbol(cachedTemplates, parentSymbolName, compatibilityMap);
+        Map<String, AiUtils.ReturnTypeInfo> returnInfoMap = includeAgentToolCompatibility
+                ? getReturnTypeInfoMap(classSymbol, semanticModel)
+                : Map.of();
+        Map<String, List<String>> nonDataParamsMap = includeAgentToolCompatibility
+                ? getNonDataParamsMap(classSymbol, semanticModel)
+                : Map.of();
+        return bindForParentSymbol(cachedTemplates, parentSymbolName, compatibilityMap, returnInfoMap,
+                nonDataParamsMap);
     }
 
     public void populate(Codedata codedata, WorkspaceManager workspaceManager, Path filePath) {
@@ -170,8 +177,11 @@ public class ConnectionActionProvider {
     }
 
     List<Item> bindForParentSymbol(List<Item> cachedMethods, String parentSymbolName,
-                                   Map<String, Boolean> compatibilityMap) {
-        return bindParentSymbol(cachedMethods, parentSymbolName, compatibilityMap);
+                                   Map<String, Boolean> compatibilityMap,
+                                   Map<String, AiUtils.ReturnTypeInfo> returnInfoMap,
+                                   Map<String, List<String>> nonDataParamsMap) {
+        return bindParentSymbol(cachedMethods, parentSymbolName, compatibilityMap, returnInfoMap,
+                nonDataParamsMap);
     }
 
     List<Item> getOrBuild(String cacheKey, SupplierFn<List<Item>> supplier) {
@@ -313,7 +323,9 @@ public class ConnectionActionProvider {
     }
 
     private List<Item> bindParentSymbol(List<Item> cachedMethods, String parentSymbolName,
-                                        Map<String, Boolean> compatibilityMap) {
+                                        Map<String, Boolean> compatibilityMap,
+                                        Map<String, AiUtils.ReturnTypeInfo> returnInfoMap,
+                                        Map<String, List<String>> nonDataParamsMap) {
         List<Item> methods = new ArrayList<>(cachedMethods.size());
         for (Item item : cachedMethods) {
             if (!(item instanceof AvailableNode availableNode)) {
@@ -328,6 +340,20 @@ public class ConnectionActionProvider {
                     data = new LinkedHashMap<>();
                 }
                 data.put("agentToolCompatible", compatibilityMap.get(codedata.symbol()));
+            }
+            if (!returnInfoMap.isEmpty() && returnInfoMap.containsKey(codedata.symbol())) {
+                if (data == null) {
+                    data = new LinkedHashMap<>();
+                }
+                // {kind: dependent|anydata|undeterminable, type} drives the activity return-type field.
+                data.put("returnTypeInfo", returnInfoMap.get(codedata.symbol()));
+            }
+            if (!nonDataParamsMap.isEmpty() && nonDataParamsMap.containsKey(codedata.symbol())) {
+                if (data == null) {
+                    data = new LinkedHashMap<>();
+                }
+                // Parameter names whose type is not anydata; the form surfaces them as anydata + a warning.
+                data.put("nonDataParams", nonDataParamsMap.get(codedata.symbol()));
             }
             Codedata boundCodedata = new Codedata(
                     codedata.node(),
@@ -363,6 +389,33 @@ public class ConnectionActionProvider {
             }
         }
         return compatibilityMap;
+    }
+
+    private Map<String, AiUtils.ReturnTypeInfo> getReturnTypeInfoMap(ClassSymbol classSymbol,
+                                                                     SemanticModel semanticModel) {
+        Map<String, AiUtils.ReturnTypeInfo> returnInfoMap = new LinkedHashMap<>();
+        for (Map.Entry<String, MethodSymbol> entry : classSymbol.methods().entrySet()) {
+            try {
+                returnInfoMap.put(entry.getKey(),
+                        AiUtils.analyzeReturnType(entry.getValue().typeDescriptor(), semanticModel));
+            } catch (Throwable ignored) {
+                returnInfoMap.put(entry.getKey(), new AiUtils.ReturnTypeInfo("undeterminable", ""));
+            }
+        }
+        return returnInfoMap;
+    }
+
+    private Map<String, List<String>> getNonDataParamsMap(ClassSymbol classSymbol, SemanticModel semanticModel) {
+        Map<String, List<String>> nonDataParamsMap = new LinkedHashMap<>();
+        for (Map.Entry<String, MethodSymbol> entry : classSymbol.methods().entrySet()) {
+            try {
+                nonDataParamsMap.put(entry.getKey(),
+                        AiUtils.getNonAnydataParams(entry.getValue().typeDescriptor(), semanticModel));
+            } catch (Throwable ignored) {
+                nonDataParamsMap.put(entry.getKey(), List.of());
+            }
+        }
+        return nonDataParamsMap;
     }
 
     private Optional<Package> resolvePackage(ModuleInfo moduleInfo, Project project) {

@@ -27,7 +27,7 @@ import { MoreVertIcon } from "../../../resources";
 import NodeIcon from "../../NodeIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
     DRAFT_NODE_BORDER_WIDTH,
@@ -376,6 +376,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -399,7 +400,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                     </NodeStyles.NodeIconWrapper>
                     <NodeStyles.Row>
                         <NodeStyles.Header onClick={handleOnClick}>
-                            <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                         </NodeStyles.Header>
                         <NodeStyles.ActionButtonGroup>
                             {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
@@ -498,7 +499,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                         }}
                     >
                         <Icon
-                            name="bi-workflow"
+                            name="bi-flowchart"
                             sx={{
                                 width: 24,
                                 height: 24,

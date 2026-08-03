@@ -55,6 +55,7 @@ export function convertToUIMessages(messages: UIChatMessage[]) {
             content: msg.content,
             checkpointId: msg.checkpointId,
             messageId: msg.messageId,
+            generationStatus: msg.generationStatus,
         };
     });
 }

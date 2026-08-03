@@ -13,7 +13,6 @@
       "module": "ai",
       "packageName": "ai",
       "object": "McpToolKit",
-      "version": "1.5.4",
       "isNew": true
     },
     "returning": false,

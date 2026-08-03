@@ -365,6 +365,8 @@ public class ExpressionEditorContext {
         private static final String ORG_KEY = "org";
         private static final String MODULE_KEY = "module";
         private static final String NODE_KEY = "node";
+        private static final String PROPERTY_CODEDATA_KEY = "codedata";
+        private static final String LINE_RANGE_KEY = "lineRange";
 
         public Property(JsonObject property, JsonObject codedata) {
             this.property = property;
@@ -456,6 +458,20 @@ public class ExpressionEditorContext {
         public NodeKind nodeKind() {
             initialize();
             return nodeKind;
+        }
+
+        /**
+         * Returns {@code true} when the property carries a codedata line range, i.e., it is bound
+         * to an existing declaration in the source (edit/rename flow) rather than a new-node
+         * template whose declaration has not been written yet.
+         *
+         * @return whether the property is backed by an existing source declaration
+         */
+        public boolean hasExistingDeclaration() {
+            return property != null
+                    && property.has(PROPERTY_CODEDATA_KEY)
+                    && property.get(PROPERTY_CODEDATA_KEY).isJsonObject()
+                    && property.getAsJsonObject(PROPERTY_CODEDATA_KEY).has(LINE_RANGE_KEY);
         }
     }
 

@@ -143,6 +143,204 @@
         "advanced": true,
         "hidden": true
       },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy",
+          "description": "Retry strategy to apply when the activity call fails"
+        },
+        "types": [
+          {
+            "fieldType": "DROPDOWN_CHOICE",
+            "options": [
+              {
+                "label": "No Retry",
+                "value": "NoRetry"
+              },
+              {
+                "label": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "label": "Manual Retry",
+                "value": "ManualRetry"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "NoRetry",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "dynamicFormFields": {
+          "NoRetry": {},
+          "AutoRetry": {
+            "retryBackoff": {
+              "metadata": {
+                "label": "Retry Backoff",
+                "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "maxRetryDelay": {
+              "metadata": {
+                "label": "Max Retry Delay",
+                "description": "Maximum delay cap in seconds"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "retryDelay": {
+              "metadata": {
+                "label": "Retry Delay",
+                "description": "Initial delay between retries in seconds"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "maxRetries": {
+              "metadata": {
+                "label": "Max Retries",
+                "description": "Maximum number of retry attempts"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "int",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "ManualRetry": {}
+        },
+        "itemOptions": [
+          {
+            "id": "NoRetry",
+            "content": "No Retry",
+            "value": "NoRetry"
+          },
+          {
+            "id": "AutoRetry",
+            "content": "Auto Retry",
+            "value": "AutoRetry"
+          },
+          {
+            "id": "ManualRetry",
+            "content": "Manual Retry",
+            "value": "ManualRetry"
+          }
+        ]
+      },
+      "maxRetries": {
+        "metadata": {
+          "label": "Max Retries",
+          "description": "Maximum number of retry attempts"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryDelay": {
+        "metadata": {
+          "label": "Retry Delay",
+          "description": "Initial delay between retries in seconds"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryBackoff": {
+        "metadata": {
+          "label": "Retry Backoff",
+          "description": "Exponential backoff multiplier"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "maxRetryDelay": {
+        "metadata": {
+          "label": "Max Retry Delay",
+          "description": "Maximum delay cap in seconds"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
       "advanced": {
         "metadata": {
           "label": "Activity call configurations",
@@ -154,45 +352,7 @@
             "selected": false
           }
         ],
-        "value": {
-          "retryPolicy": {
-            "metadata": {
-              "label": "Retry Policy",
-              "description": "Retry behaviour on failure:\n- `()` / `NoRetry` (default) — error is returned as-is, no retry.\n- `AutoRetry` — automatic backoff retry with configurable attempts and delays.\n- `ManualRetry` — on failure a retry task is created for a human to decide\nwhether to retry (optionally with new input) or permanently fail the activity."
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "workflow:AutoRetry",
-                "typeMembers": [
-                  {
-                    "type": "AutoRetry",
-                    "packageInfo": "ballerina:workflow:0.5.0",
-                    "packageName": "workflow",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
-                  }
-                ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "workflow:AutoRetry|\"MANUAL_RETRY\"|()",
-                "selected": false
-              }
-            ],
-            "placeholder": "{}",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "retryPolicy"
-            },
-            "defaultValue": "null"
-          }
-        },
+        "value": {},
         "optional": false,
         "editable": false,
         "advanced": false,

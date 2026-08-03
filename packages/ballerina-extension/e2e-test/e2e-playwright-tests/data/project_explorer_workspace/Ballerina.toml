@@ -1,0 +1,3 @@
+[workspace]
+title = "Education"
+packages = ["school", "institutes"]

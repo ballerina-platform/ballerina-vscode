@@ -22,6 +22,28 @@ import React from "react";
 import { MigrationDisplayState, MigrationReportJSON } from "../types";
 import { CoverageSummary } from "./CoverageSummary";
 import { ReportButtons } from "./ReportButtons";
+import styled from "@emotion/styled";
+
+const StatusRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--wso2-brand-accent) 20%, var(--vscode-widget-border));
+    background: color-mix(in srgb, var(--wso2-brand-accent) 6%, transparent);
+    padding: 10px 12px;
+`;
+
+const StatusText = styled.span`
+    color: var(--vscode-foreground);
+`;
+
+const ErrorBanner = styled(Typography)`
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--vscode-errorForeground) 30%, transparent);
+    background: color-mix(in srgb, var(--vscode-errorForeground) 10%, transparent);
+    padding: 10px 12px;
+`;
 
 interface MigrationStatusContentProps {
     state: MigrationDisplayState;
@@ -44,20 +66,20 @@ export const MigrationStatusContent: React.FC<MigrationStatusContentProps> = ({
 }) => {
     if (state.isInProgress) {
         return (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <StatusRow>
                 <ProgressRing sx={{ width: 14, height: 14 }} color="var(--vscode-foreground)" />
-                <span style={{ color: "var(--vscode-foreground)" }}>
+                <StatusText>
                     {migrationState || "Starting migration..."}
-                </span>
-            </div>
+                </StatusText>
+            </StatusRow>
         );
     }
 
     if (state.isFailed) {
         return (
-            <Typography variant="body3" sx={{ color: "var(--vscode-errorForeground)" }}>
-                Migration error: {migrationResponse.error}
-            </Typography>
+            <ErrorBanner variant="body3" sx={{ color: "var(--vscode-errorForeground)" }}>
+                Migration error: {migrationResponse?.error ?? 'An unknown error occurred'}
+            </ErrorBanner>
         );
     }
 

@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { LoginMethod } from "../../state-machine-types";
+import { LoginMethod, FollowupSuggestion } from "../../state-machine-types";
 import {
     TestGenerationMentions,
     RequirementSpecification,
@@ -31,6 +31,7 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
     ApproveTaskRequest,
@@ -39,10 +40,14 @@ import {
     ConnectorSpecCancelRequest,
     ConfigurationProvideRequest,
     ConfigurationCancelRequest,
+    CreateManagedConnectionRequest,
+    CreateManagedConnectionResponse,
     UIChatMessage,
     CheckpointInfo,
     AbortAIGenerationRequest,
     UsageResponse,
+    QuotaRequestParams,
+    QuotaRequestResult,
     OpenFileDiffRequest,
     WebToolApprovalRequest,
     CompactConversationRequest,
@@ -60,7 +65,6 @@ import {
     DeleteSkillRequest,
     SkillEnableRequest,
     SkillEnableCancelRequest,
-    SetSkillsEnabledRequest,
     ParseSkillFileRequest,
     ParseSkillFileResponse,
     SkillTier,
@@ -75,6 +79,15 @@ import {
     SetMcpToolsEnabledRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
+    ThreadSummary,
+    SwitchThreadRequest,
+    DeleteThreadRequest,
+    RenameThreadRequest,
+    // TODO(auto-memory): temporarily disabled for this release.
+    // ClearMemoryRequest,
+    // OpenMemoryRequest,
+    GetRunStatusRequest,
+    GetRunStatusResponse,
 } from "./interfaces";
 
 export interface AIPanelAPI {
@@ -113,8 +126,7 @@ export interface AIPanelAPI {
     // AI schema related functions
     getSemanticDiff: (params: SemanticDiffRequest) => Promise<SemanticDiffResponse>;
     isWorkspaceProject: () => Promise<boolean>;
-    acceptChanges: () => Promise<void>;
-    declineChanges: () => Promise<void>;
+    revertGeneration: (params: RevertGenerationRequest) => Promise<void>;
     // ==================================
     // Approval Related Functions (Human-in-the-Loop)
     // ==================================
@@ -126,6 +138,8 @@ export interface AIPanelAPI {
     cancelConnectorSpec: (params: ConnectorSpecCancelRequest) => Promise<void>;
     provideConfiguration: (params: ConfigurationProvideRequest) => Promise<void>;
     cancelConfiguration: (params: ConfigurationCancelRequest) => Promise<void>;
+    createManagedConnection: (params: CreateManagedConnectionRequest) => Promise<CreateManagedConnectionResponse>;
+    cancelManagedConnection: () => void;
     // ==================================
     // Chat State Management
     // ==================================
@@ -135,12 +149,23 @@ export interface AIPanelAPI {
     clearChat: () => Promise<void>;
     updateChatMessage: (params: UpdateChatMessageRequest) => Promise<void>;
     getActiveTempDir: () => Promise<string>;
+    getRunStatus: (params: GetRunStatusRequest) => Promise<GetRunStatusResponse>;
+    getLatestFollowupSuggestions: () => Promise<FollowupSuggestion[]>;
     getUsage: () => Promise<UsageResponse | undefined>;
+    requestQuota: (params: QuotaRequestParams) => Promise<QuotaRequestResult>;
     openFileDiff: (params: OpenFileDiffRequest) => void;
     approveWebTool: (params: WebToolApprovalRequest) => Promise<void>;
     declineWebTool: (params: WebToolApprovalRequest) => Promise<void>;
     compactConversation: (params: CompactConversationRequest) => Promise<CompactConversationResponse>;
     getShowContextUsage: () => Promise<boolean>;
+    // Thread / session management
+    listThreads: () => Promise<ThreadSummary[]>;
+    switchThread: (params: SwitchThreadRequest) => Promise<void>;
+    deleteThread: (params: DeleteThreadRequest) => Promise<void>;
+    renameThread: (params: RenameThreadRequest) => Promise<void>;
+    // TODO(auto-memory): memory management temporarily disabled for this release.
+    // clearMemory: (params: ClearMemoryRequest) => Promise<void>;
+    // openMemoryFiles: (params: OpenMemoryRequest) => void;
     // ==================================
     // Prompt Enhancement
     // ==================================
@@ -168,8 +193,6 @@ export interface AIPanelAPI {
     enableSkillFromChat: (params: SkillEnableRequest) => Promise<boolean>;
     cancelSkillEnable: (params: SkillEnableCancelRequest) => Promise<void>;
     parseSkillFile: (params: ParseSkillFileRequest) => Promise<ParseSkillFileResponse>;
-    getSkillsEnabled: () => Promise<boolean>;
-    setSkillsEnabled: (params: SetSkillsEnabledRequest) => Promise<void>;
     // ==================================
     // MCP tool support
     // ==================================

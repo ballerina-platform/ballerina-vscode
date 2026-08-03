@@ -43,6 +43,7 @@ export * from "./ls-utils/WSConnection";
 export * from "./ls-utils/BallerinaLanguageClient";
 
 // ------ RPC interfaces -------->
+export * from "./rpc-types/webview-bridge";
 export * from "./rpc-types/ai-agent";
 export * from "./rpc-types/ai-agent/interfaces";
 export * from "./rpc-types/ai-agent/rpc-type";
@@ -89,6 +90,8 @@ export * from "./rpc-types/test-manager";
 export * from "./rpc-types/test-manager/rpc-type";
 export * from "./rpc-types/icp-service";
 export * from "./rpc-types/icp-service/rpc-type";
+export * from "./rpc-types/workflow-management-service";
+export * from "./rpc-types/workflow-management-service/rpc-type";
 export * from "./rpc-types/agent-chat";
 export * from "./rpc-types/agent-chat/interfaces";
 export * from "./rpc-types/agent-chat/rpc-type";

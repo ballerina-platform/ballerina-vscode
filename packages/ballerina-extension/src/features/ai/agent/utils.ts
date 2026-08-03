@@ -93,7 +93,12 @@ export async function integrateCodeToWorkspace(
                 });
                 console.log(`[Agent Integration] Prepared modified file: ${relativePath}`);
             } else {
-                console.warn(`[Agent Integration] Modified file not found: ${relativePath}`);
+                fileChanges.push({
+                    filePath: relativePath,
+                    content: "",
+                    deleted: true,
+                });
+                console.log(`[Agent Integration] Prepared deleted file: ${relativePath}`);
             }
         }
     } else {
@@ -114,18 +119,6 @@ export async function integrateCodeToWorkspace(
         console.error("[Agent Integration] Failed:", errorMessage);
         throw new Error(`Failed to integrate code to workspace: ${errorMessage}`);
     }
-}
-
-export async function integrateAndClearModifiedFiles(
-    tempProjectPath: string,
-    modifiedFiles: string[],
-    allModifiedFiles: Set<string>,
-    ctx: ExecutionContext
-): Promise<void> {
-    const filesToIntegrate = new Set(modifiedFiles);
-    await integrateCodeToWorkspace(tempProjectPath, filesToIntegrate, ctx);
-    modifiedFiles.forEach(f => allModifiedFiles.add(f));
-    modifiedFiles.splice(0);
 }
 
 export function getCodeBlocks(updatedSourceFiles: SourceFile[], updatedFileNames: string[]): string {
@@ -319,58 +312,49 @@ function positionToOffset(content: string, line: number, character: number): num
 }
 
 /**
- * Applies LSP text edits to create or modify a file using Node.js fs operations
- * Uses character offset-based approach for robust handling of all edge cases
+ * Computes the result of applying LSP text edits to a file, using a character
+ * offset-based approach for robust handling of all edge cases. Reads the file's current
+ * disk content (if it exists) to apply the edits against, but does not write anything —
+ * callers persist the returned content themselves (e.g. via addToIntegration), so the
+ * write goes through VS Code's document model rather than a raw fs write.
  * @param filePath Absolute path to the file
  * @param textEdits Array of LSP TextEdit objects (positions are 0-based)
+ * @returns The file content after applying all edits, with original line endings restored
  */
-export async function applyTextEdits(filePath: string, textEdits: TextEdit[]): Promise<void> {
-    const dirPath = path.dirname(filePath);
-
-    try {
-        // Create directory if it doesn't exist
-        if (!fs.existsSync(dirPath)) {
-            fs.mkdirSync(dirPath, { recursive: true });
-        }
-
-        // Read existing content or start with empty string
-        let content = '';
-        let originalEol: import("../utils/eol-utils").EolSequence = '\n';
-        if (fs.existsSync(filePath)) {
-            const raw = fs.readFileSync(filePath, 'utf-8');
-            [content, originalEol] = readAndNormalize(raw);
-        }
-
-        // If file is new and empty, ensure at least empty content
-        // This handles edits at position (0,0) for new files
-        if (content === '' && textEdits.length > 0) {
-            const firstEdit = textEdits[0];
-            // If editing beyond (0,0) in an empty file, pad with newlines
-            if (firstEdit.range.start.line > 0) {
-                content = '\n'.repeat(firstEdit.range.start.line);
-            }
-        }
-
-        // Convert edits to offset-based edits and sort in reverse order
-        // Sorting in reverse ensures earlier edits don't affect offsets of later edits
-        const offsetEdits = textEdits.map(edit => ({
-            start: positionToOffset(content, edit.range.start.line, edit.range.start.character),
-            end: positionToOffset(content, edit.range.end.line, edit.range.end.character),
-            newText: edit.newText
-        })).sort((a, b) => b.start - a.start); // Reverse order by start position
-
-        // Apply edits from end to start (preserves offsets)
-        let result = content;
-        for (const edit of offsetEdits) {
-            result = result.substring(0, edit.start) + edit.newText + result.substring(edit.end);
-        }
-
-        // Write the modified content back to the file, restoring original line endings
-        fs.writeFileSync(filePath, restoreEol(result, originalEol), 'utf-8');
-    } catch (error) {
-        console.error(`[applyTextEdits] Error applying edits to ${filePath}:`, error);
-        throw error;
+export async function applyTextEdits(filePath: string, textEdits: TextEdit[]): Promise<string> {
+    // Read existing content or start with empty string
+    let content = '';
+    let originalEol: import("../utils/eol-utils").EolSequence = '\n';
+    if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        [content, originalEol] = readAndNormalize(raw);
     }
+
+    // If file is new and empty, ensure at least empty content
+    // This handles edits at position (0,0) for new files
+    if (content === '' && textEdits.length > 0) {
+        const firstEdit = textEdits[0];
+        // If editing beyond (0,0) in an empty file, pad with newlines
+        if (firstEdit.range.start.line > 0) {
+            content = '\n'.repeat(firstEdit.range.start.line);
+        }
+    }
+
+    // Convert edits to offset-based edits and sort in reverse order
+    // Sorting in reverse ensures earlier edits don't affect offsets of later edits
+    const offsetEdits = textEdits.map(edit => ({
+        start: positionToOffset(content, edit.range.start.line, edit.range.start.character),
+        end: positionToOffset(content, edit.range.end.line, edit.range.end.character),
+        newText: edit.newText
+    })).sort((a, b) => b.start - a.start); // Reverse order by start position
+
+    // Apply edits from end to start (preserves offsets)
+    let result = content;
+    for (const edit of offsetEdits) {
+        result = result.substring(0, edit.start) + edit.newText + result.substring(edit.end);
+    }
+
+    return restoreEol(result, originalEol);
 }
 
 /**

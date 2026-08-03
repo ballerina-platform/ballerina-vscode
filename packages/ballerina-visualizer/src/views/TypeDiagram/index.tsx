@@ -16,7 +16,9 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { debounce } from "lodash";
+import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../BI/diagramRefreshDebounce";
 import { VisualizerLocation, NodePosition, Type, EVENT_TYPE, MACHINE_VIEW, TypeNodeKind, Member } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
@@ -185,13 +187,26 @@ export function TypeDiagram(props: TypeDiagramProps) {
         getComponentModel();
     }, [visualizerLocation]);
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
-        if (state) {
-            console.log("Project content updated, refreshing type model");
+    const debouncedGetComponentModel = useCallback(
+        debounce(() => {
             setIsModelLoaded(false);
             getComponentModel();
-        }
-    });
+        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
+        []
+    );
+
+    useEffect(() => {
+        const disposable = rpcClient?.onProjectContentUpdated((state: boolean) => {
+            if (state) {
+                console.log("Project content updated, refreshing type model");
+                debouncedGetComponentModel();
+            }
+        });
+        return () => {
+            debouncedGetComponentModel.cancel();
+            disposable?.();
+        };
+    }, [rpcClient]);
 
 
 
@@ -265,11 +280,13 @@ export function TypeDiagram(props: TypeDiagramProps) {
         const response = await rpcClient
             .getBIDiagramRpcClient()
             .getTypes({ filePath: visualizerLocation?.metadata?.recordFilePath });
-        setTypesModel(response.types);
+        if (response?.types) {
+            setTypesModel(response.types);
 
-        // Set focused node immediately if we have selectedTypeId and more than 80 types
-        if (response.types && response.types.length > MAX_TYPES_FOR_FULL_VIEW && selectedTypeId) {
-            setFocusedNodeId(selectedTypeId);
+            // Set focused node immediately if we have selectedTypeId and more than 80 types
+            if (response.types.length > MAX_TYPES_FOR_FULL_VIEW && selectedTypeId) {
+                setFocusedNodeId(selectedTypeId);
+            }
         }
 
         setIsModelLoaded(true);

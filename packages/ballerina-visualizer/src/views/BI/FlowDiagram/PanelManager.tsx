@@ -43,6 +43,7 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
+import { NewActivityFromConnection } from "./NewActivityFromConnection";
 
 const Container = styled.div`
     display: flex;
@@ -56,6 +57,7 @@ export enum SidePanelView {
     FUNCTION_LIST = "FUNCTION_LIST",
     WORKFLOW_LIST = "WORKFLOW_LIST",
     ACTIVITY_LIST = "ACTIVITY_LIST",
+    ACTIVITY_FROM_CONNECTION = "ACTIVITY_FROM_CONNECTION",
     DATA_MAPPER_LIST = "DATA_MAPPER_LIST",
     NP_FUNCTION_LIST = "NP_FUNCTION_LIST",
     MODEL_PROVIDERS = "MODEL_PROVIDERS",
@@ -100,6 +102,7 @@ interface PanelManagerProps {
     nodeFormTemplate?: FlowNode;
     selectedClientName?: string;
     showEditForm?: boolean;
+    /** True when the call form open is step 3 of the create-activity-from-connection wizard. */
     targetLineRange?: LineRange;
     connections?: any[];
     fileName?: string;
@@ -124,6 +127,9 @@ interface PanelManagerProps {
     onAddFunction?: () => void;
     onAddWorkflow?: () => void;
     onAddActivity?: () => void;
+    onAddActivityFromConnection?: () => void;
+    onActivityFromConnectionCreated?: (activityName: string) => void;
+    onActivityFromConnectionCreatedReturnToList?: (activityName: string) => void;
     onAddNPFunction?: () => void;
     onAddDataMapper?: () => void;
     onAddModelProvider?: () => void;
@@ -150,6 +156,8 @@ interface PanelManagerProps {
     onSearchChunker?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchTextChange?: (searchText: string) => void;
     searchText?: string;
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
     onAddAgent?: () => void;
     onEditAgent?: () => void;
     onNavigateToPanel?: (targetPanel: SidePanelView, connectionKind?: ConnectionKind) => void;
@@ -205,6 +213,9 @@ export function PanelManager(props: PanelManagerProps) {
         onAddFunction,
         onAddWorkflow,
         onAddActivity,
+        onAddActivityFromConnection,
+        onActivityFromConnectionCreated,
+        onActivityFromConnectionCreatedReturnToList,
         onAddNPFunction,
         onAddDataMapper,
         onAddAgent,
@@ -225,6 +236,8 @@ export function PanelManager(props: PanelManagerProps) {
         onSearchNpFunction,
         onSearchTextChange,
         searchText,
+        expandedGroupId,
+        onExpandedGroupChange,
         onSearchAll,
         onSearchVectorStore,
         onSearchEmbeddingProvider,
@@ -414,8 +427,8 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={(searchText) => onSearchWorkflow?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddWorkflow}
                         onClose={onClose}
-                        title={"Workflows"}
-                        searchPlaceholder={"Search workflows"}
+                        title={"Durable Workflows"}
+                        searchPlaceholder={"Search durable workflows"}
                         onBack={canGoBack ? onBack : undefined}
                     />
                 );
@@ -427,10 +440,22 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchActivity?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddActivity}
+                        onAdd={onAddActivityFromConnection}
                         onClose={onClose}
                         title={"Activities"}
                         searchPlaceholder={"Search activities"}
                         onBack={canGoBack ? onBack : undefined}
+                    />
+                );
+
+            case SidePanelView.ACTIVITY_FROM_CONNECTION:
+                return (
+                    <NewActivityFromConnection
+                        fileName={fileName}
+                        onActivityCreated={onActivityFromConnectionCreated}
+                        onActivityCreatedReturnToList={onActivityFromConnectionCreatedReturnToList}
+                        onBack={canGoBack ? onBack : undefined}
+                        onClose={onClose}
                     />
                 );
 
@@ -503,6 +528,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -531,6 +558,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -561,6 +590,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -591,6 +622,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -621,6 +654,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -651,6 +686,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -666,7 +703,14 @@ export function PanelManager(props: PanelManagerProps) {
                 );
 
             case SidePanelView.CONNECTION_SELECT:
-                return <ConnectionSelectionList connectionKind={selectedConnectionKind} onSelect={onSelectNewConnection} />;
+                return (
+                    <ConnectionSelectionList
+                        connectionKind={selectedConnectionKind}
+                        onSelect={onSelectNewConnection}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
+                    />
+                );
 
             case SidePanelView.CONNECTION_CREATE:
                 return (

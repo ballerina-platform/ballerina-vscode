@@ -63,7 +63,7 @@ public class SemanticDiffComputerTest extends AbstractLSTest {
         Path originalProjectPath = sourceDir.resolve(testConfig.projectPath()).resolve("original");
         Path modifiedProjectPath = sourceDir.resolve(testConfig.projectPath()).resolve("modified");
 
-        // send a did change notification -> ai://originalFilePath
+        // ai:// holds the frozen baseline throughout; open it (and file://) with the original content
         Optional<Path> balFile = Files.walk(originalProjectPath).filter(Files::isRegularFile)
                 .filter(path -> path.toString().endsWith(".bal")).findFirst();
         if (balFile.isPresent()) {
@@ -72,7 +72,8 @@ public class SemanticDiffComputerTest extends AbstractLSTest {
         }
 
         // read all the modified files in the modified project path
-        // send did change notifications for each file with ai://scheme
+        // file:// is the live/edited project, so modified content lands there
+
         try (Stream<Path> modifiedFiles = Files.walk(modifiedProjectPath)) {
             modifiedFiles.filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".bal"))
@@ -136,7 +137,7 @@ public class SemanticDiffComputerTest extends AbstractLSTest {
     }
 
     private void notifyCustomDidChange(String sourcePath) throws IOException {
-        String exprUriString = getExprUriString(sourcePath, "ai://");
+        String exprUriString = getExprUriString(sourcePath, "file://");
         String fileUri = URI.create(exprUriString).toString().replace("modified", "original");
         String content = this.getText(sourcePath);
         VersionedTextDocumentIdentifier versionedTextDocumentIdentifier = new VersionedTextDocumentIdentifier();

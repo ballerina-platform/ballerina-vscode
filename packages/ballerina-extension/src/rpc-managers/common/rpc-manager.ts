@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    AgentRunStatus,
     BallerinaDiagnosticsRequest,
     BallerinaDiagnosticsResponse,
     CommandResponse,
@@ -57,6 +58,7 @@ import fs from "fs";
 import * as unzipper from 'unzipper';
 import { commands, env, MarkdownString, ProgressLocation, QuickPickItem, Uri, window, workspace } from "vscode";
 import { URI } from "vscode-uri";
+import { agentStatusManager } from "../../features/ai/state/AgentStatusManager";
 import { parse } from "@iarna/toml";
 import { load as loadYaml } from "js-yaml";
 import { extension } from "../../BalExtensionContext";
@@ -189,6 +191,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         });
     }
 
+    async getAgentRunStatus(): Promise<AgentRunStatus> {
+        return agentStatusManager.getStatus();
+    }
+
     async executeCommand(params: CommandsRequest): Promise<CommandsResponse> {
         return new Promise(async (resolve, reject) => {
             if (params.commands.length >= 1) {
@@ -257,7 +263,13 @@ export class CommonRpcManager implements CommonRPCAPI {
                 resolve({ path: "" });
             } else {
                 const fileOrFolderPath = selectedFileOrFolder[0].fsPath;
-                resolve({ path: fileOrFolderPath });
+                let isDirectory: boolean | undefined;
+                try {
+                    isDirectory = fs.statSync(fileOrFolderPath).isDirectory();
+                } catch {
+                    // Leave undefined so the caller falls back to its filename heuristic.
+                }
+                resolve({ path: fileOrFolderPath, isDirectory });
             }
         });
     }

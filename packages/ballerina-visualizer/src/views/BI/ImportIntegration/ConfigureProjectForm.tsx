@@ -16,78 +16,19 @@
  * under the License.
  */
 
-import { ActionButtons, Codicon, Typography } from "@wso2/ui-toolkit";
+import { ActionButtons, Typography } from "@wso2/ui-toolkit";
 import { useState } from "react";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useBiWsContext } from "../wsManager/WsClientContext";
 import { ValidateProjectFormErrorField } from "@wso2/ballerina-core";
 import { BodyText } from "../../styles";
 import { ProjectFormData, ProjectFormFields } from "../ProjectForm/ProjectFormFields";
 import { validatePackageName } from "../ProjectForm/utils";
 import { MultiProjectFormData, MultiProjectFormFields } from "./components/MultiProjectFormFields";
-import {
-    AIEnhancementSection,
-    AIEnhancementTitle,
-    ButtonWrapper,
-} from "./styles";
-import {
-    RadioGroup,
-    RadioOption,
-    RadioInput,
-    RadioContent,
-    RadioTitle,
-    RadioDescription,
-} from "../ProjectForm/styles";
+import { ButtonWrapper } from "./styles";
 import { ConfigureProjectFormProps } from "./types";
 
-interface AIEnhancementToggleProps {
-    enabled: boolean;
-    onChange: (enabled: boolean) => void;
-}
-
-function AIEnhancementToggle({ enabled, onChange }: AIEnhancementToggleProps) {
-    return (
-        <AIEnhancementSection>
-            <AIEnhancementTitle>
-                <Codicon name="sparkle" />
-                AI Enhancement
-            </AIEnhancementTitle>
-            <RadioGroup>
-                <RadioOption isSelected={enabled} onClick={() => onChange(true)}>
-                    <RadioInput
-                        type="radio"
-                        name="ai-enhancement"
-                        checked={enabled}
-                        onChange={() => onChange(true)}
-                    />
-                    <RadioContent>
-                        <RadioTitle>Enable AI Enhancement</RadioTitle>
-                        <RadioDescription>
-                            AI will automatically resolve unmapped elements, fix build errors, and refine tests.
-                        </RadioDescription>
-                    </RadioContent>
-                </RadioOption>
-                <RadioOption isSelected={!enabled} onClick={() => onChange(false)}>
-                    <RadioInput
-                        type="radio"
-                        name="ai-enhancement"
-                        checked={!enabled}
-                        onChange={() => onChange(false)}
-                    />
-                    <RadioContent>
-                        <RadioTitle>Skip for Now – Enhance Later</RadioTitle>
-                        <RadioDescription>
-                            Open the project as-is. You can trigger AI enhancement later from the BI Copilot.
-                        </RadioDescription>
-                    </RadioContent>
-                </RadioOption>
-            </RadioGroup>
-        </AIEnhancementSection>
-    );
-}
-
 export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: ConfigureProjectFormProps) {
-    const { rpcClient } = useRpcContext();
-    const [aiEnhancementEnabled, setAiEnhancementEnabled] = useState(true);
+    const { wsClient } = useBiWsContext();
     const [singleIntegrationData, setSingleIntegrationData] = useState<ProjectFormData>({
         integrationName: "",
         packageName: "",
@@ -184,7 +125,7 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
             const targetNameForValidation = singleIntegrationData.createAsWorkspace
                 ? singleIntegrationData.workspaceName
                 : singleIntegrationData.packageName;
-            const validationResult = await rpcClient.getBIDiagramRpcClient().validateProjectPath({
+            const validationResult = await wsClient.validateProjectPath({
                 projectPath: singleIntegrationData.path,
                 projectName: targetNameForValidation,
                 createDirectory: singleIntegrationData.createDirectory,
@@ -227,10 +168,10 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
                 version: singleIntegrationData.version || undefined,
                 isLibrary: singleIntegrationData.isLibrary,
             };
-            setIsValidating(false);
-            onNext(payload, aiEnhancementEnabled);
+            await onNext(payload, false);
         } catch (error) {
             setSingleIntegrationPathError("An error occurred during validation");
+        } finally {
             setIsValidating(false);
         }
     };
@@ -260,7 +201,7 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
 
         try {
             // Validate the project path
-            const validationResult = await rpcClient.getBIDiagramRpcClient().validateProjectPath({
+            const validationResult = await wsClient.validateProjectPath({
                 projectPath: multiProjectData.path,
                 projectName: multiProjectData.rootFolderName,
                 createDirectory: multiProjectData.createDirectory,
@@ -278,15 +219,16 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
             }
 
             // If validation passes, proceed
-            onNext({
+            await onNext({
                 projectName: multiProjectData.rootFolderName,
                 packageName: multiProjectData.rootFolderName,
                 projectPath: multiProjectData.path,
                 createDirectory: multiProjectData.createDirectory,
                 createAsWorkspace: false,
-            }, aiEnhancementEnabled);
+            }, false);
         } catch (error) {
             setPathError("An error occurred during validation");
+        } finally {
             setIsValidating(false);
         }
     };
@@ -305,12 +247,10 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
                         folderNameError={folderNameError || undefined}
                     />
 
-                    {<AIEnhancementToggle enabled={aiEnhancementEnabled} onChange={setAiEnhancementEnabled} />}
-
                     <ButtonWrapper>
                         <ActionButtons
                             primaryButton={{
-                                text: isValidating ? "Validating..." : (aiEnhancementEnabled ? "Create and Start AI Enhancement" : "Create and Open Project"),
+                                text: isValidating ? "Validating..." : "Start Migration",
                                 onClick: handleCreateMultiProject,
                                 disabled: isValidating
                             }}
@@ -338,12 +278,10 @@ export function ConfigureProjectForm({ isMultiProject, onNext, onBack }: Configu
                         packageNameValidationError={singleIntegrationPackageNameError || undefined}
                     />
 
-                    {<AIEnhancementToggle enabled={aiEnhancementEnabled} onChange={setAiEnhancementEnabled} />}
-
                     <ButtonWrapper>
                         <ActionButtons
                             primaryButton={{
-                                text: isValidating ? "Validating..." : (aiEnhancementEnabled ? "Create and Start AI Enhancement" : "Create and Open Project"),
+                                text: isValidating ? "Validating..." : "Start Migration",
                                 onClick: handleCreateSingleProject,
                                 disabled: isValidating
                             }}

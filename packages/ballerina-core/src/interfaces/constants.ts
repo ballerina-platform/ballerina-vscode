@@ -58,6 +58,7 @@ export const BI_COMMANDS = {
     DEVANT_PUSH_TO_CLOUD: 'BI.devant.push.cloud',
     CREATE_BI_PROJECT: 'BI.project.createBIProjectPure',
     CREATE_BI_MIGRATION_PROJECT: 'BI.project.createBIProjectMigration',
+    GET_BI_FORM_WS_BOOTSTRAP: 'ballerina.getBiFormWsBootstrap',
     ADD_INTEGRATION: 'BI.project-explorer.add-integration',
     NOTIFY_PROJECT_EXPLORER: 'BI.project-explorer.notify'
 };

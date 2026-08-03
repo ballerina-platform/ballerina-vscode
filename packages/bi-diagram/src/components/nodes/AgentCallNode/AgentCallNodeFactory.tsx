@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
 import { AgentCallNodeWidget } from "./AgentCallNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class AgentCallNodeFactory extends AbstractReactFactory<AgentCallNodeModel, DiagramEngine> {
     constructor() {
@@ -33,6 +34,10 @@ export class AgentCallNodeFactory extends AbstractReactFactory<AgentCallNodeMode
     }
 
     generateReactWidget(event: GenerateWidgetEvent<AgentCallNodeModel>) {
-        return <AgentCallNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <AgentCallNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

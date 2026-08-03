@@ -41,6 +41,10 @@ public class RemoteCentral implements CentralAPI {
 
     private static volatile CentralAPI testInstance;
 
+    // Set by the Gradle test tasks (-Dls.test.offline=true). When enabled, getInstance() returns an OfflineCentral so
+    // no code path contacts Ballerina Central: tests resolve only from the build-provisioned Ballerina home.
+    private static final boolean OFFLINE = Boolean.getBoolean("ls.test.offline");
+
     private final RestClient restClient;
     private final GraphQlClient graphQlClient;
 
@@ -49,10 +53,18 @@ public class RemoteCentral implements CentralAPI {
         private static final RemoteCentral INSTANCE = new RemoteCentral();
     }
 
+    private static class OfflineHolder {
+
+        private static final OfflineCentral INSTANCE = new OfflineCentral();
+    }
+
     public static CentralAPI getInstance() {
         CentralAPI override = testInstance;
         if (override != null) {
             return override;
+        }
+        if (OFFLINE) {
+            return OfflineHolder.INSTANCE;
         }
         return Holder.INSTANCE;
     }

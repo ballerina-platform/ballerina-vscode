@@ -20,8 +20,6 @@ package io.ballerina.modelgenerator.commons;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.centralconnector.CentralAPI;
-import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.TypeBuilder;
@@ -386,10 +384,9 @@ public class FunctionDataBuilder {
         // Assume the package is from an external library, and pull the package if not available locally
         if (semanticModel == null) {
             if (moduleInfo.version() == null) {
-                // Fetch the latest module version from central repository when version is not explicitly provided
-                CentralAPI centralApi = RemoteCentral.getInstance();
-                moduleInfo = new ModuleInfo(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName(),
-                        centralApi.latestPackageVersion(moduleInfo.org(), moduleInfo.packageName()));
+                // Resolve the version: the cached (provisioned) version in offline test mode,
+                // otherwise the latest from the central repository.
+                moduleInfo = PackageUtil.fetchVersionIfNotExists(moduleInfo);
             }
             if (moduleInfo.isComplete() &&
                     PackageUtil.isModuleUnresolved(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version())) {

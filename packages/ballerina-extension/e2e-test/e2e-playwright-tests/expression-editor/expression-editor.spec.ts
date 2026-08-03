@@ -32,10 +32,6 @@ export default function createTests() {
             // Create an automation
             await addArtifact('Automation', 'automation');
 
-            /* Uncomment this code if the timeout issue persists */
-            // // FIXME:Remove this once timeout issue is fixed
-            // await new Promise((resolve) => setTimeout(resolve, 3000));
-
             const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
             if (!artifactWebView) {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);

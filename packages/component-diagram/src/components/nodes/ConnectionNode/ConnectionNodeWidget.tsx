@@ -192,6 +192,7 @@ export function ConnectionNodeWidget(props: ConnectionNodeWidgetProps) {
         <Node>
             <LeftPortWidget port={model.getPort("in")!} engine={engine} />
             <ClickableArea
+                data-testid={`connection-node-${model.node.symbol}`}
                 onMouseEnter={() => !readonly && setIsHovered(true)}
                 onMouseLeave={() => !readonly && setIsHovered(false)}
                 onMouseDown={!readonly ? handleMouseDown : undefined}
@@ -209,8 +210,9 @@ export function ConnectionNodeWidget(props: ConnectionNodeWidgetProps) {
                     <Title hovered={!readonly && isHovered}>{getNodeTitle()}</Title>
                     <Description>{getNodeDescription()}</Description>
                 </Header>
-                <MenuButton 
-                    appearance="icon" 
+                <MenuButton
+                    data-testid={`connection-node-${model.node.symbol}-menu`}
+                    appearance="icon"
                     onClick={handleOnMenuClick}
                     onMouseDown={handleMenuMouseDown}
                     onMouseUp={handleMenuMouseUp}

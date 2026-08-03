@@ -23,6 +23,16 @@ export const getPrimaryInputType = (types: InputType[]): InputType | undefined =
   return types[0];
 }
 
+// The type shown as a field's type hint. The primary input type is often a narrowed input mode — e.g.
+// a `string|string[]` field is split into a `TEXT string` mode first, and an optional `time:Duration?`
+// into a `RECORD_MAP time:Duration` mode first — while the field's full declared type lives on the
+// EXPRESSION entry. Prefer that so unions/optionals (and dynamic activity params) display their full type.
+export const getFieldTypeLabel = (types?: InputType[]): string | undefined => {
+  if (!types || types.length === 0) return undefined;
+  const expressionType = types.find((t) => t.fieldType === "EXPRESSION" && !!t.ballerinaType);
+  return expressionType?.ballerinaType ?? getPrimaryInputType(types)?.ballerinaType;
+}
+
 export const getSecondaryInputType = (inputTypes: InputType[]) => {
     return inputTypes?.length ? inputTypes[inputTypes.length - 1] : undefined;
 }

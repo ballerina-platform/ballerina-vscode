@@ -27,9 +27,12 @@ export const validateFileSize = (file: File): boolean => {
 
 /**
  * Validate file type by checking against a list of valid MIME types/extensions.
+ * Uses the resolved mime type so files with an empty browser-reported file.type
+ * (e.g. a .pdf/.png inferred from its extension) are validated consistently with
+ * how they are later read and labelled.
  */
 export const validateFileType = (file: File, validFileTypes: string[]): boolean => {
-    return validFileTypes.includes(file.type);
+    return validFileTypes.includes(resolveMimeType(file));
 };
 
 /**
@@ -53,10 +56,37 @@ export const readFileAsText = (file: File): Promise<string> => {
 };
 
 /**
- * Helper to check if a file is an image based on MIME type.
+ * Fallback MIME types inferred from the file extension. Used when the browser
+ * reports an empty `file.type`, which can happen for binary files (PDFs, images)
+ * depending on the OS / file-registration state.
+ */
+const EXTENSION_MIME_TYPES: Record<string, string> = {
+    pdf: "application/pdf",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+};
+
+/**
+ * Best-known MIME type for a file: the browser-provided `file.type` when present,
+ * otherwise inferred from the file extension. Guarantees images and PDFs stay
+ * correctly typed even when `file.type` is empty.
+ */
+export const resolveMimeType = (file: File): string => {
+    if (file.type) {
+        return file.type;
+    }
+    const extension = file.name.toLowerCase().split(".").pop() ?? "";
+    return EXTENSION_MIME_TYPES[extension] ?? "";
+};
+
+/**
+ * Helper to check if a file is an image based on its resolved MIME type.
  */
 export const isImageFile = (file: File): boolean => {
-    return file.type.startsWith('image/');
+    return resolveMimeType(file).startsWith('image/');
 };
 
 /**
@@ -75,6 +105,34 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
         };
 
         reader.onerror = () => reject(new Error("Error reading the image file."));
+        reader.readAsDataURL(file);
+    });
+};
+
+/**
+ * Read a file as raw base64 (without the `data:...;base64,` prefix).
+ * Used for binary documents such as PDFs that are sent to the model as native
+ * file blocks. `readAsDataURL` emits single-line base64, so the stripped string
+ * has no embedded newlines.
+ */
+export const readFileAsRawBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+            if (typeof reader.result === "string") {
+                const base64String = reader.result.split(",")[1];
+                if (base64String) {
+                    resolve(base64String);
+                } else {
+                    reject(new Error("Failed to extract Base64 content."));
+                }
+            } else {
+                reject(new Error("File content is not a string."));
+            }
+        };
+
+        reader.onerror = () => reject(new Error("Error reading the file."));
         reader.readAsDataURL(file);
     });
 };

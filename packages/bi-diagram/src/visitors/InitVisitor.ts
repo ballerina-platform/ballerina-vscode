@@ -84,6 +84,7 @@ export class InitVisitor implements BaseVisitor {
             "ERROR_HANDLER",
             "FORK",
             "LOCK",
+            "DIFF_HUNK",
         ];
         if (node.branches && !supportedNodeTypes.includes(node.codedata.node)) {
             // unsupported node types with children and branches
@@ -151,6 +152,15 @@ export class InitVisitor implements BaseVisitor {
                 children: [emptyElseBranch],
             });
         }
+    }
+
+    // Synthetic review-diff container (see utils/diff.ts). Branches hold the removed/added lanes.
+    beginVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        node.viewState = this.getDefaultViewState();
+        node.branches?.forEach((branch) => {
+            branch.viewState = this.getDefaultViewState();
+        });
     }
 
     beginVisitMatch(node: FlowNode, parent?: FlowNode): void {

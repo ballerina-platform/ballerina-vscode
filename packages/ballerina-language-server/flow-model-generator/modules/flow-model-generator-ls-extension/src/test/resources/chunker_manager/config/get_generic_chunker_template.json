@@ -8,7 +8,6 @@
     "org": "ballerina",
     "importStmt": "import ballerina/ai",
     "object": "GenericRecursiveChunker",
-    "version": "1.5.0",
     "flags": 1
   },
   "expectedTemplate": {
@@ -17,7 +16,7 @@
       "metadata": {
         "label": "Chunker",
         "description": "Initializes a new instance of the `GenericRecursiveChunker`.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "CHUNKER",
@@ -25,7 +24,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "GenericRecursiveChunker",
-        "version": "1.5.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,

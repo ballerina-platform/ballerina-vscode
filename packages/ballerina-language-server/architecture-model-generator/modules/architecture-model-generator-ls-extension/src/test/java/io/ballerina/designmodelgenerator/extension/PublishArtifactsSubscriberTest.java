@@ -408,7 +408,7 @@ public class PublishArtifactsSubscriberTest extends AbstractLSTest {
         String packageName = artifactsParams.packageName();
         String moduleName = artifactsParams.moduleName();
 
-        if (!publishedArtifacts.equals(expectedArtifacts) ||
+        if (!isJsonPermutation(gson.toJsonTree(publishedArtifacts), gson.toJsonTree(expectedArtifacts)) ||
                 !Objects.equals(packageName, testConfig.packageName()) ||
                 !Objects.equals(moduleName, testConfig.moduleName())) {
             TestConfig updatedConfig = new TestConfig(testConfig.source(), testConfig.description(),

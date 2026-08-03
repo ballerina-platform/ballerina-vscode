@@ -8,6 +8,7 @@
                 "build-app",
                 "lib",
                 "vsix",
+                "ls",
                 "resources/jslibs"
             ]
         }

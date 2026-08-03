@@ -23,6 +23,7 @@ import { ApiCallNodeModel } from "./ApiCallNodeModel";
 import { ApiCallNodeWidget } from "./ApiCallNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
 import { NodeKind } from "../../../utils/types";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class ApiCallNodeFactory extends AbstractReactFactory<ApiCallNodeModel, DiagramEngine> {
     constructor() {
@@ -34,6 +35,10 @@ export class ApiCallNodeFactory extends AbstractReactFactory<ApiCallNodeModel, D
     }
 
     generateReactWidget(event: GenerateWidgetEvent<ApiCallNodeModel>) {
-        return <ApiCallNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <ApiCallNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

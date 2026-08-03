@@ -71,7 +71,12 @@ public class ModelGeneratorTest extends AbstractLSTest {
                 // TODO: Enable this once the default value issue is resolved
                 "resource_action_call_github.json",
                 // TODO: Enable this once the intermittent issue in the Github workflows is resolved
-                "flags2.json"
+                "flags2.json",
+                // TODO: remove after deprecated ballerinax/ai imports are migrated
+                // chat_agent / agent_with_backticks sources import ballerinax/ai (removed from offline
+                // cache)
+                "chat_agent.json",
+                "agent_with_backticks_in_system_prompt.json"
         };
     }
 

@@ -19,7 +19,7 @@
 import { useEffect } from "react";
 import { DirectorySelector, TextField, CheckBox } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useBiWsContext } from "../../wsManager/WsClientContext";
 
 const FieldGroup = styled.div`
     margin-bottom: 20px;
@@ -49,14 +49,14 @@ export interface MultiProjectFormFieldsProps {
 }
 
 export function MultiProjectFormFields({ formData, onFormDataChange, pathError, folderNameError }: MultiProjectFormFieldsProps) {
-    const { rpcClient } = useRpcContext();
+    const { wsClient } = useBiWsContext();
 
     const handleIntegrationName = (value: string) => {
         onFormDataChange({ rootFolderName: value });
     };
 
     const handleProjectDirSelection = async () => {
-        const selectedDirectory = await rpcClient.getCommonRpcClient().selectFileOrDirPath({});
+        const selectedDirectory = await wsClient.selectFileOrDirPath({});
         if (!selectedDirectory?.path) {
             return;
         }
@@ -66,7 +66,7 @@ export function MultiProjectFormFields({ formData, onFormDataChange, pathError, 
     useEffect(() => {
         (async () => {
             if (!formData.path) {
-                const currentDir = await rpcClient.getCommonRpcClient().getWorkspaceRoot();
+                const currentDir = await wsClient.getWorkspaceRoot();
                 onFormDataChange({ path: currentDir.path });
             }
         })();

@@ -6,8 +6,7 @@
     "module": "ai",
     "packageName": "ai",
     "object": "TextDataLoader",
-    "symbol": "init",
-    "version": "1.5.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Data Loader",
         "description": "Initializes the data loader with the given paths.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
       },
       "codedata": {
         "node": "DATA_LOADER",
@@ -23,7 +22,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "TextDataLoader",
-        "version": "1.5.0",
+        "version": "1.12.0",
         "isNew": true
       },
       "returning": false,

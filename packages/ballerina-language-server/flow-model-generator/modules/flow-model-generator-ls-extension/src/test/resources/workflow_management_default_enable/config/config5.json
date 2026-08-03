@@ -1,0 +1,7 @@
+{
+  "projectPath": "proj5",
+  "description": "Control-plane import present but remoteManagement not yet in Ballerina.toml (mid ICP-enable) + workflow function -> enable by default",
+  "response": {
+    "enabled": true
+  }
+}

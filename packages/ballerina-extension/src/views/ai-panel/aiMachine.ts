@@ -22,7 +22,7 @@ import { AIMachineStateValue, AIPanelPrompt, AIMachineEventType, AIMachineContex
 import { AiPanelWebview } from './webview';
 import { extension } from '../../BalExtensionContext';
 import { getAccessToken, getLoginMethod } from '../../utils/ai/auth';
-import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials } from './utils';
+import { checkToken, initiateDevantAuth, logout, validateApiKey, validateAwsCredentials, validateVertexAiCredentials, validateAnthropicAwsCredentials } from './utils';
 import {
     isDevantUserLoggedIn,
     getPlatformStsToken,
@@ -183,6 +183,18 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                     actions: assign({
                         loginMethod: (_ctx) => LoginMethod.VERTEX_AI
                     })
+                },
+                [AIMachineEventType.AUTH_WITH_ANTHROPIC_AWS]: {
+                    target: 'Authenticating',
+                    actions: assign({
+                        loginMethod: (_ctx) => LoginMethod.ANTHROPIC_AWS
+                    })
+                },
+                [AIMachineEventType.AUTH_WITH_AWS]: {
+                    target: 'Authenticating',
+                    actions: assign({
+                        loginMethod: (_ctx) => LoginMethod.AWS_UNIFIED
+                    })
                 }
             }
         },
@@ -206,6 +218,14 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                         {
                             cond: (context) => context.loginMethod === LoginMethod.VERTEX_AI,
                             target: 'vertexAiFlow'
+                        },
+                        {
+                            cond: (context) => context.loginMethod === LoginMethod.ANTHROPIC_AWS,
+                            target: 'anthropicAwsFlow'
+                        },
+                        {
+                            cond: (context) => context.loginMethod === LoginMethod.AWS_UNIFIED,
+                            target: 'awsUnifiedFlow'
                         },
                         {
                             target: 'ssoFlow' // default
@@ -344,6 +364,66 @@ const aiMachine = createMachine<AIMachineContext, AIMachineSendableEvent>({
                             })
                         }
                     }
+                },
+                anthropicAwsFlow: {
+                    on: {
+                        [AIMachineEventType.SUBMIT_ANTHROPIC_AWS_CREDENTIALS]: {
+                            target: 'validatingAnthropicAwsCredentials',
+                            actions: assign({
+                                errorMessage: (_ctx) => undefined
+                            })
+                        },
+                        [AIMachineEventType.CANCEL_LOGIN]: {
+                            target: '#ballerina-ai.Unauthenticated',
+                            actions: assign({
+                                loginMethod: (_ctx) => undefined,
+                                errorMessage: (_ctx) => undefined,
+                            })
+                        }
+                    }
+                },
+                validatingAnthropicAwsCredentials: {
+                    invoke: {
+                        id: 'validateAnthropicAwsCredentials',
+                        src: 'validateAnthropicAwsCredentials',
+                        onDone: {
+                            target: '#ballerina-ai.Authenticated',
+                            actions: assign({
+                                errorMessage: (_ctx) => undefined,
+                            })
+                        },
+                        onError: {
+                            target: 'anthropicAwsFlow',
+                            actions: assign({
+                                errorMessage: (_ctx, event) => event.data?.message || 'Claude Platform on AWS credentials validation failed'
+                            })
+                        }
+                    }
+                },
+                awsUnifiedFlow: {
+                    on: {
+                        [AIMachineEventType.SUBMIT_AWS_CREDENTIALS]: {
+                            target: 'validatingAwsCredentials',
+                            actions: assign({
+                                loginMethod: (_ctx) => LoginMethod.AWS_BEDROCK,
+                                errorMessage: (_ctx) => undefined
+                            })
+                        },
+                        [AIMachineEventType.SUBMIT_ANTHROPIC_AWS_CREDENTIALS]: {
+                            target: 'validatingAnthropicAwsCredentials',
+                            actions: assign({
+                                loginMethod: (_ctx) => LoginMethod.ANTHROPIC_AWS,
+                                errorMessage: (_ctx) => undefined
+                            })
+                        },
+                        [AIMachineEventType.CANCEL_LOGIN]: {
+                            target: '#ballerina-ai.Unauthenticated',
+                            actions: assign({
+                                loginMethod: (_ctx) => undefined,
+                                errorMessage: (_ctx) => undefined,
+                            })
+                        }
+                    }
                 }
             }
         },
@@ -475,6 +555,19 @@ const validateVertexAiCredentialsService = async (_context: AIMachineContext, ev
     });
 };
 
+const validateAnthropicAwsCredentialsService = async (_context: AIMachineContext, event: any) => {
+    const { region, workspaceId, authMode, accessKeyId, secretAccessKey, sessionToken, apiKey } = event.payload || {};
+    return await validateAnthropicAwsCredentials({
+        region,
+        workspaceId,
+        authMode: authMode ?? 'sigv4',
+        accessKeyId,
+        secretAccessKey,
+        sessionToken,
+        apiKey,
+    });
+};
+
 const getTokenAfterAuth = async () => {
     const result = await getAccessToken();
     const loginMethod = await getLoginMethod();
@@ -491,6 +584,7 @@ const aiStateService = interpret(aiMachine.withConfig({
         validateApiKey: validateApiKeyService,
         validateAwsCredentials: validateAwsCredentialsService,
         validateVertexAiCredentials: validateVertexAiCredentialsService,
+        validateAnthropicAwsCredentials: validateAnthropicAwsCredentialsService,
         getTokenAfterAuth: getTokenAfterAuth,
     },
     actions: {

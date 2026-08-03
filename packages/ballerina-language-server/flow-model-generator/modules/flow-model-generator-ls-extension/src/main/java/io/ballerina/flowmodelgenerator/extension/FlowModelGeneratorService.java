@@ -667,6 +667,19 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             try {
                 Path filePath = Path.of(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
+                Path projectPath = workspaceManager.projectRoot(filePath);
+
+                // Ensure functions.bal is loaded into the workspace before reading the project.
+                // loadProject returns a cached project that can predate a freshly-generated
+                // functions.bal (e.g. an activity just created into it), so without this the search
+                // would miss newly created functions/activities. FileSystemUtils.getDocument performs a
+                // didOpen when the file is not yet tracked, which refreshes the cached project so the
+                // subsequent loadProject sees the new declarations.
+                Path functionsBalPath = projectPath.resolve("functions.bal");
+                Optional<Document> functionsDoc = Files.exists(functionsBalPath)
+                        ? Optional.ofNullable(FileSystemUtils.getDocument(workspaceManager, functionsBalPath))
+                        : Optional.empty();
+
                 Project project = workspaceManager.loadProject(filePath);
                 SearchCommand.Kind searchKind = SearchCommand.Kind.valueOf(request.searchKind());
                 LineRange position = request.position();
@@ -676,9 +689,6 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                             request.position().startLine(),
                             request.position().endLine());
                 }
-
-                Path projectPath = workspaceManager.projectRoot(filePath);
-                Optional<Document> functionsDoc = getDocumentFromFile(projectPath, "functions.bal");
 
                 SearchCommand command = SearchCommand.from(searchKind, project, position, request.queryMap(),
                         functionsDoc.orElse(null));

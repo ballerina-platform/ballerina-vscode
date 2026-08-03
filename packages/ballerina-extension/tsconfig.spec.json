@@ -1,0 +1,24 @@
+// Type-checks the test-support code (excluded from the webpack/tsc build; ts-jest runs
+// with isolatedModules so it isn't type-checked at run time either). Scoped to
+// src/test-support — the legacy mocha (src/test) and Playwright (e2e-test) suites are not
+// covered. `types` inherited so vscode/node ambients stay; shared ambient adds jest/jest-dom.
+// Run via `pnpm run test:typecheck`.
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "skipLibCheck": true,
+        "rootDir": "../.."
+    },
+    "files": [
+        "node_modules/@wso2/test-config/jest-matchers.d.ts"
+    ],
+    "include": [
+        "src/test-support/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "out",
+        "lib"
+    ]
+}

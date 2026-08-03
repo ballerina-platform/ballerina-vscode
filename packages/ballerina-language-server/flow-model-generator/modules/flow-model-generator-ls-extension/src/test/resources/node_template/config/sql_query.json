@@ -12,7 +12,6 @@
     "packageName": "mssql",
     "object": "Client",
     "symbol": "query",
-    "version": "1.16.1",
     "parentSymbol": "dbClient",
     "resourcePath": "/albums/[albumId]"
   },
@@ -21,7 +20,7 @@
     "metadata": {
       "label": "query",
       "description": "Executes a SQL query and returns multiple results as a stream.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.16.1.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.17.0.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
@@ -30,7 +29,6 @@
       "packageName": "mssql",
       "object": "Client",
       "symbol": "query",
-      "version": "1.16.1",
       "isNew": true,
       "inferredReturnType": "stream<rowType, sql:Error?>"
     },

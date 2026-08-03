@@ -131,6 +131,7 @@ import io.ballerina.compiler.syntax.tree.WhileStatementNode;
 import io.ballerina.flowmodelgenerator.core.model.Branch;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.CommentProperty;
+import io.ballerina.flowmodelgenerator.core.model.Diagnostics;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.FormBuilder;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
@@ -152,6 +153,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.EmbeddingProviderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.FailBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.FunctionCall;
 import io.ballerina.flowmodelgenerator.core.model.node.FunctionDefinitionBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.HumanTaskBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.IfBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.JsonPayloadBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.KnowledgeBaseBuilder;
@@ -171,6 +173,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.VariableBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.VectorStoreBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.WorkflowRunBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.XmlPayloadBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.BuiltinActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStrategy;
@@ -180,6 +183,7 @@ import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
@@ -221,8 +225,17 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_EM
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_REST_FUNCTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.BUILTIN_SOAP_FUNCTION;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CALL_ACTIVITY_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CALL_HUMAN_TASK_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CONTEXT_CLASS_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.HUMAN_TASK_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.HUMAN_TASK_LABEL;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_DESCRIPTION;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_LABEL;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SLEEP_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_METHOD_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.RUN_PROCESS_FUNCTION_PARAM;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.SEND_DATA_METHOD_NAME;
 import static io.ballerina.flowmodelgenerator.core.model.node.ActivityCallBuilder.EXCLUDED_CALL_ACTIVITY_PARAMS;
 import static io.ballerina.flowmodelgenerator.core.model.node.WaitDataBuilder.EXCLUDED_KEYS;
@@ -456,6 +469,11 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         Optional<Symbol> symbol = semanticModel.symbol(remoteMethodCallActionNode);
         if (symbol.isEmpty() || (symbol.get().kind() != SymbolKind.METHOD)) {
+            // Fallback: recognize awaitHumanTask by method name even when semantic model cannot resolve
+            // the symbol (e.g., the installed workflow library version predates awaitHumanTask).
+            if (tryHandleUnresolvedCallHumanTask(remoteMethodCallActionNode)) {
+                return;
+            }
             handleExpressionNode(remoteMethodCallActionNode);
             return;
         }
@@ -474,6 +492,8 @@ public class CodeAnalyzer extends NodeVisitor {
             populateAgentMetaData(expressionNode, classSymbol);
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_ACTIVITY_METHOD_NAME)) {
             startNode(NodeKind.ACTIVITY_CALL, expressionNode.parent());
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_HUMAN_TASK_METHOD_NAME)) {
+            startNode(NodeKind.HUMAN_TASK, expressionNode.parent());
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, AWAIT_METHOD_NAME)) {
             // Use the enclosing variable declaration's line range when present so workflow compiler
             // plugin diagnostics on the typed binding pattern (e.g. WORKFLOW_123 on non-nilable tuple
@@ -489,6 +509,9 @@ public class CodeAnalyzer extends NodeVisitor {
         if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_ACTIVITY_METHOD_NAME)) {
             String builtinSymbol = resolveBuiltinActivitySymbol(remoteMethodCallActionNode.arguments());
             if (builtinSymbol != null) {
+                // Builtin activities always wrap a connection (http/soap/email client), so model them
+                // as a connection-backed activity call — the diagram renders these with a connection arrow.
+                nodeBuilder.codedata().node(NodeKind.CONNECTION_ACTIVITY_CALL);
                 // Builtin: symbol is the actual function name (callRestAPI/callSoapAPI/sendEmail).
                 nodeBuilder.codedata().symbol(builtinSymbol);
                 nodeBuilder.codedata().module(ACTIVITY_MODULE);
@@ -497,6 +520,11 @@ public class CodeAnalyzer extends NodeVisitor {
                 overrideSymbolFromFirstArg(remoteMethodCallActionNode.arguments());
                 populateActivityCallProperties(remoteMethodCallActionNode);
             }
+            // The node title is the activity being called, not the generic callActivity method name
+            // (the node icon already marks it as an activity call).
+            overrideActivityCallLabel(remoteMethodCallActionNode, builtinSymbol);
+        } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, CALL_HUMAN_TASK_METHOD_NAME)) {
+            populateHumanTaskProperties(remoteMethodCallActionNode);
         } else if (isWorkflowCtxOperation(remoteMethodCallActionNode, classSymbol, AWAIT_METHOD_NAME)) {
             populateAwaitWaitDataProperties(remoteMethodCallActionNode);
         }
@@ -833,6 +861,80 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     /**
+     * Handles a {@code ctx->awaitHumanTask(...)} call when the semantic model cannot resolve the method
+     * symbol (e.g., when the installed workflow library version predates {@code awaitHumanTask}).
+     * Falls back to method-name + class-symbol detection so the node is still classified as HUMAN_TASK.
+     *
+     * @return {@code true} if the node was handled as HUMAN_TASK, {@code false} otherwise
+     */
+    private boolean tryHandleUnresolvedCallHumanTask(RemoteMethodCallActionNode callNode) {
+        if (!CALL_HUMAN_TASK_METHOD_NAME.equals(callNode.methodName().name().text())) {
+            return false;
+        }
+        Optional<ClassSymbol> optClassSymbol = getClassSymbol(callNode.expression());
+        if (optClassSymbol.isEmpty()) {
+            return false;
+        }
+        ClassSymbol classSymbol = optClassSymbol.get();
+        if (!classSymbol.getName().orElse("").equals(CONTEXT_CLASS_NAME)
+                || !isWorkflowModule(classSymbol.getModule())) {
+            return false;
+        }
+        startNode(NodeKind.HUMAN_TASK, callNode.expression().parent());
+        nodeBuilder.metadata()
+                .label(HUMAN_TASK_LABEL)
+                .description(HUMAN_TASK_DESCRIPTION)
+                .stepOut()
+                .codedata()
+                .nodeInfo(callNode)
+                .org(WORKFLOW_ORG)
+                .module(WORKFLOW_MODULE)
+                .object(CONTEXT_CLASS_NAME)
+                .symbol(CALL_HUMAN_TASK_METHOD_NAME);
+        populateHumanTaskProperties(callNode);
+        // Set checkError from the parent node kind since setFunctionProperties was skipped.
+        SyntaxKind parentKind = callNode.parent().kind();
+        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION
+                || parentKind == SyntaxKind.CHECK_EXPRESSION;
+        nodeBuilder.properties().checkError(hasCheck);
+        return true;
+    }
+
+    /**
+     * Populates node properties for a {@code ctx.sleep(...)} call.
+     * Sets the full workflow codedata (org/module/object/symbol) and reads the duration
+     * argument via the function symbol so the node round-trips as NodeKind.SLEEP.
+     */
+    private void populateSleepNodeProperties(MethodCallExpressionNode callNode, FunctionSymbol functionSymbol) {
+        FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
+                .name(SLEEP_METHOD_NAME)
+                .functionSymbol(functionSymbol)
+                .semanticModel(semanticModel)
+                .userModuleInfo(moduleInfo);
+        FunctionData functionData = functionDataBuilder.build();
+
+        nodeBuilder
+                .symbolInfo(functionSymbol)
+                .metadata()
+                    .label(SLEEP_LABEL)
+                    .description(SLEEP_DESCRIPTION)
+                    .stepOut()
+                .codedata()
+                    .node(NodeKind.SLEEP)
+                    .org(WORKFLOW_ORG)
+                    .module(WORKFLOW_MODULE)
+                    .object(CONTEXT_CLASS_NAME)
+                    .symbol(SLEEP_METHOD_NAME);
+
+        processFunctionSymbol(callNode, callNode.arguments(), functionSymbol, functionData);
+
+        SyntaxKind parentKind = callNode.parent().kind();
+        boolean hasCheck = parentKind == SyntaxKind.CHECK_ACTION
+                || parentKind == SyntaxKind.CHECK_EXPRESSION;
+        nodeBuilder.properties().checkError(hasCheck);
+    }
+
+    /**
      * Returns the builtin-activity strategy symbol ("REST", "SOAP", or "EMAIL") if the first
      * positional argument of a {@code ctx->callActivity(...)} call resolves to one of the known
      * builtin activity functions in the {@code workflow.activity} module, or {@code null} otherwise.
@@ -884,6 +986,40 @@ public class CodeAnalyzer extends NodeVisitor {
     }
 
     /**
+     * Overrides the metadata label (and description when resolvable) of an activity call node with the
+     * activity being called, replacing the generic {@code callActivity} method name set by
+     * {@code setFunctionProperties}. Builtins use their strategy label (e.g. "Call REST API") so the
+     * diagram matches the creation template; user-defined activities use the activity function name
+     * without any module prefix.
+     */
+    private void overrideActivityCallLabel(RemoteMethodCallActionNode remoteMethodCallActionNode,
+                                           String builtinSymbol) {
+        if (builtinSymbol != null) {
+            BuiltinActivityStrategy strategy = ActivityCallBuilder.getBuiltinStrategy(builtinSymbol);
+            if (strategy != null) {
+                nodeBuilder.metadata().label(strategy.getLabel()).description(strategy.getDescription());
+            }
+            return;
+        }
+        SeparatedNodeList<FunctionArgumentNode> args = remoteMethodCallActionNode.arguments();
+        if (args.isEmpty() || !(args.get(0) instanceof PositionalArgumentNode positionalArg)) {
+            return;
+        }
+        ExpressionNode expr = positionalArg.expression();
+        String functionRefName = expr.toSourceCode().strip();
+        String label = functionRefName.substring(functionRefName.lastIndexOf(':') + 1);
+        if (label.isEmpty()) {
+            return;
+        }
+        nodeBuilder.metadata().label(label);
+        semanticModel.symbol(expr)
+                .filter(symbol -> symbol instanceof FunctionSymbol)
+                .flatMap(symbol -> ((FunctionSymbol) symbol).documentation())
+                .flatMap(Documentation::description)
+                .ifPresent(description -> nodeBuilder.metadata().description(description));
+    }
+
+    /**
      * Fixes properties after {@code processFunctionSymbol} runs on {@code callActivity}: removes excluded
      * params, moves advance params into {@code ADVANCED_PARAM_KEY}, and adds flat activity function params
      * from the args map literal.
@@ -895,6 +1031,14 @@ public class CodeAnalyzer extends NodeVisitor {
 
         // Step 1: Move the advance params (already populated with actual values) into ADVANCED_PARAM_KEY.
         Map<String, Property> currentProps = nodeBuilder.properties().build();
+        // Save retryPolicy raw value BEFORE removeIf strips it (it is excluded from ADVANCE_PARAM_LIST).
+        String rawRetryPolicyValue = null;
+        {
+            Property rp = currentProps.get(ActivityCallBuilder.RETRY_POLICY_PARAM);
+            if (rp != null && rp.value() != null) {
+                rawRetryPolicyValue = rp.value().toString();
+            }
+        }
         currentProps.keySet().removeIf(EXCLUDED_CALL_ACTIVITY_PARAMS::contains);
         Map<String, Property> advancedProps = new LinkedHashMap<>(currentProps);
         currentProps.clear();
@@ -916,6 +1060,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         if (activityParamSymbols.isEmpty()) {
+            addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
             return;
         }
 
@@ -936,12 +1081,39 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         // Step 4: Add flat properties for each activity function parameter, setting values from the args map.
+        // An activity with connection-client parameters (generated from a connection) is modelled as a
+        // connection-backed activity call: each connection is stored as a connection selector (not a
+        // plain data arg) and the node kind switched so the diagram draws a link per connection. The
+        // first connection's connector provides the node icon.
+        boolean firstConnection = true;
         for (ParameterSymbol paramSymbol : activityParamSymbols) {
             String paramName = paramSymbol.getName().orElse("");
             if (paramName.isEmpty()) {
                 continue;
             }
             Node valueNode = argsValues.get(paramName);
+            Optional<ClassSymbol> connectionClass =
+                    WorkflowUtil.resolveConnectionClass(paramSymbol.typeDescriptor());
+            if (connectionClass.isPresent() && valueNode instanceof ExpressionNode connectionExpr) {
+                nodeBuilder.codedata().node(NodeKind.CONNECTION_ACTIVITY_CALL);
+                // Render the connection as an editable connection dropdown (like builtin activities),
+                // seeded with the current connection value, instead of a hidden expression field. The
+                // property key is the parameter name so source generation round-trips the argument.
+                ActivityCallBuilder.ConnectionSelectorData selector =
+                        ActivityCallBuilder.resolveUserActivityConnectionSelector(connectionClass.get());
+                String label = Property.CONNECTION_KEY.equals(paramName) ? Property.CONNECTION_LABEL : paramName;
+                nodeBuilder.properties().connectionSelector(paramName, label,
+                        connectionExpr.toSourceCode().strip(), selector.searchNodesKind(), selector.connectors());
+                if (firstConnection) {
+                    firstConnection = false;
+                    connectionClass.get().getModule().ifPresent(module -> {
+                        ModuleID id = module.id();
+                        nodeBuilder.metadata().icon(
+                                CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()));
+                    });
+                }
+                continue;
+            }
             String value = valueNode != null ? valueNode.toSourceCode().strip() : null;
             boolean isOptional = paramSymbol.paramKind() == ParameterKind.DEFAULTABLE;
             String kind = isOptional ? ParameterData.Kind.DEFAULTABLE.name() : ParameterData.Kind.REQUIRED.name();
@@ -966,6 +1138,154 @@ public class CodeAnalyzer extends NodeVisitor {
             customPropBuilder.typeWithExpression(typeSymbol, moduleInfo, valueNode, semanticModel,
                     customPropBuilder, diagnosticHandler);
             nodeBuilderFormBuilder.addProperty(FlowNodeUtil.getPropertyKey(paramName), valueNode);
+        }
+        // After activity input params, add retryPolicy at root level (outside ADVANCE_PARAM_LIST).
+        addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
+    }
+
+    /**
+     * Populates form properties for a {@code ctx->awaitHumanTask(...)} node from the existing source.
+     * Reads individual positional and named arguments and maps each to the corresponding form property
+     * defined by {@link io.ballerina.flowmodelgenerator.core.model.node.HumanTaskBuilder}.
+     *
+     * <p>Argument layout: {@code awaitHumanTask(taskName, userRoles[, payload = ..., title = ...,
+     * description = ..., timeout = ...])}
+     *
+     * @param callNode the {@code ctx->awaitHumanTask(...)} call node
+     */
+    private void populateHumanTaskProperties(RemoteMethodCallActionNode callNode) {
+        Map<String, Property> currentProps = nodeBuilder.properties().build();
+        Property savedCheckError = currentProps.get(Property.CHECK_ERROR_KEY);
+        boolean uncheckedInDoClause = callNode.parent().kind() != SyntaxKind.CHECK_ACTION
+                && callNode.parent().kind() != SyntaxKind.CHECK_EXPRESSION
+                && CommonUtils.withinDoClause(callNode);
+
+        // When the awaitHumanTask symbol resolves, setFunctionProperties/processFunctionSymbol have already
+        // built rich, type-aware properties: each param carries its real type symbol and imports, and the
+        // inferred `typedesc<anydata> T` parameter is a record-field-aware result-type selector. Reuse them
+        // (relabel + add the result variable) instead of discarding the type metadata with a hardcoded form.
+        boolean resolved = currentProps.containsKey(HumanTaskBuilder.TASK_NAME_KEY)
+                || currentProps.containsKey(HumanTaskBuilder.USER_ROLES_KEY);
+        if (resolved) {
+            populateResolvedHumanTaskProperties();
+        } else {
+            populateFallbackHumanTaskProperties(callNode, currentProps);
+        }
+
+        if (savedCheckError != null) {
+            boolean checkError = savedCheckError.value() != null
+                    && Boolean.parseBoolean(savedCheckError.value().toString());
+            nodeBuilder.properties().checkError(checkError);
+        } else if (uncheckedInDoClause) {
+            nodeBuilder.properties().checkError(false);
+        }
+    }
+
+    /**
+     * Resolved path: relabels the rich {@code awaitHumanTask} properties built by
+     * {@code processFunctionSymbol}, drops the implicit {@code ctx} connection, and sets the result variable
+     * explicitly so {@code handleVariableNode} skips its generic {@code dataVariable()} (which would otherwise
+     * add a duplicate {@code TYPE_KEY} alongside the inferred {@code T} result-type selector).
+     */
+    private void populateResolvedHumanTaskProperties() {
+        Map<String, Property> currentProps = nodeBuilder.properties().build();
+        currentProps.remove(Property.CONNECTION_KEY);
+
+        // Canonicalize the inferred result type to the databindingType form first, then relabel — the
+        // relabel step renames the databinding property to the human task "Completion Type", so it must
+        // run after normalization has created that property.
+        CallBuilder.normalizeDatabindingTypeProperty(nodeBuilder);
+        HumanTaskBuilder.relabelHumanTaskFormProperties(currentProps);
+
+        if (typedBindingPatternNode != null) {
+            String varText = typedBindingPatternNode.bindingPattern().toSourceCode().strip();
+            nodeBuilder.properties().custom()
+                    .metadata().label(Property.RESULT_NAME).description(Property.RESULT_DOC).stepOut()
+                    .value(varText)
+                    .type().fieldType(Property.ValueType.IDENTIFIER).selected(true).stepOut()
+                    .editable(true).stepOut()
+                    .addProperty(Property.VARIABLE_KEY);
+        }
+    }
+
+    /**
+     * Fallback path used when the {@code awaitHumanTask} symbol cannot be resolved (e.g., the installed
+     * workflow library predates it). Reads positional/named args directly and builds a stable, static form
+     * matching {@link HumanTaskBuilder}'s fallback shape. The result type uses the inferred {@code T} key so
+     * {@code toSource} round-trips consistently with the resolved path.
+     */
+    private void populateFallbackHumanTaskProperties(RemoteMethodCallActionNode callNode,
+                                                     Map<String, Property> currentProps) {
+        SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
+        currentProps.clear();
+
+        // Collect all named args first for use as fallback for required params
+        Map<String, String> namedArgs = new LinkedHashMap<>();
+        for (FunctionArgumentNode arg : args) {
+            if (arg instanceof NamedArgumentNode namedArg) {
+                String name = namedArg.argumentName().name().text();
+                String value = namedArg.expression().toSourceCode().strip();
+                namedArgs.put(name, value);
+            }
+        }
+
+        // taskName: positional arg 0, or named arg form awaitHumanTask(taskName = "...", ...)
+        String taskNameValue = "";
+        String userRolesValue = "";
+        if (args.size() > 0 && args.get(0) instanceof PositionalArgumentNode posArg0) {
+            taskNameValue = posArg0.expression().toSourceCode().strip();
+        } else if (namedArgs.containsKey(HumanTaskBuilder.TASK_NAME_KEY)) {
+            taskNameValue = namedArgs.get(HumanTaskBuilder.TASK_NAME_KEY);
+        }
+        // userRoles: positional arg 1, or named arg form
+        if (args.size() > 1 && args.get(1) instanceof PositionalArgumentNode posArg1) {
+            userRolesValue = posArg1.expression().toSourceCode().strip();
+        } else if (namedArgs.containsKey(HumanTaskBuilder.USER_ROLES_KEY)) {
+            userRolesValue = namedArgs.get(HumanTaskBuilder.USER_ROLES_KEY);
+        }
+
+        // payload: named arg, or positional arg 2
+        String payloadValue = namedArgs.get(HumanTaskBuilder.PAYLOAD_KEY);
+        if (payloadValue == null && args.size() > 2 && args.get(2) instanceof PositionalArgumentNode posArg2) {
+            payloadValue = posArg2.expression().toSourceCode().strip();
+        }
+        // title: named arg only
+        String titleValue = namedArgs.get(HumanTaskBuilder.TITLE_KEY);
+        // description: named arg, or positional arg 3
+        String descValue = namedArgs.get(HumanTaskBuilder.DESCRIPTION_KEY);
+        if (descValue == null && args.size() > 3 && args.get(3) instanceof PositionalArgumentNode posArg3) {
+            descValue = posArg3.expression().toSourceCode().strip();
+        }
+        // timeout: named arg only
+        String timeoutValue = namedArgs.get(HumanTaskBuilder.TIMEOUT_KEY);
+
+        // Build the human task parameter form via the single shared definition in HumanTaskBuilder,
+        // injecting the values parsed from source (empty required values map to no preset value).
+        Map<String, String> paramValues = new LinkedHashMap<>();
+        paramValues.put(HumanTaskBuilder.TASK_NAME_KEY, taskNameValue.isEmpty() ? null : taskNameValue);
+        paramValues.put(HumanTaskBuilder.USER_ROLES_KEY, userRolesValue.isEmpty() ? null : userRolesValue);
+        paramValues.put(HumanTaskBuilder.PAYLOAD_KEY, payloadValue);
+        paramValues.put(HumanTaskBuilder.TITLE_KEY, titleValue);
+        paramValues.put(HumanTaskBuilder.DESCRIPTION_KEY, descValue);
+        paramValues.put(HumanTaskBuilder.TIMEOUT_KEY, timeoutValue);
+        HumanTaskBuilder.addFallbackHumanTaskParameters(nodeBuilder, paramValues);
+
+        // Inferred databinding/result type and result variable (from typedBindingPatternNode)
+        if (typedBindingPatternNode != null) {
+            String typeText = typedBindingPatternNode.typeDescriptor().toSourceCode().strip();
+            nodeBuilder.properties().custom()
+                    .metadata().label(HumanTaskBuilder.COMPLETION_TYPE_LABEL)
+                        .description(HumanTaskBuilder.COMPLETION_TYPE_DESCRIPTION).stepOut()
+                    .value(typeText)
+                    .type().fieldType(Property.ValueType.TYPE).ballerinaType(typeText).selected(true).stepOut()
+                    .codedata().kind(ParameterData.Kind.PARAM_FOR_TYPE_INFER.name())
+                        .originalName(CallBuilder.DATABINDING_TYPE_KEY).stepOut()
+                    .editable(true).stepOut().addProperty(CallBuilder.DATABINDING_TYPE_KEY);
+            String varText = typedBindingPatternNode.bindingPattern().toSourceCode().strip();
+            nodeBuilder.properties().custom()
+                    .metadata().label(Property.RESULT_NAME).description(Property.RESULT_DOC).stepOut()
+                    .value(varText).type().fieldType(Property.ValueType.IDENTIFIER).selected(true).stepOut()
+                    .editable(true).stepOut().addProperty(Property.VARIABLE_KEY);
         }
     }
 
@@ -1018,7 +1338,7 @@ public class CodeAnalyzer extends NodeVisitor {
             return;
         }
 
-        // Preserve checkError and the advanced callActivity params (retryOnError, maxRetries, etc.)
+        // Preserve checkError and the advanced callActivity params (retryOnError, timeout, etc.)
         // populated by setFunctionProperties/processFunctionSymbol from named args in source, before
         // the clear below discards them.  Without this, builtin activities lose their advanced options
         // on every reload/regeneration, causing toSourceBuiltin() to omit them.
@@ -1027,6 +1347,19 @@ public class CodeAnalyzer extends NodeVisitor {
         boolean uncheckedBuiltinInDoClause = callNode.parent().kind() != SyntaxKind.CHECK_ACTION
                 && callNode.parent().kind() != SyntaxKind.CHECK_EXPRESSION
                 && CommonUtils.withinDoClause(callNode);
+        Property savedInferredType = currentProps.values().stream()
+                .filter(property -> property.codedata() != null && property.codedata().kind() != null
+                        && property.codedata().kind().equals(ParameterData.Kind.PARAM_FOR_TYPE_INFER.name()))
+                .findFirst()
+                .orElse(null);
+        // Save retryPolicy separately — it is excluded from ADVANCE_PARAM_LIST and restored at root level.
+        String rawRetryPolicyValue = null;
+        {
+            Property rp = currentProps.get(ActivityCallBuilder.RETRY_POLICY_PARAM);
+            if (rp != null && rp.value() != null) {
+                rawRetryPolicyValue = rp.value().toString();
+            }
+        }
         Map<String, Property> savedAdvancedProps = new LinkedHashMap<>();
         for (Map.Entry<String, Property> entry : currentProps.entrySet()) {
             if (!EXCLUDED_CALL_ACTIVITY_PARAMS.contains(entry.getKey())) {
@@ -1078,6 +1411,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 connValue,
                 strategy != null ? strategy.searchNodesKind() : null,
                 strategy != null ? strategy.connectors() : null);
+        // Show the connector icon on the connection arrow the diagram draws for this node.
+        applyActivityConnectionIcon(connValue);
 
         switch (builtinSymbol) {
             case BUILTIN_REST_FUNCTION -> populateRestProperties(srcValues);
@@ -1098,34 +1433,29 @@ public class CodeAnalyzer extends NodeVisitor {
             }
         }
 
-        // TYPE_KEY and VARIABLE_KEY from the LHS binding pattern
-        if (typedBindingPatternNode != null) {
-            if (BUILTIN_REST_FUNCTION.equals(builtinSymbol)) {
-                String typeText = typedBindingPatternNode.typeDescriptor().toSourceCode().strip();
-                nodeBuilder.properties().custom()
-                        .metadata()
-                            .label("Databinding")
-                            .description("Response data binding type (e.g., json, xml, record type)")
-                            .stepOut()
-                        .value(typeText)
-                        .type().fieldType(Property.ValueType.TYPE).selected(true).stepOut()
-                        .editable(true)
+        String typeText = typedBindingPatternNode != null
+                ? typedBindingPatternNode.typeDescriptor().toSourceCode().strip() : "json";
+        if (BUILTIN_REST_FUNCTION.equals(builtinSymbol) || BUILTIN_SOAP_FUNCTION.equals(builtinSymbol)) {
+            String varText = typedBindingPatternNode != null
+                    ? typedBindingPatternNode.bindingPattern().toSourceCode().strip() : "result";
+            nodeBuilder.properties().custom()
+                    .metadata()
+                        .label(Property.RESULT_NAME)
+                        .description(Property.RESULT_DOC)
                         .stepOut()
-                        .addProperty(Property.TYPE_KEY);
-            }
-            if (BUILTIN_REST_FUNCTION.equals(builtinSymbol) || BUILTIN_SOAP_FUNCTION.equals(builtinSymbol)) {
-                String varText = typedBindingPatternNode.bindingPattern().toSourceCode().strip();
-                nodeBuilder.properties().custom()
-                        .metadata()
-                            .label(Property.RESULT_NAME)
-                            .description(Property.RESULT_DOC)
-                            .stepOut()
-                        .value(varText)
-                        .type().fieldType(Property.ValueType.IDENTIFIER).selected(true).stepOut()
-                        .editable(true)
-                        .stepOut()
-                        .addProperty(Property.VARIABLE_KEY);
-            }
+                    .value(varText)
+                    .type().fieldType(Property.ValueType.IDENTIFIER).selected(true).stepOut()
+                    .editable(true)
+                    .stepOut()
+                    .addProperty(Property.VARIABLE_KEY);
+        }
+        if (BUILTIN_REST_FUNCTION.equals(builtinSymbol) && savedInferredType != null
+                && savedInferredType.codedata() != null && savedInferredType.codedata().originalName() != null) {
+            nodeBuilder.properties().build().put(savedInferredType.codedata().originalName(),
+                    Property.Builder.copyFrom(savedInferredType)
+                            .value(typeText)
+                            .advanced(false)
+                            .build());
         }
         // Restore checkError. If the original call was unchecked inside a do-clause and no explicit
         // checkError property was captured, persist false explicitly so toSourceBuiltin() doesn't
@@ -1138,7 +1468,7 @@ public class CodeAnalyzer extends NodeVisitor {
             nodeBuilder.properties().checkError(false);
         }
 
-        // Restore advanced callActivity params (retryOnError, maxRetries, etc.) as ADVANCED_PARAM_KEY
+        // Restore advanced callActivity params (retryOnError, timeout, etc.) as ADVANCED_PARAM_KEY
         // so toSourceBuiltin() / populateAdvancedArgs() can emit them as named arguments.
         if (!savedAdvancedProps.isEmpty()) {
             nodeBuilder.properties().nestedProperty();
@@ -1149,6 +1479,51 @@ public class CodeAnalyzer extends NodeVisitor {
                     ActivityCallBuilder.ADVANCE_CONFIGURATIONS,
                     ActivityCallBuilder.ADVANCE_CONFIGURATIONS);
         }
+        // Restore retryPolicy at root level as a DROPDOWN_CHOICE (must be outside ADVANCE_PARAM_LIST).
+        addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
+    }
+
+    /**
+     * Normalizes a raw retryPolicy source value (e.g. {@code "workflow:NoRetry"} or
+     * {@code "{maxRetries: 3, retryDelay: 1.0}"}) into the DROPDOWN_CHOICE value + sub-fields,
+     * then adds them as root-level properties on the current nodeBuilder.
+     */
+    private void addNormalizedRetryPolicyProperties(String rawValue) {
+        String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
+        String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
+
+        if (rawValue != null && !rawValue.isBlank()) {
+            if (rawValue.contains("ManualRetry")) {
+                dropdownValue = ActivityCallBuilder.MANUAL_RETRY_VALUE;
+            } else if (rawValue.trim().startsWith("{")) {
+                dropdownValue = ActivityCallBuilder.AUTO_RETRY_VALUE;
+                Map<String, String> fields = parseSimpleRecord(rawValue);
+                maxRetries = fields.getOrDefault(ActivityCallBuilder.MAX_RETRIES_KEY, "");
+                retryDelay = fields.getOrDefault(ActivityCallBuilder.RETRY_DELAY_KEY, "");
+                retryBackoff = fields.getOrDefault(ActivityCallBuilder.RETRY_BACKOFF_KEY, "");
+                maxRetryDelay = fields.getOrDefault(ActivityCallBuilder.MAX_RETRY_DELAY_KEY, "");
+            }
+            // else: NoRetry (default) or any unrecognized value
+        }
+
+        ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, dropdownValue,
+                maxRetries, retryDelay, retryBackoff, maxRetryDelay);
+    }
+
+    /** Parses a simple Ballerina record literal {@code {key: value, ...}} into a string map. */
+    private static Map<String, String> parseSimpleRecord(String recordLiteral) {
+        Map<String, String> result = new LinkedHashMap<>();
+        String inner = recordLiteral.trim();
+        if (inner.startsWith("{") && inner.endsWith("}")) {
+            inner = inner.substring(1, inner.length() - 1).trim();
+        }
+        for (String part : inner.split(",")) {
+            int colon = part.indexOf(':');
+            if (colon > 0) {
+                result.put(part.substring(0, colon).trim(), part.substring(colon + 1).trim());
+            }
+        }
+        return result;
     }
 
     /** Rebuilds REST-specific form properties from source values, preserving template shapes. */
@@ -1775,6 +2150,31 @@ public class CodeAnalyzer extends NodeVisitor {
         Map<String, Object> connectorData = new HashMap<>();
         connectorData.put(CONNECTOR_TYPE, ConnectorUtil.getConnectionCategory(moduleName));
         return connectorData;
+    }
+
+    /**
+     * Sets the node icon to the connector icon of the module-level connection variable named
+     * {@code connectionName}, so the connection arrow the diagram renders for a connection-backed
+     * activity call shows the right connector. Best-effort: does nothing if the variable or its
+     * client type cannot be resolved.
+     */
+    private void applyActivityConnectionIcon(String connectionName) {
+        if (connectionName == null || connectionName.isEmpty()) {
+            return;
+        }
+        for (Symbol symbol : semanticModel.moduleSymbols()) {
+            if (symbol.kind() != SymbolKind.VARIABLE || !connectionName.equals(symbol.getName().orElse(""))) {
+                continue;
+            }
+            WorkflowUtil.resolveConnectionClass(((VariableSymbol) symbol).typeDescriptor())
+                    .flatMap(Symbol::getModule)
+                    .ifPresent(module -> {
+                        ModuleID id = module.id();
+                        nodeBuilder.metadata().icon(
+                                CommonUtils.generateIcon(id.orgName(), id.packageName(), id.version()));
+                    });
+            return;
+        }
     }
 
     private void addRemainingParamsToPropertyMap(Map<String, ParameterData> funcParamMap,
@@ -2880,6 +3280,16 @@ public class CodeAnalyzer extends NodeVisitor {
         NameReferenceNode nameReferenceNode = methodCallExpressionNode.methodName();
         String functionName = getIdentifierName(nameReferenceNode);
         ClassSymbol classSymbol = optClassSymbol.get();
+
+        // ctx.sleep(...) — workflow Context regular method, not a remote call
+        if (SLEEP_METHOD_NAME.equals(functionName)
+                && CONTEXT_CLASS_NAME.equals(classSymbol.getName().orElse(""))
+                && isWorkflowModule(classSymbol.getModule())) {
+            startNode(NodeKind.SLEEP, expressionNode.parent());
+            populateSleepNodeProperties(methodCallExpressionNode, functionSymbol);
+            return;
+        }
+
         if (isAgentClass(classSymbol)) {
             startNode(NodeKind.AGENT_CALL, expressionNode.parent());
             populateAgentMetaData(expressionNode, classSymbol);
@@ -3019,7 +3429,84 @@ public class CodeAnalyzer extends NodeVisitor {
                                               FunctionSymbol functionSymbol) {
         if (isWorkflowOperation(functionSymbol, RUN_METHOD_NAME)) {
             overrideSymbolFromFirstArg(functionCallExpressionNode.arguments());
+            populateWorkflowRunProperties(functionCallExpressionNode);
         }
+    }
+
+    /**
+     * Fixes properties after {@code processFunctionSymbol} runs on a {@code workflow:run(...)} call.
+     * The generic path types the {@code input} property from the library signature of
+     * {@code workflow:run} ({@code anydata input}), which loses the specific input type of the
+     * target workflow function. This re-derives the {@code input} property type from the workflow
+     * function's declared input parameter (the first parameter that is a subtype of {@code anydata};
+     * {@code workflow:Context} and the events record are not anydata), matching the template path in
+     * {@link WorkflowRunBuilder}. The raw {@code processFunction} property is dropped because the
+     * function reference is carried in {@code codedata.symbol}.
+     *
+     * @param callNode the {@code workflow:run(...)} call node
+     */
+    private void populateWorkflowRunProperties(FunctionCallExpressionNode callNode) {
+        SeparatedNodeList<FunctionArgumentNode> args = callNode.arguments();
+        Map<String, Property> currentProps = nodeBuilder.properties().build();
+        currentProps.remove(RUN_PROCESS_FUNCTION_PARAM);
+
+        if (args.isEmpty() || !(args.get(0) instanceof PositionalArgumentNode firstArg)) {
+            return;
+        }
+        Optional<Symbol> resolvedSymbol = semanticModel.symbol(firstArg.expression());
+        if (resolvedSymbol.isEmpty() || !(resolvedSymbol.get() instanceof FunctionSymbol workflowFuncSymbol)) {
+            return;
+        }
+
+        // The workflow's input parameter is the first parameter that is a subtype of anydata.
+        TypeSymbol inputType = WorkflowRunBuilder.findWorkflowInputType(workflowFuncSymbol, semanticModel);
+        if (inputType == null) {
+            // The workflow function declares no input; drop the library-derived input property.
+            currentProps.remove(WorkflowRunBuilder.INPUT_KEY);
+            return;
+        }
+
+        // Resolve the current input value from the call source (second positional or named arg).
+        Node valueNode = null;
+        if (args.size() > 1 && args.get(1) instanceof PositionalArgumentNode secondArg) {
+            valueNode = secondArg.expression();
+        }
+        for (FunctionArgumentNode arg : args) {
+            if (arg instanceof NamedArgumentNode namedArg
+                    && WorkflowRunBuilder.INPUT_KEY.equals(namedArg.argumentName().name().text())) {
+                valueNode = namedArg.expression();
+            }
+        }
+        // The input property built by processFunctionSymbol already consumed the diagnostic-handler
+        // cursor for this value node, so its diagnostics are correct — only its type is wrong
+        // (library map<anydata>? vs the workflow's declared type). Capture those diagnostics and
+        // re-apply them, and rebuild the type WITHOUT the handler so the single-pass cursor is not
+        // advanced a second time for the same node (which would drop or misattribute diagnostics).
+        Property existingInputProp = currentProps.get(WorkflowRunBuilder.INPUT_KEY);
+        String value = valueNode != null ? valueNode.toSourceCode().strip()
+                : (existingInputProp != null && existingInputProp.value() != null
+                        ? existingInputProp.value().toString() : "");
+        Diagnostics existingDiagnostics = existingInputProp != null ? existingInputProp.diagnostics() : null;
+
+        // Re-adding at the same key preserves the property's position in the form.
+        Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder = nodeBuilder.properties().custom();
+        FormBuilder<NodeBuilder> formBuilder = customPropBuilder
+                .metadata()
+                    .label(WorkflowRunBuilder.INPUT_LABEL)
+                    .description(WorkflowRunBuilder.INPUT_DOC)
+                    .stepOut()
+                .value(value)
+                .placeholder("")
+                .editable()
+                .stepOut();
+        customPropBuilder.typeWithExpression(inputType, moduleInfo, valueNode, semanticModel, customPropBuilder);
+        if (existingDiagnostics != null && existingDiagnostics.hasDiagnostics()) {
+            customPropBuilder.diagnostics().hasDiagnostics();
+            if (existingDiagnostics.diagnostics() != null) {
+                customPropBuilder.diagnostics().diagnostics(existingDiagnostics.diagnostics());
+            }
+        }
+        formBuilder.addProperty(WorkflowRunBuilder.INPUT_KEY, valueNode);
     }
 
     private void processFunctionSymbol(NonTerminalNode callNode, SeparatedNodeList<FunctionArgumentNode> arguments,

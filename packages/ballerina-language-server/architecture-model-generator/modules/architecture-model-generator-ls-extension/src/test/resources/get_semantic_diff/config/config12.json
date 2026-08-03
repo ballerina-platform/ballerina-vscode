@@ -1,0 +1,39 @@
+{
+  "description": "Get diff for a function signature-only change",
+  "projectPath": "function_signature_change",
+  "output": {
+    "loadDesignDiagrams": false,
+    "semanticDiffs": [
+      {
+        "changeType": "MODIFICATION",
+        "nodeKind": "MODULE_FUNCTION",
+        "uri": "ai:///main.bal",
+        "lineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 0,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 1
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 0,
+            "offset": 0
+          },
+          "endLine": {
+            "line": 2,
+            "offset": 1
+          }
+        },
+        "metadata": {
+          "name": "greet"
+        }
+      }
+    ]
+  }
+}

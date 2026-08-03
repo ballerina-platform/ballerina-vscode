@@ -118,6 +118,14 @@ export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
                 condition: (title) => title === "Activities"
             },
             {
+                type: 'add',
+                codeIcon: "plug",
+                tooltip: "Create Activity from a Connection",
+                emptyStateLabel: "Create Activity from a Connection",
+                handlerKey: 'onAdd',
+                condition: (title) => title === "Activities"
+            },
+            {
                 type: 'function',
                 tooltip: "Create Function",
                 emptyStateLabel: "Create Function",

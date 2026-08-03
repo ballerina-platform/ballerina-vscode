@@ -13,7 +13,6 @@
       "org": "ballerinax",
       "module": "redis",
       "symbol": "close",
-      "version": "3.0.2",
       "lineRange": {
         "fileName": "method_call_redis.bal",
         "startLine": {

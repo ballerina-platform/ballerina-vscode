@@ -18,7 +18,6 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { ExecutionContext } from '@wso2/ballerina-core';
 import { CopilotEventHandler } from '../../utils/events';
 import { extension } from '../../../../BalExtensionContext';
 import { RunningServicesManager, spawnProcess, killProcessGroup } from './running-service-manager';
@@ -27,7 +26,6 @@ import { BALLERINA_GET_LOGS_TOOL_NAME } from './ballerina-get-logs';
 import { BALLERINA_STOP_TOOL_NAME } from './ballerina-stop';
 import { resolvePackageBasePath } from './path-utils';
 import { getRunCommand } from '../../../project/cmds/cmd-runner';
-import { integrateAndClearModifiedFiles } from '../utils';
 
 export const BALLERINA_RUN_TOOL_NAME = "runBallerinaPackage";
 
@@ -43,10 +41,7 @@ const DEFAULT_SERVICE_READY_TIMEOUT = 60000;
 export function createBallerinaRunTool(
     tempProjectPath: string,
     runningServices: RunningServicesManager,
-    eventHandler: CopilotEventHandler,
-    modifiedFiles: string[],
-    allModifiedFiles: Set<string>,
-    ctx: ExecutionContext
+    eventHandler: CopilotEventHandler
 ) {
     return tool({
         description: `Runs a Ballerina package using \`bal run\`.
@@ -64,8 +59,6 @@ export function createBallerinaRunTool(
         inputSchema: BallerinaRunInputSchema,
         execute: async (input, context?: { toolCallId?: string }) => {
             const toolCallId = context?.toolCallId || `fallback-${Date.now()}`;
-
-            await integrateAndClearModifiedFiles(tempProjectPath, modifiedFiles, allModifiedFiles, ctx);
 
             eventHandler({
                 type: "tool_call",

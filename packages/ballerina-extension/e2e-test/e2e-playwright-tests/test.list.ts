@@ -40,12 +40,12 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, timeoutM
 }
 
 import automation from './automation/automation.spec';
-import automationFlowNodes from './automation/flow-nodes.spec';
-import automationRun from './automation-run/automation-run.spec';
-import runConflict from './run-conflict/run-conflict.spec';
-import runConcurrent from './run-concurrent/run-concurrent.spec';
-import automationDebug from './automation-debug/automation-debug.spec';
+import automationRun from './rundebug/run/automation-run.spec';
+import runConflict from './rundebug/run-conflict/run-conflict.spec';
+import runConcurrent from './rundebug/run-concurrent/run-concurrent.spec';
+import automationDebug from './rundebug/debug/automation-debug.spec';
 import expressionEditor from './expression-editor/expression-editor.spec';
+import expressionEditorAdvanced from './expression-editor/expression-editor-advanced.spec';
 
 import httpService from './api-integration/http-service.spec';
 import httpUpload from './api-integration/http-upload.spec';
@@ -66,22 +66,28 @@ import directoryIntegration from './file-integration/directory.spec';
 
 import functionArtifact from './other-artifacts/function.spec';
 import naturalFunctionArtifact from './other-artifacts/np.spec';
-import connectionArtifact from './other-artifacts/connection.spec';
+import connections from './connections/connections.spec';
 
 import configuration from './configuration/configuration.spec';
 import typeTest from './type-editor/type.spec';
-import serviceTest from './service-designer/service-class.spec';
+import typeExplorerNavigationTest from './type-editor/type-explorer-navigation.spec';
+import serviceClassEditingTest from './type-editor/service-class-editing.spec';
 
 import importIntegration from './import-integration/import-integration.spec';
 
-import reusableDataMapper from './data-mapper/reusable-data-mapper.spec';
-import inlineDataMapper from './data-mapper/inline-data-mapper.spec';
+import reusableDataMapper from './datamapper/reusable-data-mapper.spec';
+import inlineDataMapper from './datamapper/inline-data-mapper.spec';
 
-import createProject from './project-creation/project-creation.spec';
+import createProject from './project-overview/project-creation.spec';
 
 import diagram from './diagram/diagram.spec';
+import automationFlowNodes from './diagram/flow-nodes.spec';
 
-import testFunction from './test-function/test-function.spec';
+import httpTryItExisting from './tryit/http-try-it-existing.spec';
+
+import testExplorer from './test-explorer/test-explorer.spec';
+
+import projectExplorer from './project-explorer/project-explorer.spec';
 
 test.describe.configure({ mode: 'default' });
 
@@ -124,9 +130,6 @@ test.describe('Ballerina E2E Group 1', { tag: '@group1' }, async () => {
     // <----Concurrent Run Test---->
     test.describe(runConcurrent);
 
-    // <----Expression Editor Test---->
-    test.describe(expressionEditor);
-
     // <----Integration as API Test---->
     test.describe(httpService);
     test.describe(httpUpload);
@@ -157,11 +160,15 @@ test.describe('Ballerina E2E Group 2', { tag: '@group2' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe(functionArtifact);
+
+    // <----Project Explorer Test---->
+    test.describe(projectExplorer);
 });
 
 test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
     // <----Integration as API Test---->
     test.describe(tcpService);
+    test.describe(httpTryItExisting);
 
     // <----Event Integration Test---->
     test.describe(mqttIntegration);
@@ -169,7 +176,6 @@ test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe.skip(naturalFunctionArtifact); // TODO: Enable this once the ballerina version is switchable
-    test.describe(connectionArtifact);
     test.describe(configuration);
 
     // <----Import Integration Test---->
@@ -177,6 +183,10 @@ test.describe('Ballerina E2E Group 3', { tag: '@group3' }, async () => {
 
     // <----Data Mapper Test---->
     test.describe(reusableDataMapper);
+
+    // <----Expression Editor Test---->
+    test.describe(expressionEditor);
+    test.describe(expressionEditorAdvanced);
 });
 
 test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
@@ -186,7 +196,8 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
 
     // <----Other Artifacts Test---->
     test.describe(typeTest);
-    test.describe(serviceTest);
+    test.describe(typeExplorerNavigationTest);
+    test.describe(serviceClassEditingTest);
 
     // <----Data Mapper Test---->
     test.describe.skip(inlineDataMapper); // Failing due to a issue
@@ -194,8 +205,10 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     // <----Diagram Test---->
     test.describe(diagram);
 
-    // <----Test Function Test---->
-    test.describe(testFunction);
+    // <----Test Explorer Test---->
+    test.describe(testExplorer);
+
+    test.describe(connections);
 });
 
 test.afterAll(async () => {

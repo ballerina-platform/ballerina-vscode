@@ -69,6 +69,14 @@ import static io.ballerina.flowmodelgenerator.core.TypesManager.mergeWithTargetV
  */
 public abstract class CallBuilder extends NodeBuilder {
 
+    /**
+     * Canonical form key/label for an inferred ({@code typedesc<T> = <>}) databinding-type parameter.
+     * Used in place of the dependently-typed library parameter name (e.g. {@code T}/{@code t}) so the
+     * databinding/result-type field is consistent across all activities, regardless of that name.
+     */
+    public static final String DATABINDING_TYPE_KEY = "databindingType";
+    public static final String DATABINDING_TYPE_LABEL = "Databinding Type";
+
     protected abstract NodeKind getFunctionNodeKind();
 
     protected abstract FunctionData.Kind getFunctionResultKind();
@@ -263,6 +271,43 @@ public abstract class CallBuilder extends NodeBuilder {
         buildInferredTypeProperty(nodeBuilder, paramData, value, module, null, null);
     }
 
+    /**
+     * Normalizes the inferred type-infer property on {@code nodeBuilder} to the canonical
+     * {@link #DATABINDING_TYPE_KEY} key and {@link #DATABINDING_TYPE_LABEL} label, with its
+     * {@code TYPE} entry selected. Locates the property by its {@code PARAM_FOR_TYPE_INFER} codedata
+     * kind, so it works regardless of the dependently-typed library parameter name ({@code T}, {@code t},
+     * ...). {@link #buildInferredTypeProperty} adds the property under the raw parameter name and leaves
+     * its type unselected; an unselected type entry makes the UI render a spurious second type selector.
+     * No-op when no type-infer property is present.
+     *
+     * @param nodeBuilder the builder whose inferred type-infer property should be normalized
+     */
+    public static void normalizeDatabindingTypeProperty(NodeBuilder nodeBuilder) {
+        Map<String, Property> properties = nodeBuilder.properties().build();
+        String paramKey = properties.entrySet().stream()
+                .filter(entry -> entry.getValue().codedata() != null
+                        && ParameterData.Kind.PARAM_FOR_TYPE_INFER.name()
+                            .equals(entry.getValue().codedata().kind()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
+        if (paramKey == null) {
+            return;
+        }
+        Property existing = properties.remove(paramKey);
+        String ballerinaType = existing.types() != null && !existing.types().isEmpty()
+                ? existing.types().get(0).ballerinaType()
+                : "anydata";
+        Property normalized = Property.Builder.copyFrom(existing)
+                .clearTypes()
+                .type().fieldType(Property.ValueType.TYPE).ballerinaType(ballerinaType).selected(true).stepOut()
+                .metadata().label(DATABINDING_TYPE_LABEL).stepOut()
+                .codedata().kind(ParameterData.Kind.PARAM_FOR_TYPE_INFER.name())
+                    .originalName(DATABINDING_TYPE_KEY).stepOut()
+                .build();
+        properties.put(DATABINDING_TYPE_KEY, normalized);
+    }
+
     protected void setParameterProperties(FunctionData function, io.ballerina.projects.Module module) {
         boolean hasOnlyRestParams = function.parameters().size() == 1;
 
@@ -282,72 +327,82 @@ public abstract class CallBuilder extends NodeBuilder {
                 continue;
             }
 
-            String unescapedParamName = ParamUtils.removeLeadingSingleQuote(paramResult.name());
-            Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder = properties().custom();
-            String label = paramResult.label();
-            customPropBuilder
-                    .metadata()
-                        .label(label == null || label.isEmpty() ? unescapedParamName : label)
-                        .description(paramResult.description())
-                        .stepOut()
-                    .codedata()
-                        .kind(paramResult.kind().name())
-                        .originalName(paramResult.name())
-                        .stepOut()
-                    .placeholder(paramResult.placeholder())
-                    .defaultValue(paramResult.defaultValue())
-                    .imports(paramResult.importStatements())
-                    .editable()
-                    .defaultable(paramResult.optional());
-
-            switch (paramResult.kind()) {
-                case INCLUDED_RECORD_REST -> {
-                    if (hasOnlyRestParams) {
-                        customPropBuilder.defaultable(false);
-                    }
-                    unescapedParamName = "additionalValues";
-                    Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
-                            semanticModel, moduleInfo);
-                    customPropBuilder.type()
-                            .fieldType(Property.ValueType.REPEATABLE_MAP)
-                            .ballerinaType(paramResult.type())
-                            .template(template)
-                            .selected(true)
-                            .stepOut();
-                }
-                case REST_PARAMETER -> {
-                    if (hasOnlyRestParams) {
-                        customPropBuilder.defaultable(false);
-                    }
-                    Property template = customPropBuilder.buildRepeatableTemplates(paramResult.typeSymbol(),
-                            semanticModel, moduleInfo);
-                    customPropBuilder.type()
-                            .fieldType(Property.ValueType.REPEATABLE_LIST)
-                            .ballerinaType(paramResult.type())
-                            .template(template)
-                            .selected(true)
-                            .stepOut();
-                }
-                default -> {
-                    // Add PROMPT field type for ai:Prompt parameters
-                    // TODO: Need an extension pattern to extract the following implementation out of the CallBuilder
-                    String typeSignature = CommonUtils.getTypeSignature(paramResult.typeSymbol(), moduleInfo);
-                    if (AiUtils.AI_PROMPT_TYPE.equals(typeSignature)) {
-                        customPropBuilder.type()
-                                .fieldType(Property.ValueType.PROMPT)
-                                .ballerinaType(AiUtils.AI_PROMPT_TYPE)
-                                .selected(true)
-                                .stepOut();
-                    }
-                    customPropBuilder.typeWithExpression(paramResult.typeSymbol(), moduleInfo,
-                            paramResult.defaultValue());
-                }
-            }
-
-            customPropBuilder
-                    .stepOut()
-                    .addProperty(FlowNodeUtil.getPropertyKey(unescapedParamName));
+            properties().build().put(getParameterPropertyKey(paramResult),
+                    buildParameterProperty(paramResult, module, hasOnlyRestParams));
         }
+    }
+
+    protected Property buildParameterProperty(ParameterData paramData, io.ballerina.projects.Module module,
+                                              boolean hasOnlyRestParams) {
+        String unescapedParamName = ParamUtils.removeLeadingSingleQuote(paramData.name());
+        Property.Builder<FormBuilder<NodeBuilder>> customPropBuilder = new Property.Builder<>(null);
+        String label = paramData.label();
+        customPropBuilder
+                .metadata()
+                    .label(label == null || label.isEmpty() ? unescapedParamName : label)
+                    .description(paramData.description())
+                    .stepOut()
+                .codedata()
+                    .kind(paramData.kind().name())
+                    .originalName(paramData.name())
+                    .stepOut()
+                .placeholder(paramData.placeholder())
+                .defaultValue(paramData.defaultValue())
+                .imports(paramData.importStatements())
+                .editable()
+                .defaultable(paramData.optional());
+
+        switch (paramData.kind()) {
+            case INCLUDED_RECORD_REST -> {
+                if (hasOnlyRestParams) {
+                    customPropBuilder.defaultable(false);
+                }
+                Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
+                        semanticModel, moduleInfo);
+                customPropBuilder.type()
+                        .fieldType(Property.ValueType.REPEATABLE_MAP)
+                        .ballerinaType(paramData.type())
+                        .template(template)
+                        .selected(true)
+                        .stepOut();
+            }
+            case REST_PARAMETER -> {
+                if (hasOnlyRestParams) {
+                    customPropBuilder.defaultable(false);
+                }
+                Property template = customPropBuilder.buildRepeatableTemplates(paramData.typeSymbol(),
+                        semanticModel, moduleInfo);
+                customPropBuilder.type()
+                        .fieldType(Property.ValueType.REPEATABLE_LIST)
+                        .ballerinaType(paramData.type())
+                        .template(template)
+                        .selected(true)
+                        .stepOut();
+            }
+            default -> {
+                // Add PROMPT field type for ai:Prompt parameters
+                // TODO: Need an extension pattern to extract the following implementation out of the CallBuilder
+                String typeSignature = CommonUtils.getTypeSignature(paramData.typeSymbol(), moduleInfo);
+                if (AiUtils.AI_PROMPT_TYPE.equals(typeSignature)) {
+                    customPropBuilder.type()
+                            .fieldType(Property.ValueType.PROMPT)
+                            .ballerinaType(AiUtils.AI_PROMPT_TYPE)
+                            .selected(true)
+                            .stepOut();
+                }
+                customPropBuilder.typeWithExpression(paramData.typeSymbol(), moduleInfo,
+                        paramData.defaultValue());
+            }
+        }
+
+        return customPropBuilder.build();
+    }
+
+    protected String getParameterPropertyKey(ParameterData paramData) {
+        if (paramData.kind() == ParameterData.Kind.INCLUDED_RECORD_REST) {
+            return "additionalValues";
+        }
+        return FlowNodeUtil.getPropertyKey(ParamUtils.removeLeadingSingleQuote(paramData.name()));
     }
 
     /**

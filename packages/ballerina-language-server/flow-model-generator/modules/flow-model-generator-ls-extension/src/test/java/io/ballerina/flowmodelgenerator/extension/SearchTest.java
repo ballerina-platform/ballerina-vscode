@@ -19,14 +19,11 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.JsonArray;
-import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
 import io.ballerina.flowmodelgenerator.extension.request.SearchRequest;
 import io.ballerina.modelgenerator.commons.AbstractLSTest;
 import io.ballerina.tools.text.LineRange;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -41,15 +38,8 @@ import java.util.Map;
  */
 public class SearchTest extends AbstractLSTest {
 
-    @BeforeClass
-    public void setUp() {
-        RemoteCentral.setTestInstance(new OfflineCentralAPI());
-    }
-
-    @AfterClass
-    public void tearDown() {
-        RemoteCentral.resetTestInstance();
-    }
+    // Central access is disabled globally in tests via the ls.test.offline system property (RemoteCentral.getInstance()
+    // returns an OfflineCentral), so the search commands fall back to the local index database deterministically.
 
     @Override
     @Test(dataProvider = "data-provider")

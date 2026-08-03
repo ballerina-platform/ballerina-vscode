@@ -39,20 +39,22 @@ jobs:
               - 'rush.json'
               - 'rush-config.json'
               - '.github/workflows/pull-request.yml'
-              - '.github/workflows/build.yml'
+              - '.github/workflows/reusable-build.yml'
               - '.github/actions/**'
             ls:
               - 'packages/ballerina-language-server/**'
-              - '.github/workflows/build.yml'
+              - '.github/workflows/reusable-build.yml'
               - '.github/actions/ls-test/action.yml'
 
   build:
     name: Build
     needs: changes
     if: needs.changes.outputs.build == 'true'
-    uses: ./.github/workflows/build.yml
-    secrets: inherit
+    uses: ./.github/workflows/reusable-build.yml
     with:
       runOnAWS: ${{ contains(github.event.pull_request.labels.*.name, 'Runner/AWS') }}
-      runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') || github.base_ref == 'stable/ballerina' }}
+      # Always run the e2e suite for a PR into a release line ('5.14.x'), where a regression
+      # ships straight to users. Was 'stable/ballerina', a branch from the multi-extension repo
+      # this was ported from that exists nowhere here — so the condition never fired.
+      runBalE2ETests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run Ballerina UI Tests') || endsWith(github.base_ref, '.x') }}
       runLSTests: ${{ contains(github.event.pull_request.labels.*.name, 'Checks/Run LS Tests') || needs.changes.outputs.ls == 'true' }}

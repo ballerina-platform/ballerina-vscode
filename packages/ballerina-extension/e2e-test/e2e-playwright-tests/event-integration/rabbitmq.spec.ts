@@ -16,29 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
+import { locateAddHandlerButton } from './eventIntegrationUtils';
 
 export default function createTests() {
     test.describe.serial('RabbitMQ Integration Tests', {
     }, async () => {
-        let listenerName: string;
+        // Always the same literal (never varies by test/attempt), so it's a true
+        // constant rather than state one test hands to the next — keeping it a
+        // module-level const means a test re-run in isolation (e.g. CI re-running
+        // only a previously-failed test, skipping this file's earlier tests)
+        // still sees the right value instead of `undefined`.
+        const listenerName = `rabbitmqListener`;
         let queueName: string;
         initTest();
         test('Create RabbitMQ Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('RabbitMQ Integration', 'trigger-rabbitmq');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            // Create a new listener
-            listenerName = `rabbitmqListener`;
+
+            const artifactWebView = await createArtifactAndGetWebview('RabbitMQ Integration', 'trigger-rabbitmq');
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
 
@@ -54,10 +54,8 @@ export default function createTests() {
             });
             await form.submit('Create');
 
-            const selectedListener = artifactWebView.locator(`text=${listenerName}`);
-            await selectedListener.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
 
-            // Verify integration appears in project tree
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `RabbitMQ Event Integration - "${queueName}"`]);
         });
@@ -66,30 +64,17 @@ export default function createTests() {
             const testAttempt = testInfo.retry + 1;
             console.log('Adding onMessage handler in test attempt: ', testAttempt);
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
-            // Step 1-2: Verify integration is open in service designer
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            // Verify integration is open in service designer
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
 
-            // Step 4: Click Add Handler button
-            const addHandlerBtn = artifactWebView.locator('button:has-text("Add Handler")').or(
-                artifactWebView.locator('button:has-text("Handler")')
-            ).or(
-                artifactWebView.locator('vscode-button').filter({ hasText: /Add Handler|Handler/i })
-            ).or(
-                artifactWebView.locator('[data-testid*="add-handler"], [data-testid*="handler"]')
-            );
-
+            const addHandlerBtn = locateAddHandlerButton(artifactWebView);
             if (await addHandlerBtn.count() > 0) {
                 await addHandlerBtn.first().waitFor();
                 await addHandlerBtn.first().click({ force: true });
                 await page.page.waitForTimeout(1000);
 
-                // Step 5-6: Verify handler selection dialog
                 // Click on the card with data-testid="function-card-onMessage" (onMessage handler)
                 const onMessageCard = artifactWebView.locator('[data-testid="function-card-onMessage"]');
                 await onMessageCard.waitFor({ state: 'visible' });
@@ -100,8 +85,7 @@ export default function createTests() {
                 const handlerConfigPanel = artifactWebView.locator('[data-testid="side-panel"]');
                 await handlerConfigPanel.getByText('Message Handler Configuration').waitFor({ timeout: 10000 });
 
-                // Step 7: Click on the Define Content button (by text only, no CSS classes)
-                // Search for a button, div, or span with exact text "Define Content"
+                // Click on the Define Content button (by text only, no CSS classes)
                 let defineContentBtn = handlerConfigPanel.getByText('Define Content', { exact: true });
                 if (await defineContentBtn.count() === 0) {
                     // fallback: find visible element with that text
@@ -157,10 +141,7 @@ export default function createTests() {
             const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `RabbitMQ Event Integration - "${queueName}"`]);
             await serviceTreeItem.click({ force: true });
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
             const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
             await editBtn.waitFor();
@@ -178,42 +159,18 @@ export default function createTests() {
                 }
             });
             await form.submit('Save Changes');
-
-            // Wait for the save changes button inside the container with id "save-changes-btn",
-            // ensuring the disabled attribute is present and the button text is "Save Changes"
-            const saveChangesBtn = artifactWebView.locator('#save-changes-btn vscode-button[appearance="primary"]');
-            await saveChangesBtn.waitFor({ state: 'visible' });
-            await expect(saveChangesBtn).toHaveClass('disabled', { timeout: 5000 });
-            await expect(saveChangesBtn).toHaveText('Save Changes');
-
-            // Click back button
-            const backBtn = artifactWebView.locator('[data-testid="back-button"]');
-            await backBtn.waitFor();
-            await backBtn.click();
+            await confirmSaveChangesAndGoBack(artifactWebView);
 
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `RabbitMQ Event Integration - "${queueName}"`]);
-
-            const updatedQueueNameElement = artifactWebView.locator(`text=${queueName}`);
-            await updatedQueueNameElement.waitFor({ state: 'visible' });
+            await artifactWebView.locator(`text=${queueName}`).waitFor({ state: 'visible' });
         });
 
         test('Delete RabbitMQ Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Deleting RabbitMQ integration in test attempt: ', testAttempt);
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-
-            const projectExplorer = new ProjectExplorer(page.page);
-            const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `RabbitMQ Event Integration - "${queueName}"`]);
-            await serviceTreeItem.click({ button: 'right' });
-            const deleteButton = page.page.getByRole('button', { name: 'Delete' }).first();
-            await deleteButton.waitFor({ timeout: 5000 });
-            await deleteButton.click();
-            await page.page.waitForTimeout(500);
-            await expect(serviceTreeItem).not.toBeVisible({ timeout: 10000 });
+            await getWebview(BI_INTEGRATOR_LABEL, page);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `RabbitMQ Event Integration - "${queueName}"`]);
         });
     });
 }

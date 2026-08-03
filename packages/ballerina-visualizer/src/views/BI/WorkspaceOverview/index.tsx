@@ -35,6 +35,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import ReactMarkdown from "react-markdown";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { PackageListView } from "./PackageListView";
+import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
 import { getWorkspaceProjectScopes } from "../PackageOverview/utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 
@@ -81,6 +82,11 @@ const HeaderRow = styled.div`
     border-bottom: 1px solid var(--vscode-dropdown-border);
     flex-shrink: 0;
     margin: 16px 16px 0 16px;
+`;
+
+const HeroRow = styled.div`
+    margin: 16px 16px 0 16px;
+    flex-shrink: 0;
 `;
 
 const MainContent = styled.div<{ hasDeployment?: boolean }>`
@@ -934,13 +940,6 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
         );
     }
 
-    const handleGenerate = () => {
-        rpcClient.getBIDiagramRpcClient().openAIChat({
-            planMode: true,
-            readme: false,
-        });
-    };
-
     const handleGenerateWithReadme = () => {
         rpcClient.getBIDiagramRpcClient().openAIChat({
             planMode: true,
@@ -1062,6 +1061,10 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                 </TitleContainer>
             </HeaderRow>
 
+            <HeroRow>
+                <CopilotHeroBox />
+            </HeroRow>
+
             <MainContent hasDeployment={hasStandardIntegrations}>
                 <LeftContent>
                     {showAlert && (
@@ -1089,9 +1092,6 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                                 <SectionTitle>Integrations & Libraries</SectionTitle>
                                 {!isEmptyProject && (
                                     <SectionActions>
-                                        <Button appearance="secondary" onClick={handleGenerate}>
-                                            <Icon name="bi-ai-chat" sx={{ marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} /> Generate with AI
-                                        </Button>
                                         <Button appearance="primary" onClick={handleAddResource}>
                                             <Codicon name="add" sx={{ marginRight: 8 }} /> Add
                                         </Button>
@@ -1107,14 +1107,12 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                                         variant="body1"
                                         sx={{ marginBottom: "24px", color: "var(--vscode-descriptionForeground)" }}
                                     >
-                                        Start by adding integrations and libraries to your project
+                                        Add an integration or library to get started, or describe what you want to
+                                        build in the Copilot box above
                                     </Typography>
                                     <ButtonContainer>
                                         <Button appearance="primary" onClick={handleAddResource}>
                                             <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration or Library
-                                        </Button>
-                                        <Button appearance="secondary" onClick={handleGenerate}>
-                                            <Icon name="bi-ai-chat" sx={{ marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} /> Generate with AI
                                         </Button>
                                     </ButtonContainer>
                                 </EmptyStateContainer>

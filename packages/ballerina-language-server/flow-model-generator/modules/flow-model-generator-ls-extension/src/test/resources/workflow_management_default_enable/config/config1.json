@@ -1,0 +1,7 @@
+{
+  "projectPath": "proj1",
+  "description": "ICP enabled + workflow function + no management import -> enable by default",
+  "response": {
+    "enabled": true
+  }
+}

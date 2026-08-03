@@ -19,6 +19,7 @@
 package io.ballerina.designmodelgenerator.extension;
 
 import com.google.gson.JsonObject;
+import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Automation;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.DesignModel;
@@ -36,6 +37,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -69,7 +71,31 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                 assertConnections(actual.connections(), expected.connections()) &&
                 assertListeners(actual.listeners(), expected.listeners()) &&
                 assertServices(actual.services(), expected.services()) &&
-                assertWorkflows(actual.workflows(), expected.workflows());
+                assertWorkflows(actual.workflows(), expected.workflows()) &&
+                assertActivities(actual.activities(), expected.activities());
+    }
+
+    private boolean assertActivities(List<Activity> actual, List<Activity> expected) {
+        int actualSize = actual == null ? 0 : actual.size();
+        int expectedSize = expected == null ? 0 : expected.size();
+        if (actualSize != expectedSize) {
+            return false;
+        }
+        if (actual == null || expected == null) {
+            return true;
+        }
+        for (int i = 0; i < actual.size(); i++) {
+            Activity actualActivity = actual.get(i);
+            Activity expectedActivity = expected.get(i);
+            if (!actualActivity.getSymbol().equals(expectedActivity.getSymbol())
+                    || !actualActivity.getLocation().equals(expectedActivity.getLocation())
+                    || actualActivity.getConnections().size() != expectedActivity.getConnections().size()
+                    || actualActivity.getAttachedWorkflows().size()
+                            != expectedActivity.getAttachedWorkflows().size()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean assertWorkflows(List<Workflow> actual, List<Workflow> expected) {
@@ -88,11 +114,38 @@ public class DesignModelGeneratorTest extends AbstractLSTest {
                     || !actualWorkflow.getLocation().equals(expectedWorkflow.getLocation())
                     || actualWorkflow.getAttachedServices().size() != expectedWorkflow.getAttachedServices().size()
                     || actualWorkflow.getAttachedFunctions().size()
-                            != expectedWorkflow.getAttachedFunctions().size()) {
+                            != expectedWorkflow.getAttachedFunctions().size()
+                    || sizeOf(actualWorkflow.getHumanTasks()) != sizeOf(expectedWorkflow.getHumanTasks())
+                    || sizeOf(actualWorkflow.getActivities()) != sizeOf(expectedWorkflow.getActivities())
+                    || !assertWorkflowEvents(actualWorkflow.getEvents(), expectedWorkflow.getEvents())) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean assertWorkflowEvents(List<Workflow.Event> actual, List<Workflow.Event> expected) {
+        if (sizeOf(actual) != sizeOf(expected)) {
+            return false;
+        }
+        if (actual == null || expected == null) {
+            return true;
+        }
+        for (int i = 0; i < actual.size(); i++) {
+            Workflow.Event actualEvent = actual.get(i);
+            Workflow.Event expectedEvent = expected.get(i);
+            if (!actualEvent.getName().equals(expectedEvent.getName())
+                    || !Objects.equals(actualEvent.getType(), expectedEvent.getType())
+                    || actualEvent.getAttachedServices().size() != expectedEvent.getAttachedServices().size()
+                    || actualEvent.getAttachedFunctions().size() != expectedEvent.getAttachedFunctions().size()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int sizeOf(Collection<?> collection) {
+        return collection == null ? 0 : collection.size();
     }
 
     private boolean assertServices(List<Service> actual, List<Service> expected) {

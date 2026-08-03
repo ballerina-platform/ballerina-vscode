@@ -1,0 +1,140 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Generate await human task call with optional named args",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Await Human Task",
+      "description": "Create a human task and wait for a human to complete it"
+    },
+    "codedata": {
+      "node": "HUMAN_TASK",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "awaitHumanTask",
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "taskName": {
+        "metadata": {
+          "label": "Task Name",
+          "description": "Identifies the task type"
+        },
+        "valueType": "TEXT",
+        "valueTypeConstraint": "string",
+        "value": "\"approveExpense\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "userRoles": {
+        "metadata": {
+          "label": "User Roles",
+          "description": "One or more roles permitted to complete this task"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string|string[]",
+        "value": "[\"FINANCE_APPROVER\"]",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "payload": {
+        "metadata": {
+          "label": "Payload",
+          "description": "Read-only JSON object shown alongside the form"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "map<json>",
+        "value": "{\"amount\": 1200}",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "title": {
+        "metadata": {
+          "label": "Title",
+          "description": "Short summary shown in the inbox"
+        },
+        "valueType": "TEXT",
+        "valueTypeConstraint": "string?",
+        "value": "\"Approve expense\"",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "databindingType": {
+        "metadata": {
+          "label": "Databinding Type",
+          "description": "The expected return type of the human task result"
+        },
+        "valueType": "TYPE",
+        "valueTypeConstraint": "anydata",
+        "value": "anydata",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "result",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "valueType": "FLAG",
+        "value": "true",
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nanydata result = check context->awaitHumanTask(\"approveExpense\", [\"FINANCE_APPROVER\"], payload = {\"amount\": 1200}, title = \"Approve expense\");"
+      }
+    ]
+  }
+}

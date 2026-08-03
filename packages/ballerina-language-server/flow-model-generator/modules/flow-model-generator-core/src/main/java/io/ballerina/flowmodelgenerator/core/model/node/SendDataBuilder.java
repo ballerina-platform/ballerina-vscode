@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
@@ -63,6 +64,7 @@ public class SendDataBuilder extends FunctionCall {
     public static final String DATA_NAME_DOC = "The name of the data field to send";
     private static final String SEND_DATA_METHOD = "sendData";
     private static final String WORKFLOW_ID_KEY = "workflowId";
+    private static final String DATA_KEY = "data";
     public static final String WORKFLOW_ID_LABEL = "Target Workflow Id";
     public static final String WORKFLOW_ID_DOC = "The unique workflow ID to send the data to (obtained from `run`)";
     private static final String STRING = "string";
@@ -159,12 +161,42 @@ public class SendDataBuilder extends FunctionCall {
                 .name(WORKFLOW_MODULE)
                 .keyword(SyntaxKind.COLON_TOKEN)
                 .name(SEND_DATA_METHOD);
-        sourceBuilder.functionParameters(sourceBuilder.flowNode, Set.of(Property.CHECK_ERROR_KEY));
+
+        Optional<Property> workflow = sourceBuilder.getProperty(WORKFLOW_NAME_KEY);
+        Optional<Property> workflowId = sourceBuilder.getProperty(WORKFLOW_ID_KEY);
+        Optional<Property> dataName = sourceBuilder.getProperty(DATA_NAME_KEY);
+        Optional<Property> data = sourceBuilder.getProperty(DATA_KEY);
+        if (workflow.isPresent() && workflowId.isPresent() && dataName.isPresent() && data.isPresent()) {
+            // The data name correlates with an event declared by the workflow function, so it must
+            // always be a string literal even when the form submits the bare event name
+            sourceBuilder.token()
+                    .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
+                    .name(workflow.get().toSourceCode())
+                    .keyword(SyntaxKind.COMMA_TOKEN)
+                    .name(workflowId.get().toSourceCode())
+                    .keyword(SyntaxKind.COMMA_TOKEN)
+                    .name(toStringLiteral(dataName.get().toSourceCode()))
+                    .keyword(SyntaxKind.COMMA_TOKEN)
+                    .name(data.get().toSourceCode())
+                    .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
+                    .endOfStatement();
+        } else {
+            sourceBuilder.functionParameters(sourceBuilder.flowNode, Set.of(Property.CHECK_ERROR_KEY));
+        }
 
         return sourceBuilder
                 .textEdit()
                 .acceptImport(WORKFLOW_ORG, WORKFLOW_MODULE)
                 .build();
+    }
+
+    private static String toStringLiteral(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        // Already a string literal: needs a distinct pair of quotes (a lone quote does not qualify)
+        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            return trimmed;
+        }
+        return "\"" + trimmed.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     /**

@@ -330,7 +330,6 @@ interface ReviewBarProps {
     isDiscarded?: boolean;
     rpcClient?: any;
     isActive?: boolean;
-    onDiscarded?: () => void;
     generationId: string;
 }
 
@@ -702,7 +701,6 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
     isDiscarded = false,
     rpcClient,
     isActive = false,
-    onDiscarded,
     generationId,
 }) => {
     const status = isDiscarded ? "discarded" : isActive ? "pending" : "accepted";
@@ -748,7 +746,7 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
 
     const navigateReviewMode = (index = 0) => {
         if (!rpcClient) return;
-        rpcClient.getVisualizerRpcClient().navigateReviewMode(index);
+        rpcClient.getVisualizerRpcClient().navigateReviewMode({ generationId, index });
     };
 
     const openFileDiff = (relativePath: string) => {
@@ -760,9 +758,8 @@ export const ReviewBar: React.FC<ReviewBarProps> = ({
         if (!rpcClient) return;
         try {
             setIsProcessing(true);
-            await rpcClient.getAiPanelRpcClient().declineChanges();
+            await rpcClient.getAiPanelRpcClient().revertGeneration({ generationId });
             rpcClient.getVisualizerRpcClient().goBack();
-            onDiscarded?.();
         } catch (error) {
             console.error("[ReviewBar] Error discarding changes:", error);
             rpcClient.getVisualizerRpcClient().goBack();

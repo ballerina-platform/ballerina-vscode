@@ -7,7 +7,7 @@
       "fast-xml-parser": "5.7.0",
       "fast-xml-builder": "1.1.7",
       "minimatch": "3.1.5",
-      "brace-expansion": "1.1.13",
+      "brace-expansion": "1.1.16",
       "undici": "6.27.0"
     }
   },

@@ -77,6 +77,22 @@ export const END_NODE_BG_COLOR = ThemeColors.ON_SURFACE;
 export const EMPTY_NODE_ACTIVE_BORDER_COLOR = ThemeColors.ON_SURFACE;
 export const EMPTY_NODE_ACTIVE_BG_COLOR = ThemeColors.PRIMARY_CONTAINER;
 
+// ─── Review Diff Colors (unified old/new diagram) ────────────────────────────
+// Prefer the diff-editor borders because VS Code defines dedicated variants for
+// both high-contrast themes. Standard themes fall back to their Git decoration.
+export const DIFF_REMOVED_COLOR =
+    "var(--vscode-diffEditor-removedTextBorder, var(--vscode-gitDecoration-deletedResourceForeground, #c74e39))";
+export const DIFF_REMOVED_BG_COLOR = "var(--vscode-diffEditor-removedTextBackground, transparent)";
+export const DIFF_ADDED_COLOR =
+    "var(--vscode-diffEditor-insertedTextBorder, var(--vscode-gitDecoration-addedResourceForeground, #2ea043))";
+export const DIFF_ADDED_BG_COLOR = "var(--vscode-diffEditor-insertedTextBackground, transparent)";
+
+// Use VS Code's familiar SCM modified color. The explicit "~ Modified" marker
+// and dotted border keep the state identifiable without relying on amber alone.
+export const DIFF_MODIFIED_COLOR =
+    "var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-editorInfo-foreground, #e2c08d))";
+export const DIFF_MODIFIED_BG_COLOR = "transparent";
+
 // ─── Link Colors ─────────────────────────────────────────────────────────────
 export const LINK_COLOR = ThemeColors.ON_SURFACE_VARIANT;
 export const LINK_HOVERED_COLOR = ThemeColors.PRIMARY;

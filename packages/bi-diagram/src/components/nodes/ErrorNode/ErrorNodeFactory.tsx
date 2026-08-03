@@ -23,6 +23,7 @@ import { NodeTypes } from "../../../resources/constants";
 import { NodeKind } from "../../../utils/types";
 import { ErrorNodeModel } from "./ErrorNodeModel";
 import { ErrorNodeWidget } from "./ErrorNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class ErrorNodeFactory extends AbstractReactFactory<ErrorNodeModel, DiagramEngine> {
     constructor() {
@@ -37,7 +38,9 @@ export class ErrorNodeFactory extends AbstractReactFactory<ErrorNodeModel, Diagr
         switch (event.model.node.codedata.node as NodeKind) {
             default:
                 return (
-                    <ErrorNodeWidget engine={this.engine} model={event.model} />
+                    <DiffTooltip node={event.model.node}>
+                        <ErrorNodeWidget engine={this.engine} model={event.model} />
+                    </DiffTooltip>
                 );
         }
     }

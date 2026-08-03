@@ -29,6 +29,7 @@ import {
     OpenViewRequest,
     PopupVisualizerLocation,
     ProjectStructureArtifactResponse,
+    NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     SaveEvalThreadRequest,
     SaveEvalThreadResponse,
@@ -311,32 +312,6 @@ export class VisualizerRpcManager implements VisualizerAPI {
         });
     }
 
-    reviewAccepted(): void {
-        approvalViewManager.clearReviewData();
-        approvalViewManager.notifyReviewModeClosed();
-        const currentHistory = history.get();
-        const currentEntry = currentHistory[currentHistory.length - 1];
-
-        // If currently in review mode, drop it and restore the last non-review entry.
-        if (currentEntry?.location.view === MACHINE_VIEW.ReviewMode) {
-            history.pop();
-        }
-
-        // Restore the latest history entry when available.
-        if (history.get().length > 0) {
-            updateView();
-            return;
-        }
-
-        // If history is empty, fallback to the default overview.
-        const isWithinBallerinaWorkspace = !!StateMachine.context().workspacePath;
-        openView(EVENT_TYPE.OPEN_VIEW, {
-            view: isWithinBallerinaWorkspace
-                ? MACHINE_VIEW.WorkspaceOverview
-                : MACHINE_VIEW.PackageOverview
-        });
-    }
-
     handleApprovalPopupClose(params: HandleApprovalPopupCloseRequest): void {
         approvalViewManager.handlePopupClosed(params.requestId);
     }
@@ -345,8 +320,9 @@ export class VisualizerRpcManager implements VisualizerAPI {
         approvalViewManager.reopenApprovalViewPopup(params.requestId);
     }
 
-    navigateReviewMode(index: number): void {
-        approvalViewManager.navigateReviewMode(index);
+    navigateReviewMode(params: NavigateReviewModeRequest): void {
+        approvalViewManager.navigateReviewMode(params.generationId, params.index).catch((err) =>
+            console.error("[Visualizer] Failed to navigate review mode:", err));
     }
 
     async saveEvalThread(params: SaveEvalThreadRequest): Promise<SaveEvalThreadResponse> {

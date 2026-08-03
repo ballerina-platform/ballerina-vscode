@@ -57,6 +57,7 @@ import { findWorkspaceTypeFromWorkspaceFolders } from "../../rpc-managers/common
 import { MESSAGES } from "../project";
 import { ensureICPServerRunning } from "../icp";
 import { TracerMachine } from "../tracing";
+import { DefaultServer } from "../../webview-communication/DefaultServer";
 
 const FOCUS_DEBUG_CONSOLE_COMMAND = 'workbench.debug.action.focusRepl';
 const TRACE_SERVER_OFF = "off";
@@ -209,6 +210,13 @@ export function activate(context: BallerinaExtension) {
 
     commands.registerCommand(BI_COMMANDS.CREATE_BI_MIGRATION_PROJECT, (params) => {
         return createBIProjectFromMigration(params);
+    });
+
+    // Lazily starts the WS server that serves the BI project-creation RPCs to the
+    // embedded form (which is owned by this extension but hosted in the WSO2
+    // Integrator webview), and returns the connection coordinates.
+    commands.registerCommand(BI_COMMANDS.GET_BI_FORM_WS_BOOTSTRAP, () => {
+        return DefaultServer.getInstance().getWsBootstrap();
     });
 
     commands.registerCommand(BI_COMMANDS.DELETE_COMPONENT, async (item?: TreeItem & { info?: string, position?: NodePosition }) => {

@@ -16,36 +16,17 @@
  * under the License.
  */
 
+const base = require('@wso2/test-config/jest-preset');
+
 module.exports = {
-    preset: 'ts-jest/presets/js-with-ts',
-    testEnvironment: 'jsdom',
-    transform: {
-        '^.+\\.(ts|tsx)$': ['ts-jest', {
-            isolatedModules: true,
-            tsconfig: {
-                jsx: 'react',
-                esModuleInterop: true,
-                allowSyntheticDefaultImports: true,
-            },
-        }],
-        '^.+\\.(js|jsx)$': 'babel-jest',
-    },
-    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
+    ...base,
+    rootDir: '.',
     moduleNameMapper: {
-        '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
+        ...base.moduleNameMapper,
+        // Local file mock (keeps existing behavior for this package).
         '\\.(svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$': '<rootDir>/src/test/fileMock.js',
     },
-    // Do not transform node_modules — use the pre-built CJS libs.
-    // node-property-utils only imports @wso2/ballerina-core at runtime,
-    // which is mocked in the test, so no transformation of workspace packages
-    // is needed for the unit tests.
+    // These unit tests mock @wso2/ballerina-core and use the pre-built CJS libs,
+    // so no node_modules (incl. @wso2 packages) need transformation.
     transformIgnorePatterns: ['node_modules/'],
-    setupFilesAfterEnv: ['<rootDir>/src/test/jest.env.ts'],
-    setupFiles: ['<rootDir>/src/test/matchMedia.ts'],
-    collectCoverageFrom: [
-        'src/**/*.{ts,tsx}',
-        '!src/**/*.d.ts',
-        '!src/test/**/*',
-    ],
 };

@@ -1,0 +1,7 @@
+{
+  "projectPath": "proj2",
+  "description": "ICP enabled but no workflow function -> do not enable by default",
+  "response": {
+    "enabled": false
+  }
+}

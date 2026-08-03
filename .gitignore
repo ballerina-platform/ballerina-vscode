@@ -8,6 +8,7 @@ node_modules/
 dist/
 build/
 build-app/
+build-federation/
 lib/
 out/
 # Don't let the broad build/ pattern above hide the composite action
@@ -23,7 +24,9 @@ packages/ballerina-extension/grammar/ballerina-grammar/
 coverage/
 .vscode-test/
 test-resources/
+packages/ballerina-extension/test-results/
 extractedDistribution/
+packages/ballerina-extension/test-results/
 .npmrc
 .env
 .hintrc

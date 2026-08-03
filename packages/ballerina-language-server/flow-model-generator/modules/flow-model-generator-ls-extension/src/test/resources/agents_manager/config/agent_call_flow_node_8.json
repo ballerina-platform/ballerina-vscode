@@ -46,7 +46,7 @@
         "metadata": {
           "label": "run",
           "description": "Executes the agent for a given user query.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png",
           "data": {
             "agent": {
               "systemPrompt": "{role: string `Assistant`, instructions: string `Help users with weather and time queries.`}",
@@ -63,7 +63,7 @@
           "packageName": "ai",
           "object": "Agent",
           "symbol": "run",
-          "version": "1.11.2",
+          "version": "1.12.0",
           "lineRange": {
             "fileName": "agents.bal",
             "startLine": {
@@ -85,7 +85,7 @@
               "packageName": "ai",
               "object": "Agent",
               "symbol": "init",
-              "version": "1.11.2",
+              "version": "1.12.0",
               "lineRange": {
                 "fileName": "agents.bal",
                 "startLine": {
@@ -119,7 +119,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.12.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -185,7 +185,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.11.2",
+                          "packageInfo": "ballerina:ai:1.12.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -226,7 +226,7 @@
           "maxIter": {
             "metadata": {
               "label": "Maximum Iterations",
-              "description": "The maximum number of iterations the agent performs to complete the task.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
+              "description": "The maximum number of reasoning-action cycles the agent performs to complete the task.\nA single cycle is one LLM call plus the execution of every tool call returned in\nthat response, so multiple tool calls from one response count as one iteration.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
             },
             "types": [
               {
@@ -305,7 +305,7 @@
           "toolLoadingStrategy": {
             "metadata": {
               "label": "Tool Loading Strategy",
-              "description": "Defines the strategies for loading tool schemas into an Agent. \nBy default, all tools are loaded without any filtering."
+              "description": "Defines the strategies for loading tool schemas into an Agent.\nBy default, all tools are loaded without any filtering."
             },
             "types": [
               {
@@ -339,6 +339,34 @@
             },
             "defaultValue": "NO_FILTER"
           },
+          "executeToolCallsInParallel": {
+            "metadata": {
+              "label": "Execute Tool Calls In Parallel",
+              "description": "Specifies whether multiple tool calls returned in a single LLM response are executed in parallel.\nIf `true`, all tool calls from one LLM response are executed concurrently;\notherwise, they are executed sequentially, one after another."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "executeToolCallsInParallel"
+            },
+            "defaultValue": "true"
+          },
           "credential": {
             "metadata": {
               "label": "Agent Credential",
@@ -351,7 +379,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.12.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -619,7 +647,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "sessionId"
             },
-            "defaultValue": "DEFAULT_SESSION_ID"
+            "defaultValue": "\"\""
           },
           "context": {
             "metadata": {
@@ -642,7 +670,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "context"
             },
-            "defaultValue": "new"
+            "defaultValue": "new ()"
           }
         },
         "flags": 1
@@ -654,7 +682,7 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
         },
         "codedata": {
           "node": "AGENT",
@@ -689,7 +717,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.12.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -755,7 +783,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.11.2",
+                          "packageInfo": "ballerina:ai:1.12.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -796,7 +824,7 @@
           "maxIter": {
             "metadata": {
               "label": "Maximum Iterations",
-              "description": "The maximum number of iterations the agent performs to complete the task.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
+              "description": "The maximum number of reasoning-action cycles the agent performs to complete the task.\nA single cycle is one LLM call plus the execution of every tool call returned in\nthat response, so multiple tool calls from one response count as one iteration.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
             },
             "types": [
               {
@@ -819,7 +847,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "INFER_TOOL_COUNT"
+            "defaultValue": "\"INFER_TOOL_COUNT\""
           },
           "verbose": {
             "metadata": {
@@ -875,7 +903,7 @@
           "toolLoadingStrategy": {
             "metadata": {
               "label": "Tool Loading Strategy",
-              "description": "Defines the strategies for loading tool schemas into an Agent. \nBy default, all tools are loaded without any filtering."
+              "description": "Defines the strategies for loading tool schemas into an Agent.\nBy default, all tools are loaded without any filtering."
             },
             "types": [
               {
@@ -907,7 +935,35 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"LLM_FILTER\""
+          },
+          "executeToolCallsInParallel": {
+            "metadata": {
+              "label": "Execute Tool Calls In Parallel",
+              "description": "Specifies whether multiple tool calls returned in a single LLM response are executed in parallel.\nIf `true`, all tool calls from one LLM response are executed concurrently;\notherwise, they are executed sequentially, one after another."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "executeToolCallsInParallel"
+            },
+            "defaultValue": "false"
           },
           "credential": {
             "metadata": {
@@ -921,7 +977,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.12.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false

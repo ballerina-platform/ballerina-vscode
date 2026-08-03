@@ -715,7 +715,7 @@
                           "readonly": false,
                           "isGraphqlId": false,
                           "imports": {
-                            "time": "ballerina/time:2.8.0"
+                            "time": "ballerina/time:2.8.1"
                           },
                           "selected": false
                         },
@@ -741,7 +741,7 @@
                     "docs": "",
                     "annotationAttachments": [],
                     "imports": {
-                      "time": "ballerina/time:2.8.0"
+                      "time": "ballerina/time:2.8.1"
                     },
                     "selected": false
                   }

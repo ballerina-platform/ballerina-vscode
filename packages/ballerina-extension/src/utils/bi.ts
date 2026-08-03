@@ -17,6 +17,7 @@
  */
 import { commands, workspace, Uri } from "vscode";
 import * as fs from 'fs';
+import * as os from 'os';
 import path from "path";
 import {
     AddProjectToWorkspaceRequest,
@@ -926,4 +927,34 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
             }
         }
     }
+}
+
+const DEFAULT_CREATION_DIRNAME = "WSO2Integrator";
+
+/** Default directory new projects are created under when no path is chosen. */
+export function getDefaultCreationPath(): string {
+    const dir = path.join(os.homedir(), DEFAULT_CREATION_DIRNAME);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    return dir;
+}
+
+/**
+ * Full project-creation flow: scaffold the project/workspace, write the cloud
+ * context mapping when present, then open it. Wraps the create primitives above.
+ */
+export async function createBIProject(params: any): Promise<void> {
+    let projectRoot: string;
+    if (params.createAsWorkspace) {
+        projectRoot = params.projectName
+            ? await createBIWorkspaceWithProject(params)
+            : await createEmptyBIWorkspace(params);
+    } else {
+        projectRoot = await createBIProjectPure(params);
+    }
+    if (params.createAsWorkspace && params.projectHandle) {
+        await writeLocalContextYaml(projectRoot, params.orgHandle, params.projectHandle);
+    }
+    openInVSCode(projectRoot);
 }

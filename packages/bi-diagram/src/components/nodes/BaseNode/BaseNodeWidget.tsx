@@ -45,7 +45,7 @@ import { useDiagramContext } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getNodeTitle, isWorkflowNode, nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, isWorkflowNode, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
@@ -213,7 +213,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
         nodeComments,
     } = useDiagramContext();
 
-    const noteComment = nodeComments?.get(model.node.id);
+    const noteComments = nodeComments?.get(model.node.id) ?? [];
 
     const isSelected = selectedNodeId === model.node.id;
 
@@ -456,6 +456,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             isActiveBreakpoint={isActiveBreakpoint}
             isSelected={isSelected}
             isWorkflowNode={isWorkflowStyledNode}
+            style={getDiffContainerStyles(model.node)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => { setIsHovered(false); setIsNoteActive(false); }}
             onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -483,11 +484,19 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
                 </NodeStyles.Icon>
                 <NodeStyles.Row style={{ flex: 1, minWidth: 0, width: "auto" }}>
                     <NodeStyles.Header onClick={handleOnClick}>
-                        <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                        <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                         <NodeStyles.Description>{nodeDescription as ReactNode}</NodeStyles.Description>
                     </NodeStyles.Header>
                     <NodeStyles.ActionButtonGroup>
-                        {noteComment && <NodeNoteChip commentNode={noteComment} engine={engine} onOpen={() => setIsNoteActive(true)} onClose={() => { setIsNoteActive(false); setIsHovered(false); }} />}
+                        {noteComments.map((noteComment) => (
+                            <NodeNoteChip
+                                key={noteComment.id}
+                                commentNode={noteComment}
+                                engine={engine}
+                                onOpen={() => setIsNoteActive(true)}
+                                onClose={() => { setIsNoteActive(false); setIsHovered(false); }}
+                            />
+                        ))}
                         {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
                         {canViewFunction && (
                             <Tooltip content="View function flow">

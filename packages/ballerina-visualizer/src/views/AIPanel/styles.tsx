@@ -93,6 +93,34 @@ export const UsageBadge = styled.span`
     white-space: nowrap;
 `;
 
+/** Sized to match UsageBadge so the glyph centres against it instead of riding high. */
+export const UsageRefreshButton = styled.button`
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: var(--vscode-icon-foreground);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: var(--vscode-toolbar-hoverBackground);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    .codicon-modifier-spin {
+        animation: codicon-spin 1.2s steps(30) infinite;
+    }
+`;
+
 export const ApprovalOverlay = styled.div`
     position: absolute;
     top: 0;

@@ -61,6 +61,17 @@
             "offset": 5
           }
         },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 13,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 19,
+            "offset": 5
+          }
+        },
         "metadata": {
           "accessor": "post",
           "servicePath": "/api/v1/petsstore",
@@ -100,6 +111,17 @@
           },
           "endLine": {
             "line": 46,
+            "offset": 5
+          }
+        },
+        "previousLineRange": {
+          "fileName": "main.bal",
+          "startLine": {
+            "line": 5,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 11,
             "offset": 5
           }
         },

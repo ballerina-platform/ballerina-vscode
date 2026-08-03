@@ -1,0 +1,527 @@
+{
+  "start": {
+    "line": 22,
+    "offset": 0
+  },
+  "end": {
+    "line": 24,
+    "offset": 1
+  },
+  "source": "workflow_connection_activity/main.bal",
+  "description": "Workflow calling a connection-backed activity returns a CONNECTION_ACTIVITY_CALL node with a connection property",
+  "diagram": {
+    "fileName": "main.bal",
+    "nodes": [
+      {
+        "id": "56049",
+        "metadata": {
+          "label": "Start",
+          "data": {
+            "kind": "Workflow",
+            "label": "orderWorkflow",
+            "isServiceFunction": false,
+            "parameters": [
+              "workflow:Context ctx",
+              "OrderInput input"
+            ],
+            "return": "error?"
+          }
+        },
+        "codedata": {
+          "node": "EVENT_START",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 22,
+              "offset": 78
+            },
+            "endLine": {
+              "line": 24,
+              "offset": 1
+            }
+          },
+          "sourceCode": "# Order workflow that calls a connection-backed activity.\n@workflow:Workflow\nfunction orderWorkflow(workflow:Context ctx, OrderInput input) returns error? {\n    int orderData = check ctx->callActivity(fetchOrder, {connection: orderClient, id: 1});\n}"
+        },
+        "returning": false,
+        "flags": 0
+      },
+      {
+        "id": "54774",
+        "metadata": {
+          "label": "fetchOrder",
+          "description": "Fetch order details as a workflow activity.",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/test_workflow_connection_activity_0.1.0.png"
+        },
+        "codedata": {
+          "node": "CONNECTION_ACTIVITY_CALL",
+          "org": "test",
+          "module": "workflow_connection_activity",
+          "packageName": "workflow_connection_activity",
+          "object": "Context",
+          "symbol": "fetchOrder",
+          "version": "0.1.0",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 23,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 23,
+              "offset": 90
+            }
+          },
+          "sourceCode": "int orderData = check ctx->callActivity(fetchOrder, {connection: orderClient, id: 1});",
+          "inferredReturnType": "T"
+        },
+        "returning": false,
+        "properties": {
+          "advanced": {
+            "metadata": {
+              "label": "Activity call configurations",
+              "description": "Activity call configurations"
+            },
+            "types": [
+              {
+                "fieldType": "ADVANCE_PARAM_LIST",
+                "selected": false
+              }
+            ],
+            "value": {},
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "connection": {
+            "metadata": {
+              "label": "Connection",
+              "description": "Connection to use",
+              "connectors": [
+                {
+                  "codedata": {
+                    "node": "NEW_CONNECTION",
+                    "org": "test",
+                    "module": "workflow_connection_activity",
+                    "packageName": "workflow_connection_activity",
+                    "object": "OrderClient",
+                    "symbol": "init",
+                    "version": "0.1.0"
+                  },
+                  "addNewConnectionLabel": "Add new workflow_connection_activity connection"
+                }
+              ]
+            },
+            "types": [
+              {
+                "fieldType": "CONNECTION",
+                "selected": true
+              }
+            ],
+            "value": "orderClient",
+            "placeholder": "orderClient",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "searchNodesKind": "workflow_connection_activity"
+            }
+          },
+          "id": {
+            "metadata": {
+              "label": "id",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "NUMBER",
+                "ballerinaType": "int",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": false
+              }
+            ],
+            "value": "1",
+            "placeholder": "int",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "id"
+            }
+          },
+          "retryPolicy": {
+            "metadata": {
+              "label": "Retry Policy",
+              "description": "Retry strategy to apply when the activity call fails"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Manual Retry",
+                    "value": "ManualRetry"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "NoRetry",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum number of retry attempts"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay between retries in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Maximum delay cap in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {}
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Manual Retry",
+                "value": "ManualRetry"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum number of retry attempts"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay between retries in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Exponential backoff multiplier"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Maximum delay cap in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "orderData",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 23,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 23,
+                  "offset": 17
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      }
+    ],
+    "connections": [
+      {
+        "id": "39716",
+        "metadata": {
+          "label": "Workflow_connection_activity Order",
+          "description": "",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/test_workflow_connection_activity_0.1.0.png"
+        },
+        "codedata": {
+          "node": "NEW_CONNECTION",
+          "org": "test",
+          "module": "workflow_connection_activity",
+          "object": "OrderClient",
+          "symbol": "init",
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 8,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 8,
+              "offset": 36
+            }
+          },
+          "sourceCode": "final OrderClient orderClient = new;"
+        },
+        "returning": false,
+        "properties": {
+          "scope": {
+            "metadata": {
+              "label": "Connection Scope",
+              "description": "Scope of the connection, Global or Local"
+            },
+            "types": [
+              {
+                "fieldType": "ENUM",
+                "selected": true
+              }
+            ],
+            "value": "Global",
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Terminate on error"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": false,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Connection Name",
+              "description": "Name of the connection"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "orderClient",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 8,
+                  "offset": 18
+                },
+                "endLine": {
+                  "line": 8,
+                  "offset": 29
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Connection Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "OrderClient",
+            "placeholder": "var",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true,
+            "codedata": {}
+          }
+        },
+        "flags": 0
+      }
+    ]
+  }
+}

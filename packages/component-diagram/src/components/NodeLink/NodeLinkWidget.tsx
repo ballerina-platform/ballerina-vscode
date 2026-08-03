@@ -29,7 +29,13 @@ interface NodeLinkWidgetProps {
 export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) => {
     const [isHovered, setIsHovered] = useState(false);
 
-    const linkColor = link.visible ? (isHovered ? ThemeColors.PRIMARY : ThemeColors.ON_SURFACE) : "transparent";
+    const linkColor = link.visible
+        ? link.broken
+            ? ThemeColors.ERROR
+            : isHovered
+                ? ThemeColors.PRIMARY
+                : ThemeColors.ON_SURFACE
+        : "transparent";
 
     return (
         <g pointerEvents={"all"} onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
@@ -40,7 +46,14 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 stroke={"transparent"}
                 strokeWidth={16}
             />
-            <path id={link.getID()} d={link.getSVGPath()} fill={"none"} stroke={linkColor} strokeWidth={1.5} />
+            <path
+                id={link.getID()}
+                d={link.getSVGPath()}
+                fill={"none"}
+                stroke={linkColor}
+                strokeWidth={1.5}
+                strokeDasharray={link.broken ? "5 5" : undefined}
+            />
 
             <defs>
                 <marker

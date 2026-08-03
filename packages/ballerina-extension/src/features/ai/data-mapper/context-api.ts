@@ -14,33 +14,40 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { generateObject, generateText, ModelMessage } from "ai";
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from "../utils/ai-client";
-import { ContentPart, DataMapperRequest, DataMapperResponse, FileData, FileTypeHandler, ProcessType } from "./types";
-import { MappingInstructionSchema } from "./schema";
+import { generateText, ModelMessage } from "ai";
+import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../utils/ai-client";
+import { AttachmentProcessRequest, AttachmentProcessResponse, ContentPart, FileData, FileTypeHandler, ProcessType } from "./types";
+import { getRecordsPrompt, getRequirementsPrompt } from "./prompts/attachment-prompts";
 
 
-// Maybe have better names and types?
-export async function processDataMapperInput(request: DataMapperRequest): Promise<DataMapperResponse> {
+export async function processAttachments(request: AttachmentProcessRequest): Promise<AttachmentProcessResponse> {
     if (request.files.length > 0) {
-        return await processFiles(request.files, request.processType, request.isRequirementAnalysis);
+        return await processFiles(request.files, request.processType);
     } else if (request.text) {
-        return await processFiles([{ fileName: 'text', content: btoa(request.text) }], request.processType, request.isRequirementAnalysis);
+        return await processFiles([{ fileName: 'text', content: btoa(request.text) }], request.processType);
     } else {
         throw new Error("No files or text provided. Please provide file data or text input.");
     }
 }
 
-// Process files (single or multiple)
-async function processFiles(files: FileData[], processType: ProcessType, isRequirementAnalysis: boolean = false): Promise<DataMapperResponse> {
-    try {
-        const message = await processFilesWithClaude(files, processType);
+// Maps each ProcessType to its prompt generator and response parser — one place to update when adding a new type.
+const PROCESS_TYPE_CONFIG = {
+    [ProcessType.Records]: {
+        prompt: getRecordsPrompt,
+        parse: extractBallerinaCode,
+    },
+    [ProcessType.Requirements]: {
+        prompt: getRequirementsPrompt,
+        parse: getRequirementsContent,
+    },
+} satisfies Record<ProcessType, { prompt: () => string; parse: (msg: string) => string }>;
 
-        const fileContent = isRequirementAnalysis
-            ? getRequirementsContent(message)
-            : extractBallerinaCode(message);
-            
-        return { fileContent };
+// Process files (single or multiple)
+async function processFiles(files: FileData[], processType: ProcessType): Promise<AttachmentProcessResponse> {
+    try {
+        const { prompt, parse } = PROCESS_TYPE_CONFIG[processType];
+        const message = await processFilesWithClaude(files, prompt());
+        return { fileContent: parse(message) };
     } catch (error) {
         throw new Error(`Error processing ${files.length === 1 ? 'file' : 'files'}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -138,168 +145,6 @@ function convertFileToContentPart(file: FileData, includeFileName: boolean = fal
     throw new Error(`Unsupported file type: ${extension}. Supported types are: ${supportedTypes}`);
 }
 
-// Prompt generation functions
-function getMappingInstructionPrompt(): string {
-    return `You are an AI assistant specialized in generating data field mappings for data integration and transformation tasks.
-Your goal is to create a detailed mapping between input and output data fields based on the provided content.
-
-Important:
-    - Use clear and concise descriptions in the "MAPPING_TIP" field.
-    - Include all relevant input fields for each output field.
-    - Do not take any assumptions based on data types and mappings.
-    - Do not include any mappings you are unsure about.
-    - Consider all provided information, including comments and conditions.
-
-Please follow these instructions carefully:
-
-1. Read and analyze the content thoroughly.
-2. Identify all input and output fields, including their correct path names, exact data types, and any relevant attributes or descriptions in the content.
-3. If it is an image, Input records appear on the left side of the image, and output records appear on the right side.
-4. All subfields of nested fields or subfields should be structured hierarchically, expanding downwards recursively within their respective parent fields. This hierarchy should reflect nested relationships.
-5. If it is an image, Consider only lines that connect input and output fields from left to right, including any mapping details shown in text or diagram lines.
-6. Create mappings that follow a left-to-right direction from input to output records.
-7. Ensure all input fields and their subfields are mapped to their corresponding output fields/subfields.
-8. Include mappings for array to array fields.
-9. For nested fields, focus on mapping the subfields rather than the parent nested field.
-10. Document all mapping operations, data transformations, and type conversions from input field(s) to output field(s).
-11. Include details about complex operations that involve multiple input fields to construct a single output field value.
-12. Document any nested mappings, operations, or data transformations required for the mapping.
-13. Do not map anything if you are unsure about the correct mapping.
-
-Before generating the output, analyze the content thoroughly:
-- List all input fields and their exact data types
-- List all output fields and their exact data types
-- Identify direct field mappings, fields requiring transformations, and complex mappings involving multiple input fields
-- Note any array-to-array mappings and nested field mappings
-- Verify that all provided information has been considered
-
-Example of expected field values:
-
-{
-    "mapping_fields": [
-        {
-            "output_field": "id",
-            "MAPPING_TIP": "Direct mapping from Person.id to Student.id",
-            "INPUT_FIELDS": ["person.id"]
-        },
-        {
-            "output_field": "name",
-            "MAPPING_TIP": "Direct mapping from Person.name to Student.name",
-            "INPUT_FIELDS": ["person.name"]
-        },
-        {
-            "output_field": "weight",
-            "MAPPING_TIP": "Direct mapping from Person.weight to Student.weight with type conversion from string to float",
-            "INPUT_FIELDS": ["person.weight"]
-        }
-    ]
-}`;
-}
-
-function getRecordsPrompt(): string {
-    return `You are an AI assistant specializing in the Ballerina programming language. Your task is to analyze provided content and generate comprehensive Ballerina type record definitions based on all the information present in that content.
-
-Your goal is to extract every possible record type and field from this content and convert them into proper Ballerina type record definitions. You must capture all the information mentioned - leave nothing out.
-
-## Code Generation Requirements
-
-Generate Ballerina code that includes:
-
-- Type record definitions for ALL identified records with ALL their fields
-- Proper handling of optional (\`?\`) and nullable features - but ONLY when explicitly mentioned as optional or nullable in the content
-- Correct Ballerina naming conventions
-- No comments in the generated code
-- No assumptions beyond what's explicitly stated in the content
-
-## Enum Declaration Format
-
-When you encounter enumerated types, use this specific syntax:
-
-\`\`\`ballerina
-enum EnumName {
-    VALUE1,
-    VALUE2,
-    VALUE3
-};
-\`\`\`
-
-## Output Format
-
-Present your final code within \`<ballerina_code>\` tags. Structure your code as follows:
-
-- Place all enum definitions first
-- Follow with type record definitions
-- Use proper Ballerina syntax throughout
-
-Example structure (generic structure only):
-
-type Person record {
-    int? id?;
-    string firstName;
-    string? lastName;
-    int? age;
-    Address? address?;
-};
-
-type Address record {
-    string? city?;
-    string street;
-    string? zipcode;
-};
-
-enum Gender {
-    MALE,
-    FEMALE,
-    OTHER
-};
-
-Generate only Ballerina code with in <ballerina_code> tags based on the provided content.
-`;
-}
-
-function getRequirementsPrompt(): string {
-    return `You are tasked with providing a comprehensive explanation of the content in a file. 
-Your goal is to thoroughly extract all the information present in the file, 
-including both textual content and visual elements such as diagrams and images.
-
-Carefully analyze all the information provided in the file content above. 
-This may include text, diagrams, images, and any other visual or textual elements.
-
-For the textual content:
-1. Extract the complete content and identify the main points and key ideas presented in the text.
-2. Identify and explain all important concepts, definitions, or arguments.
-3. Identify any significant data, statistics, or numerical information.
-
-For diagrams and images:
-1. Extract each visual element in detail, including its layout, components, and any labels or captions with preserving all the information as it is.
-2. Extract the purpose or significance of each diagram or image in relation to the overall content.
-3. Interpret any data visualizations, charts, or graphs, providing insights on the information they convey.
-
-Provide a comprehensive explanation of the entire file content, integrating your analysis of both the textual and visual elements. Ensure that your explanation:
-1. Covers all major aspects of the content
-2. Highlights relationships between different parts of the content
-3. Offers insights into the overall message or purpose of the document
-
-Present your explanation in a clear, well-structured format. Use paragraphs to separate different topics or aspects of the content. If appropriate, use bullet points or numbered lists to organize information.
-
-Begin your response with an introductory paragraph that briefly outlines what the file contains and its main subject matter. End with a concluding paragraph that summarizes the key takeaways from the file content.
-
-No need of unnecessary greetings or any other unrelated texts needed in the begining and the end. Just give the comprehensive explanation. No additional information is needed.
-
-Write your comprehensive explanation as a text. 
-`;
-}
-
-function getPromptForProcessType(processType: ProcessType): string {
-    switch (processType) {
-        case "records":
-            return getRecordsPrompt();
-        case "requirements":
-            return getRequirementsPrompt();
-        default:
-            throw new Error(`Unsupported process type: ${processType}`);
-    }
-}
 
 // Build Claude messages from files and a prompt
 function buildClaudeMessages(files: FileData[], promptText: string): ModelMessage[] {
@@ -316,13 +161,13 @@ function buildClaudeMessages(files: FileData[], promptText: string): ModelMessag
 }
 
 // Process files with Claude using generateText (for free-form text responses)
-async function processFilesWithClaude(files: FileData[], processType: ProcessType): Promise<string> {
-    const messages = buildClaudeMessages(files, getPromptForProcessType(processType));
+async function processFilesWithClaude(files: FileData[], promptText: string): Promise<string> {
+    const messages = buildClaudeMessages(files, promptText);
 
     const { text } = await generateText({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+        model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 8192,
-        temperature: 0,
+        providerOptions: await getProviderModelOptions(),
         messages,
         abortSignal: new AbortController().signal
     });
@@ -330,41 +175,3 @@ async function processFilesWithClaude(files: FileData[], processType: ProcessTyp
     return text;
 }
 
-// Generate mapping instructions from files using structured output
-export async function generateMappingInstructionFromFiles(files: FileData[]): Promise<{ mapping_fields: Record<string, any> }> {
-    const messages = buildClaudeMessages(files, getMappingInstructionPrompt());
-
-    const { object } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
-        maxOutputTokens: 8192,
-        temperature: 0,
-        messages,
-        schema: MappingInstructionSchema,
-        abortSignal: new AbortController().signal,
-    });
-
-    // Transform array to record keyed by output_field
-    const mapping_fields: Record<string, any> = {};
-    for (const field of object.mapping_fields) {
-        mapping_fields[field.output_field] = {
-            MAPPING_TIP: field.MAPPING_TIP,
-            INPUT_FIELDS: field.INPUT_FIELDS,
-        };
-    }
-    return { mapping_fields };
-}
-
-export async function generateRecord(input: { files: FileData[]; text?: string }): Promise<DataMapperResponse> {
-    return await processDataMapperInput({
-        ...input,
-        processType: "records"
-    });
-}
-
-export async function extractRequirements(input: { files: FileData[]; text?: string }): Promise<DataMapperResponse> {
-    return await processDataMapperInput({
-        ...input,
-        processType: "requirements",
-        isRequirementAnalysis: true
-    });
-}

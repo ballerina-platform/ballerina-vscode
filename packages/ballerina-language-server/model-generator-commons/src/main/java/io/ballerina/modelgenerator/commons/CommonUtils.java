@@ -1467,7 +1467,7 @@ public class CommonUtils {
      * @param content the content string to escape
      * @return the escaped content string
      */
-    private static String escapeContent(String content) {
+    public static String escapeContent(String content) {
         return content.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 

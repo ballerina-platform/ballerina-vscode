@@ -255,9 +255,9 @@ export function FunctionForm(props: FunctionFormProps) {
             setFormSubtitle('Define the inputs and outputs the agent will use to call this tool');
         } else if (isWorkflow) {
             nodeKind = 'WORKFLOW';
-            formType.current = 'Workflow';
-            setTitleSubtitle('Build reusable workflow processes');
-            setFormSubtitle('Define a workflow process with a strongly typed input payload');
+            formType.current = 'Durable Workflow';
+            setTitleSubtitle('Build durable, long-running workflow processes');
+            setFormSubtitle('Define a static workflow logic');
         } else if (isActivity) {
             nodeKind = 'ACTIVITY';
             formType.current = 'Workflow Activity';
@@ -286,6 +286,12 @@ export function FunctionForm(props: FunctionFormProps) {
                 formType.current = "Automation";
                 const automationFields = fields.filter(field => field.key !== "functionName" && field.key !== "type");
                 fields = automationFields;
+            }
+
+            // The workflow creation form only asks for the name and input type; the description is
+            // extra information that is not needed to define the workflow, so drop that field.
+            if (isWorkflow && !functionName) {
+                fields = fields.filter(field => field.key !== "functionNameDescription");
             }
 
             const annotations = functionNode?.properties?.annotations?.value;
@@ -493,6 +499,22 @@ export function FunctionForm(props: FunctionFormProps) {
             flowNode.properties.functionName.metadata.description = "Name of the agent tool.";
             flowNode.properties.functionNameDescription.metadata.description = "Description of the agent tool. This will help AI agents understand when to use this tool and how to use it.";
             flowNode.properties.parameters.metadata.description = "Define the inputs for the agent tool. These are the parameters that AI agents will use when calling this tool.";
+        }
+
+        // Workflow creation form: keep it minimal and capture only what the user needs up front
+        // (Name, Description, Input Type). Hide Public (shareable workflows are not encouraged yet),
+        // Return Type and Return Type Description. The return type defaults to `error?` (set by the
+        // LS WorkflowBuilder) and can be edited later from the workflow function definition.
+        if (isWorkflow) {
+            if (flowNode.properties?.isPublic) {
+                flowNode.properties.isPublic.hidden = true;
+            }
+            if (flowNode.properties?.type) {
+                flowNode.properties.type.hidden = true;
+            }
+            if (flowNode.properties?.typeDescription) {
+                flowNode.properties.typeDescription.hidden = true;
+            }
         }
 
         setFunctionNode(flowNode);
@@ -786,7 +808,7 @@ export function FunctionForm(props: FunctionFormProps) {
         } else if (isNpFunction) {
             return "Natural Function";
         } else if (isWorkflow) {
-            return "Workflow";
+            return "Durable Workflow";
         } else if (isActivity) {
             return "Workflow Activity";
         } else if (isAutomation || functionName === "main") {

@@ -275,7 +275,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
                     <Icon name="bi-arrow-back" iconSx={{ color: "var(--vscode-foreground)" }} />
                 </IconButton>
             )}
-            <IconButton onClick={handleHome}>
+            <IconButton onClick={handleHome} data-testid="home-button">
                 <Icon name="bi-home" iconSx={{ color: "var(--vscode-foreground)" }} />
             </IconButton>
             <BreadcrumbContainer>

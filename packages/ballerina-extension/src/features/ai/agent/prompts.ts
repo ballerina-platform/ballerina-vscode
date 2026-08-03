@@ -26,12 +26,41 @@ import { TEST_RUNNER_TOOL_NAME } from "./tools/test-runner";
 import { getLanglibInstructions } from "../utils/libs/langlibs";
 import { formatCodebaseStructure, formatCodeContext } from "./utils";
 import { GenerateAgentCodeRequest, OperationType, ProjectSource } from "@wso2/ballerina-core";
+import { formatActiveFileReminder } from "./activeFileReminder";
 import { getRequirementAnalysisCodeGenPrefix, getRequirementAnalysisTestGenPrefix } from "./np/prompts";
 import { extractResourceDocumentContent, flattenProjectToFiles } from "../utils/ai-utils";
 import { BALLERINA_RUN_TOOL_NAME } from "./tools/ballerina-run";
 import { BALLERINA_STOP_TOOL_NAME } from "./tools/ballerina-stop";
 import { getBuiltInSkillsSection, getProjectSkillsSection, getUserSkillsSection, getDisabledSkillsSection, ProjectSkillMeta } from "./skills";
 import { WEB_SEARCH_TOOL_NAME, WEB_FETCH_TOOL_NAME } from "./tools/web-tools";
+// TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
+// import { loadMemoryPrompt } from '@wso2/copilot-utilities/auto-memory';
+// import { computeWorkspaceHash } from '@wso2/copilot-utilities/chat-persistence';
+// import { resolveWorkspaceIdentity } from '../../../views/ai-panel/chatStateStorage';
+// import { isMemoryEnabled } from '../memory/autoDream';
+//
+// /**
+//  * Returns the system prompt with memory context prepended when auto-memory is enabled.
+//  * Falls back to the base system prompt if memory loading fails.
+//  */
+// export function getSystemPromptWithMemory(
+//     projects: ProjectSource[],
+//     op: OperationType,
+//     workspacePath: string,
+//     userSkills: ProjectSkillMeta[],
+//     disabledSkills?: Set<string>,
+//     disabledSkillMetas?: Array<{ name: string; trigger: string }>
+// ): string {
+//     const base = getSystemPrompt(projects, op, userSkills, disabledSkills, disabledSkillMetas);
+//     if (!workspacePath || !isMemoryEnabled()) { return base; }
+//     try {
+//         const hash = computeWorkspaceHash(resolveWorkspaceIdentity(workspacePath));
+//         const memorySection = loadMemoryPrompt(hash);
+//         return memorySection + '\n\n---\n\n' + base;
+//     } catch {
+//         return base;
+//     }
+// }
 
 /**
  * Generates the system prompt for the design agent
@@ -166,6 +195,11 @@ ${getLanglibInstructions()}
 - Initialize any necessary clients with the correct configuration based on the retrieved libraries at the module level (before any function or service declarations).
 - Implement the main function OR service to address the query requirements.
 
+## OAuth refreshUrl configurable
+When a connector authenticates via an OAuth2 refresh-token grant that includes a refreshUrl:
+- Declare a \`configurable string\` for the refreshUrl and reference it in the auth config (e.g. \`refreshUrl: refreshUrl\`).
+- refreshUrl is the one configurable that MAY carry a default: if the library's type definition provides a default refreshUrl (the provider token endpoint), use it (\`configurable string refreshUrl = "<provider-token-endpoint-url>";\`); otherwise use \`configurable string refreshUrl = ?;\`.
+
 ## Coding Rules
 - Use records as canonical representations of data structures. Always define records for data structures instead of using maps or json and navigate using the record fields.
 - Do not invoke methods on json access expressions. Always use separate statements.
@@ -219,6 +253,10 @@ In WSO2 Integrator, a Ballerina workspace is called a **project** and a Ballerin
 - You should only Run or write tests if the user explicitly asks to do so.
 - Providing values to configurables is a runtime task and should only do it before running or executing the tests.
 - For Config.toml configuration value management, use ${CONFIG_COLLECTOR_TOOL}. The codebase listing shows <config_files main="present|absent" tests="present|absent"/> per project indicating whether Config.toml files exist.
+- **Before EVERY ${CONFIG_COLLECTOR_TOOL} COLLECT call, check for connector-auth configurables.** For any connector client whose auth is fed by configurables, group those configurables under \`managedConnections\` keyed by the connector's library ("org/package") instead of leaving them in the plain \`variables\` array — even when a credential looks like an ordinary secret (a bearer/bot/access token used by a connector is a connector auth credential, not a plain variable). Tag each group with authType: \`oauth2RefreshToken\` (map clientId, clientSecret, refreshToken, refreshUrl) or \`staticToken\` (map the single token).
+- The auth structure does NOT change this. Some libraries expose the OAuth config via a directly-named type (e.g. \`oauth2:OAuth2RefreshTokenGrantConfig\`); others wrap it inside the connector's own config record (e.g. a \`ConnectionConfig\` whose \`auth\` field carries the credentials). Both are grouped the same way — look at the credential fields, not where they sit.
+- You do NOT decide which (library, shape) combinations are actually managed — the tool verifies each against the managed registry and silently downgrades unsupported ones to manual entry. So emit a group for ANY connector credential that fits one of the two shapes; grouping a candidate that turns out to be unsupported is harmless. That tolerance covers the library and shape only — every mapped name must be a configurable that already exists in source, spelled exactly as declared. Only leave TRULY non-connector secrets (e.g. a database password, or a standalone API key not tied to any connector) in \`variables\`.
+- Use one managedConnections entry per connector instance (repeat the same library for two clients of it), and put each configurable in EXACTLY ONE place — never list the same name in both a group and \`variables\`.
 - You can call ${BALLERINA_STOP_TOOL_NAME} when you need to restart a service (e.g. after code changes) or when the user explicitly asks to stop it.
 
 ## Test Runner
@@ -278,6 +316,14 @@ export function getUserPrompt(
         text: formatCodebaseStructure(projects, tempProjectPath)
     });
 
+    const activeFileReminder = formatActiveFileReminder(params.activeFilePath);
+    if (activeFileReminder) {
+        content.push({
+            type: 'text' as const,
+            text: activeFileReminder,
+        });
+    }
+
     // Add code context if available
     if (params.codeContext) {
         const codeContextText = formatCodeContext(params.codeContext, tempProjectPath);
@@ -292,21 +338,38 @@ export function getUserPrompt(
     // Add file attachments if available
     if (params.fileAttachmentContents && params.fileAttachmentContents.length > 0) {
         for (const attachment of params.fileAttachmentContents) {
-            if (attachment.mimeType?.startsWith('image/')) {
-                // Add image attachment
+            const mimeType = attachment.mimeType ?? '';
+            const fileName = attachment.fileName?.toLowerCase() ?? '';
+            // Prefer the (already resolved) mime type; fall back to the filename
+            // extension only when no mime type is present, so a definitive type
+            // is never overridden by the file name.
+            const isImage = mimeType.startsWith('image/')
+                || (!mimeType && /\.(png|jpe?g|gif|webp)$/.test(fileName));
+            const isPdf = mimeType === 'application/pdf'
+                || (!mimeType && fileName.endsWith('.pdf'));
+            if (isImage) {
+                // Add image attachment (content is a self-describing base64 data URL)
                 content.push({
                     type: 'image' as const,
                     image: attachment.content,
                 });
+            } else if (isPdf) {
+                // Add PDF as a native file block so the model reads it directly
+                content.push({
+                    type: 'file' as const,
+                    data: attachment.content,
+                    mediaType: 'application/pdf',
+                });
             } else {
                 // Add text file attachment
-                const attachmentsText = params.fileAttachmentContents.map((attachment) =>
-                    `## File: ${attachment.fileName}\n\`\`\`\n${attachment.content}\n\`\`\``).join('\n\n');
                 content.push({
                     type: 'text' as const,
                     text: `<User Attachments>
-                            ${attachmentsText}
-                        </User Attachments>`
+## File: ${attachment.fileName}
+\`\`\`
+${attachment.content}
+\`\`\`
+</User Attachments>`
                 });
             }
         }
@@ -374,4 +437,3 @@ function getNPSuffix(projects: ProjectSource[], op?: OperationType): string {
     }
     return basePrompt;
 }
-

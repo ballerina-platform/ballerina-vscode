@@ -17,6 +17,7 @@
  */
 
 const TOML_STRING_PATTERN = /^"([^"\\\n\r]|\\(["\\bfnrt]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"$/;
+const TOML_INVALID_ESCAPE_PATTERN = /^(?:[^\\]|\\(?:["\\bfnrt]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*\\([\s\S]?)/;
 const TOML_INTEGER_PATTERN = /^[+-]?(0|[1-9][0-9_]*|0x[0-9a-fA-F_]+|0o[0-7_]+|0b[01_]+)$/;
 const TOML_FLOAT_PATTERN = /^[+-]?((\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?)|inf|nan)$/;
 const TOML_BOOLEAN_PATTERN = /^(true|false)$/;
@@ -153,10 +154,16 @@ export const validateTomlValue = (value: string, type: string): string => {
     }
 
     switch (trimmedType) {
-        case 'string':
-            return TOML_STRING_PATTERN.test(trimmedValue)
-                ? ''
-                : 'Enter a valid string value.';
+        case 'string': {
+            if (TOML_STRING_PATTERN.test(trimmedValue)) {
+                return '';
+            }
+            const invalidEscape = TOML_INVALID_ESCAPE_PATTERN.exec(trimmedValue.replace(/^"([\s\S]*)"$/, '$1'));
+            if (invalidEscape) {
+                return `Invalid escape sequence '\\${invalidEscape[1]}' in the string value.`;
+            }
+            return 'Enter a valid string value.';
+        }
         case 'int':
         case 'byte':
             if (!TOML_INTEGER_PATTERN.test(trimmedValue)) {

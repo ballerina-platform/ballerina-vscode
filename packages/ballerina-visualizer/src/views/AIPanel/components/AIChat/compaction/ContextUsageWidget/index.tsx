@@ -19,7 +19,8 @@
 import React, { useRef, useState } from "react";
 import styled from "@emotion/styled";
 
-const MAX_CONTEXT_WINDOW = 200_000;
+/** Token budget the UI uses to compute context-usage percentages. Matches the model's 1M context window. */
+export const MAX_CONTEXT_WINDOW = 1_000_000;
 const TOOLTIP_SHOW_MS = 300;
 const TOOLTIP_HIDE_MS = 200;
 
@@ -177,7 +178,7 @@ const ContextUsageWidget: React.FC<ContextUsageWidgetProps> = ({ percentage, inp
     const filled = (clampedPct / 100) * circumference;
     const gap = circumference - filled;
 
-    const maxContextK = Math.round(MAX_CONTEXT_WINDOW / 1000);
+    const maxContextK = Math.round(MAX_CONTEXT_WINDOW / 1000000);
 
     const scheduleShow = () => {
         clearTimeout(hideTimer.current!);
@@ -226,7 +227,7 @@ const ContextUsageWidget: React.FC<ContextUsageWidgetProps> = ({ percentage, inp
                 <TooltipPopup onMouseEnter={scheduleShow} onMouseLeave={scheduleHide}>
                     <TooltipTitle>Context Window</TooltipTitle>
                     <TooltipSubtitle>
-                        {formatK(inputTokens)} / {maxContextK}K tokens &bull; {clampedPct}%
+                        {formatK(inputTokens)} / {maxContextK}M tokens &bull; {clampedPct}%
                     </TooltipSubtitle>
 
                     <ProgressBarContainer>

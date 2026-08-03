@@ -1,8 +1,5 @@
 name: 'Create PR and send notification'
 inputs:
-  version:
-    description: 'Publish version'
-    required: true
   isPreRelease:
     default: 'true'
   chatAPI:
@@ -15,73 +12,161 @@ inputs:
     description: 'Google Chat thread key for grouping release notifications'
     required: false
     default: ''
-  ballerina:
-    description: 'Is Ballerina'
-    default: 'false'
-    required: true
-  commonLibs:
-    description: 'Is Common Lib'
-    default: 'false'
-    required: true
 
 runs:
   using: "composite"
   steps:
+      # Needed for the next-snapshot PR below, which commits and pushes. The version commit
+      # and the release branch are not made here — actions/release owns those, so that the
+      # release tag can point at the version commit.
       - name: Config git
         shell: bash
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Add Ballerina git changes
-        if: ${{ inputs.ballerina == 'true' }}
-        shell: bash
-        run: git add packages/*/package.json
-
-      - name: Add common lib git changes
-        if: ${{ inputs.commonLibs == 'true' }}
-        shell: bash
-        run: git add submodules/wso2-vscode-extensions/workspaces/common-libs/*/package.json
-
-      - name: Commit version
-        shell: bash
-        id: commit
-        run: |
           git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          git diff --staged --quiet || git commit -m "Update version to ${{ inputs.version }}"
+
+      # The released version is whatever the build actually packaged: updateVersion wrote it
+      # into the extension package.json before the build, and build.zip carries that tree. Reading
+      # it here rather than taking it as an input keeps the VSIX-basename form the caller has
+      # ('ballerina-5.14.0') out of the branch names.
+      - name: Resolve version and branch names
+        shell: bash
+        id: ver
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+          case "${version}" in
+            *-SNAPSHOT)
+              echo "::error::Refusing to release the snapshot version '${version}';" \
+                   "updateVersion should have resolved it before packaging."
+              exit 1
+              ;;
+          esac
+          # Even minors are release lines, odd minors the pre-release channel, so a release
+          # always belongs to the 'X.Y.x' line of its own minor.
+          line=$(node -e '
+            const [major, minor] = process.argv[1].split(".");
+            console.log(`${major}.${minor}.x`);
+          ' "${version}")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "line=${line}" >> "$GITHUB_OUTPUT"
+          echo "releaseBranch=release/${version}" >> "$GITHUB_OUTPUT"
+
+      # main must not be left naming a version that has already shipped, or the next release
+      # would try to publish it again. Runs BEFORE the release PR below, because that PR is
+      # skipped whenever the 'X.Y.x' line branch has not been cut yet — the common case for the
+      # first release of a line — and the bump must not depend on it. Opening a PR rather than
+      # pushing keeps branch protection on main intact.
+      #
+      # The tree is clean here: actions/release already committed the version files earlier in
+      # this job, so the checkout below cannot lose them. (On a pre-release nothing is committed
+      # and they are still modified — but this step is gated off for pre-releases.)
+      #
+      # The bump is minor + 2, not + 1: even minors are release lines and odd minors are the
+      # pre-release channel, so 5.14.0 is followed by 5.16.0-SNAPSHOT. Bumping to 5.15.0-SNAPSHOT
+      # would sit main on the pre-release line, and its nightlies would then derive 5.14.<ts> —
+      # colliding with the 5.14.x line just released.
+      - name: Open next-snapshot PR against main
+        shell: bash
+        if: ${{ inputs.isPreRelease == 'false' }}
+        id: snapshot_pr
+        run: |
+          set -euo pipefail
+          released="${{ steps.ver.outputs.version }}"
+
+          git fetch origin main
+          mainVersion=$(git show origin/main:packages/ballerina-extension/package.json | jq -r '.version')
+
+          # Only main is bumped, and only when it is sitting on the very snapshot this release
+          # consumed. A patch released off an 'X.Y.x' line branch, or an alpha off a staging
+          # branch, leaves main alone: those branches carry concrete versions by design and are
+          # advanced by hand.
+          if [ "${mainVersion}" != "${released}-SNAPSHOT" ]; then
+            echo "::notice::main is at ${mainVersion}, not ${released}-SNAPSHOT; no bump needed."
+            exit 0
+          fi
+
+          nextSnapshot=$(node -e '
+            const [major, minor] = process.argv[1].split(".");
+            console.log(`${major}.${Number(minor) + 2}.0-SNAPSHOT`);
+          ' "$released")
+
+          branch="bump/next-snapshot-${nextSnapshot}"
+          git checkout -B "$branch" origin/main
+          npm version "$nextSnapshot" --no-git-tag-version --prefix packages/ballerina-extension
+          git add packages/ballerina-extension/package.json
+
+          if git diff --staged --quiet; then
+            echo "main is already at ${nextSnapshot}; nothing to open."
+            exit 0
+          fi
+
+          git commit -m "Bump main to ${nextSnapshot} after ${released}"
+          git push --force origin "refs/heads/${branch}"
+
+          # 'gh pr create' fails when an open PR already exists for this head, and the
+          # branch name is deterministic — so a re-run of the release would abort here,
+          # after the tag, the release and the release branch are all published. Reuse
+          # the existing PR instead; the force-push above already updated its head.
+          pr=$(gh pr list -H "$branch" -B main --state open --json url --jq '.[0].url // empty')
+          if [ -n "$pr" ]; then
+            echo "::notice::Reusing the open bump PR ${pr}."
+          else
+            pr=$(gh pr create -B main -H "$branch" \
+              --title "Bump main to ${nextSnapshot} after the ${released} release" \
+              --body "Returns the extension version to a snapshot so nightly and pre-release builds can derive a version again. Generated by the ${released} release run.")
+          fi
+          echo "prURL=$pr" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Create tag
-        shell: bash
-        id: create_tag
-        run: |
-          git tag ${{ inputs.version }}
-          git push origin "refs/tags/${{ inputs.version }}"
-
-      - name: Create release branch
-        shell: bash
-        if: ${{ inputs.isPreRelease == 'false' }}
-        id: create_branch
-        run: |
-          git checkout -b "${{ inputs.version }}"
-          git push origin "refs/heads/${{ inputs.version }}"
-
+      # The head branch already exists: actions/release pushed it earlier in this same job,
+      # together with the version commit it points at.
+      #
+      # The 'X.Y.x' line branch, by contrast, is cut by hand — when a line opens is a human
+      # decision — so it can legitimately not exist yet. Skipped with a notice rather than
+      # failing: by this point the tag, the release and the release branch are all published,
+      # so failing here would announce a release and still take the job down.
       - name: Create Pull Request
         shell: bash
         if: ${{ inputs.isPreRelease == 'false' }}
         id: pr
         run: |
-          baseBranch="stable/ballerina"
-          pr=$(gh pr create -B "$baseBranch" -H "${{ inputs.version }}" --title "Merge \"${{ inputs.version }}\" into \"$baseBranch\"" --body '$subject')
+          set -euo pipefail
+          baseBranch="${{ steps.ver.outputs.line }}"
+          headBranch="${{ steps.ver.outputs.releaseBranch }}"
+          if ! git ls-remote --exit-code --heads origin "${baseBranch}" >/dev/null 2>&1; then
+            echo "::notice::No ${baseBranch} branch, so no release PR was opened." \
+                 "Cut ${baseBranch} and merge ${headBranch} into it to open the line."
+            exit 0
+          fi
+          # Reused rather than recreated, for the same reason as the bump PR above: the
+          # head branch is deterministic, so a re-run would otherwise fail here with the
+          # release already published.
+          pr=$(gh pr list -H "${headBranch}" -B "${baseBranch}" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$pr" ]; then
+            echo "::notice::Reusing the open release PR ${pr}."
+          else
+            pr=$(gh pr create -B "${baseBranch}" -H "${headBranch}" \
+              --title "Merge \"${headBranch}\" into \"${baseBranch}\"" \
+              --body "Release ${{ steps.ver.outputs.version }}.")
+          fi
           echo "prURL=$pr" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: "PR Notification"
-        if: ${{ inputs.isPreRelease == 'false' }}
+        # Also skipped when the release PR was, since there would be no link to announce.
+        if: ${{ inputs.isPreRelease == 'false' && steps.pr.outputs.prURL != '' }}
         shell: bash
         run: |
+          # Unset on a fork; curling a bare query string would fail the job after the release
+          # and its PR have already been created.
+          if [ -z "${{ inputs.chatAPI }}" ]; then
+            echo "::notice::chatAPI is empty; skipping the PR notification."
+            exit 0
+          fi
           THREAD_KEY="${{ inputs.threadKey }}"
           if [ -n "${THREAD_KEY}" ]; then
             THREAD_FIELD='"thread": {"threadKey": "'"${THREAD_KEY}"'"},'

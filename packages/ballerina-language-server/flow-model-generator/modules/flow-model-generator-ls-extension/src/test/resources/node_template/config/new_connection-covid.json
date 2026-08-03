@@ -10,6 +10,7 @@
     "org": "ballerinax",
     "module": "covid19",
     "packageName": "covid19",
+    "version": "1.5.1",
     "object": "Client",
     "symbol": "init"
   },

@@ -34,6 +34,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
     getDefaultOrgName,
@@ -67,6 +68,7 @@ export function registerCommonRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getWorkspaceFiles, (args: WorkspaceFileRequest) => rpcManger.getWorkspaceFiles(args));
     messenger.onRequest(getBallerinaDiagnostics, (args: BallerinaDiagnosticsRequest) => rpcManger.getBallerinaDiagnostics(args));
     messenger.onRequest(executeCommand, (args: CommandsRequest) => rpcManger.executeCommand(args));
+    messenger.onRequest(getAgentRunStatus, () => rpcManger.getAgentRunStatus());
     messenger.onRequest(runBackgroundTerminalCommand, (args: RunExternalCommandRequest) => rpcManger.runBackgroundTerminalCommand(args));
     messenger.onNotification(openExternalUrl, (args: OpenExternalUrlRequest) => rpcManger.openExternalUrl(args));
     messenger.onRequest(selectFileOrDirPath, (args: FileOrDirRequest) => rpcManger.selectFileOrDirPath(args));

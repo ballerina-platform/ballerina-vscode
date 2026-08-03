@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { NodeTypes } from "../../../resources/constants";
 import { BaseNodeWidget } from "./BaseNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class BaseNodeFactory extends AbstractReactFactory<BaseNodeModel, DiagramEngine> {
 
@@ -34,6 +35,10 @@ export class BaseNodeFactory extends AbstractReactFactory<BaseNodeModel, Diagram
     }
 
     generateReactWidget(event: GenerateWidgetEvent<BaseNodeModel>) {
-        return <BaseNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <BaseNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

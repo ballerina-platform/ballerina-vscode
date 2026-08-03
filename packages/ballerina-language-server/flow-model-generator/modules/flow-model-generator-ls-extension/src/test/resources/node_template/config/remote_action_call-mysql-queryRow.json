@@ -12,7 +12,6 @@
     "packageName": "mysql",
     "object": "Client",
     "symbol": "queryRow",
-    "version": "1.14.0",
     "parentSymbol": "mysqlClient",
     "resourcePath": "",
     "id": 0
@@ -21,8 +20,8 @@
     "id": "31",
     "metadata": {
       "label": "queryRow",
-      "description": "Executes the query, which is expected to return at most one row of the result.\nIf the query does not return any results, `sql:NoRowsError` is returned.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.14.0.png"
+      "description": "Executes a SQL query that is expected to return a single row or value as the result.\nIf the query returns no results, `sql:NoRowsError` is returned.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
@@ -31,7 +30,6 @@
       "packageName": "mysql",
       "object": "Client",
       "symbol": "queryRow",
-      "version": "1.14.0",
       "isNew": true,
       "inferredReturnType": "returnType"
     },
@@ -58,7 +56,7 @@
       "sqlQuery": {
         "metadata": {
           "label": "SQL Query",
-          "description": "The SQL query such as `` `SELECT * from Album WHERE name=${albumName}` ``"
+          "description": "The SQL query (e.g., `` `SELECT * FROM Album WHERE name=${albumName}` ``)"
         },
         "types": [
           {
@@ -88,7 +86,7 @@
       "returnType": {
         "metadata": {
           "label": "Return Type",
-          "description": "The `typedesc` of the record to which the result needs to be returned.\nIt can be a basic type if the query result contains only one column"
+          "description": "The `typedesc` of the record to which the result should be mapped.\nIt can be a basic type if the query result contains only one column"
         },
         "types": [
           {

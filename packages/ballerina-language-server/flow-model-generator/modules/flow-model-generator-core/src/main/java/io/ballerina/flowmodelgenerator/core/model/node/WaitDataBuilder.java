@@ -73,6 +73,7 @@ import org.eclipse.lsp4j.TextEdit;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -95,7 +96,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_O
  * @since 1.8.0
  */
 public class WaitDataBuilder extends CallBuilder {
-    private static final String LABEL = "Wait for Data";
+    private static final String LABEL = "Await Data";
     private static final String DESCRIPTION = "Wait for workflow data to be received";
     public static final String DATA_NAME_KEY = "dataName";
     public static final String DATA_NAME_LABEL = "Data Name";
@@ -638,7 +639,7 @@ public class WaitDataBuilder extends CallBuilder {
                 .collect(Collectors.toSet());
 
         // Fields to delete: present in the old node but not in the new request
-        Set<String> fieldsToDelete = new java.util.LinkedHashSet<>(oldDataNames);
+        Set<String> fieldsToDelete = new LinkedHashSet<>(oldDataNames);
         fieldsToDelete.removeAll(newDataNames);
         if (fieldsToDelete.isEmpty()) {
             return;
@@ -684,7 +685,7 @@ public class WaitDataBuilder extends CallBuilder {
             return Set.of();
         }
 
-        Set<String> dataNames = new java.util.LinkedHashSet<>();
+        Set<String> dataNames = new LinkedHashSet<>();
         collectFieldAccessNames(node, dataNames);
         return dataNames;
     }

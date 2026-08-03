@@ -56,9 +56,9 @@ public class AiComponentDiskCacheTest {
     public void testRoundtrip() {
         List<CachedComponent> components = List.of(
                 new CachedComponent("OpenAiProvider", "OpenAI", "OpenAI model provider",
-                        NodeKind.MODEL_PROVIDER.name(), "init"),
+                        NodeKind.MODEL_PROVIDER.name(), "init", "https://icons.example/openai.png"),
                 new CachedComponent("PineconeStore", "Pinecone", "Pinecone vector store",
-                        NodeKind.VECTOR_STORE.name(), "init"));
+                        NodeKind.VECTOR_STORE.name(), "init", "https://icons.example/pinecone.png"));
 
         cache.save("ballerinax", "ai.openai", "1.4.0", components);
         Optional<List<CachedComponent>> loaded = cache.load("ballerinax", "ai.openai", "1.4.0");
@@ -86,7 +86,7 @@ public class AiComponentDiskCacheTest {
     public void testCorruptJsonReturnsEmpty() throws IOException {
         cache.save("ballerinax", "ai.corrupt", "1.0.0", List.of(
                 new CachedComponent("X", "label", "desc", NodeKind.MODEL_PROVIDER.name(),
-                        "init")));
+                        "init", "icon")));
         Files.writeString(findCacheFile(), "{ not valid json");
 
         Optional<List<CachedComponent>> loaded = cache.load("ballerinax", "ai.corrupt", "1.0.0");
@@ -108,7 +108,7 @@ public class AiComponentDiskCacheTest {
     public void testNullFieldInComponentRejectsFile() {
         List<CachedComponent> bad = List.of(
                 new CachedComponent(null, "label", "desc", NodeKind.MODEL_PROVIDER.name(),
-                        "init"));
+                        "init", "icon"));
         cache.save("ballerinax", "ai.nulls", "1.0.0", bad);
 
         Optional<List<CachedComponent>> loaded = cache.load("ballerinax", "ai.nulls", "1.0.0");
@@ -120,7 +120,7 @@ public class AiComponentDiskCacheTest {
     public void testUnknownCategoryRejectsFile() {
         List<CachedComponent> bad = List.of(
                 new CachedComponent("X", "label", "desc", "NOT_A_REAL_CATEGORY",
-                        "init"));
+                        "init", "icon"));
         cache.save("ballerinax", "ai.bogus", "1.0.0", bad);
 
         Optional<List<CachedComponent>> loaded = cache.load("ballerinax", "ai.bogus", "1.0.0");
@@ -138,7 +138,7 @@ public class AiComponentDiskCacheTest {
     public void testNullVersionBypassesSave() throws IOException {
         cache.save("ballerinax", "ai.openai", null, List.of(
                 new CachedComponent("X", "l", "d", NodeKind.MODEL_PROVIDER.name(),
-                        "init")));
+                        "init", "icon")));
 
         try (var stream = Files.list(tempDir)) {
             Assert.assertEquals(stream.count(), 0L,
@@ -154,7 +154,7 @@ public class AiComponentDiskCacheTest {
         try {
             List<CachedComponent> components = List.of(
                     new CachedComponent("X", "l", "d", NodeKind.MODEL_PROVIDER.name(),
-                            "init"));
+                            "init", "icon"));
 
             // First save fails because the cache path is a regular file — disables the cache
             blockedCache.save("ballerinax", "ai.blocked", "1.0.0", components);

@@ -1,0 +1,90 @@
+{
+  "source": "workflow_function/functions.bal",
+  "description": "Sleep node generates a check ctx.sleep(duration) call inside a workflow",
+  "diagram": {
+    "id": "31",
+    "metadata": {
+      "label": "Sleep",
+      "description": "Pause workflow execution for a specified duration"
+    },
+    "codedata": {
+      "node": "SLEEP",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "Context",
+      "symbol": "sleep",
+      "isNew": true,
+      "lineRange": {
+        "fileName": "functions.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "duration": {
+        "metadata": {
+          "label": "Duration",
+          "description": "The duration to sleep"
+        },
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "time:Duration",
+            "selected": true
+          }
+        ],
+        "value": "{seconds: 5}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "duration"
+        }
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/functions.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\ncheck context.sleep({seconds: 5});"
+      }
+    ]
+  }
+}

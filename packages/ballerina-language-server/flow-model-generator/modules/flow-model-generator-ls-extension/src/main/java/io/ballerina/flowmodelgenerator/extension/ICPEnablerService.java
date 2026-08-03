@@ -87,47 +87,8 @@ public class ICPEnablerService implements ExtendedLanguageServerService {
         return CompletableFuture.supplyAsync(() -> {
             ICPEnabledResponse response = new ICPEnabledResponse();
             try {
-                Path filePath = Path.of(request.projectPath());
-                Project project = this.workspaceManager.loadProject(filePath);
-                Package pkg = project.currentPackage();
-                Module defaultModule = pkg.getDefaultModule();
-                Collection<DocumentId> documentIds = defaultModule.documentIds();
-                boolean hasCorrectImport = false;
-                for (DocumentId documentId : documentIds) {
-                    if (hasCorrectImport) {
-                        break;
-                    }
-                    Document document = defaultModule.document(documentId);
-                    ModulePartNode root = document.syntaxTree().rootNode();
-                    NodeList<ImportDeclarationNode> imports = root.imports();
-                    for (ImportDeclarationNode importNode : imports) {
-                        if (validOrg(importNode) && validModuleName(importNode) && validPrefix(importNode)) {
-                            hasCorrectImport = true;
-                            break;
-                        }
-                    }
-                }
-                if (!hasCorrectImport) {
-                    response.setEnabled(false);
-                    return response;
-                }
-                Optional<BallerinaToml> ballerinaToml = pkg.ballerinaToml();
-                if (ballerinaToml.isEmpty()) {
-                    throw new RuntimeException("Ballerina.toml not found");
-                }
-                TomlTableNode tomlTableNode = ballerinaToml.get().tomlAstNode();
-                TopLevelNode topLevelNode = tomlTableNode.entries().get("build-options");
-                if (topLevelNode instanceof TomlTableNode buildOptions) {
-                    TopLevelNode icpNode = buildOptions.entries().get("remoteManagement");
-                    if (icpNode instanceof TomlKeyValueNode keyValueNode) {
-                        String value = keyValueNode.value().toNativeValue().toString();
-                        if (value.trim().equals("true")) {
-                            response.setEnabled(true);
-                            return response;
-                        }
-                    }
-                }
-                response.setEnabled(false);
+                Project project = this.workspaceManager.loadProject(Path.of(request.projectPath()));
+                response.setEnabled(isIcpEnabled(project.currentPackage()));
             } catch (Throwable e) {
                 response.setError(e);
             }
@@ -276,6 +237,56 @@ public class ICPEnablerService implements ExtendedLanguageServerService {
             }
             return response;
         });
+    }
+
+    /**
+     * Checks whether ICP is enabled for the given package: the default module imports
+     * {@code ballerinax/wso2.controlplane as _} and {@code Ballerina.toml} contains
+     * {@code [build-options] remoteManagement = true}.
+     *
+     * @param pkg the package to inspect
+     * @return {@code true} if ICP is enabled, {@code false} otherwise
+     */
+    /**
+     * Checks whether the default module imports {@code ballerinax/wso2.controlplane as _}. Unlike
+     * {@link #isIcpEnabled(Package)}, this does not consult Ballerina.toml, so it reflects an import
+     * added in-session (e.g. via a text edit) even before the toml build-option write is visible to
+     * the loaded project.
+     *
+     * @param pkg the package to inspect
+     * @return {@code true} if the control-plane import is present
+     */
+    public static boolean hasControlPlaneImport(Package pkg) {
+        Module defaultModule = pkg.getDefaultModule();
+        for (DocumentId documentId : defaultModule.documentIds()) {
+            Document document = defaultModule.document(documentId);
+            ModulePartNode root = document.syntaxTree().rootNode();
+            for (ImportDeclarationNode importNode : root.imports()) {
+                if (validOrg(importNode) && validModuleName(importNode) && validPrefix(importNode)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean isIcpEnabled(Package pkg) {
+        if (!hasControlPlaneImport(pkg)) {
+            return false;
+        }
+        Optional<BallerinaToml> ballerinaToml = pkg.ballerinaToml();
+        if (ballerinaToml.isEmpty()) {
+            return false;
+        }
+        TomlTableNode tomlTableNode = ballerinaToml.get().tomlAstNode();
+        TopLevelNode topLevelNode = tomlTableNode.entries().get("build-options");
+        if (topLevelNode instanceof TomlTableNode buildOptions) {
+            TopLevelNode icpNode = buildOptions.entries().get("remoteManagement");
+            if (icpNode instanceof TomlKeyValueNode keyValueNode) {
+                return keyValueNode.value().toNativeValue().toString().trim().equals("true");
+            }
+        }
+        return false;
     }
 
     private static boolean validOrg(ImportDeclarationNode importNode) {

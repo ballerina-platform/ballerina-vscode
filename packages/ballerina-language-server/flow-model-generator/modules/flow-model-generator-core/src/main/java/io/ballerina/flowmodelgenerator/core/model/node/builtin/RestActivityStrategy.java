@@ -156,6 +156,12 @@ public class RestActivityStrategy implements BuiltinActivityStrategy {
                 .addProperty(HEADERS_KEY);
     }
 
+    // NOTE: BuiltinActivityStrategy.processSpecialParameter is intentionally NOT overridden here.
+    // ActivityCallBuilder.processSpecialParameter routes RestActivityStrategy params to its own
+    // private processRestParameter(...) and never delegates to the strategy, so a REST override
+    // would be dead code. The default (return false) is inherited; the fallback form for REST is
+    // produced by setFormProperties(...).
+
     @Override
     public String activityFunctionSymbol() {
         return "callRestAPI";

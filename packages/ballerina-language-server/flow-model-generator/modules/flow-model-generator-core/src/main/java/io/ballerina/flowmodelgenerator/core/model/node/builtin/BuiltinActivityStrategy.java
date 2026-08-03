@@ -23,6 +23,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.modelgenerator.commons.ParameterData;
 
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,23 @@ public interface BuiltinActivityStrategy {
      * @param context     the template context for resolving symbols
      */
     void setFormProperties(NodeBuilder nodeBuilder, NodeBuilder.TemplateContext context);
+
+    /**
+     * Intercepts a single parameter during {@code setParameterProperties} to render a
+     * richer form field (e.g., DROPDOWN_CHOICE, hidden field, TEXT+EXPRESSION toggle).
+     *
+     * <p>Called by {@code ActivityCallBuilder.processSpecialParameter} for parameters that
+     * are not already handled centrally (connection, retryPolicy). Return {@code true} to
+     * indicate that the parameter has been fully handled and the default processing should
+     * be skipped; return {@code false} to let the default rendering run.
+     *
+     * @param paramData   the parameter descriptor from FunctionDataBuilder
+     * @param nodeBuilder the builder on which to add properties
+     * @return {@code true} if the parameter was handled, {@code false} for default processing
+     */
+    default boolean processSpecialParameter(ParameterData paramData, NodeBuilder nodeBuilder) {
+        return false;
+    }
 
     /**
      * Returns the symbol name of the activity function to invoke in the

@@ -1,0 +1,12 @@
+[package]
+org = "wso2"
+name = "hubspot_trigger"
+version = "0.1.0"
+distribution = "2201.13.4"
+
+bi = true
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.hubspot"
+version = "0.12.0"

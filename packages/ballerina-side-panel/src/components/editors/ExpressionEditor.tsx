@@ -36,6 +36,7 @@ import { useFormContext, useFormFieldLoadingContext } from '../../context';
 import {
     ExpressionProperty,
     FormDiagnostics,
+    getFieldTypeLabel,
     getPrimaryInputType,
     InputType,
     LineRange,
@@ -626,9 +627,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         <S.Label>{field.label}</S.Label>
                                         {(field.defaultValue && field.defaultValue?.trim() !== "()") && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${field.defaultValue}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
-                                        {getPrimaryInputType(field.types)?.ballerinaType && (
-                                            <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getPrimaryInputType(field.types)?.ballerinaType}>
-                                                {sanitizeType(getPrimaryInputType(field.types)?.ballerinaType)}
+                                        {getFieldTypeLabel(field.types) && (
+                                            <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
+                                                {sanitizeType(getFieldTypeLabel(field.types))}
                                             </S.Type>
                                         )}
                                     </S.LabelContainer>
