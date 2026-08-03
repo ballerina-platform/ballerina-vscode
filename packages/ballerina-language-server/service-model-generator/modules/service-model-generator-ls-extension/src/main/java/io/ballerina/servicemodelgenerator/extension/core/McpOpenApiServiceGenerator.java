@@ -119,7 +119,10 @@ public class McpOpenApiServiceGenerator {
                 return null;
             });
             try (Stream<Path> paths = Files.walk(tempDir)) {
-                Optional<Path> typesFile = paths.filter(path -> TYPES_BAL.equals(path.getFileName().toString()))
+                Optional<Path> typesFile = paths.filter(path -> {
+                    Path fileName = path.getFileName();
+                    return fileName != null && TYPES_BAL.equals(fileName.toString());
+                })
                         .findFirst();
                 return typesFile.isPresent() ? Files.readString(typesFile.get()) : "";
             }

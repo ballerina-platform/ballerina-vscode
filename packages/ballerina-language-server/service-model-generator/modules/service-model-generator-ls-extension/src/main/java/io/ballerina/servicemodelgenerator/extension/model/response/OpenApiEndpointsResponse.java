@@ -24,7 +24,14 @@ import io.ballerina.servicemodelgenerator.extension.model.McpToolEndpoint;
 import java.util.Arrays;
 import java.util.List;
 
-/** Response carrying candidate MCP tools and the generated-service defaults. */
+/**
+ * Response carrying candidate MCP tools and the generated-service defaults.
+ *
+ * @param endpoints the selectable operations
+ * @param defaults the generated service defaults
+ * @param errorMsg the failure message, if parsing failed
+ * @param stacktrace the failure stack trace, if available
+ */
 public record OpenApiEndpointsResponse(List<McpToolEndpoint> endpoints, McpServiceDefaults defaults,
                                        String errorMsg, String stacktrace) {
     public OpenApiEndpointsResponse(List<McpToolEndpoint> endpoints, McpServiceDefaults defaults) {

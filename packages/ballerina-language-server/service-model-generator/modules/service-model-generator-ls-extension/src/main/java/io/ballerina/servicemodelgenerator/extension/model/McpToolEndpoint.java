@@ -18,6 +18,13 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
-/** An OpenAPI operation that can be exposed as an MCP tool. */
+/**
+ * An OpenAPI operation that can be exposed as an MCP tool.
+ *
+ * @param toolName the generated MCP tool name
+ * @param method the HTTP method
+ * @param path the request path
+ * @param description the operation description
+ */
 public record McpToolEndpoint(String toolName, String method, String path, String description) {
 }

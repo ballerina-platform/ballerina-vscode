@@ -18,7 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
-/** CLI-equivalent defaults derived from an OpenAPI contract. */
+/**
+ * CLI-equivalent defaults derived from an OpenAPI contract.
+ *
+ * @param serviceName the generated service name
+ * @param version the service version
+ * @param basePath the MCP base path
+ * @param port the listener port
+ * @param listenerName the generated listener variable name
+ */
 public record McpServiceDefaults(String serviceName, String version, String basePath, int port,
                                  String listenerName) {
 }

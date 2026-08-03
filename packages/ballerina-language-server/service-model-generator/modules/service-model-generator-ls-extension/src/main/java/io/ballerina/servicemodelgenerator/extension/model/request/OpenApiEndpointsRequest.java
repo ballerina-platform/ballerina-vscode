@@ -18,6 +18,10 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.request;
 
-/** Request to list the operations in an OpenAPI contract. */
+/**
+ * Request to list the operations in an OpenAPI contract.
+ *
+ * @param specPath the absolute OpenAPI specification path
+ */
 public record OpenApiEndpointsRequest(String specPath) {
 }
