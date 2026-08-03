@@ -298,7 +298,6 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {
-            // Ignore
         }
         return Optional.empty();
     }
@@ -309,14 +308,12 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             TypeReferenceTypeSymbol typeDescriptorSymbol =
                     (TypeReferenceTypeSymbol) ((VariableSymbol) symbol).typeDescriptor();
             ClassSymbol classSymbol = (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
-            // Nominal check first: ai:Agent itself satisfies *ai:InferredReturnAgentType, so this ordering matters.
             if (isAgentClass(classSymbol)
                     || isAiFixedReturnAgent(classSymbol)
                     || isAiInferredReturnAgent(classSymbol)) {
                 return Optional.of(classSymbol);
             }
         } catch (Throwable e) {
-            // Ignore
         }
         return Optional.empty();
     }

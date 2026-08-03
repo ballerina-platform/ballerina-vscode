@@ -1316,7 +1316,6 @@ public class CommonUtils {
         } else {
             return null;
         }
-        // A non-class type (e.g. a string variable) has no class symbol — return null instead of throwing.
         if (typeDescriptor instanceof TypeReferenceTypeSymbol typeRef
                 && typeRef.typeDescriptor() instanceof ClassSymbol classSymbol) {
             return classSymbol;

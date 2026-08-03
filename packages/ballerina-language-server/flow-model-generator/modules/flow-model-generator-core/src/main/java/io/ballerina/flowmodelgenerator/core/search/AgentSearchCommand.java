@@ -77,7 +77,6 @@ public class AgentSearchCommand extends SearchCommand {
     private static final String AGENTS_LANDING_JSON = "agents_landing.json";
     private static final Type LANDING_AGENTS_TYPE = new TypeToken<List<AvailableNode>>() { }.getType();
 
-    // Source type constants
     private static final String SOURCE_DEFAULT = "default";
     private static final String SOURCE_ALL = "all";
     private static final String SOURCE_ORGANIZATION = "organization";
@@ -131,9 +130,6 @@ public class AgentSearchCommand extends SearchCommand {
         return GSON.toJsonTree(items).getAsJsonArray();
     }
 
-    // ------------------------------------------------------------------
-    // default source - pre-defined agents bundled in the local index
-    // ------------------------------------------------------------------
 
     private List<Item> getDefaultAgents() {
         if (cachedDefaultAgents == null) {
@@ -158,7 +154,6 @@ public class AgentSearchCommand extends SearchCommand {
         return List.of(new Category(agentCategory.metadata(), matchingAgents));
     }
 
-    // Curated pre-built agents bundled with the LS; the default popup view, no network.
     private List<AvailableNode> getLandingAgents() {
         if (cachedLandingAgents == null) {
             try {
@@ -172,12 +167,8 @@ public class AgentSearchCommand extends SearchCommand {
         return cachedLandingAgents;
     }
 
-    // ------------------------------------------------------------------
-    // all source - central agents (any org) + workspace agents
-    // ------------------------------------------------------------------
 
     private List<Item> getAllAgents(String searchQuery) {
-        // No query: curated landing list. Query: Central search.
         List<AvailableNode> centralAgents = (searchQuery == null || searchQuery.isEmpty())
                 ? getLandingAgents()
                 : fetchAgentsFromCentral(searchQuery, null);
@@ -195,9 +186,6 @@ public class AgentSearchCommand extends SearchCommand {
         return rootBuilder.build().items();
     }
 
-    // ------------------------------------------------------------------
-    // organization source - central agents scoped to the current org
-    // ------------------------------------------------------------------
 
     private List<Item> getOrganizationAgents(String searchQuery) {
         String currentOrg = getCurrentOrg();
@@ -223,9 +211,6 @@ public class AgentSearchCommand extends SearchCommand {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Central package fetching ("Type/Agent" keyword)
-    // ------------------------------------------------------------------
 
     /**
      * Fetches packages from Ballerina Central with the "Type/Agent" keyword. Results without a search query are
@@ -293,9 +278,6 @@ public class AgentSearchCommand extends SearchCommand {
         return new AvailableNode(metadata, codedata, true);
     }
 
-    // ------------------------------------------------------------------
-    // local source - agent classes defined across the current workspace
-    // ------------------------------------------------------------------
 
     private List<Item> getLocalAgents(String searchQuery) {
         List<AvailableNode> localAgents = filterLocalAgents(getWorkspaceAgents(), searchQuery);
@@ -387,7 +369,6 @@ public class AgentSearchCommand extends SearchCommand {
                 .icon(CommonUtils.generateIcon(moduleId.orgName(), moduleId.packageName(), moduleId.version()))
                 .build();
 
-        // AGENT_TYPE lets getNodeTemplate resolve the class-init configuration form for the agent class.
         Codedata codedata = new Codedata.Builder<>(null)
                 .node(NodeKind.AGENT_TYPE)
                 .org(moduleId.orgName())

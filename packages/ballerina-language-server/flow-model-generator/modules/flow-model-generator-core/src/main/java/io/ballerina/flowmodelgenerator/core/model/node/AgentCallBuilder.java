@@ -247,7 +247,6 @@ public class AgentCallBuilder extends CallBuilder {
 
     public static void setAdditionalAgentProperties(NodeBuilder nodeBuilder,
                                                     Map<String, AiUtils.AgentPropertyValue> propertyValues) {
-        // AGENT_CALL keeps role/instructions optional (the call has its own required `query` param).
         setAdditionalAgentProperties(nodeBuilder, propertyValues, true);
     }
 
