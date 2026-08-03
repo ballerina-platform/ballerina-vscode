@@ -417,7 +417,7 @@ public class AgentToolBuilder extends NodeBuilder {
             List<ToolParam> resolveParams(ToolGenContext ctx) {
                 List<ToolParam> params = new ArrayList<>();
                 if (ctx.includeContext) {
-                    params.add(new ToolParam("ai:Context context", "context", null));
+                    params.add(new ToolParam("ai:Context ctx", "ctx", null));
                 }
                 params.add(new ToolParam("string query", "query",
                         "The request to send to the " + ctx.agentVarName + " agent."));
@@ -444,7 +444,15 @@ public class AgentToolBuilder extends NodeBuilder {
         };
 
         List<ToolParam> resolveParams(ToolGenContext ctx) {
-            return wrappedToolParams(ctx.toolParams);
+            List<ToolParam> params = wrappedToolParams(ctx.toolParams);
+            if (ctx.includeContext) {
+                if (params.stream().anyMatch(param -> param.name().equals("ctx"))) {
+                    throw new IllegalArgumentException("Agent tool parameters cannot use the reserved name 'ctx' "
+                            + "when agent context is enabled");
+                }
+                params.add(0, new ToolParam("ai:Context ctx", "ctx", null));
+            }
+            return params;
         }
 
         abstract ReturnInfo resolveReturn(ToolGenContext ctx);
@@ -705,7 +713,7 @@ public class AgentToolBuilder extends NodeBuilder {
 
     private static Map<Path, List<TextEdit>> buildAgentCallBody(ToolGenContext ctx, ReturnInfo returnInfo) {
         SourceBuilder sourceBuilder = ctx.sb;
-        String runArgs = ctx.includeContext ? "query, context = context" : "query";
+        String runArgs = ctx.includeContext ? "query, context = ctx" : "query";
         sourceBuilder.token().keyword(SyntaxKind.OPEN_BRACE_TOKEN);
         sourceBuilder.token()
                 .name(returnInfo.typeName())

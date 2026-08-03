@@ -2895,6 +2895,9 @@ public class CodeAnalyzer extends NodeVisitor {
                 if (toolScopes != null) {
                     McpToolKitBuilder.setToolScopesProperty(nodeBuilder, toolScopes);
                 }
+                if (hasContextInAllMcpTools(classSymbol)) {
+                    McpToolKitBuilder.setIncludeContextProperty(nodeBuilder);
+                }
             }
         }
 
@@ -4516,6 +4519,47 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         return new Gson().toJson(toolScopes);
+    }
+
+    private boolean hasContextInAllMcpTools(ClassSymbol classSymbol) {
+        Optional<Location> optLocation = classSymbol.getLocation();
+        if (optLocation.isEmpty()) {
+            return false;
+        }
+
+        Document document = CommonUtils.getDocument(project, optLocation.get());
+        if (document == null) {
+            return false;
+        }
+
+        Optional<NonTerminalNode> optNode = CommonUtil.findNode(classSymbol, document.syntaxTree());
+        if (optNode.isEmpty() || !(optNode.get() instanceof ClassDefinitionNode classNode)) {
+            return false;
+        }
+
+        boolean hasTool = false;
+        for (Node member : classNode.members()) {
+            if (member.kind() != SyntaxKind.OBJECT_METHOD_DEFINITION) {
+                continue;
+            }
+            FunctionDefinitionNode methodNode = (FunctionDefinitionNode) member;
+            String methodName = methodNode.functionName().text();
+            if (methodName.equals("init") || methodName.equals("getTools")) {
+                continue;
+            }
+            boolean isAgentTool = methodNode.metadata().stream()
+                    .flatMap(metadata -> metadata.annotations().stream())
+                    .anyMatch(annotation -> annotation.annotReference().toSourceCode().trim().equals("ai:AgentTool"));
+            if (!isAgentTool) {
+                continue;
+            }
+            hasTool = true;
+            SeparatedNodeList<ParameterNode> parameters = methodNode.functionSignature().parameters();
+            if (parameters.isEmpty() || !parameters.get(0).toSourceCode().trim().matches("ai:Context\\s+ctx\\b.*")) {
+                return false;
+            }
+        }
+        return hasTool;
     }
 
     /**
