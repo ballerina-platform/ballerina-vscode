@@ -54,10 +54,15 @@
           "data": {
             "agentInfo": {
               "systemPrompt": {
-                "role": "Role with `backticks`",
-                "instructions": "Instructions with `backticks`"
+                "instructions": "Instructions with `backticks`",
+                "role": "Role with `backticks`"
               },
-              "tools": [],
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
+              },
               "modelProvider": {
                 "presentation": {
                   "name": "_WorkflowAgentModel",
@@ -65,12 +70,7 @@
                   "type": "OpenAiProvider"
                 }
               },
-              "memory": {
-                "presentation": {
-                  "type": "ai:MessageWindowChatMemory",
-                  "size": "10"
-                }
-              }
+              "tools": []
             }
           }
         },
@@ -465,7 +465,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -493,7 +493,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -627,14 +627,38 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "Instructions with `backticks`",
+                "role": "Role with `backticks`"
+              },
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "_WorkflowAgentModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "OpenAiProvider"
+                }
+              },
+              "tools": []
+            }
+          }
         },
         "codedata": {
           "node": "AGENT",
           "org": "ballerinax",
           "module": "ai",
+          "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
+          "version": "1.0.1",
           "lineRange": {
             "fileName": "agent_with_backticks_in_system_prompt.bal",
             "startLine": {
