@@ -21,7 +21,6 @@
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png",
       "data": {
         "paramsToHide": [
-          "model",
           "tools",
           "type"
         ]
