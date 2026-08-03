@@ -77,7 +77,7 @@ const ScrollArea = styled.div`
     overflow-y: auto;
     scrollbar-gutter: stable;
     margin-top: 12px;
-    padding: 0 0 16px 16px;
+    padding: 0 16px 16px;
     &::-webkit-scrollbar {
         width: 10px;
     }

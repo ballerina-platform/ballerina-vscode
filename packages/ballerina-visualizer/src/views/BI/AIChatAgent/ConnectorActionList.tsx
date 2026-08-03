@@ -133,7 +133,7 @@ const InfoDescription = styled(MarkdownDescription)`
 const ScrollArea = styled.div`
     flex: 1;
     overflow-y: auto;
-    padding: 0 0 16px 16px;
+    padding: 0 16px 16px;
     scrollbar-gutter: stable;
 `;
 
