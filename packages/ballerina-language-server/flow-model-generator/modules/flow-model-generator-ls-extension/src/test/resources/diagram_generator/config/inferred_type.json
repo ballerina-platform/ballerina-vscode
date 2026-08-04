@@ -189,7 +189,7 @@
                       "kind": "DEFAULTABLE",
                       "originalName": "whereClause"
                     },
-                    "defaultValue": "0"
+                    "defaultValue": "4"
                   },
                   "checkError": {
                     "metadata": {

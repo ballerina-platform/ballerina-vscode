@@ -281,7 +281,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "exponent"
             },
-            "defaultValue": "0"
+            "defaultValue": "2"
           },
           "variable": {
             "metadata": {
@@ -443,7 +443,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "exponent"
             },
-            "defaultValue": "0"
+            "defaultValue": "2"
           },
           "variable": {
             "metadata": {
