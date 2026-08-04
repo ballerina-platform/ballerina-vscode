@@ -16,9 +16,6 @@
  * under the License.
  */
 
-// The agent tool form: its collapsible sections, the agent-context flag and tool-name seeding.
-// Connector browsing itself is shared — see Connection/ConnectorBrowser/connectorActions.
-
 import { REST_RESOURCE_PATH } from "../Connection/ConnectorBrowser/connectorActions";
 
 /** Collapsible sections of the tool form. */

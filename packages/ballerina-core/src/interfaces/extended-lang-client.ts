@@ -964,7 +964,7 @@ export type SearchQueryParams = {
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
     source?: string;
-    connectorSet?: "AGENT_TOOL";
+    connectorSet?: "GROUPED";
 }
 
 export type SearchKind =

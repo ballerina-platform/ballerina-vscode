@@ -16,12 +16,6 @@
  * under the License.
  */
 
-// Enumerating a connector's actions before any connection exists in the source. No LS
-// endpoint does this, so we read the Central docs API via library-browser/getLibraryData.
-//
-// Connector-generic: shared by the agent tool wizard and, in future, the flow diagram. Anything
-// specific to the agent tool form lives in AIChatAgent/toolForm.ts.
-
 import { AvailableNode, Category, CodeData, Item, NodeKind } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { formatMethodName } from "@wso2/ballerina-side-panel";
