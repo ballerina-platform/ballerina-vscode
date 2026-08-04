@@ -165,6 +165,7 @@ public class Constants {
         public static final String AGENT_TYPE_NAME = "Agent";
 
         public static final String AGENT_RUN_METHOD_NAME = "run";
+        public static final String AGENT_TRACE_METHOD_NAME = "trace";
         public static final String AGENT_SYMBOL_NAME = "init";
         public static final String CHUNK_DOCUMENT_RECURSIVELY_METHOD_NAME = "chunkDocumentRecursively";
         public static final String AUGMENT_USER_QUERY_METHOD_NAME = "augmentUserQuery";

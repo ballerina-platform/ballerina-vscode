@@ -212,7 +212,9 @@ public class AvailableNodesGenerator {
     }
 
     public JsonArray getAvailableAgents(LinePosition position) {
-        return this.getAvailableItemsByCategory(position, Category.Name.AGENT, this::getAgent);
+        boolean includeTraceMethod = isInsideTestFunction(position);
+        return this.getAvailableItemsByCategory(position, Category.Name.AGENT,
+                symbol -> getAgent(symbol, includeTraceMethod));
     }
 
     public JsonArray getAvailableModelProviders(LinePosition position) {
@@ -666,8 +668,8 @@ public class AvailableNodesGenerator {
         }
     }
 
-    private Optional<Category> getAgent(Symbol symbol) {
-        return getCategory(symbol, classSymbol -> {
+    private Optional<Category> getAgent(Symbol symbol, boolean includeTraceMethod) {
+        Optional<Category> agent = getCategory(symbol, classSymbol -> {
             try {
                 return isAgentClass(classSymbol)
                         || isAiFixedTypedAgent(classSymbol)
@@ -676,6 +678,15 @@ public class AvailableNodesGenerator {
                 return false;
             }
         });
+        return includeTraceMethod ? agent : agent.map(AvailableNodesGenerator::withoutTraceMethod);
+    }
+
+    private static Category withoutTraceMethod(Category agent) {
+        List<Item> methods = agent.items().stream()
+                .filter(item -> !(item instanceof AvailableNode availableNode
+                        && Ai.AGENT_TRACE_METHOD_NAME.equals(availableNode.codedata().symbol())))
+                .toList();
+        return methods.size() == agent.items().size() ? agent : new Category(agent.metadata(), methods);
     }
 
     private Optional<Category> getModelProvider(Symbol symbol) {
