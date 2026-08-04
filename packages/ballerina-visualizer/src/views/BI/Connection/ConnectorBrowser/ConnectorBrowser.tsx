@@ -23,12 +23,12 @@ import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-si
 import { AvailableNode, BISearchRequest, Item, LinePosition } from "@wso2/ballerina-core";
 import { Button, ThemeColors } from "@wso2/ui-toolkit";
 
-import { convertBICategoriesToSidePanelCategories } from "../../../utils/bi";
-import { RelativeLoader } from "../../../components/RelativeLoader";
+import { convertBICategoriesToSidePanelCategories } from "../../../../utils/bi";
+import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { fetchConnectorActions, normalizeConnectorSearchCategories } from "./connectorActions";
 import { ConnectorActionList } from "./ConnectorActionList";
 import { ConnectorList } from "./ConnectorList";
-import { NEW_CONNECTION } from "../../../constants";
+import { NEW_CONNECTION } from "../../../../constants";
 
 export enum WizardStep {
     CONNECTOR_LIST = "CONNECTOR_LIST",
@@ -41,12 +41,17 @@ export interface ActionSelection {
     connectionName?: string;
 }
 
-interface ConnectionToolWizardProps {
-    agentFilePath: string;
+interface ConnectorBrowserProps {
+    filePath: string;
     target: LinePosition;
     existingConnectionCategories: PanelCategory[];
     onSelect: (selection: ActionSelection) => void;
     onStepChange?: (step: WizardStep, goBack?: () => void) => void;
+    /** Selects an alternative landing set in the LS; omit for the default connector list. */
+    connectorSet?: "AGENT_TOOL";
+    description?: string;
+    /** Appended to the "no actions found" notice, to name the caller's next step. */
+    noActionsHint?: string;
 }
 
 const ErrorNotice = styled.div`
@@ -65,8 +70,17 @@ const LoaderWrapper = styled.div`
     height: calc(100vh - 56px);
 `;
 
-export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
-    const { agentFilePath, target, existingConnectionCategories, onSelect, onStepChange } = props;
+export function ConnectorBrowser(props: ConnectorBrowserProps) {
+    const {
+        filePath,
+        target,
+        existingConnectionCategories,
+        onSelect,
+        onStepChange,
+        connectorSet,
+        description,
+        noActionsHint,
+    } = props;
     const { rpcClient } = useRpcContext();
 
     const [step, setStep] = useState<WizardStep>(WizardStep.CONNECTOR_LIST);
@@ -111,10 +125,12 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
         try {
             const request: BISearchRequest = {
                 position: { startLine: target, endLine: target },
-                filePath: agentFilePath,
-                queryMap: query.trim()
-                    ? { q: query.trim(), limit: 60, offset: 0, connectorSet: "AGENT_TOOL" }
-                    : { limit: 60, connectorSet: "AGENT_TOOL" },
+                filePath,
+                queryMap: {
+                    ...(query.trim() ? { q: query.trim(), offset: 0 } : {}),
+                    limit: 60,
+                    ...(connectorSet ? { connectorSet } : {}),
+                },
                 searchKind: "CONNECTOR",
             };
             const response = await rpcClient.getBIDiagramRpcClient().search(request);
@@ -200,8 +216,8 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
             const fetched = await fetchConnectorActions(rpcClient, connector);
             if (fetched.length === 0) {
                 setActionError(
-                    `No actions were found for ${connector.metadata?.label ?? "this connector"}. ` +
-                    `You can still add it as a connection and create the tool from an action later.`
+                    `No actions were found for ${connector.metadata?.label ?? "this connector"}.` +
+                    (noActionsHint ? ` ${noActionsHint}` : "")
                 );
             }
             setActions(fetched);
@@ -250,7 +266,7 @@ export function ConnectionToolWizard(props: ConnectionToolWizardProps) {
                             onSearchTextChange={handleSearchTextChange}
                             onSelect={handleListSelect}
                             onSelectConnection={handleSelectConnection}
-                            description="Pick an existing connection or a connector to browse its actions."
+                            description={description}
                         />
                     )}
                 </>

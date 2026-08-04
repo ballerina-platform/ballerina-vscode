@@ -27,7 +27,7 @@ import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { convertNodePropertyToFormField } from "../../../utils/bi";
-import { INCLUDE_CONTEXT_KEY, OAUTH_GROUP, RESULT_TYPE_GROUP, buildIncludeContextField } from "./connectorActions";
+import { INCLUDE_CONTEXT_KEY, OAUTH_GROUP, RESULT_TYPE_GROUP, buildIncludeContextField } from "./toolForm";
 import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
