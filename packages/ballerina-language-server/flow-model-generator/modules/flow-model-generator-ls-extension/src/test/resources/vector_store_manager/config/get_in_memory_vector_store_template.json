@@ -14,7 +14,7 @@
       "metadata": {
         "label": "Vector Store",
         "description": "Initializes a new in-memory vector store.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
       },
       "codedata": {
         "node": "VECTOR_STORE",
@@ -22,7 +22,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "InMemoryVectorStore",
-        "version": "1.12.0",
+        "version": "1.13.0",
         "isNew": true
       },
       "returning": false,

@@ -11,7 +11,7 @@
             "metadata": {
               "label": "Default Model Provider (WSO2)",
               "description": "WSO2 model provider implementation that provides chat completion capabilities using WSO2's AI services.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
             },
             "codedata": {
               "node": "MODEL_PROVIDER",

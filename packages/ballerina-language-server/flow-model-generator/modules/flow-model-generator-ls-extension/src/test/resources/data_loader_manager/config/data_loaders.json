@@ -11,7 +11,7 @@
             "metadata": {
               "label": "Text Data Loader",
               "description": "Dataloader that can be used to load supported file types as `TextDocument`s.\nCurrently only supports `pdf`, `docx`, `markdown`, `html`, and `pptx` file types.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
             },
             "codedata": {
               "node": "DATA_LOADER",
