@@ -47,10 +47,8 @@ interface ConnectorBrowserProps {
     existingConnectionCategories: PanelCategory[];
     onSelect: (selection: ActionSelection) => void;
     onStepChange?: (step: WizardStep, goBack?: () => void) => void;
-    /** Selects an alternative landing set in the LS; omit for the default connector list. */
-    connectorSet?: "AGENT_TOOL";
+    connectorSet?: "GROUPED";
     description?: string;
-    /** Appended to the "no actions found" notice, to name the caller's next step. */
     noActionsHint?: string;
 }
 

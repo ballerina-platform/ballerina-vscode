@@ -1457,7 +1457,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         filePath={agentFilePath.current}
                         target={targetRef.current.startLine}
                         existingConnectionCategories={categories}
-                        connectorSet="AGENT_TOOL"
+                        connectorSet="GROUPED"
                         description="Pick an existing connection or a connector to browse its actions."
                         noActionsHint="You can still add it as a connection and create the tool from an action later."
                         onSelect={handleWizardSelect}

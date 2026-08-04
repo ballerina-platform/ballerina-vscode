@@ -16,9 +16,6 @@
  * under the License.
  */
 
-// Browsing a connector's actions before any connection exists. Used by the agent tool wizard;
-// intended for the flow diagram's connection flow too.
-
 export { ConnectorBrowser, WizardStep } from "./ConnectorBrowser";
 export type { ActionSelection } from "./ConnectorBrowser";
 export { ConnectorActionList } from "./ConnectorActionList";
