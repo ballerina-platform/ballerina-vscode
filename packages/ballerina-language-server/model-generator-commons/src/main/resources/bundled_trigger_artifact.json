@@ -39,7 +39,7 @@
   "azure.storage.files": {
     "displayName": "Azure Files Integration",
     "icon": {
-      "glyph": "bi-file",
+      "glyph": "bi-azure-files",
       "kind": "file"
     },
     "labelFields": [
