@@ -324,13 +324,17 @@ public class FunctionDataBuilder {
     }
 
     private void updateModuleInfo() {
-        // Update version from resolved package if available
+        // Use the resolved package identity when the request omits package information, as workspace modules
+        // can be identified by their module name alone.
         if (resolvedPackage != null && moduleInfo != null) {
+            String packageName = moduleInfo.packageName();
+            if (packageName == null || packageName.isBlank()) {
+                packageName = resolvedPackage.descriptor().name().value();
+            }
             String resolvedVersion = resolvedPackage.descriptor().version().toString();
-            // Always update moduleInfo with the resolved version to ensure consistency
             this.moduleInfo = new ModuleInfo(
                 moduleInfo.org(),
-                moduleInfo.packageName(),
+                packageName,
                 moduleInfo.moduleName(),
                 resolvedVersion
             );
