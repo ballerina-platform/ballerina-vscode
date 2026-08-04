@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
-import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { Codicon, ProgressRing, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 
 const POPULAR_CATEGORY = "Popular";
 
@@ -77,7 +77,7 @@ const ScrollArea = styled.div`
     overflow-y: auto;
     scrollbar-gutter: stable;
     margin-top: 12px;
-    padding: 0 16px 16px;
+    padding: 0 0 16px 16px;
     &::-webkit-scrollbar {
         width: 10px;
     }
@@ -174,7 +174,7 @@ const Row = styled.button`
         border-top: none;
     }
 
-    &:last-of-type {
+    &:last-child {
         border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 0 0 5px 5px;
     }
@@ -237,18 +237,31 @@ const EmptyState = styled.div`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
+const PendingRow = styled.div`
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+`;
+
 interface Section {
     key: string;
     title: string;
     nodes: PanelNode[];
     category: string;
     tag?: string;
+    pending?: boolean;
 }
 
 interface ConnectorListProps {
     connectionCategories: PanelCategory[];
     connectorCategories: PanelCategory[];
     extraCategories?: PanelCategory[];
+    loadingExtras?: boolean;
     searchText: string;
     onSearchTextChange: (text: string) => void;
     onSelect: (nodeId: string, metadata?: any) => void;
@@ -306,6 +319,7 @@ export function ConnectorList(props: ConnectorListProps) {
         connectionCategories,
         connectorCategories,
         extraCategories,
+        loadingExtras,
         searchText,
         onSearchTextChange,
         onSelect,
@@ -371,14 +385,11 @@ export function ConnectorList(props: ConnectorListProps) {
                 .flatMap(nodesOf)
                 .filter((node) => !seen.has(connectorKey(node)));
 
-            const results: Section[] = [];
-            if (ranked.length) {
-                results.push({ key: "results", title: "Results", category: "", nodes: ranked.map((x) => x.node) });
+            const nodes = [...ranked.map((x) => x.node), ...extras];
+            if (!nodes.length && !loadingExtras) {
+                return [];
             }
-            if (extras.length) {
-                results.push({ key: "central", title: "More from Ballerina Central", category: "", nodes: extras });
-            }
-            return results;
+            return [{ key: "results", title: "Results", category: "", nodes, pending: !!loadingExtras }];
         }
 
         if (category) {
@@ -390,7 +401,7 @@ export function ConnectorList(props: ConnectorListProps) {
             ...(popularSection ? [popularSection] : []),
             ...connectorSections,
         ];
-    }, [query, category, connectionSections, connectorSections, popularSection, extraCategories]);
+    }, [query, category, connectionSections, connectorSections, popularSection, extraCategories, loadingExtras]);
 
     const flatNodes = useMemo(
         () => sections.flatMap((s) => s.nodes.map((node) => ({ node, category: s.category }))),
@@ -478,7 +489,7 @@ export function ConnectorList(props: ConnectorListProps) {
                             <SectionHeader>
                                 <SectionTitle>{section.title}</SectionTitle>
                                 {section.tag && <SectionTag>{section.tag}</SectionTag>}
-                                <SectionCount>{section.nodes.length}</SectionCount>
+                                {!section.pending && <SectionCount>{section.nodes.length}</SectionCount>}
                             </SectionHeader>
                             {section.nodes.map((node) => {
                                 renderIndex += 1;
@@ -504,6 +515,12 @@ export function ConnectorList(props: ConnectorListProps) {
                                     </Row>
                                 );
                             })}
+                            {section.pending && (
+                                <PendingRow>
+                                    <ProgressRing sx={{ height: 14, width: 14 }} />
+                                    <Typography variant="body3">Searching Ballerina Central…</Typography>
+                                </PendingRow>
+                            )}
                         </Section>
                     ))
                 )}

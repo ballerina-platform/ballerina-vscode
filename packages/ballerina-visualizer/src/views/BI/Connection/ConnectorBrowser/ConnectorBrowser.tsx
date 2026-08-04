@@ -84,8 +84,8 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
     const [step, setStep] = useState<WizardStep>(WizardStep.CONNECTOR_LIST);
     const [catalogCategories, setCatalogCategories] = useState<PanelCategory[]>([]);
     const [centralCategories, setCentralCategories] = useState<PanelCategory[]>([]);
-    // Initial load only.
     const [loadingConnectors, setLoadingConnectors] = useState<boolean>(true);
+    const [loadingExtras, setLoadingExtras] = useState<boolean>(false);
     const [searchText, setSearchText] = useState<string>("");
 
     const [selectedConnector, setSelectedConnector] = useState<AvailableNode>();
@@ -151,6 +151,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         } finally {
             if (requestId === latestConnectorRequest.current) {
                 setLoadingConnectors(false);
+                setLoadingExtras(false);
             }
         }
     };
@@ -167,12 +168,16 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         }
         if (!text.trim()) {
             setCentralCategories([]);
+            setLoadingExtras(false);
             lastConnectorQuery.current = "";
             return;
         }
+        setLoadingExtras(true);
         searchDebounce.current = setTimeout(() => {
             if (text !== lastConnectorQuery.current) {
                 void loadConnectors(text);
+            } else {
+                setLoadingExtras(false);
             }
         }, 300);
     };
@@ -260,6 +265,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
                             connectionCategories={visibleConnectionCategories}
                             connectorCategories={catalogCategories}
                             extraCategories={centralCategories}
+                            loadingExtras={loadingExtras}
                             searchText={searchText}
                             onSearchTextChange={handleSearchTextChange}
                             onSelect={handleListSelect}
