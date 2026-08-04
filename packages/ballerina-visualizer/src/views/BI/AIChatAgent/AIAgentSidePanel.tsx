@@ -68,20 +68,24 @@ import { fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
-import { ActionSelection, ConnectionToolWizard, WizardStep } from "./ConnectionToolWizard";
+import {
+    ActionSelection,
+    ConnectorBrowser,
+    WizardStep,
+    buildConnectionSelectField,
+    displayResourcePath,
+} from "../Connection/ConnectorBrowser";
 import {
     INCLUDE_CONTEXT_KEY,
     OAUTH_GROUP,
     RESULT_TYPE_GROUP,
     TOOL_INPUT_GROUP,
-    buildConnectionSelectField,
     buildIncludeContextField,
     buildToolFormGroups,
-    displayResourcePath,
     getExistingToolNames,
     resourceToolNameSeed,
     suggestToolName,
-} from "./connectorActions";
+} from "./toolForm";
 import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import {
@@ -1449,10 +1453,13 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
                     }}
                 >
-                    <ConnectionToolWizard
-                        agentFilePath={agentFilePath.current}
+                    <ConnectorBrowser
+                        filePath={agentFilePath.current}
                         target={targetRef.current.startLine}
                         existingConnectionCategories={categories}
+                        connectorSet="AGENT_TOOL"
+                        description="Pick an existing connection or a connector to browse its actions."
+                        noActionsHint="You can still add it as a connection and create the tool from an action later."
                         onSelect={handleWizardSelect}
                         onStepChange={(step, goBack) => {
                             wizardBackRef.current = goBack;
