@@ -79,6 +79,11 @@ public class ConnectorSearchCommand extends SearchCommand {
     private static final Set<String> BLACKLISTED_CONNECTOR_NAME_PATTERNS = Set.of("ModelProvider");
     private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
 
+    private static final String OTHER_CATEGORY = "Other";
+    private static final int ALL_CONNECTORS_LIMIT = 2000;
+    private static final String CLIENT_SUFFIX = "Client";
+    private static final Set<String> EXCLUDED_MODULE_PREFIXES = Set.of("health.", "ai.");
+
     private static boolean isBlacklisted(String connectorName) {
         return BLACKLISTED_CONNECTOR_NAME_PATTERNS.stream().anyMatch(connectorName::contains);
     }
@@ -166,6 +171,7 @@ public class ConnectorSearchCommand extends SearchCommand {
         int categoryLimit = groupedConnectorSet ? GROUPED_CATEGORY_LIMIT : limit;
         int categoryOffset = groupedConnectorSet ? 0 : offset;
 
+        Set<String> listed = new HashSet<>();
         Map<String, List<SearchResult>> defaultView = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> category : categories.entrySet()) {
             List<String> packageList = category.getValue();
@@ -175,9 +181,37 @@ public class ConnectorSearchCommand extends SearchCommand {
             List<SearchResult> filteredResults = searchResults.stream()
                     .filter(result -> !isBlacklisted(result.name()))
                     .toList();
+            filteredResults.forEach(result -> listed.add(connectorKey(result)));
             defaultView.put(category.getKey(), filteredResults);
         }
+
+        if (groupedConnectorSet) {
+            appendUncategorizedConnectors(defaultView, listed);
+        }
         return defaultView;
+    }
+
+    private static String connectorKey(SearchResult result) {
+        return result.packageInfo().moduleName() + ":" + result.name();
+    }
+    
+    private void appendUncategorizedConnectors(Map<String, List<SearchResult>> defaultView, Set<String> listed) {
+        List<SearchResult> uncategorized = dbManager
+                .searchConnectors("", ALL_CONNECTORS_LIMIT, 0, ALLOWED_ORGANIZATIONS,
+                        BLACKLISTED_CONNECTOR_NAME_PATTERNS)
+                .stream()
+                .filter(result -> !listed.contains(connectorKey(result)))
+                .filter(result -> result.name().endsWith(CLIENT_SUFFIX))
+                .filter(result -> EXCLUDED_MODULE_PREFIXES.stream()
+                        .noneMatch(prefix -> result.packageInfo().moduleName().startsWith(prefix)))
+                .sorted(Comparator.comparing(result -> result.packageInfo().moduleName()))
+                .toList();
+        if (uncategorized.isEmpty()) {
+            return;
+        }
+        List<SearchResult> merged = new ArrayList<>(defaultView.getOrDefault(OTHER_CATEGORY, List.of()));
+        merged.addAll(uncategorized);
+        defaultView.put(OTHER_CATEGORY, merged);
     }
 
     private static AvailableNode generateAvailableNode(SearchResult searchResult) {
