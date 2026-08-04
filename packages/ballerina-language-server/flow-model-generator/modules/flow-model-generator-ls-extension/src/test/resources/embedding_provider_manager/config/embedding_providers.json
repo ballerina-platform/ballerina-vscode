@@ -11,7 +11,7 @@
             "metadata": {
               "label": "Default Embedding Provider (WSO2)",
               "description": "WSO2 embedding provider implementation that provides embedding capabilities using WSO2's AI service.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
             },
             "codedata": {
               "node": "EMBEDDING_PROVIDER",

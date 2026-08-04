@@ -11,7 +11,7 @@
             "metadata": {
               "label": "In Memory Vector Store",
               "description": "An in-memory vector store implementation that provides simple storage for vector entries.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.12.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
             },
             "codedata": {
               "node": "VECTOR_STORE",

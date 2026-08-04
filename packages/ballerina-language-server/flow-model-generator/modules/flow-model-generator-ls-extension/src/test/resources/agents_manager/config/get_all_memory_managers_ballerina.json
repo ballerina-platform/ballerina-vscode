@@ -8,7 +8,7 @@
       "org": "ballerina",
       "module": "ai",
       "packageName": "ai",
-      "object": "MessageWindowChatMemory",
+      "object": "ShortTermMemory",
       "symbol": "init"
     },
     {
@@ -16,7 +16,7 @@
       "org": "ballerina",
       "module": "ai",
       "packageName": "ai",
-      "object": "ShortTermMemory",
+      "object": "MessageWindowChatMemory",
       "symbol": "init"
     }
   ]
