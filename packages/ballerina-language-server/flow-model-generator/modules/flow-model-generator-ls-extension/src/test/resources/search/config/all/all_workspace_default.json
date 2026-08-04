@@ -465,7 +465,7 @@
         },
         {
           "metadata": {
-            "label": "Files",
+            "label": "Xero Files",
             "description": "This is a generated connector for [Xero Files API v2.16.1](https://developer.xero.com/documentation/api/files/overview) OpenAPI specification.\nThe Files API provides access to the files, folders, and the association of files within a Xero organisation. It can be used to upload/download files, manage folders and associate files to invoices, contacts, payments etc.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_xero.files_1.5.1.png"
           },
@@ -483,7 +483,7 @@
         },
         {
           "metadata": {
-            "label": "Finetunes",
+            "label": "Azure OpenAI Finetunes",
             "description": "APIs for fine-tuning and managing deployments of OpenAI models.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.finetunes_1.0.1.png"
           },
@@ -501,7 +501,7 @@
         },
         {
           "metadata": {
-            "label": "Frauddetection",
+            "label": "FraudLabs Detection",
             "description": "This is a generated connector for [FraudLabsPro Fraud Detection API v1.1](https://www.fraudlabspro.com/developer/api/screen-order) OpenAPI specification.\nOnline payment fraud detection service. It helps merchants to minimize chargebacks and therefore maximize the revenue. \nIt can be used to detect fraud for various kinds of payment method, such as credit card, paypal, cod and so on. \nPlease visit https://www.fraudlabspro.com to learn more.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_fraudlabspro.frauddetection_1.5.1.png"
           },
@@ -519,7 +519,7 @@
         },
         {
           "metadata": {
-            "label": "Flightcreateorders",
+            "label": "Amadeus Flight Orders",
             "description": "This is a generated connector for [Amadeus Flight Create Orders API](https://developers.amadeus.com/self-service/category/air/api-doc/flight-create-orders) OpenAPI specification. \nThis [Amadeus Flight Create Orders API](https://developers.amadeus.com/) provides the capability to perform the final booking for a chosen flight.  Use this after completing a flight search with Flight Offers Search and confirming real-time price and availability with Flight Offers Price.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_amadeus.flightcreateorders_1.3.1.png"
           },
