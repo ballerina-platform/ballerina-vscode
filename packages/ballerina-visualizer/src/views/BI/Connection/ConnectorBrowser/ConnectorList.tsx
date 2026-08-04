@@ -365,11 +365,6 @@ export function ConnectorList(props: ConnectorListProps) {
         [connectionCategories]
     );
 
-    const totalConnectors = useMemo(
-        () => connectorSections.reduce((sum, s) => sum + s.nodes.length, 0),
-        [connectorSections]
-    );
-
     const sections = useMemo<Section[]>(() => {
         if (query) {
             const pool = category
@@ -450,9 +445,7 @@ export function ConnectorList(props: ConnectorListProps) {
                 <SearchWrap onKeyDown={handleSearchKeyDown}>
                     <SearchBox
                         value={searchText}
-                        placeholder={
-                            totalConnectors ? `Search ${totalConnectors} connectors` : "Search connectors"
-                        }
+                        placeholder="Search connectors"
                         autoFocus={true}
                         onChange={onSearchTextChange}
                         sx={{ height: 30, width: "100%" }}
@@ -465,7 +458,7 @@ export function ConnectorList(props: ConnectorListProps) {
                             aria-label="Filter by category"
                             onChange={(event) => setCategory(event.target.value)}
                         >
-                            <option value="">All Categories ({totalConnectors})</option>
+                            <option value="">All Categories</option>
                             {connectorSections.map((s) => (
                                 <option key={s.key} value={s.category}>
                                     {s.title} ({s.nodes.length})
@@ -518,7 +511,7 @@ export function ConnectorList(props: ConnectorListProps) {
                             {section.pending && (
                                 <PendingRow>
                                     <ProgressRing sx={{ height: 14, width: 14 }} />
-                                    <Typography variant="body3">Searching Ballerina Central…</Typography>
+                                    <Typography variant="body3">Searching for more connectors…</Typography>
                                 </PendingRow>
                             )}
                         </Section>
