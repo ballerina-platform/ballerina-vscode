@@ -35,5 +35,15 @@
       "color": "#00C895",
       "kind": "event"
     }
+  },
+  "azure.storage.files": {
+    "displayName": "Azure Files Integration",
+    "icon": {
+      "glyph": "bi-file",
+      "kind": "file"
+    },
+    "labelFields": [
+      "path"
+    ]
   }
 }
