@@ -1121,7 +1121,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
                             }
                             : undefined
                     }
-                    footerActionButton={footerActionButton}
                 />
             )}
             {
