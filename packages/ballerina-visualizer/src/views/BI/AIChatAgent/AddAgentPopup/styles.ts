@@ -17,7 +17,7 @@
  */
 
 import styled from "@emotion/styled";
-import { Button, Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
+import { Typography, ThemeColors, SearchBox } from "@wso2/ui-toolkit";
 
 export const PopupContent = styled.div`
     flex: 1;
@@ -53,21 +53,6 @@ export const EmptyState = styled.div`
     text-align: center;
     color: var(--vscode-descriptionForeground);
     font-size: 13px;
-`;
-
-export const Footer = styled.div`
-    padding: 16px 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-`;
-
-export const FooterButton = styled(Button)`
-    width: 100% !important;
-    min-width: 0 !important;
-    display: flex !important;
-    justify-content: center;
-    align-items: center;
 `;
 
 export const IntroText = styled(Typography)`
