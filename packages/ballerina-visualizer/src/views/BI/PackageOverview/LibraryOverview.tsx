@@ -939,98 +939,106 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                 </LibraryHeader>
 
                 {/* Global search results */}
-                {isOverviewSearching && (
-                    <SearchResultsContent>
-                        {searchGroups.length > 0 ? (
-                            searchGroups.map(({ section, filteredItems, allItems }) => (
-                                <SearchResultGroup key={section.key}>
-                                    <SearchResultGroupHeader>
-                                        <SectionIcon section={section} size={16} />
-                                        <SearchResultGroupTitle>{section.title}</SearchResultGroupTitle>
-                                        <SearchResultGroupCount>
-                                            {filteredItems.length}/{allItems.length}
-                                        </SearchResultGroupCount>
-                                    </SearchResultGroupHeader>
-                                    <CardGrid>
-                                        {filteredItems.map((item) =>
-                                            renderArtifactCard(item, section.key, section, overviewQuery)
-                                        )}
-                                    </CardGrid>
-                                </SearchResultGroup>
-                            ))
-                        ) : (
-                            <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
-                        )}
-                    </SearchResultsContent>
-                )}
+                {
+                    isOverviewSearching && (
+                        <SearchResultsContent>
+                            {searchGroups.length > 0 ? (
+                                searchGroups.map(({ section, filteredItems, allItems }) => (
+                                    <SearchResultGroup key={section.key}>
+                                        <SearchResultGroupHeader>
+                                            <SectionIcon section={section} size={16} />
+                                            <SearchResultGroupTitle>{section.title}</SearchResultGroupTitle>
+                                            <SearchResultGroupCount>
+                                                {filteredItems.length}/{allItems.length}
+                                            </SearchResultGroupCount >
+                                        </SearchResultGroupHeader >
+                                        <CardGrid>
+                                            {filteredItems.map((item) =>
+                                                renderArtifactCard(item, section.key, section, overviewQuery)
+                                            )}
+                                        </CardGrid>
+                                    </SearchResultGroup >
+                                ))
+                            ) : (
+                                <NoResultsLabel>No artifacts matching &ldquo;{overviewSearch.trim()}&rdquo;</NoResultsLabel>
+                            )
+                            }
+                        </SearchResultsContent >
+                    )
+                }
 
                 {/* Overview: section cards (non-empty only) or empty state */}
-                {!isOverviewSearching && (
-                    isLibraryEmpty ? (
-                        <LibraryEmptyState>
-                            <Typography variant="h3" sx={{ marginBottom: "8px" }}>
-                                Your library is empty
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
-                            >
-                                Start by adding reusable artifacts to your library
-                            </Typography>
-                            <Button appearance="primary" onClick={handleAddArtifacts}>
-                                <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
-                            </Button>
-                        </LibraryEmptyState>
-                    ) : (
-                        <OverviewContent>
-                            <SectionCardGrid>
-                                {nonEmptySections.map(({ section, allItems }) => (
-                                    <SectionCard
-                                        key={section.key}
-                                        id={`section-${section.key}`}
-                                        type="button"
-                                        onClick={() => handleSectionOpen(section)}
-                                    >
-                                        <SectionCardTopRow>
-                                            <SectionCardIconWrapper $size={Math.round(24 * (section.iconScale ?? 1))}>
-                                                <SectionIcon section={section} />
-                                            </SectionCardIconWrapper>
-                                            <SectionCardName>{section.title}</SectionCardName>
-                                            <SectionCountBadge>{allItems.length}</SectionCountBadge>
-                                        </SectionCardTopRow>
-                                        <SectionCardDescription>{section.description}</SectionCardDescription>
-                                    </SectionCard>
-                                ))}
-                            </SectionCardGrid>
-                        </OverviewContent>
+                {
+                    !isOverviewSearching && (
+                        isLibraryEmpty ? (
+                            <LibraryEmptyState>
+                                <Typography variant="h3" sx={{ marginBottom: "8px" }}>
+                                    Your library is empty
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    sx={{ marginBottom: "16px", color: "var(--vscode-descriptionForeground)" }}
+                                >
+                                    Start by adding reusable artifacts to your library
+                                </Typography>
+                                <Button appearance="primary" onClick={handleAddArtifacts}>
+                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifacts
+                                </Button>
+                            </LibraryEmptyState>
+                        ) : (
+                            <OverviewContent>
+                                <SectionCardGrid>
+                                    {nonEmptySections.map(({ section, allItems }) => (
+                                        <SectionCard
+                                            key={section.key}
+                                            id={`section-${section.key}`}
+                                            type="button"
+                                            onClick={() => handleSectionOpen(section)}
+                                        >
+                                            <SectionCardTopRow>
+                                                <SectionCardIconWrapper $size={Math.round(24 * (section.iconScale ?? 1))}>
+                                                    <SectionIcon section={section} />
+                                                </SectionCardIconWrapper>
+                                                <SectionCardName>{section.title}</SectionCardName>
+                                                <SectionCountBadge>{allItems.length}</SectionCountBadge>
+                                            </SectionCardTopRow >
+                                            <SectionCardDescription>{section.description}</SectionCardDescription>
+                                        </SectionCard >
+                                    ))
+                                    }
+                                </SectionCardGrid >
+                            </OverviewContent >
+                        )
                     )
-                )}
-            </ArtifactsPanel>
+                }
+            </ArtifactsPanel >
 
             {/* README — separate container, hidden when searching */}
-            {!isOverviewSearching && (
-                <ReadmeSection>
-                    <ReadmeHeaderRow>
-                        <ReadmeTitle variant="h2">README</ReadmeTitle>
-                        <Button appearance="icon" onClick={handleEditReadme} buttonSx={{ padding: "4px 8px" }}>
-                            <Icon name="bi-edit" sx={{ marginRight: 8, fontSize: 16 }} /> Edit
-                        </Button>
-                    </ReadmeHeaderRow>
-                    <ReadmeContentArea>
-                        {readmeContent ? (
-                            <Markdown>{readmeContent}</Markdown>
-                        ) : (
-                            <EmptyReadmeContainer>
-                                <Typography variant="body2" sx={{ color: "var(--vscode-descriptionForeground)" }}>
-                                    Describe your library to help users understand how to use it
-                                </Typography>
-                                <VSCodeLink onClick={handleEditReadme}>Add a README</VSCodeLink>
-                            </EmptyReadmeContainer>
-                        )}
-                    </ReadmeContentArea>
-                </ReadmeSection>
-            )}
-        </LibraryWrapper>
+            {
+                !isOverviewSearching && (
+                    <ReadmeSection>
+                        <ReadmeHeaderRow>
+                            <ReadmeTitle variant="h2">README</ReadmeTitle>
+                            <Button appearance="icon" onClick={handleEditReadme} buttonSx={{ padding: "4px 8px" }}>
+                                <Icon name="bi-edit" sx={{ marginRight: 8, fontSize: 16 }} /> Edit
+                            </Button>
+                        </ReadmeHeaderRow>
+                        <ReadmeContentArea>
+                            {readmeContent ? (
+                                <Markdown>{readmeContent}</Markdown>
+                            ) : (
+                                <EmptyReadmeContainer>
+                                    <Typography variant="body2" sx={{ color: "var(--vscode-descriptionForeground)" }}>
+                                        Describe your library to help users understand how to use it
+                                    </Typography>
+                                    <VSCodeLink onClick={handleEditReadme}>Add a README</VSCodeLink>
+                                </EmptyReadmeContainer>
+                            )}
+                        </ReadmeContentArea>
+                    </ReadmeSection>
+                )
+            }
+        </LibraryWrapper >
     );
 }
 

@@ -890,7 +890,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </>
                             </Menu>
                         </Popover>
-                    </NodeStyles.MemoryContainer >}
+                    </NodeStyles.MemoryContainer >
+                    }
 
                     {
                         isTypeDefinition ? (
@@ -1235,8 +1236,8 @@ font - family: "GilmerRegular";
 
                     {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
                         transform={`translate(-11, ${tools.length > 0
-                                ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                                : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
+                            ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
+                            : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
                             })`}
                         onClick={onAddToolClick}
                         style={{ cursor: "pointer" }}
@@ -1339,6 +1340,6 @@ font - family: "GilmerRegular";
                         ))}
                     </defs>
                 </svg>}
-        </NodeStyles.Node>
+        </NodeStyles.Node >
     );
 }

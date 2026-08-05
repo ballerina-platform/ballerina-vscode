@@ -2549,15 +2549,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
-    const handleOnAddNewAgent = () => {
-        setShowAddAgentPopup(true);
-    };
-
-    const handleAgentCreated = () => {
-        setShowAddAgentPopup(false);
-        loadAvailableAgents();
-    };
-
     const handleOnAddNewModelProvider = () => {
         isCreatingNewModelProvider.current = true;
         setShowProgressIndicator(true);

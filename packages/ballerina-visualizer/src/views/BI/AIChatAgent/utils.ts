@@ -43,12 +43,26 @@ const OPENAI_PROVIDER_CODEDATA: CodeData = {
     symbol: "init",
 };
 
-/**
- * Refreshes a flow node's line range in place from the matching artifact in a getSourceCode/deleteFlowNode response.
- * A preceding edit/delete can shift file lines; re-writing the node on its now-stale range would duplicate it instead
- * of replacing it. Call this with the response artifacts before the follow-up getSourceCode. No-op if not found.
- */
-export function refreshNodeLineRangeFromArtifacts(
+export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
+
+const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
+    node: "MODEL_PROVIDER",
+    org: "ballerina",
+    module: "ai",
+    packageName: "ai",
+    symbol: "getDefaultModelProvider",
+};
+
+const OPENAI_PROVIDER_CODEDATA: CodeData = {
+    node: "CLASS_INIT",
+    org: "ballerinax",
+    module: "ai",
+    packageName: "ai",
+    object: "OpenAiProvider",
+    symbol: "init",
+};
+
+function refreshNodeLineRangeFromArtifacts(
     node: FlowNode,
     artifacts: ProjectStructureArtifactResponse[] | undefined,
     name: string
