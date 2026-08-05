@@ -240,9 +240,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         onViewChange("configure");
     };
 
-    const handleCreateNew = () => {
-    };
-
     if (view === "create") {
         const fieldOverrides = { type: { hidden: true } };
         const formNode = agentNode ? cloneDeep(agentNode) : undefined;
