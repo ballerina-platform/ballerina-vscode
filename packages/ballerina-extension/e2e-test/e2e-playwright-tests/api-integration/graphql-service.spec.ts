@@ -83,7 +83,7 @@ export default function createTests() {
             const typeDiagram = artifactWebView.getByTestId('type-diagram');
             await typeDiagram.waitFor();
 
-            // Check if the AI Chat Agent is created in the project explorer
+            // Check if the Chat Agent Service is created in the project explorer
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `GraphQL Service - /graphql`]);
 

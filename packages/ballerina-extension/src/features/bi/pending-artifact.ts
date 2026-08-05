@@ -316,7 +316,7 @@ async function generatePendingArtifact(
         }
         case "AI_CHAT_AGENT": {
             // Pragmatic v1: the agent's multi-RPC orchestration stays webview-side —
-            // land on the AI Chat Agent wizard with the chosen name carried on the
+            // land on the Chat Agent Service wizard with the chosen name carried on the
             // existing `identifier` field of the visualizer location.
             openView(EVENT_TYPE.OPEN_VIEW, {
                 view: MACHINE_VIEW.AIChatAgentWizard,

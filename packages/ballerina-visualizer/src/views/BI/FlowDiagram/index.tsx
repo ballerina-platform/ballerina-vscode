@@ -2965,7 +2965,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const isChatAgentFlow = (() => {
         const eventStartNode = flowModel?.nodes.find((node) => node.codedata.node === "EVENT_START");
         const meta = eventStartNode?.metadata?.data as { kind?: string; label?: string } | undefined;
-        return meta?.kind === "AI Chat Agent" && meta?.label === "chat";
+        return meta?.kind === "Chat Agent Service" && meta?.label === "chat";
     })();
 
     const memoizedDiagramProps = useMemo(
