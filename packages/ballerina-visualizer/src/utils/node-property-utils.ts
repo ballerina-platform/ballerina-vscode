@@ -155,9 +155,11 @@ function applyExpressionToggle(
     formField: FormField,
     ballerinaType: string | undefined,
     searchNodesKind: string,
-    codedataExtras: Record<string, unknown> = {}
+    codedataExtras: Record<string, unknown> = {},
+    treatUnitAsUnset = false
 ): void {
-    const expressionMode = isInlineExpressionValue(formField.value);
+    const expressionMode = !(treatUnitAsUnset && formField.value?.toString().trim() === "()")
+        && isInlineExpressionValue(formField.value);
     formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
     formField.types = [
         { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: !expressionMode },
@@ -220,7 +222,7 @@ function enrichMemoryField(formField: FormField, property: Property): void {
     if (!isMemory || !formField.editable) {
         return;
     }
-    applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND);
+    applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND, {}, true);
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {
