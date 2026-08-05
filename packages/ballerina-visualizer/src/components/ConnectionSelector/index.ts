@@ -19,7 +19,7 @@
 export { ConnectionConfig } from "./ConnectionConfig";
 export { ConnectionSelectionList } from "./ConnectionSelectionList";
 export { ConnectionCreator } from "./ConnectionCreator";
-export { ConnectionCreateWizard, getConnectionKindDisplayName } from "./ConnectionCreateWizard";
+export { ConnectionCreateWizard } from "./ConnectionCreateWizard";
 export { useCreateConnection } from "./useCreateConnection";
 
 export type {
@@ -36,5 +36,6 @@ export {
     CONNECTION_TYPE_CONFIGS,
     CONNECTION_SPECIAL_CONFIGS,
     getConnectionKindConfig,
+    getConnectionKindDisplayName,
     getConnectionSpecialConfig
 } from "./config";
