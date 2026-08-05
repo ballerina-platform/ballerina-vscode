@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, EVENT_TYPE, FlowNode, LineRange } from "@wso2/ballerina-core";
@@ -104,6 +104,17 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
+    const createFormNode = useMemo(() => agentNode ? cloneDeep(agentNode) : undefined, [agentNode]);
+    const configureFormNode = useMemo(() => {
+        if (!agentNode) {
+            return undefined;
+        }
+        const node = cloneDeep(agentNode);
+        if (node.metadata?.description) {
+            delete node.metadata.description;
+        }
+        return node;
+    }, [agentNode]);
 
     useEffect(() => {
         if ((view !== "configure" && view !== "create") || (view === "configure" && !pendingAgent)) {
@@ -242,14 +253,13 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     if (view === "create") {
         const fieldOverrides = { type: { hidden: true } };
-        const formNode = agentNode ? cloneDeep(agentNode) : undefined;
         return (
             <FormContainer>
-                {formNode && targetLineRange ? (
+                {createFormNode && targetLineRange ? (
                     <FlowNodeForm
                         fileName={agentFilePath}
-                        node={formNode}
-                        nodeFormTemplate={formNode}
+                        node={createFormNode}
+                        nodeFormTemplate={createFormNode}
                         targetLineRange={targetLineRange}
                         onSubmit={handleCreateAgent}
                         submitText={isSubmitting ? "Creating..." : "Create Agent"}
@@ -269,14 +279,10 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
 
     if (view === "configure") {
         const fieldOverrides = { type: { hidden: true } };
-        const formNode = agentNode ? cloneDeep(agentNode) : undefined;
-        if (formNode?.metadata?.description) {
-            delete formNode.metadata.description;
-        }
         const cardDescription = pendingAgent?.metadata?.description || agentNode?.metadata?.description;
         return (
             <FormContainer>
-                {formNode && targetLineRange ? (
+                {configureFormNode && targetLineRange ? (
                     <>
                         <AgentInfoCard
                             label={pendingAgent?.metadata?.label || ""}
@@ -285,8 +291,8 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         />
                         <FlowNodeForm
                             fileName={agentFilePath}
-                            node={formNode}
-                            nodeFormTemplate={formNode}
+                            node={configureFormNode}
+                            nodeFormTemplate={configureFormNode}
                             targetLineRange={targetLineRange}
                             onSubmit={handleCreateAgent}
                             submitText={isSubmitting ? "Adding..." : "Add Agent"}
