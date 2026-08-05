@@ -55,6 +55,7 @@ import {
     getWorkspaceSupport,
     scaffoldIntegrationProject,
 } from "../features/bi/integration-wizard";
+import { createAgentFromSample, getAgentBuilderSamples } from "../features/bi/agent-builder-samples";
 import { StateMachine } from "../stateMachine";
 // Shared wire contract — single source of truth for both this server and the
 // webview client (`ballerina-visualizer` `BiWsClient`).
@@ -284,6 +285,11 @@ export class DefaultServer {
         // Awaits only the distribution version, NOT the language server — this is what the
         // Create flow's "Next" button is gated on.
         this.register("getWorkspaceSupport", () => getWorkspaceSupport());
+        // Host-level flag, resolved at machine creation — answers immediately.
+        this.register("getAgentBuilderMode", () => ({ isAgentBuilderMode: StateMachine.isAgentBuilderMode() }));
+        // The AI integration types: a catalogue JSON, not LS trigger models, so no LS wait.
+        this.register("getAgentBuilderSamples", () => getAgentBuilderSamples());
+        this.register("createAgentFromSample", (p) => createAgentFromSample(p));
         this.register("getTriggerModels", async (p) => {
             await waitForLangClientReady();
             return serviceDesigner.getTriggerModels(p);
