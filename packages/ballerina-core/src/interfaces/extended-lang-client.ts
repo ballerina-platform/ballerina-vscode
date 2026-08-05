@@ -963,6 +963,7 @@ export type SearchQueryParams = {
     orgName?: string;
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
+    source?: string;
 }
 
 export type SearchKind =
@@ -2021,6 +2022,14 @@ export interface AIGentToolsResponse {
     };
 }
 
+export interface GenAgentToolRequest {
+    filePath: string;
+    agentVarName: string;
+    includeContext: boolean;
+    toolName: string;
+    description: string;
+}
+
 export interface AIGetPackageVersionRequest {
     projectPath: string;
     org: string;
@@ -2152,6 +2161,7 @@ export enum ARTIFACT_TYPE {
     Functions = "Functions",
     Workflows = "Workflows",
     Connections = "Connections",
+    Agents = "Agents",
     Listeners = "Listeners",
     EntryPoints = "Entry Points",
     Types = "Types",
@@ -2170,6 +2180,7 @@ export interface Artifacts {
     [ARTIFACT_TYPE.Functions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Workflows]?: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Connections]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.Agents]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Listeners]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.EntryPoints]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Types]: Record<string, BaseArtifact>;

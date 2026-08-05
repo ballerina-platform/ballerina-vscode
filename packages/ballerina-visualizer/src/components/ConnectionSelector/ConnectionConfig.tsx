@@ -27,7 +27,7 @@ import { ConnectionConfigProps } from "./types";
 import { getConnectionKindConfig, getConnectionSpecialConfig } from "./config";
 import { createConnectionSelectField, fetchConnectionValueForNode, updateFormFieldsWithData, updateNodeLineRange, updateNodeTemplateProperties, updateNodeWithConnectionVariable } from "./utils";
 import { LoaderContainer } from "../RelativeLoader/styles";
-import { convertNodePropertiesToFormFields } from "../../utils/bi";
+import { convertNodePropertiesToFormFields, DEFAULT_MODEL_PROVIDER_ITEM } from "../../utils/bi";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
 
@@ -139,7 +139,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
 
     const updateFieldsForConnection = (connectionValue: string) => {
         const connectionSelectField = createConnectionSelectField(connectionValue, config, onCreateNewConnection, connectionKind, connectionNodesMap.current);
-        const isExpression = connectionValue && !connectionNodesMap.current.has(connectionValue);
+        const isExpression = connectionValue && !connectionNodesMap.current.has(connectionValue) && connectionValue !== DEFAULT_MODEL_PROVIDER_ITEM.value;
         if (isExpression) {
             connectionSelectField.types = connectionSelectField.types?.map(t => ({
                 ...t,
@@ -220,7 +220,8 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
             : undefined;
         const symbol = connectionNode?.codedata?.symbol || "";
         const specialConfig = getConnectionSpecialConfig(symbol);
-        if (!specialConfig?.shouldShowInfo?.(symbol)) {
+        const isDefaultModelProvider = selectedConnectionValue === DEFAULT_MODEL_PROVIDER_ITEM.value;
+        if (!isDefaultModelProvider && !specialConfig?.shouldShowInfo?.(symbol)) {
             return undefined;
         }
         const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);

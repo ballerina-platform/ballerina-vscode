@@ -31,6 +31,7 @@ import type {
     FlowNode,
     Imports,
     DropdownType,
+    InputType,
 } from "@wso2/ballerina-core";
 import { getPrimaryInputType, isTemplateType, isDropDownType } from "@wso2/ballerina-core";
 
@@ -127,7 +128,86 @@ export function convertNodePropertyToFormField(
             : undefined,
         imports: property.imports
     };
+    enrichModelProviderField(formField, property);
+    enrichClientConnectionField(formField, property);
+    enrichMemoryField(formField, property);
     return formField;
+}
+
+const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
+const MODEL_PROVIDER_SEARCH_KIND = "MODEL_PROVIDER";
+const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
+export const DEFAULT_MODEL_PROVIDER_ITEM = {
+    id: "ai:getDefaultModelProvider",
+    label: "Default WSO2 Model Provider",
+    value: DEFAULT_MODEL_PROVIDER_EXPR,
+    codedata: { module: "ai", node: "MODEL_PROVIDER" } as any,
+};
+
+// A bare identifier value points at an existing provider (dropdown mode); anything else is an inline expression.
+// The default model provider expression is treated as a selectable value, not an inline expression.
+function isInlineExpressionValue(value: unknown): boolean {
+    if (value === DEFAULT_MODEL_PROVIDER_EXPR) return false;
+    return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
+}
+
+// Render an editable ai:ModelProvider field as the connection-select editor (dropdown + Select/Expression toggle).
+function enrichModelProviderField(formField: FormField, property: Property): void {
+    const isModelProvider = property.types?.some((t) => t.ballerinaType === AI_MODEL_PROVIDER_TYPE);
+    if (!isModelProvider || !formField.editable) {
+        return;
+    }
+    const expressionMode = isInlineExpressionValue(formField.value);
+    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
+    formField.types = [
+        { fieldType: "ACTION_EXPRESSION", ballerinaType: AI_MODEL_PROVIDER_TYPE, selected: !expressionMode },
+        { fieldType: "EXPRESSION", selected: expressionMode },
+    ] as InputType[];
+    formField.codedata = {
+        ...(formField.codedata || {}),
+        searchNodesKind: MODEL_PROVIDER_SEARCH_KIND,
+        staticItems: [DEFAULT_MODEL_PROVIDER_ITEM],
+    };
+}
+
+const NEW_CONNECTION_SEARCH_KIND = "NEW_CONNECTION";
+
+// Render a client-connection param (LS marks it via codedata.data.connection) as the connection-select editor.
+function enrichClientConnectionField(formField: FormField, property: Property): void {
+    if (!property.codedata?.data?.connection || !formField.editable) {
+        return;
+    }
+    const connectionType = property.types?.find((t) => t.ballerinaType)?.ballerinaType;
+    const expressionMode = isInlineExpressionValue(formField.value);
+    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
+    formField.types = [
+        { fieldType: "ACTION_EXPRESSION", ballerinaType: connectionType, selected: !expressionMode },
+        { fieldType: "EXPRESSION", selected: expressionMode },
+    ] as InputType[];
+    formField.codedata = {
+        ...(formField.codedata || {}),
+        searchNodesKind: NEW_CONNECTION_SEARCH_KIND,
+        connectionType,
+    };
+}
+
+const AI_MEMORY_TYPE = "ai:Memory";
+const MEMORY_SEARCH_KIND = "MEMORY";
+
+// Render an editable ai:Memory field as the connection-select editor (dropdown of existing memory variables +
+// Create New). Mirrors enrichModelProviderField; the "Create New Memory" action is handled by useCreateConnection.
+function enrichMemoryField(formField: FormField, property: Property): void {
+    const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
+    if (!isMemory || !formField.editable) {
+        return;
+    }
+    const expressionMode = isInlineExpressionValue(formField.value);
+    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
+    formField.types = [
+        { fieldType: "ACTION_EXPRESSION", ballerinaType: AI_MEMORY_TYPE, selected: !expressionMode },
+        { fieldType: "EXPRESSION", selected: expressionMode },
+    ] as InputType[];
+    formField.codedata = { ...(formField.codedata || {}), searchNodesKind: MEMORY_SEARCH_KIND };
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {

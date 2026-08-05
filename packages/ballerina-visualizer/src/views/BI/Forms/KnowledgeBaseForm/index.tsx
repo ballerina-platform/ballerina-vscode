@@ -31,7 +31,6 @@ import {
 } from "@wso2/ballerina-side-panel";
 import { convertNodePropertiesToFormFields, getFormProperties, getImportsForFormFields } from "../../../../utils/bi";
 import { cloneDeep } from "lodash";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import {
     createNodeWithUpdatedLineRange,
     processFormData,
@@ -113,7 +112,6 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
         footerActionButton
     } = props;
 
-    const { rpcClient } = useRpcContext();
     const { addModal, closeModal, popModal } = useModalStack();
     const [knowledgeBaseFields, setKnowledgeBaseFields] = useState<FormField[]>([]);
     const [formImports, setFormImports] = useState<FormImports>({});
@@ -131,29 +129,7 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
 
     useEffect(() => {
         initializeForm();
-        handleFormOpen();
-        return () => {
-            handleFormClose();
-        };
     }, []);
-
-    const handleFormOpen = () => {
-        rpcClient
-            .getBIDiagramRpcClient()
-            .formDidOpen({ filePath: fileName })
-            .then(() => {
-                console.log(">>> Knowledge Base form opened");
-            });
-    };
-
-    const handleFormClose = () => {
-        rpcClient
-            .getBIDiagramRpcClient()
-            .formDidClose({ filePath: fileName })
-            .then(() => {
-                console.log(">>> Knowledge Base form closed");
-            });
-    };
 
     const getConnectionKind = (fieldName: string): ConnectionKind | undefined => {
         switch (fieldName) {
@@ -279,78 +255,78 @@ export function KnowledgeBaseForm(props: KnowledgeBaseFormProps) {
 
     return (
         <>
-        <S.Container footerActionButton={footerActionButton}>
-            <S.ScrollableContent>
-                <S.Content>
-                    {knowledgeBaseFields.length > 0 && (
-                        <S.FormWrapper>
-                            <Form
-                                formFields={knowledgeBaseFields}
-                                fileName={fileName}
-                                targetLineRange={targetLineRange}
-                                selectedNode={node.codedata.node}
-                                expressionEditor={formExpressionEditor}
-                                recordTypeFields={recordTypeFields}
-                                openSubPanel={openSubPanel}
-                                subPanelView={subPanelView}
-                                updatedExpressionField={updatedExpressionField}
-                                resetUpdatedExpressionField={resetUpdatedExpressionField}
-                                hideSaveButton={false}
-                                nestedForm={!footerActionButton}
-                                footerActionButton={footerActionButton}
-                                onSubmit={handleSubmit}
-                                disableSaveButton={!isFormValid}
-                                isSaving={showProgressIndicator || saving}
-                                onChange={(fieldKey, value, allValues) => {
-                                    updateNodePropertyValue(fieldKey, value);
-                                    const isValid = allValues["vectorStore"] !== "" && allValues["embeddingModel"] !== "";
-                                    setIsFormValid(isValid);
-                                    setKnowledgeBaseFormValues(allValues);
-                                }}
-                            />
-                        </S.FormWrapper>
-                    )}
-                </S.Content>
-            </S.ScrollableContent>
-        </S.Container>
-        {recordConfigPageState.isOpen &&
-            recordConfigPageState.fieldKey &&
-            recordConfigPageState.recordTypeField &&
-            recordConfigPageState.onChangeCallback && (
-                <DynamicModal
-                    width={800}
-                    height={600}
-                    anchorRef={undefined}
-                    title="Record Configuration"
-                    openState={recordConfigPageState.isOpen}
-                    setOpenState={(isOpen: boolean) => {
-                        if (!isOpen) {
-                            closeRecordConfigPage();
-                        }
-                    }}
-                    closeOnBackdropClick={true}
-                    closeButtonIcon="minimize"
-                >
-                    <ConfigureRecordPage
-                        fileName={fileName}
-                        targetLineRange={targetLineRange}
-                        onChange={(value: string) => {
-                            recordConfigPageState.onChangeCallback!(value);
+            <S.Container footerActionButton={footerActionButton}>
+                <S.ScrollableContent>
+                    <S.Content>
+                        {knowledgeBaseFields.length > 0 && (
+                            <S.FormWrapper>
+                                <Form
+                                    formFields={knowledgeBaseFields}
+                                    fileName={fileName}
+                                    targetLineRange={targetLineRange}
+                                    selectedNode={node.codedata.node}
+                                    expressionEditor={formExpressionEditor}
+                                    recordTypeFields={recordTypeFields}
+                                    openSubPanel={openSubPanel}
+                                    subPanelView={subPanelView}
+                                    updatedExpressionField={updatedExpressionField}
+                                    resetUpdatedExpressionField={resetUpdatedExpressionField}
+                                    hideSaveButton={false}
+                                    nestedForm={!footerActionButton}
+                                    footerActionButton={footerActionButton}
+                                    onSubmit={handleSubmit}
+                                    disableSaveButton={!isFormValid}
+                                    isSaving={showProgressIndicator || saving}
+                                    onChange={(fieldKey, value, allValues) => {
+                                        updateNodePropertyValue(fieldKey, value);
+                                        const isValid = allValues["vectorStore"] !== "" && allValues["embeddingModel"] !== "";
+                                        setIsFormValid(isValid);
+                                        setKnowledgeBaseFormValues(allValues);
+                                    }}
+                                />
+                            </S.FormWrapper>
+                        )}
+                    </S.Content>
+                </S.ScrollableContent>
+            </S.Container>
+            {recordConfigPageState.isOpen &&
+                recordConfigPageState.fieldKey &&
+                recordConfigPageState.recordTypeField &&
+                recordConfigPageState.onChangeCallback && (
+                    <DynamicModal
+                        width={800}
+                        height={600}
+                        anchorRef={undefined}
+                        title="Record Configuration"
+                        openState={recordConfigPageState.isOpen}
+                        setOpenState={(isOpen: boolean) => {
+                            if (!isOpen) {
+                                closeRecordConfigPage();
+                            }
                         }}
-                        currentValue={recordConfigPageState.currentValue || ""}
-                        recordTypeField={recordConfigPageState.recordTypeField}
-                        onClose={closeRecordConfigPage}
-                        getHelperPane={expressionEditor.getHelperPane}
-                        field={knowledgeBaseFields.find((f) => f.key === recordConfigPageState.fieldKey)}
-                        triggerCharacters={expressionEditor.triggerCharacters}
-                        formContext={{
-                            expressionEditor: formExpressionEditor,
-                            popupManager: popupManager,
-                            nodeInfo: { kind: node.codedata.node },
-                        }}
-                    />
-                </DynamicModal>
-            )}
+                        closeOnBackdropClick={true}
+                        closeButtonIcon="minimize"
+                    >
+                        <ConfigureRecordPage
+                            fileName={fileName}
+                            targetLineRange={targetLineRange}
+                            onChange={(value: string) => {
+                                recordConfigPageState.onChangeCallback!(value);
+                            }}
+                            currentValue={recordConfigPageState.currentValue || ""}
+                            recordTypeField={recordConfigPageState.recordTypeField}
+                            onClose={closeRecordConfigPage}
+                            getHelperPane={expressionEditor.getHelperPane}
+                            field={knowledgeBaseFields.find((f) => f.key === recordConfigPageState.fieldKey)}
+                            triggerCharacters={expressionEditor.triggerCharacters}
+                            formContext={{
+                                expressionEditor: formExpressionEditor,
+                                popupManager: popupManager,
+                                nodeInfo: { kind: node.codedata.node },
+                            }}
+                        />
+                    </DynamicModal>
+                )}
         </>
     );
 }

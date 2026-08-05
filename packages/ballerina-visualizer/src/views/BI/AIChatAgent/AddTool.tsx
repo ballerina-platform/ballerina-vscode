@@ -22,11 +22,10 @@ import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 
 const Container = styled.div`
     padding: 20px;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 100%;
     box-sizing: border-box;
+    /* viewport minus the SidePanel title bar, so the cards scroll within the panel */
+    height: calc(100vh - 56px);
+    overflow-y: auto;
 `;
 
 const Description = styled.div`
@@ -40,7 +39,6 @@ const Column = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
-    flex: 1;
 `;
 
 const OptionCard = styled.div`
@@ -87,17 +85,18 @@ const OptionDescription = styled.div`
 `;
 
 interface AddToolProps {
-    agentCallNode: FlowNode;
+    agentNode: FlowNode;
     onCreateCustomTool?: () => void;
     onUseConnection?: () => void;
     onUseFunction?: () => void;
     onUseMcpServer?: () => void;
+    onUseAgent?: () => void;
     onSave?: () => void;
     onBack?: () => void;
 }
 
 export function AddTool(props: AddToolProps): JSX.Element {
-    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer } = props;
+    const { onCreateCustomTool, onUseConnection, onUseFunction, onUseMcpServer, onUseAgent } = props;
 
     const handleCreateCustomTool = () => {
         onCreateCustomTool?.();
@@ -113,6 +112,10 @@ export function AddTool(props: AddToolProps): JSX.Element {
 
     const handleUseMcpServer = () => {
         onUseMcpServer?.();
+    };
+
+    const handleUseAgent = () => {
+        onUseAgent?.();
     };
 
     return (
@@ -145,6 +148,19 @@ export function AddTool(props: AddToolProps): JSX.Element {
                     <OptionDescription>
                         Create a tool from an existing function in your integration or from a library function.
                         This gives your agent the ability to execute specific business logic.
+                    </OptionDescription>
+                </OptionCard>
+
+                <OptionCard onClick={handleUseAgent}>
+                    <OptionHeader>
+                        <OptionIcon>
+                            <Icon name="bi-ai-agent" />
+                        </OptionIcon>
+                        <OptionTitle>Use Agent</OptionTitle>
+                    </OptionHeader>
+                    <OptionDescription>
+                        Delegate to another agent in your integration. The selected agent is wrapped as a tool,
+                        so this agent can hand off relevant requests to it and use its response.
                     </OptionDescription>
                 </OptionCard>
 

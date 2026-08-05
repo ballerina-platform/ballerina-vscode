@@ -16,11 +16,177 @@
  * under the License.
  */
 
-import { CodeData, ConfigVariable, FlowNode, LinePosition, LineRange, NodeKind, Property, SearchNodesQueryParams } from "@wso2/ballerina-core";
+import { AvailableNode, CodeData, ConfigVariable, EVENT_TYPE, FlowNode, LinePosition, LineRange, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
-import { BALLERINA } from "../../../constants";
+import { BALLERINA, GET_DEFAULT_MODEL_PROVIDER } from "../../../constants";
+
+// Shared variable name for the default WSO2 model provider, reused across agents.
+export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
+const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
+
+const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
+    node: "MODEL_PROVIDER",
+    org: "ballerina",
+    module: "ai",
+    packageName: "ai",
+    symbol: "getDefaultModelProvider",
+};
+
+const OPENAI_PROVIDER_CODEDATA: CodeData = {
+    node: "CLASS_INIT",
+    org: "ballerinax",
+    module: "ai",
+    packageName: "ai",
+    object: "OpenAiProvider",
+    symbol: "init",
+};
+
+/**
+ * Refreshes a flow node's line range in place from the matching artifact in a getSourceCode/deleteFlowNode response.
+ * A preceding edit/delete can shift file lines; re-writing the node on its now-stale range would duplicate it instead
+ * of replacing it. Call this with the response artifacts before the follow-up getSourceCode. No-op if not found.
+ */
+export function refreshNodeLineRangeFromArtifacts(
+    node: FlowNode,
+    artifacts: ProjectStructureArtifactResponse[] | undefined,
+    name: string
+): void {
+    const artifact = artifacts?.find((a) => a.name === name);
+    if (!artifact?.position) {
+        return;
+    }
+    node.codedata.lineRange.startLine.line = artifact.position.startLine;
+    node.codedata.lineRange.startLine.offset = artifact.position.startColumn;
+    node.codedata.lineRange.endLine.line = artifact.position.endLine;
+    node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
+}
+
+export function toCamelCase(name: string): string {
+    const words = name.trim().split(/[\s_]+/).filter(Boolean);
+    if (words.length === 0) return "";
+    const firstWord = words[0];
+    // Lowercase leading acronyms: "HR" -> "hr", "HTMLParser" -> "htmlParser"
+    const leadingUpper = firstWord.match(/^[A-Z]+/);
+    let lowerFirst: string;
+    if (leadingUpper && leadingUpper[0].length === firstWord.length) {
+        lowerFirst = firstWord.toLowerCase();
+    } else if (leadingUpper && leadingUpper[0].length > 1) {
+        lowerFirst = leadingUpper[0].slice(0, -1).toLowerCase() + firstWord.slice(leadingUpper[0].length - 1);
+    } else {
+        lowerFirst = firstWord.charAt(0).toLowerCase() + firstWord.slice(1);
+    }
+    return lowerFirst + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+}
+
+export function toBaseName(name: string): string {
+    const camel = toCamelCase(name);
+    // Strip known suffixes to avoid e.g. "salesAgentAgent"
+    const lower = camel.toLowerCase();
+    for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
+        if (lower.endsWith(suffix) && lower.length > suffix.length) {
+            return camel.slice(0, -suffix.length);
+        }
+    }
+    return camel;
+}
+
+export interface CreatedBuiltInAgent {
+    agentVarName: string;
+    modelVarName: string;
+    baseName: string;
+    // True when the shared WSO2 default model provider was used. The caller is responsible for
+    // invoking configureDefaultModelProvider() at the point that fits its flow.
+    usedDefaultModelProvider: boolean;
+}
+
+/**
+ * Ensures a model provider exists for an agent, reusing the shared `wso2ModelProvider` when the AI
+ * module org is `ballerina`. Creates the provider source if it does not already exist. Returns the
+ * model variable name to reference and whether the shared WSO2 default provider was used.
+ */
+export const ensureModelProvider = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string,
+    baseName: string
+): Promise<{ modelVarName: string; usedDefaultModelProvider: boolean }> => {
+    const aiModuleOrg = await getAiModuleOrg(rpcClient);
+    const modelProviderCodedata = aiModuleOrg === BALLERINA ? WSO2_MODEL_PROVIDER_CODEDATA : OPENAI_PROVIDER_CODEDATA;
+    let modelVarName: string;
+
+    if (aiModuleOrg === BALLERINA) {
+        // Reuse the shared WSO2 model provider if it already exists.
+        modelVarName = AI_WSO2_MODEL_PROVIDER;
+        const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
+            filePath: projectPath,
+            queryMap: { kind: "MODEL_PROVIDER" as NodeKind },
+        });
+        const existingProvider = existingModelProviders?.output?.find(
+            (node) => String(node.properties?.variable?.value) === AI_WSO2_MODEL_PROVIDER
+        );
+        if (!existingProvider) {
+            const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
+            modelNodeTemplate.properties.variable.value = modelVarName;
+            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
+        }
+    } else {
+        modelVarName = `${baseName}Model`;
+        const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
+        modelNodeTemplate.properties.variable.value = modelVarName;
+        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
+    }
+
+    return { modelVarName, usedDefaultModelProvider: modelProviderCodedata.symbol === GET_DEFAULT_MODEL_PROVIDER };
+};
+
+/**
+ * Fetches the AGENT node template for the project's AI module. The template exposes the friendly
+ * `role`/`instructions` fields (the raw `systemPrompt` record is hidden and reconstructed by the LS).
+ */
+export const fetchAgentNodeTemplate = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string
+): Promise<FlowNode> => {
+    const aiModuleOrg = await getAiModuleOrg(rpcClient);
+    const agentSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
+        filePath: projectPath,
+        queryMap: { orgName: aiModuleOrg },
+        searchKind: "AGENT",
+    });
+    const agentNode = agentSearchResponse?.categories?.[0]?.items?.[0] as AvailableNode | undefined;
+    if (!agentNode) {
+        throw new Error("No agent node found in search response");
+    }
+    return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
+};
+
+/**
+ * Creates a built-in `ai:Agent` declaration plus its model provider (reusing the shared
+ * `wso2ModelProvider` when the AI module org is `ballerina`). Does not create a listener or
+ * service — callers that need a chat service wire that up separately.
+ */
+export const createBuiltInAgent = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string,
+    agentName: string
+): Promise<CreatedBuiltInAgent> => {
+    const baseName = toBaseName(agentName);
+    const { modelVarName, usedDefaultModelProvider } = await ensureModelProvider(rpcClient, projectPath, baseName);
+
+    const agentNodeTemplate = await fetchAgentNodeTemplate(rpcClient, projectPath);
+    const agentVarName = `${baseName}Agent`;
+    // The friendly role/instructions fields back the (hidden) systemPrompt record; PROMPT-typed values
+    // are wrapped into string templates by the LS during source generation.
+    agentNodeTemplate.properties.role.value = agentName;
+    agentNodeTemplate.properties.instructions.value = "";
+    agentNodeTemplate.properties.model.value = modelVarName;
+    agentNodeTemplate.properties.tools.value = "[]";
+    agentNodeTemplate.properties.variable.value = agentVarName;
+    await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: agentNodeTemplate });
+
+    return { agentVarName, modelVarName, baseName, usedDefaultModelProvider };
+};
 
 export const AGENT_ID_AUTH_CONFIG_ID: CodeData = {
     node: "AGENT_ID_AUTH_CONFIG" as any,
@@ -174,7 +340,6 @@ export const findFlowNode = async (
 };
 
 export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rpcClient: BallerinaRpcClient) => {
-    // Validate input node type
     if (!agentCallNode || agentCallNode.codedata?.node !== "AGENT_CALL") {
         return null;
     }
@@ -217,6 +382,66 @@ export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rp
     }
 
     return;
+};
+
+// Opens the focus diagram of the agent variable an AGENT_RUN node calls.
+export const resolveAgentLocation = async (
+    agentRunNode: FlowNode,
+    rpcClient: BallerinaRpcClient
+): Promise<{ filePath: string; position: NodePosition; agentName: string } | null> => {
+    const agentName = agentRunNode.properties?.connection?.value;
+    const callSiteFile = agentRunNode.codedata?.lineRange?.fileName;
+    if (typeof agentName !== "string" || !callSiteFile) return null;
+    const visualizerRpc = rpcClient.getVisualizerRpcClient();
+    const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
+    const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
+        kind: "AGENT_TYPE",
+        exactMatch: agentName,
+    });
+    const declRange = nodes?.[0]?.codedata?.lineRange;
+    if (!declRange) return null;
+    const { filePath: declPath } = await visualizerRpc.joinProjectPath({ segments: [declRange.fileName] });
+    return {
+        filePath: declPath,
+        agentName,
+        position: {
+            startLine: declRange.startLine.line,
+            startColumn: declRange.startLine.offset,
+            endLine: declRange.endLine.line,
+            endColumn: declRange.endLine.offset,
+        },
+    };
+};
+
+export const goToAgentFromRunNode = async (agentRunNode: FlowNode, rpcClient: BallerinaRpcClient) => {
+    const agentName = agentRunNode.properties?.connection?.value;
+    const callSiteFile = agentRunNode.codedata?.lineRange?.fileName;
+    if (typeof agentName !== "string" || !callSiteFile) {
+        return;
+    }
+    const visualizerRpc = rpcClient.getVisualizerRpcClient();
+    const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
+    const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
+        kind: "AGENT_TYPE",
+        exactMatch: agentName,
+    });
+    const declRange = nodes?.[0]?.codedata?.lineRange;
+    if (!declRange) {
+        return;
+    }
+    const { filePath: declPath } = await visualizerRpc.joinProjectPath({ segments: [declRange.fileName] });
+    await visualizerRpc.openView({
+        type: EVENT_TYPE.OPEN_VIEW,
+        location: {
+            documentUri: declPath,
+            position: {
+                startLine: declRange.startLine.line,
+                startColumn: declRange.startLine.offset,
+                endLine: declRange.endLine.line,
+                endColumn: declRange.endLine.offset,
+            },
+        },
+    });
 };
 
 export const removeToolFromAgentNode = async (agentNode: FlowNode, toolName: string) => {
@@ -421,111 +646,6 @@ export const addMcpServerToAgentNode = async (agentNode: FlowNode, toolConfig: M
     return updatedAgentNode;
 };
 
-export const removeMcpServerFromAgentNode = (
-    agentNode: FlowNode,
-    toolkitNameToRemove: string
-) => {
-    if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
-
-    const updatedAgentNode = cloneDeep(agentNode);
-    let toolsValue = updatedAgentNode.properties.tools.value;
-
-    if (typeof toolsValue === "string") {
-        const startPattern = 'check new ai:McpToolKit(';
-        let startIndex = 0;
-        let found = false;
-
-        while (!found && startIndex < toolsValue.length) {
-            startIndex = toolsValue.indexOf(startPattern, startIndex);
-            if (startIndex === -1) break;
-
-            let endIndex = toolsValue.indexOf('})', startIndex);
-            if (endIndex === -1) break;
-            endIndex += 2; // Include the '})'
-
-            const declaration = toolsValue.substring(startIndex, endIndex);
-            if (declaration.includes(`name: "${toolkitNameToRemove}"`)) {
-                let hasCommaAfter = false;
-                if (toolsValue[endIndex] === ',') {
-                    endIndex++;
-                    hasCommaAfter = true;
-                }
-                let hasCommaBefore = false;
-                let newStartIndex = startIndex;
-                if (startIndex > 0 && toolsValue[startIndex - 1] === ',') {
-                    newStartIndex--;
-                    hasCommaBefore = true;
-                }
-
-                let isLastItem = !hasCommaAfter;
-
-                let before: string = toolsValue.substring(0, newStartIndex);
-                let after: string = toolsValue.substring(endIndex);
-
-                if (hasCommaBefore && hasCommaAfter) {
-                    after = after.trim();
-                } else if (isLastItem) {
-                    before = before.trim();
-                    if (before.endsWith(',')) {
-                        before = before.substring(0, before.length - 1).trim();
-                    }
-                }
-
-                toolsValue = before + after;
-                found = true;
-            } else {
-                startIndex = endIndex;
-            }
-        }
-
-        toolsValue = toolsValue
-            .replace(/,+/g, ',')
-            .replace(/, ,/g, ', ')
-            .replace(/\s*,\s*/g, ', ')
-            .replace(/, $/, '')
-            .replace(/^, /, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (toolsValue === '[' || toolsValue === '[]') {
-            toolsValue = '[]';
-        }
-    } else if (Array.isArray(toolsValue)) {
-        const pattern = new RegExp(`name:\\s*"${toolkitNameToRemove}"`);
-        toolsValue = (toolsValue as Property[]).filter(
-            (tool: any) => !pattern.test(tool.value) && tool.value !== toolkitNameToRemove
-        );
-    } else {
-        console.error("Tools value is not a string or array", toolsValue);
-        return agentNode;
-    }
-
-    updatedAgentNode.properties.tools.value = toolsValue;
-    return updatedAgentNode;
-};
-
-// Prompts the user to choose between deleting only the agent call node or also the agent itself.
-// Returns null if the user cancels the modal.
-export const confirmAgentCallDeletion = async (
-    rpcClient: BallerinaRpcClient
-): Promise<{ shouldDeleteAgent: boolean } | null> => {
-    const REMOVE_NODE_ONLY = "Remove This Node Only";
-    const DELETE_AGENT = "Delete Agent";
-
-    const userChoice = await rpcClient.getCommonRpcClient().showInformationModal({
-        message: "Delete Agent Node?",
-        detail:
-            "Remove this node from the current diagram, or delete the agent entirely from the project.\n\nDeleting the agent will remove its initialization and make it unavailable for reuse.",
-        items: [REMOVE_NODE_ONLY, DELETE_AGENT],
-    });
-
-    if (!userChoice) {
-        return null;
-    }
-
-    return { shouldDeleteAgent: userChoice === DELETE_AGENT };
-};
-
 // remove agent node, model node when removing ag
 export const removeAgentNode = async (agentCallNode: FlowNode, rpcClient: BallerinaRpcClient): Promise<boolean> => {
     if (!agentCallNode || agentCallNode.codedata?.node !== "AGENT_CALL") return false;
@@ -613,10 +733,10 @@ export const getEndOfFileLineRange = async (
     fileName: string,
     rpcClient: BallerinaRpcClient
 ): Promise<LineRange> => {
+    // Resolve the absolute path first so it's available even if the file doesn't exist yet (the end-of-file
+    // lookup throws for a missing file, but callers still need the absolute path to create/write it).
+    const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
     try {
-        // Get the full file path by joining with project path
-        const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
-
         // Get the end of file position using the BIDiagram RPC client
         const endPosition = await rpcClient.getBIDiagramRpcClient().getEndOfFile({
             filePath: filePath
@@ -630,9 +750,9 @@ export const getEndOfFileLineRange = async (
         };
     } catch (error) {
         console.error(`Error getting end of file line range for ${fileName}:`, error);
-        // Return a default LineRange at position 0,0 if there's an error
+        // File likely doesn't exist yet — return the absolute path at position 0,0 so it can be created.
         return {
-            fileName: fileName,
+            fileName: filePath,
             startLine: { line: 0, offset: 0 },
             endLine: { line: 0, offset: 0 }
         };

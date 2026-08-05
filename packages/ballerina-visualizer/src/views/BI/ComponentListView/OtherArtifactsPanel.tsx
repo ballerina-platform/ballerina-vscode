@@ -59,6 +59,14 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                 },
                 isPopup: true,
             });
+        } else if (key === DIRECTORY_MAP.AGENT) {
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    view: MACHINE_VIEW.AddAgent,
+                },
+                isPopup: true,
+            });
         } else if (key === DIRECTORY_MAP.DATA_MAPPER) {
             await rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,

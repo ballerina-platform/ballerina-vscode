@@ -1112,16 +1112,17 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
+                    footerActionButton={footerActionButton}
                     onValidityChange={onValidityChange}
                     secondarySubmitButton={
                         onSecondarySubmit
                             ? {
-                                  text: secondarySubmitText || "Next",
-                                  onClick: (values: FormValues) => {
-                                      onSecondarySubmit(values, formImports, importsCodedataRef.current);
-                                      importsCodedataRef.current = {};
-                                  },
-                              }
+                                text: secondarySubmitText || "Next",
+                                onClick: (values: FormValues) => {
+                                    onSecondarySubmit(values, formImports, importsCodedataRef.current);
+                                    importsCodedataRef.current = {};
+                                },
+                            }
                             : undefined
                     }
                     footerActionButton={footerActionButton}

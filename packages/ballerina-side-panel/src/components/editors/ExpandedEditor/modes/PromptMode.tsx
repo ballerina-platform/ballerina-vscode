@@ -67,7 +67,8 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     error,
     formDiagnostics,
     inputMode,
-    onAIStatusChange
+    onAIStatusChange,
+    readOnly
 }) => {
     const isSimpleMode = SIMPLE_PROMPT_FIELDS.includes(field.key) && !getHelperPane;
     const detectedMode = getPromptModeForField(field.key);
@@ -338,6 +339,23 @@ export const PromptMode: React.FC<EditorModeExpressionProps> = ({
     };
 
     const isEditorEmpty = !value || !value.trim();
+
+    // Read-only: render the formatted markdown view, no toolbar/enhance.
+    if (readOnly) {
+        return (
+            <ConditionalEditorContainer isEnhanced={false}>
+                <RichTextTemplateEditor
+                    value={value}
+                    completions={[]}
+                    fileName={fileName}
+                    targetLineRange={targetLineRange}
+                    configuration={getPrimaryInputType(field.types)?.ballerinaType === "string" ? new StringTemplateEditorConfig() : new RawTemplateEditorConfig()}
+                    placeholder={field.placeholder}
+                    readOnly={true}
+                />
+            </ConditionalEditorContainer>
+        );
+    }
 
     return (
         <>

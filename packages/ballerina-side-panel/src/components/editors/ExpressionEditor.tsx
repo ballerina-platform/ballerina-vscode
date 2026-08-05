@@ -26,6 +26,7 @@ import {
     ErrorBanner,
     FormExpressionEditorRef,
     HelperPaneHeight,
+    Icon,
     RequiredFormInput,
     ThemeColors
 } from '@wso2/ui-toolkit';
@@ -421,6 +422,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     } = props as ExpressionEditorProps;
 
     const key = fieldKey ?? field.key;
+    const readOnly = field.editable === false;
     const [focused, setFocused] = useState<boolean>(false);
     const [formDiagnostics, setFormDiagnostics] = useState(field.diagnostics);
     const [isExpandedModalOpen, setIsExpandedModalOpen] = useState(false);
@@ -513,6 +515,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
     // Initial render
     useEffect(() => {
         if (!targetLineRange) return;
+        if (readOnly) return;
         // Fetch initial diagnostics
         if (getExpressionEditorDiagnostics && fieldValue !== undefined
             && (inputMode === InputMode.EXP || inputMode === InputMode.TEMPLATE || isPromptWithDiagnostics)
@@ -648,8 +651,15 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                     <SkeletonBase height="14px" width="40%" />
                                 ) : (
                                     <S.LabelContainer>
-                                        <S.Label>{field.label}</S.Label>
-                                        {(field.defaultValue && field.defaultValue?.trim() !== "()") && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${field.defaultValue}) `}</S.DefaultValue>}
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <S.Label>{field.label}</S.Label>
+                                            {readOnly && (
+                                                <span title="Read only" style={{ display: 'inline-flex' }}>
+                                                    <Icon name="bi-lock" iconSx={{ fontSize: "14px" }} sx={{ color: 'var(--vscode-list-deemphasizedForeground)' }} />
+                                                </span>
+                                            )}
+                                        </span>
+                                        {(field.defaultValue && field.defaultValue?.trim() !== "()" && field.defaultValue?.trim() !== "object {}") && <S.DefaultValue style={{ marginLeft: '8px' }}>{`(Default: ${field.defaultValue}) `}</S.DefaultValue>}
                                         {(required ?? !field.optional) && <RequiredFormInput />}
                                         {getFieldTypeLabel(field.types) && (
                                             <S.Type style={{ marginLeft: '5px' }} isVisible={focused} title={getFieldTypeLabel(field.types)}>
@@ -774,9 +784,9 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                         return (
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                                    <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                                    <div style={{ flex: 1, minWidth: 0, position: 'relative', cursor: readOnly ? 'not-allowed' : undefined }}>
                                         {isLoading && <SkeletonBase height="28px" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1, borderRadius: '2px' }} />}
-                                        <div style={{ visibility: isLoading ? 'hidden' : 'visible' }}>
+                                        <div style={{ visibility: isLoading ? 'hidden' : 'visible', opacity: readOnly ? 0.7 : 1 }}>
                                             <ExpressionField
                                                 field={field}
                                                 inputMode={inputMode}
@@ -857,6 +867,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                                 onNormalizeValue={(normalizedValue: string) => {
                                                     setValue(key, normalizedValue, { shouldDirty: false, shouldValidate: true });
                                                 }}
+                                                disabled={readOnly}
                                             />
                                         </div>
                                     </div>
@@ -960,6 +971,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         error={error}
                                         formDiagnostics={formDiagnostics}
                                         inputMode={inputMode}
+                                        readOnly={readOnly}
                                     />
                                 )}
                             </div>

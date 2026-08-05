@@ -84,6 +84,16 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         return null;
     }
 
+    const handleAgentClick = async () => {
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.AddAgent,
+            },
+            isPopup: true,
+        });
+    };
+
     return (
         <PanelViewMore disabled={isDisabled}>
             <TitleWrapper>
@@ -91,32 +101,29 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                 <BodyText>{CATEGORY.description}</BodyText>
             </TitleWrapper>
             <CardGrid>
-                {agentMatches && <ButtonCard
-                    id={AI_CHAT_AGENT_CARD.id}
-                    icon={AI_CHAT_AGENT_CARD.icon}
-                    title={AI_CHAT_AGENT_CARD.displayName}
-                    onClick={handleClick}
-                    disabled={isDisabled}
-                    tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
-                />}
+                {agentMatches && (
+                    <ButtonCard
+                        id={AI_CHAT_AGENT_CARD.id}
+                        icon={AI_CHAT_AGENT_CARD.icon}
+                        title={AI_CHAT_AGENT_CARD.displayName}
+                        onClick={handleClick}
+                        disabled={isDisabled}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                    />
+                )}
                 {props.triggers.local.length === 0 && <RelativeLoader />}
-                {mcpTriggers
-                    .map((item, index) => {
-                        return (
-                            <ButtonCard
-                                id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
-                                key={item.id}
-                                title={item.name}
-                                icon={getEntryNodeIcon(item)}
-                                onClick={() => {
-                                    handleMcpClick(DIRECTORY_MAP.SERVICE, item);
-                                }}
-                                disabled={isDisabled}
-                                tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
-                                isBeta={isBetaModule(item.moduleName)}
-                            />
-                        );
-                    })}
+                {mcpTriggers.map((item) => (
+                    <ButtonCard
+                        id={`trigger-${item.moduleName.replace(/\./g, "-")}`}
+                        key={item.id}
+                        title={item.name}
+                        icon={getEntryNodeIcon(item)}
+                        onClick={() => handleMcpClick(DIRECTORY_MAP.SERVICE, item)}
+                        disabled={isDisabled}
+                        tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
+                        isBeta={isBetaModule(item.moduleName)}
+                    />
+                ))}
             </CardGrid>
         </PanelViewMore>
     );

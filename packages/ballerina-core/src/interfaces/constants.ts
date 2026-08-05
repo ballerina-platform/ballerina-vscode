@@ -34,6 +34,8 @@ export const BI_COMMANDS = {
     PROJECT_EXPLORER: 'BI.project-explorer',
     PROJECT_EXPLORER_REFRESH: 'BI.project-explorer.refresh',
     ADD_CONNECTIONS: 'BI.project-explorer.add-connection',
+    ADD_AGENT: 'BI.project-explorer.add-agent',
+    VIEW_AGENTS: 'BI.project-explorer.view-agents',
     ADD_CUSTOM_CONNECTOR: 'BI.project-explorer.add-custom-connector',
     DELETE_COMPONENT: 'BI.project-explorer.delete',
     ADD_ENTRY_POINT: 'BI.project-explorer.add-entry-point',

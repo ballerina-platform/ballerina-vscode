@@ -17,14 +17,14 @@
  */
 
 import styled from "@emotion/styled";
-import { CodeData, FlowNode, NodeMetadata, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
+import { CodeData, FlowNode, NodeMetadata, NodePosition, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Codicon, Dropdown } from "@wso2/ui-toolkit";
 import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { getAiModuleOrg, getNodeTemplate } from "./utils";
+import { getAiModuleOrg, getNodeTemplate, refreshNodeLineRangeFromArtifacts } from "./utils";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
 import { ConnectionCreator } from "../../../components/ConnectionSelector/ConnectionCreator";
@@ -70,11 +70,16 @@ const WarningMessage = styled.div`
 interface MemoryConfigProps {
     memoryNode: FlowNode;
     agentNode: FlowNode;
-    onSave?: () => void;
+    // The agent property key that holds the memory value. The built-in ai:Agent uses "memory" (default); a custom
+    // AGENT_TYPE agent passes its LS-detected wired init param key here.
+    memoryPropertyKey?: string;
+    // Receives the agent's post-save position so the caller can refetch the (shifted) node instead of relying on its
+    // stale stored position.
+    onSave?: (agentPosition?: NodePosition) => void;
 }
 
 export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
-    const { agentNode, memoryNode: existingMemoryVariable, onSave } = props;
+    const { agentNode, memoryNode: existingMemoryVariable, memoryPropertyKey = "memory", onSave } = props;
 
     const { rpcClient } = useRpcContext();
     const { openOverlay, closeTopOverlay, updateOverlay } = usePanelOverlay();
@@ -178,7 +183,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
         if (!agentNode) {
             return null;
         }
-        const memoryValue = agentNode.properties?.memory?.value?.toString();
+        const memoryValue = (agentNode.properties as any)?.[memoryPropertyKey]?.value?.toString();
         if (memoryValue) {
             // Match patterns like "new ai:MessageWindowChatMemory(10)" or "MessageWindowChatMemory(10)"
             const sizeMatch = memoryValue.match(/\((\d+)\)/);
@@ -287,6 +292,8 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             const memoryFileName = updatedNode?.codedata?.lineRange?.fileName;
             const memoryFilePath = await resolveFilePath(memoryFileName, agentFilePath.current);
 
+            const agentVarName = agentNode?.properties?.variable?.value as string;
+
             const memoryResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: memoryFilePath,
                 flowNode: updatedNode,
@@ -294,30 +301,32 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
             const updatedAgentNode = cloneDeep(agentNode);
 
-            if (memoryFilePath === agentFilePath.current && memoryResponse?.artifacts?.length > 0) {
-                const updatedAgentArtifact = memoryResponse.artifacts.find(
-                    artifact => artifact?.name === agentNode?.properties?.variable?.value
+            // Creating the memory variable shifts file lines; refresh the agent's line range from the returned
+            // artifacts before re-writing it, so the edit replaces the agent instead of duplicating it.
+            if (memoryFilePath === agentFilePath.current) {
+                refreshNodeLineRangeFromArtifacts(
+                    updatedAgentNode,
+                    memoryResponse?.artifacts,
+                    agentVarName
                 );
-                if (updatedAgentArtifact?.position) {
-                    updatedAgentNode.codedata.lineRange.startLine.line = updatedAgentArtifact.position.startLine;
-                    updatedAgentNode.codedata.lineRange.startLine.offset = updatedAgentArtifact.position.startColumn;
-                    updatedAgentNode.codedata.lineRange.endLine.line = updatedAgentArtifact.position.endLine;
-                    updatedAgentNode.codedata.lineRange.endLine.offset = updatedAgentArtifact.position.endColumn;
-                }
             }
 
             const agentNodeFilePath = await resolveFilePath(
                 updatedAgentNode?.codedata?.lineRange?.fileName,
                 agentFilePath.current
             );
-            updatedAgentNode.properties.memory.value = updatedNode?.properties.variable.value || "";
+            (updatedAgentNode.properties as any)[memoryPropertyKey].value = updatedNode?.properties.variable.value || "";
 
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
+            const agentResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentNodeFilePath,
                 flowNode: updatedAgentNode,
             });
 
-            onSave?.();
+            // The focus diagram's auto-reload refetches over the stored visualizer position, which is now stale (the
+            // new memory/store vars shifted the agent). Hand the agent's post-save position to onSave so the caller
+            // can refetch the correct node.
+            const savedAgentPosition = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position;
+            onSave?.(savedAgentPosition);
         } catch (error) {
             console.error("Error saving memory configuration", error);
         } finally {

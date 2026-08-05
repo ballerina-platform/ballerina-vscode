@@ -19,7 +19,7 @@ import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
 import { Container, LoaderContainer } from "./styles";
-import { extractAccessToken, findAgentNodeFromAgentCallNode, getEndOfFileLineRange, removeQuotes, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
+import { extractAccessToken, getEndOfFileLineRange, removeQuotes, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
 
 interface Tool {
     name: string;
@@ -29,7 +29,7 @@ interface Tool {
 interface AddMcpServerProps {
     editMode?: boolean;
     name?: string;
-    agentCallNode: FlowNode;
+    agentNode: FlowNode;
     onSave?: () => void;
     onBack?: () => void;
 }
@@ -44,7 +44,7 @@ const normalizeExpressionValue = (value: unknown): string =>
     typeof value === "string" ? removeQuotes(value) : "";
 
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentCallNode, onSave, editMode = false } = props;
+    const { agentNode, onSave, editMode = false } = props;
     const { rpcClient } = useRpcContext();
 
     const [serverUrl, setServerUrl] = useState("");
@@ -79,7 +79,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const projectPathUriRef = useRef<string>("");
 
     const fetchAgentNode = async () => {
-        agentNodeRef.current = await findAgentNodeFromAgentCallNode(agentCallNode, rpcClient);
+        // The agent declaration node is supplied directly by the focus diagram — no call-node lookup.
+        agentNodeRef.current = agentNode;
     };
 
     const fetchMcpToolKitTemplate = async () => {
