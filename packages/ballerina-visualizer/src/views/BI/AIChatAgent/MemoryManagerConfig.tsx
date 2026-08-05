@@ -24,7 +24,7 @@ import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
-import { getAiModuleOrg, getNodeTemplate, refreshNodeLineRangeFromArtifacts } from "./utils";
+import { getAiModuleOrg, getNodeTemplate, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 import { usePanelOverlay } from "../FlowDiagram/hooks/usePanelOverlay";
 import { ConnectionSelectionList } from "../../../components/ConnectionSelector/ConnectionSelectionList";
 import { ConnectionCreator } from "../../../components/ConnectionSelector/ConnectionCreator";
@@ -148,7 +148,8 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
             return;
         }
 
-        let currentMemoryType = (agentNode.metadata?.data as NodeMetadata)?.agentInfo?.memory?.presentation?.type as string;
+        const metadata = agentNode.metadata?.data as NodeMetadata & { memory?: { type?: string } };
+        let currentMemoryType = (metadata?.agentInfo?.memory?.presentation?.type ?? metadata?.memory?.type) as string;
 
         // Remove "ai:" prefix if present
         if (currentMemoryType?.startsWith("ai:")) {
@@ -296,13 +297,7 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
 
             const updatedAgentNode = cloneDeep(agentNode);
 
-            if (memoryFilePath === agentFilePath.current) {
-                refreshNodeLineRangeFromArtifacts(
-                    updatedAgentNode,
-                    memoryResponse?.artifacts,
-                    agentVarName
-                );
-            }
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, memoryResponse?.artifacts);
 
             const agentNodeFilePath = await resolveFilePath(
                 updatedAgentNode?.codedata?.lineRange?.fileName,
@@ -315,7 +310,8 @@ export function MemoryManagerConfig(props: MemoryConfigProps): JSX.Element {
                 flowNode: updatedAgentNode,
             });
 
-            const savedAgentPosition = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position;
+            const savedAgentPosition = agentResponse?.artifacts?.find((a) => a.name === agentVarName)?.position
+                ?? await resolveAgentNodePosition(updatedAgentNode, rpcClient);
             onSave?.(savedAgentPosition);
         } catch (error) {
             console.error("Error saving memory configuration", error);

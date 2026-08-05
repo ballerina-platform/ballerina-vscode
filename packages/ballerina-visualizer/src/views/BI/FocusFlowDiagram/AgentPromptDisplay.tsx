@@ -16,34 +16,19 @@
  * under the License.
  */
 
-import { useEffect } from "react";
 import styled from "@emotion/styled";
 import {
     ContextAwareRawExpressionEditor,
     FormField,
     InputMode,
     ModeSwitcherProvider,
-    useFormContext,
 } from "@wso2/ballerina-side-panel";
-import { InputType } from "@wso2/ballerina-core";
+import { InputType, unwrapBallerinaString } from "@wso2/ballerina-core";
 
 const FieldWrapper = styled.div`
     width: 100%;
     margin-bottom: 8px;
 `;
-
-function stripWrappingQuotes(str: string): string {
-    if (str.startsWith("string `") && str.endsWith("`")) {
-        return str.slice("string `".length, -1);
-    }
-    if (
-        ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) &&
-        !(str.startsWith('""') || str.startsWith("''"))
-    ) {
-        return str.slice(1, -1);
-    }
-    return str;
-}
 
 const PROMPT_INPUT_TYPE: InputType = { fieldType: "PROMPT", ballerinaType: "ai:Prompt", selected: true };
 
@@ -66,7 +51,11 @@ function ReadonlyPromptField({ field }: { field: FormField }) {
                 isRecordTypeField={false}
                 isModeSwitcherEnabled={false}
             >
-                <ContextAwareRawExpressionEditor field={field} fieldInputType={PROMPT_INPUT_TYPE} />
+                <ContextAwareRawExpressionEditor
+                    field={field}
+                    fieldInputType={PROMPT_INPUT_TYPE}
+                    initialValue={field.value as string}
+                />
             </ModeSwitcherProvider>
         </FieldWrapper>
     );
@@ -78,26 +67,17 @@ interface AgentPromptDisplayProps {
 }
 
 export function AgentPromptDisplay({ role, instructions }: AgentPromptDisplayProps) {
-    const { form } = useFormContext();
     const values: Record<string, string> = {
-        role: role ? stripWrappingQuotes(role) : "",
-        instructions: instructions ? stripWrappingQuotes(instructions) : "",
+        role: unwrapBallerinaString(role),
+        instructions: unwrapBallerinaString(instructions),
     };
     const fields = PROMPT_FIELDS.filter((field) => values[field.key]);
-
-    useEffect(() => {
-        fields.forEach((field) => form.setValue(field.key, values[field.key], { shouldDirty: false }));
-    }, [values.role, values.instructions]);
 
     if (fields.length === 0) {
         return null;
     }
 
-    return (
-        <>
-            {fields.map((field) => (
-                <ReadonlyPromptField key={field.key} field={buildField(field.key, field.label, field.documentation, values[field.key])} />
-            ))}
-        </>
-    );
+    return <>{fields.map((field) => (
+        <ReadonlyPromptField key={field.key} field={buildField(field.key, field.label, field.documentation, values[field.key])} />
+    ))}</>;
 }

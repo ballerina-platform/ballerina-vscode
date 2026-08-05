@@ -33,8 +33,13 @@ export const FormContainer = styled.div`
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    padding: 16px 20px;
+`;
+
+export const AgentDefinitionFormContainer = styled(FormContainer)`
     overflow: hidden;
-    padding: 16px 20px 0;
+    padding: 0;
 `;
 
 export const LoaderWrapper = styled.div`
@@ -60,10 +65,6 @@ export const IntroText = styled(Typography)`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     line-height: 1.5;
     margin: 0;
-`;
-
-export const SearchContainer = styled.div`
-    width: 100%;
 `;
 
 export const StyledSearchBox = styled(SearchBox)`
@@ -92,18 +93,6 @@ export const SectionHeader = styled.div`
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    gap: 12px;
-`;
-
-export const SectionHeaderRight = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 12px;
-`;
-
-export const CreateAgentOptions = styled.div`
-    display: flex;
-    flex-direction: column;
     gap: 12px;
 `;
 

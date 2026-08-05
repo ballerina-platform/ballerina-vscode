@@ -109,9 +109,7 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
             if (createdName) {
                 onCreated(createdName);
             }
-        } catch (error) {
-            console.error("Error creating memory:", error);
-        } finally {
+        } catch { } finally {
             setSubmitting(false);
         }
     };

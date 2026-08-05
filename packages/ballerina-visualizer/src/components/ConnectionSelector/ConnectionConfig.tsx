@@ -82,7 +82,7 @@ export function ConnectionConfig(props: ConnectionConfigProps): JSX.Element {
         const response = await rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: currentFilePath.current,
             position: targetLineRangeRef.current?.startLine,
-            queryMap: { kind: connectionKind as NodeKind }
+            query: { kind: connectionKind as NodeKind }
         });
         const nodes = response?.output ?? [];
         const nodesMap = new Map<string, FlowNode>();

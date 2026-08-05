@@ -18,12 +18,13 @@
 
 import { Suspense, lazy, useContext } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { CodeData, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { CodeData, FlowNode, isAgentDeclarationNode, LineRange } from "@wso2/ballerina-core";
 import { PanelOverlayContext } from "../../views/BI/FlowDiagram/context/PanelOverlayContext";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { useModalStack } from "../../Context";
 
 const CreateMemoryForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateMemoryForm"));
+const CreateAgentForm = lazy(() => import("../../views/BI/AIChatAgent/AddAgentPopup/CreateAgentForm"));
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
 import { ConnectionCreateWizard } from "./ConnectionCreateWizard";
@@ -33,21 +34,21 @@ import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
 
 const readCreatedVariable = (node: FlowNode): string | undefined => {
-    const props = node?.properties as Record<string, { value?: string }> | undefined;
-    return props?.model?.value ?? props?.modelProvider?.value;
+    const props = node.properties as Record<string, { value?: string }> | undefined;
+    return props?.model?.value || props?.modelProvider?.value;
 };
 
-export function useCreateConnection(
+export function useCreateNode(
     fileName?: string,
     targetLineRange?: LineRange,
-    onConnectionCreated?: () => void
+    onNodeCreated?: () => void
 ) {
     const { rpcClient } = useRpcContext();
     const panelOverlay = useContext(PanelOverlayContext);
     const { addModal, closeModal } = useModalStack();
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {
-        onConnectionCreated?.();
+        onNodeCreated?.();
         onCreated(variableName);
     };
 
@@ -59,10 +60,10 @@ export function useCreateConnection(
                 connectionKind={(connectorCodeData.node || "NEW_CONNECTION") as ConnectionKind}
                 selectedNode={dummyNode}
                 nodeFormTemplate={flowNode}
-                onSave={(_node, artifacts) => {
-                    const created = artifacts?.find((artifact) => artifact.isNew);
-                    if (created?.name) {
-                        handleCreated(created.name, onCreated);
+                onSave={(node, artifacts) => {
+                    const variableName = readCreatedVariable(node) || artifacts?.find((artifact) => artifact.isNew)?.name;
+                    if (variableName) {
+                        handleCreated(variableName, onCreated);
                     }
                     close();
                 }}
@@ -92,8 +93,7 @@ export function useCreateConnection(
                 panelOverlay.updateOverlay(createId, {
                     content: renderCreator(flowNode, panelOverlay.clearAllOverlays),
                 });
-            } catch (error) {
-                console.error("Error preparing connection creation:", error);
+            } catch {
                 panelOverlay.closeTopOverlay();
             }
             return;
@@ -103,14 +103,29 @@ export function useCreateConnection(
         try {
             const flowNode = await fetchTemplate();
             addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 600, 520);
-        } catch (error) {
-            console.error("Error preparing connection creation:", error);
-        }
+        } catch {}
     };
 
-    return (kind: string, onCreated: (variableName: string) => void, connectorCodeData?: CodeData) => {
-        if (connectorCodeData) {
-            createGenericConnection(connectorCodeData, onCreated);
+    return (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => {
+        if (isAgentDeclarationNode(nodeCodeData?.node)) {
+            const modalId = "create-agent";
+            const handleAgentCreated = (variableName: string) => {
+                handleCreated(variableName, onCreated);
+                closeModal(modalId);
+            };
+            addModal(
+                <Suspense fallback={<LoaderContainer><RelativeLoader /></LoaderContainer>}>
+                    <CreateAgentForm agentCodeData={nodeCodeData} onCreated={handleAgentCreated} />
+                </Suspense>,
+                modalId,
+                `Create ${nodeCodeData.object ?? "Agent"}`,
+                600,
+                600
+            );
+            return;
+        }
+        if (nodeCodeData) {
+            createGenericConnection(nodeCodeData, onCreated);
             return;
         }
         if (kind === "MEMORY") {
@@ -177,8 +192,7 @@ export function useCreateConnection(
                             />
                         ),
                     });
-                } catch (error) {
-                    console.error("Error preparing connection creation:", error);
+                } catch {
                     panelOverlay.closeTopOverlay();
                     createId = null;
                 }

@@ -42,8 +42,6 @@ interface UseAgentToolProps {
     agentNode: FlowNode;
     onSelectAgent: (agentVarName: string) => void;
     onAgentCreated?: () => void;
-    onBack?: () => void;
-    onClose?: () => void;
 }
 
 function extractAgentVarNames(categories: DiagramCategory[]): string[] {
@@ -65,7 +63,7 @@ function extractAgentVarNames(categories: DiagramCategory[]): string[] {
 }
 
 export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
-    const { agentNode, onSelectAgent, onAgentCreated, onBack, onClose } = props;
+    const { agentNode, onSelectAgent, onAgentCreated } = props;
     const { rpcClient } = useRpcContext();
 
     const [loading, setLoading] = useState<boolean>(true);
@@ -95,8 +93,8 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 (name) => name !== hostAgentVar
             );
             setAgentNames(names);
-        } catch (error) {
-            console.error("Failed to load available agents", error);
+        } catch {
+            return;
         } finally {
             setLoading(false);
         }
@@ -125,15 +123,13 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
 
     return (
         <>
+            {/* No title/onBack/onClose: the panel container already renders those. */}
             <NodeList
                 categories={categories}
                 onSelect={(id: string) => onSelectAgent(id)}
                 onAdd={() => setShowAddAgentPopup(true)}
                 addButtonLabel={"Add Agent"}
-                title={"Agents"}
-                searchPlaceholder={"Search agents..."}
-                onBack={onBack}
-                onClose={onClose}
+                searchPlaceholder={"Search agents"}
             />
             {showAddAgentPopup && createPortal(
                 <PopupLayer>

@@ -20,14 +20,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { TraceAnimationEvent } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
-import {
-    findFlowNode,
-    findFlowNodeByModuleVarName,
-    goToAgent,
-    refreshNodeLineRangeFromArtifacts,
-    removeAgentNode,
-    removeToolFromAgentNode,
-} from "../AIChatAgent/utils";
+import { goToAgent, startAgentChat } from "../AIChatAgent/utils";
 import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 import { MemoizedDiagram, setTraceAnimationActive, setTraceAnimationInactive } from "@wso2/bi-diagram";
 import {
@@ -59,7 +52,6 @@ import {
     AIPanelPrompt,
     LinePosition,
     EditorDisplayMode,
-    ToolData,
     GET_DEFAULT_EMBEDDING_PROVIDER,
     GET_DEFAULT_MODEL_PROVIDER,
 } from "@wso2/ballerina-core";
@@ -171,6 +163,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const [selectedNodeId, setSelectedNodeId] = useState<string>();
     const [importingConn, setImportingConn] = useState<ConnectionListItem>();
     const [projectOrg, setProjectOrg] = useState<string>("");
+    const visualizerLocationRef = useRef<VisualizerLocation>();
     const [entrypointContext, setEntrypointContext] = useState<{ serviceName?: string; functionName?: string }>();
     const [isUserAuthenticated, setIsUserAuthenticated] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
@@ -301,6 +294,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         });
 
         rpcClient.getVisualizerLocation().then((location) => {
+            visualizerLocationRef.current = location;
             setProjectOrg(location.org);
         });
 
@@ -711,6 +705,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                             // Get visualizer location and pass position to onReady + set entrypoint context
                             rpcClient.getVisualizerLocation().then((location: VisualizerLocation) => {
                                 console.log(">>> Visualizer location", location?.position);
+                                visualizerLocationRef.current = location;
                                 onReady(model.flowModel.fileName, parentMetadata, location?.position, parentCodedata);
                                 let serviceName = '';
                                 for (const candidate of [location.parentIdentifier, location.identifier]) {
@@ -1922,7 +1917,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (NODES_TO_SKIP_ARTIFACT.includes(updatedNode?.codedata?.node)) {
             skipArtifact = true;
         }
-
         rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({
@@ -2017,6 +2011,14 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
 
     function getArtifactData(editorConfig?: EditorConfig) {
+        const currentArtifactType = visualizerLocationRef.current?.artifactType;
+        if (
+            currentArtifactType === DIRECTORY_MAP.AGENT_DEFINITION ||
+            currentArtifactType === DIRECTORY_MAP.TYPE
+        ) {
+            return { artifactType: currentArtifactType };
+        }
+
         // When editorConfig is absent, derive the artifact type from the EVENT_START node's metadata.
         //   kind="Function" + label="main" → AUTOMATION
         //   kind="Function" + other label  → FUNCTION
@@ -2547,15 +2549,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
-    const handleOnAddNewAgent = () => {
-        setShowAddAgentPopup(true);
-    };
-
-    const handleAgentCreated = () => {
-        setShowAddAgentPopup(false);
-        loadAvailableAgents();
-    };
-
     const handleOnAddNewModelProvider = () => {
         isCreatingNewModelProvider.current = true;
         setShowProgressIndicator(true);
@@ -2837,18 +2830,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     };
 
     const handleOnChatWithAgent = (agentNode: FlowNode) => {
-        const agentVarName = (agentNode.codedata?.node === "AGENT"
-            ? agentNode.properties?.variable?.value
-            : agentNode.properties?.connection?.value) as string;
-        if (!agentVarName || !model?.fileName) {
-            console.error('Cannot start inline agent chat: missing agent variable name or file path');
-            return;
-        }
-        rpcClient.getBIDiagramRpcClient().startInlineAgentChat({
-            agentVarName,
-            filePath: model.fileName,
-            agentNode,
-        });
+        startAgentChat(agentNode, model?.fileName, rpcClient);
     };
 
     const agentEditor = useAgentEditorController({
@@ -3106,7 +3088,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onSearchChunker={handleSearchChunker}
                 onUpdateNodeWithConnection={updateNodeWithConnection}
                 // AI Agent specific callbacks
-                onAddAgent={handleOnAddNewAgent}
+                onAddAgent={() => setShowAddAgentPopup(true)}
                 onSelectNewConnection={handleOnSelectNewConnection}
                 onSelectConnectorPopup={handleOnSelectConnectorConfiguration}
                 onNavigateToPanel={handleOnNavigateToPanel}
@@ -3132,7 +3114,10 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                         projectPath={projectPath}
                         onClose={() => setShowAddAgentPopup(false)}
                         onNavigateToOverview={() => setShowAddAgentPopup(false)}
-                        onAgentCreated={handleAgentCreated}
+                        onAgentCreated={() => {
+                            setShowAddAgentPopup(false);
+                            loadAvailableAgents();
+                        }}
                     />
                 </AddAgentPopupLayer>
             )}

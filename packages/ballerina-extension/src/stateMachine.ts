@@ -194,6 +194,7 @@ const stateMachine = createMachine<MachineContext>(
                         documentUri: (context, event) => event.viewLocation.documentUri ? event.viewLocation.documentUri : context.documentUri,
                         position: (context, event) => event.viewLocation.position ? event.viewLocation.position : context.position,
                         identifier: (context, event) => event.viewLocation.identifier ? event.viewLocation.identifier : context.identifier,
+                        artifactType: (context, event) => event.viewLocation.artifactType ? event.viewLocation.artifactType : context.artifactType,
                         addType: (context, event) => event.viewLocation?.addType !== undefined ? event.viewLocation.addType : context?.addType,
                     }),
                     (context, event) => notifyTreeView(
@@ -345,6 +346,7 @@ const stateMachine = createMachine<MachineContext>(
                                 position: (context, event) => event.viewLocation.position,
                                 projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                 identifier: (context, event) => event.viewLocation.identifier,
+                                artifactType: (context, event) => event.viewLocation.artifactType,
                                 serviceType: (context, event) => event.viewLocation.serviceType,
                                 type: (context, event) => event.viewLocation?.type,
                                 isGraphql: (context, event) => event.viewLocation?.isGraphql,
@@ -451,6 +453,8 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
+                                        focusFlowDiagramView: (context, event) => event.viewLocation.focusFlowDiagramView,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         org: (context, event) => event.viewLocation?.org || context?.org,
@@ -483,6 +487,7 @@ const stateMachine = createMachine<MachineContext>(
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         type: (context, event) => event.viewLocation?.type,
                                         agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
@@ -732,6 +737,10 @@ const stateMachine = createMachine<MachineContext>(
                     return resolve({ ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview });
                 }
 
+                if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
+                    return resolve(selectedEntry.location);
+                }
+
                 if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
                     // Get updated location and identifier if transition was from VIEW_UPDATE event
                     if (context.isViewUpdateTransition && selectedEntry.location.view !== MACHINE_VIEW.ReviewMode) {
@@ -774,7 +783,7 @@ const stateMachine = createMachine<MachineContext>(
                     if (!uid && position) {
                         const generatedUid = generateUid(position, fullST);
                         selectedST = getNodeByUid(generatedUid, fullST);
-                        if (generatedUid) {
+                        if (generatedUid && selectedST) {
                             history.updateCurrentEntry({
                                 ...selectedEntry,
                                 location: {
@@ -784,8 +793,6 @@ const stateMachine = createMachine<MachineContext>(
                                 },
                                 uid: generatedUid
                             });
-                        } else {
-                            // show identification failure message
                         }
                     }
 
@@ -988,6 +995,9 @@ export const StateMachine = {
         await buildProjectsStructure(projectInfo, StateMachine.langClient(), true);
         return stateService.getSnapshot().context.projectStructure;
     },
+    setProjectInfo: (projectInfo: ProjectInfo) => {
+        stateService.send({ type: 'SET_PROJECT_INFO', projectInfo });
+    },
     resetToExtensionReady: () => {
         stateService.send({ type: 'RESET_TO_EXTENSION_READY' });
     },
@@ -1029,10 +1039,6 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
         if (targetedArtifactType === DIRECTORY_MAP.RESOURCE || targetedArtifactType === DIRECTORY_MAP.REMOTE) {
             // If the artifact type is resource/remote, we need to target the service
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
-        }
-
-        if (targetedArtifactType === DIRECTORY_MAP.AGENT) {
-            targetedArtifactType = DIRECTORY_MAP.AGENTS;
         }
 
         const projectPath = StateMachine.context().projectPath;
@@ -1222,7 +1228,7 @@ function refreshProjectExplorer() {
         if (integratorExtension && !integratorExtension.isActive) {
             return;
         }
-    
+
         commands.executeCommand(BI_COMMANDS.PROJECT_EXPLORER_REFRESH);
     } catch (error) {
         console.error('Error refreshing project explorer:', error);

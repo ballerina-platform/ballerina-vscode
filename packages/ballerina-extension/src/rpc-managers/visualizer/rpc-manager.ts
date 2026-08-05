@@ -71,6 +71,7 @@ export class VisualizerRpcManager implements VisualizerAPI {
                 }
                 openView(params.type, params.location as VisualizerLocation);
             }
+            resolve();
         });
     }
 

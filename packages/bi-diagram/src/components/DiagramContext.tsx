@@ -93,6 +93,8 @@ export interface DiagramContextState {
     goToSource: (node: FlowNode) => void;
     openView: (location: VisualizerLocation) => void;
     goToAgent?: (node: FlowNode) => void;
+    goToAgentDefinition?: (node: FlowNode) => void;
+    getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: {
         override: boolean;
         showSpinner?: boolean;
@@ -147,6 +149,8 @@ export const DiagramContext = React.createContext<DiagramContextState>({
     removeBreakpoint: () => { },
     openView: () => { },
     goToAgent: () => { },
+    goToAgentDefinition: () => { },
+    getAgentDefinitionLocation: () => Promise.resolve(undefined),
     draftNode: {
         override: true,
         showSpinner: false,

@@ -65,7 +65,7 @@ const removeAgentNodesForServiceArtifact = async (
                 const searchResult = await rpcClient.searchNodes({
                     filePath: component.path,
                     position: lineRange.startLine,
-                    queryMap: { kind: "AGENT", exactMatch: agentName },
+                    query: { kind: "AGENT", exactMatch: agentName },
                 });
 
                 if (searchResult?.output?.length > 0) {

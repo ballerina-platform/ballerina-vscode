@@ -39,7 +39,6 @@ import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
@@ -47,7 +46,9 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -232,16 +233,17 @@ export namespace NodeStyles {
         display: flex;
         flex: 1;
         flex-direction: column;
+        gap: 8px;
         width: 100%;
         min-height: 0;
         overflow: hidden;
-        padding: 4px 4px 12px;
+        padding: 4px 0 12px;
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
         z-index: 2;
     `;
 
     export const AgentDescription = styled(Instructions)`
-        padding: 0;
+        padding: 0 4px;
     `;
 
     export const Divider = styled.div`
@@ -396,6 +398,7 @@ interface AgentNodeWidgetProps {
     model: AgentNodeModel;
     engine: DiagramEngine;
     onClick?: (node: FlowNode) => void;
+    variant?: "agent" | "typedAgent";
 }
 
 type AgentNodePresentation = {
@@ -405,8 +408,8 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
-function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
-    const isTypeDefinition = model.getType() === NodeTypes.AGENT_TYPE_NODE;
+function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
+    const isTypeDefinition = variant === "typedAgent";
     return {
         isTypeDefinition,
         showMemory: !isTypeDefinition || Boolean(agentInfo?.memory?.propertyKey),
@@ -416,28 +419,34 @@ function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadat
 }
 
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
-    const { model, engine, onClick } = props;
-    const { onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId } = useDiagramContext();
+    const { model, engine, onClick, variant = model.getType() === NodeTypes.TYPED_AGENT_NODE ? "typedAgent" : "agent" } = props;
+    const controller = useAgentNodeController(model);
+    const {
+        onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
+        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
+    } = controller.context;
+    const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
+        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
+        boxSyncPulseAnimation } = controller;
 
-    const isSelected = selectedNodeId === model.node.id;
-
-    const [isBoxHovered, setIsBoxHovered] = useState(false);
-    const [agentIdHovered, setAgentIdHovered] = useState(false);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
+    const [canViewDefinition, setCanViewDefinition] = useState(false);
     const [toolAnchorEl, setToolAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
     const [memoryMenuAnchorEl, setMemoryMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
-    const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
     const [memoryMenuButtonElement, setMemoryMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(anchorEl);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
-
     useEffect(() => {
-        if (model.node.suggested) {
-            model.setAroundLinksDisabled(model.node.suggested === true);
+        let active = true;
+        if (variant !== "typedAgent" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
+            setCanViewDefinition(false);
+            return () => { active = false; };
         }
-    }, [model.node.suggested]);
+        getAgentDefinitionLocation(model.node)
+            .then((location) => active && setCanViewDefinition(Boolean(location)))
+            .catch(() => active && setCanViewDefinition(false));
+        return () => { active = false; };
+    }, [getAgentDefinitionLocation, model, model.node.codedata?.object, variant]);
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
@@ -455,6 +464,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         event?.stopPropagation();
         onClick && onClick(model.node);
         onNodeSelect && onNodeSelect(model.node);
+        setAnchorEl(null);
+    };
+
+    const onViewDefinition = () => {
+        goToAgentDefinition?.(model.node);
         setAnchorEl(null);
     };
 
@@ -595,7 +609,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     const nodeMetadata = model?.node.metadata.data as NodeMetadata;
     const agentInfo = nodeMetadata?.agentInfo;
-    const presentation = getAgentNodePresentation(model, agentInfo);
+    const presentation = getAgentNodePresentation(variant, agentInfo);
     const { isTypeDefinition, showMemory, showModelCircle, toolsReadOnly } = presentation;
     const hasBreakpoint = !isTypeDefinition && model.hasBreakpoint();
     const isActiveBreakpoint = !isTypeDefinition && model.isActiveBreakpoint();
@@ -611,6 +625,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
             label: "Edit",
             onClick: () => onNodeClick(),
         },
+        ...(isTypeDefinition && canViewDefinition ? [{
+            id: "viewDefinition",
+            label: "View Agent Definition",
+            onClick: () => onViewDefinition(),
+        }] : []),
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
         ...(!isTypeDefinition ? [{ id: "delete", label: "Delete", onClick: () => deleteNode() }] : []),
     ];
@@ -655,17 +674,64 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const description = agentInfo?.description;
     const isPrebuilt = isTypeDefinition && Boolean(model.node.codedata?.org);
     const modelPropertyKey = agentInfo?.modelProvider?.propertyKey ?? "model";
-    let containerHeight =
-        NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2;
-    if (tools.length > 0) {
-        containerHeight += tools.length * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    }
+    const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
+    const nodeRole = sanitizedAgent?.role || '';
+    const nodeInstructions = sanitizedAgent?.instructions || '';
+
+    const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
+        if (entrypointContext) {
+            const traceService = traceAnimation.entrypointServiceName ?? '';
+            const traceFunction = traceAnimation.entrypointFunctionName ?? '';
+            const ctxService = entrypointContext.serviceName ?? '';
+            const ctxFunction = entrypointContext.functionName ?? '';
+            if (traceService !== ctxService || traceFunction !== ctxFunction) {
+                return false;
+            }
+        }
+
+        const sysInstr = traceAnimation.systemInstructions;
+        if (sysInstr) {
+            const extractedRole = sysInstr.match(/(?:^|\n)#\s*Role[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions|$)/i)?.[1]?.trim();
+            const extractedInstructions = sysInstr.match(/(?:^|\n)#\s*Instructions[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions for Tool Validation Failure Handling|$)/i)?.[1]?.trim();
+
+            const roleMatch = nodeRole != null && extractedRole === nodeRole.trim();
+            const cleanedInstructions = extractedInstructions
+                ?.replace(/\n#\s*Instructions for Tool Validation Failure Handling[^\n]*\n[\s\S]*$/, '')
+                ?.trim();
+            const instrMatch = nodeInstructions != null && cleanedInstructions === nodeInstructions.trim();
+
+            if (nodeRole != null && nodeInstructions != null) {
+                return roleMatch && instrMatch;
+            }
+        }
+        const hasToolOverlap =
+            traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
+            traceAnimation.entries.some(e =>
+                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
+            );
+        if (hasToolOverlap) return true;
+        return false;
+    })();
+    const matchedEntries = isTraceMatch ? traceAnimation.entries : [];
+
+    const chatEntry = matchedEntries.find(e => e.type === 'chat');
+    const toolEntries = matchedEntries.filter(e => e.type === 'execute_tool');
+
+    const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
+    const isAnyToolActive = activeToolNames.length > 0;
+
+    const isModelActive = chatEntry?.phase === 'active' && !isAnyToolActive;
+
+    const isAgentNodeActive = isModelActive || isAnyToolActive;
+
+    let containerHeight = getAgentNodeContainerHeight(model.node,
+        isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE);
     if (isTypeDefinition) {
-        containerHeight = model.node.viewState?.ch || NODE_HEIGHT;
+        containerHeight = model.node.viewState?.ch || containerHeight;
     }
 
     return (
-        <NodeStyles.Node data-testid={isTypeDefinition ? "agent-type-node" : "agent-node"} readOnly={readOnly}>
+        <NodeStyles.Node data-testid={isTypeDefinition ? "typed-agent-node" : "agent-node"} readOnly={readOnly}>
             <NodeStyles.Box
                 disabled={disabled}
                 hovered={isBoxHovered}
@@ -700,7 +766,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             <NodeStyles.IconBox onClick={onNodeClick}>
                                 <NodeIcon type={model.node.codedata.node} size={24} />
                                 <NodeStyles.PackageBadge>
-                                    <Icon name="bi-box" iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
+                                    <Icon name="package" isCodicon={true} iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
                                 </NodeStyles.PackageBadge>
                             </NodeStyles.IconBox>
                         ) : (
@@ -743,28 +809,30 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </NodeStyles.MenuButton>
                             </NodeStyles.ActionButtonGroup>
                         </NodeStyles.Row>
-                        <Popover
-                            open={isMenuOpen}
-                            anchorEl={anchorEl}
-                            handleClose={handleOnMenuClose}
-                            sx={{
-                                padding: 0,
-                                borderRadius: 0,
-                            }}
-                        >
-                            <Menu>
-                                <>
-                                    {menuItems.map((item) => (
-                                        <MenuItem key={item.id} item={item} />
-                                    ))}
-                                    {!isTypeDefinition && <BreakpointMenu
-                                        hasBreakpoint={hasBreakpoint}
-                                        onAddBreakpoint={onAddBreakpoint}
-                                        onRemoveBreakpoint={onRemoveBreakpoint}
-                                    />}
-                                </>
-                            </Menu>
-                        </Popover>
+                        {isMenuOpen && (
+                            <Popover
+                                open={isMenuOpen}
+                                anchorEl={anchorEl}
+                                handleClose={handleOnMenuClose}
+                                sx={{
+                                    padding: 0,
+                                    borderRadius: 0,
+                                }}
+                            >
+                                <Menu>
+                                    <>
+                                        {menuItems.map((item) => (
+                                            <MenuItem key={item.id} item={item} />
+                                        ))}
+                                        {!isTypeDefinition && <BreakpointMenu
+                                            hasBreakpoint={hasBreakpoint}
+                                            onAddBreakpoint={onAddBreakpoint}
+                                            onRemoveBreakpoint={onRemoveBreakpoint}
+                                        />}
+                                    </>
+                                </Menu>
+                            </Popover>
+                        )}
                     </NodeStyles.Row>
 
                     {showMemory && <NodeStyles.MemoryContainer>

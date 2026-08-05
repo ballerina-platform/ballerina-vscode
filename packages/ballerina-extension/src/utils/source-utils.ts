@@ -328,4 +328,3 @@ export async function injectImportIfMissing(importStatement: string, filePath: s
         await vscode.workspace.applyEdit(workspaceEdit);
     }
 }
-

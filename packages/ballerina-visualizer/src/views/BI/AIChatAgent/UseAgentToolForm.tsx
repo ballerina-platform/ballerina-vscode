@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ * Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -16,16 +16,16 @@
  * under the License.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode } from "@wso2/ballerina-core";
+import { ArtifactData, FlowNode, NodePosition } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { addToolToAgentNode, buildAgentCallToolNode } from "./utils";
+import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition } from "./utils";
 import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
@@ -53,22 +53,34 @@ const ContextHint = styled.div`
 `;
 
 interface UseAgentToolFormProps {
-    agentNode: FlowNode;
+    agentNode?: FlowNode;
     agentVarName: string;
-    onSave?: () => void;
+    agentReceiver?: string;
+    agentLabel?: string;
+    submitText?: string;
+    artifactData?: ArtifactData;
+    onBeforeSave?: () => Promise<void>;
+    onSave?: (agentPosition?: NodePosition) => void;
+    onToolSaved?: (toolName: string) => void;
+    hostClass?: AgentToolHostClass;
 }
 
 export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
-    const { agentNode, agentVarName, onSave } = props;
+    const { agentNode, agentVarName, agentReceiver, agentLabel = agentVarName, submitText = "Save Tool", onBeforeSave,
+        onSave, onToolSaved, hostClass, artifactData } = props;
     const { rpcClient } = useRpcContext();
 
     const [agentFilePath, setAgentFilePath] = useState<string>("");
     const [ready, setReady] = useState<boolean>(false);
     const [saving, setSaving] = useState<boolean>(false);
     const [includeContext, setIncludeContext] = useState<boolean>(false);
-    const includeContextRef = useRef<boolean>(false);
 
     useEffect(() => {
+        if (hostClass) {
+            setAgentFilePath(hostClass.filePath);
+            setReady(true);
+            return;
+        }
         (async () => {
             const fileName = agentNode?.codedata?.lineRange?.fileName ?? "agents.bal";
             const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] });
@@ -79,7 +91,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
 
     const fields: FormField[] = buildAgentToolFields(
         `${agentVarName}Tool`,
-        `Delegates a query to the ${agentVarName} agent.`
+        `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
     );
 
     const handleSubmit = async (data: FormValues) => {
@@ -88,22 +100,32 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         }
         setSaving(true);
         try {
+            await onBeforeSave?.();
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
             const description = stripCodeFencesInline(String(data["description"] ?? ""));
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({
-                filePath: agentFilePath,
-                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description),
+            const toolFilePath = hostClass ? hostClass.filePath : agentFilePath;
+            const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
+                filePath: toolFilePath,
+                flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContext, description,
+                    hostClass, agentReceiver),
+                artifactData,
             });
-            const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
-            if (updatedAgentNode) {
-                const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                    segments: [updatedAgentNode.codedata.lineRange.fileName],
-                });
-                await rpcClient
-                    .getBIDiagramRpcClient()
-                    .getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
+            let agentPosition: NodePosition | undefined;
+            if (!hostClass && agentNode) {
+                const updatedAgentNode = await addToolToAgentNode(agentNode, toolName);
+                if (updatedAgentNode) {
+                    await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse?.artifacts);
+                    const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                        segments: [updatedAgentNode.codedata.lineRange.fileName],
+                    });
+                    await rpcClient
+                        .getBIDiagramRpcClient()
+                        .getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
+                    agentPosition = await resolveAgentNodePosition(updatedAgentNode, rpcClient);
+                }
             }
-            onSave?.();
+            onToolSaved?.(toolName);
+            onSave?.(agentPosition);
         } catch (error) {
             console.error("Failed to add agent as a tool", error);
         } finally {
@@ -127,15 +149,15 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             fields={fields}
             recordTypeFields={[]}
             onSubmit={handleSubmit}
-            submitText={"Save Tool"}
+            submitText={submitText}
             isSaving={saving}
             helperPaneSide="left"
             injectedComponents={[
                 {
                     component: (
-                        <ImplementationBadge title={agentVarName}>
+                        <ImplementationBadge title={agentLabel}>
                             <Icon name="bi-ai-agent" sx={{ width: 14, height: 14, fontSize: 14 }} />
-                            {agentVarName}
+                            {agentLabel}
                         </ImplementationBadge>
                     ),
                     index: 0,
@@ -146,20 +168,19 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
                             <input
                                 type="checkbox"
                                 checked={includeContext}
-                                onChange={(e) => {
-                                    includeContextRef.current = e.target.checked;
-                                    setIncludeContext(e.target.checked);
-                                }}
+                                onChange={(e) => setIncludeContext(e.target.checked)}
                             />
                             <div>
-                                Pass context to {agentVarName}
+                                Pass agent context
                                 <ContextHint>
-                                    Forwards the calling agent's context to {agentVarName} when the tool runs.
+                                    Adds ai:Context ctx as the first parameter so this tool can access the invoking
+                                    agent's context.
                                 </ContextHint>
                             </div>
                         </ContextOption>
                     ),
                     index: 2,
+                    advanced: true,
                 },
             ]}
         />

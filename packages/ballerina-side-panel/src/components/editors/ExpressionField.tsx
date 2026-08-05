@@ -41,7 +41,7 @@ import { getPrimaryInputType, isDropDownType } from '@wso2/ballerina-core';
 import { ChipExpressionEditorDefaultConfiguration } from './MultiModeExpressionEditor/ChipExpressionEditor/ChipExpressionDefaultConfig';
 import { DynamicArrayBuilder } from './MultiModeExpressionEditor/DynamicArrayBuilder/DynamicArrayBuilder';
 import { isRecord } from './utils';
-import { ConnectionSelectEditor } from './MultiModeExpressionEditor/ConnectionSelectEditor/ConnectionSelectEditor';
+import { NodeReferenceSelectEditor } from './MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor';
 
 export interface ExpressionFieldProps {
     field: FormField;
@@ -194,7 +194,7 @@ export const ExpressionField: React.FC<ExpressionFieldProps> = (props: Expressio
     if (inputMode === InputMode.SELECT) {
         if (field.codedata?.searchNodesKind) {
             return (
-                <ConnectionSelectEditor
+                <NodeReferenceSelectEditor
                     value={value}
                     field={field}
                     onChange={(val) => onChange(val, val?.length)}

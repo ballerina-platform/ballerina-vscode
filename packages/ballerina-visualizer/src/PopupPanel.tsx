@@ -171,19 +171,6 @@ const PopupPanel = (props: PopupPanelProps) => {
                         );
                     });
                     break;
-                case MACHINE_VIEW.BIAgentToolForm:
-                    setIsFullScreen(true);
-                    rpcClient.getVisualizerLocation().then(async (location) => {
-                        const agentsFile = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['agents.bal'] })).filePath;
-                        setViewComponent(<FunctionForm
-                            projectPath={location.projectPath}
-                            filePath={agentsFile}
-                            functionName={undefined}
-                            isAgentTool={true}
-                            isPopup={true} />
-                        );
-                    });
-                    break;
                 case MACHINE_VIEW.BIWorkflowForm:
                     setIsFullScreen(true);
                     rpcClient.getVisualizerLocation().then(async (location) => {

@@ -62,6 +62,8 @@ import {
     DropdownType,
     isDropDownType,
     InputType,
+    CodeData,
+    isAgentCallNode,
 } from "@wso2/ballerina-core";
 import {
     HelperPaneVariableInfo,
@@ -135,6 +137,8 @@ function convertAvailableNodeToPanelNode(
 }
 
 
+type IconFactory = (codedata: any, iconUrl?: string) => React.ReactElement;
+
 // Central icon URLs are `…/{org}_{package}_{version}.png`; the middle segment is the package key.
 function getPackageKeyFromIconUrl(iconUrl?: string): string | undefined {
     const fileName = iconUrl?.split("/").pop();
@@ -149,20 +153,32 @@ function resolveChildBadgeIcon(codedata: any, iconUrl?: string): React.ReactElem
     if (embedded) {
         return embedded;
     }
-    return <img src={iconUrl} style={{ width: 14, height: 14 }} />;
+    // Fall back to the node glyph: the URL is synthesised from package coordinates and 404s for unpublished packages.
+    return (
+        <ConnectorIcon
+            url={iconUrl}
+            style={{ width: "14px", height: "14px", fontSize: "14px" }}
+            codedata={codedata}
+            fallbackIcon={<NodeIcon type={codedata?.node} size={14} />}
+        />
+    );
 }
 
 // Keeps the package icon on the group header and gives each child its own @display icon.
-function applyGroupedChildIcons(group: PanelCategory, rawItems: any[]): void {
+function applyGroupedChildIcons(group: PanelCategory, rawItems: any[], groupIconFactory?: IconFactory): void {
     const rawGroup = rawItems?.find(
         (r) => r && !("codedata" in r) && r.metadata?.label === group.title
     );
     const packageIconUrl: string | undefined = rawGroup?.metadata?.icon;
+    const firstChild = group.items?.at(0) as PanelNode | undefined;
 
     if (packageIconUrl) {
         group.icon = (
             <ConnectorIcon url={packageIconUrl} style={{ width: "20px", height: "20px", fontSize: "20px" }} />
         );
+    } else if (groupIconFactory) {
+        // No package icon, so the group falls back to its first child's — which needs the caller's fallback too.
+        group.icon = groupIconFactory(firstChild?.metadata?.codedata, firstChild?.metadata?.metadata?.icon);
     }
 
     group.items?.forEach((child) => {
@@ -329,7 +345,7 @@ export function convertKnowledgeBaseCategoriesToSidePanelCategories(categories: 
 
 export function convertCategoriesToSidePanelCategoriesWithIcon(
     categories: Category[],
-    iconFactory: (codedata: any, iconUrl?: string) => React.ReactElement
+    iconFactory: IconFactory
 ): PanelCategory[] {
     const panelCategories = categories.map((category) => convertDiagramCategoryToSidePanelCategory(category));
     panelCategories.forEach((category, index) => {
@@ -339,7 +355,7 @@ export function convertCategoriesToSidePanelCategoriesWithIcon(
                 const iconUrl = (item as PanelNode)?.metadata?.metadata?.icon;
                 item.icon = iconFactory(codedata, iconUrl);
             } else if ((item as PanelCategory).items) {
-                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[]);
+                applyGroupedChildIcons(item as PanelCategory, categories[index]?.items as any[], iconFactory);
             }
         });
     });
@@ -417,7 +433,7 @@ export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, cli
             if (!activeNode) {
                 return "";
             }
-            if (activeNode.codedata?.node === "AGENT_CALL" || activeNode.codedata?.node === "AGENT_RUN") {
+            if (isAgentCallNode(activeNode.codedata?.node)) {
                 return `AI Agent`;
             }
             if (activeNode.codedata?.node === "KNOWLEDGE_BASE" && activeNode.codedata?.object === "VectorKnowledgeBase") {

@@ -49,9 +49,12 @@ const AuthCheckboxDescription = styled.div`
 export interface RequiresAuthCheckboxProps {
     checked: boolean;
     onChange: (checked: boolean) => void;
+    label?: string;
+    description?: string;
 }
 
-export const RequiresAuthCheckbox: React.FC<RequiresAuthCheckboxProps> = ({ checked, onChange }) => {
+export const RequiresAuthCheckbox: React.FC<RequiresAuthCheckboxProps> = ({ checked, onChange,
+    label = "Requires Authentication", description = "Enable if the server requires authentication" }) => {
     const handleToggle = () => {
         onChange(!checked);
     };
@@ -59,9 +62,9 @@ export const RequiresAuthCheckbox: React.FC<RequiresAuthCheckboxProps> = ({ chec
     return (
         <AuthCheckboxContainer key="auth-checkbox" onClick={handleToggle}>
             <div>
-                <AuthCheckboxLabel>Requires Authentication</AuthCheckboxLabel>
+                <AuthCheckboxLabel>{label}</AuthCheckboxLabel>
                 <AuthCheckboxDescription>
-                    Enable if the server requires authentication
+                    {description}
                 </AuthCheckboxDescription>
             </div>
             <AuthCheckboxWrapper>

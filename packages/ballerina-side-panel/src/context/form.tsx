@@ -60,10 +60,10 @@ export interface FormContext {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
-    onCreateConnection?: (
+    onCreateNode?: (
         kind: string,
         onCreated: (variableName: string) => void,
-        connectorCodeData?: CodeData
+        nodeCodeData?: CodeData
     ) => void;
 }
 

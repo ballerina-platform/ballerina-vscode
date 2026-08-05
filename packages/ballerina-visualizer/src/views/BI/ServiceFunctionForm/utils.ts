@@ -36,7 +36,7 @@ const resolveFilePath = async (rpcClient: BallerinaRpcClient, fileName: string):
     }
 };
 
-const getFunctionParametersList = (params: Parameter[], model: FunctionModel | null) => {
+export const getFunctionParametersList = (params: Parameter[], model: FunctionModel | null) => {
     const paramList: ParameterModel[] = [];
     if (!model) {
         return paramList;
@@ -47,6 +47,7 @@ const getFunctionParametersList = (params: Parameter[], model: FunctionModel | n
         const typeField = paramFields.find(field => getPrimaryInputType(field.types)?.fieldType === 'TYPE');
         const nameField = paramFields.find(field => field.key === 'variable');
         const defaultField = paramFields.find(field => field.key === 'defaultable');
+        const docField = paramFields.find(field => field.key === 'documentation');
 
         paramList.push({
             kind: 'REQUIRED',
@@ -84,6 +85,16 @@ const getFunctionParametersList = (params: Parameter[], model: FunctionModel | n
                 addNewButton: false,
                 enabled: defaultField?.enabled,
                 editable: defaultField?.editable
+            },
+            documentation: {
+                value: (param.formValues['documentation'] as string) || '',
+                types: docField?.types,
+                isType: false,
+                optional: true,
+                advanced: false,
+                addNewButton: false,
+                enabled: docField?.enabled ?? true,
+                editable: docField?.editable ?? true
             }
         });
     });
@@ -91,16 +102,18 @@ const getFunctionParametersList = (params: Parameter[], model: FunctionModel | n
 };
 
 function convertParameterToFormField(key: string, param: ParameterModel): FormField {
+    const resolvedKey = key === "defaultValue" ? "defaultable" : key === "name" ? "variable" : key;
+    const isDocumentation = resolvedKey === "documentation";
     return {
-        key: key === "defaultValue" ? "defaultable" : key === "name" ? "variable" : key,
+        key: resolvedKey,
         label: param.metadata?.label,
-        type: getPrimaryInputType(param.types)?.fieldType || 'string',
+        type: isDocumentation ? "DOC_TEXT" : (getPrimaryInputType(param.types)?.fieldType || 'string'),
         optional: param.optional || false,
         editable: param.editable || false,
         advanced: key === "defaultValue" ? true : param.advanced,
         documentation: param.metadata?.description || '',
         value: param.value || '',
-        types: param?.types || [],
+        types: isDocumentation ? [{ fieldType: "DOC_TEXT", selected: true }] : (param?.types || []),
         enabled: param.enabled ?? true,
         lineRange: param?.codedata?.lineRange
     };
@@ -215,7 +228,8 @@ export function convertParameterToParamValue(param: ParameterModel, index: numbe
         formValues: {
             variable: param.name.value,
             type: param.type.value,
-            defaultable: paramDefaultValue || ''
+            defaultable: paramDefaultValue || '',
+            documentation: param.documentation?.value || ''
         },
         icon: 'symbol-variable',
         identifierEditable: param.name?.editable,
