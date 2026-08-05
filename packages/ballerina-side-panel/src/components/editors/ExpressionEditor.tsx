@@ -654,7 +654,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                             <S.Label>{field.label}</S.Label>
                                             {readOnly && (
-                                                <span title="Read only" style={{ display: 'inline-flex' }}>
+                                                <span title="Read-only" style={{ display: 'inline-flex' }}>
                                                     <Icon name="bi-lock" iconSx={{ fontSize: "14px" }} sx={{ color: 'var(--vscode-list-deemphasizedForeground)' }} />
                                                 </span>
                                             )}
