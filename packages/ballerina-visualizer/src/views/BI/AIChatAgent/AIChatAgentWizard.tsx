@@ -242,7 +242,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 setCurrentStep(0);
             }
         } catch (error) {
-            console.error("Error creating AI Chat Agent:", error);
+            console.error("Error creating Chat Agent Service:", error);
             setIsCreating(false);
             setCurrentStep(0);
         } finally {

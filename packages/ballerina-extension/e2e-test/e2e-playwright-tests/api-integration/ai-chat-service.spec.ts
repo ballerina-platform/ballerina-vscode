@@ -23,7 +23,7 @@ import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
 // Titles use "AI Chat Service"; the product UI calls the same artifact
-// "AI Chat Agent" (kept verbatim in the selectors below).
+// "Chat Agent Service" (kept verbatim in the selectors below).
 export default function createTests() {
     test.describe.serial('AI Chat Service Tests', {
     }, async () => {
@@ -33,7 +33,7 @@ export default function createTests() {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new AI Chat Service in test attempt: ', testAttempt);
 
-            const artifactWebView = await createArtifactAndGetWebview('AI Chat Agent', 'ai-agent-card');
+            const artifactWebView = await createArtifactAndGetWebview('Chat Agent Service', 'ai-agent-card');
             sampleName = `sample${testAttempt}`;
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
@@ -52,7 +52,7 @@ export default function createTests() {
             const diagramCanvas = artifactWebView.locator('#bi-diagram-canvas');
             await diagramCanvas.waitFor({ state: 'visible', timeout: 240000 });
 
-            const diagramTitle = artifactWebView.locator('h2', { hasText: 'AI Chat Agent' });
+            const diagramTitle = artifactWebView.locator('h2', { hasText: 'Chat Agent Service' });
             await diagramTitle.waitFor();
 
             // Check if the agent call node is visible
