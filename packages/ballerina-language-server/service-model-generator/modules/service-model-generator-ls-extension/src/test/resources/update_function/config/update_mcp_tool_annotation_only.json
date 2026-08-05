@@ -1,0 +1,240 @@
+{
+  "filePath": "update_mcp_tool.bal",
+  "description": "Update MCP tool whose source had an annotation-only description (description hoisted to doc comment, annotation removed)",
+  "function": {
+    "metadata": {
+      "label": "",
+      "description": ""
+    },
+    "kind": "REMOTE",
+    "accessor": {
+      "metadata": {
+        "label": "Accessor",
+        "description": "The accessor of the function"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "name": {
+      "metadata": {
+        "label": "Function Name",
+        "description": "The name of the function"
+      },
+      "value": "deleteBook",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "documentation": {
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "parameters": [
+      {
+        "metadata": {
+          "label": "bookId",
+          "description": "bookId"
+        },
+        "kind": "REQUIRED",
+        "type": {
+          "metadata": {
+            "label": "Parameter Type",
+            "description": "The type of the parameter"
+          },
+          "value": "int",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "name": {
+          "metadata": {
+            "label": "Parameter Name",
+            "description": "The name of the parameter"
+          },
+          "value": "bookId",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "defaultValue": {
+          "metadata": {
+            "label": "Default Value",
+            "description": "The default value of the parameter"
+          },
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      }
+    ],
+    "returnType": {
+      "hasError": false,
+      "isGraphqlId": false,
+      "metadata": {
+        "label": "Return Type",
+        "description": "The return type of the function"
+      },
+      "value": "string|error",
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "enabled": true,
+    "optional": true,
+    "editable": true,
+    "canAddParameters": true,
+    "codedata": {
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 12,
+          "offset": 4
+        },
+        "endLine": {
+          "line": 17,
+          "offset": 5
+        }
+      },
+      "orgName": "ballerina",
+      "packageName": "mcp",
+      "moduleName": "mcp"
+    },
+    "properties": {
+      "toolDescription": {
+        "metadata": {
+          "label": "Tool Description",
+          "description": "Description of what this MCP tool does"
+        },
+        "placeholder": "Describe what this tool does...",
+        "value": "Delete a book from the bookstore by its ID",
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      },
+      "annotTool": {
+        "metadata": {
+          "label": "Tool",
+          "description": "Tool"
+        },
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "Tool",
+          "moduleName": "mcp"
+        },
+        "value": "{\n        description: \"Delete a book from the bookstore by its ID\"\n    }",
+        "types": [],
+        "enabled": false,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      }
+    }
+  },
+  "output": {
+    "update_mcp_tool.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 12,
+            "character": 4
+          },
+          "end": {
+            "line": 14,
+            "character": 5
+          }
+        },
+        "newText": "# Delete a book from the bookstore by its ID\n    #\n        # + return - string|error\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 15,
+            "character": 30
+          },
+          "end": {
+            "line": 15,
+            "character": 63
+          }
+        },
+        "newText": "(int bookId) returns string|error "
+      }
+    ]
+  }
+}
