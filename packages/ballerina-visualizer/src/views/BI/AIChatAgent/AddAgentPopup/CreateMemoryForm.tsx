@@ -75,7 +75,7 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
                     setLoadError("Unable to load a memory template.");
                     return;
                 }
-                nodeTemplate.codedata.lineRange = endOfFile as any;
+                nodeTemplate.codedata.lineRange = endOfFile;
                 setFilePath(endOfFile.fileName);
                 setTargetLineRange(endOfFile);
                 setTemplate(nodeTemplate);
@@ -99,7 +99,7 @@ export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
         try {
             const node = cloneDeep(updatedNode);
             const endOfFile = await getEndOfFileLineRange(MEMORY_FILE_NAME, rpcClient);
-            node.codedata.lineRange = endOfFile as any;
+            node.codedata.lineRange = endOfFile;
             const response = await rpcClient
                 .getBIDiagramRpcClient()
                 .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
