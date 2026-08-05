@@ -68,7 +68,7 @@ export function generateEngine(): DiagramEngine {
     engine.getNodeFactories().registerFactory(new CallActivityNodeFactory());
     engine.getNodeFactories().registerFactory(new SendDataNodeFactory());
     engine.getNodeFactories().registerFactory(new WaitDataNodeFactory());
-    engine.getNodeFactories().registerFactory(new AgentNodeFactory(NodeTypes.AGENT_TYPE_NODE));
+    engine.getNodeFactories().registerFactory(new AgentNodeFactory(NodeTypes.TYPED_AGENT_NODE));
     engine.getNodeFactories().registerFactory(new AgentNodeFactory());
 
     engine.getLayerFactories().registerFactory(new OverlayLayerFactory());

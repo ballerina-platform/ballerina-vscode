@@ -74,6 +74,7 @@ export enum MACHINE_VIEW {
     BIComponentView = "BI Component View",
     AddConnectionWizard = "Add Connection Wizard",
     AddAgent = "Add Agent",
+    AddAgentDefinition = "Add Agent Definition",
     ConnectionConfiguration = "Connection Configuration",
     AddCustomConnector = "Add Custom Connector",
     ViewConfigVariables = "View Config Variables",
@@ -92,12 +93,14 @@ export enum MACHINE_VIEW {
     BIServiceConfigView = "Service Config View",
     BIListenerConfigView = "Listener Config View",
     BIServiceClassDesigner = "Service Class Designer",
+    AgentDefinitionDesigner = "Agent Definition Designer",
     BIServiceClassConfigView = "Service Class Config View",
     BIDataMapperForm = "Add Data Mapper SKIP",
     AIAgentDesigner = "AI Agent Designer",
     AIChatAgentWizard = "Chat Agent Service Wizard",
     ResolveMissingDependencies = "Resolve Missing Dependencies",
     ServiceFunctionForm = "Service Function Form",
+    AIAgentToolForm = "Agent Tool Form",
     BISamplesView = "BI Samples View",
     ReviewMode = "Review Mode SKIP",
     EvalsetViewer = "Evalset Viewer SKIP",
@@ -117,7 +120,7 @@ export interface CommandProps {
 export const FOCUS_FLOW_DIAGRAM_VIEW = {
     NP_FUNCTION: "NP_FUNCTION",
     AGENT: "AGENT",
-    AGENT_TYPE: "AGENT_TYPE",
+    TYPED_AGENT: "TYPED_AGENT",
 } as const;
 
 export type FocusFlowDiagramView = typeof FOCUS_FLOW_DIAGRAM_VIEW[keyof typeof FOCUS_FLOW_DIAGRAM_VIEW];

@@ -19,6 +19,8 @@ import {
     AIAgentAPI,
     AiModuleOrgRequest,
     AiModuleOrgResponse,
+    AIGentToolsResponse,
+    GenAgentDefinitionRequest,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -39,12 +41,12 @@ import {
     DefaultProviderKind
 } from "@wso2/ballerina-core";
 import { existsSync } from "fs";
+import path from "path";
 import vscode from "vscode";
 import { URI, Utils } from "vscode-uri";
 import { StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
-import { isLibraryProject } from "../../utils/config";
 import { addMissingImports, checkProjectDiagnostics, removeUnusedImports } from "../ai-panel/repair-utils";
 import { CONFIGURE_DEFAULT_MODEL_COMMAND } from "../../features/ai/constants";
 
@@ -55,6 +57,14 @@ interface EntryPosition {
 }
 
 export class AiAgentRpcManager implements AIAgentAPI {
+    private async ensureAgentsFile(projectPath: string): Promise<string> {
+        const agentsFilePath = Utils.joinPath(URI.file(projectPath), "agents.bal").fsPath;
+        if (!existsSync(agentsFilePath)) {
+            await writeBallerinaFileDidOpen(agentsFilePath, "");
+        }
+        return agentsFilePath;
+    }
+
     async getAllAgents(params: AINodesRequest): Promise<AINodesResponse> {
         return new Promise(async (resolve) => {
             const context = StateMachine.context();
@@ -125,6 +135,19 @@ export class AiAgentRpcManager implements AIAgentAPI {
                 console.log(error);
             }
         });
+    }
+
+    async genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
+        if (!params.description) {
+            params.description = "";
+        }
+        await this.ensureAgentsFile(path.dirname(params.filePath));
+        const response: AIGentToolsResponse = await StateMachine.langClient().genAgentDefinition(params);
+        const artifacts = await updateSourceCode({
+            textEdits: response.textEdits,
+            description: "Create agent definition",
+        });
+        return { artifacts, textEdits: response.textEdits };
     }
 
     async fixMissingImports(): Promise<void> {
@@ -218,7 +241,7 @@ export class AiAgentRpcManager implements AIAgentAPI {
             mcpEdits = mcpToolKitEdits.textEdits;
         }
 
-        // 2. Update the agent's tools array with the toolkit variable name.
+        // Update the agent's tools array with the toolkit variable name.
         const agentFlowNode = params.agentFlowNode;
         let toolsValue = agentFlowNode.properties["tools"].value;
 

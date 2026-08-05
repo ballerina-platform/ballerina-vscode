@@ -358,6 +358,7 @@ interface NodeListProps {
     onAddFunction?: () => void;
     onAdd?: () => void;
     addButtonLabel?: string;
+    connectionAddLabel?: string;
     onBack?: () => void;
     onClose?: () => void;
     searchPlaceholder?: string;
@@ -382,6 +383,7 @@ export function NodeList(props: NodeListProps) {
         onAddFunction,
         onAdd,
         addButtonLabel,
+        connectionAddLabel,
         onBack,
         onClose,
         searchPlaceholder,
@@ -780,8 +782,9 @@ export function NodeList(props: NodeListProps) {
                                                         
                                                         // Only render if the handler exists in props
                                                         if (!propsHandler || !handler) return null;
-                                                        
-                                                        const tooltipText = action.tooltip || addButtonLabel || "";
+
+                                                        const tooltipText = (action.handlerKey === "onAddConnection" && connectionAddLabel)
+                                                            || action.tooltip || addButtonLabel || "";
                                                         
                                                         return (
                                                             <Tooltip key={`${group.title}-${actionIndex}`} content={tooltipText}>
@@ -835,8 +838,9 @@ export function NodeList(props: NodeListProps) {
                                                     
                                                     // Only render if the handler exists in props
                                                     if (!propsHandler || !handler || action.hideOnEmptyState) return null;
-                                                    
-                                                    const buttonLabel = action.emptyStateLabel || addButtonLabel || "Add";
+
+                                                    const buttonLabel = (action.handlerKey === "onAddConnection" && connectionAddLabel)
+                                                        || action.emptyStateLabel || addButtonLabel || "Add";
                                                     
                                                     return (
                                                         <S.HighlightedButton 

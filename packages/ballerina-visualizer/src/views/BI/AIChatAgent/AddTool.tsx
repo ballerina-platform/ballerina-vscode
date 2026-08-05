@@ -23,7 +23,6 @@ import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 const Container = styled.div`
     padding: 20px;
     box-sizing: border-box;
-    /* viewport minus the SidePanel title bar, so the cards scroll within the panel */
     height: calc(100vh - 56px);
     overflow-y: auto;
 `;

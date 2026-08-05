@@ -25,7 +25,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField } from "../../Form/types";
 import { useFormContext } from "../../../context";
 import { capitalize } from "../utils";
-import { ConnectionSelectEditor, ConnectorFilter } from "../MultiModeExpressionEditor/ConnectionSelectEditor/ConnectionSelectEditor";
+import { NodeReferenceFilter, NodeReferenceSelectEditor } from "../MultiModeExpressionEditor/NodeReferenceSelectEditor/NodeReferenceSelectEditor";
 
 interface ConnectionEditorProps {
     field: FormField;
@@ -92,7 +92,7 @@ export const ConnectionEditor: React.FC<ConnectionEditorProps> = ({ field }) => 
 
     const value = (watch(field.key) ?? field.value ?? "") as string;
     const connectors: AllowedConnector[] = field.metadata?.connectors ?? [];
-    const connectorFilters: ConnectorFilter[] | undefined = connectors.length > 0
+    const nodeReferenceFilters: NodeReferenceFilter[] | undefined = connectors.length > 0
         ? connectors.map(c => ({ module: c.codedata?.module, object: c.codedata?.object }))
         : undefined;
 
@@ -152,11 +152,11 @@ export const ConnectionEditor: React.FC<ConnectionEditorProps> = ({ field }) => 
                 {!field.optional && <Required>*</Required>}
             </Label>
             {field.documentation && <Description>{field.documentation}</Description>}
-            <ConnectionSelectEditor
+            <NodeReferenceSelectEditor
                 value={value}
                 field={field}
                 onChange={(val) => handleChange(val)}
-                connectorFilters={connectorFilters}
+                nodeReferenceFilters={nodeReferenceFilters}
             />
             {connectors.length > 0 && (
                 <AddButtons>

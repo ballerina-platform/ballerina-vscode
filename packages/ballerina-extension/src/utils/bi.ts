@@ -41,7 +41,7 @@ import {
     SuggestedProjectDefaultsResponse
 } from "@wso2/ballerina-core";
 import { StateMachine, history, openView } from "../stateMachine";
-import { applyModifications, modifyFileContent, writeBallerinaFileDidOpen } from "./modification";
+import { applyModifications, modifyFileContent, writeBallerinaFileDidOpen, writeBallerinaFileSilent } from "./modification";
 import { ModulePart, STKindChecker } from "@wso2/syntax-tree";
 import { URI } from "vscode-uri";
 import { debug } from "./logger";
@@ -457,7 +457,7 @@ function getBallerinaDistribution(): string | undefined {
         if (!ballerinaVersion) {
             return undefined;
         }
-        
+
         // Extract version number from strings like "Ballerina 2201.13.0" or "2201.13.0"
         // Match pattern: <numbers>.<numbers>.<numbers>
         const versionMatch = ballerinaVersion.match(/(\d+\.\d+\.\d+)/);
@@ -579,7 +579,7 @@ packages = ["${sanitizeName(projectRequest.packageName)}"]
     return workspaceRoot;
 }
 
-export async function createBIProjectPure(projectRequest: ProjectRequest): Promise<string> {
+export async function createBIProjectPure(projectRequest: ProjectRequest, options?: { silentFiles?: boolean }): Promise<string> {
     const projectInfo = setupProjectInfo(projectRequest);
     const {
         projectRoot,
@@ -592,9 +592,11 @@ export async function createBIProjectPure(projectRequest: ProjectRequest): Promi
 
     const EMPTY = "\n";
 
+    const writeSkeletonFile = options?.silentFiles ? writeBallerinaFileSilent : writeBallerinaFileDidOpen;
+
     // Get the Ballerina distribution version
     const distribution = getBallerinaDistribution();
-    
+
     // Build the distribution line if version is available
     const distributionLine = distribution ? `distribution = "${distribution}"\n` : '';
 
@@ -613,50 +615,45 @@ sticky = true
     if (projectRequest.isLibrary) {
         const libraryBal = path.join(projectRoot, 'lib.bal');
         const libraryBalContent = `import ${VALIDATOR_PACKAGE_NAME} as _;`;
-        writeBallerinaFileDidOpen(libraryBal, libraryBalContent);
-        try {
-            await runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`);
-        } catch (error) {
-            console.error('Failed to pull library validator package:', error);
-        }
+        writeSkeletonFile(libraryBal, libraryBalContent);
     }
 
     // Create Ballerina.toml file
     const ballerinaTomlPath = path.join(projectRoot, 'Ballerina.toml');
-    writeBallerinaFileDidOpen(ballerinaTomlPath, ballerinaTomlContent);
+    writeSkeletonFile(ballerinaTomlPath, ballerinaTomlContent);
 
     // Create connections.bal file
     const connectionsBalPath = path.join(projectRoot, 'connections.bal');
-    writeBallerinaFileDidOpen(connectionsBalPath, EMPTY);
+    writeSkeletonFile(connectionsBalPath, EMPTY);
 
     // Create config.bal file
     const configurationsBalPath = path.join(projectRoot, 'config.bal');
-    writeBallerinaFileDidOpen(configurationsBalPath, EMPTY);
+    writeSkeletonFile(configurationsBalPath, EMPTY);
 
     // Create types.bal file
     const typesBalPath = path.join(projectRoot, 'types.bal');
-    writeBallerinaFileDidOpen(typesBalPath, EMPTY);
+    writeSkeletonFile(typesBalPath, EMPTY);
 
     // Create agents.bal file
     const agentsBal = path.join(projectRoot, 'agents.bal');
-    writeBallerinaFileDidOpen(agentsBal, EMPTY);
+    writeSkeletonFile(agentsBal, EMPTY);
 
     // Create functions.bal file
     const functionsBal = path.join(projectRoot, 'functions.bal');
-    writeBallerinaFileDidOpen(functionsBal, EMPTY);
+    writeSkeletonFile(functionsBal, EMPTY);
 
     // Create datamappings.bal file
     const datamappingsBalPath = path.join(projectRoot, 'data_mappings.bal');
-    writeBallerinaFileDidOpen(datamappingsBalPath, EMPTY);
+    writeSkeletonFile(datamappingsBalPath, EMPTY);
 
     if (!projectRequest.isLibrary) {
         // Create main.bal file
         const mainBal = path.join(projectRoot, 'main.bal');
-        writeBallerinaFileDidOpen(mainBal, EMPTY);
+        writeSkeletonFile(mainBal, EMPTY);
 
         // Create automation.bal file
         const automationBal = path.join(projectRoot, 'automation.bal');
-        writeBallerinaFileDidOpen(automationBal, EMPTY);
+        writeSkeletonFile(automationBal, EMPTY);
     }
 
     // Create .vscode configuration files
@@ -666,11 +663,15 @@ sticky = true
     const gitignorePath = path.join(projectRoot, '.gitignore');
     fs.writeFileSync(gitignorePath, gitignoreContent.trim());
 
+    if (projectRequest.isLibrary) {
+        void runBackgroundTerminalCommand(`bal pull ${VALIDATOR_PACKAGE_NAME}`).catch((error) => console.error('Failed to pull library validator package:', error));
+    }
+
     console.log(`Integration(default profile) created successfully at ${projectRoot}`);
     return projectRoot;
 }
 
-export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest) {
+export async function convertProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<string> {
     const currentProjectPath = StateMachine.context().projectPath;
     const tomlValues = await getProjectTomlValues(currentProjectPath);
     const currentPackageName = tomlValues?.package?.name;
@@ -714,12 +715,14 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     const existingProjectDirName = path.basename(currentProjectPath);
     createWorkspaceToml(newDirectory, params.workspaceName, existingProjectDirName);
 
+    // Without a new package the conversion's result is the project root itself.
+    let projectPath = newDirectory;
     if (params.addNewAfterConvert) {
         // Resolved after the move + createWorkspaceToml, so it can't collide with the
         // package just moved in.
         const packageFolder = resolvePackageFolderInWorkspace(newDirectory, params);
         addToWorkspaceToml(newDirectory, packageFolder);
-        await createProjectInWorkspace(params, newDirectory, packageFolder);
+        projectPath = await createProjectInWorkspace(params, newDirectory, packageFolder);
     }
 
     // create settings.json file
@@ -728,6 +731,7 @@ export async function convertProjectToWorkspace(params: AddProjectToWorkspaceReq
     await writeLocalContextYaml(newDirectory, params.orgHandle, params.projectHandle);
 
     openInVSCode(newDirectory);
+    return projectPath;
 }
 
 /** Adds a package to the project already open in this window; returns the new package's root. */
@@ -736,7 +740,25 @@ export async function addProjectToExistingWorkspace(params: AddProjectToWorkspac
     const packageFolder = resolvePackageFolderInWorkspace(workspacePath, params);
     addToWorkspaceToml(workspacePath, packageFolder);
 
-    return createProjectInWorkspace(params, workspacePath, packageFolder);
+    const projectPath = await createProjectInWorkspace(params, workspacePath, packageFolder);
+    notifyWorkspaceTomlChanged(workspacePath);
+
+    return projectPath;
+}
+
+function notifyWorkspaceTomlChanged(workspacePath: string) {
+    const ballerinaTomlPath = path.join(workspacePath, 'Ballerina.toml');
+    if (!fs.existsSync(ballerinaTomlPath)) {
+        return;
+    }
+    const content = fs.readFileSync(ballerinaTomlPath, 'utf8');
+    StateMachine.langClient().didChange({
+        contentChanges: [{ text: content }],
+        textDocument: {
+            uri: Uri.file(ballerinaTomlPath).toString(),
+            version: 1
+        }
+    });
 }
 
 function createWorkspaceToml(workspacePath: string, projectTitle: string, packageName: string) {
@@ -1000,7 +1022,7 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
     if (!fs.existsSync(ballerinaTomlPath)) {
         return;
     }
-    
+
     try {
         const ballerinaTomlContent = fs.readFileSync(ballerinaTomlPath, 'utf8');
         const tomlData = parse(ballerinaTomlContent) as Partial<WorkspaceTomlValues>;
@@ -1056,13 +1078,13 @@ function removePackageFromToml(tomlContent: string, packagePath: string): string
 
     if (match) {
         const currentArrayContent = match[1].trim();
-        
+
         // Split by comma, trim whitespace, and filter out the package to remove
         const packages = currentArrayContent
             .split(',')
             .map(pkg => pkg.trim())
             .filter(pkg => pkg && pkg !== `"${packagePath}"`);
-        
+
         const newArrayContent = packages.length > 0 ? packages.join(', ') : '';
         return tomlContent.replace(packagesRegex, `packages = [${newArrayContent}]`);
     } else {
@@ -1092,7 +1114,7 @@ async function createProjectInWorkspace(
         projectHandle: params.projectHandle
     };
 
-    return await createBIProjectPure(projectRequest);
+    return await createBIProjectPure(projectRequest, { silentFiles: true });
 }
 
 /**

@@ -39,6 +39,7 @@ import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEd
 import { getValueForDropdown, isDropdownField } from "../editors/utils";
 import {
     Diagnostic,
+    CodeData,
     LineRange,
     NodeKind,
     SubPanel,
@@ -169,6 +170,9 @@ namespace S {
         align-items: center;
         z-index: 10;
         width: 100%;
+        padding: 16px 0 0;
+        background: var(--vscode-editor-background);
+        border-top: 1px solid var(--vscode-panel-border);
     `;
 
     export const FooterActionButton = styled(Button)`
@@ -384,7 +388,7 @@ export interface FormProps {
         selectedConnector: AvailableNode;
         onSaved: (variableName: string) => void;
     }) => void;
-    onCreateConnection?: (kind: string, onCreated: (variableName: string) => void) => void;
+    onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
 }
 
 export const Form = forwardRef((props: FormProps, _ref) => {
@@ -435,7 +439,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         bottomFields = [],
         updateImports,
         onRequestCreateConnection,
-        onCreateConnection,
+        onCreateNode,
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -846,7 +850,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }, [formFields, unregister, trigger]);
 
     // has advance fields
-    const hasAdvanceFields = formFields.some((field) => field.advanced && field.enabled && !field.hidden) || advancedChoiceFields.length > 0;
+    const hasAdvanceFields = formFields.some((field) => field.advanced && field.enabled && !field.hidden)
+        || advancedChoiceFields.length > 0
+        || injectedComponents?.some((component) => component.advanced) === true;
     const variableField = formFields.find((field) => field.key === "variable");
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
@@ -888,7 +894,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             kind: selectedNode,
         },
         onRequestCreateConnection,
-        onCreateConnection,
+        onCreateNode,
     };
 
     // Find the first editable identifier field

@@ -21,7 +21,7 @@ import { FlowNode } from "../../../utils/types";
 import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 
 export class AgentNodeModel extends BaseAgentNodeModel {
-    constructor(node: FlowNode, type: NodeTypes.AGENT_NODE | NodeTypes.AGENT_TYPE_NODE = NodeTypes.AGENT_NODE) {
+    constructor(node: FlowNode, type: NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE = NodeTypes.AGENT_NODE) {
         super(node, type);
     }
 }

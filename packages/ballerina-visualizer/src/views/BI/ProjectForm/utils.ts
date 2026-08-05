@@ -174,6 +174,27 @@ export const splitPath = (fullPath: string): { base: string; name: string } => {
     return { base, name: fullPath.slice(lastSep + 1) };
 };
 
+export const toPascalCase = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // split camelCase/PascalCase boundaries
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join("")
+        .replace(/^[0-9]+/, ""); // identifiers cannot start with a digit
+};
+
+export const toSnakeCasePackageName = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase boundary
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // acronym boundary (HTTPClient -> HTTP_Client)
+        .replace(/[^a-zA-Z0-9]+/g, "_") // separators -> underscore
+        .toLowerCase()
+        .replace(/_{2,}/g, "_")
+        .replace(/^_+/, "")
+        .replace(/_+$/, "");
+};
+
 // Reserved organization names
 const RESERVED_ORG_NAMES = ["ballerina", "ballerinax", "wso2"];
 

@@ -30,12 +30,26 @@ const NODE_ICON_MAP: Record<string, string> = {
     DATA_LOADER: "bi-data-table",
     CHUNKER: "bi-cut",
     SHORT_TERM_MEMORY_STORE: "bi-memory",
+    AGENT: "bi-ai-agent",
+    TYPED_AGENT: "bi-ai-agent",
 };
 
 // Modules that always use node-type icons, skipping the icon URL fallback
 const GENERIC_ICON_MODULES = new Set(["ai.devant", "ai"]);
 
-export function getConnectionIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
+function getFallbackIcon(codedata: CodeData): React.ReactElement {
+    const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
+    const nodeIcon = codedata.node && NODE_ICON_MAP[codedata.node];
+    if (nodeIcon) return <Icon name={nodeIcon} sx={iconSx} />;
+    return <DefaultLlmIcon size={ICON_SIZE} />;
+}
+
+const UrlIcon: React.FC<{ url: string; fallback: React.ReactElement }> = ({ url, fallback }) => {
+    const [errored, setErrored] = useState(false);
+    return errored ? fallback : <img src={url} alt="" style={{ width: ICON_SIZE, height: ICON_SIZE }} onError={() => setErrored(true)} />;
+};
+
+export function getNodeReferenceIcon(codedata: CodeData, iconUrl?: string): React.ReactElement {
     const iconSx = { width: ICON_SIZE, height: ICON_SIZE, fontSize: ICON_SIZE };
 
     // Check AI module icon map first (e.g. OpenAI, Anthropic, etc.)
@@ -51,29 +65,20 @@ export function getConnectionIcon(codedata: CodeData, iconUrl?: string): React.R
         }
     }
 
-    // Icon URL from metadata (fetched from Central) — skip for modules that prefer generic icons
     if (iconUrl && !(codedata.module && GENERIC_ICON_MODULES.has(codedata.module))) {
-        return <img src={iconUrl} style={{ width: ICON_SIZE, height: ICON_SIZE }} />;
+        return <UrlIcon key={iconUrl} url={iconUrl} fallback={getFallbackIcon(codedata)} />;
     }
 
-    // Icon by node type
-    const nodeIcon = codedata.node && NODE_ICON_MAP[codedata.node];
-    if (nodeIcon) return <Icon name={nodeIcon} sx={iconSx} />;
-
-    return <DefaultLlmIcon size={ICON_SIZE} />;
+    return getFallbackIcon(codedata);
 }
 
-// --- Select Item type ---
-
-export interface ConnectionSelectItem {
+export interface NodeReferenceSelectItem {
     id: string;
     label: string;
     value: string;
     codedata?: CodeData;
     iconUrl?: string;
 }
-
-// --- Styled Components ---
 
 const SelectContainer = styled.div`
     display: flex;
@@ -171,12 +176,10 @@ const FieldLabel = styled.label`
     margin-bottom: 2px;
 `;
 
-// --- Component ---
-
-interface ConnectionIconSelectProps {
+interface NodeReferenceSelectProps {
     id: string;
     label?: string;
-    items: ConnectionSelectItem[];
+    items: NodeReferenceSelectItem[];
     value?: string;
     placeholder?: string;
     emptyMessage?: string;
@@ -186,7 +189,7 @@ interface ConnectionIconSelectProps {
     onChange: (value: string) => void;
 }
 
-export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
+export const NodeReferenceSelect: React.FC<NodeReferenceSelectProps> = ({
     id,
     label,
     items,
@@ -221,31 +224,20 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
 
     const focusOption = (index: number) => {
         const options = containerRef.current?.querySelectorAll<HTMLElement>('[role="option"]');
-        if (options && options[index]) {
-            options[index].focus();
-        }
+        options?.[index]?.focus();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (disabled) return;
+        if (disabled || isEmpty || loading) return;
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             setOpen(!open);
         } else if (e.key === "Escape") {
             setOpen(false);
-        } else if (e.key === "ArrowDown") {
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
             e.preventDefault();
-            if (!open) {
-                setOpen(true);
-            }
-            // Focus first option after render
-            setTimeout(() => focusOption(0), 0);
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            if (!open) {
-                setOpen(true);
-            }
-            setTimeout(() => focusOption(items.length - 1), 0);
+            setOpen(true);
+            setTimeout(() => focusOption(e.key === "ArrowDown" ? 0 : items.length - 1), 0);
         }
     };
 
@@ -293,7 +285,7 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
                             </>
                         ) : selectedItem ? (
                             <>
-                                {selectedItem.codedata && getConnectionIcon(selectedItem.codedata, selectedItem.iconUrl)}
+                                {selectedItem.codedata && getNodeReferenceIcon(selectedItem.codedata, selectedItem.iconUrl)}
                                 <SelectedLabel>{selectedItem.label}</SelectedLabel>
                             </>
                         ) : (
@@ -302,7 +294,7 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
                     </SelectedDisplay>
                     {!loading && !isEmpty && <Codicon name="chevron-down" sx={{ fontSize: 14, flexShrink: 0 }} />}
                 </SelectTrigger>
-                {open && items.length > 0 && (
+                {open && !disabled && !loading && items.length > 0 && (
                     <DropdownPanel role="listbox">
                         {items.map((item, index) => (
                             <OptionItem
@@ -314,7 +306,7 @@ export const ConnectionIconSelect: React.FC<ConnectionIconSelectProps> = ({
                                 onClick={() => handleSelect(item.value)}
                                 onKeyDown={(e: React.KeyboardEvent) => handleOptionKeyDown(e, index, item.value)}
                             >
-                                {item.codedata && getConnectionIcon(item.codedata, item.iconUrl)}
+                                {item.codedata && getNodeReferenceIcon(item.codedata, item.iconUrl)}
                                 <OptionLabel>{item.label}</OptionLabel>
                             </OptionItem>
                         ))}

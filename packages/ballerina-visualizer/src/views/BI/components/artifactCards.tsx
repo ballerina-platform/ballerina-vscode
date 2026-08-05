@@ -187,6 +187,8 @@ export interface OtherArtifactCard {
     isBeta?: boolean;
     /** Shown only when natural-programming support and experimental mode are on. */
     requiresNaturalFunctions?: boolean;
+    /** Shown only inside a library package. */
+    requiresLibrary?: boolean;
 }
 
 export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
@@ -227,6 +229,13 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         displayName: "Agent",
         icon: <Icon name="bi-ai-agent" />,
         directoryKey: DIRECTORY_MAP.AGENT,
+    },
+    {
+        id: "agent-definition",
+        displayName: "Agent Definition",
+        icon: <Icon name="symbol-class" isCodicon={true} />,
+        directoryKey: DIRECTORY_MAP.AGENT_DEFINITION,
+        requiresLibrary: true,
     },
     {
         id: "configurable",

@@ -67,6 +67,13 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                 },
                 isPopup: true,
             });
+        } else if (key === DIRECTORY_MAP.AGENT_DEFINITION) {
+            await rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    view: MACHINE_VIEW.AddAgentDefinition,
+                },
+            });
         } else if (key === DIRECTORY_MAP.DATA_MAPPER) {
             await rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
@@ -111,7 +118,9 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
     const q = props.searchQuery;
     const cards = OTHER_ARTIFACT_CARDS.filter(
         (card) =>
-            (showNaturalFunctions || !card.requiresNaturalFunctions) && cardMatchesSearch(card.displayName, q)
+            (showNaturalFunctions || !card.requiresNaturalFunctions) &&
+            (isLibrary || !card.requiresLibrary) &&
+            cardMatchesSearch(card.displayName, q)
     );
     if (cards.length === 0) {
         return null;

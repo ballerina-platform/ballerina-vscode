@@ -66,6 +66,11 @@ namespace S {
     `;
 
     export const Title = styled.div<{}>`
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 13px;
     `;
 
@@ -173,6 +178,15 @@ namespace S {
     export const ComponentTitle = styled.div<{}>`
         color: ${ThemeColors.ON_SURFACE};
     `;
+
+    export const OriginBadge = styled.div`
+        flex-shrink: 0;
+        padding: 2px 6px;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        background-color: ${ThemeColors.SURFACE_CONTAINER};
+        border-radius: 3px;
+        font-size: 11px;
+    `;
 }
 
 interface GroupListProps {
@@ -225,6 +239,11 @@ export function GroupList(props: GroupListProps) {
             <S.TitleRow onClick={handleToggleList}>
                 <S.CardIcon>{category.icon || <LogIcon />}</S.CardIcon>
                 <S.Title>{category.title}</S.Title>
+                {category.origin && (
+                    <S.OriginBadge>
+                        {category.origin === "dependency" ? "Parameter" : "Built in"}
+                    </S.OriginBadge>
+                )}
                 {category.tooltip && (
                     <Codicon
                         sx={{ color: category.tooltip?.color }}

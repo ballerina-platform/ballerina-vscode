@@ -17,17 +17,19 @@
  */
 
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ToolData } from "@wso2/ballerina-core";
+import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
+    from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
 import {
     findFlowNode,
     findFlowNodeByModuleVarName,
-    refreshNodeLineRangeFromArtifacts,
+    refreshAgentNodeLineRange,
     removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
+    resolveAgentNodePosition,
 } from "./utils";
 
 export type AgentEditorView =
@@ -71,10 +73,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const [memoryNode, setMemoryNode] = useState<FlowNode>();
     const [selectedTool, setSelectedTool] = useState<ToolData>();
     const [selectedAgentName, setSelectedAgentName] = useState("");
-    const activeAgent = useRef<FlowNode>();
-
     const activate = useCallback((node: FlowNode) => {
-        activeAgent.current = node;
         setAgentNode(node);
         host.onSelectionChange?.(node);
     }, [host]);
@@ -86,26 +85,12 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         setMemoryNode(undefined);
         setSelectedTool(undefined);
         setSelectedAgentName("");
-        activeAgent.current = undefined;
         setAgentNode(undefined);
         host.onSelectionChange?.(undefined);
         void host.onRefresh(position);
     }, [host]);
 
-    const resolveToolFunction = useCallback(async (toolName: string, agentNode?: FlowNode) => {
-        const agentFileName = (agentNode ?? activeAgent.current)?.codedata?.lineRange?.fileName || "agents.bal";
-        const response = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
-            functionName: toolName,
-            fileName: agentFileName,
-            projectPath: host.projectPath,
-        });
-        const lineRange = response?.functionDefinition?.codedata?.lineRange;
-        if (lineRange) {
-            const { filePath: documentUri } = await rpcClient
-                .getVisualizerRpcClient()
-                .joinProjectPath({ segments: [lineRange.fileName] });
-            return { documentUri, lineRange };
-        }
+    const resolveToolComponent = useCallback(async (toolName: string) => {
         const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
         const found: any = project?.components ? findFunctionByName(project.components, toolName) : null;
         if (!found) {
@@ -119,7 +104,24 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                 endLine: { line: found.endLine, offset: found.endColumn },
             },
         };
-    }, [host.projectPath, rpcClient]);
+    }, [rpcClient]);
+
+    const resolveToolFunction = useCallback(async (toolName: string, agentNode: FlowNode) => {
+        const agentFileName = agentNode.codedata?.lineRange?.fileName || "agents.bal";
+        const response = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
+            functionName: toolName,
+            fileName: agentFileName,
+            projectPath: host.projectPath,
+        });
+        const lineRange = response?.functionDefinition?.codedata?.lineRange;
+        if (lineRange) {
+            const { filePath: documentUri } = await rpcClient
+                .getVisualizerRpcClient()
+                .joinProjectPath({ segments: [lineRange.fileName] });
+            return { documentUri, lineRange };
+        }
+        return resolveToolComponent(toolName);
+    }, [host.projectPath, resolveToolComponent, rpcClient]);
 
     const selectMemory = useCallback(async (node: FlowNode) => {
         activate(node);
@@ -149,6 +151,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             const name = node.properties?.variable?.value as string;
             const memory = (node.properties as any)?.[memoryKey]?.value;
             const updated = structuredClone(node);
+            let deleteArtifacts: ProjectStructureArtifactResponse[] | undefined;
             if (typeof memory === "string" && memory.trim() && memory.trim() !== "()") {
                 const memoryVar = await findFlowNodeByModuleVarName(memory.trim(), rpcClient);
                 if (memoryVar) {
@@ -158,15 +161,17 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     const response = await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
                         filePath: path, flowNode: memoryVar,
                     });
-                    refreshNodeLineRangeFromArtifacts(updated, response?.artifacts, name);
+                    deleteArtifacts = response?.artifacts;
                 }
             }
+            await refreshAgentNodeLineRange(updated, rpcClient, deleteArtifacts);
             (updated.properties as any)[memoryKey].value = "()";
             const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updated.codedata.lineRange.fileName],
             })).filePath;
             const response = await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
-            nextPosition = response?.artifacts?.find((artifact) => artifact.name === name)?.position;
+            nextPosition = response?.artifacts?.find((artifact) => artifact.name === name)?.position
+                ?? await resolveAgentNodePosition(updated, rpcClient);
         } catch (error) {
             console.error("Failed to delete memory", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
@@ -186,16 +191,17 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         if (!resolved) {
             return;
         }
+        const toolPosition = {
+            startLine: resolved.lineRange.startLine.line, startColumn: resolved.lineRange.startLine.offset,
+            endLine: resolved.lineRange.endLine.line, endColumn: resolved.lineRange.endLine.offset,
+        };
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
-            location: form ? {
-                documentUri: resolved.documentUri, identifier: tool.name, view: MACHINE_VIEW.BIFunctionForm,
-            } : {
+            location: {
                 documentUri: resolved.documentUri,
-                position: {
-                    startLine: resolved.lineRange.startLine.line, startColumn: resolved.lineRange.startLine.offset,
-                    endLine: resolved.lineRange.endLine.line, endColumn: resolved.lineRange.endLine.offset,
-                },
+                identifier: tool.name,
+                position: toolPosition,
+                view: form ? MACHINE_VIEW.AIAgentToolForm : MACHINE_VIEW.BIDiagram,
             },
         });
     }, [resolveToolFunction, rpcClient]);
@@ -245,6 +251,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
     const deleteTool = useCallback(async (tool: ToolData, node: FlowNode) => {
         activate(node);
         setLoading(true);
+        let nextPosition: NodePosition | undefined;
         try {
             if (tool.type?.includes("MCP Server")) {
                 const updated = removeMcpServerFromAgentNode(node, tool.name);
@@ -259,12 +266,13 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             }
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
+                await refreshAgentNodeLineRange(updated, rpcClient);
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-                    segments: [node.codedata.lineRange.fileName],
+                    segments: [updated.codedata.lineRange.fileName],
                 })).filePath;
                 await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
             }
-            const resolved = await resolveToolFunction(tool.name, node);
+            const resolved = await resolveToolComponent(tool.name);
             if (resolved) {
                 await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
                     filePath: resolved.documentUri,
@@ -276,6 +284,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
                     },
                 });
             }
+            nextPosition = await resolveAgentNodePosition(node, rpcClient);
         } catch (error) {
             console.error("Failed to delete tool", error);
             await rpcClient.getCommonRpcClient().showErrorMessage({
@@ -283,9 +292,9 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             });
         } finally {
             setLoading(false);
-            close();
+            close(nextPosition);
         }
-    }, [activate, close, deleteMcpVariableAndClass, resolveToolFunction, rpcClient]);
+    }, [activate, close, deleteMcpVariableAndClass, resolveToolComponent, rpcClient]);
 
     const resolve = useCallback(
         (node: FlowNode) => (host.resolveAgentNode ? host.resolveAgentNode(node) : node),
@@ -301,7 +310,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         goToTool: (tool, node) => void openTool(tool, resolve(node), false),
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
-        onChatWithAgent: host.onChat,
+        onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
     const back = () => setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");

@@ -69,6 +69,7 @@ export type ContextAwareExpressionEditorProps = {
     required?: boolean;
     showHeader?: boolean;
     field: FormField;
+    initialValue?: string;
     openSubPanel?: (subPanel: SubPanel) => void;
     subPanelView?: SubPanelView;
     handleOnFieldFocus?: (key: string) => void;
@@ -151,8 +152,7 @@ export namespace S {
     export const HeaderRow = styled.div({
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: '8px'
+        alignItems: 'center',
     });
 
     export const HeaderMain = styled.div({
@@ -389,6 +389,7 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
         autoFocus,
         control,
         field,
+        initialValue,
         fieldInputType,
         id,
         placeholder,
@@ -634,6 +635,22 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
             : `${field.documentation}.`
         : '';
 
+    const modeSwitcherNode = modeSwitcherContext?.isModeSwitcherEnabled ? (
+        <S.FieldInfoSection>
+            {isLoading ? (
+                <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+            ) : (
+                <ModeSwitcher
+                    fieldKey={field.key}
+                    value={modeSwitcherContext.inputMode}
+                    isRecordTypeField={modeSwitcherContext.isRecordTypeField}
+                    onChange={modeSwitcherContext.onModeChange}
+                    types={modeSwitcherContext.types}
+                />
+            )}
+        </S.FieldInfoSection>
+    ) : null;
+
     return (
         <FieldProvider
             initialField={props.field}
@@ -668,39 +685,29 @@ export const ExpressionEditor = (props: ExpressionEditorProps) => {
                                         )}
                                     </S.LabelContainer>
                                 )}
+                                {!documentation && modeSwitcherNode}
                             </S.HeaderContainer>
                         )}
-                        <S.HeaderRow>
-                            <S.HeaderMain>
-                                {isLoading ? (
-                                    documentation ? <SkeletonBase height="13px" width="80%" /> : null
-                                ) : (
-                                    <S.EditorMdContainer>
-                                        {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
-                                    </S.EditorMdContainer>
-                                )}
-                            </S.HeaderMain>
-                            {modeSwitcherContext?.isModeSwitcherEnabled && (
-                                <S.FieldInfoSection>
+                        {(documentation || !field.label) && (
+                            <S.HeaderRow>
+                                <S.HeaderMain>
                                     {isLoading ? (
-                                        <SkeletonBase height="24px" width="112px" style={{ borderRadius: '2px', marginTop: '2px' }} />
+                                        documentation ? <SkeletonBase height="13px" width="80%" /> : null
                                     ) : (
-                                        <ModeSwitcher
-                                            fieldKey={field.key}
-                                            value={modeSwitcherContext.inputMode}
-                                            isRecordTypeField={modeSwitcherContext.isRecordTypeField}
-                                            onChange={modeSwitcherContext.onModeChange}
-                                            types={modeSwitcherContext.types}
-                                        />
+                                        <S.EditorMdContainer>
+                                            {documentation && <ReactMarkdown>{documentation}</ReactMarkdown>}
+                                        </S.EditorMdContainer>
                                     )}
-                                </S.FieldInfoSection>
-                            )}
-                        </S.HeaderRow>
+                                </S.HeaderMain>
+                                {modeSwitcherNode}
+                            </S.HeaderRow>
+                        )}
                     </S.Header>
                 )}
                 <Controller
                     control={control}
                     name={key}
+                    defaultValue={initialValue}
                     rules={(() => {
                         const expressionSetType = field.types?.find(t => t.fieldType === "EXPRESSION_SET" || t.fieldType === "TEXT_SET");
                         const patternType = field.types?.find(t => t.pattern);

@@ -16,8 +16,7 @@
  * under the License.
  */
 /** @jsxImportSource @emotion/react */
-import React, { ReactNode, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { ReactNode, useState } from "react";
 import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
@@ -42,13 +41,13 @@ import {
     NODE_PADDING,
     NODE_TEXT_COLOR,
     NODE_WIDTH,
+    NodeTypes,
 } from "../../../resources/constants";
-import { Button, Icon, Item, Menu, MenuItem, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, Tooltip, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
+import NodeIcon, { ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
@@ -56,7 +55,9 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -351,7 +352,7 @@ const AgentRow = styled.div<{ clickable: boolean }>`
     }
 
     &:hover {
-        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "rgba(0, 0, 0, 0.18)" : "transparent")};
+        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "var(--list-hover-background)" : "transparent")};
     }
 
     &:hover [data-agent-name] {
@@ -373,33 +374,16 @@ interface AgentCallNodeWidgetProps {
 
 export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, goToSource, goToAgent, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId, entrypointContext } = useDiagramContext();
-    const traceAnimation = useTraceAnimation();
+    const controller = useAgentNodeController(model);
+    const { onNodeSelect, goToSource, goToAgent, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
+        entrypointContext } = controller.context;
+    const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
+        setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
+        boxSyncPulseAnimation, hasBreakpoint, isActiveBreakpoint, handleThemeChange } = controller;
 
-    const isSelected = selectedNodeId === model.node.id;
-
-    const [isBoxHovered, setIsBoxHovered] = useState(false);
-    const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
-    const [agentIdHovered, setAgentIdHovered] = useState(false);
-    const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
-    const isMenuOpen = Boolean(menuPos);
-    const hasBreakpoint = model.hasBreakpoint();
-    const isActiveBreakpoint = model.isActiveBreakpoint();
-    const [aiColor, setAiColor] = useState<string>(() => getAIColor());
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
-    const getMenuPos = (el: HTMLElement): { top: number; left: number } => {
-        const rect = el.getBoundingClientRect();
-        return { top: rect.bottom, left: rect.left };
-    };
-    const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
-    const syncPulseAnimation = getSyncPulseAnimation(cyanColor);
-    const boxSyncPulseAnimation = getBoxSyncPulseAnimation(cyanColor);
-
-    useEffect(() => {
-        if (model.node.suggested) {
-            model.setAroundLinksDisabled(model.node.suggested === true);
-        }
-    }, [model.node.suggested]);
+    const agentVarName = typeof model.node.properties?.connection?.value === "string"
+        ? (model.node.properties.connection.value as string).trim() : "";
+    const canViewAgent = Boolean(goToAgent) && agentVarName.length > 0;
 
     const handleOnClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) {
@@ -419,7 +403,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const onNodeClick = () => {
         onClick && onClick(model.node);
         onNodeSelect && onNodeSelect(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const handleViewAgentClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
@@ -430,12 +414,12 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
     const onGoToSource = () => {
         goToSource && goToSource(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const deleteNode = () => {
         onDeleteNode && onDeleteNode(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const handleOnMenuClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
@@ -443,34 +427,37 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
             return;
         }
         event.stopPropagation();
-        setMenuPos(getMenuPos(event.currentTarget as HTMLElement));
+        setAnchorEl(event.currentTarget);
     };
 
     const handleOnContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
         event.preventDefault();
-        const target = menuButtonElement || event.currentTarget;
-        setMenuPos(getMenuPos(target as HTMLElement));
+        setAnchorEl(menuButtonElement || event.currentTarget);
+    };
+
+    const handleOnMenuClose = () => {
+        setAnchorEl(null);
+        setIsBoxHovered(false);
     };
 
     const onAddBreakpoint = () => {
         addBreakpoint && addBreakpoint(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
     };
 
     const onRemoveBreakpoint = () => {
         removeBreakpoint && removeBreakpoint(model.node);
-        setMenuPos(null);
-    };
-
-    const handleThemeChange = () => {
-        const dark = isDarkTheme();
-        setIsDarkMode(dark);
-        setAiColor(getAIColor());
+        setAnchorEl(null);
     };
 
     const onChatWithAgent = () => {
         agentNode?.onChatWithAgent?.(model.node);
-        setMenuPos(null);
+        setAnchorEl(null);
+    };
+
+    const onViewAgent = () => {
+        goToAgent?.(model.node);
+        setAnchorEl(null);
     };
 
     const menuItems: Item[] = [
@@ -486,14 +473,16 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
         { id: "delete", label: "Delete", onClick: () => deleteNode() },
+        ...(canViewAgent ? [{
+            id: "viewAgent",
+            label: "View Agent",
+            onClick: () => onViewAgent(),
+        }] : []),
     ];
 
     const disabled = model.node.suggested;
     const hasError = nodeHasError(model.node);
     const nodeMetadata = model?.node.metadata.data as NodeMetadata;
-    const agentVarName = typeof model.node.properties?.connection?.value === "string"
-        ? (model.node.properties.connection.value as string).trim() : "";
-    const canViewAgent = Boolean(goToAgent) && agentVarName.length > 0;
     const agentInfo = nodeMetadata?.agentInfo;
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
@@ -544,7 +533,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         return false;
     })();
     const chatEntry = isTraceMatch ? traceAnimation.entries.find(e => e.type === 'chat') : undefined;
-    const toolEntries = (entrypointMatches ? traceAnimation.entries : [])
+    const toolEntries = (isTraceMatch ? traceAnimation.entries : [])
         .filter(e => e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName));
     const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
     const isAnyToolActive = activeToolNames.length > 0;
@@ -555,10 +544,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     // Agent box pulses when either model or any tool is actively executing
     const isAgentNodeActive = isModelActive || isAnyToolActive;
 
-    let containerHeight = NODE_HEIGHT + AGENT_CALL_TOOL_SECTION_GAP + AGENT_NODE_TOOL_GAP * 2 + AGENT_CALL_AGENT_ROW_HEIGHT;
-    if (tools.length > 0) {
-        containerHeight += tools.length * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    }
+    const containerHeight = getAgentNodeContainerHeight(model.node, NodeTypes.AGENT_CALL_NODE);
 
     return (
         <NodeStyles.Node data-testid="agent-call-node" readOnly={readOnly}>
@@ -649,17 +635,15 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 </NodeStyles.MenuButton>
                             </NodeStyles.ActionButtonGroup>
                         </NodeStyles.Row>
-                        {isMenuOpen && menuPos && createPortal(
-                            <div
-                                style={{
-                                    position: "fixed",
-                                    top: menuPos.top,
-                                    left: menuPos.left,
-                                    zIndex: 1300,
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                        {isMenuOpen && (
+                            <Popover
+                                open={isMenuOpen}
+                                anchorEl={anchorEl}
+                                handleClose={handleOnMenuClose}
+                                sx={{
+                                    padding: 0,
                                     borderRadius: 0,
                                 }}
-                                onMouseDown={(e) => e.stopPropagation()}
                             >
                                 <Menu>
                                     <>
@@ -673,8 +657,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                         />
                                     </>
                                 </Menu>
-                            </div>,
-                            document.body
+                            </Popover>
                         )}
                     </NodeStyles.Row>
 
@@ -721,10 +704,11 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         <AgentRow
                             clickable={canViewAgent}
                             onClick={canViewAgent ? handleViewAgentClick : undefined}
+                            title="View Agent"
                         >
                             <AgentName data-agent-name>{agentVarName}</AgentName>
                             {canViewAgent && (
-                                <Tooltip content="View agent">
+                                <Tooltip content="View Agent">
                                     <NodeStyles.MenuButton
                                         appearance="icon"
                                         onClick={handleViewAgentClick}

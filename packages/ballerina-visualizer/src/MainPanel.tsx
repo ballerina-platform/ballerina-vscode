@@ -415,6 +415,7 @@ const MainPanel = () => {
                                         syntaxTree={st.syntaxTree}
                                         projectPath={value?.projectPath}
                                         filePath={value?.documentUri}
+                                        artifactType={value?.artifactType}
                                         view={value?.focusFlowDiagramView}
                                         breakpointState={breakpointStateRef.current}
                                     />
@@ -428,6 +429,7 @@ const MainPanel = () => {
                                         key={[value?.documentUri, value?.identifier].filter(Boolean).join('#')}
                                         projectPath={value?.projectPath}
                                         filePath={value?.documentUri}
+                                        artifactType={value?.artifactType}
                                         view={value?.focusFlowDiagramView}
                                         breakpointState={breakpointStateRef.current}
                                     />
@@ -670,6 +672,20 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.AgentDefinitionDesigner: {
+                            const { AgentDefinitionDesigner } = await import("./views/BI/AgentDefinitionEditor/AgentDefinitionDesigner");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentDefinitionDesigner
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    fileName={value?.documentUri}
+                                    position={value?.position}
+                                    type={value?.type}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.BIServiceClassConfigView: {
                             const { ServiceClassConfig } = await import("./views/BI/ServiceClassEditor/ServiceClassConfig");
                             if (isStaleNavigation()) return;
@@ -717,6 +733,12 @@ const MainPanel = () => {
                                     onNavigateToOverview={handleNavigateToOverview}
                                 />
                             );
+                            break;
+                        }
+                        case MACHINE_VIEW.AddAgentDefinition: {
+                            const { default: AddAgentDefinition } = await import("./views/BI/AIChatAgent/AddAgentDefinition");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(<AddAgentDefinition key={remountKey} projectPath={value.projectPath} />);
                             break;
                         }
                         case MACHINE_VIEW.EditConnectionWizard: {
@@ -856,6 +878,24 @@ const MainPanel = () => {
                                     position={value?.position}
                                     currentFilePath={value.documentUri}
                                     projectPath={value.projectPath}
+                                    isAgentDefinitionConstructor={
+                                        value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION && value?.identifier === "init"
+                                    }
+                                />
+                            );
+                            break;
+                        }
+                        case MACHINE_VIEW.AIAgentToolForm: {
+                            const { AgentToolFormView } = await import("./views/BI/AIChatAgent/AgentToolFormView");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentToolFormView
+                                    key={value?.identifier}
+                                    projectPath={value.projectPath}
+                                    documentUri={value.documentUri}
+                                    functionName={value?.identifier}
+                                    position={value?.position}
+                                    inClass={value?.artifactType === DIRECTORY_MAP.AGENT_DEFINITION}
                                 />
                             );
                             break;

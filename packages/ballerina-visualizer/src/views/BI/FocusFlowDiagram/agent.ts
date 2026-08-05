@@ -16,52 +16,23 @@
  * under the License.
  */
 
-import { AgentData, FlowNode, MemoryData, NodeMetadata, ToolData } from "@wso2/ballerina-core";
+import { AgentData, FlowNode, MemoryData, NodeMetadata, ToolData, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { parseToolsString } from "../AIChatAgent/utils";
 
-function unwrap(value: unknown): string {
-    if (typeof value !== "string") {
-        return "";
-    }
-    let v = value.trim();
-    v = v.replace(/^string\s*`/, "").replace(/`$/, "");
-    if (v.startsWith("`") && v.endsWith("`")) {
-        v = v.slice(1, -1);
-    }
-    if (v.startsWith('"') && v.endsWith('"')) {
-        v = v.slice(1, -1);
-    }
-    return v.trim();
-}
-
 function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions: string } {
-    const result = { role: "", instructions: "" };
     if (typeof systemPrompt !== "string") {
-        return result;
+        return { role: "", instructions: "" };
     }
-    const roleMatch = systemPrompt.match(/role\s*:\s*("(?:[^"\\]|\\.)*"|`[^`]*`)/);
+    const roleMatch = systemPrompt.match(/role\s*:\s*(string\s*`[^`]*`|"(?:[^"\\]|\\.)*"|`[^`]*`)/);
     const instrMatch = systemPrompt.match(/instructions\s*:\s*(string\s*`[^`]*`|"(?:[^"\\]|\\.)*"|`[^`]*`)/);
-    if (roleMatch) {
-        result.role = unwrap(roleMatch[1]);
-    }
-    if (instrMatch) {
-        result.instructions = unwrap(instrMatch[1]);
-    }
-    return result;
+    return { role: unwrapBallerinaString(roleMatch?.[1]), instructions: unwrapBallerinaString(instrMatch?.[1]) };
 }
 
-/**
- * Transform an `ai:Agent` declaration node into the synthetic `AGENT_CALL` render node that
- * `AgentCallNodeWidget` expects. The widget reads everything from `metadata.data`; since the
- * focus view deals with the agent directly, that view-model is derived from the declaration's
- * own `properties` (resolving model/memory variable names against module connections for the
- * icon/type) rather than from the LS-populated call-site metadata.
- */
 export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[] = []): FlowNode {
     const props = (agentNode.properties || {}) as Record<string, { value?: unknown }>;
 
-    let role = unwrap(props.role?.value);
-    let instructions = unwrap(props.instructions?.value);
+    let role = unwrapBallerinaString(typeof props.role?.value === "string" ? props.role.value : undefined);
+    let instructions = unwrapBallerinaString(typeof props.instructions?.value === "string" ? props.instructions.value : undefined);
     if (!role && !instructions) {
         const parsed = parseSystemPrompt(props.systemPrompt?.value);
         role = parsed.role;

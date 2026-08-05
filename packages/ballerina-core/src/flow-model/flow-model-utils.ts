@@ -16,12 +16,23 @@
  * under the License.
  */
 
-import { FlowNode } from "../interfaces/bi";
+import { FlowNode, NodeKind } from "../interfaces/bi";
 
 import { Flow } from "../interfaces/bi";
 import { BaseVisitor } from "./BaseVisitor";
 
 const metaNodes = ["viewState", "position", "parent"];
+
+export const AGENT_DECLARATION_NODE_KINDS = ["AGENT", "TYPED_AGENT"] as const satisfies readonly NodeKind[];
+export const AGENT_CALL_NODE_KINDS = ["AGENT_CALL", "AGENT_RUN"] as const satisfies readonly NodeKind[];
+
+export function isAgentDeclarationNode(kind?: NodeKind): boolean {
+    return AGENT_DECLARATION_NODE_KINDS.includes(kind as never);
+}
+
+export function isAgentCallNode(kind?: NodeKind): boolean {
+    return AGENT_CALL_NODE_KINDS.includes(kind as never);
+}
 
 export function traverseFlow(flow: Flow, visitor: BaseVisitor, parent?: FlowNode) {
     let lastNode: FlowNode = undefined;

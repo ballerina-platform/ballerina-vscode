@@ -1142,6 +1142,7 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
                 />
                 <div
                   class="css-44"
+                  title="View Agent"
                 >
                   <div
                     class="css-45"
@@ -7224,6 +7225,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 />
                 <div
                   class="css-73"
+                  title="View Agent"
                 >
                   <div
                     class="css-74"
@@ -7475,6 +7477,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 />
                 <div
                   class="css-73"
+                  title="View Agent"
                 >
                   <div
                     class="css-74"

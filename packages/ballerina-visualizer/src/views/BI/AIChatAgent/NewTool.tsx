@@ -23,8 +23,9 @@ import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, buildAgentToolNode, findFlowNodeByModuleVarName, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { addToolToAgentNode, buildAgentToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
+import { AgentToolForm } from "./AgentToolForm";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -44,7 +45,7 @@ interface NewToolProps {
     agentNode: FlowNode;
     mode?: NewToolSelectionMode;
     onBack?: () => void;
-    onSave?: () => void;
+    onSave?: (agentPosition?: NodePosition) => void;
     onSetBackOverride?: (handler: (() => void) | null) => void;
 }
 
@@ -82,6 +83,8 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 return;
             }
 
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient);
+
             const { filePath: agentFile } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updatedAgentNode.codedata.lineRange.fileName],
             });
@@ -98,13 +101,18 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 projectPath: projectPath.current,
             });
             const linePosition = functionNodeResponse?.functionDefinition?.codedata?.lineRange?.startLine;
-            const position: NodePosition = {
-                startLine: linePosition?.line ?? 0,
-                startColumn: linePosition?.offset ?? 0,
-            };
 
             // Close the panel and navigate to the function's flow diagram
             onSave?.();
+            if (!linePosition) {
+                // openView falls back to the overview without a position
+                console.error("Could not resolve the position of the created tool", { functionName });
+                return;
+            }
+            const position: NodePosition = {
+                startLine: linePosition.line,
+                startColumn: linePosition.offset,
+            };
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
                 location: { documentUri: agentsFilePath, position },
@@ -172,7 +180,8 @@ export function NewTool(props: NewToolProps): JSX.Element {
 
             const toolResponse = await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath.current,
-                flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters),
+                flowNode: buildAgentToolNode(flowNode, data.toolName, data.description, connection, data.toolParameters,
+                    undefined, data.includeContext),
             });
 
             if (!toolResponse) {
@@ -185,29 +194,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 console.error("Failed to add tool to agent node");
                 return;
             }
-            // Find the updated agent node in the response artifacts and update the local state
-            let agentArtifactFound = false;
-            if (toolResponse.artifacts?.length > 0) {
-                const updatedAgentArtifact = toolResponse.artifacts.find(artifact => artifact?.name === agentNode?.properties?.variable?.value);
-                // Update line range so subsequent tool additions target the correct source location
-                if (updatedAgentArtifact?.position) {
-                    updatedAgentNode.codedata.lineRange.startLine.line = updatedAgentArtifact.position.startLine;
-                    updatedAgentNode.codedata.lineRange.startLine.offset = updatedAgentArtifact.position.startColumn;
-                    updatedAgentNode.codedata.lineRange.endLine.line = updatedAgentArtifact.position.endLine;
-                    updatedAgentNode.codedata.lineRange.endLine.offset = updatedAgentArtifact.position.endColumn;
-                    agentArtifactFound = true;
-                }
-            }
-
-            if (!agentArtifactFound) {
-                const agentVarName = agentNode?.properties?.variable?.value;
-                if (typeof agentVarName === "string") {
-                    const refreshedAgentNode = await findFlowNodeByModuleVarName(agentVarName, rpcClient);
-                    if (refreshedAgentNode?.codedata?.lineRange) {
-                        updatedAgentNode.codedata.lineRange = refreshedAgentNode.codedata.lineRange;
-                    }
-                }
-            }
+            await refreshAgentNodeLineRange(updatedAgentNode, rpcClient, toolResponse.artifacts);
 
             const { filePath } = await rpcClient.getVisualizerRpcClient().joinProjectPath({
                 segments: [updatedAgentNode.codedata.lineRange.fileName],
@@ -219,7 +206,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             // Safety net: fix any missing imports after all edits are applied
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
 
-            onSave?.();
+            onSave?.(await resolveAgentNodePosition(updatedAgentNode, rpcClient));
         } catch (error) {
             console.error("Error saving tool", { error });
         } finally {
@@ -230,17 +217,25 @@ export function NewTool(props: NewToolProps): JSX.Element {
     return (
         <>
             {ready && !savingForm && (
-                <AIAgentSidePanel
-                    agentNode={agentNode}
-                    projectPath={projectPath.current}
-                    onSubmit={handleOnSubmit}
-                    mode={mode}
-                    onViewChange={(_view, navigateBack) => {
-                        onSetBackOverride?.(navigateBack || null);
-                    }}
-                    onAgentToolCreated={handleAgentToolCreated}
-                    onCancel={onBack}
-                />
+                mode === NewToolSelectionMode.CUSTOM_TOOL ? (
+                    <AgentToolForm
+                        filePath={agentFilePath.current}
+                        projectPath={projectPath.current}
+                        onSave={handleAgentToolCreated}
+                        onBack={onBack}
+                    />
+                ) : (
+                    <AIAgentSidePanel
+                        agentNode={agentNode}
+                        projectPath={projectPath.current}
+                        onSubmit={handleOnSubmit}
+                        mode={mode}
+                        onViewChange={(_view, navigateBack) => {
+                            onSetBackOverride?.(navigateBack || null);
+                        }}
+                        onCancel={onBack}
+                    />
+                )
             )}
             {(!ready || savingForm) && (
                 <LoaderContainer>

@@ -32,6 +32,8 @@ import type {
     Imports,
     DropdownType,
     InputType,
+    CodeData,
+    SearchNodesTypeConstraint,
 } from "@wso2/ballerina-core";
 import {
     DEFAULT_MODEL_PROVIDER_EXPR,
@@ -137,11 +139,12 @@ export function convertNodePropertyToFormField(
     enrichModelProviderField(formField, property);
     enrichClientConnectionField(formField, property);
     enrichMemoryField(formField, property);
+    enrichAgentField(formField, property);
     return formField;
 }
 
 const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
-const MODEL_PROVIDER_SEARCH_KIND = "MODEL_PROVIDER";
+const MEMORY_SEARCH_KIND = "MEMORY";
 export const DEFAULT_MODEL_PROVIDER_ITEM = {
     id: "ai:getDefaultModelProvider",
     label: "Default WSO2 Model Provider",
@@ -154,8 +157,6 @@ function isInlineExpressionValue(value: unknown): boolean {
     return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
 }
 
-// Toggles a field between an action-expression (pick/create a node) and a free-form expression,
-// wiring the ACTION_EXPRESSION/EXPRESSION type pair and the search kind used to look up nodes.
 function applyExpressionToggle(
     formField: FormField,
     ballerinaType: string | undefined,
@@ -182,14 +183,12 @@ function enrichModelProviderField(formField: FormField, property: Property): voi
     if (!isModelProvider || !formField.editable) {
         return;
     }
-    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, MODEL_PROVIDER_SEARCH_KIND, {
-        staticItems: [DEFAULT_MODEL_PROVIDER_ITEM],
+    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, "MODEL_PROVIDER", {
+        staticItems: [...(formField.codedata?.staticItems ?? []), DEFAULT_MODEL_PROVIDER_ITEM],
     });
 }
 
-const NEW_CONNECTION_SEARCH_KIND = "NEW_CONNECTION";
-
-function getConnectionTypeQuery(property: Property): Record<string, string> {
+function getConnectionTargetType(property: Property): SearchNodesTypeConstraint | undefined {
     const connection = property.codedata?.data?.connection as {
         org?: string;
         packageName?: string;
@@ -199,28 +198,27 @@ function getConnectionTypeQuery(property: Property): Record<string, string> {
     } | undefined;
     if (connection?.module && connection?.object) {
         return {
-            typeMatch: "exact",
-            ...(connection.org && { typeOrg: connection.org }),
-            ...(connection.packageName && { typePackage: connection.packageName }),
-            typeModule: connection.module,
-            typeName: connection.object,
-            ...(connection.version && { typeVersion: connection.version }),
+            relation: "exact",
+            ...(connection.org && { org: connection.org }),
+            ...(connection.packageName && { packageName: connection.packageName }),
+            module: connection.module,
+            name: connection.object,
+            ...(connection.version && { version: connection.version }),
         };
     }
-    return {};
 }
 
 function enrichClientConnectionField(formField: FormField, property: Property): void {
     if (!property.codedata?.data?.connection || !formField.editable) {
         return;
     }
-    const typeQuery = getConnectionTypeQuery(property);
+    const targetType = getConnectionTargetType(property);
     const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
-    applyExpressionToggle(formField, ballerinaType, NEW_CONNECTION_SEARCH_KIND, typeQuery);
+    applyExpressionToggle(formField, ballerinaType, "NEW_CONNECTION",
+        targetType ? { targetType } : {});
 }
 
 const AI_MEMORY_TYPE = "ai:Memory";
-const MEMORY_SEARCH_KIND = "MEMORY";
 
 function enrichMemoryField(formField: FormField, property: Property): void {
     const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
@@ -228,6 +226,23 @@ function enrichMemoryField(formField: FormField, property: Property): void {
         return;
     }
     applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND, {}, true);
+}
+
+function enrichAgentField(formField: FormField, property: Property): void {
+    const agent = property.codedata?.data?.agent as CodeData | undefined;
+    if (!agent || !formField.editable || !agent.node) {
+        return;
+    }
+    const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
+    const targetType = agent.object ? {
+        relation: "subtype" as const,
+        ...(agent.org && { org: agent.org }),
+        ...(agent.packageName && { packageName: agent.packageName }),
+        ...(agent.module && { module: agent.module }),
+        name: agent.object,
+        ...(agent.version && { version: agent.version }),
+    } : undefined;
+    applyExpressionToggle(formField, ballerinaType, agent.node, targetType ? { targetType } : {});
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {

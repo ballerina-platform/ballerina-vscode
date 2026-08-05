@@ -179,6 +179,12 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     FunctionModelRequest,
     FunctionModelResponse,
     TypeDataWithReferences,
@@ -188,6 +194,8 @@ import {
     AIModelsRequest,
     AIToolsRequest,
     AIToolsResponse,
+    AIGentToolsResponse,
+    GenAgentDefinitionRequest,
     ICPEnabledRequest,
     ICPEnabledResponse,
     WorkflowManagementRequest,
@@ -464,6 +472,12 @@ enum EXTENDED_APIS {
     BI_GET_FUNCTION_FROM_SOURCE = 'serviceDesign/getFunctionFromSource',
     BI_UPDATE_CLASS_FIELD = 'serviceDesign/updateClassField',
     BI_ADD_CLASS_FIELD = 'serviceDesign/addField',
+    BI_CREATE_CLASS_DEPENDENCY = 'serviceDesign/createClassDependency',
+    BI_LIST_CLASS_MEMBERS = 'flowDesignService/listClassMembers',
+    BI_SAVE_CLASS_MEMBER = 'flowDesignService/saveClassMember',
+    BI_DELETE_CLASS_MEMBER = 'flowDesignService/deleteClassMember',
+    BI_UPDATE_CLASS_DEPENDENCY = 'serviceDesign/updateClassDependency',
+    BI_REMOVE_CLASS_DEPENDENCY = 'serviceDesign/removeClassDependency',
     BI_DESIGN_MODEL = 'designModelService/getDesignModel',
     BI_UPDATE_IMPORTS = 'expressionEditor/importModule',
     BI_ADD_FUNCTION = 'expressionEditor/functionCallTemplate',
@@ -482,6 +496,7 @@ enum EXTENDED_APIS {
     BI_AI_GET_TOOLS = 'agentManager/getTools',
     BI_AI_GET_TOOL = 'agentManager/getTool',
     BI_AI_GET_MCP_TOOLS = 'agentManager/getMcpTools',
+    BI_AI_GEN_AGENT_DEFINITION = 'agentManager/genAgentDefinition',
     BI_AI_GET_PACKAGE_VERSION = 'agentManager/getPackageVersion',
     BI_GET_SEMANTIC_DIFF = 'copilotAgentService/getSemanticDiff',
     BI_IS_ICP_ENABLED = 'icpService/isIcpEnabled',
@@ -1404,6 +1419,30 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_ADD_CLASS_FIELD, params);
     }
 
+    async createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_CREATE_CLASS_DEPENDENCY, params);
+    }
+
+    async listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
+        return this.sendRequest<ClassMembersResponse>(EXTENDED_APIS.BI_LIST_CLASS_MEMBERS, params);
+    }
+
+    async saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_SAVE_CLASS_MEMBER, params);
+    }
+
+    async deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_DELETE_CLASS_MEMBER, params);
+    }
+
+    async updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_UPDATE_CLASS_DEPENDENCY, params);
+    }
+
+    async removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_REMOVE_CLASS_DEPENDENCY, params);
+    }
+
     async getHttpResourceModel(params: HttpResourceModelRequest): Promise<HttpResourceModelResponse> {
         return this.sendRequest<HttpResourceModelResponse>(EXTENDED_APIS.BI_SERVICE_GET_RESOURCE, params);
     }
@@ -1510,6 +1549,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async getMcpTools(params: McpToolsRequest): Promise<McpToolsResponse> {
         return this.sendRequest<McpToolsResponse>(EXTENDED_APIS.BI_AI_GET_MCP_TOOLS, params);
+    }
+
+    async genAgentDefinition(params: GenAgentDefinitionRequest): Promise<AIGentToolsResponse> {
+        return this.sendRequest<AIGentToolsResponse>(EXTENDED_APIS.BI_AI_GEN_AGENT_DEFINITION, params);
     }
 
     async getPackageVersion(params: AIGetPackageVersionRequest): Promise<AIGetPackageVersionResponse> {

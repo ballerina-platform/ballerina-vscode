@@ -17,6 +17,7 @@
  */
 
 import { keyframes } from "@emotion/react";
+import { unwrapBallerinaString } from "@wso2/ballerina-core";
 import { AgentData } from "../../utils/types";
 
 export const getSyncPulseAnimation = (color: string) => keyframes`
@@ -33,29 +34,14 @@ export const flowDashAnimation = keyframes`
     to { stroke-dashoffset: -12; }
 `;
 
-// sanitize a string for use as an SVG/HTML id attribute
 export function sanitizeId(name: string): string {
     return name.replace(/[^A-Za-z0-9_-]/g, "_");
-}
-
-// strip a single pair of wrapping quotes, or a `string \`...\`` template wrapper, from role/instructions
-export function stripWrappingQuotes(str: string): string {
-    if (str.startsWith('string `') && str.endsWith('`')) {
-        return str.slice('string `'.length, -1);
-    }
-    if (
-        ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'")))
-        && !(str.startsWith('""') || str.startsWith("''"))
-    ) {
-        return str.slice(1, -1);
-    }
-    return str;
 }
 
 export function sanitizeAgentData(data: AgentData): AgentData {
     return {
         ...data,
-        role: data.role ? stripWrappingQuotes(data.role) : data.role,
-        instructions: data.instructions ? stripWrappingQuotes(data.instructions) : data.instructions,
+        role: data.role ? unwrapBallerinaString(data.role) : data.role,
+        instructions: data.instructions ? unwrapBallerinaString(data.instructions) : data.instructions,
     };
 }

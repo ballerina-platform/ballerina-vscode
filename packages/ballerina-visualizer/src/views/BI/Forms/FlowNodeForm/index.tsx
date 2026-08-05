@@ -47,6 +47,8 @@ import {
     DiagnosticMessage,
     AvailableNode,
     ParentPopupData,
+    isAgentCallNode,
+    isAgentDeclarationNode,
 } from "@wso2/ballerina-core";
 import {
     FieldDerivation,
@@ -119,7 +121,7 @@ import DynamicModal from "../../../../components/Modal";
 import { EntryPointTypeCreator } from "../../../../components/EntryPointTypeCreator";
 import React from "react";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
-import { ConnectionKind, useCreateConnection } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
@@ -384,7 +386,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const skipFormValidation = useMemo(() => {
         const isAgentNode = node && (
-            (node.codedata.node === "AGENT_CALL" || node.codedata.node === "AGENT_RUN") &&
+            isAgentCallNode(node.codedata.node) &&
             node.codedata.org === "ballerina" &&
             node.codedata.module === "ai" &&
             node.codedata.packageName === "ai" &&
@@ -1541,7 +1543,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         closePopup: closeModal
     }
 
-    const handleCreateConnection = useCreateConnection(fileName, targetLineRange, props.onConnectionCreated);
+    const handleCreateNode = useCreateNode(fileName, targetLineRange, props.onConnectionCreated);
 
 
     // State to manage record config page modal
@@ -1614,7 +1616,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
-        if (node.codedata.node === "AGENT_TYPE" || node.codedata.node === "AGENT") {
+        if (isAgentDeclarationNode(node.codedata.node)) {
             return;
         }
         const codedata = importsCodedataRef.current || { symbol: typeName };
@@ -2211,7 +2213,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     openView={handleOpenView}
                     openSubPanel={openSubPanel}
                     subPanelView={subPanelView}
-                    onCreateConnection={handleCreateConnection}
+                    onCreateNode={handleCreateNode}
                     expressionEditor={expressionEditor}
                     targetLineRange={targetLineRange}
                     fileName={fileName}

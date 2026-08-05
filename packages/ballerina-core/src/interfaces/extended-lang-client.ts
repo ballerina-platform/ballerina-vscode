@@ -1074,7 +1074,7 @@ export interface AnalyzeActivityActionResponse {
 export type BISearchNodesRequest = {
     filePath: string;
     position?: LinePosition;
-    queryMap?: SearchNodesQueryParams;
+    query?: SearchNodesQuery;
 }
 
 export type BISearchNodesResponse = {
@@ -1082,15 +1082,19 @@ export type BISearchNodesResponse = {
     error: string;
 }
 
-export type SearchNodesQueryParams = {
+export type SearchNodesTypeConstraint = {
+    relation?: "exact" | "subtype";
+    org?: string;
+    packageName?: string;
+    module?: string;
+    name: string;
+    version?: string;
+}
+
+export type SearchNodesQuery = {
     kind?: NodeKind;
     exactMatch?: string;
-    typeMatch?: "exact" | "subtype";
-    typeOrg?: string;
-    typePackage?: string;
-    typeModule?: string;
-    typeName?: string;
-    typeVersion?: string;
+    targetType?: SearchNodesTypeConstraint;
 }
 
 export type BIGetEnclosedFunctionRequest = {
@@ -1496,6 +1500,32 @@ export interface AddFieldRequest {
         lineRange: LineRange;
     };
 }
+
+export interface ClassTarget {
+    filePath: string;
+    classLineRange: LineRange;
+}
+
+export interface CreateClassDependencyRequest extends ClassTarget {
+    field: FieldType;
+}
+
+export interface ClassMemberRequest extends ClassTarget {}
+
+export interface SaveClassMemberRequest extends ClassTarget {
+    flowNode: FlowNode;
+}
+
+export interface DeleteClassMemberRequest extends ClassTarget {
+    fieldName: string;
+}
+
+export interface ModifyClassDependencyRequest {
+    filePath: string;
+    field: FieldType;
+}
+
+export type ClassMembersResponse = BIModuleNodesResponse;
 
 export interface ExpressionTokensRequest {
     expression: string;
@@ -2012,6 +2042,19 @@ export interface McpToolsResponse {
     errorMsg?: string;
 }
 
+export interface AIGentToolsResponse {
+    artifacts?: ProjectStructureArtifactResponse[];
+    textEdits: {
+        [key: string]: TextEdit[];
+    };
+}
+
+export interface GenAgentDefinitionRequest {
+    filePath: string;
+    name: string;
+    description: string;
+}
+
 export interface AIGetPackageVersionRequest {
     projectPath: string;
     org: string;
@@ -2144,6 +2187,7 @@ export enum ARTIFACT_TYPE {
     Workflows = "Workflows",
     Connections = "Connections",
     Agents = "Agents",
+    AgentDefinitions = "Agent Definitions",
     Listeners = "Listeners",
     EntryPoints = "Entry Points",
     Types = "Types",
@@ -2163,6 +2207,7 @@ export interface Artifacts {
     [ARTIFACT_TYPE.Workflows]?: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Connections]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Agents]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.AgentDefinitions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Listeners]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.EntryPoints]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Types]: Record<string, BaseArtifact>;
