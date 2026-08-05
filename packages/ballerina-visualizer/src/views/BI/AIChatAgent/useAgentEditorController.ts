@@ -126,7 +126,11 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         let existing: FlowNode | undefined;
         if (typeof value === "string" && value.trim() && value.trim() !== "()") {
             const start = node.codedata?.lineRange?.startLine;
-            const nodes = await findFlowNode(rpcClient, host.filePath, start, {
+            const fileName = node.codedata?.lineRange?.fileName;
+            const filePath = fileName
+                ? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath
+                : host.filePath;
+            const nodes = await findFlowNode(rpcClient, filePath, start, {
                 kind: "MEMORY", exactMatch: value.trim(),
             });
             existing = nodes?.[0];
