@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloneDeep } from 'lodash';
 import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property } from '@wso2/ballerina-core';
-import { View, ViewContent } from '@wso2/ui-toolkit';
+import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { TitleBar } from '../../../components/TitleBar';
@@ -83,6 +83,8 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     const [targetLineRange, setTargetLineRange] = useState<LineRange | undefined>(undefined);
     const [isCreating, setIsCreating] = useState<boolean>(false);
     const [currentStep, setCurrentStep] = useState<number>(0);
+    const [loadError, setLoadError] = useState<string>();
+    const [loadAttempt, setLoadAttempt] = useState(0);
 
     const steps = [
         { label: "Creating Agent", description: "Creating the AI chat agent" },
@@ -102,6 +104,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
         let cancelled = false;
         (async () => {
             try {
+                setLoadError(undefined);
                 const visualizerLocation = await rpcClient.getVisualizerLocation();
                 if (cancelled) return;
                 projectPath.current = visualizerLocation.projectPath;
@@ -140,10 +143,13 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 setAgentNode(template);
             } catch (error) {
                 console.error("Error initializing AIChatAgentWizard:", error);
+                if (!cancelled) {
+                    setLoadError("Unable to load the Chat Agent Service template.");
+                }
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [loadAttempt, rpcClient]);
 
     const handleCreateAgent = async (updatedNode?: FlowNode) => {
         if (!updatedNode) return;
@@ -243,6 +249,9 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             }
         } catch (error) {
             console.error("Error creating Chat Agent Service:", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to create the Chat Agent Service. Please try again.",
+            });
             setIsCreating(false);
             setCurrentStep(0);
         } finally {
@@ -264,6 +273,15 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 {isCreating ? (
                     <LoaderContainer>
                         <RelativeLoader message={steps[currentStep].description} />
+                    </LoaderContainer>
+                ) : loadError ? (
+                    <LoaderContainer>
+                        <div role="alert">
+                            <p>{loadError}</p>
+                            <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                                Retry
+                            </Button>
+                        </div>
                     </LoaderContainer>
                 ) : agentNode && targetLineRange ? (
                     <Container>
