@@ -177,9 +177,9 @@ export const ConnectionSelectEditor: React.FC<ConnectionSelectEditorProps> = ({ 
 
     const showCreateNew = !!onCreateConnection && !!searchNodesKind && field.editable && !field.actionCallback;
     const connectorCodeData = field.codedata?.data?.connection as CodeData | undefined;
-    const createNewLabel = connectorCodeData?.module && connectorCodeData?.object
+    const createNewLabel = showCreateNew && connectorCodeData?.module && connectorCodeData?.object
         ? `${humanizeKind(connectorCodeData.module.split(".").pop() ?? "")} ${connectorCodeData.object}`
-        : humanizeKind(searchNodesKind);
+        : showCreateNew ? humanizeKind(searchNodesKind) : "";
 
     return (
         <>
