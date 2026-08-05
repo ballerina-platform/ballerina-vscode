@@ -20,27 +20,7 @@ import { AgentToolData, AvailableNode, CodeData, ConfigVariable, EVENT_TYPE, Flo
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
-import { BALLERINA, GET_DEFAULT_MODEL_PROVIDER } from "../../../constants";
-
-export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
-const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
-
-const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
-    node: "MODEL_PROVIDER",
-    org: "ballerina",
-    module: "ai",
-    packageName: "ai",
-    symbol: "getDefaultModelProvider",
-};
-
-const OPENAI_PROVIDER_CODEDATA: CodeData = {
-    node: "CLASS_INIT",
-    org: "ballerinax",
-    module: "ai",
-    packageName: "ai",
-    object: "OpenAiProvider",
-    symbol: "init",
-};
+import { BALLERINA } from "../../../constants";
 
 /**
  * Refreshes a flow node's line range in place from the matching artifact in a getSourceCode/deleteFlowNode response.
@@ -61,78 +41,6 @@ export function refreshNodeLineRangeFromArtifacts(
     node.codedata.lineRange.endLine.line = artifact.position.endLine;
     node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
 }
-
-export function toCamelCase(name: string): string {
-    const words = name.trim().split(/[\s_]+/).filter(Boolean);
-    if (words.length === 0) return "";
-    const firstWord = words[0];
-    const leadingUpper = firstWord.match(/^[A-Z]+/);
-    let lowerFirst: string;
-    if (leadingUpper && leadingUpper[0].length === firstWord.length) {
-        lowerFirst = firstWord.toLowerCase();
-    } else if (leadingUpper && leadingUpper[0].length > 1) {
-        lowerFirst = leadingUpper[0].slice(0, -1).toLowerCase() + firstWord.slice(leadingUpper[0].length - 1);
-    } else {
-        lowerFirst = firstWord.charAt(0).toLowerCase() + firstWord.slice(1);
-    }
-    return lowerFirst + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
-}
-
-export function toBaseName(name: string): string {
-    const camel = toCamelCase(name);
-    const lower = camel.toLowerCase();
-    for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
-        if (lower.endsWith(suffix) && lower.length > suffix.length) {
-            return camel.slice(0, -suffix.length);
-        }
-    }
-    return camel;
-}
-
-export interface CreatedBuiltInAgent {
-    agentVarName: string;
-    modelVarName: string;
-    baseName: string;
-    usedDefaultModelProvider: boolean;
-}
-
-/**
- * Ensures a model provider exists for an agent, reusing the shared `wso2ModelProvider` when the AI
- * module org is `ballerina`. Creates the provider source if it does not already exist. Returns the
- * model variable name to reference and whether the shared WSO2 default provider was used.
- */
-export const ensureModelProvider = async (
-    rpcClient: BallerinaRpcClient,
-    projectPath: string,
-    baseName: string
-): Promise<{ modelVarName: string; usedDefaultModelProvider: boolean }> => {
-    const aiModuleOrg = await getAiModuleOrg(rpcClient);
-    const modelProviderCodedata = aiModuleOrg === BALLERINA ? WSO2_MODEL_PROVIDER_CODEDATA : OPENAI_PROVIDER_CODEDATA;
-    let modelVarName: string;
-
-    if (aiModuleOrg === BALLERINA) {
-        modelVarName = AI_WSO2_MODEL_PROVIDER;
-        const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
-            filePath: projectPath,
-            queryMap: { kind: "MODEL_PROVIDER" as NodeKind },
-        });
-        const existingProvider = existingModelProviders?.output?.find(
-            (node) => String(node.properties?.variable?.value) === AI_WSO2_MODEL_PROVIDER
-        );
-        if (!existingProvider) {
-            const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
-            modelNodeTemplate.properties.variable.value = modelVarName;
-            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
-        }
-    } else {
-        modelVarName = `${baseName}Model`;
-        const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
-        modelNodeTemplate.properties.variable.value = modelVarName;
-        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
-    }
-
-    return { modelVarName, usedDefaultModelProvider: modelProviderCodedata.symbol === GET_DEFAULT_MODEL_PROVIDER };
-};
 
 /**
  * Fetches the AGENT node template for the project's AI module. The template exposes the friendly
@@ -155,30 +63,6 @@ export const fetchAgentNodeTemplate = async (
     return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
 };
 
-/**
- * Creates a built-in `ai:Agent` declaration plus its model provider (reusing the shared
- * `wso2ModelProvider` when the AI module org is `ballerina`). Does not create a listener or
- * service — callers that need a chat service wire that up separately.
- */
-export const createBuiltInAgent = async (
-    rpcClient: BallerinaRpcClient,
-    projectPath: string,
-    agentName: string
-): Promise<CreatedBuiltInAgent> => {
-    const baseName = toBaseName(agentName);
-    const { modelVarName, usedDefaultModelProvider } = await ensureModelProvider(rpcClient, projectPath, baseName);
-
-    const agentNodeTemplate = await fetchAgentNodeTemplate(rpcClient, projectPath);
-    const agentVarName = `${baseName}Agent`;
-    agentNodeTemplate.properties.role.value = agentName;
-    agentNodeTemplate.properties.instructions.value = "";
-    agentNodeTemplate.properties.model.value = modelVarName;
-    agentNodeTemplate.properties.tools.value = "[]";
-    agentNodeTemplate.properties.variable.value = agentVarName;
-    await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: agentNodeTemplate });
-
-    return { agentVarName, modelVarName, baseName, usedDefaultModelProvider };
-};
 
 export const AGENT_ID_AUTH_CONFIG_ID: CodeData = {
     node: "AGENT_ID_AUTH_CONFIG" as any,
@@ -374,34 +258,6 @@ export const findAgentNodeFromAgentCallNode = async (agentCallNode: FlowNode, rp
     }
 
     return;
-};
-
-export const resolveAgentLocation = async (
-    agentRunNode: FlowNode,
-    rpcClient: BallerinaRpcClient
-): Promise<{ filePath: string; position: NodePosition; agentName: string } | null> => {
-    const agentName = agentRunNode.properties?.connection?.value;
-    const callSiteFile = agentRunNode.codedata?.lineRange?.fileName;
-    if (typeof agentName !== "string" || !callSiteFile) return null;
-    const visualizerRpc = rpcClient.getVisualizerRpcClient();
-    const { filePath: callSitePath } = await visualizerRpc.joinProjectPath({ segments: [callSiteFile] });
-    const nodes = await findFlowNode(rpcClient, callSitePath, agentRunNode.codedata?.lineRange?.startLine, {
-        kind: "AGENT_TYPE",
-        exactMatch: agentName,
-    });
-    const declRange = nodes?.[0]?.codedata?.lineRange;
-    if (!declRange) return null;
-    const { filePath: declPath } = await visualizerRpc.joinProjectPath({ segments: [declRange.fileName] });
-    return {
-        filePath: declPath,
-        agentName,
-        position: {
-            startLine: declRange.startLine.line,
-            startColumn: declRange.startLine.offset,
-            endLine: declRange.endLine.line,
-            endColumn: declRange.endLine.offset,
-        },
-    };
 };
 
 export const goToAgentFromRunNode = async (agentRunNode: FlowNode, rpcClient: BallerinaRpcClient) => {

@@ -3063,7 +3063,6 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 progressTitle={progressTitle}
                 // Regular callbacks
                 onClose={handleOnCloseSidePanel}
-                onSaveAndRefresh={closeSidePanelAndFetchUpdatedFlowModel}
                 onBack={sidePanelView === SidePanelView.ERROR ? handleRetryNodeFetch : handleOnFormBack}
                 onSelectNode={handleOnSelectNode}
                 // Add node callbacks
