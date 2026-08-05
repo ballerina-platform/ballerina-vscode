@@ -123,7 +123,6 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [agentFilePath, setAgentFilePath] = useState("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
     const [loadError, setLoadError] = useState<string>();
     const [loadAttempt, setLoadAttempt] = useState(0);
     const createFormNode = useMemo(() => agentNode ? cloneDeep(agentNode) : undefined, [agentNode]);
