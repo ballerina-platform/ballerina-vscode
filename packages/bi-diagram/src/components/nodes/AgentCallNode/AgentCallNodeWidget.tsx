@@ -250,97 +250,97 @@ export namespace NodeStyles {
     export const IconBox = styled.div`
         position: relative;
         display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px;
-        margin-right: 4px;
+    align - items: center;
+    justify - content: center;
+    padding: 4px;
+    margin - right: 4px;
     `;
 
     export const RunBadge = styled.div`
-        position: absolute;
-        bottom: -5px;
-        right: -5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    display: flex;
+    align - items: center;
+    justify - content: center;
+    border - radius: 50 %;
     `;
 
     export const AgentIdBadge = styled.div`
-        margin-left: 2px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        cursor: default;
-        position: relative;
-        overflow: visible;
-        z-index: 10;
+    margin - left: 2px;
+    display: flex;
+    align - items: center;
+    justify - content: center;
+    flex - shrink: 0;
+    cursor: default ;
+    position: relative;
+    overflow: visible;
+    z - index: 10;
 
         &:hover {
-            opacity: 0.8;
-        }
+        opacity: 0.8;
+    }
     `;
 
     export const AgentIdTooltip = styled.div`
-        position: absolute;
-        left: 50%;
-        top: calc(100% + 8px);
-        transform: translateX(-50%);
-        padding: 6px 10px;
-        background: ${ThemeColors.SURFACE_DIM};
-        color: ${ThemeColors.ON_SURFACE};
-        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-        border-radius: 6px;
-        font-size: 11px;
-        font-family: "GilmerRegular";
-        white-space: nowrap;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-        pointer-events: none;
-        z-index: 1000;
+    position: absolute;
+    left: 50 %;
+    top: calc(100 % + 8px);
+    transform: translateX(-50 %);
+    padding: 6px 10px;
+    background: ${ThemeColors.SURFACE_DIM};
+    color: ${ThemeColors.ON_SURFACE};
+    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border - radius: 6px;
+    font - size: 11px;
+    font - family: "GilmerRegular";
+    white - space: nowrap;
+    box - shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    pointer - events: none;
+    z - index: 1000;
 
         &::before {
-            content: "";
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-bottom-color: ${ThemeColors.OUTLINE_VARIANT};
-        }
+        content: "";
+        position: absolute;
+        bottom: 100 %;
+        left: 50 %;
+        transform: translateX(-50 %);
+        border: 5px solid transparent;
+        border - bottom - color: ${ThemeColors.OUTLINE_VARIANT};
+    }
     `;
 }
 
 const TitleArrow = styled.span`
-    font-size: 11px;
+    font - size: 11px;
     opacity: 0.6;
     margin: 0 4px;
-    vertical-align: 1px;
-`;
+    vertical - align: 1px;
+    `;
 
 const AgentName = styled.div`
     flex: 1;
-    min-width: 0;
+    min - width: 0;
     color: ${ThemeColors.ON_SURFACE};
     opacity: 0.7;
-    font-family: monospace;
-    font-size: 12px;
+    font - family: monospace;
+    font - size: 12px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
+    text - overflow: ellipsis;
+    white - space: nowrap;
+    `;
 
 const AgentRow = styled.div<{ clickable: boolean }>`
     position: relative;
-    width: 100%;
+    width: 100 %;
     display: flex;
-    align-items: center;
+    align - items: center;
     gap: 6px;
     margin: 8px 0;
     padding: 6px 6px 6px 10px;
-    border-radius: 6px;
+    border - radius: 6px;
     cursor: ${(props: { clickable: boolean }) => (props.clickable ? "pointer" : "default")};
-    transition: background-color 0.15s ease;
+    transition: background - color 0.15s ease;
 
     &::before {
         content: "";
@@ -348,17 +348,17 @@ const AgentRow = styled.div<{ clickable: boolean }>`
         top: -8px;
         left: 0;
         right: 0;
-        border-top: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+        border - top: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
     }
 
     &:hover {
-        background-color: ${(props: { clickable: boolean }) => (props.clickable ? "var(--list-hover-background)" : "transparent")};
+        background - color: ${(props: { clickable: boolean }) => (props.clickable ? "var(--list-hover-background)" : "transparent")};
     }
 
-    &:hover [data-agent-name] {
+    &: hover[data - agent - name] {
         opacity: ${(props: { clickable: boolean }) => (props.clickable ? 1 : 0.7)};
     }
-`;
+    `;
 
 const NODE_TITLE = (
     <>
@@ -565,16 +565,16 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                 {/* Overlay for Agent Box pulsing transition */}
                 <div
                     css={css`
-                        position: absolute;
-                        top: -1px; left: -1px; right: -1px; bottom: -1px;
-                        border-radius: 10px;
-                        border: 2px solid ${aiColor};
-                        opacity: ${isAgentNodeActive ? 1 : 0};
-                        transition: opacity 0.4s ease-out;
-                        animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                        pointer-events: none;
-                        z-index: 1;
-                    `}
+    position: absolute;
+    top: -1px; left: -1px; right: -1px; bottom: -1px;
+    border - radius: 10px;
+    border: 2px solid ${aiColor};
+    opacity: ${isAgentNodeActive ? 1 : 0};
+    transition: opacity 0.4s ease - out;
+    animation: ${boxSyncPulseAnimation} 1.5s ease -in -out infinite alternate;
+    pointer - events: none;
+    z - index: 1;
+    `}
                 />
 
                 {hasBreakpoint && (
@@ -592,7 +592,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     />
                 )}
                 <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
-                <NodeStyles.Column style={{ height: `${model.node.viewState?.ch}px` }}>
+                <NodeStyles.Column style={{ height: `${model.node.viewState?.ch} px` }}>
                     <NodeStyles.Row readOnly={readOnly}>
                         <NodeStyles.IconBox onClick={handleOnClick}>
                             <NodeIcon type={model.node.codedata.node} size={24} />
@@ -602,7 +602,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         </NodeStyles.IconBox>
                         <NodeStyles.Row readOnly={readOnly}>
                             <NodeStyles.Header onClick={handleOnClick}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80}px` }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80} px` }}>
                                     <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{NODE_TITLE}</NodeStyles.Title>
                                     {model.node.properties?.credential?.value && (
                                         <NodeStyles.AgentIdBadge
@@ -661,7 +661,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         )}
                     </NodeStyles.Row>
 
-                    <div style={{ width: "100%", opacity: 0.55, borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT}`, flex: 1, overflow: "hidden", padding: "8px 2px" }}>
+                    <div style={{ width: "100%", opacity: 0.55, borderTop: `1px dashed ${ThemeColors.OUTLINE_VARIANT} `, flex: 1, overflow: "hidden", padding: "8px 2px" }}>
                         {sanitizedAgent?.role && sanitizedAgent?.instructions ? (
                             <>
                                 <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick} style={{ marginBottom: 6 }}>
@@ -726,7 +726,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
             <svg
                 width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
                 height={model.node.viewState?.ch}
-                viewBox={`0 0 300 ${containerHeight}`}
+                viewBox={`0 0 300 ${containerHeight} `}
                 style={{ marginLeft: "-10px", position: "relative", zIndex: 1, cursor: "default" }}
             >
                 {/* ai agent model circle */}
@@ -752,13 +752,13 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         stroke={aiColor}
                         strokeWidth={2.5}
                         css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            transform-origin: 80px 24px;
-                            transform: scale(1.03);
-                            animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                        `}
+    pointer - events: none;
+    opacity: ${isModelActive ? 1 : 0};
+    transition: opacity 0.4s ease - out;
+    transform - origin: 80px 24px;
+    transform: scale(1.03);
+    animation: ${syncPulseAnimation} 1.5s ease -in -out infinite alternate;
+    `}
                     />
 
                     <foreignObject
@@ -784,8 +784,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         style={{
                             stroke: NODE_TEXT_COLOR,
                             strokeWidth: 1.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head)`,
-                            markerStart: `url(#${model.node.id}-diamond-start)`,
+                            markerEnd: `url(#${model.node.id} - arrow - head)`,
+                            markerStart: `url(#${model.node.id} - diamond - start)`,
                             opacity: isModelActive ? 0 : 1,
                             transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
                         }}
@@ -799,15 +799,15 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         style={{
                             stroke: aiColor,
                             strokeWidth: 2.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head-active)`,
+                            markerEnd: `url(#${model.node.id} - arrow - head - active)`,
                             strokeDasharray: "6 6",
                         }}
                         css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            animation: ${flowDashAnimation} 1s linear infinite;
-                        `}
+    pointer - events: none;
+    opacity: ${isModelActive ? 1 : 0};
+    transition: opacity 0.4s ease - out;
+    animation: ${flowDashAnimation} 1s linear infinite;
+    `}
                     />
                 </g>
 
@@ -831,8 +831,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 strokeDasharray={disabled ? "5 5" : "none"}
                                 opacity={disabled ? 0.7 : 1}
                                 css={css`
-                                    transition: stroke 0.4s ease-out;
-                                `}
+transition: stroke 0.4s ease - out;
+`}
                             />
                             {/* Pulsing Overlay Tool Circle */}
                             <circle
@@ -843,13 +843,13 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 stroke={aiColor}
                                 strokeWidth={2.5}
                                 css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    transform-origin: 80px 24px;
-                                    transform: scale(1.03);
-                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                                `}
+pointer - events: none;
+opacity: ${isToolActive ? 1 : 0};
+transition: opacity 0.4s ease - out;
+transform - origin: 80px 24px;
+transform: scale(1.03);
+animation: ${syncPulseAnimation} 1.5s ease -in -out infinite alternate;
+`}
                             />
 
                             <foreignObject
@@ -900,7 +900,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 style={{
                                     stroke: NODE_TEXT_COLOR,
                                     strokeWidth: 1.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
+                                    markerEnd: `url(#${model.node.id} - arrow - head - tool - ${sanitizeId(tool.name)})`,
                                     strokeDasharray: "6 6",
                                     opacity: isToolActive ? 0 : 1,
                                     transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
@@ -915,15 +915,15 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                 style={{
                                     stroke: aiColor,
                                     strokeWidth: 2.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active)`,
+                                    markerEnd: `url(#${model.node.id} - arrow - head - tool - ${sanitizeId(tool.name)}-active)`,
                                     strokeDasharray: "6 6",
                                 }}
                                 css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    animation: ${flowDashAnimation} 1s linear infinite;
-                                `}
+pointer - events: none;
+opacity: ${isToolActive ? 1 : 0};
+transition: opacity 0.4s ease - out;
+animation: ${flowDashAnimation} 1s linear infinite;
+`}
                             />
 
                         </g>
@@ -933,7 +933,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
 
                 <defs>
                     <marker
-                        id={`${model.node.id}-arrow-head`}
+                        id={`${model.node.id} -arrow - head`}
                         markerWidth="4"
                         markerHeight="4"
                         refX="3"
@@ -945,7 +945,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     </marker>
 
                     <marker
-                        id={`${model.node.id}-arrow-head-active`}
+                        id={`${model.node.id} -arrow - head - active`}
                         markerWidth="4"
                         markerHeight="4"
                         refX="3"
@@ -957,7 +957,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     </marker>
 
                     <marker
-                        id={`${model.node.id}-diamond-start`}
+                        id={`${model.node.id} -diamond - start`}
                         markerWidth="8"
                         markerHeight="8"
                         refX="4.5"
@@ -977,7 +977,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                     {tools.map((tool: ToolData) => (
                         <React.Fragment key={tool.name}>
                             <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}`}
+                                id={`${model.node.id} -arrow - head - tool - ${sanitizeId(tool.name)} `}
                                 markerWidth="4"
                                 markerHeight="4"
                                 refX="3"
@@ -989,7 +989,7 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                             </marker>
 
                             <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
+                                id={`${model.node.id} -arrow - head - tool - ${sanitizeId(tool.name)} -active`}
                                 markerWidth="4"
                                 markerHeight="4"
                                 refX="3"

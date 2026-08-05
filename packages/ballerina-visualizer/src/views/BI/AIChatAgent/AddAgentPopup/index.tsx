@@ -133,9 +133,9 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                             <PopupTitle variant="h2">
                                 {isDependencyToolForm ? "Add Agent Tool"
                                     : view === "configure" ? "Configure Agent"
-                                    : view === "create" ? "Create Agent"
-                                    : view === "createDefinition" ? "Create Agent Definition"
-                                        : dependencyMode ? "Use Agent" : "Add Agent"}
+                                        : view === "create" ? "Create Agent"
+                                            : view === "createDefinition" ? "Create Agent Definition"
+                                                : dependencyMode ? "Use Agent" : "Add Agent"}
                             </PopupTitle>
                         </HeaderTitleContainer>
                         <CloseButton appearance="icon" onClick={handleClosePopup}>

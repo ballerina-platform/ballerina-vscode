@@ -50,7 +50,7 @@ export interface BaseVisitor {
 
     beginVisitForeach?(node: FlowNode, parent?: FlowNode): void;
     endVisitForeach?(node: FlowNode, parent?: FlowNode): void;
-    
+
     beginVisitBlock?(node: Branch, parent?: FlowNode): void;
     endVisitBlock?(node: Branch, parent?: FlowNode): void;
 

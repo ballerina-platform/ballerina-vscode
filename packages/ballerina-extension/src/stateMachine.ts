@@ -1041,6 +1041,11 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
             targetedArtifactType = DIRECTORY_MAP.SERVICE;
         }
 
+        if (targetedArtifactType === DIRECTORY_MAP.AGENT) {
+            // Agents are stored under the "agents" key, not the "AGENT" artifactType.
+            targetedArtifactType = DIRECTORY_MAP.AGENTS;
+        }
+
         const projectPath = StateMachine.context().projectPath;
         const project = StateMachine.context().projectStructure?.projects.find(project => isSamePath(project.projectPath, projectPath));
 

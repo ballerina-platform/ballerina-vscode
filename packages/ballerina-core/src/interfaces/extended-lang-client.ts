@@ -1510,7 +1510,7 @@ export interface CreateClassDependencyRequest extends ClassTarget {
     field: FieldType;
 }
 
-export interface ClassMemberRequest extends ClassTarget {}
+export interface ClassMemberRequest extends ClassTarget { }
 
 export interface SaveClassMemberRequest extends ClassTarget {
     flowNode: FlowNode;

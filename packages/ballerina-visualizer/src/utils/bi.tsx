@@ -243,7 +243,7 @@ export function enrichCategoryWithDevant(
             const usedConnIds: string[] = [];
             const mappedCategoryItems = category.items?.map((categoryItem) => {
                 const matchingDevantConn = connections.find((conn) => conn.name?.replaceAll("-", "_").replaceAll(" ", "_") === (categoryItem as PanelCategory)?.title)
-                if(matchingDevantConn) {
+                if (matchingDevantConn) {
                     usedConnIds.push(matchingDevantConn.groupUuid);
                     return { ...categoryItem, devant: matchingDevantConn, unusedDevantConn: false }
                 }
@@ -252,7 +252,7 @@ export function enrichCategoryWithDevant(
             const unusedCategoryItems: PanelCategory[] = connections
                 .filter((conn) => !usedConnIds.includes(conn.groupUuid))
                 .map((conn) => ({
-                    title: conn.name?.replaceAll("-","_").replaceAll(" ","_"),
+                    title: conn.name?.replaceAll("-", "_").replaceAll(" ", "_"),
                     items: [] as PanelItem[],
                     description: "Unused WSO2 Cloud Connection",
                     devant: conn,

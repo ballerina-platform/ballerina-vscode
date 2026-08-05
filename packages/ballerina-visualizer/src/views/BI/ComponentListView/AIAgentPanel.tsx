@@ -84,6 +84,16 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
         return null;
     }
 
+    const handleAgentClick = async () => {
+        await rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.AddAgent,
+            },
+            isPopup: true,
+        });
+    };
+
     return (
         <PanelViewMore disabled={isDisabled}>
             <TitleWrapper>

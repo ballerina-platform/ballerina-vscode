@@ -2549,6 +2549,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             });
     };
 
+    const handleOnAddNewAgent = () => {
+        setShowAddAgentPopup(true);
+    };
+
+    const handleAgentCreated = () => {
+        setShowAddAgentPopup(false);
+        loadAvailableAgents();
+    };
+
     const handleOnAddNewModelProvider = () => {
         isCreatingNewModelProvider.current = true;
         setShowProgressIndicator(true);
@@ -2972,6 +2981,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 description: draftDescription,
             },
             selectedNodeId,
+            // Agent editing happens in the agent focus diagram; the main-flow agent-call node is
+            // read-only and only offers "Chat" + navigation to the focus view.
             agentNode: {
                 ...agentEditor.diagramCallbacks,
                 onChatWithAgent: isChatAgentFlow ? undefined : agentEditor.diagramCallbacks.onChatWithAgent,

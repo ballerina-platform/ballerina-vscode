@@ -383,7 +383,7 @@ export class NodeFactoryVisitor implements BaseVisitor {
         //     }
         //     return;
         // }
-        
+
         this.lastNodeModel = endIfEmptyNode;
     }
 
@@ -606,7 +606,7 @@ export class NodeFactoryVisitor implements BaseVisitor {
         if (!this.validateNode(node)) return;
         this.endVisitWhile(node, parent);
     }
-    
+
     beginVisitErrorHandler(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
 

@@ -20,7 +20,173 @@ import { AgentToolData, AvailableNode, CodeData, ConfigVariable, DIRECTORY_MAP, 
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
-import { BALLERINA } from "../../../constants";
+import { BALLERINA, GET_DEFAULT_MODEL_PROVIDER } from "../../../constants";
+
+// Shared variable name for the default WSO2 model provider, reused across agents.
+export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
+const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
+
+const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
+    node: "MODEL_PROVIDER",
+    org: "ballerina",
+    module: "ai",
+    packageName: "ai",
+    symbol: "getDefaultModelProvider",
+};
+
+const OPENAI_PROVIDER_CODEDATA: CodeData = {
+    node: "CLASS_INIT",
+    org: "ballerinax",
+    module: "ai",
+    packageName: "ai",
+    object: "OpenAiProvider",
+    symbol: "init",
+};
+
+/**
+ * Refreshes a flow node's line range in place from the matching artifact in a getSourceCode/deleteFlowNode response.
+ * A preceding edit/delete can shift file lines; re-writing the node on its now-stale range would duplicate it instead
+ * of replacing it. Call this with the response artifacts before the follow-up getSourceCode. No-op if not found.
+ */
+export function refreshNodeLineRangeFromArtifacts(
+    node: FlowNode,
+    artifacts: ProjectStructureArtifactResponse[] | undefined,
+    name: string
+): void {
+    const artifact = artifacts?.find((a) => a.name === name);
+    if (!artifact?.position) {
+        return;
+    }
+    node.codedata.lineRange.startLine.line = artifact.position.startLine;
+    node.codedata.lineRange.startLine.offset = artifact.position.startColumn;
+    node.codedata.lineRange.endLine.line = artifact.position.endLine;
+    node.codedata.lineRange.endLine.offset = artifact.position.endColumn;
+}
+
+export function toCamelCase(name: string): string {
+    const words = name.trim().split(/[\s_]+/).filter(Boolean);
+    if (words.length === 0) return "";
+    const firstWord = words[0];
+    // Lowercase leading acronyms: "HR" -> "hr", "HTMLParser" -> "htmlParser"
+    const leadingUpper = firstWord.match(/^[A-Z]+/);
+    let lowerFirst: string;
+    if (leadingUpper && leadingUpper[0].length === firstWord.length) {
+        lowerFirst = firstWord.toLowerCase();
+    } else if (leadingUpper && leadingUpper[0].length > 1) {
+        lowerFirst = leadingUpper[0].slice(0, -1).toLowerCase() + firstWord.slice(leadingUpper[0].length - 1);
+    } else {
+        lowerFirst = firstWord.charAt(0).toLowerCase() + firstWord.slice(1);
+    }
+    return lowerFirst + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+}
+
+export function toBaseName(name: string): string {
+    const camel = toCamelCase(name);
+    // Strip known suffixes to avoid e.g. "salesAgentAgent"
+    const lower = camel.toLowerCase();
+    for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
+        if (lower.endsWith(suffix) && lower.length > suffix.length) {
+            return camel.slice(0, -suffix.length);
+        }
+    }
+    return camel;
+}
+
+export interface CreatedBuiltInAgent {
+    agentVarName: string;
+    modelVarName: string;
+    baseName: string;
+    // True when the shared WSO2 default model provider was used. The caller is responsible for
+    // invoking configureDefaultModelProvider() at the point that fits its flow.
+    usedDefaultModelProvider: boolean;
+}
+
+/**
+ * Ensures a model provider exists for an agent, reusing the shared `wso2ModelProvider` when the AI
+ * module org is `ballerina`. Creates the provider source if it does not already exist. Returns the
+ * model variable name to reference and whether the shared WSO2 default provider was used.
+ */
+export const ensureModelProvider = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string,
+    baseName: string
+): Promise<{ modelVarName: string; usedDefaultModelProvider: boolean }> => {
+    const aiModuleOrg = await getAiModuleOrg(rpcClient);
+    const modelProviderCodedata = aiModuleOrg === BALLERINA ? WSO2_MODEL_PROVIDER_CODEDATA : OPENAI_PROVIDER_CODEDATA;
+    let modelVarName: string;
+
+    if (aiModuleOrg === BALLERINA) {
+        // Reuse the shared WSO2 model provider if it already exists.
+        modelVarName = AI_WSO2_MODEL_PROVIDER;
+        const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
+            filePath: projectPath,
+            queryMap: { kind: "MODEL_PROVIDER" as NodeKind },
+        });
+        const existingProvider = existingModelProviders?.output?.find(
+            (node) => String(node.properties?.variable?.value) === AI_WSO2_MODEL_PROVIDER
+        );
+        if (!existingProvider) {
+            const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
+            modelNodeTemplate.properties.variable.value = modelVarName;
+            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
+        }
+    } else {
+        modelVarName = `${baseName}Model`;
+        const modelNodeTemplate = await getNodeTemplate(rpcClient, modelProviderCodedata, projectPath);
+        modelNodeTemplate.properties.variable.value = modelVarName;
+        await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
+    }
+
+    return { modelVarName, usedDefaultModelProvider: modelProviderCodedata.symbol === GET_DEFAULT_MODEL_PROVIDER };
+};
+
+/**
+ * Fetches the AGENT node template for the project's AI module. The template exposes the friendly
+ * `role`/`instructions` fields (the raw `systemPrompt` record is hidden and reconstructed by the LS).
+ */
+export const fetchAgentNodeTemplate = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string
+): Promise<FlowNode> => {
+    const aiModuleOrg = await getAiModuleOrg(rpcClient);
+    const agentSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
+        filePath: projectPath,
+        queryMap: { orgName: aiModuleOrg },
+        searchKind: "AGENT",
+    });
+    const agentNode = agentSearchResponse?.categories?.[0]?.items?.[0] as AvailableNode | undefined;
+    if (!agentNode) {
+        throw new Error("No agent node found in search response");
+    }
+    return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
+};
+
+/**
+ * Creates a built-in `ai:Agent` declaration plus its model provider (reusing the shared
+ * `wso2ModelProvider` when the AI module org is `ballerina`). Does not create a listener or
+ * service — callers that need a chat service wire that up separately.
+ */
+export const createBuiltInAgent = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string,
+    agentName: string
+): Promise<CreatedBuiltInAgent> => {
+    const baseName = toBaseName(agentName);
+    const { modelVarName, usedDefaultModelProvider } = await ensureModelProvider(rpcClient, projectPath, baseName);
+
+    const agentNodeTemplate = await fetchAgentNodeTemplate(rpcClient, projectPath);
+    const agentVarName = `${baseName}Agent`;
+    // The friendly role/instructions fields back the (hidden) systemPrompt record; PROMPT-typed values
+    // are wrapped into string templates by the LS during source generation.
+    agentNodeTemplate.properties.role.value = agentName;
+    agentNodeTemplate.properties.instructions.value = "";
+    agentNodeTemplate.properties.model.value = modelVarName;
+    agentNodeTemplate.properties.tools.value = "[]";
+    agentNodeTemplate.properties.variable.value = agentVarName;
+    await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: projectPath, flowNode: agentNodeTemplate });
+
+    return { agentVarName, modelVarName, baseName, usedDefaultModelProvider };
+};
 
 export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
 

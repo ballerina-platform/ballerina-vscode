@@ -762,18 +762,20 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
                 <NodeStyles.Column style={{ height: `${model.node.viewState?.ch}px` }}>
                     <NodeStyles.Row readOnly={readOnly}>
-                        {isPrebuilt ? (
-                            <NodeStyles.IconBox onClick={onNodeClick}>
-                                <NodeIcon type={model.node.codedata.node} size={24} />
-                                <NodeStyles.PackageBadge>
-                                    <Icon name="package" isCodicon={true} iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
-                                </NodeStyles.PackageBadge>
-                            </NodeStyles.IconBox>
-                        ) : (
-                            <NodeStyles.Icon onClick={isTypeDefinition ? onNodeClick : handleOnClick}>
-                                <NodeIcon type={model.node.codedata.node} size={24} />
-                            </NodeStyles.Icon>
-                        )}
+                        {
+                            isPrebuilt ? (
+                                <NodeStyles.IconBox onClick={onNodeClick}>
+                                    <NodeIcon type={model.node.codedata.node} size={24} />
+                                    <NodeStyles.PackageBadge>
+                                        <Icon name="package" isCodicon={true} iconSx={{ fontSize: "12px" }} sx={{ color: "orange" }} />
+                                    </NodeStyles.PackageBadge>
+                                </NodeStyles.IconBox>
+                            ) : (
+                                <NodeStyles.Icon onClick={isTypeDefinition ? onNodeClick : handleOnClick}>
+                                    <NodeIcon type={model.node.codedata.node} size={24} />
+                                </NodeStyles.Icon>
+                            )
+                        }
                         <NodeStyles.Row readOnly={readOnly}>
                             <NodeStyles.Header onClick={isTypeDefinition ? onNodeClick : handleOnClick}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "6px", lineHeight: 1, maxWidth: `${NODE_WIDTH - 80}px` }}>
@@ -809,31 +811,33 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </NodeStyles.MenuButton>
                             </NodeStyles.ActionButtonGroup>
                         </NodeStyles.Row>
-                        {isMenuOpen && (
-                            <Popover
-                                open={isMenuOpen}
-                                anchorEl={anchorEl}
-                                handleClose={handleOnMenuClose}
-                                sx={{
-                                    padding: 0,
-                                    borderRadius: 0,
-                                }}
-                            >
-                                <Menu>
-                                    <>
-                                        {menuItems.map((item) => (
-                                            <MenuItem key={item.id} item={item} />
-                                        ))}
-                                        {!isTypeDefinition && <BreakpointMenu
-                                            hasBreakpoint={hasBreakpoint}
-                                            onAddBreakpoint={onAddBreakpoint}
-                                            onRemoveBreakpoint={onRemoveBreakpoint}
-                                        />}
-                                    </>
-                                </Menu>
-                            </Popover>
-                        )}
-                    </NodeStyles.Row>
+                        {
+                            isMenuOpen && (
+                                <Popover
+                                    open={isMenuOpen}
+                                    anchorEl={anchorEl}
+                                    handleClose={handleOnMenuClose}
+                                    sx={{
+                                        padding: 0,
+                                        borderRadius: 0,
+                                    }}
+                                >
+                                    <Menu>
+                                        <>
+                                            {menuItems.map((item) => (
+                                                <MenuItem key={item.id} item={item} />
+                                            ))}
+                                            {!isTypeDefinition && <BreakpointMenu
+                                                hasBreakpoint={hasBreakpoint}
+                                                onAddBreakpoint={onAddBreakpoint}
+                                                onRemoveBreakpoint={onRemoveBreakpoint}
+                                            />}
+                                        </>
+                                    </Menu>
+                                </Popover>
+                            )
+                        }
+                    </NodeStyles.Row >
 
                     {showMemory && <NodeStyles.MemoryContainer>
                         <NodeStyles.Row readOnly={readOnly}>
@@ -849,8 +853,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                             <NodeStyles.MemoryTitle>Memory</NodeStyles.MemoryTitle>
                                             <NodeStyles.MemoryMeta>
                                                 {(memory.type || "MessageWindowChatMemory").replace(/^ai:/, "")}
-                                            </NodeStyles.MemoryMeta>
-                                        </div>
+                                            </NodeStyles.MemoryMeta >
+                                        </div >
                                         <NodeStyles.MenuButton
                                             ref={setMemoryMenuButtonElement}
                                             buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
@@ -859,15 +863,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         >
                                             <MoreVertIcon />
                                         </NodeStyles.MenuButton>
-                                    </NodeStyles.Row>
-                                </NodeStyles.MemoryCard>
+                                    </NodeStyles.Row >
+                                </NodeStyles.MemoryCard >
                             ) : (
                                 <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory">
                                     <Icon name="bi-plus" sx={{ fontSize: "16px", marginRight: "4px" }} />
                                     Add Memory
                                 </NodeStyles.MemoryButton>
-                            )}
-                        </NodeStyles.Row>
+                            )
+                            }
+                        </NodeStyles.Row >
                         <Popover
                             open={isMemoryMenuOpen}
                             anchorEl={memoryMenuAnchorEl}
@@ -885,180 +890,101 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </>
                             </Menu>
                         </Popover>
-                    </NodeStyles.MemoryContainer>}
+                    </NodeStyles.MemoryContainer >}
 
-                    {isTypeDefinition ? (
-                        (hasPrompt || description) && (
-                            <>
-                                {!showMemory && <NodeStyles.Divider />}
-                                <NodeStyles.DescriptionBlock readOnly={readOnly} onClick={onNodeClick}>
-                                    {hasPrompt ? (
-                                        <>
-                                            <NodeStyles.Role>
+                    {
+                        isTypeDefinition ? (
+                            (hasPrompt || description) && (
+                                <>
+                                    {!showMemory && <NodeStyles.Divider />}
+                                    <NodeStyles.DescriptionBlock readOnly={readOnly} onClick={onNodeClick}>
+                                        {hasPrompt ? (
+                                            <>
+                                                <NodeStyles.Role>
+                                                    <ReactMarkdown
+                                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                                        unwrapDisallowed={true}
+                                                    >
+                                                        {sanitizedAgent?.role}
+                                                    </ReactMarkdown>
+                                                </NodeStyles.Role>
+                                                <NodeStyles.Instructions>
+                                                    <ReactMarkdown
+                                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                                        unwrapDisallowed={true}
+                                                    >
+                                                        {sanitizedAgent?.instructions}
+                                                    </ReactMarkdown>
+                                                </NodeStyles.Instructions>
+                                            </>
+                                        ) : (
+                                            <NodeStyles.AgentDescription>
                                                 <ReactMarkdown
                                                     disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
                                                     unwrapDisallowed={true}
                                                 >
-                                                    {sanitizedAgent?.role}
+                                                    {description}
                                                 </ReactMarkdown>
-                                            </NodeStyles.Role>
-                                            <NodeStyles.Instructions>
-                                                <ReactMarkdown
-                                                    disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                    unwrapDisallowed={true}
-                                                >
-                                                    {sanitizedAgent?.instructions}
-                                                </ReactMarkdown>
-                                            </NodeStyles.Instructions>
-                                        </>
-                                    ) : (
-                                        <NodeStyles.AgentDescription>
-                                            <ReactMarkdown
-                                                disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                                unwrapDisallowed={true}
-                                            >
-                                                {description}
-                                            </ReactMarkdown>
-                                        </NodeStyles.AgentDescription>
-                                    )}
-                                </NodeStyles.DescriptionBlock>
-                            </>
-                        )
-                    ) : (
-                        sanitizedAgent?.role ? (
-                            <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Role>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.role}
-                                    </ReactMarkdown>
-                                </NodeStyles.Role>
-                            </NodeStyles.Row>
+                                            </NodeStyles.AgentDescription>
+                                        )}
+                                    </NodeStyles.DescriptionBlock>
+                                </>
+                            )
                         ) : (
-                            <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.RolePlaceholder>Define the agent's role</NodeStyles.RolePlaceholder>
-                            </NodeStyles.Row>
+                            sanitizedAgent?.role ? (
+                                <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
+                                    <NodeStyles.Role>
+                                        <ReactMarkdown
+                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                            unwrapDisallowed={true}
+                                        >
+                                            {sanitizedAgent?.role}
+                                        </ReactMarkdown>
+                                    </NodeStyles.Role>
+                                </NodeStyles.Row>
+                            ) : (
+                                <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
+                                    <NodeStyles.RolePlaceholder>Define the agent's role</NodeStyles.RolePlaceholder>
+                                </NodeStyles.Row >
+                            )
                         )
-                    )}
+                    }
 
-                    {!isTypeDefinition && (
-                        sanitizedAgent?.instructions ? (
-                            <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.Instructions>
-                                    <ReactMarkdown
-                                        disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
-                                        unwrapDisallowed={true}
-                                    >
-                                        {sanitizedAgent?.instructions}
-                                    </ReactMarkdown>
-                                </NodeStyles.Instructions>
-                            </NodeStyles.InstructionsRow>
-                        ) : (
-                            <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.InstructionsPlaceholder>
-                                    Provide specific instructions on how the agent should behave.
-                                </NodeStyles.InstructionsPlaceholder>
-                            </NodeStyles.InstructionsRow>
+                    {
+                        !isTypeDefinition && (
+                            sanitizedAgent?.instructions ? (
+                                <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
+                                    <NodeStyles.Instructions>
+                                        <ReactMarkdown
+                                            disallowedElements={['script', 'iframe', 'object', 'embed', 'link', 'style']}
+                                            unwrapDisallowed={true}
+                                        >
+                                            {sanitizedAgent?.instructions}
+                                        </ReactMarkdown>
+                                    </NodeStyles.Instructions>
+                                </NodeStyles.InstructionsRow>
+                            ) : (
+                                <NodeStyles.InstructionsRow readOnly={readOnly} onClick={handleOnClick}>
+                                    <NodeStyles.InstructionsPlaceholder>
+                                        Provide specific instructions on how the agent should behave.
+                                    </NodeStyles.InstructionsPlaceholder>
+                                </NodeStyles.InstructionsRow>
+                            )
                         )
-                    )}
-                </NodeStyles.Column>
+                    }
+                </NodeStyles.Column >
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
-            </NodeStyles.Box>
+            </NodeStyles.Box >
 
-            {(!isTypeDefinition || showModelCircle || tools.length > 0) && <svg
-                width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
-                height={model.node.viewState?.ch}
-                viewBox={`0 0 300 ${containerHeight}`}
-                style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
-            >
-                {showModelCircle && <g>
-                    <circle
-                        cx="80"
-                        cy="24"
-                        r="22"
-                        fill={ThemeColors.SURFACE_DIM}
-                        stroke={ThemeColors.OUTLINE_VARIANT}
-                        strokeWidth={1.5}
-                        strokeDasharray={disabled ? "5 5" : "none"}
-                        opacity={disabled ? 0.7 : 1}
-                        onClick={onModelEditClick}
-                        css={css`
-                            cursor: ${readOnly ? "default" : "pointer"};
-                            transition: stroke 0.4s ease-out;
-                            &:hover {
-                                stroke: ${readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
-                            }
-                        `}
-                    >
-                        <title>{"Configure Model Provider"}</title>
-                    </circle>
-                    <foreignObject
-                        x="68"
-                        y="12"
-                        width="44"
-                        height="44"
-                        fill={ThemeColors.ON_SURFACE}
-                        style={{ pointerEvents: "none" }}
-                    >
-                        {isDefaultModelProviderExpr(model.node.properties?.[modelPropertyKey]?.value)
-                            ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
-                            : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
-                    </foreignObject>
-
-                    <line
-                        x1="0"
-                        y1="25"
-                        x2="57"
-                        y2="25"
-                        style={{
-                            stroke: ThemeColors.ON_SURFACE,
-                            strokeWidth: 1.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head)`,
-                            markerStart: `url(#${model.node.id}-diamond-start)`,
-                        }}
-                    />
-                </g>}
-
-                {tools.map((tool: ToolData, index: number) => {
-                    return (
-                        <g
-                            key={index}
-                            transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                                })`}
-                            opacity={toolsReadOnly ? 0.55 : undefined}
-                            onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
-                            onContextMenu={(e) => {
-                                if (!readOnly && !toolsReadOnly) {
-                                    e.preventDefault();
-                                    handleToolMenuClick(e as any, tool);
-                                }
-                            }}
-                            css={toolsReadOnly ? css`
-                                cursor: not-allowed;
-                            ` : css`
-                            cursor: ${readOnly ? "default" : "pointer"};
-                            &:hover circle:first-of-type {
-                                stroke: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover foreignObject .connector-icon path {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover .tool-tooltip {
-                                opacity: 1;
-                                visibility: visible;
-                            }
-                            &:hover .tool-menu-button {
-                                opacity: 1;
-                                visibility: visible;
-                            }
-                        `}
-                        >
-                            {toolsReadOnly && <title>This tool is packaged with the agent and cannot be edited</title>}
+            {
+                (!isTypeDefinition || showModelCircle || tools.length > 0) && <svg
+                    width={NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH + 10}
+                    height={model.node.viewState?.ch}
+                    viewBox={`0 0 300 ${containerHeight}`}
+                    style={{ marginLeft: "-10px", position: "relative", zIndex: 1 }}
+                >
+                    {
+                        showModelCircle && <g>
                             <circle
                                 cx="80"
                                 cy="24"
@@ -1068,10 +994,17 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 strokeWidth={1.5}
                                 strokeDasharray={disabled ? "5 5" : "none"}
                                 opacity={disabled ? 0.7 : 1}
+                                onClick={onModelEditClick}
                                 css={css`
-                                    transition: stroke 0.4s ease-out;
-                                `}
-                            />
+                            cursor: ${readOnly ? "default" : "pointer"};
+                            transition: stroke 0.4s ease-out;
+                            &:hover {
+                                stroke: ${readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+                            }
+                        `}
+                            >
+                                <title>{"Configure Model Provider"}</title>
+                            </circle>
                             <foreignObject
                                 x="68"
                                 y="12"
@@ -1080,84 +1013,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 fill={ThemeColors.ON_SURFACE}
                                 style={{ pointerEvents: "none" }}
                             >
-                                <div className="connector-icon">
-                                    {tool.type === "Agent" ? (
-                                        <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
-                                    ) : tool.path ? (
-                                        <ConnectorIcon
-                                            url={tool.path}
-                                            style={{ width: 24, height: 24, fontSize: 24 }}
-                                            fallbackIcon={<Icon name="bi-function" sx={{ fontSize: "24px" }} />}
-                                            codedata={model.node?.codedata}
-                                        />
-                                    ) : (
-                                        <Icon name="bi-function" sx={{ fontSize: "24px" }} />
-                                    )}
-                                </div>
-                            </foreignObject>
-
-                            <text
-                                x="110"
-                                y="28"
-                                textAnchor="start"
-                                fill={ThemeColors.ON_SURFACE}
-                                fontSize="14px"
-                                fontFamily="GilmerRegular"
-                                dominantBaseline="middle"
-                            >
-                                {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
-                                <title>{tool.name}</title>
-                            </text>
-
-                            {!readOnly && !toolsReadOnly && (
-                                <>
-                                    <foreignObject
-                                        x="60"
-                                        y="0"
-                                        width="220"
-                                        height="48"
-                                        css={css`
-                                        pointer-events: all;
-                                        &:hover + .tool-menu-button {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
-                                    `}
-                                    >
-                                        <div style={{ width: "100%", height: "100%" }} />
-                                    </foreignObject>
-                                    <foreignObject
-                                        x={tool.name.length > 20 ? 240 : 110 + tool.name.length * 7}
-                                        y="14"
-                                        width="24"
-                                        height="24"
-                                        className="tool-menu-button"
-                                        css={css`
-                                        opacity: 0;
-                                        visibility: hidden;
-                                        transition: opacity 0.2s ease-in-out;
-                                        pointer-events: all;
-                                        &:hover {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
-                                    `}
-                                    >
-                                        <NodeStyles.MenuButton
-                                            appearance="icon"
-                                            onClick={(e) => handleToolMenuClick(e, tool)}
-                                            css={css`
-                                            padding: 2px;
-                                            height: 24px;
-                                            width: 24px;
-                                            min-width: 24px;
-                                        `}
-                                        >
-                                            <MoreVertIcon />
-                                        </NodeStyles.MenuButton>
-                                    </foreignObject>
-                                </>
-                            )}
+                                {
+                                    isDefaultModelProviderExpr(model.node.properties?.[modelPropertyKey]?.value)
+                                        ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                                        : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)
+                                }
+                            </foreignObject >
 
                             <line
                                 x1="0"
@@ -1167,163 +1028,317 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 style={{
                                     stroke: ThemeColors.ON_SURFACE,
                                     strokeWidth: 1.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
-                                    strokeDasharray: "6 6",
+                                    markerEnd: `url(#${model.node.id}-arrow-head)`,
+                                    markerStart: `url(#${model.node.id}-diamond-start)`,
                                 }}
                             />
+                        </g >}
 
-                            {!toolsReadOnly && <foreignObject
-                                x="110"
-                                y="-10"
-                                width="150"
-                                height="30"
-                                className="tool-tooltip"
-                                style={{ pointerEvents: "none" }}
-                            >
-                                <div
-                                    css={css`
-                                    background-color: ${ThemeColors.SURFACE_BRIGHT};
-                                    color: ${ThemeColors.ON_SURFACE};
-                                    padding: 4px 8px;
-                                    border-radius: 4px;
-                                    font-size: 12px;
-                                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                                    opacity: 0;
-                                    visibility: hidden;
-                                    transition: opacity 0.2s ease-in-out;
-                                    pointer-events: none;
-                                    white-space: nowrap;
-                                    font-family: "GilmerRegular";
-                                `}
+                    {
+                        tools.map((tool: ToolData, index: number) => {
+                            return (
+                                <g
+                                    key={index}
+                                    transform={`translate(0, ${(index + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
+                                        })`}
+                                    opacity={toolsReadOnly ? 0.55 : undefined}
+                                    onClick={toolsReadOnly ? undefined : () => tool.type == "MCP Server" ? onToolClick(tool) : onImplementTool(tool)}
+                                    onContextMenu={(e) => {
+                                        if (!readOnly && !toolsReadOnly) {
+                                            e.preventDefault();
+                                            handleToolMenuClick(e as any, tool);
+                                        }
+                                    }}
+                                    css={toolsReadOnly ? css`
+                                cursor: not-allowed;
+                            ` : css`
+                            cursor:${readOnly ? "default" : "pointer"};
+                            &:hover circle: first - of - type {
+            stroke: ${ThemeColors.SECONDARY};
+        }
+                            &:hover foreignObject.connector - icon path {
+            fill: ${ThemeColors.SECONDARY};
+        }
+                            &:hover text {
+            fill: ${ThemeColors.SECONDARY};
+        }
+                            &: hover.tool - tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+                            &: hover.tool - menu - button {
+            opacity: 1;
+            visibility: visible;
+        }
+        `}
                                 >
-                                    Click to view {tool.name}
-                                </div>
-                            </foreignObject>}
-                        </g>
-                    );
-                })}
+                                    {toolsReadOnly && <title>This tool is packaged with the agent and cannot be edited</title>}
+                                    <circle
+                                        cx="80"
+                                        cy="24"
+                                        r="22"
+                                        fill={ThemeColors.SURFACE_DIM}
+                                        stroke={ThemeColors.OUTLINE_VARIANT}
+                                        strokeWidth={1.5}
+                                        strokeDasharray={disabled ? "5 5" : "none"}
+                                        opacity={disabled ? 0.7 : 1}
+                                        css={css`
+        transition: stroke 0.4s ease - out;
+        `}
+                                    />
+                                    <foreignObject
+                                        x="68"
+                                        y="12"
+                                        width="44"
+                                        height="44"
+                                        fill={ThemeColors.ON_SURFACE}
+                                        style={{ pointerEvents: "none" }}
+                                    >
+                                        <div className="connector-icon">
+                                            {tool.type === "Agent" ? (
+                                                <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />
+                                            ) : tool.path ? (
+                                                <ConnectorIcon
+                                                    url={tool.path}
+                                                    style={{ width: 24, height: 24, fontSize: 24 }}
+                                                    fallbackIcon={<Icon name="bi-function" sx={{ fontSize: "24px" }} />}
+                                                    codedata={model.node?.codedata}
+                                                />
+                                            ) : (
+                                                <Icon name="bi-function" sx={{ fontSize: "24px" }} />
+                                            )}
+                                        </div>
+                                    </foreignObject>
 
-                {!toolsReadOnly && <Popover
-                    open={isToolMenuOpen}
-                    anchorEl={toolAnchorEl}
-                    handleClose={handleToolMenuClose}
-                    sx={{
-                        padding: 0,
-                        borderRadius: 0,
-                    }}
-                >
-                    <Menu>
-                        {selectedTool &&
-                            toolMenuItems(selectedTool).map((item) => <MenuItem key={item.id} item={item} />)}
-                    </Menu>
-                </Popover>}
+                                    <text
+                                        x="110"
+                                        y="28"
+                                        textAnchor="start"
+                                        fill={ThemeColors.ON_SURFACE}
+                                        fontSize="14px"
+                                        fontFamily="GilmerRegular"
+                                        dominantBaseline="middle"
+                                    >
+                                        {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
+                                        <title>{tool.name}</title>
+                                    </text>
 
-                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
-                    transform={`translate(-11, ${tools.length > 0
-                        ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                        : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
-                        })`}
-                    onClick={onAddToolClick}
-                    style={{ cursor: "pointer" }}
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        css={css`
-                            cursor: ${readOnly ? "not-allowed" : "pointer"};
-                            &:hover path:last-of-type {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover + .custom-tooltip {
-                                opacity: 1;
-                                visibility: visible;
-                            }
-                        `}
+                                    {!readOnly && !toolsReadOnly && (
+                                        <>
+                                            <foreignObject
+                                                x="60"
+                                                y="0"
+                                                width="220"
+                                                height="48"
+                                                css={css`
+                                        pointer - events: all;
+                                        &: hover + .tool - menu - button {
+        opacity: 1;
+        visibility: visible;
+    }
+    `}
+                                            >
+                                                <div style={{ width: "100%", height: "100%" }} />
+                                            </foreignObject>
+                                            <foreignObject
+                                                x={tool.name.length > 20 ? 240 : 110 + tool.name.length * 7}
+                                                y="14"
+                                                width="24"
+                                                height="24"
+                                                className="tool-menu-button"
+                                                css={css`
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease -in -out;
+    pointer - events: all;
+                                        &:hover {
+        opacity: 1;
+        visibility: visible;
+    }
+    `}
+                                            >
+                                                <NodeStyles.MenuButton
+                                                    appearance="icon"
+                                                    onClick={(e) => handleToolMenuClick(e, tool)}
+                                                    css={css`
+    padding: 2px;
+    height: 24px;
+    width: 24px;
+    min - width: 24px;
+    `}
+                                                >
+                                                    <MoreVertIcon />
+                                                </NodeStyles.MenuButton>
+                                            </foreignObject>
+                                        </>
+                                    )}
+
+                                    <line
+                                        x1="0"
+                                        y1="25"
+                                        x2="57"
+                                        y2="25"
+                                        style={{
+                                            stroke: ThemeColors.ON_SURFACE,
+                                            strokeWidth: 1.5,
+                                            markerEnd: `url(#${model.node.id} - arrow - head - tool - ${sanitizeId(tool.name)
+                                                })`,
+                                            strokeDasharray: "6 6",
+                                        }}
+                                    />
+
+                                    {!toolsReadOnly && <foreignObject
+                                        x="110"
+                                        y="-10"
+                                        width="150"
+                                        height="30"
+                                        className="tool-tooltip"
+                                        style={{ pointerEvents: "none" }}
+                                    >
+                                        <div
+                                            css={css`
+background - color: ${ThemeColors.SURFACE_BRIGHT};
+color: ${ThemeColors.ON_SURFACE};
+padding: 4px 8px;
+border - radius: 4px;
+font - size: 12px;
+box - shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+opacity: 0;
+visibility: hidden;
+transition: opacity 0.2s ease -in -out;
+pointer - events: none;
+white - space: nowrap;
+font - family: "GilmerRegular";
+`}
+                                        >
+                                            Click to view {tool.name}
+                                        </div>
+                                    </foreignObject>}
+                                </g>
+                            );
+                        })}
+
+                    {!toolsReadOnly && <Popover
+                        open={isToolMenuOpen}
+                        anchorEl={toolAnchorEl}
+                        handleClose={handleToolMenuClose}
+                        sx={{
+                            padding: 0,
+                            borderRadius: 0,
+                        }}
                     >
-                        <title>Add New Tool / MCP Server</title>
-                        <path
-                            fill={ThemeColors.SURFACE_BRIGHT}
-                            d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                        />
-                        <path
-                            fill={ThemeColors.ON_SURFACE}
-                            d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8m4-9h-3V8a1 1 0 0 0-2 0v3H8a1 1 0 0 0 0 2h3v3a1 1 0 0 0 2 0v-3h3a1 1 0 0 0 0-2"
-                        />
-                    </svg>
+                        <Menu>
+                            {selectedTool &&
+                                toolMenuItems(selectedTool).map((item) => <MenuItem key={item.id} item={item} />)}
+                        </Menu>
+                    </Popover>}
 
-                    <foreignObject x="25" y="-10" width="100" height="30" style={{ pointerEvents: "none" }}>
-                        <div
-                            className="custom-tooltip"
+                    {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
+                        transform={`translate(-11, ${tools.length > 0
+                                ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
+                                : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
+                            })`}
+                        onClick={onAddToolClick}
+                        style={{ cursor: "pointer" }}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
                             css={css`
-                                background-color: ${ThemeColors.SURFACE_BRIGHT};
-                                color: ${ThemeColors.ON_SURFACE};
-                                padding: 4px 8px;
-                                border-radius: 4px;
-                                font-size: 12px;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                                opacity: 0;
-                                visibility: hidden;
-                                transition: opacity 0.2s ease-in-out;
-                                pointer-events: none;
-                                white-space: nowrap;
-                                font-family: "GilmerRegular";
-                            `}
+cursor: ${readOnly ? "not-allowed" : "pointer"};
+                            &:hover path: last - of - type {
+    fill: ${ThemeColors.SECONDARY};
+}
+                            &: hover + .custom - tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+`}
                         >
-                            Add New Tool / MCP Server
-                        </div>
-                    </foreignObject>
-                </g>}
+                            <title>Add New Tool / MCP Server</title>
+                            <path
+                                fill={ThemeColors.SURFACE_BRIGHT}
+                                d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
+                            />
+                            <path
+                                fill={ThemeColors.ON_SURFACE}
+                                d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8m4-9h-3V8a1 1 0 0 0-2 0v3H8a1 1 0 0 0 0 2h3v3a1 1 0 0 0 2 0v-3h3a1 1 0 0 0 0-2"
+                            />
+                        </svg>
 
-                <defs>
-                    <marker
-                        id={`${model.node.id}-arrow-head`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
-                    </marker>
-
-                    <marker
-                        id={`${model.node.id}-diamond-start`}
-                        markerWidth="8"
-                        markerHeight="8"
-                        refX="4.5"
-                        refY="4"
-                        viewBox="0 0 8 8"
-                        orient="auto"
-                    >
-                        <circle
-                            cx="4"
-                            cy="4"
-                            r="3"
-                            fill={ThemeColors.SURFACE_DIM}
-                            stroke={ThemeColors.ON_SURFACE}
-                            strokeWidth="1"
-                        />
-                    </marker>
-                    {tools.map((tool: ToolData) => (
-                        <React.Fragment key={tool.name}>
-                            <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}`}
-                                markerWidth="4"
-                                markerHeight="4"
-                                refX="3"
-                                refY="2"
-                                viewBox="0 0 4 4"
-                                orient="auto"
+                        <foreignObject x="25" y="-10" width="100" height="30" style={{ pointerEvents: "none" }}>
+                            <div
+                                className="custom-tooltip"
+                                css={css`
+background - color: ${ThemeColors.SURFACE_BRIGHT};
+color: ${ThemeColors.ON_SURFACE};
+padding: 4px 8px;
+border - radius: 4px;
+font - size: 12px;
+box - shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+opacity: 0;
+visibility: hidden;
+transition: opacity 0.2s ease -in -out;
+pointer - events: none;
+white - space: nowrap;
+font - family: "GilmerRegular";
+`}
                             >
-                                <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
-                            </marker>
-                        </React.Fragment>
-                    ))}
-                </defs>
-            </svg>}
+                                Add New Tool / MCP Server
+                            </div>
+                        </foreignObject>
+                    </g>}
+
+                    <defs>
+                        <marker
+                            id={`${model.node.id} -arrow - head`}
+                            markerWidth="4"
+                            markerHeight="4"
+                            refX="3"
+                            refY="2"
+                            viewBox="0 0 4 4"
+                            orient="auto"
+                        >
+                            <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                        </marker>
+
+                        <marker
+                            id={`${model.node.id} -diamond - start`}
+                            markerWidth="8"
+                            markerHeight="8"
+                            refX="4.5"
+                            refY="4"
+                            viewBox="0 0 8 8"
+                            orient="auto"
+                        >
+                            <circle
+                                cx="4"
+                                cy="4"
+                                r="3"
+                                fill={ThemeColors.SURFACE_DIM}
+                                stroke={ThemeColors.ON_SURFACE}
+                                strokeWidth="1"
+                            />
+                        </marker>
+                        {tools.map((tool: ToolData) => (
+                            <React.Fragment key={tool.name}>
+                                <marker
+                                    id={`${model.node.id} -arrow - head - tool - ${sanitizeId(tool.name)} `}
+                                    markerWidth="4"
+                                    markerHeight="4"
+                                    refX="3"
+                                    refY="2"
+                                    viewBox="0 0 4 4"
+                                    orient="auto"
+                                >
+                                    <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                                </marker>
+                            </React.Fragment>
+                        ))}
+                    </defs>
+                </svg>}
         </NodeStyles.Node>
     );
 }

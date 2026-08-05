@@ -455,6 +455,17 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.AgentsOverview: {
+                            const { AgentsOverview } = await import("./views/AgentsOverview");
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <AgentsOverview
+                                    key={remountKey}
+                                    projectPath={value?.projectPath}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.DataMapper: {
                             const { DataMapper } = await import("./views/DataMapper");
                             if (isStaleNavigation()) return;

@@ -330,7 +330,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     const [isAiUserAuthenticated, setIsAiUserAuthenticated] = useState(false);
     const formImportsRef = useRef<FormImports>({});
     const [typeEditorState, setTypeEditorState] = useState<FlowNodeTypeEditorState>({ isOpen: false, newTypeValue: "" });
-     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState<boolean>(false);
+    const [isTypeEditorOpen, setIsTypeEditorOpen] = useState<boolean>(false);
     const [editingTypeName, setEditingTypeName] = useState<string>("");
     const [visualizableField, setVisualizableField] = useState<VisualizableField>();
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
@@ -2197,9 +2197,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                         <Tooltip content={formDiagnosticsFixTooltip}>
                             <span style={{ display: "block" }}>
                                 <ActionButton onClick={handleFixFormDiagnostics} disabled={!canFixFormDiagnostics} appearance='primary'>
-                                <Icon name="bi-ai-agent" sx={{ width: 16, height: 16, fontSize: 16, marginRight: 8 }} />
-                                Fix with AI
-                            </ActionButton>
+                                    <Icon name="bi-ai-agent" sx={{ width: 16, height: 16, fontSize: 16, marginRight: 8 }} />
+                                    Fix with AI
+                                </ActionButton>
                             </span>
                         </Tooltip>
                     ) : undefined}
