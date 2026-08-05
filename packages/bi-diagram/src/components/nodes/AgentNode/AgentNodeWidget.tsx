@@ -37,9 +37,9 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon, { CHART_COLORS, getAIColor, isDarkTheme, ThemeListener } from "../../NodeIcon";
+import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
-import { useDiagramContext, useTraceAnimation } from "../../DiagramContext";
+import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
@@ -47,7 +47,7 @@ import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
+import { sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -417,8 +417,7 @@ function getAgentNodePresentation(model: AgentNodeModel, agentInfo?: NodeMetadat
 
 export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const { model, engine, onClick } = props;
-    const { onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId, entrypointContext } = useDiagramContext();
-    const traceAnimation = useTraceAnimation();
+    const { onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly, selectedNodeId } = useDiagramContext();
 
     const isSelected = selectedNodeId === model.node.id;
 
@@ -433,11 +432,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const isMenuOpen = Boolean(anchorEl);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
-    const [aiColor, setAiColor] = useState<string>(() => getAIColor());
-    const [isDarkMode, setIsDarkMode] = useState<boolean>(() => isDarkTheme());
-    const cyanColor = isDarkMode ? CHART_COLORS.BRIGHT_CYAN : CHART_COLORS.CYAN;
-    const syncPulseAnimation = getSyncPulseAnimation(cyanColor);
-    const boxSyncPulseAnimation = getBoxSyncPulseAnimation(cyanColor);
 
     useEffect(() => {
         if (model.node.suggested) {
@@ -592,12 +586,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         setMemoryMenuAnchorEl(null);
     };
 
-    const handleThemeChange = () => {
-        const dark = isDarkTheme();
-        setIsDarkMode(dark);
-        setAiColor(getAIColor());
-    };
-
     const onChatWithAgent = () => {
         agentNode?.onChatWithAgent?.(model.node);
         setAnchorEl(null);
@@ -665,56 +653,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const description = agentInfo?.description;
     const isPrebuilt = isTypeDefinition && Boolean(model.node.codedata?.org);
     const modelPropertyKey = agentInfo?.modelProvider?.propertyKey ?? "model";
-    const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
-    const nodeRole = sanitizedAgent?.role || '';
-    const nodeInstructions = sanitizedAgent?.instructions || '';
-
-    const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
-        if (entrypointContext) {
-            const traceService = traceAnimation.entrypointServiceName ?? '';
-            const traceFunction = traceAnimation.entrypointFunctionName ?? '';
-            const ctxService = entrypointContext.serviceName ?? '';
-            const ctxFunction = entrypointContext.functionName ?? '';
-            if (traceService !== ctxService || traceFunction !== ctxFunction) {
-                return false;
-            }
-        }
-
-        const sysInstr = traceAnimation.systemInstructions;
-        if (sysInstr) {
-            const extractedRole = sysInstr.match(/(?:^|\n)#\s*Role[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions|$)/i)?.[1]?.trim();
-            const extractedInstructions = sysInstr.match(/(?:^|\n)#\s*Instructions[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions for Tool Validation Failure Handling|$)/i)?.[1]?.trim();
-
-            const roleMatch = nodeRole != null && extractedRole === nodeRole.trim();
-            const cleanedInstructions = extractedInstructions
-                ?.replace(/\n#\s*Instructions for Tool Validation Failure Handling[^\n]*\n[\s\S]*$/, '')
-                ?.trim();
-            const instrMatch = nodeInstructions != null && cleanedInstructions === nodeInstructions.trim();
-
-            if (nodeRole != null && nodeInstructions != null) {
-                return roleMatch && instrMatch;
-            }
-        }
-        const hasToolOverlap =
-            traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
-        if (hasToolOverlap) return true;
-        return false;
-    })();
-    const matchedEntries = isTraceMatch ? traceAnimation.entries : [];
-
-    const chatEntry = matchedEntries.find(e => e.type === 'chat');
-    const toolEntries = matchedEntries.filter(e => e.type === 'execute_tool');
-
-    const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
-    const isAnyToolActive = activeToolNames.length > 0;
-
-    const isModelActive = chatEntry?.phase === 'active' && !isAnyToolActive;
-
-    const isAgentNodeActive = isModelActive || isAnyToolActive;
-
     let containerHeight =
         NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2;
     if (tools.length > 0) {
@@ -739,20 +677,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                 title="Configure Agent"
             >
-                {!isTypeDefinition && <div
-                    css={css`
-                        position: absolute;
-                        top: -1px; left: -1px; right: -1px; bottom: -1px;
-                        border-radius: 10px;
-                        border: 2px solid ${aiColor};
-                        opacity: ${isAgentNodeActive ? 1 : 0};
-                        transition: opacity 0.4s ease-out;
-                        animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                        pointer-events: none;
-                        z-index: 1;
-                    `}
-                />}
-
                 {hasBreakpoint && (
                     <div
                         data-testid={isActiveBreakpoint ? "breakpoint-indicator-diagram-active" : "breakpoint-indicator-diagram"}
@@ -1000,23 +924,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <title>{"Configure Model Provider"}</title>
                     </circle>
-                    <circle
-                        cx="80"
-                        cy="24"
-                        r="22"
-                        fill="none"
-                        stroke={aiColor}
-                        strokeWidth={2.5}
-                        css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            transform-origin: 80px 24px;
-                            transform: scale(1.03);
-                            animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                        `}
-                    />
-
                     <foreignObject
                         x="68"
                         y="12"
@@ -1040,32 +947,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             strokeWidth: 1.5,
                             markerEnd: `url(#${model.node.id}-arrow-head)`,
                             markerStart: `url(#${model.node.id}-diamond-start)`,
-                            opacity: isModelActive ? 0 : 1,
-                            transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
                         }}
-                    />
-                    <line
-                        x1="0"
-                        y1="25"
-                        x2="57"
-                        y2="25"
-                        style={{
-                            stroke: aiColor,
-                            strokeWidth: 2.5,
-                            markerEnd: `url(#${model.node.id}-arrow-head-active)`,
-                            strokeDasharray: "6 6",
-                        }}
-                        css={css`
-                            pointer-events: none;
-                            opacity: ${isModelActive ? 1 : 0};
-                            transition: opacity 0.4s ease-out;
-                            animation: ${flowDashAnimation} 1s linear infinite;
-                        `}
                     />
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
-                    const isToolActive = !toolsReadOnly && activeToolNames.includes(tool.name);
                     return (
                         <g
                             key={index}
@@ -1116,23 +1002,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     transition: stroke 0.4s ease-out;
                                 `}
                             />
-                            <circle
-                                cx="80"
-                                cy="24"
-                                r="22"
-                                fill="none"
-                                stroke={aiColor}
-                                strokeWidth={2.5}
-                                css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    transform-origin: 80px 24px;
-                                    transform: scale(1.03);
-                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
-                                `}
-                            />
-
                             <foreignObject
                                 x="68"
                                 y="12"
@@ -1161,11 +1030,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 x="110"
                                 y="28"
                                 textAnchor="start"
-                                fill={isToolActive ? aiColor : ThemeColors.ON_SURFACE}
+                                fill={ThemeColors.ON_SURFACE}
                                 fontSize="14px"
                                 fontFamily="GilmerRegular"
                                 dominantBaseline="middle"
-                                style={{ transition: "fill 0.4s ease-out" }}
                             >
                                 {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
                                 <title>{tool.name}</title>
@@ -1231,27 +1099,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     strokeWidth: 1.5,
                                     markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
                                     strokeDasharray: "6 6",
-                                    opacity: isToolActive ? 0 : 1,
-                                    transition: "stroke 0.4s ease-out, opacity 0.4s ease-out",
                                 }}
-                            />
-                            <line
-                                x1="0"
-                                y1="25"
-                                x2="57"
-                                y2="25"
-                                style={{
-                                    stroke: aiColor,
-                                    strokeWidth: 2.5,
-                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active)`,
-                                    strokeDasharray: "6 6",
-                                }}
-                                css={css`
-                                    pointer-events: none;
-                                    opacity: ${isToolActive ? 1 : 0};
-                                    transition: opacity 0.4s ease-out;
-                                    animation: ${flowDashAnimation} 1s linear infinite;
-                                `}
                             />
 
                             {!toolsReadOnly && <foreignObject
@@ -1372,18 +1220,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </marker>
 
                     <marker
-                        id={`${model.node.id}-arrow-head-active`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
-                    </marker>
-
-                    <marker
                         id={`${model.node.id}-diamond-start`}
                         markerWidth="8"
                         markerHeight="8"
@@ -1414,23 +1250,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             >
                                 <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
                             </marker>
-
-                            <marker
-                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
-                                markerWidth="4"
-                                markerHeight="4"
-                                refX="3"
-                                refY="2"
-                                viewBox="0 0 4 4"
-                                orient="auto"
-                            >
-                                <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
-                            </marker>
                         </React.Fragment>
                     ))}
                 </defs>
             </svg>}
-            <ThemeListener onThemeChange={handleThemeChange} />
         </NodeStyles.Node>
     );
 }
