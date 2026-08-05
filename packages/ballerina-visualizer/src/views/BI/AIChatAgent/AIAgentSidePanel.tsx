@@ -57,7 +57,8 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import styled from "@emotion/styled";
 import { URI, Utils } from "vscode-uri";
 import { cloneDeep } from "lodash";
-import { createDefaultParameterValue, createToolInputFields, createToolParameters, prepareToolInputFields } from "./formUtils";
+import { buildAgentToolFields, createDefaultParameterValue, createToolInputFields, createToolParameters, prepareToolInputFields, stripCodeFences, stripCodeFencesInline } from "./formUtils";
+import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
 import { fetchOAuthConfigProperties } from "./utils";
@@ -68,23 +69,6 @@ const LoaderContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ImplementationBadge = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: var(--vscode-input-background);
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--vscode-foreground);
-    margin-bottom: 4px;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 `;
 
 const ImplementationInfoContainer = styled.div`
@@ -173,30 +157,7 @@ function reorderFunctionCategories(categories: PanelCategory[]): PanelCategory[]
     return categories;
 }
 
-const INITIAL_FIELDS: FormField[] = [
-    {
-        key: `name`,
-        label: "Tool Name",
-        type: "IDENTIFIER",
-        optional: false,
-        editable: true,
-        documentation: "Enter a unique name for the tool.",
-        value: "",
-        types: [{ fieldType: "IDENTIFIER", scope: "Global", selected: false }],
-        enabled: true,
-    },
-    {
-        key: `description`,
-        label: "Description",
-        type: "TEXTAREA",
-        optional: true,
-        editable: true,
-        documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",
-        value: "",
-        types: [{ fieldType: "STRING", selected: false }],
-        enabled: true,
-    },
-];
+const INITIAL_FIELDS: FormField[] = buildAgentToolFields("", "");
 
 export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const { agentNode, projectPath, onSubmit, mode = NewToolSelectionMode.ALL, onViewChange, onAgentToolCreated, onCancel } = props;
@@ -489,8 +450,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 });
             }
 
-            const templateDescription = (functionNodeTemplate.flowNode?.metadata?.description || "")
-                .replace(/```[\s\S]*?```/g, "").trim();
+            const templateDescription = stripCodeFences(functionNodeTemplate.flowNode?.metadata?.description || "");
 
             let oauthFields: FormField[] = [];
             const position = funcDef?.codedata.lineRange.startLine || { line: 0, offset: 0 };
@@ -551,8 +511,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 : [];
 
             const toolInputFields = createToolInputFields(prepareToolInputFields(nodeParameterFields));
-            const templateDescription = (nodeTemplate.flowNode?.metadata?.description || "")
-                .replace(/```[\s\S]*?```/g, "").trim();
+            const templateDescription = stripCodeFences(nodeTemplate.flowNode?.metadata?.description || "");
             let oauthFields: FormField[] = [];
             const oauthProperties = await fetchOAuthConfigProperties(rpcClient, agentFilePath.current);
             oauthConfigPropertiesRef.current = oauthProperties;
@@ -669,7 +628,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
 
         // HACK: Remove code blocks and new lines from description fields
         if (data.description) {
-            data.description = data.description.replace(/```[\s\S]*?```/g, "").replace(/\n/g, " ").trim();
+            data.description = stripCodeFencesInline(data.description);
         }
 
         console.log(">>> handleToolSubmit", { data });
