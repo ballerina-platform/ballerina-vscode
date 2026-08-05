@@ -103,19 +103,6 @@ export namespace NodeStyles {
         margin-top: 2px;
     `;
 
-    export const StyledButton = styled(Button)`
-        border-radius: 5px;
-        position: absolute;
-        right: 136px;
-    `;
-
-    export const FullWidthButton = styled(Button)`
-        width: 100%;
-        ::part(vscode-button) {
-            width: 100%;
-        }
-    `;
-
     export const TopPortWidget = styled(PortWidget)`
         margin-top: -3px;
         z-index: 2;
@@ -302,23 +289,6 @@ export namespace NodeStyles {
 
     export const MenuButton = styled(Button)`
         border-radius: 5px;
-    `;
-
-    export const ErrorIcon = styled.div`
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-        color: ${ThemeColors.ERROR};
-    `;
-
-    export const Hr = styled.hr`
-        width: 100%;
-    `;
-
-    export const Footer = styled(StyledText)`
-        display: flex;
-        align-items: center;
-        gap: 8px;
     `;
 
     export const MemoryButton = styled.div<{ readOnly: boolean }>`

@@ -24,7 +24,6 @@ import { AgentCallNodeModel } from "./AgentCallNodeModel";
 import {
     AGENT_CALL_TOOL_SECTION_GAP,
     AGENT_NODE_TOOL_GAP,
-    CANVAS_BG_COLOR,
     DRAFT_NODE_BORDER_WIDTH,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BORDER_ERROR_COLOR,
@@ -37,7 +36,6 @@ import {
     NODE_BORDER_COLOR,
     NODE_BORDER_SELECTED_COLOR,
     NODE_BORDER_WIDTH,
-    NODE_ERROR_COLOR,
     NODE_GAP_X,
     NODE_HEIGHT,
     NODE_PADDING,
@@ -112,19 +110,6 @@ export namespace NodeStyles {
         width: 100%;
         padding: 8px;
         margin-top: 2px;
-    `;
-
-    export const StyledButton = styled(Button)`
-        border-radius: 5px;
-        position: absolute;
-        right: 136px;
-    `;
-
-    export const FullWidthButton = styled(Button)`
-        width: 100%;
-        ::part(vscode-button) {
-            width: 100%;
-        }
     `;
 
     export const TopPortWidget = styled(PortWidget)`
@@ -260,13 +245,6 @@ export namespace NodeStyles {
         border-radius: 5px;
     `;
 
-    export const ErrorIcon = styled.div`
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-        color: ${NODE_ERROR_COLOR};
-    `;
-
     export const IconBox = styled.div`
         position: relative;
         display: inline-flex;
@@ -284,72 +262,6 @@ export namespace NodeStyles {
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-    `;
-
-    export const Hr = styled.hr`
-        width: 100%;
-    `;
-
-    export const Footer = styled(StyledText)`
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    `;
-
-    export const MemoryButton = styled.div<{ readOnly: boolean }>`
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        margin: 8px 0;
-        padding: 8px 0;
-        border: 1px solid ${NODE_BORDER_COLOR};
-        border-radius: 4px;
-        background-color: transparent;
-        color: ${NODE_TEXT_COLOR};
-        font-size: 14px;
-        font-family: "GilmerRegular";
-        cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
-        &:hover {
-            background-color: ${CANVAS_BG_COLOR};
-            border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? NODE_BORDER_COLOR : NODE_BORDER_SELECTED_COLOR};
-        }
-    `;
-
-    export const MemoryCard = styled.div<{ readOnly: boolean }>`
-        width: 100%;
-        padding: 8px 6px 8px 12px;
-        border: 1px solid ${NODE_BORDER_COLOR};
-        border-radius: 4px;
-        background-color: transparent;
-        color: ${NODE_TEXT_COLOR};
-        cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
-        &:hover {
-            border-color: ${(props: { readOnly: boolean }) =>
-            props.readOnly ? NODE_BORDER_COLOR : NODE_BORDER_SELECTED_COLOR};
-        }
-    `;
-
-    export const MemoryContainer = styled.div`
-        width: 100%;
-        border-bottom: 1px dashed ${NODE_BORDER_COLOR};
-        padding-bottom: 8px;
-        z-index: 2;
-    `;
-
-    export const MemoryTitle = styled.div`
-        font-size: 14px;
-        font-family: "GilmerMedium";
-        font-weight: bold;
-        margin-bottom: 4px;
-    `;
-
-    export const MemoryMeta = styled.div`
-        font-size: 12px;
-        font-family: monospace;
-        color: ${NODE_TEXT_COLOR};
-        opacity: 0.7;
     `;
 
     export const AgentIdBadge = styled.div`
@@ -446,27 +358,6 @@ const AgentRow = styled.div<{ clickable: boolean }>`
     }
 `;
 
-export const ViewAgentButton = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 4px;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    background-color: ${ThemeColors.SURFACE};
-    color: ${ThemeColors.ON_SURFACE};
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    opacity: 0.8;
-    transition: opacity 0.15s ease, background-color 0.15s ease;
-    &:hover {
-        opacity: 1;
-        background-color: ${ThemeColors.SURFACE_CONTAINER};
-    }
-`;
-
 const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 
 const NODE_TITLE = (
@@ -480,8 +371,6 @@ interface AgentCallNodeWidgetProps {
     engine: DiagramEngine;
     onClick?: (node: FlowNode) => void;
 }
-
-export interface NodeWidgetProps extends Omit<AgentCallNodeWidgetProps, "children"> { }
 
 export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
     const { model, engine, onClick } = props;
@@ -1135,4 +1024,3 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
         </NodeStyles.Node>
     );
 }
-

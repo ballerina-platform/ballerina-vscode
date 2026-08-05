@@ -24,7 +24,6 @@ import {
     SubPanelView,
     FUNCTION_TYPE,
     EditorConfig,
-    ToolData,
 } from "@wso2/ballerina-core";
 import { HelperView } from "../HelperView";
 import FlowNodeForm from "../Forms/FlowNodeForm";
@@ -69,7 +68,6 @@ export enum SidePanelView {
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
     NEW_AGENT = "NEW_AGENT",
     ADD_TOOL = "ADD_TOOL",
-    NEW_TOOL = "NEW_TOOL",
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
     NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
     NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
@@ -77,7 +75,6 @@ export enum SidePanelView {
     NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
     ADD_MCP_SERVER = "ADD_MCP_SERVER",
     EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
-    AGENT_TOOL = "AGENT_TOOL",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
@@ -116,7 +113,6 @@ interface PanelManagerProps {
 
     // Action handlers
     onClose: () => void;
-    onSaveAndRefresh?: () => void;
     onBack?: () => void;
     onSelectNode: (nodeId: string, metadata?: any) => void;
     onAddConnection?: () => void;
@@ -194,7 +190,6 @@ export function PanelManager(props: PanelManagerProps) {
         progressTitle,
         setSidePanelView,
         onClose,
-        onSaveAndRefresh,
         onBack,
         onSelectNode,
         onAddConnection,
