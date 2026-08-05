@@ -131,7 +131,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 onAdd={() => setShowAddAgentPopup(true)}
                 addButtonLabel={"Add Agent"}
                 title={"Agents"}
-                searchPlaceholder={"Search agents"}
+                searchPlaceholder={"Search agents..."}
                 onBack={onBack}
                 onClose={onClose}
             />
