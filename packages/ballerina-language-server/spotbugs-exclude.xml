@@ -26,6 +26,11 @@
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
     <Match>
+        <Class name="io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType"/>
+        <Field name="documentation"/>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+    </Match>
+    <Match>
         <Class name="io.ballerina.modelgenerator.commons.SearchDatabaseManager" />
         <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
     </Match>
