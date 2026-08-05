@@ -37,12 +37,13 @@ export default function createTests() {
             sampleName = `sample${testAttempt}`;
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
+            await artifactWebView.locator('div[data-testid="ex-editor-role"]').waitFor({ state: 'visible', timeout: 30000 });
+            await artifactWebView.locator('div[data-testid="ex-editor-instructions"]').waitFor({ state: 'visible', timeout: 30000 });
             await form.fill({
                 values: {
-                    "NameName of the agent (e.g. 'Customer Support Assistant', 'Sales Advisor', 'Data Analyst')": {
-                        type: 'input',
-                        value: sampleName,
-                    }
+                    role: { type: 'cmEditor', value: 'You are a helpful customer support assistant.' },
+                    instructions: { type: 'cmEditor', value: 'Greet the user and answer their questions.' },
+                    "Agent NameName of the agent": { type: 'input', value: sampleName },
                 }
             });
             await form.submit('Create');
