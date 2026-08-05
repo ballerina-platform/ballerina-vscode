@@ -19,7 +19,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
-import { AvailableNode, EVENT_TYPE, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { AvailableNode, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { cloneDeep, debounce } from "lodash";
 import ButtonCard from "../../../../components/ButtonCard";
@@ -219,7 +219,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 .getBIDiagramRpcClient()
                 .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
 
-            if (String(node.properties?.model?.value ?? "") === "check ai:getDefaultModelProvider()") {
+            if (isDefaultModelProviderExpr(node.properties?.model?.value)) {
                 await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
             }
 
