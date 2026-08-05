@@ -19,13 +19,15 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
 import styled from "@emotion/styled";
 import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
-import { TriggerModelsResponse } from "@wso2/ballerina-core";
+import { AgentBuilderSample, TriggerModelsResponse } from "@wso2/ballerina-core";
 import ButtonCard from "../../../../components/ButtonCard";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { Chip, ChipRow, FilterBarBase, SearchSlot } from "../../components/ChipFilterBar.styles";
 import { cardMatchesSearch } from "../../ComponentListView/componentListUtils";
 import { useContainerWidth } from "../hooks/useContainerWidth";
 import {
+    AGENT_SAMPLE_SOURCE,
+    agentSamplesToCards,
     ARTIFACT_CATEGORIES,
     ArtifactCard,
     ArtifactCategory,
@@ -43,8 +45,8 @@ const ALL_KEY = "all";
 /** A rail/chip entry: a real category, or the synthetic "All". */
 type RailKey = typeof ALL_KEY | ArtifactCategoryKey;
 
-/** Rail/chip entries: a synthetic "All" plus one per category. */
-const RAIL_KEYS: RailKey[] = [ALL_KEY, ...ARTIFACT_CATEGORIES.map((category) => category.key)];
+/** The only category offered in agent builder mode. */
+const AGENT_BUILDER_CATEGORY_KEY: ArtifactCategoryKey = "ai-integration";
 
 const StepRoot = styled.div`
     display: flex;
@@ -221,6 +223,9 @@ interface ResolvedCategory {
 interface IntegrationTypeStepProps {
     /** Trigger models fetched once by the wizard root; null while loading. */
     triggers: TriggerModelsResponse | null;
+    /** Agent sample catalogue fetched once by the wizard root; null while loading.
+     *  Feeds the AI category, which does not come from the trigger models. */
+    agentSamples: AgentBuilderSample[] | null;
     selection: ArtifactCard | null;
     onSelect: (card: ArtifactCard) => void;
     /**
@@ -230,6 +235,7 @@ interface IntegrationTypeStepProps {
      * denser two-pane rail.
      */
     compact?: boolean;
+    agentBuilderMode: boolean | undefined;
 }
 
 /**
@@ -238,7 +244,7 @@ interface IntegrationTypeStepProps {
  * card chooses the artifact and drives the Configure step. Selecting a category is navigation
  * only — it never chooses the artifact, so the two highlights stay distinct.
  */
-export function IntegrationTypeStep({ triggers, selection, onSelect, compact = false }: IntegrationTypeStepProps) {
+export function IntegrationTypeStep({ triggers, agentSamples, selection, onSelect, compact = false, agentBuilderMode,}: IntegrationTypeStepProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeCategoryKey, setActiveCategoryKey] = useState<RailKey>(ALL_KEY);
     const { ref, isNarrow } = useContainerWidth<HTMLDivElement>(NARROW_WIDTH);
@@ -251,24 +257,39 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
             const resolved: ArtifactCard[] = [];
             let loading = false;
             for (const entry of cards) {
-                if (typeof entry === "string") {
-                    if (!triggers) {
+                if (typeof entry !== "string") {
+                    resolved.push(entry);
+                    continue;
+                }
+                // The AI category is fed by the sample catalogue, every other dynamic
+                // source by the LS trigger models — each with its own in-flight state.
+                if (entry === AGENT_SAMPLE_SOURCE) {
+                    if (!agentSamples) {
                         loading = true;
                         continue;
                     }
-                    const type = entry.split(":")[1] as DynamicTriggerType;
-                    resolved.push(...triggersToCards(triggers, type));
-                } else {
-                    resolved.push(entry);
+                    resolved.push(...agentSamplesToCards(agentSamples));
+                    continue;
                 }
+                if (!triggers) {
+                    loading = true;
+                    continue;
+                }
+                const type = entry.split(":")[1] as DynamicTriggerType;
+                resolved.push(...triggersToCards(triggers, type));
             }
             return { resolved, loading };
         };
-        return ARTIFACT_CATEGORIES.map((category) => {
+        // Agent builder mode narrows the catalog to the AI category. Everything
+        // downstream (rail entries, counts, the grid) derives from this list.
+        const categories = agentBuilderMode
+            ? ARTIFACT_CATEGORIES.filter((category) => category.key === AGENT_BUILDER_CATEGORY_KEY)
+            : ARTIFACT_CATEGORIES;
+        return categories.map((category) => {
             const { resolved, loading } = resolveCards(category.cards);
             return { category, cards: resolved, loading };
         });
-    }, [triggers]);
+    }, [triggers, agentSamples, agentBuilderMode]);
 
     const query = searchQuery.trim();
 
@@ -295,6 +316,10 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
 
     const countFor = (entry?: { cards: ArtifactCard[]; loading: boolean }) =>
         entry && !entry.loading ? entry.cards.length : undefined;
+
+    /** Rail/chip entries: a synthetic "All" plus one per rendered category. */
+    const railKeys: RailKey[] = [ALL_KEY, ...searchFiltered.map((entry) => entry.category.key)];
+    const showCategoryRail = searchFiltered.length > 1;
 
     // Categories rendered in the grid: all, or just the selected one.
     const visibleCategories =
@@ -326,8 +351,8 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
             return;
         }
         const delta = event.key === "ArrowDown" ? 1 : -1;
-        const currentIndex = RAIL_KEYS.indexOf(activeCategoryKey);
-        const nextKey = RAIL_KEYS[(currentIndex + delta + RAIL_KEYS.length) % RAIL_KEYS.length];
+        const currentIndex = railKeys.indexOf(activeCategoryKey);
+        const nextKey = railKeys[(currentIndex + delta + railKeys.length) % railKeys.length];
         event.preventDefault();
         setActiveCategoryKey(nextKey);
         document.getElementById(`rail-${nextKey}`)?.focus();
@@ -445,28 +470,41 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
         return ARTIFACT_CATEGORIES.find((item) => item.key === key)?.icon;
     };
 
+    // Until filtering set
+    if (agentBuilderMode === undefined) {
+        return (
+            <StepRoot ref={ref}>
+                <LoaderRow>
+                    <RelativeLoader />
+                </LoaderRow>
+            </StepRoot>
+        );
+    }
+
     return (
         <StepRoot ref={ref}>
             {useSingleColumn ? (
                 <>
                     <NarrowHeader>
-                        <ChipRow role="tablist" aria-label="Integration categories">
-                            {RAIL_KEYS.map((key) => {
-                                const count = railCount(key);
-                                return (
-                                    <Chip
-                                        key={key}
-                                        role="tab"
-                                        aria-selected={activeCategoryKey === key}
-                                        active={activeCategoryKey === key}
-                                        onClick={() => setActiveCategoryKey(key)}
-                                    >
-                                        {railLabel(key)}
-                                        {count !== undefined && <RailCount>{count}</RailCount>}
-                                    </Chip>
-                                );
-                            })}
-                        </ChipRow>
+                        {showCategoryRail && (
+                            <ChipRow role="tablist" aria-label="Integration categories">
+                                {railKeys.map((key) => {
+                                    const count = railCount(key);
+                                    return (
+                                        <Chip
+                                            key={key}
+                                            role="tab"
+                                            aria-selected={activeCategoryKey === key}
+                                            active={activeCategoryKey === key}
+                                            onClick={() => setActiveCategoryKey(key)}
+                                        >
+                                            {railLabel(key)}
+                                            {count !== undefined && <RailCount>{count}</RailCount>}
+                                        </Chip>
+                                    );
+                                })}
+                            </ChipRow>
+                        )}
                         <SearchSlot>{searchBox}</SearchSlot>
                     </NarrowHeader>
                     {grid}
@@ -475,27 +513,29 @@ export function IntegrationTypeStep({ triggers, selection, onSelect, compact = f
                 <Body>
                     <LeftColumn>
                         {searchBox}
-                        <Rail role="tablist" aria-label="Integration categories" onKeyDown={handleRailKeyDown}>
-                            {RAIL_KEYS.map((key) => {
-                                const count = railCount(key);
-                                const icon = railIcon(key);
-                                return (
-                                    <RailItem
-                                        key={key}
-                                        id={`rail-${key}`}
-                                        role="tab"
-                                        aria-selected={activeCategoryKey === key}
-                                        tabIndex={activeCategoryKey === key ? 0 : -1}
-                                        active={activeCategoryKey === key}
-                                        onClick={() => setActiveCategoryKey(key)}
-                                    >
-                                        {icon && <Codicon name={icon} />}
-                                        <RailLabel>{railLabel(key)}</RailLabel>
-                                        {count !== undefined && <RailCount>{count}</RailCount>}
-                                    </RailItem>
-                                );
-                            })}
-                        </Rail>
+                        {showCategoryRail && (
+                            <Rail role="tablist" aria-label="Integration categories" onKeyDown={handleRailKeyDown}>
+                                {railKeys.map((key) => {
+                                    const count = railCount(key);
+                                    const icon = railIcon(key);
+                                    return (
+                                        <RailItem
+                                            key={key}
+                                            id={`rail-${key}`}
+                                            role="tab"
+                                            aria-selected={activeCategoryKey === key}
+                                            tabIndex={activeCategoryKey === key ? 0 : -1}
+                                            active={activeCategoryKey === key}
+                                            onClick={() => setActiveCategoryKey(key)}
+                                        >
+                                            {icon && <Codicon name={icon} />}
+                                            <RailLabel>{railLabel(key)}</RailLabel>
+                                            {count !== undefined && <RailCount>{count}</RailCount>}
+                                        </RailItem>
+                                    );
+                                })}
+                            </Rail>
+                        )}
                     </LeftColumn>
                     {grid}
                 </Body>
