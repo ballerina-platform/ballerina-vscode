@@ -133,7 +133,7 @@ export const WORKFLOW_CARD: ArtifactCard = {
 export const AI_CHAT_AGENT_CARD: ArtifactCard = {
     id: "ai-agent-card",
     kind: "ai-agent",
-    displayName: "AI Chat Agent",
+    displayName: "Chat Agent Service",
     icon: <Icon name="bi-ai-agent" />,
 };
 
@@ -221,6 +221,12 @@ export const OTHER_ARTIFACT_CARDS: OtherArtifactCard[] = [
         displayName: "Connection",
         icon: <Icon name="bi-connection" />,
         directoryKey: DIRECTORY_MAP.CONNECTION,
+    },
+    {
+        id: "agent",
+        displayName: "Agent",
+        icon: <Icon name="bi-ai-agent" />,
+        directoryKey: DIRECTORY_MAP.AGENT,
     },
     {
         id: "configurable",

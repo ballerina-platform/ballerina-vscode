@@ -23,18 +23,8 @@ import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { addToolToAgentNode, findAgentNodeFromAgentCallNode, updateFlowNodePropertyValuesWithKeys } from "./utils";
+import { addToolToAgentNode, findFlowNodeByModuleVarName, updateFlowNodePropertyValuesWithKeys } from "./utils";
 import { FUNCTION_CALL } from "../../../constants";
-
-// Module-level cache: avoids re-fetching the same agent node when switching between modes
-const agentNodeCache = new Map<string, FlowNode>();
-
-function getAgentCacheKey(node: FlowNode): string {
-    const agentName = node.properties?.connection?.value ?? "";
-    const fileName = node.codedata?.lineRange?.fileName;
-    const fileId = fileName ?? JSON.stringify(node.codedata?.lineRange ?? "");
-    return `${fileId}-${agentName}`;
-}
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -51,7 +41,7 @@ export enum NewToolSelectionMode {
 }
 
 interface NewToolProps {
-    agentCallNode: FlowNode;
+    agentNode: FlowNode;
     mode?: NewToolSelectionMode;
     onBack?: () => void;
     onSave?: () => void;
@@ -59,44 +49,26 @@ interface NewToolProps {
 }
 
 export function NewTool(props: NewToolProps): JSX.Element {
-    const { agentCallNode, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
+    const { agentNode: agentNodeProp, mode = NewToolSelectionMode.ALL, onSave, onBack, onSetBackOverride } = props;
     const { rpcClient } = useRpcContext();
 
-    const [agentNode, setAgentNode] = useState<FlowNode | null>(null);
+    // The agent declaration node is supplied directly by the focus diagram — no call-node lookup.
+    const agentNode = agentNodeProp ?? null;
     const [savingForm, setSavingForm] = useState<boolean>(false);
+    const [ready, setReady] = useState<boolean>(false);
 
     const agentFilePath = useRef<string>("");
     const projectPath = useRef<string>("");
 
     useEffect(() => {
         initPanel();
-    }, [agentCallNode]);
+    }, [agentNodeProp]);
 
     const initPanel = async () => {
-        // get agent file path
         const visualizerContext = await rpcClient.getVisualizerLocation();
         agentFilePath.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['agents.bal'] })).filePath;
         projectPath.current = visualizerContext.projectPath;
-        // fetch tools and agent node
-        await fetchAgentNode();
-    };
-
-    const fetchAgentNode = async () => {
-        const cacheKey = getAgentCacheKey(agentCallNode);
-
-        const cached = agentNodeCache.get(cacheKey);
-        if (cached) {
-            console.log(">>> agent node (from cache)", { cached, agentNodeCache });
-            setAgentNode(cached);
-            return;
-        }
-
-        const agentNode = await findAgentNodeFromAgentCallNode(agentCallNode, rpcClient);
-        console.log(">>> agent node found", { agentNode });
-        if (agentNode) {
-            agentNodeCache.set(cacheKey, agentNode);
-        }
-        setAgentNode(agentNode);
+        setReady(true);
     };
 
     const handleAgentToolCreated = async (functionName: string) => {
@@ -115,9 +87,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 segments: [updatedAgentNode.codedata.lineRange.fileName],
             });
             await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: agentFile, flowNode: updatedAgentNode });
-
-            // Invalidate cache so the updated agent node is re-fetched next time
-            agentNodeCache.delete(getAgentCacheKey(agentCallNode));
 
             // Fetch the newly created function to get its source position
             const agentsFileName = "agents.bal";
@@ -235,11 +204,14 @@ export function NewTool(props: NewToolProps): JSX.Element {
                 }
             }
 
-            // If artifact not found, re-fetch the agent node to get the correct line range
+            // If artifact not found, re-fetch the agent node by its variable name to get the correct line range
             if (!agentArtifactFound) {
-                const refreshedAgentNode = await findAgentNodeFromAgentCallNode(agentCallNode, rpcClient);
-                if (refreshedAgentNode?.codedata?.lineRange) {
-                    updatedAgentNode.codedata.lineRange = refreshedAgentNode.codedata.lineRange;
+                const agentVarName = agentNode?.properties?.variable?.value;
+                if (typeof agentVarName === "string") {
+                    const refreshedAgentNode = await findFlowNodeByModuleVarName(agentVarName, rpcClient);
+                    if (refreshedAgentNode?.codedata?.lineRange) {
+                        updatedAgentNode.codedata.lineRange = refreshedAgentNode.codedata.lineRange;
+                    }
                 }
             }
 
@@ -253,8 +225,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
             // Safety net: fix any missing imports after all edits are applied
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
 
-            // Invalidate cache so the updated agent node is re-fetched next time
-            agentNodeCache.delete(getAgentCacheKey(agentCallNode));
             onSave?.();
         } catch (error) {
             console.error("Error saving tool", { error });
@@ -265,7 +235,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
 
     return (
         <>
-            {agentFilePath.current && !savingForm && (
+            {ready && !savingForm && (
                 <AIAgentSidePanel
                     agentNode={agentNode}
                     projectPath={projectPath.current}
@@ -278,7 +248,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
                     onCancel={onBack}
                 />
             )}
-            {(!agentFilePath.current || savingForm) && (
+            {(!ready || savingForm) && (
                 <LoaderContainer>
                     <RelativeLoader />
                 </LoaderContainer>

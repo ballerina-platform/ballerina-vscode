@@ -36,7 +36,8 @@ export const TemplateMode: React.FC<EditorModeExpressionProps> = ({
     rawExpression,
     error,
     formDiagnostics,
-    inputMode
+    inputMode,
+    readOnly
 }) => {
     // Convert onChange signature from (value: string) => void to (value: string, cursorPosition: number) => void
     const handleChange = (updatedValue: string, updatedCursorPosition: number) => {
@@ -61,6 +62,7 @@ export const TemplateMode: React.FC<EditorModeExpressionProps> = ({
                     inputMode={inputMode}
                     configuration={getEditorConfiguration(inputMode)}
                     placeholder={field.placeholder}
+                    disabled={readOnly}
                 />
             </ExpressionContainer>
             {error ?

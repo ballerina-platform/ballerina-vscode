@@ -63,6 +63,7 @@ interface ExpandedPromptEditorProps {
     error?: FieldError;
     formDiagnostics?: DiagnosticMessage[];
     inputMode?: InputMode;
+    readOnly?: boolean;
 }
 
 const ModalContainer = styled.div`
@@ -188,7 +189,8 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
     getHelperPane,
     error,
     formDiagnostics,
-    inputMode
+    inputMode,
+    readOnly
 }) => {
     const promptFields = ["instructions", "role"];
 
@@ -236,6 +238,7 @@ export const ExpandedEditor: React.FC<ExpandedPromptEditorProps> = ({
         value: value,
         onChange: onChange,
         field,
+        readOnly,
         // Props for prompt mode
         ...(mode === InputMode.PROMPT && {
             completions,

@@ -498,6 +498,14 @@ const SECTIONS: SectionConfig[] = [
         addTooltip: "Add New Connection",
     },
     {
+        key: DIRECTORY_MAP.AGENTS,
+        title: "Agents",
+        icon: "bi-ai-agent",
+        description: "AI agents defined in your library.",
+        addLabel: "Add an Agent",
+        addTooltip: "Add New Agent",
+    },
+    {
         key: DIRECTORY_MAP.CONFIGURABLE,
         title: "Configurations",
         icon: "bi-config",
@@ -659,6 +667,12 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                 location: { view: MACHINE_VIEW.AddConnectionWizard },
                 isPopup: true,
             });
+        } else if (key === DIRECTORY_MAP.AGENTS) {
+            rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: { view: MACHINE_VIEW.AddAgent },
+                isPopup: true,
+            });
         } else if (key === DIRECTORY_MAP.TYPE) {
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
@@ -817,7 +831,7 @@ export function LibraryOverview({ projectStructure, isNPSupported, projectPath, 
                             appearance="primary"
                             onClick={() => handleAdd(activeSection.key)}
                         >
-                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add {activeSection.addLabel.replace("Add a ", "")}
+                            <Codicon name="add" sx={{ marginRight: 8 }} /> Add {activeSection.addLabel.replace(/^Add an? /, "")}
                         </Button>
                     </LibraryHeaderRight>
                 </LibraryHeader>

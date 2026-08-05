@@ -17,7 +17,7 @@
  */
 
 import styled from "@emotion/styled";
-import { Codicon, Divider, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
+import { Codicon, ScrollableContainer, Typography } from "@wso2/ui-toolkit";
 import { ThemeColors } from "@wso2/ui-toolkit/lib/styles/Theme";
 
 const PopupFormContainer = styled.div`
@@ -27,7 +27,7 @@ const PopupFormContainer = styled.div`
     width: 100%;
     height: 100%;
     z-index: 2100;
-    background-color: color-mix(in srgb, ${ThemeColors.SURFACE_CONTAINER} 40%, transparent);
+    background-color: color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -43,7 +43,7 @@ const PopupFormBox = styled.div<{ width?: number; height?: number }>`
   flex-direction: column;
   overflow: hidden;
   padding: 16px;
-  border-radius: 3px;
+  border-radius: 10px;
   background-color: ${ThemeColors.SURFACE_DIM};
   box-shadow: 0 3px 8px rgb(0 0 0 / 0.2);
   z-index: 2100;
@@ -54,6 +54,8 @@ const PopupFormHeader = styled.header`
     align-items: center;
     justify-content: space-between;
     padding-inline: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 
 export type PopupFormProps = {
@@ -70,6 +72,7 @@ const PopupFormContent = styled.div`
     min-height: 0; /* Critical for nested flex scroll areas */
     display: flex;
     flex-direction: column;
+    padding-top: 16px;
 `;
 
 
@@ -80,12 +83,14 @@ export const PopupForm = (props: PopupFormProps) => {
         <PopupFormContainer>
             <PopupFormBox width={width} height={height}>
                 <PopupFormHeader>
-                    <Typography variant="h2" sx={{ margin: 0 }}>
+                    <Typography
+                        variant="h2"
+                        sx={{ margin: 0, fontSize: "20px", fontWeight: 600, color: ThemeColors.ON_SURFACE }}
+                    >
                         {title}
                     </Typography>
                      <Codicon name="close" onClick={onClose} />
                 </PopupFormHeader>
-                <Divider />
                 <PopupFormContent>
                     <ScrollableContainer>{children}</ScrollableContainer>
                 </PopupFormContent>

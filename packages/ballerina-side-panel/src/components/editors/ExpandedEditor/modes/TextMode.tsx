@@ -38,7 +38,8 @@ export const TextMode: React.FC<EditorModeExpressionProps> = ({
     rawExpression,
     error,
     formDiagnostics,
-    inputMode
+    inputMode,
+    readOnly
 }) => {
 
     return (
@@ -58,6 +59,7 @@ export const TextMode: React.FC<EditorModeExpressionProps> = ({
                     isExpandedVersion={true}
                     inputMode={inputMode}
                     configuration={getEditorConfiguration(inputMode)}
+                    disabled={readOnly}
                 />
             </ExpressionContainer>
             {error ?

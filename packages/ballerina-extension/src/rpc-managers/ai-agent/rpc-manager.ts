@@ -24,6 +24,7 @@ import {
     AIAgentToolsUpdateRequest,
     AIGentToolsRequest,
     AIGentToolsResponse,
+    GenAgentToolRequest,
     AIModelsRequest,
     AIModelsResponse,
     AINodesRequest,
@@ -143,6 +144,22 @@ export class AiAgentRpcManager implements AIAgentAPI {
             const context = StateMachine.context();
             try {
                 const response: AIGentToolsResponse = await context.langClient.genTool(params);
+                const artifacts = await updateSourceCode({ textEdits: response.textEdits });
+                resolve({ artifacts, textEdits: response.textEdits });
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async genAgentTool(params: GenAgentToolRequest): Promise<AIGentToolsResponse> {
+        if (!params.description) {
+            params.description = "";
+        }
+        return new Promise(async (resolve) => {
+            const context = StateMachine.context();
+            try {
+                const response: AIGentToolsResponse = await context.langClient.genAgentTool(params);
                 const artifacts = await updateSourceCode({ textEdits: response.textEdits });
                 resolve({ artifacts, textEdits: response.textEdits });
             } catch (error) {
