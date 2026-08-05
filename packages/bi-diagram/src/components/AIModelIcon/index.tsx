@@ -18,7 +18,7 @@
 
 import React from "react";
 import { DefaultLlmIcon, Icon, getAIModuleIcon } from "@wso2/ui-toolkit";
-import { CodeData } from "@wso2/ballerina-core";
+import { CodeData, GET_DEFAULT_EMBEDDING_PROVIDER, GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
 import { NodeIcon } from "../NodeIcon";
 
 interface AIModelIconProps {
@@ -56,7 +56,7 @@ export function isWso2Module(codedata: CodeData): boolean {
         if (["Wso2ModelProvider", "Wso2EmbeddingProvider"].includes(codedata.object)) {
             return true;
         }
-        if (["getDefaultModelProvider", "getDefaultEmbeddingProvider"].includes(codedata.symbol)) {
+        if ([GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER].includes(codedata.symbol)) {
             return true;
         }
     }

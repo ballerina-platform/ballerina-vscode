@@ -33,7 +33,13 @@ import type {
     DropdownType,
     InputType,
 } from "@wso2/ballerina-core";
-import { getPrimaryInputType, isTemplateType, isDropDownType } from "@wso2/ballerina-core";
+import {
+    DEFAULT_MODEL_PROVIDER_EXPR,
+    getPrimaryInputType,
+    isDefaultModelProviderExpr,
+    isTemplateType,
+    isDropDownType,
+} from "@wso2/ballerina-core";
 
 import type {
     FormField,
@@ -136,7 +142,6 @@ export function convertNodePropertyToFormField(
 
 const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
 const MODEL_PROVIDER_SEARCH_KIND = "MODEL_PROVIDER";
-const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
 export const DEFAULT_MODEL_PROVIDER_ITEM = {
     id: "ai:getDefaultModelProvider",
     label: "Default WSO2 Model Provider",
@@ -145,7 +150,7 @@ export const DEFAULT_MODEL_PROVIDER_ITEM = {
 };
 
 function isInlineExpressionValue(value: unknown): boolean {
-    if (value === DEFAULT_MODEL_PROVIDER_EXPR) return false;
+    if (isDefaultModelProviderExpr(value)) return false;
     return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
 }
 

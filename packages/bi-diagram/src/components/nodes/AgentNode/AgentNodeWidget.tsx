@@ -44,7 +44,7 @@ import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { NodeMetadata } from "@wso2/ballerina-core";
+import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
 import { sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
@@ -934,7 +934,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         fill={ThemeColors.ON_SURFACE}
                         style={{ pointerEvents: "none" }}
                     >
-                        {model.node.properties?.[modelPropertyKey]?.value === "check ai:getDefaultModelProvider()"
+                        {isDefaultModelProviderExpr(model.node.properties?.[modelPropertyKey]?.value)
                             ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>

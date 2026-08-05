@@ -53,7 +53,7 @@ import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { NodeMetadata } from "@wso2/ballerina-core";
+import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
 import { flowDashAnimation, getBoxSyncPulseAnimation, getSyncPulseAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
@@ -785,8 +785,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                         fill={NODE_TEXT_COLOR}
                         style={{ pointerEvents: "none" }}
                     >
-                        {model.node.properties?.model?.value === "check ai:getDefaultModelProvider()"
-                            || modelProvider?.name === "check ai:getDefaultModelProvider()"
+                        {isDefaultModelProviderExpr(model.node.properties?.model?.value)
+                            || isDefaultModelProviderExpr(modelProvider?.name)
                             ? <Icon name="bi-wso2" sx={{ fontSize: 24, width: 24, height: 24 }} />
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>

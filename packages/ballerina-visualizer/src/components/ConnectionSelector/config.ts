@@ -17,7 +17,8 @@
  */
 
 import { ConnectionKind, ConnectionKindConfig, ConnectionSpecialConfig, ConnectionSearchConfig } from "./types";
-import { GET_DEFAULT_MODEL_PROVIDER, BALLERINAX } from "../../constants";
+import { GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
+import { BALLERINAX } from "../../constants";
 import {
     convertChunkerCategoriesToSidePanelCategories,
     convertEmbeddingProviderCategoriesToSidePanelCategories,

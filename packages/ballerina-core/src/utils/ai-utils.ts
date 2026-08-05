@@ -16,12 +16,10 @@
  * under the License.
  */
 
-export * from './modification-utils';
-export * from './keyboard-navigation-manager';
-export * from "./diagram/identifier-util";
-export * from "./diagram/template-utils";
-export * from  "./diagram/modification-util";
-export * from "./diagram/utils";
-export * from './form-property-utils';
-export * from './path-utils';
-export * from './ai-utils';
+// The `ai` module symbols that resolve to the WSO2-hosted default providers.
+export const GET_DEFAULT_MODEL_PROVIDER = "getDefaultModelProvider";
+export const GET_DEFAULT_EMBEDDING_PROVIDER = "getDefaultEmbeddingProvider";
+
+export const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
+
+export const isDefaultModelProviderExpr = (value: unknown): boolean => value === DEFAULT_MODEL_PROVIDER_EXPR;

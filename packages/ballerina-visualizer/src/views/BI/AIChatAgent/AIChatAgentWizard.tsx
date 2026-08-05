@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cloneDeep } from 'lodash';
-import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property } from '@wso2/ballerina-core';
+import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, isDefaultModelProviderExpr } from '@wso2/ballerina-core';
 import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
@@ -180,7 +180,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 flowNode: node,
             });
 
-            if (String(node.properties?.model?.value ?? "") === "check ai:getDefaultModelProvider()") {
+            if (isDefaultModelProviderExpr(node.properties?.model?.value)) {
                 await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
             }
 
