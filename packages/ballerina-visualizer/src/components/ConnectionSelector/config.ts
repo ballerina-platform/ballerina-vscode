@@ -86,3 +86,6 @@ export const getConnectionKindConfig = (connectionType: ConnectionKind): Connect
 export const getConnectionSpecialConfig = (symbol: string): ConnectionSpecialConfig | undefined => {
     return CONNECTION_SPECIAL_CONFIGS[symbol];
 };
+
+export const getConnectionKindDisplayName = (connectionKind?: ConnectionKind): string =>
+    (connectionKind ? getConnectionKindConfig(connectionKind)?.displayName : undefined) ?? "Connection";

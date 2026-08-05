@@ -81,7 +81,7 @@ import { DocSection } from "../components/ExpressionEditor";
 // @ts-ignore
 import ballerina from "../languages/ballerina.js";
 import { FUNCTION_REGEX } from "../resources/constants";
-import { ConnectionKind, getConnectionKindConfig } from "../components/ConnectionSelector";
+import { ConnectionKind, getConnectionKindDisplayName } from "../components/ConnectionSelector";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { handleRepeatableProperty } from "./node-property-utils";
 export { updateNodeProperties } from "./node-property-utils";
@@ -399,26 +399,16 @@ export function getDataMappingFunctions(functions: Category[]): Category[] {
 }
 
 
-function getConnectionDisplayName(connectionKind?: ConnectionKind): string {
-    if (!connectionKind) return 'Connection';
-    try {
-        const config = getConnectionKindConfig(connectionKind);
-        return config.displayName;
-    } catch {
-        return 'Connection';
-    }
-}
-
 export function getContainerTitle(view: SidePanelView, activeNode: FlowNode, clientName?: string, connectionKind?: ConnectionKind): string {
     switch (view) {
         case SidePanelView.NODE_LIST:
             return ""; // Show switch instead of title
         case SidePanelView.CONNECTION_CONFIG:
-            return `Configure ${getConnectionDisplayName(connectionKind)}`;
+            return `Configure ${getConnectionKindDisplayName(connectionKind)}`;
         case SidePanelView.CONNECTION_SELECT:
-            return `Select ${getConnectionDisplayName(connectionKind)}`;
+            return `Select ${getConnectionKindDisplayName(connectionKind)}`;
         case SidePanelView.CONNECTION_CREATE:
-            return `Create ${getConnectionDisplayName(connectionKind)}`;
+            return `Create ${getConnectionKindDisplayName(connectionKind)}`;
         case SidePanelView.ERROR:
             return "Error";
         case SidePanelView.LOADING:

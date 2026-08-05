@@ -22,7 +22,6 @@ import { FlowNode, LineRange, ProjectStructureArtifactResponse } from "@wso2/bal
 import { ConnectionKind } from "./types";
 import { ConnectionSelectionList } from "./ConnectionSelectionList";
 import { ConnectionCreator } from "./ConnectionCreator";
-import { getConnectionKindConfig } from "./config";
 import { getNodeTemplateForConnection } from "../../views/BI/FlowDiagram/utils";
 import { RelativeLoader } from "../RelativeLoader";
 import { LoaderContainer } from "../RelativeLoader/styles";
@@ -92,6 +91,3 @@ export function ConnectionCreateWizard(props: ConnectionCreateWizardProps): JSX.
 
     return <ConnectionSelectionList connectionKind={connectionKind} onSelect={handleSelect} />;
 }
-
-export const getConnectionKindDisplayName = (connectionKind: ConnectionKind): string =>
-    getConnectionKindConfig(connectionKind)?.displayName ?? "Connection";
