@@ -39,17 +39,30 @@ interface WizardFooterProps {
     skipLabel?: string;
     onSkip?: () => void;
     skipDisabled?: boolean;
+    /** Hands the new integration to Copilot. Omit to hide. */
+    copilotLabel?: string;
+    onCopilot?: () => void;
+    copilotDisabled?: boolean;
 }
 
-/** The wizard's per-step action row: … [Create Empty Integration] [Primary].
+/** The wizard's per-step action row: … [Create Empty Integration] [Start with Copilot] [Primary].
  *  The primary action sits last so it lands at the right edge of the form. */
 export function WizardFooter(props: WizardFooterProps) {
-    const { primaryLabel, onPrimary, primaryDisabled, skipLabel, onSkip, skipDisabled } = props;
+    const {
+        primaryLabel, onPrimary, primaryDisabled,
+        skipLabel, onSkip, skipDisabled,
+        copilotLabel, onCopilot, copilotDisabled,
+    } = props;
     return (
         <FooterBar>
             {skipLabel && onSkip && (
                 <Button appearance="secondary" onClick={onSkip} disabled={skipDisabled}>
                     {skipLabel}
+                </Button>
+            )}
+            {copilotLabel && onCopilot && (
+                <Button appearance="secondary" onClick={onCopilot} disabled={copilotDisabled}>
+                    {copilotLabel}
                 </Button>
             )}
             {primaryLabel && onPrimary && (

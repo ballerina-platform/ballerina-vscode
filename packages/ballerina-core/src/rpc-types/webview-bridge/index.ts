@@ -252,6 +252,8 @@ export interface CreateIntegrationRequest {
     project: IntegrationProjectParams;
     /** Configured first artifact; absent for an empty integration. */
     artifact?: PendingIntegrationArtifactPayload;
+    /** Lands on the new integration instead of the project — only that page has the Copilot prompt bar. */
+    startWithCopilot?: boolean;
 }
 
 /**

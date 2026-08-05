@@ -953,7 +953,9 @@ export interface CreateLandingContext {
 export function resolveCreateLandingContext(
     packageRoot: string,
     openRoot: string,
-    request: Pick<ProjectRequest, 'newProject' | 'convertToWorkspace' | 'workspaceName'>
+    request: Pick<ProjectRequest, 'newProject' | 'convertToWorkspace' | 'workspaceName'>,
+    /** Lands on the package even for a new project — the Copilot prompt bar is only there. */
+    preferPackageLanding = false
 ): CreateLandingContext {
     // The folder to open being the package itself means no project was involved.
     if (isSamePath(packageRoot, openRoot)) {
@@ -965,7 +967,7 @@ export function resolveCreateLandingContext(
         // read the title it was actually created with.
         projectName: request.workspaceName?.trim() || getExistingProjectInfo(openRoot).name || path.basename(openRoot),
         isNewProject,
-        landing: isNewProject ? "project" : "package",
+        landing: isNewProject && !preferPackageLanding ? "project" : "package",
     };
 }
 

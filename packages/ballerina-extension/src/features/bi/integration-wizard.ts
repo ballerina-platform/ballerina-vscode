@@ -118,7 +118,7 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
     const { packageRoot, openRoot } = await createBIComponent(projectRequest);
     await cleanupStaging();
 
-    const landingContext = resolveCreateLandingContext(packageRoot, openRoot, projectRequest);
+    const landingContext = resolveCreateLandingContext(packageRoot, openRoot, projectRequest, params.startWithCopilot);
 
     // Live path only when the extension has ALREADY activated `openRoot` — a just-converted
     // workspace at the same path is open in VS Code but still needs the reload.
