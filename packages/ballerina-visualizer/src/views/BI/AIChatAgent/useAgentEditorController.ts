@@ -19,13 +19,14 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ToolData } from "@wso2/ballerina-core";
+import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ToolData } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
 import {
     findFlowNode,
     findFlowNodeByModuleVarName,
     refreshNodeLineRangeFromArtifacts,
+    removeMcpServerFromAgentNode,
     removeToolFromAgentNode,
 } from "./utils";
 
@@ -199,10 +200,63 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         });
     }, [resolveToolFunction, rpcClient]);
 
+    const deleteMcpVariableAndClass = useCallback(async (tool: ToolData) => {
+        const variableNodes = await rpcClient.getBIDiagramRpcClient().getModuleNodes();
+        const mcpVariable = variableNodes.flowModel?.variables?.find(
+            (variable) => variable.codedata?.node === "MCP_TOOL_KIT" && variable.properties.variable?.value === tool.name
+        );
+        if (!mcpVariable) {
+            return;
+        }
+
+        const mcpVariableFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+            segments: [mcpVariable.codedata.lineRange.fileName],
+        })).filePath;
+        await rpcClient.getBIDiagramRpcClient().deleteFlowNode({
+            filePath: mcpVariableFilePath,
+            flowNode: mcpVariable,
+        });
+
+        if (mcpVariable.properties?.type?.value === "ai:McpToolKit") {
+            return;
+        }
+        const classDefinition = mcpVariable.codedata?.data?.mcpClassDefinition as CodeData | undefined;
+        const classLineRange = classDefinition?.lineRange;
+        if (!classLineRange) {
+            return;
+        }
+
+        const classFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+            segments: [classLineRange.fileName],
+        })).filePath;
+        await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+            filePath: classFilePath,
+            component: {
+                name: "CLASS",
+                filePath: classFilePath,
+                startLine: classLineRange.startLine.line,
+                startColumn: classLineRange.startLine.offset,
+                endLine: classLineRange.endLine.line,
+                endColumn: classLineRange.endLine.offset,
+            },
+        });
+    }, [rpcClient]);
+
     const deleteTool = useCallback(async (tool: ToolData, node: FlowNode) => {
         activate(node);
         setLoading(true);
         try {
+            if (tool.type?.includes("MCP Server")) {
+                const updated = removeMcpServerFromAgentNode(node, tool.name);
+                if (updated) {
+                    const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
+                        segments: [node.codedata.lineRange.fileName],
+                    })).filePath;
+                    await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: path, flowNode: updated });
+                }
+                await deleteMcpVariableAndClass(tool);
+                return;
+            }
             const updated = await removeToolFromAgentNode(node, tool.name);
             if (updated) {
                 const path = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
@@ -231,7 +285,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             setLoading(false);
             close();
         }
-    }, [activate, close, resolveToolFunction, rpcClient]);
+    }, [activate, close, deleteMcpVariableAndClass, resolveToolFunction, rpcClient]);
 
     const resolve = useCallback(
         (node: FlowNode) => (host.resolveAgentNode ? host.resolveAgentNode(node) : node),
