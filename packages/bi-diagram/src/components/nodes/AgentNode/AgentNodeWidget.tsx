@@ -443,6 +443,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         if (readOnly) {
             return;
         }
+        event.stopPropagation();
         if (event.metaKey) {
             onGoToSource();
         } else {
@@ -450,7 +451,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
     };
 
-    const onNodeClick = () => {
+    const onNodeClick = (event?: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+        event?.stopPropagation();
         onClick && onClick(model.node);
         onNodeSelect && onNodeSelect(model.node);
         setAnchorEl(null);

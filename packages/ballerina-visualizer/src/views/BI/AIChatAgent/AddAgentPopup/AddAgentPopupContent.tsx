@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Codicon, Icon } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, EVENT_TYPE, FlowNode, LineRange } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -104,6 +104,8 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [pendingAgent, setPendingAgent] = useState<AvailableNode>();
+    const [loadError, setLoadError] = useState<string>();
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const createFormNode = useMemo(() => agentNode ? cloneDeep(agentNode) : undefined, [agentNode]);
     const configureFormNode = useMemo(() => {
         if (!agentNode) {
@@ -126,6 +128,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         let cancelled = false;
         (async () => {
             try {
+                setLoadError(undefined);
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 let template: FlowNode;
                 if (view === "configure") {
@@ -148,12 +151,15 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 setAgentNode(template);
             } catch (error) {
                 console.error("Error loading agent node template:", error);
+                if (!cancelled) {
+                    setLoadError("Unable to load the agent template.");
+                }
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [view, pendingAgent, rpcClient, projectPath]);
+    }, [view, pendingAgent, rpcClient, projectPath, loadAttempt]);
 
     const runSearch = (text: string, filter: AgentFilter) => {
         setIsSearching(true);
@@ -242,9 +248,23 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             onClose?.();
         } catch (error) {
             console.error("Error creating custom agent:", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to create the agent. Please try again.",
+            });
             setIsSubmitting(false);
         }
     };
+
+    const renderLoadError = () => (
+        <LoaderWrapper>
+            <div role="alert">
+                <p>{loadError}</p>
+                <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                    Retry
+                </Button>
+            </div>
+        </LoaderWrapper>
+    );
 
     const handleSelectAgent = (agent: AvailableNode) => {
         setPendingAgent(agent);
@@ -255,7 +275,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         const fieldOverrides = { type: { hidden: true } };
         return (
             <FormContainer>
-                {createFormNode && targetLineRange ? (
+                {loadError ? renderLoadError() : createFormNode && targetLineRange ? (
                     <FlowNodeForm
                         fileName={agentFilePath}
                         node={createFormNode}
@@ -282,7 +302,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         const cardDescription = pendingAgent?.metadata?.description || agentNode?.metadata?.description;
         return (
             <FormContainer>
-                {configureFormNode && targetLineRange ? (
+                {loadError ? renderLoadError() : configureFormNode && targetLineRange ? (
                     <>
                         <AgentInfoCard
                             label={pendingAgent?.metadata?.label || ""}
