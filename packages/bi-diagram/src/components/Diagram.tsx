@@ -435,6 +435,7 @@ export function Diagram(props: DiagramProps) {
                 </DiagramContextProvider>
             )}
         </>
+        </>
     );
 
     if (isAgentFocusView && embedded) {

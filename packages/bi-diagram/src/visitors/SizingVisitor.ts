@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { BaseVisitor } from "@wso2/ballerina-core";
+import { BaseVisitor, NodeMetadata } from "@wso2/ballerina-core";
 
 import {
     EMPTY_NODE_CONTAINER_WIDTH,
@@ -38,7 +38,7 @@ import {
     WAIT_DATA_DETAILS_GAP,
     WAIT_DATA_DETAILS_WIDTH,
     WHILE_NODE_WIDTH,
-    NodeTypes,
+    NodeTypes
 } from "../resources/constants";
 import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNodePresentation";
 import { isEvalTemplateCall } from "@wso2/ballerina-core";
