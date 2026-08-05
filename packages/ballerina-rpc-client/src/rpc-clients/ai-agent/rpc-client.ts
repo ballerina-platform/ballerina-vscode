@@ -99,10 +99,6 @@ export class AiAgentRpcClient implements AIAgentAPI {
         return this._messenger.sendRequest(genAgentDefinition, HOST_EXTENSION, params);
     }
 
-    genAgentTool(params: GenAgentToolRequest): Promise<AIGentToolsResponse> {
-        return this._messenger.sendRequest(genAgentTool, HOST_EXTENSION, params);
-    }
-
     fixMissingImports(): Promise<void> {
         return this._messenger.sendRequest(fixMissingImports, HOST_EXTENSION);
     }

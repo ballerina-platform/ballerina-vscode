@@ -150,22 +150,6 @@ export class AiAgentRpcManager implements AIAgentAPI {
         return { artifacts, textEdits: response.textEdits };
     }
 
-    async genAgentTool(params: GenAgentToolRequest): Promise<AIGentToolsResponse> {
-        if (!params.description) {
-            params.description = "";
-        }
-        return new Promise(async (resolve) => {
-            const context = StateMachine.context();
-            try {
-                const response: AIGentToolsResponse = await context.langClient.genAgentTool(params);
-                const artifacts = await updateSourceCode({ textEdits: response.textEdits });
-                resolve({ artifacts, textEdits: response.textEdits });
-            } catch (error) {
-                console.log(error);
-            }
-        });
-    }
-
     async fixMissingImports(): Promise<void> {
         const context = StateMachine.context();
         try {
