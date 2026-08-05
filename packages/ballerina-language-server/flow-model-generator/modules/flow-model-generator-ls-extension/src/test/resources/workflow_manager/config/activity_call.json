@@ -17,7 +17,7 @@
     "metadata": {
       "label": "sendNotification",
       "description": "Send notification activity",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/test_null_0.1.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/test_workflow_function_0.1.0.png"
     },
     "codedata": {
       "node": "ACTIVITY_CALL",
@@ -176,33 +176,15 @@
         "dynamicFormFields": {
           "NoRetry": {},
           "AutoRetry": {
-            "retryBackoff": {
+            "maxRetries": {
               "metadata": {
-                "label": "Retry Backoff",
-                "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
+                "label": "Max Retries",
+                "description": "Maximum number of retry attempts"
               },
               "types": [
                 {
                   "fieldType": "EXPRESSION",
-                  "ballerinaType": "decimal",
-                  "selected": true
-                }
-              ],
-              "value": "",
-              "optional": false,
-              "editable": true,
-              "advanced": false,
-              "hidden": false
-            },
-            "maxRetryDelay": {
-              "metadata": {
-                "label": "Max Retry Delay",
-                "description": "Maximum delay cap in seconds"
-              },
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "ballerinaType": "decimal",
+                  "ballerinaType": "int",
                   "selected": true
                 }
               ],
@@ -230,15 +212,33 @@
               "advanced": false,
               "hidden": false
             },
-            "maxRetries": {
+            "retryBackoff": {
               "metadata": {
-                "label": "Max Retries",
-                "description": "Maximum number of retry attempts"
+                "label": "Retry Backoff",
+                "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
               },
               "types": [
                 {
                   "fieldType": "EXPRESSION",
-                  "ballerinaType": "int",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "maxRetryDelay": {
+              "metadata": {
+                "label": "Max Retry Delay",
+                "description": "Maximum delay cap in seconds"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
                   "selected": true
                 }
               ],
