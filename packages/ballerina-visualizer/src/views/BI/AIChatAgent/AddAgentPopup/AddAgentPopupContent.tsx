@@ -144,7 +144,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                 } else {
                     template = await fetchAgentNodeTemplate(rpcClient, projectPath);
                 }
-                template.codedata.lineRange = endOfFile as any;
+                template.codedata.lineRange = endOfFile;
                 if (cancelled) return;
                 setAgentFilePath(endOfFile.fileName);
                 setTargetLineRange(endOfFile);
@@ -213,7 +213,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             const node = cloneDeep(updatedNode);
 
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
-            node.codedata.lineRange = endOfFile as any;
+            node.codedata.lineRange = endOfFile;
 
             const sourceResponse = await rpcClient
                 .getBIDiagramRpcClient()

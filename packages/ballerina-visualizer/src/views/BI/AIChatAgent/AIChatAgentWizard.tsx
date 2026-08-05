@@ -137,7 +137,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
                 const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
                 if (cancelled) return;
 
-                template.codedata.lineRange = endOfFile as any;
+                template.codedata.lineRange = endOfFile;
                 setAgentFilePath(endOfFile.fileName);
                 setTargetLineRange(endOfFile);
                 setAgentNode(template);
@@ -174,7 +174,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
             const node = cloneDeep(updatedNode);
             delete (node.properties as Record<string, Property>)[BASE_PATH_KEY];
-            node.codedata.lineRange = endOfFile as any;
+            node.codedata.lineRange = endOfFile;
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: endOfFile.fileName,
                 flowNode: node,
