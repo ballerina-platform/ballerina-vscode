@@ -258,7 +258,7 @@ export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
             <TopNavigationBar projectPath={projectPath.current} />
             <TitleBar
                 title="Chat Agent Service"
-                subtitle="Create a chattable AI agent using an LLM, prompts and tools."
+                subtitle="Create a conversational AI agent using an LLM, prompts and tools."
             />
             <ViewContent padding>
                 {isCreating ? (
