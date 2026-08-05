@@ -274,12 +274,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onUpdate();
         try {
             const location = await rpcClient.getVisualizerLocation();
-            const pos = posOverride ?? embeddedPositionRef.current ?? location?.position;
+            const pos = posOverride ?? (embedded ? embeddedPositionRef.current : location?.position) ?? location?.position;
             if (!pos) {
                 console.error(`>>> ${logLabel}: no position in visualizer location`, location);
                 return;
             }
-            embeddedPositionRef.current = pos;
+            if (embedded) {
+                embeddedPositionRef.current = pos;
+            }
 
             const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
                 filePath,
