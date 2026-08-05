@@ -974,7 +974,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             </NodeStyles.Row>
                         ) : (
                             <NodeStyles.Row readOnly={readOnly} onClick={handleOnClick}>
-                                <NodeStyles.RolePlaceholder>Define agent's role</NodeStyles.RolePlaceholder>
+                                <NodeStyles.RolePlaceholder>Define the agent's role</NodeStyles.RolePlaceholder>
                             </NodeStyles.Row>
                         )
                     )}
@@ -1464,4 +1464,3 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         </NodeStyles.Node>
     );
 }
-
