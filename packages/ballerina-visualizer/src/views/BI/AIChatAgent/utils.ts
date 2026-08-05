@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentToolData, AvailableNode, CodeData, ConfigVariable, EVENT_TYPE, FlowNode, LinePosition, LineRange, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams, ToolParameters } from "@wso2/ballerina-core";
+import { AgentToolData, AvailableNode, CodeData, ConfigVariable, ELineRange, EVENT_TYPE, FlowNode, LinePosition, LineRange, NodeKind, NodePosition, ProjectStructureArtifactResponse, Property, SearchNodesQueryParams, ToolParameters } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
@@ -347,6 +347,26 @@ export const removeToolFromAgentNode = async (agentNode: FlowNode, toolName: str
     return updatedAgentNode;
 };
 
+export const removeMcpServerFromAgentNode = (agentNode: FlowNode, toolkitNameToRemove: string) => {
+    if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
+
+    const updatedAgentNode = cloneDeep(agentNode);
+    let toolsValue = updatedAgentNode.properties.tools.value;
+
+    if (Array.isArray(toolsValue)) {
+        const pattern = new RegExp(`name:\\s*"${toolkitNameToRemove}"`);
+        toolsValue = (toolsValue as Property[]).filter(
+            (tool: any) => !pattern.test(tool.value) && tool.value !== toolkitNameToRemove
+        );
+    } else {
+        console.error("Tools value is not an array", toolsValue);
+        return agentNode;
+    }
+
+    updatedAgentNode.properties.tools.value = toolsValue;
+    return updatedAgentNode;
+};
+
 export const addToolToAgentNode = async (agentNode: FlowNode, toolName: string) => {
     if (!agentNode || agentNode.codedata?.node !== "AGENT") return null;
     // clone the node to avoid modifying the original
@@ -642,7 +662,7 @@ export const extractAccessToken = (authValue: string): string | null => {
 export const getEndOfFileLineRange = async (
     fileName: string,
     rpcClient: BallerinaRpcClient
-): Promise<LineRange> => {
+): Promise<ELineRange> => {
     const filePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [fileName] })).filePath;
     try {
         // Get the end of file position using the BIDiagram RPC client
