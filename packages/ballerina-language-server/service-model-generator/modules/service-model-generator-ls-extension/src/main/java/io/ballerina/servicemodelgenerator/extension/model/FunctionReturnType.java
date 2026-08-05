@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.model;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Represents the return type of function.
@@ -51,6 +52,11 @@ public class FunctionReturnType extends Value {
 
     public void setDocumentation(Value documentation) {
         this.documentation = documentation;
+    }
+
+    public boolean hasDocumentationValue() {
+        return Objects.nonNull(this.documentation) && Objects.nonNull(this.documentation.getValue())
+                && !this.documentation.getValue().isEmpty();
     }
 
     public List<HttpResponse> getResponses() {

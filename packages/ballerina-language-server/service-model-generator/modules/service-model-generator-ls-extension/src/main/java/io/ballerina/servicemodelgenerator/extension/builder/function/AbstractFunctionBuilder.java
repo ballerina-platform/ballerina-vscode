@@ -161,10 +161,6 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
         functionModel.setCanAddParameters(true);
         functionModel.setOptional(true);
         updateAnnotationAttachmentProperty(functionDefinitionNode, functionModel);
-        functionModel.getDocumentation();
-        if (functionModel.getReturnType() != null) {
-            functionModel.getReturnType().getDocumentation();
-        }
         Utils.updateFunctionAndReturnDocs(functionDefinitionNode, functionModel);
         return functionModel;
     }

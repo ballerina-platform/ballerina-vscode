@@ -795,7 +795,10 @@ public final class Utils {
             }
         });
         if (Objects.nonNull(function.getReturnType())) {
-            function.getReturnType().getDocumentation().setValue(getReturnDesc(functionDef));
+            String returnDesc = getReturnDesc(functionDef);
+            if (!returnDesc.isEmpty()) {
+                function.getReturnType().getDocumentation().setValue(returnDesc);
+            }
         }
     }
 
@@ -881,7 +884,9 @@ public final class Utils {
             target.setResponses(source.getResponses());
         }
         target.setIsGraphqlId(source.isGraphqlId());
-        updateValue(target.getDocumentation(), source.getDocumentation());
+        if (source.hasDocumentationValue()) {
+            updateValue(target.getDocumentation(), source.getDocumentation());
+        }
     }
 
     public static List<String> getAnnotationEdits(Service service) {
