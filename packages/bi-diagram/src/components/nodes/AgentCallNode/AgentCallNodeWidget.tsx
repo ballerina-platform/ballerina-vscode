@@ -22,6 +22,7 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentCallNodeModel } from "./AgentCallNodeModel";
 import {
+    AGENT_CALL_AGENT_ROW_HEIGHT,
     AGENT_CALL_TOOL_SECTION_GAP,
     AGENT_NODE_TOOL_GAP,
     DRAFT_NODE_BORDER_WIDTH,
@@ -357,8 +358,6 @@ const AgentRow = styled.div<{ clickable: boolean }>`
         opacity: ${(props: { clickable: boolean }) => (props.clickable ? 1 : 0.7)};
     }
 `;
-
-const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 
 const NODE_TITLE = (
     <>
