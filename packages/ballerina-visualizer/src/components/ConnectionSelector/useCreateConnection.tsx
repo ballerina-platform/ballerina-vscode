@@ -145,7 +145,10 @@ export function useCreateConnection(
                             <RelativeLoader />
                         </LoaderContainer>
                     ),
-                    onBack: panelOverlay.closeTopOverlay,
+                    onBack: () => {
+                        createId = null;
+                        panelOverlay.closeTopOverlay();
+                    },
                 });
                 try {
                     const { flowNode } = await getNodeTemplateForConnection(
