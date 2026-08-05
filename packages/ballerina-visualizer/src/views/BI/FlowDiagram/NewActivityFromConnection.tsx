@@ -42,7 +42,8 @@ import { cloneDeep } from "lodash";
 import { convertBICategoriesToSidePanelCategories } from "../../../utils/bi";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
-import { createDefaultParameterValue, createToolParameters } from "../AIChatAgent/formUtils";
+import { createDefaultParameterValue, createToolParameters, stripCodeFences, stripCodeFencesInline } from "../AIChatAgent/formUtils";
+import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 
 const LoaderContainer = styled.div`
@@ -50,23 +51,6 @@ const LoaderContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ImplementationBadge = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: var(--vscode-input-background);
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--vscode-foreground);
-    margin-bottom: 4px;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 `;
 
 const HelpContainer = styled.div`
@@ -490,9 +474,7 @@ export function NewActivityFromConnection(props: NewActivityFromConnectionProps)
             }
             flowNodeRef.current = nodeTemplate.flowNode;
 
-            const templateDescription = (nodeTemplate.flowNode?.metadata?.description || "")
-                .replace(/```[\s\S]*?```/g, "")
-                .trim();
+            const templateDescription = stripCodeFences(nodeTemplate.flowNode?.metadata?.description || "");
 
             // Required parameters are exposed as activity parameters by default (unchecking switches
             // them to a fixed value provided in the form); optional parameters start unchecked under
@@ -544,7 +526,7 @@ export function NewActivityFromConnection(props: NewActivityFromConnectionProps)
         const name = data["name"] || "";
         const cleanName = name.trim().replace(/[^a-zA-Z0-9]/g, "") || "newActivity";
         if (data.description) {
-            data.description = data.description.replace(/```[\s\S]*?```/g, "").replace(/\n/g, " ").trim();
+            data.description = stripCodeFencesInline(data.description);
         }
         const analysis = analysisRef.current;
         const clonedFlowNode = flowNodeRef.current ? cloneDeep(flowNodeRef.current) : null;

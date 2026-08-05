@@ -24,28 +24,15 @@ import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { addToolToAgentNode, buildAgentCallToolNode } from "./utils";
+import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
 
 const LoaderContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ImplementationBadge = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: var(--vscode-input-background);
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--vscode-foreground);
-    margin-bottom: 4px;
-    max-width: 100%;
-    overflow: hidden;
 `;
 
 const ContextOption = styled.label`
@@ -90,30 +77,10 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         })();
     }, [agentNode]);
 
-    const fields: FormField[] = [
-        {
-            key: "name",
-            label: "Tool Name",
-            type: "IDENTIFIER",
-            optional: false,
-            editable: true,
-            documentation: "Enter a unique name for the tool.",
-            value: `${agentVarName}Tool`,
-            types: [{ fieldType: "IDENTIFIER", scope: "Global", selected: false }],
-            enabled: true,
-        },
-        {
-            key: "description",
-            label: "Description",
-            type: "TEXTAREA",
-            optional: true,
-            editable: true,
-            documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",
-            value: `Delegates a query to the ${agentVarName} agent.`,
-            types: [{ fieldType: "STRING", selected: false }],
-            enabled: true,
-        },
-    ];
+    const fields: FormField[] = buildAgentToolFields(
+        `${agentVarName}Tool`,
+        `Delegates a query to the ${agentVarName} agent.`
+    );
 
     const handleSubmit = async (data: FormValues) => {
         if (saving) {
@@ -122,10 +89,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         setSaving(true);
         try {
             const toolName = String(data["name"] ?? "").trim() || `${agentVarName}Tool`;
-            const description = String(data["description"] ?? "")
-                .replace(/```[\s\S]*?```/g, "")
-                .replace(/\n/g, " ")
-                .trim();
+            const description = stripCodeFencesInline(String(data["description"] ?? ""));
             await rpcClient.getBIDiagramRpcClient().getSourceCode({
                 filePath: agentFilePath,
                 flowNode: buildAgentCallToolNode(toolName, agentVarName, includeContextRef.current, description),
