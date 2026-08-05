@@ -18,7 +18,7 @@
 
 import { ReactNode } from "react";
 import { Icon } from "@wso2/ui-toolkit";
-import { DIRECTORY_MAP } from "@wso2/ballerina-core";
+import { AgentBuilderSample, DIRECTORY_MAP } from "@wso2/ballerina-core";
 
 /**
  * Single source of truth for the STATIC artifact cards and category copy shared by
@@ -48,6 +48,7 @@ export interface ArtifactCard {
         version?: string;
     };
     tooltip?: string;
+    agentSample?: AgentBuilderSample;
 }
 
 export type ArtifactCategoryKey =

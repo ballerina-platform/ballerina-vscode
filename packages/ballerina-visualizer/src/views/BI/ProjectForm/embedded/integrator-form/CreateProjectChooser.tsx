@@ -37,6 +37,7 @@ import { LibraryCreationView } from "./LibraryCreationView";
 import { ProjectTypeSelector } from "../../components";
 import { CreateIntegrationWizard } from "../../../CreateIntegrationWizard";
 import { ProjectContext } from "../../../CreateIntegrationWizard/types";
+import { useAgentBuilderMode } from "../../../CreateIntegrationWizard/hooks/useAgentBuilderMode";
 import { BiWsClient } from "../../../wsManager/WsClient";
 import { BiWsClientProvider } from "../../../wsManager/WsClientContext";
 
@@ -148,6 +149,7 @@ export function CreateProjectChooser({
     onBack,
 }: CreateProjectChooserProps) {
     const { wsClient } = useVisualizerContext();
+    const agentBuilderMode = useAgentBuilderMode(biWsClient);
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
     const projectNameTouchedRef = useRef(false);
@@ -371,7 +373,11 @@ export function CreateProjectChooser({
     return (
         <CreateFlowShell
             title="Create"
-            subtitle="A project helps you organize your integrations and libraries."
+            subtitle={
+                agentBuilderMode
+                    ? "A project helps you organize your agents."
+                    : "A project helps you organize your integrations and libraries."
+            }
             onBack={onBack}
         >
             <Section>
@@ -426,15 +432,17 @@ export function CreateProjectChooser({
                     )}
                 </ProjectGroupContainer>
             </Section>
-
-            <Section>
-                <ProjectTypeSelector
-                    label="Choose your starting point"
-                    value={isLibrary}
-                    onChange={setIsLibrary}
-                    note="This is just your starting point. You can add more integrations and libraries to the project later."
-                />
-            </Section>
+            
+            {agentBuilderMode === false && (
+                <Section>
+                    <ProjectTypeSelector
+                        label="Choose your starting point"
+                        value={isLibrary}
+                        onChange={setIsLibrary}
+                        note="This is just your starting point. You can add more integrations and libraries to the project later."
+                    />
+                </Section>
+            )}
 
             <FormFooter>
                 <span

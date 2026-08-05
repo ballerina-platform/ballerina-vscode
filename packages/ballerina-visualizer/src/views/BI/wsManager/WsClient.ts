@@ -20,7 +20,10 @@
 
 import {
     AddIntegrationArtifactRequest,
+    AgentBuilderModeResponse,
+    AgentBuilderSamplesResponse,
     BINodeTemplateRequest,
+    CreateAgentFromSampleRequest,
     BINodeTemplateResponse,
     ChatNotify,
     CreateIntegrationRequest,
@@ -202,6 +205,20 @@ export class BiWsClient {
      *  so unlike `getWizardCapabilities().isWorkspaceSupported` it is never `undefined`. */
     public getWorkspaceSupport(): Promise<WorkspaceSupportResponse> {
         return this.request("getWorkspaceSupport");
+    }
+
+    public getAgentBuilderMode(): Promise<AgentBuilderModeResponse> {
+        return this.request("getAgentBuilderMode");
+    }
+
+    /** The AI integration types, read from the agent sample catalogue */
+    public getAgentBuilderSamples(): Promise<AgentBuilderSamplesResponse> {
+        return this.request("getAgentBuilderSamples");
+    }
+
+    /** Copies the selected agent template into place and opens it. */
+    public createAgentFromSample(params: CreateAgentFromSampleRequest): Promise<void> {
+        return this.request("createAgentFromSample", params);
     }
 
     public getTriggerModels(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {
