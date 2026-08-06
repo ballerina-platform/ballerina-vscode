@@ -130,7 +130,6 @@ interface ArtifactFormProps {
     // continues to a following step). Validated through the same path as submit.
     secondarySubmitText?: string;
     onSecondarySubmit?: (data: FormValues, formImports?: FormImports, importsCodedata?: CodeData) => void;
-    hideInfoBanner?: boolean;
     groups?: FieldGroup[];
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
@@ -173,7 +172,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
         changeOptionalFieldTitle,
         onChange,
         hideSaveButton,
-        hideInfoBanner,
         groups,
         onCreateNode,
         customDiagnosticFilter,
@@ -1125,7 +1123,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
-                    hideInfoBanner={hideInfoBanner}
                     groups={groups}
                     onCreateNode={onCreateNode}
                     footerActionButton={footerActionButton}
