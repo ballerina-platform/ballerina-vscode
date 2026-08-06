@@ -15,10 +15,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { Icon } from '@wso2/ui-toolkit';
+import React, { useMemo } from 'react';
+import { Icon, ImageWithFallback } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, TriggerModelsResponse, ServiceModel, SCOPE } from '@wso2/ballerina-core';
+import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, TriggerModelsResponse, ServiceModel, SCOPE, resolveBrandIcon, resolveKindDefaultIcon } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -32,6 +32,7 @@ interface EventIntegrationPanelProps {
     triggers: TriggerModelsResponse;
     /** True only while the trigger models are still being fetched. */
     isLoadingTriggers?: boolean;
+    /** Page-level gallery search; when set, only matching cards show (Central search is a separate panel). */
     searchQuery?: string;
 };
 
@@ -101,44 +102,26 @@ export function EventIntegrationPanel(props: EventIntegrationPanelProps) {
 
 // TODO: This should be removed once the new icons are added to the BE API.
 export function getEntryNodeIcon(item: ServiceModel) {
-    return getCustomEntryNodeIcon(item.moduleName) || <img src={item.icon} alt={item.name} style={{ width: "38px" }} />;
+    const brandIcon = getCustomEntryNodeIcon(item.moduleName);
+    if (brandIcon) {
+        return brandIcon;
+    }
+    const kindDefault = resolveKindDefaultIcon(item.type);
+    return (
+        <ImageWithFallback
+            imageUrl={item.icon}
+            fallbackEl={<Icon name={kindDefault.glyph} />}
+            size={38}
+        />
+    );
 }
 
 // INFO: This is a temporary function to get the custom icon for the entry points.
 // TODO: This should be removed once the new icons are added to the BE API.
 export function getCustomEntryNodeIcon(type: string) {
-    switch (type) {
-        case "tcp":
-            return <Icon name="bi-tcp" />;
-        case "kafka":
-            return <Icon name="bi-kafka" />;
-        case "rabbitmq":
-            return <Icon name="bi-rabbitmq" sx={{ color: "#f60" }} />;
-        case "nats":
-            return <Icon name="bi-nats" />;
-        case "mqtt":
-            return <Icon name="bi-mqtt" sx={{ color: "#606" }} />;
-        case "grpc":
-            return <Icon name="bi-grpc" />;
-        case "graphql":
-            return <Icon name="bi-graphql" sx={{ color: "#e535ab" }} />;
-        case "java.jms":
-            return <Icon name="bi-java" />;
-        case "trigger.github":
-            return <Icon name="bi-github" />;
-        case "mcp":
-            return <Icon name="bi-mcp" />;
-        case "solace":
-            return <Icon name="bi-solace" sx={{ color: "#00C895" }}/>;
-        case "mssql":
-            return <Icon name="bi-mssql" sx={{ color: "#b61d1c" }}/>;
-        case "postgresql":
-            return <Icon name="bi-postgresql" sx={{ color: "#336791" }}/>;
-        case "trigger.shopify":
-            return <Icon name="bi-shopify" sx={{ color: "#95BF47" }} />;
-        case "trigger.hubspot":
-            return <Icon name="bi-hubspot" sx={{ color: "#FF7A59" }} />;
-        default:
-            return null;
+    const brand = resolveBrandIcon(type);
+    if (!brand) {
+        return null;
     }
+    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
 }

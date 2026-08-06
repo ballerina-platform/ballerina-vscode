@@ -44,6 +44,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
+import { useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
 
 /** Only reachable from an empty integration, and it pulls in the whole wizard +
  *  artifact form tree — so keep it out of the overview's own chunk. */
@@ -115,18 +116,24 @@ const HeaderControls = styled.div`
     align-items: center;
 `;
 
-const MainContent = styled.div<{ fullWidth?: boolean; withHero?: boolean }>`
+const MainContent = styled.div<{ fullWidth?: boolean }>`
     padding: 16px;
     display: grid;
     grid-template-columns: ${(props: { fullWidth?: boolean }) => props.fullWidth ? '1fr' : '3fr 1fr'};
     min-height: 0; // Prevents grid blowout
     overflow: auto;
-    // Adjust based on header and any margins; the hero prompt row adds ~87px.
-    max-height: ${(props: { withHero?: boolean }) => props.withHero ? 'calc(100vh - 177px)' : 'calc(100vh - 90px)'};
+    // Adjust based on header and any margins.
+    max-height: calc(100vh - 90px);
 `;
 
+// Pinned to the foot of the design panel (which carries no padding of its own),
+// so it stays reachable once the artifact list is long enough to scroll.
 const HeroRow = styled.div`
-    margin: 16px 16px 0 16px;
+    flex: none;
+    position: sticky;
+    bottom: 0;
+    padding: 16px;
+    background: var(--vscode-editor-background);
 `;
 
 const DiagramPanel = styled.div<{ noPadding?: boolean, noBorder?: boolean }>`
@@ -820,10 +827,11 @@ function DevantDashboard({ projectStructure, handleDeploy, goToDevant }: { proje
 interface PackageOverviewProps {
     projectPath: string;
     isInDevant: boolean;
+    isICPSupported?: boolean;
 }
 
 export function PackageOverview(props: PackageOverviewProps) {
-    const { projectPath, isInDevant } = props;
+    const { projectPath, isInDevant, isICPSupported } = props;
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const { platformExtState } = usePlatformExtContext();
@@ -834,9 +842,12 @@ export function PackageOverview(props: PackageOverviewProps) {
     const [isInProject, setIsInProject] = useState(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
+    const aiPanelOpen = useAiPanelOpen();
+    const showHero = !isLibrary && !aiPanelOpen;
     // Shows the Create Integration wizard in place of the overview, for an empty
     // integration whose owner skipped it at creation time.
     const [showAddIntegration, setShowAddIntegration] = useState<boolean>(false);
+
     const fetchContext = useCallback(() => {
         rpcClient
             .getBIDiagramRpcClient()
@@ -859,12 +870,14 @@ export function PackageOverview(props: PackageOverviewProps) {
                 setReadmeContent(res.content);
             });
 
-        rpcClient
-            .getICPRpcClient()
-            .isIcpEnabled({ projectPath: '' })
-            .then((res) => {
-                setEnableICP(res.enabled);
-            });
+        if (isICPSupported) {
+            rpcClient
+                .getICPRpcClient()
+                .isIcpEnabled({ projectPath: '' })
+                .then((res) => {
+                    setEnableICP(res.enabled);
+                });
+        }
 
         rpcClient
             .getWorkflowManagementRpcClient()
@@ -872,14 +885,7 @@ export function PackageOverview(props: PackageOverviewProps) {
             .then((res) => {
                 setWorkflowMgmtEnabled(res.enabled);
             });
-
-        rpcClient
-            .getBIDiagramRpcClient()
-            .getReadmeContent({ projectPath })
-            .then((res) => {
-                setReadmeContent(res.content);
-            });
-    }, [rpcClient, projectPath]);
+    }, [rpcClient, projectPath, isICPSupported]);
 
     useEffect(() => {
         fetchContext();
@@ -1165,12 +1171,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                         </HeaderControls>
                     </HeaderRow>
                 )}
-                {!isLibrary && (
-                    <HeroRow>
-                        <CopilotHeroBox />
-                    </HeroRow>
-                )}
-                <MainContent fullWidth={isLibrary} withHero={!isLibrary}>
+                <MainContent fullWidth={isLibrary}>
                     <LeftContent>
                         <DiagramPanel noPadding={true} noBorder={isLibrary}>
                             {showAlert && (
@@ -1216,7 +1217,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                 sx={{ marginBottom: "24px", color: "var(--vscode-descriptionForeground)" }}
                                             >
                                                 Add an artifact to get started, or describe what you want to build in
-                                                the Copilot box above
+                                                the Copilot box below
                                             </Typography>
                                             <ButtonContainer>
                                                 {/* An empty integration means the creation wizard was
@@ -1239,6 +1240,13 @@ export function PackageOverview(props: PackageOverviewProps) {
                                         </React.Suspense>
                                     )}
                                 </DiagramContent>
+                            )}
+                            {showHero && (
+                                <HeroRow>
+                                    <CopilotHeroBox
+                                        placeholder={isEmptyIntegration() ? "What would you like to build?" : "What would you like to change?"}
+                                    />
+                                </HeroRow>
                             )}
                         </DiagramPanel>
                         {!isLibrary && (
@@ -1283,11 +1291,15 @@ export function PackageOverview(props: PackageOverviewProps) {
                                         hasDeployableIntegration={deployableIntegrationTypes.length > 0}
                                         projectPath={projectPath}
                                     />
-                                    <Divider sx={{ margin: "16px 0" }} />
-                                    <IntegrationControlPlane enabled={enabled} handleICP={handleICP} />
-                                    <div style={{ marginTop: 8 }}>
-                                        <LocalICPDeployment />
-                                    </div>
+                                    {isICPSupported && (
+                                        <>
+                                            <Divider sx={{ margin: "16px 0" }} />
+                                            <IntegrationControlPlane enabled={enabled} handleICP={handleICP} />
+                                            <div style={{ marginTop: 8 }}>
+                                                <LocalICPDeployment />
+                                            </div>
+                                        </>
+                                    )}
                                     {(projectStructure?.directoryMap?.[DIRECTORY_MAP.WORKFLOW]?.length ?? 0) > 0 && (
                                         <>
                                             <Divider sx={{ margin: "16px 0" }} />

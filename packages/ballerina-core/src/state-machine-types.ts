@@ -159,6 +159,7 @@ export interface ArtifactInfo {
     packageName?: string;
     moduleName?: string;
     version?: string;
+    isLocalRepository?: boolean;
 }
 
 export interface ManagedCredentialMapping {
@@ -205,6 +206,7 @@ export interface ApprovalOverlayState {
 export interface VisualizerMetadata {
     haveLS?: boolean;
     isBISupported?: boolean;
+    isICPSupported?: boolean; // ICP is only available alongside the WSO2 Integrator extension
     recordFilePath?: string;
     enableSequenceDiagram?: boolean; // Enable sequence diagram view
     target?: LinePosition;
@@ -394,6 +396,7 @@ export type ChatNotify = (
     | ConfigChangeEvent
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
+    | GenerationStatusEvent
 ) & ChatNotifyMeta;
 
 /** A single clickable follow-up suggestion shown after a completed turn. */
@@ -410,6 +413,13 @@ export interface FollowupSuggestionsEvent {
     /** The assistant message these suggestions belong to. */
     messageId: string;
     suggestions: FollowupSuggestion[];
+}
+
+/** A generation's review status changed in storage; the panel derives its revert affordance from it. */
+export interface GenerationStatusEvent {
+    type: "generation_status";
+    generationId: string;
+    status: GenerationReviewState["status"];
 }
 
 /** Structured progress event emitted by the migration orchestrator at each stage boundary. */
@@ -825,6 +835,16 @@ export interface GenerationReviewState {
     affectedPackagePaths?: string[];
     /** Error message if status is 'error' */
     errorMessage?: string;
+    /**
+     * What ReviewMode needs to reopen, beyond the fields above. Persisted, so a review survives an
+     * extension-host restart. Settling clears it, so at most one generation per thread carries it —
+     * and its presence is what tells a caller the review is still actionable.
+     */
+    reviewView?: {
+        semanticDiffs: object[];
+        loadDesignDiagrams: boolean;
+        isWorkspace: boolean;
+    };
 }
 
 /**

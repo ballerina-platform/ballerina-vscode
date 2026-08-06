@@ -1,6 +1,6 @@
 {
   "filePath": "sample1/main.bal",
-  "description": "Test adding a rabbitmq service",
+  "description": "Test adding an MCP service against mcp 1.2.0 (Streamable HTTP transport)",
   "serviceInitModel": {
     "id": "8",
     "displayName": "MCP Service",
@@ -8,9 +8,9 @@
     "orgName": "ballerina",
     "packageName": "mcp",
     "moduleName": "mcp",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "type": "mcp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.0.png",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
     "properties": {
       "serviceName": {
         "metadata": {
@@ -21,11 +21,8 @@
           "argType": "SOURCE_ANNOTATION"
         },
         "placeholder": "MCP Service",
-        "valueType": "EXPRESSION",
-        "valueTypeConstraint": "string",
         "value": "\"Health Care MCP\"",
         "items": [],
-        "typeMembers": [],
         "enabled": true,
         "editable": true,
         "optional": false,
@@ -40,15 +37,40 @@
           "argType": "SOURCE_ANNOTATION"
         },
         "placeholder": "\"1.0.0\"",
-        "valueType": "EXPRESSION",
-        "valueTypeConstraint": "string",
         "value": "\"1.0.0\"",
         "items": [],
-        "typeMembers": [],
         "enabled": true,
         "editable": true,
         "optional": false,
         "advanced": false
+      },
+      "serviceType": {
+        "metadata": {
+          "label": "Service Type",
+          "description": "The MCP service type."
+        },
+        "codedata": {
+          "type": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true,
+            "ballerinaType": "mcp:StreamableHttpService",
+            "options": [
+              {
+                "label": "Streamable HTTP Service",
+                "value": "StreamableHttpService"
+              }
+            ]
+          }
+        ],
+        "value": "StreamableHttpService",
+        "enabled": true,
+        "editable": false,
+        "optional": false,
+        "advanced": false,
+        "hidden": true
       },
       "port": {
         "metadata": {
@@ -59,11 +81,8 @@
           "argType": "LISTENER_PARAM_REQUIRED"
         },
         "placeholder": "8080",
-        "valueType": "EXPRESSION",
-        "valueTypeConstraint": "int",
         "value": "8080",
         "items": [],
-        "typeMembers": [],
         "enabled": true,
         "editable": true,
         "optional": false,
@@ -78,11 +97,8 @@
           "argType": "SERVICE_BASE_PATH"
         },
         "placeholder": "/mcp",
-        "valueType": "EXPRESSION",
-        "valueTypeConstraint": "string",
         "value": "/mcp",
         "items": [],
-        "typeMembers": [],
         "enabled": true,
         "editable": true,
         "optional": false,
@@ -96,13 +112,18 @@
         "codedata": {
           "type": "LISTENER_VAR_NAME"
         },
-        "valueType": "IDENTIFIER",
-        "valueTypeConstraint": "Global",
         "value": "mcpListener",
         "enabled": true,
         "editable": true,
         "optional": false,
-        "advanced": true
+        "advanced": true,
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true,
+            "ballerinaType": "mcp:StreamableHttpListener"
+          }
+        ]
       }
     }
   },
@@ -132,7 +153,7 @@
             "character": 3
           }
         },
-        "newText": "\nlistener mcp:Listener mcpListener = new (8080);\n@mcp:ServiceConfig {\n\tinfo: {\n\t\tname: \"Health Care MCP\",\n\t\tversion: \"1.0.0\"\n\t}\n}\nservice mcp:Service /mcp on mcpListener {\n\n}\n"
+        "newText": "\nlistener mcp:StreamableHttpListener mcpListener = new (8080);\nservice mcp:StreamableHttpService /mcp on mcpListener {\n\n}\n"
       }
     ]
   }

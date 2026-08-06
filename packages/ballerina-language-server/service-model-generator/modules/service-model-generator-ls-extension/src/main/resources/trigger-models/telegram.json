@@ -1,0 +1,1141 @@
+{
+  "schemaVersion": "1.0",
+  "id": "telegram",
+  "displayName": "Telegram",
+  "description": "Create a service to handle Telegram Bot API webhook updates (messages, callback queries, inline queries, and more)",
+  "orgName": "ballerinax",
+  "packageName": "telegram",
+  "moduleName": "telegram",
+  "version": "0.9.1",
+  "type": "telegram",
+  "icon": "icon.png",
+  "kind": "event",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure Telegram Listener",
+        "description": "Select an existing Telegram listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new Telegram listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the Telegram webhook listener"
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "telegram:Listener"
+                    }
+                  ],
+                  "value": "telegramListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name",
+                      "message": "A listener with this name already exists in the project"
+                    }
+                  ]
+                },
+                "listenTo": {
+                  "metadata": {
+                    "label": "Port",
+                    "description": "A port number to bind a new HTTP listener to, or an existing `http:Listener` to reuse"
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "originalName": "listenTo",
+                    "position": 1
+                  },
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "int|http:Listener",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int|http:Listener",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "8090"
+                },
+                "secretToken": {
+                  "metadata": {
+                    "label": "Secret Token",
+                    "description": "Use this secret token directly. Every inbound update is authenticated by comparing it\nagainst the `X-Telegram-Bot-Api-Secret-Token` header."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "secretToken",
+                    "path": "secretToken"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "<SECRET_TOKEN>"
+                },
+                "token": {
+                  "metadata": {
+                    "label": "Bot Token",
+                    "description": "Derive the secret token from this bot token via `deriveSecretToken` \u2014 the same derivation\n`Client->setWebhook` falls back to when its own `secret_token` option is omitted, so neither\nside needs a separately invented/threaded secret. Also required (alongside `publicUrl`) for\nthe listener to register its own webhook automatically when it starts."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "token",
+                    "path": "token"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "<BOT_TOKEN>"
+                },
+                "publicUrl": {
+                  "metadata": {
+                    "label": "Public URL",
+                    "description": "This listener's public HTTPS URL. When set together with `token`, starting the listener\nautomatically registers it as the webhook via `Client->setWebhook`, so no separate\n`setWebhook` call is needed."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "publicUrl",
+                    "path": "publicUrl"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "https://<PUBLIC_HOST>/"
+                },
+                "serviceUrl": {
+                  "metadata": {
+                    "label": "Service URL",
+                    "description": "The Telegram Bot API base URL used for the automatic `setWebhook` call when `publicUrl` is\nset. Only useful to override in tests or when routing through a proxy."
+                  },
+                  "value": "\"https://api.telegram.org\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "originalName": "serviceUrl",
+                    "path": "serviceUrl"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "https://api.telegram.org"
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Select an existing Telegram listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing Telegram listeners to attach to"
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "telegram:Listener"
+                }
+              ],
+              "items": [],
+              "value": [],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Telegram Service",
+        "description": "Handles Telegram Bot API webhook updates. Handler methods are recognised by convention, not declared on the type; declare only the ones you need."
+      },
+      "name": "TelegramService",
+      "description": "The service object a consumer implements to handle Telegram webhook updates. Attach an\nimplementation to a `Listener` to receive updates.\n\n`TelegramService` declares no remote methods of its own \u2014 implement only the handlers you need;\nan unimplemented handler is simply not invoked. Declaring a remote function under any other\nname, with the wrong parameter type, or without the `remote` qualifier is a compile error (see\nthis connector's compiler plugin). There are nine supported handlers, one per supported update\ntype:\n\n- `remote function onMessage(Message message) returns error?;` \u2014 a new incoming message.\n- `remote function onEditedMessage(Message editedMessage) returns error?;` \u2014 a message the\nbot knows about was edited.\n- `remote function onChannelPost(Message channelPost) returns error?;` \u2014 a new channel post.\n- `remote function onEditedChannelPost(Message editedChannelPost) returns error?;` \u2014 a\nchannel post the bot knows about was edited.\n- `remote function onCallbackQuery(CallbackQuery callbackQuery) returns error?;` \u2014 an inline\nkeyboard button press.\n- `remote function onInlineQuery(InlineQuery inlineQuery) returns error?;` \u2014 a new inline query.\n- `remote function onPoll(Poll poll) returns error?;` \u2014 a poll's state changed.\n- `remote function onPreCheckoutQuery(PreCheckoutQuery preCheckoutQuery) returns error?;` \u2014 a new\npre-checkout query.\n- `remote function onShippingQuery(ShippingQuery shippingQuery) returns error?;` \u2014 a new shipping\nquery.\n\nAn update outside this set (e.g. `poll_answer`, `my_chat_member`, `chat_member`,\n`chat_join_request`, business-account events) is logged and dropped rather than delivered to a\nhandler.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "telegram",
+        "originalName": "TelegramService"
+      },
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Message",
+            "description": "Invoked when a new incoming message is received."
+          },
+          "name": "onMessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessage",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Message",
+                "description": "Invoked when a new incoming message is received."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:Message",
+                "value": "telegram:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "message",
+                  "description": "Invoked when a new incoming message is received."
+                },
+                "placeholder": "message",
+                "value": "message",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited Message",
+            "description": "Invoked when a message the bot knows about was edited."
+          },
+          "name": "onEditedMessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEditedMessage",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Edited Message",
+                "description": "Invoked when a message the bot knows about was edited."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:Message",
+                "value": "telegram:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "editedMessage",
+                  "description": "Invoked when a message the bot knows about was edited."
+                },
+                "placeholder": "editedMessage",
+                "value": "editedMessage",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Channel Post",
+            "description": "Invoked when a new channel post is received."
+          },
+          "name": "onChannelPost",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onChannelPost",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Channel Post",
+                "description": "Invoked when a new channel post is received."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:Message",
+                "value": "telegram:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "channelPost",
+                  "description": "Invoked when a new channel post is received."
+                },
+                "placeholder": "channelPost",
+                "value": "channelPost",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited Channel Post",
+            "description": "Invoked when a channel post the bot knows about was edited."
+          },
+          "name": "onEditedChannelPost",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEditedChannelPost",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Edited Channel Post",
+                "description": "Invoked when a channel post the bot knows about was edited."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:Message",
+                "value": "telegram:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "editedChannelPost",
+                  "description": "Invoked when a channel post the bot knows about was edited."
+                },
+                "placeholder": "editedChannelPost",
+                "value": "editedChannelPost",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Callback Query",
+            "description": "Invoked when an inline keyboard button is pressed."
+          },
+          "name": "onCallbackQuery",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCallbackQuery",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Callback Query",
+                "description": "Invoked when an inline keyboard button is pressed."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:CallbackQuery",
+                "value": "telegram:CallbackQuery",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "callbackQuery",
+                  "description": "Invoked when an inline keyboard button is pressed."
+                },
+                "placeholder": "callbackQuery",
+                "value": "callbackQuery",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Inline Query",
+            "description": "Invoked when a new inline query is received."
+          },
+          "name": "onInlineQuery",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onInlineQuery",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Inline Query",
+                "description": "Invoked when a new inline query is received."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:InlineQuery",
+                "value": "telegram:InlineQuery",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "inlineQuery",
+                  "description": "Invoked when a new inline query is received."
+                },
+                "placeholder": "inlineQuery",
+                "value": "inlineQuery",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Poll",
+            "description": "Invoked when a poll's state changes."
+          },
+          "name": "onPoll",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPoll",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Poll",
+                "description": "Invoked when a poll's state changes."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:Poll",
+                "value": "telegram:Poll",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "poll",
+                  "description": "Invoked when a poll's state changes."
+                },
+                "placeholder": "poll",
+                "value": "poll",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Pre Checkout Query",
+            "description": "Invoked when a new pre-checkout query is received."
+          },
+          "name": "onPreCheckoutQuery",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPreCheckoutQuery",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Pre-Checkout Query",
+                "description": "Invoked when a new pre-checkout query is received."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:PreCheckoutQuery",
+                "value": "telegram:PreCheckoutQuery",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "preCheckoutQuery",
+                  "description": "Invoked when a new pre-checkout query is received."
+                },
+                "placeholder": "preCheckoutQuery",
+                "value": "preCheckoutQuery",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Shipping Query",
+            "description": "Invoked when a new shipping query is received."
+          },
+          "name": "onShippingQuery",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onShippingQuery",
+            "moduleName": "telegram"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Shipping Query",
+                "description": "Invoked when a new shipping query is received."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "telegram:ShippingQuery",
+                "value": "telegram:ShippingQuery",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "shippingQuery",
+                  "description": "Invoked when a new shipping query is received."
+                },
+                "placeholder": "shippingQuery",
+                "value": "shippingQuery",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "importStatements": [
+    "ballerina/http"
+  ],
+  "listenerKind": "MULTIPLE_SELECT_LISTENER"
+}

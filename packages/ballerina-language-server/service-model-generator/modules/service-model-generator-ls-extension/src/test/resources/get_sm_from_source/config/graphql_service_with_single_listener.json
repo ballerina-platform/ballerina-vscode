@@ -217,7 +217,8 @@
       {
         "metadata": {
           "label": "",
-          "description": ""
+          "description": "",
+          "badge": "INIT"
         },
         "kind": "DEFAULT",
         "accessor": {

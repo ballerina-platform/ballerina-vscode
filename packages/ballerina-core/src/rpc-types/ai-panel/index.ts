@@ -31,6 +31,7 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
     ApproveTaskRequest,
@@ -81,12 +82,12 @@ import {
     ThreadSummary,
     SwitchThreadRequest,
     DeleteThreadRequest,
+    RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
     // ClearMemoryRequest,
     // OpenMemoryRequest,
     GetRunStatusRequest,
     GetRunStatusResponse,
-    HasPendingReviewRequest,
 } from "./interfaces";
 
 export interface AIPanelAPI {
@@ -125,8 +126,7 @@ export interface AIPanelAPI {
     // AI schema related functions
     getSemanticDiff: (params: SemanticDiffRequest) => Promise<SemanticDiffResponse>;
     isWorkspaceProject: () => Promise<boolean>;
-    acceptChanges: () => Promise<void>;
-    declineChanges: () => Promise<void>;
+    revertGeneration: (params: RevertGenerationRequest) => Promise<void>;
     // ==================================
     // Approval Related Functions (Human-in-the-Loop)
     // ==================================
@@ -149,7 +149,6 @@ export interface AIPanelAPI {
     clearChat: () => Promise<void>;
     updateChatMessage: (params: UpdateChatMessageRequest) => Promise<void>;
     getActiveTempDir: () => Promise<string>;
-    hasPendingReview: (params: HasPendingReviewRequest) => Promise<boolean>;
     getRunStatus: (params: GetRunStatusRequest) => Promise<GetRunStatusResponse>;
     getLatestFollowupSuggestions: () => Promise<FollowupSuggestion[]>;
     getUsage: () => Promise<UsageResponse | undefined>;
@@ -163,6 +162,7 @@ export interface AIPanelAPI {
     listThreads: () => Promise<ThreadSummary[]>;
     switchThread: (params: SwitchThreadRequest) => Promise<void>;
     deleteThread: (params: DeleteThreadRequest) => Promise<void>;
+    renameThread: (params: RenameThreadRequest) => Promise<void>;
     // TODO(auto-memory): memory management temporarily disabled for this release.
     // clearMemory: (params: ClearMemoryRequest) => Promise<void>;
     // openMemoryFiles: (params: OpenMemoryRequest) => void;

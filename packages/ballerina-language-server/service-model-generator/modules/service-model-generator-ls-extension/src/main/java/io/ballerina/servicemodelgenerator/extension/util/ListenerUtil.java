@@ -45,9 +45,11 @@ import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Listener;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
@@ -299,7 +301,8 @@ public class ListenerUtil {
      */
     public static Listener createBaseListenerModel(FunctionData functionData) {
         Map<String, Value> properties = new LinkedHashMap<>();
-        String formattedModuleName = upperCaseFirstLetter(functionData.packageName());
+        String formattedModuleName = bundledShortDisplayName(functionData.packageName())
+                .orElseGet(() -> upperCaseFirstLetter(functionData.packageName()));
         String icon = CommonUtils.generateIcon(functionData.org(), functionData.packageName(),
                 functionData.version());
 
@@ -323,20 +326,45 @@ public class ListenerUtil {
         return listenerBuilder.build();
     }
 
+    /**
+     * The compact display name the connector's bundled trigger model ships (e.g. {@code Azure Files} for
+     * {@code azure.storage.files}), for connectors whose package name would otherwise render awkwardly.
+     *
+     * @param packageName the connector's package name
+     * @return the model's {@code shortDisplayName}, or empty when no bundled model declares one
+     */
+    private static Optional<String> bundledShortDisplayName(String packageName) {
+        return TriggerModelReader.getInstance().getBundledTriggerModel(packageName)
+                .map(TriggerUISchemaModel::shortDisplayName)
+                .filter(name -> !name.isBlank());
+    }
+
     private static String getListenerProtocol(String packageName) {
         String pkgName = packageName.toLowerCase(Locale.ROOT);
         String[] split = pkgName.split("\\.");
         return split[split.length - 1];
     }
 
-    public static Optional<Listener> getListenerModelByName(Codedata codedata, SemanticModel semanticModel,
-                                                            ModuleInfo moduleInfo) {
-        return getListenerModelByName(codedata, semanticModel, moduleInfo, true);
+    /**
+     * Like {@link #getListenerModelByName(Codedata, SemanticModel, ModuleInfo, boolean)}, but
+     * {@code semanticModel} here is the connector's own package semantic model, not the current file's.
+     */
+    public static Optional<Listener> getListenerModelFromConnectorPackage(Codedata codedata,
+                                                                          SemanticModel semanticModel,
+                                                                          ModuleInfo moduleInfo) {
+        return getListenerModelByName(codedata, semanticModel, moduleInfo, true, semanticModel);
     }
 
     public static Optional<Listener> getListenerModelByName(Codedata codedata, SemanticModel semanticModel,
                                                             ModuleInfo moduleInfo,
                                                             boolean removeDeprecated) {
+        return getListenerModelByName(codedata, semanticModel, moduleInfo, removeDeprecated, null);
+    }
+
+    private static Optional<Listener> getListenerModelByName(Codedata codedata, SemanticModel semanticModel,
+                                                            ModuleInfo moduleInfo,
+                                                            boolean removeDeprecated,
+                                                            SemanticModel parentSymbolSemanticModel) {
         String listenerType = codedata.getType() == null ? "Listener" : codedata.getType();
         FunctionDataBuilder functionDataBuilder = new FunctionDataBuilder()
                 .parentSymbolType(listenerType)
@@ -344,8 +372,11 @@ public class ListenerUtil {
                 .moduleInfo(new ModuleInfo(codedata.getOrgName(), codedata.getPackageName(), codedata.getModuleName(),
                         codedata.getVersion()))
                 .lsClientLogger(null) // Set the LS Client Logger
-                .functionResultKind(FunctionData.Kind.LISTENER_INIT)
-                .userModuleInfo(moduleInfo);
+                .functionResultKind(FunctionData.Kind.LISTENER_INIT);
+        if (parentSymbolSemanticModel != null) {
+            functionDataBuilder.semanticModel(parentSymbolSemanticModel);
+        }
+        functionDataBuilder.userModuleInfo(moduleInfo);
 
         FunctionData functionData = functionDataBuilder.build();
         Listener listener = createBaseListenerModel(functionData);

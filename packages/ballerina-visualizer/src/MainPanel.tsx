@@ -38,6 +38,7 @@ import { debounce } from "lodash";
 import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
+import { useSuppressAgentStatusOrb, viewHidesAgentStatusOrb } from "./components/AgentStatusOrb/shared";
 import { handleRedo, handleUndo } from "./utils/utils";
 import { STKindChecker } from "@wso2/syntax-tree";
 import { URI, Utils } from "vscode-uri";
@@ -195,6 +196,7 @@ const MainPanel = () => {
     const errorBoundaryRef = createRef<any>();
     const [viewComponent, setViewComponent] = useState<React.ReactNode>();
     const [viewError, setViewError] = useState<string>();
+    const [activeView, setActiveView] = useState<MACHINE_VIEW>();
     const [navActive, setNavActive] = useState<boolean>(true);
     // A navigation is in flight: the previous view stays on screen while the next one's
     // chunk loads, which on a first visit is seconds.
@@ -208,6 +210,7 @@ const MainPanel = () => {
     const remountKeyRef = useRef<number>(0);
     const previousNavTargetRef = useRef<string | undefined>(undefined);
 
+    useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
 
     const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
 
@@ -345,6 +348,7 @@ const MainPanel = () => {
                                 <PackageOverview
                                     projectPath={value.projectPath}
                                     isInDevant={value.isInDevant}
+                                    isICPSupported={value.metadata?.isICPSupported}
                                 />
                             );
                             break;
@@ -352,7 +356,12 @@ const MainPanel = () => {
                         case MACHINE_VIEW.WorkspaceOverview: {
                             const { WorkspaceOverview } = await import("./views/BI/WorkspaceOverview");
                             if (isStaleNavigation()) return;
-                            setViewComponent(<WorkspaceOverview isInDevant={value.isInDevant} />);
+                            setViewComponent(
+                                <WorkspaceOverview
+                                    isInDevant={value.isInDevant}
+                                    isICPSupported={value.metadata?.isICPSupported}
+                                />
+                            );
                             break;
                         }
                         case MACHINE_VIEW.ServiceDesigner: {
@@ -383,7 +392,8 @@ const MainPanel = () => {
                         case MACHINE_VIEW.BIDiagram:
                             const { default: DiagramWrapper } = await import("./views/BI/DiagramWrapper");
                             if (isStaleNavigation()) return;
-                            rpcClient.getLangClientRpcClient().getSTByRange({
+                            // Awaited so the code after the switch sees the view as settled.
+                            await rpcClient.getLangClientRpcClient().getSTByRange({
                                 documentIdentifier: {
                                     uri: URI.file(value.documentUri).toString(),
                                 },
@@ -628,6 +638,7 @@ const MainPanel = () => {
                                     packageName={value?.artifactInfo.packageName}
                                     moduleName={value?.artifactInfo.moduleName}
                                     version={value?.artifactInfo.version}
+                                    isLocalRepository={value?.artifactInfo.isLocalRepository}
                                 />
                             );
                             break;
@@ -873,6 +884,9 @@ const MainPanel = () => {
                             setViewComponent(<LoadingRing />);
                     }
                 }
+                // Only once the new view is on screen — lifting it earlier flashes
+                // the orb over the view being navigated away from.
+                setActiveView(value?.view ?? undefined);
                 // The chunk is in memory and the browser is about to go idle — cheapest
                 // moment to warm the next view.
                 prefetchAfterView(value?.view);

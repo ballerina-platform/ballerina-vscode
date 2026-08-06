@@ -18,7 +18,7 @@
 
 import {
     CancellationToken, CompletionContext, CompletionItem, CompletionItemProvider, CompletionList,
-    Disposable, DocumentSelector, languages, Position, TextDocument,
+    Disposable, DocumentSelector, languages, Position, TextDocument, Uri,
 } from "vscode";
 import { CompletionItemKind as MonacoCompletionItemKind } from "monaco-languageclient";
 import { SyntaxTree, NotebookFileSource } from "@wso2/ballerina-core";
@@ -53,12 +53,13 @@ export class NotebookCompletionItemProvider implements CompletionItemProvider {
             return [];
         }
         let { content, filePath } = response as NotebookFileSource;
-        performDidOpen(langClient, filePath, content);
-        let endPositionOfMain = await this.getEndPositionOfMain(langClient, filePath);
+        const fileUri = Uri.file(filePath).toString();
+        performDidOpen(langClient, fileUri, content);
+        let endPositionOfMain = await this.getEndPositionOfMain(langClient, fileUri);
         let textToWrite = content ? `${content.substring(0, content.length - 1)}${document.getText()}\n}` : document.getText();
         langClient.didChange({
             textDocument: {
-                uri: filePath,
+                uri: fileUri,
                 version: 2,
             },
             contentChanges: [
@@ -69,7 +70,7 @@ export class NotebookCompletionItemProvider implements CompletionItemProvider {
         });
         let completions = await langClient.getCompletion({
             textDocument: {
-                uri: filePath
+                uri: fileUri
             },
             position: {
                 character: endPositionOfMain.character + position.character,
@@ -89,10 +90,10 @@ export class NotebookCompletionItemProvider implements CompletionItemProvider {
         });
     }
 
-    private async getEndPositionOfMain(langClient: ExtendedLangClient, filePath: string) {
+    private async getEndPositionOfMain(langClient: ExtendedLangClient, fileUri: string) {
         let response = await langClient.getSyntaxTree({
             documentIdentifier: {
-                uri: filePath
+                uri: fileUri
             }
         });
         let syntaxTree = response as any;
@@ -125,10 +126,10 @@ export function registerLanguageProviders(ballerinaExtInstance: BallerinaExtensi
     return Disposable.from(...disposables);
 }
 
-function performDidOpen(langClient: ExtendedLangClient, filePath: string, content: string) {
+function performDidOpen(langClient: ExtendedLangClient, fileUri: string, content: string) {
     langClient.didOpen({
         textDocument: {
-            uri: filePath,
+            uri: fileUri,
             languageId: LANGUAGE.BALLERINA,
             version: 1,
             text: content

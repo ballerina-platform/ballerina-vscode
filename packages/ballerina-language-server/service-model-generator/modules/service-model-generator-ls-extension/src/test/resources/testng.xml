@@ -43,6 +43,31 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.GetServiceInitModelTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.AddServiceAndListenerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.UpdateListenerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.TriggerModelSynthesizerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolverTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceGenerationTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelSynthesizerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderSchemaDrivenTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerServiceAdapterTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.PayloadComposerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.AnnotationEmitterTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerImportTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolverTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGeneratorTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.ListenerArgsTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.PropertyValueAdapterTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerReadOnlyMetadataAdapterTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBinderTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.FunctionBadgeTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceMergerTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerFunctionExpansionTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.builder.service.ListenerChoiceSelectionTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolverTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationEngineTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
         </classes>
     </test>
 </suite>

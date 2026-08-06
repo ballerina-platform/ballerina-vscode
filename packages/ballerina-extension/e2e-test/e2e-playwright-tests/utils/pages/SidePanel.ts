@@ -49,7 +49,9 @@ export class SidePanel {
             }
         }
         await nodeContainer.waitFor({ state: 'visible', timeout: 30000 });
-        await nodeContainer.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on nodes in this panel.
+        await nodeContainer.click({ force: true });
     }
 
     /**

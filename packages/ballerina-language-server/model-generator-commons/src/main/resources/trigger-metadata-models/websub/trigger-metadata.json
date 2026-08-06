@@ -1,0 +1,87 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "Listener" },
+      "services": ["service"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": { "name": "SubscriberService" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["basePath"]
+      },
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onEventNotification",
+            "kind": "remote",
+            "presence": "required",
+            "params": [
+              { "type": { "name": "ContentDistributionMessage" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "Acknowledgement" }, { "name": "SubscriptionDeletedError" }, { "name": "()" }]
+          },
+          {
+            "name": "onSubscriptionVerification",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "SubscriptionVerification" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "SubscriptionVerificationSuccess" }, { "name": "SubscriptionVerificationError" }]
+          },
+          {
+            "name": "onUnsubscriptionVerification",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "UnsubscriptionVerification" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "UnsubscriptionVerificationSuccess" }, { "name": "UnsubscriptionVerificationError" }]
+          },
+          {
+            "name": "onSubscriptionValidationDenied",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "SubscriptionDeniedError" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "Acknowledgement" }, { "name": "()" }]
+          },
+          {
+            "name": "onHubError",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "HubError" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "Acknowledgement" }, { "name": "()" }]
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [
+    {
+      "id": "subscriberServiceConfig",
+      "type": { "name": "SubscriberServiceConfig" },
+      "attachPoint": "service",
+      "appliesTo": ["service"],
+      "presence": "optional"
+    }
+  ],
+
+  "dataBindingRules": []
+}

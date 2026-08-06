@@ -146,7 +146,7 @@ export function Visualizer({ mode }: { mode: string }) {
                 {(() => {
                     switch (mode) {
                         case MODES.VISUALIZER:
-                            return <><VisualizerComponent state={state} /><AgentStatusOrb /></>
+                            return <VisualizerComponent state={state} />
                         case MODES.RUNTIME_SERVICES:
                             return <MainPanel />
                         case MODES.AI:
@@ -305,7 +305,7 @@ const VisualizerComponent = React.memo(({ state }: { state: MachineStateValue })
 
     switch (true) {
         case showMainPanel:
-            return <MainPanel />;
+            return <><MainPanel /><AgentStatusOrb /></>;
         case typeof state === 'object' && 'viewActive' in state && state.viewActive === "resolveMissingDependencies":
             return <PullingDependenciesView />;
         default:

@@ -266,6 +266,8 @@ import {
     GetMigrationToolsResponse,
     ServiceModelInitResponse,
     ServiceInitSourceRequest,
+    ValidatePropertyRequest,
+    ValidatePropertyResponse,
     DeleteSubMappingRequest,
     DeleteClauseRequest,
     ClearTypeCacheResponse,
@@ -440,6 +442,7 @@ enum EXTENDED_APIS {
     BI_GET_RECORD_MODEL_FROM_SOURCE = 'typesManager/findMatchingType',
     BI_GET_RECORD_SOURCE = 'typesManager/generateValue',
     BI_SERVICE_GET_TRIGGER_MODELS = 'serviceDesign/getTriggerModels',
+    BI_SERVICE_SEARCH_TRIGGERS = 'serviceDesign/searchTriggers',
     BI_SERVICE_GET_LISTENERS = 'serviceDesign/getListeners',
     BI_SERVICE_GET_LISTENER = 'serviceDesign/getListenerModel',
     BI_SERVICE_ADD_LISTENER = 'serviceDesign/addListener',
@@ -448,6 +451,7 @@ enum EXTENDED_APIS {
     BI_SERVICE_GET_SERVICE = 'serviceDesign/getServiceModel',
     BI_SERVICE_GET_SERVICE_INIT = 'serviceDesign/getServiceInitModel',
     BI_SERVICE_CREATE_SERVICE_AND_LISTENER = 'serviceDesign/addServiceAndListener',
+    BI_SERVICE_VALIDATE_PROPERTY = 'serviceDesign/validateProperty',
     BI_SERVICE_GET_FUNCTION = 'serviceDesign/getFunctionModel',
     BI_SERVICE_ADD_SERVICE = 'serviceDesign/addService',
     BI_SERVICE_UPDATE_SERVICE = 'serviceDesign/updateService',
@@ -1319,6 +1323,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
         return this.sendRequest<TriggerModelsResponse>(EXTENDED_APIS.BI_SERVICE_GET_TRIGGER_MODELS, params);
     }
 
+    async searchTriggers(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {
+        return this.sendRequest<TriggerModelsResponse>(EXTENDED_APIS.BI_SERVICE_SEARCH_TRIGGERS, params);
+    }
+
     async getListeners(params: ListenersRequest): Promise<ListenersResponse> {
         return this.sendRequest<ListenersResponse>(EXTENDED_APIS.BI_SERVICE_GET_LISTENERS, params);
     }
@@ -1357,6 +1365,10 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
 
     async createServiceAndListener(params: ServiceInitSourceRequest): Promise<SourceEditResponse> {
         return this.sendRequest<SourceEditResponse>(EXTENDED_APIS.BI_SERVICE_CREATE_SERVICE_AND_LISTENER, params);
+    }
+
+    async validateProperty(params: ValidatePropertyRequest): Promise<ValidatePropertyResponse> {
+        return this.sendRequest<ValidatePropertyResponse>(EXTENDED_APIS.BI_SERVICE_VALIDATE_PROPERTY, params);
     }
 
     async getFunctionModel(params: FunctionModelRequest): Promise<FunctionModelResponse> {

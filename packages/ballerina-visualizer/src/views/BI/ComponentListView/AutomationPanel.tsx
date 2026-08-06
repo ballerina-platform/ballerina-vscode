@@ -27,6 +27,7 @@ import { AutomationAlreadyExistsTooltip, cardMatchesSearch, OutOfScopeComponentT
 
 interface AutomationPanelProps {
     scope: SCOPE;
+    /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
 };
 

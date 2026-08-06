@@ -28,19 +28,19 @@ import {
     ServiceModel,
     Protocol,
     SHARED_COMMANDS,
+    ValidationResult,
+    hasBlockingValidationErrors,
     isSamePath
 } from "@wso2/ballerina-core";
-import { buildBaseUrl } from "./buildHurlString";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { NodePosition } from "@wso2/syntax-tree";
 import { Button, Codicon, Icon, TextField, Typography, View } from "@wso2/ui-toolkit";
-import { cloneDeep } from "lodash";
 import { useEffect, useRef, useState } from "react";
 import { LoadingRing } from "../../../components/Loader";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { applyModifications, isPositionChanged } from "../../../utils/utils";
+import { isPositionChanged } from "../../../utils/utils";
 import { AddServiceElementDropdown, DropdownOptionProps } from "./components/AddServiceElementDropdown";
 import { MoreOptionsDropdown } from "./components/MoreOptionsDropdown";
 import { ResourceAccordion } from "./components/ResourceAccordion";
@@ -48,12 +48,17 @@ import { ResourceAccordionV2 } from "./components/ResourceAccordionV2";
 import { FunctionConfigForm } from "./Forms/FunctionConfigForm";
 import { FunctionForm } from "./Forms/FunctionForm";
 import { ResourceForm } from "./Forms/ResourceForm";
-import { getCustomEntryNodeIcon } from "../ComponentListView/EventIntegrationPanel";
-import { McpToolForm } from "./Forms/McpToolForm";
 import { removeForwardSlashes, canDataBind, getReadableListenerName } from "./utils";
 import { DatabindForm } from "./Forms/DatabindForm";
-import { FileIntegrationForm } from "./Forms/FileIntegrationForm";
-import FileIntegrationConfigForm from "./Forms/FileIntegrationForm/FileIntegrationConfigForm";
+import { TriggerHandlerForm } from "./Forms/TriggerHandlerForm";
+import TriggerHandlerConfigForm from "./Forms/TriggerHandlerForm/TriggerHandlerConfigForm";
+import {
+    catalogFunctionsOf,
+    handlerGroupId,
+    hasConfigurableFields,
+    isSchemaTriggerService as checkSchemaTriggerService,
+    isSoleRepeatableGroup,
+} from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 
 const LoadingContainer = styled.div`
@@ -114,31 +119,6 @@ const MetadataRow = styled.div`
     flex-wrap: wrap;
 `;
 
-const MetadataLabel = styled.span`
-    font-size: 12px;
-    color: var(--vscode-descriptionForeground);
-    font-weight: 500;
-    min-width: 60px;
-`;
-
-const ListenerBadge = styled.div`
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    background: var(--vscode-editorWidget-background, #f3f3f3);
-    color: var(--vscode-descriptionForeground, #888);
-    border-radius: 10px;
-    font-weight: 400;
-    cursor: pointer;
-    transition: background 0.12s;
-
-    &:hover {
-        background: var(--vscode-editorWidget-border, #e0e0e0);
-        transform: none;
-    }
-`;
-
 const PropertyInline = styled.div`
     display: inline-flex;
     align-items: center;
@@ -195,44 +175,52 @@ export const ADD_HTTP_RESOURCE = "add-http-resource";
 export function ServiceDesigner(props: ServiceDesignerProps) {
     const { projectPath, filePath, position, serviceIdentifier } = props;
     const { rpcClient } = useRpcContext();
+
+    // ----- service/function model + save state -----
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
     const [functionModel, setFunctionModel] = useState<FunctionModel>(undefined);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [serverValidationErrors, setServerValidationErrors] = useState<ValidationResult[]>([]);
 
+    // ----- add/edit panel flow state -----
     const [isNew, setIsNew] = useState<boolean>(false);
     const [showForm, setShowForm] = useState<boolean>(false);
     const [showFunctionConfigForm, setShowFunctionConfigForm] = useState<boolean>(false);
-    const [projectListeners, setProjectListeners] = useState<ProjectStructureArtifactResponse[]>([]);
-    const prevPosition = useRef(position);
-    const positionRef = useRef(position);
-    const isMountedRef = useRef(true);
+    const [selectedHandler, setSelectedHandler] = useState<FunctionModel>(undefined);
+    const [initFunction, setInitFunction] = useState<FunctionModel>(undefined);
+    const [selectedTriggerGroup, setSelectedTriggerGroup] = useState<string>(undefined);
+    const [addMore, setAddMore] = useState<boolean>(false);
 
-    const [resources, setResources] = useState<ProjectStructureArtifactResponse[]>([]);
-    const [searchValue, setSearchValue] = useState<string>("");
-
-    const [listeners, setListeners] = useState<string[]>([]);
-    const [readonlyProperties, setReadonlyProperties] = useState<Set<ReadonlyProperty>>(new Set());
+    // ----- service-type detection flags (drive which section/form this designer shows) -----
     const [isHttpService, setIsHttpService] = useState<boolean>(false);
     const [isMcpService, setIsMcpService] = useState<boolean>(false);
     const [isFtpService, setIsFtpService] = useState<boolean>(false);
     const [isCdcService, setIsCdcService] = useState<boolean>(false);
-    const [objectMethods, setObjectMethods] = useState<FunctionModel[]>([]);
-    const [dropdownOptions, setDropdownOptions] = useState<DropdownOptionProps[]>([]);
-    const [initMethod, setInitMethod] = useState<FunctionModel>(undefined);
+
+    // ----- handler/method/resource listings (populated by setServiceMetaInfo on each fetch) -----
     const [enabledHandlers, setEnabledHandlers] = useState<FunctionModel[]>([]);
     const [unusedHandlers, setUnusedHandlers] = useState<FunctionModel[]>([]);
-    const [selectedHandler, setSelectedHandler] = useState<FunctionModel>(undefined);
+    const [dropdownOptions, setDropdownOptions] = useState<DropdownOptionProps[]>([]);
+    const [resources, setResources] = useState<ProjectStructureArtifactResponse[]>([]);
+    const [listeners, setListeners] = useState<string[]>([]);
+    const [readonlyProperties, setReadonlyProperties] = useState<Set<ReadonlyProperty>>(new Set());
+    const [searchValue, setSearchValue] = useState<string>("");
 
-    const [initFunction, setInitFunction] = useState<FunctionModel>(undefined);
-    const [selectedFTPHandler, setSelectedFTPHandler] = useState<string>(undefined);
-    const [addMore, setAddMore] = useState<boolean>(false);
+    // ----- Try It state -----
     const [selectedTryItOption, setSelectedTryItOption] = useState<TryItOptionValue>(TryItOptionValue.TRY_IT);
     const [isTryItInProgress, setIsTryItInProgress] = useState<boolean>(false);
 
+    // ----- refs (fetch/mount bookkeeping, not rendered) -----
+    const prevPosition = useRef(position);
+    const positionRef = useRef(position);
+    const isMountedRef = useRef(true);
+
+    // ----- init function panel -----
     const handleCloseInitFunction = () => {
         setInitFunction(undefined);
     };
 
+    /** Shared by every save/delete handler below to re-locate the artifact a source edit just touched. */
     const findServiceArtifact = (
         artifacts: ProjectStructureArtifactResponse[],
         targetPosition: NodePosition = position
@@ -281,24 +269,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         }
     }
 
-    // Check if there are any available FTP handlers (onCreate, onDelete, onError) that are not yet enabled
-    const hasAvailableFTPHandlers = () => {
-        if (!serviceModel?.functions) return false;
-
-        const onCreateFunctions = serviceModel.functions.filter(fn => fn.metadata?.label === 'onCreate');
-        const onDeleteFunctions = serviceModel.functions.filter(fn => fn.metadata?.label === 'onDelete');
-        const onErrorFunctions = serviceModel.functions.filter(fn => fn.metadata?.label === 'onError');
-        const deprecatedFunctions = serviceModel.functions.filter(fn => fn.metadata?.label === 'EVENT');
-
-        const hasAvailableOnCreate = onCreateFunctions.length > 0 && onCreateFunctions.some(fn => !fn.enabled);
-        const hasAvailableOnDelete = onDeleteFunctions.length > 0 && onDeleteFunctions.some(fn => !fn.enabled);
-        const hasAvailableOnError = onErrorFunctions.length > 0 && onErrorFunctions.some(fn => !fn.enabled);
-        const hasDeprecatedFunctions = deprecatedFunctions.length > 0 && deprecatedFunctions.some(fn => fn.enabled);
-
-        // Remove the add handler option if deprecated APIs present
-        return (hasAvailableOnCreate || hasAvailableOnDelete || hasAvailableOnError) && !hasDeprecatedFunctions;
-    };
-
+    // ----- lifecycle -----
     useEffect(() => {
         positionRef.current = position;
         isMountedRef.current = true;
@@ -338,6 +309,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         })();
     }, [rpcClient]);
 
+    // ----- service model fetch -----
     const fetchService = (targetPosition: NodePosition) => {
         const lineRange: LineRange = {
             startLine: { line: targetPosition.startLine, offset: targetPosition.startColumn },
@@ -406,7 +378,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             if (func.kind === "DEFAULT") {
                 if (func.name?.value === "init") {
                     hasInitMethod = true;
-                    setInitMethod(func);
                 } else {
                     objectMethods.push(func);
                 }
@@ -420,25 +391,15 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             }
         });
 
+        // Schema-driven triggers ship their addable handler catalog separately (`schemaFunctions`);
+        // it feeds the same "+ Handler" affordance as disabled template functions.
+        unusedHandlers.push(...(service.schemaFunctions ?? []));
+
         setEnabledHandlers(enabledHandlers);
         setUnusedHandlers(unusedHandlers);
-        setObjectMethods(objectMethods);
 
         // Set dropdown options
         const options: DropdownOptionProps[] = [];
-        // if (!hasInitMethod) {
-        //     options.push({
-        //         title: "Add Init Function",
-        //         description: "Add a new init function within the service",
-        //         value: ADD_INIT_FUNCTION
-        //     });
-        // }
-
-        // options.push({
-        //     title: "Add Sub Flow",
-        //     description: "Add a new reusable function within the service",
-        //     value: ADD_REUSABLE_FUNCTION
-        // });
 
         if (service.moduleName === "http") {
             options.push({
@@ -456,9 +417,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
                 const project = res.projects.find(project => isSamePath(project.projectPath, projectPath));
                 const listeners = project?.directoryMap[DIRECTORY_MAP.LISTENER];
-                if (listeners.length > 0) {
-                    setProjectListeners(listeners);
-                }
                 const services = project.directoryMap[DIRECTORY_MAP.SERVICE];
                 if (services.length > 0) {
                     const selectedService = findServiceArtifact(services, targetPosition);
@@ -466,31 +424,13 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                         setResources([]);
                         return;
                     }
-                    if (selectedService.moduleName === "mcp") {
-                        const updatedResources = selectedService.resources.map(resource => ({
-                            ...resource,
-                            icon: "tool"
-                        }));
-                        setResources(updatedResources);
-                    } else {
-                        setResources(selectedService.resources);
-                    }
+                    setResources(selectedService.resources);
                 }
             });
         });
     };
 
-    const handleOpenListener = (value: string) => {
-        rpcClient.getVisualizerRpcClient().openView({
-            type: EVENT_TYPE.OPEN_VIEW,
-            location: {
-                view: MACHINE_VIEW.BIServiceConfigView,
-                position: position,
-                documentUri: filePath,
-                identifier: value,
-            },
-        });
-    };
+    // ----- navigation (open an existing view) -----
 
     const handleOpenDiagram = async (resource: FunctionModel) => {
         const lineRange: LineRange = resource.codedata.lineRange;
@@ -505,6 +445,12 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: nodePosition, documentUri: filePath } });
     };
 
+    const openInit = async (resource: ProjectStructureArtifactResponse) => {
+        await rpcClient
+            .getVisualizerRpcClient()
+            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: resource.position, documentUri: resource.path } });
+    };
+
     const handleServiceEdit = async () => {
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
@@ -516,6 +462,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         });
     };
 
+    // ----- HTTP resource add -----
     const handleNewResourceFunction = () => {
         rpcClient
             .getServiceDesignerRpcClient()
@@ -528,29 +475,38 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             });
     };
 
-    const handleNewFTPFunction = (selectedHandler: string) => {
-        const templateFunction = serviceModel?.functions?.find(
-            (fn) => !fn.enabled && fn.metadata?.label === selectedHandler
-        );
-        setFunctionModel(templateFunction ? cloneDeep(templateFunction) : undefined);
+    // ----- handler add/edit/submit flow (schema-driven trigger handlers + generic handlers) -----
+    // Schema-driven trigger (unified TriggerModel): it ships an addable handler catalog
+    // (`schemaFunctions`) and/or functions carrying the catalog markers (`group`/`variantLabel`),
+    // so the generic TriggerHandlerForm applies — no module gate.
+    const isSchemaTriggerService = checkSchemaTriggerService(serviceModel);
+
+    // A "file" kind trigger (ftp/file) surfaces File Handlers rather than Event Handlers; MCP
+    // surfaces Tools. Otherwise a generic event handler.
+    const isFileService = serviceModel?.moduleName === "ftp" || serviceModel?.moduleName === "file";
+    const handlerNoun = isFileService ? "file" : isMcpService ? "tool" : "event";
+
+    const handleNewTriggerHandler = (group: string) => {
+        setSelectedTriggerGroup(group);
+        setFunctionModel(undefined);
         setIsNew(true);
-        setSelectedFTPHandler(selectedHandler);
         setShowForm(true);
         setShowFunctionConfigForm(false);
         setIsSaving(false);
     };
 
-    const handleNewMcpTool = () => {
-        rpcClient
-            .getServiceDesignerRpcClient()
-            .getFunctionModel({ type: "mcp", functionName: "remote" })
-            .then((res) => {
-                console.log("New Function Model: ", res.function);
-                // let fields = res.function ? convertConfig(res.function.properties) : [];
-                setFunctionModel(res.function);
-                setIsNew(true);
-                setShowForm(true);
-            });
+    /** Adds a catalog handler straight away — used when it has nothing worth showing a form for. */
+    const handleQuickAddTriggerHandler = (functionModel: FunctionModel) => {
+        setShowFunctionConfigForm(false);
+        handleFunctionSubmit(functionModel, false, true);
+    };
+
+    const getTriggerHandlerTitle = () => {
+        const groupId = selectedTriggerGroup ?? (functionModel ? handlerGroupId(functionModel) : undefined);
+        const groupMembers = [...(serviceModel ? catalogFunctionsOf(serviceModel) : []), ...(serviceModel?.functions ?? [])];
+        const groupLabel = groupMembers.find(fn => handlerGroupId(fn) === groupId)?.metadata?.label
+            ?? "Handler";
+        return `${isNew ? "New " : ""}${groupLabel} Configuration`;
     };
 
     const handleNewObjectMethod = () => {
@@ -572,6 +528,16 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     };
 
     const onSelectAddHandler = () => {
+        // A schema-driven catalog with exactly one always-addable (repeatable TRUE) group has nothing
+        // to choose between — e.g. MCP's Tool. Skip the picker and go straight to its form, rather
+        // than making the user click through a single-card list every time.
+        if (isSchemaTriggerService && serviceModel) {
+            const soleGroup = isSoleRepeatableGroup(serviceModel);
+            if (soleGroup) {
+                handleNewTriggerHandler(soleGroup.id);
+                return;
+            }
+        }
         setIsNew(true);
         setShowFunctionConfigForm(true);
     };
@@ -629,7 +595,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         setShowForm(false);
         setIsNew(false);
         setFunctionModel(undefined);
-        setSelectedFTPHandler(undefined);
+        setSelectedTriggerGroup(undefined);
         // If a handler was selected, also close the FunctionConfigForm
         if (selectedHandler) {
             setShowFunctionConfigForm(false);
@@ -640,7 +606,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const handleFunctionEdit = (value: FunctionModel) => {
         setFunctionModel(value);
         setIsNew(false);
-        setSelectedFTPHandler(undefined);
         setShowForm(true);
     };
 
@@ -722,17 +687,28 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
      * @param value
      * @param openDiagram - Whether to open the flow diagram after saving
      */
-    const handleFunctionSubmit = async (value: FunctionModel, openDiagram: boolean = false) => {
+    const handleFunctionSubmit = async (value: FunctionModel, openDiagram: boolean = false, forceNew?: boolean) => {
         setIsSaving(true);
         const lineRange: LineRange = {
             startLine: { line: position.startLine, offset: position.startColumn },
             endLine: { line: position.endLine, offset: position.endColumn },
         };
+        // `forceNew` lets a caller bypass the `isNew` state (e.g. a quick-add from the catalog that
+        // never goes through the usual open-form flow, so the state may be stale).
+        const addingNew = forceNew ?? isNew;
         let res = undefined;
-        if (isNew) {
+        if (addingNew) {
             res = await rpcClient
                 .getServiceDesignerRpcClient()
                 .addFunctionSourceCode({ filePath, codedata: { lineRange }, function: value, artifactType: DIRECTORY_MAP.SERVICE });
+            // Refused by the save-time gate: nothing was written, so leave the form open with the
+            // user's input intact rather than closing it as if the handler had been created.
+            if (hasBlockingValidationErrors(res.validationErrors)) {
+                setServerValidationErrors(res.validationErrors);
+                setIsSaving(false);
+                return;
+            }
+            setServerValidationErrors([]);
             const serviceArtifact = findServiceArtifact(res.artifacts);
             if (serviceArtifact) {
                 if (openDiagram) {
@@ -759,6 +735,12 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
             res = await rpcClient
                 .getServiceDesignerRpcClient()
                 .updateResourceSourceCode({ filePath, codedata: { lineRange }, function: value, artifactType: DIRECTORY_MAP.SERVICE });
+            if (hasBlockingValidationErrors(res.validationErrors)) {
+                setServerValidationErrors(res.validationErrors);
+                setIsSaving(false);
+                return;
+            }
+            setServerValidationErrors([]);
             const serviceArtifact = findServiceArtifact(res.artifacts);
             if (serviceArtifact) {
                 fetchService(serviceArtifact.position);
@@ -783,6 +765,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         setIsNew(false);
     };
 
+    // ----- Try It -----
     const handleServiceTryIt = async () => {
         const basePath = serviceModel.properties?.basePath?.value?.trim();
         const listenerProperty = serviceModel.properties?.listener;
@@ -875,6 +858,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         }
     };
 
+    // ----- not yet implemented (UI stubs, wired up but no-op) -----
     const handleAddListener = () => {
         // TODO: Implement add listener functionality
         console.log("Add listener clicked");
@@ -891,6 +875,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         console.log("Add service field clicked");
     };
 
+    // ----- misc UI helpers -----
     const findIcon = (label: string) => {
         label = label.toLowerCase();
         switch (true) {
@@ -919,6 +904,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         setSearchValue(event.target.value);
     };
 
+    // ----- derived/computed values (used directly by the render below) -----
     const tryItDropdownOptions: DropdownOptionProps[] = getTryItDropdownOptions("service");
     const activeTryItOption =
         tryItDropdownOptions.find((option) => option.value === selectedTryItOption) ?? tryItDropdownOptions[0];
@@ -927,25 +913,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const displayServiceName = isFtpService
         ? (serviceModel?.name || "").replace(/\s*-\s*\/$/, "")
         : serviceModel?.name;
-
-    const getFtpHandlerTitle = () => {
-        const handlerKey = (selectedFTPHandler || functionModel?.metadata?.label || "").toLowerCase();
-        const handlerLabelMap: Record<string, string> = {
-            "oncreate": "On Create",
-            "ondelete": "On Delete",
-            "onerror": "On Error"
-        };
-        const handlerLabel = handlerLabelMap[handlerKey] || "Handler";
-        const prefix = isNew ? "New " : "";
-        return `${prefix}${handlerLabel} Handler Configuration`;
-    };
-
-    const openInit = async (resource: ProjectStructureArtifactResponse) => {
-        await rpcClient
-            .getVisualizerRpcClient()
-            .openView({ type: EVENT_TYPE.OPEN_VIEW, location: { position: resource.position, documentUri: resource.path } });
-    }
-
 
     const resourcesCount = resources
         .filter((resource) => resource.type === DIRECTORY_MAP.RESOURCE)
@@ -957,30 +924,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
         })
         .length;
 
-    const remoteFunctionsCount = resources
-        .filter((resource) => resource.type === DIRECTORY_MAP.REMOTE)
-        .filter((resource) => {
-            const search = searchValue.toLowerCase();
-            const nameMatch = resource.name && resource.name.toLowerCase().includes(search);
-            const iconMatch = resource.icon && resource.icon.toLowerCase().includes(search);
-            return nameMatch || iconMatch;
-        })
-        .length;
-
-    function createLineRange(filePath: string, position: NodePosition): LineRange {
-        return {
-            fileName: filePath,
-            startLine: {
-                line: position.startLine ?? 1,
-                offset: position.startColumn ?? 0
-            },
-            endLine: {
-                line: position.endLine ?? position.startLine ?? 1,
-                offset: position.endColumn ?? position.startColumn ?? 0
-            }
-        };
-    }
-
+    // ----- render -----
     return (
         <View>
             <TopNavigationBar projectPath={projectPath} />
@@ -1078,22 +1022,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                             </>
                                         )}
                                     </MetadataRow>
-
-                                    {/* {resources?.
-                                        filter((func) => func.name === "init")
-                                        .map((functionModel, index) => (
-                                            <MetadataRow>
-                                                <MetadataLabel> Initialization Function:</MetadataLabel>
-                                                <Typography key={`${index}-value`} variant="body3">
-                                                    <LinkButton
-                                                        sx={{ fontSize: 12, padding: 8, gap: 4, justifyContent: "center" }}
-                                                        onClick={() => openInit(functionModel)}
-                                                    >
-                                                        {functionModel.name}
-                                                    </LinkButton>
-                                                </Typography>
-                                            </MetadataRow>
-                                        ))} */}
                                 </ServiceMetadataContainer>
                             )}
 
@@ -1187,197 +1115,66 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                 </>
                             )}
 
-                            {isFtpService && (
+                            {/* Listing service type bound functions (event/file handlers, MCP tools, ...) */}
+                            {!isHttpService && (
                                 <>
                                     <SectionHeader
-                                        title="File Handlers"
-                                        subtitle={`${enabledHandlers.length === 0 ? `` : 'Implement how the integration responds to file actions'}`}
+                                        title={isFileService ? "File Handlers" : isMcpService ? "Tools" : "Event Handlers"}
+                                        subtitle={enabledHandlers.length === 0 ? "" : isMcpService
+                                            ? "Define how the mcp service responds to tool calls"
+                                            : `Define how the service responds to events`}
                                     >
                                         <ActionGroup>
-                                            {enabledHandlers.length > 10 && (
-                                                <TextField placeholder="Search..." sx={{ width: 200 }} onChange={handleSearch} value={searchValue} />
-                                            )}
-                                            {!haveServiceTypeName && enabledHandlers.length > 0 && hasAvailableFTPHandlers() && (
-                                                <Button appearance="primary" tooltip="Add Handler" onClick={onSelectAddHandler}>
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> <ButtonText>Handler</ButtonText>
+                                            {enabledHandlers.length !== 0 && unusedHandlers.length > 0 && (
+                                                <Button
+                                                    appearance="primary"
+                                                    tooltip={isMcpService ? "Add Tool" : "Add Handler"}
+                                                    onClick={onSelectAddHandler}
+                                                >
+                                                    <Codicon name="add" sx={{ marginRight: 8 }} />
+                                                    <ButtonText>{isMcpService ? "Tool" : "Handler"}</ButtonText>
                                                 </Button>
                                             )}
                                         </ActionGroup>
                                     </SectionHeader>
-                                    {enabledHandlers.length > 0 && (
-                                        <FunctionsContainer>
-                                            {enabledHandlers.map((functionModel, index) => (
+                                    <FunctionsContainer>
+                                        {enabledHandlers.map((functionModel, index) => {
+                                            // A schema-driven handler with nothing configurable (e.g.
+                                            // kafka's onError) opens an empty form — gray out the edit button.
+                                            const editDisabled = isSchemaTriggerService
+                                                && !hasConfigurableFields(functionModel);
+                                            return (
                                                 <ResourceAccordion
                                                     key={`${index}-${functionModel.name.value}`}
-                                                    method={functionModel.metadata.label}
                                                     functionModel={functionModel}
                                                     goToSource={() => { }}
                                                     onEditResource={handleFunctionEdit}
                                                     onDeleteResource={handleFunctionDelete}
                                                     onResourceImplement={handleOpenDiagram}
-                                                    deletionTypeLabel="file handler"
+                                                    deletionTypeLabel={isMcpService ? "tool" : `${handlerNoun} handler`}
+                                                    editDisabled={editDisabled}
                                                 />
-                                            ))}
-                                        </FunctionsContainer>
-                                    )}
-                                    {enabledHandlers.length === 0 && (
-                                        <EmptyReadmeContainer>
-                                            <Description variant="body2">
-                                                No file handlers found. Add a new file handler.
-                                            </Description>
-                                            <Button
-                                                appearance="primary"
-                                                onClick={onSelectAddHandler}>
-                                                <Codicon name="add" sx={{ marginRight: 5 }} />
-                                                Add File Handler
-                                            </Button>
-                                        </EmptyReadmeContainer>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Listing Tools in MCP */}
-                            {isMcpService && (
-                                <>
-                                    <SectionHeader
-                                        title="Tools"
-                                        subtitle={`${remoteFunctionsCount === 0 ? `` : 'Define how the mcp service responds to tool calls'}`}
-                                    >
-                                        <ActionGroup>
-                                            {resources.length > 10 && (
-                                                <TextField placeholder="Search..." sx={{ width: 200 }} onChange={handleSearch} value={searchValue} />
-                                            )}
-                                            {!haveServiceTypeName && remoteFunctionsCount > 0 && (
-                                                <Button appearance="primary" tooltip="Add Tool" onClick={handleNewMcpTool}>
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> <ButtonText>Tool</ButtonText>
-                                                </Button>
-                                            )}
-                                        </ActionGroup>
-                                    </SectionHeader>
-                                    <FunctionsContainer>
-                                        {resources
-                                            .filter((resource) => {
-                                                const search = searchValue.toLowerCase();
-                                                const nameMatch = resource.name && resource.name.toLowerCase().includes(search);
-                                                const iconMatch = resource.icon && resource.icon.toLowerCase().includes(search);
-                                                return nameMatch || iconMatch;
-                                            })
-                                            .map((resource, index) => (
-                                                <ResourceAccordionV2
-                                                    key={`${index}-${resource.name}`}
-                                                    resource={resource}
-                                                    readOnly={serviceModel.properties.hasOwnProperty('serviceTypeName')}
-                                                    onEditResource={handleFunctionEdit}
-                                                    onDeleteResource={handleFunctionDelete}
-                                                    onResourceImplement={handleOpenDiagram}
-                                                    isMcpTool={true}
-                                                    deletionTypeLabel="tool"
-                                                />
-                                            ))}
-                                    </FunctionsContainer>
-
-                                    {remoteFunctionsCount === 0 && (
-                                        <EmptyReadmeContainer>
-                                            <Description variant="body2">
-                                                No tools found. Add a new tool.
-                                            </Description>
-                                            <Button
-                                                appearance="primary"
-                                                onClick={handleNewMcpTool}>
-                                                <Codicon name="add" sx={{ marginRight: 5 }} />
-                                                Add Tool
-                                            </Button>
-                                        </EmptyReadmeContainer>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Listing service type bound functions */}
-                            {!(isHttpService || isMcpService || isFtpService) && (
-                                <>
-                                    <SectionHeader
-                                        title="Event Handlers"
-                                        subtitle={enabledHandlers.length === 0 ? "" : `Define how the service responds to events`}
-                                    >
-                                        <ActionGroup>
-                                            {enabledHandlers.length !== 0 && unusedHandlers.length > 0 && (
-                                                <Button appearance="primary" tooltip="Add Handler" onClick={onSelectAddHandler}>
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> <ButtonText>Handler</ButtonText>
-                                                </Button>
-                                            )}
-                                        </ActionGroup>
-                                    </SectionHeader>
-                                    <FunctionsContainer>
-                                        {enabledHandlers.map((functionModel, index) => (
-                                            <ResourceAccordion
-                                                key={`${index}-${functionModel.name.value}`}
-                                                functionModel={functionModel}
-                                                goToSource={() => { }}
-                                                onEditResource={handleFunctionEdit}
-                                                onDeleteResource={handleFunctionDelete}
-                                                onResourceImplement={handleOpenDiagram}
-                                                deletionTypeLabel="event handler"
-                                            />
-                                        ))}
+                                            );
+                                        })}
                                     </FunctionsContainer>
 
                                     {enabledHandlers.length === 0 && (
                                         <EmptyReadmeContainer>
                                             <Description variant="body2">
-                                                No event handlers found. Add a new event handler.
+                                                {isMcpService
+                                                    ? "No tools found. Add a new tool."
+                                                    : `No ${handlerNoun} handlers found. Add a new ${handlerNoun} handler.`}
                                             </Description>
                                             <Button
                                                 appearance="primary"
                                                 onClick={onSelectAddHandler}>
                                                 <Codicon name="add" sx={{ marginRight: 5 }} />
-                                                Add Handler
+                                                {isMcpService ? "Add Tool" : "Add Handler"}
                                             </Button>
                                         </EmptyReadmeContainer>
                                     )}
                                 </>
                             )}
-
-                            {/* Listing service type bound functions */}
-                            {/* {(initMethod && (
-                                <>
-                                    <SectionHeader
-                                        title="Initialization Function"
-                                        subtitle="Define the initialization logic for the service"
-                                    />
-                                    <FunctionsContainer>
-                                        <ResourceAccordion
-                                            key={`init-${initMethod.name.value}`}
-                                            functionModel={initMethod}
-                                            goToSource={() => { }}
-                                            onEditResource={handleFunctionEdit}
-                                            onDeleteResource={handleFunctionDelete}
-                                            onResourceImplement={handleOpenDiagram}
-                                        />
-                                    </FunctionsContainer>
-                                </>
-                            ))} */}
-
-                            {/* Listing service type bound functions */}
-                            {/* {(objectMethods.length > 0 && (
-                                <>
-                                    <SectionHeader
-                                        title="Functions"
-                                        subtitle="Reusable functions within the service"
-                                    />
-                                    <FunctionsContainer>
-                                        {objectMethods.map((functionModel, index) => (
-                                            <ResourceAccordion
-                                                key={`${index}-${functionModel.name.value}`}
-                                                functionModel={functionModel}
-                                                goToSource={() => { }}
-                                                onEditResource={handleFunctionEdit}
-                                                onDeleteResource={handleFunctionDelete}
-                                                onResourceImplement={handleOpenDiagram}
-                                            />
-                                        ))}
-                                    </FunctionsContainer>
-                                </>
-                            ))} */}
 
 
                             {resources.filter((resource) => resource.type === DIRECTORY_MAP.FUNCTION && resource.name !== "init").length > 0 && (
@@ -1386,13 +1183,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                         title="Functions"
                                         subtitle="Reusable functions within the service"
                                     >
-                                        <ActionGroup>
-                                            {/* {!haveServiceTypeName && resourcesCount > 0 && (
-                                                <Button appearance="primary" tooltip="Add Sub Flow" onClick={handleNewResourceFunction}>
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> <ButtonText>Sub Flow</ButtonText>
-                                                </Button>
-                                            )} */}
-                                        </ActionGroup>
                                     </SectionHeader>
                                     <FunctionsContainer>
                                         {resources
@@ -1468,7 +1258,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
                             {/* This is for adding or editing functions with data binding */}
-                            {functionModel && !isHttpService && !isMcpService && !isFtpService && canDataBind(functionModel) && (
+                            {functionModel && !isHttpService
+                                && !isSchemaTriggerService && canDataBind(functionModel) && (
                                 <PanelContainer
                                     title={"Message Handler Configuration"}
                                     show={showForm}
@@ -1494,7 +1285,8 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
                             {/* This is for adding or editing functions */}
-                            {functionModel && !isHttpService && !isMcpService && !isFtpService && !canDataBind(functionModel) && (
+                            {functionModel && !isHttpService
+                                && !isSchemaTriggerService && !canDataBind(functionModel) && (
                                 <PanelContainer
                                     title={"Function Configuration"}
                                     show={showForm}
@@ -1510,7 +1302,7 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                             )}
 
                             {/* This is for adding a new handler to the service */}
-                            {serviceModel && !isHttpService && !isFtpService && (
+                            {serviceModel && !isHttpService && !isSchemaTriggerService && (
                                 <PanelContainer
                                     title={"Select Handler to Add"}
                                     show={showFunctionConfigForm}
@@ -1525,21 +1317,45 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     />
                                 </PanelContainer>
                             )}
-                            {serviceModel && isFtpService && (
+                            {/* Schema-driven trigger: group catalog + generic handler form */}
+                            {serviceModel && isSchemaTriggerService && (
                                 <PanelContainer
                                     title={"Select Handler to Add"}
                                     show={showFunctionConfigForm}
                                     onClose={handleFunctionConfigClose}
                                 >
-                                    <FileIntegrationConfigForm
+                                    <TriggerHandlerConfigForm
                                         isSaving={isSaving}
                                         serviceModel={serviceModel}
-                                        onSubmit={handleNewFTPFunction}
+                                        onSubmit={handleNewTriggerHandler}
+                                        onQuickAdd={handleQuickAddTriggerHandler}
                                         onBack={handleFunctionConfigClose}
                                     />
                                 </PanelContainer>
                             )}
-
+                            {serviceModel && isSchemaTriggerService && (
+                                <PanelContainer
+                                    title={getTriggerHandlerTitle()}
+                                    show={showForm}
+                                    onClose={handleNewFunctionClose}
+                                    width={400}
+                                >
+                                    {showForm && (
+                                        <TriggerHandlerForm
+                                            key={`${isNew ? "new" : "edit"}-${selectedTriggerGroup ?? functionModel?.name?.value ?? "handler"}`}
+                                            functionModel={functionModel}
+                                            serviceModel={serviceModel}
+                                            isSaving={isSaving}
+                                            filePath={filePath}
+                                            onSave={handleFunctionSubmit}
+                                            onClose={handleNewFunctionClose}
+                                            isNew={isNew}
+                                            selectedGroup={selectedTriggerGroup}
+                                            serverValidationErrors={serverValidationErrors}
+                                        />
+                                    )}
+                                </PanelContainer>
+                            )}
                             {/* This is for adding a init function to the service */}
                             <PanelContainer
                                 title={"Add Initialization Function"}
@@ -1554,47 +1370,6 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
                                     onClose={handleCloseInitFunction}
                                 />
                             </PanelContainer>
-
-                            {isFtpService && serviceModel && (
-                                <PanelContainer
-                                    title={getFtpHandlerTitle()}
-                                    show={showForm}
-                                    onClose={handleNewFunctionClose}
-                                    width={400}
-                                >
-                                    {showForm && functionModel && (
-                                        <FileIntegrationForm
-                                            key={`${isNew ? "new" : "edit"}-${selectedFTPHandler ?? functionModel.name?.value ?? "handler"}`}
-                                            functionModel={functionModel}
-                                            isNew={isNew}
-                                            model={serviceModel}
-                                            filePath={filePath}
-                                            isSaving={isSaving}
-                                            onSave={handleFunctionSubmit}
-                                            onClose={handleNewFunctionClose}
-                                            selectedHandler={selectedFTPHandler}
-                                        />
-                                    )}
-                                </PanelContainer>
-                            )}
-
-                            {functionModel && isMcpService && (
-                                <PanelContainer
-                                    title={"Tool Configuration"}
-                                    show={showForm}
-                                    onClose={handleNewFunctionClose}
-                                    width={400}
-                                >
-                                    <McpToolForm
-                                        model={functionModel}
-                                        filePath={filePath}
-                                        lineRange={createLineRange(filePath, position)}
-                                        isSaving={isSaving}
-                                        onSave={handleFunctionSubmit}
-                                        onClose={handleNewFunctionClose}
-                                    />
-                                </PanelContainer>
-                            )}
                         </ServiceContainer>
                     </>
                 )

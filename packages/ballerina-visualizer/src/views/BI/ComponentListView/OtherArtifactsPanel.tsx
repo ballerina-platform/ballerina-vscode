@@ -29,6 +29,7 @@ import { cardMatchesSearch } from './componentListUtils';
 interface OtherArtifactsPanelProps {
     isNPSupported: boolean;
     isLibrary?: boolean;
+    /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
 }
 

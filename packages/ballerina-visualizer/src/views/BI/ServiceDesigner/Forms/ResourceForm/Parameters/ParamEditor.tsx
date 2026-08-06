@@ -261,6 +261,24 @@ export function ParamEditor(props: ParamProps) {
                     items: HTTP_ENUM_TYPES,
                     types: [{ fieldType: "ENUM", selected: false }]
                 });
+                // Some connectors (e.g. MCP tools) require a description per header; HTTP resources
+                // don't. Driven entirely by whether the schema declares a `documentation` property on
+                // the header template — absent for HTTP, present for MCP — so this stays a no-op here.
+                if (param.documentation) {
+                    const headerDoc = param.documentation as PropertyModel;
+                    fields.push({
+                        key: `documentation`,
+                        label: headerDoc.metadata?.label || 'Description',
+                        type: getPrimaryInputType(headerDoc.types)?.fieldType || 'STRING',
+                        advanced: isNew,
+                        optional: headerDoc.optional ?? true,
+                        editable: true,
+                        documentation: headerDoc.metadata?.description || '',
+                        enabled: true,
+                        value: headerDoc.value || '',
+                        types: headerDoc.types || [{ fieldType: 'STRING', selected: false }]
+                    });
+                }
                 break;
             case "PAYLOAD":
                 fields.push({
@@ -310,7 +328,7 @@ export function ParamEditor(props: ParamProps) {
 
     useEffect(() => {
         updateFormFields();
-    }, [param.name, param.type, param.defaultValue, hideType]);
+    }, [param.name, param.type, param.defaultValue, param.documentation, hideType]);
 
     const onParameterSubmit = (dataValues: any, formImports: FormImports) => {
         console.log('Param values', dataValues);
@@ -327,7 +345,11 @@ export function ParamEditor(props: ParamProps) {
                 ...(param.defaultValue as PropertyModel),
                 value: dataValues['defaultValue'] ?? (param.defaultValue as PropertyModel)?.value,
                 enabled: !!dataValues['defaultValue']
-            }
+            },
+            documentation: param.documentation ? {
+                ...(param.documentation as PropertyModel),
+                value: dataValues['documentation'] ?? (param.documentation as PropertyModel)?.value,
+            } : param.documentation,
         };
 
         // Update the parent component's state first

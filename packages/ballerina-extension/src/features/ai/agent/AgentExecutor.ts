@@ -42,7 +42,6 @@ import { updateAndSaveChat, calculateTotalCost } from '../utils/events';
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import * as path from 'path';
 import { approvalViewManager } from '../state/ApprovalViewManager';
-import { savePendingReviewRestore } from '../state/reviewRestoreStore';
 import {
     buildContextManagementOptions,
     detectAppliedCompaction,
@@ -597,7 +596,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                     // Emit save_chat so any pre-step-boundary streamed text is persisted into uiResponse.
                     updateAndSaveChat(this.config.generationId, Command.Agent, this.config.eventHandler);
                     // Leave any live edits in place — the user may want to continue from them.
-                    // Only an explicit revert (declineChanges) restores the checkpoint.
+                    // Only an explicit revert (revertGeneration) restores the checkpoint.
                     const abortedGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, this.config.generationId);
                     if (abortedGeneration && !['accepted', 'reverted', 'error'].includes(abortedGeneration.reviewState.status)) {
                         const generationModifiedFiles = Array.from(new Set([...allModifiedFiles, ...modifiedFiles]));
@@ -772,7 +771,7 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
         const tempProjectPath = context.ctx.tempProjectPath!;
 
         // Leave any live edits in place — the user may want to continue from them. Only an
-        // explicit revert (declineChanges) restores the checkpoint.
+        // explicit revert (revertGeneration) restores the checkpoint.
         const projectRootPath = context.ctx.workspacePath || context.ctx.projectPath || '';
         const threadId = this.config.chatStorage?.threadId ?? 'default';
         const erroredGeneration = chatStateStorage.getGeneration(projectRootPath, threadId, context.messageId);
@@ -1008,15 +1007,14 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
             tempProjectPath
         );
 
-        // 'done' = finished and revertible until the user reverts or the next generation starts.
+        // Status stays put here: 'done' means revertible, and it is emitReviewActions that
+        // produces the data that makes it so. Announcing it earlier leaves a window where a
+        // panel reload reads the generation as settled and never hears otherwise.
         chatStateStorage.updateReviewState(projectRootPath, threadId, context.messageId, {
-            status: 'done',
             tempProjectPath,
             modifiedFiles: generationModifiedFiles,
             affectedPackagePaths: affectedPackagePaths,
         });
-
-        // ReviewMode will be opened with data from emitReviewActions
     }
 
     /**
@@ -1073,25 +1071,17 @@ Generation stopped by user. The last in-progress task was not saved. Any complet
                 isWorkspace,
             };
 
-            approvalViewManager.openReviewMode(reviewData, false);
+            approvalViewManager.openReviewMode(context.messageId, reviewData, false);
 
-            // The chat persistence schema drops tempProjectPath/affectedPackagePaths, so
-            // stash what the diff view needs to reopen after an extension host restart.
-            await savePendingReviewRestore({
-                generationId: context.messageId,
-                projectRootPath: workspaceId,
-                // Capture the run's own thread — the reader must not re-derive it from
-                // whatever thread happens to be active at restore time.
-                threadId,
+            // Keep what the diff view needs on the generation itself, so reopening resolves against
+            // the thread that owns it rather than a workspace-wide slot.
+            // 'done' = finished and revertible, so it lands with the data that makes it revertible.
+            chatStateStorage.updateReviewState(workspaceId, threadId, context.messageId, {
+                status: 'done',
                 tempProjectPath: workingProjectPath,
-                // Direct-edit mode keeps no on-disk baseline copy; the checkpoint snapshot
-                // (fallbackOriginalContents on restore) is the source of pre-generation originals.
-                baselineProjectPath: undefined,
                 modifiedFiles: accumulatedModifiedFiles,
                 affectedPackagePaths: affectedPackages,
-                semanticDiffs,
-                loadDesignDiagrams,
-                isWorkspace,
+                reviewView: { semanticDiffs, loadDesignDiagrams, isWorkspace },
             });
 
             context.eventHandler({

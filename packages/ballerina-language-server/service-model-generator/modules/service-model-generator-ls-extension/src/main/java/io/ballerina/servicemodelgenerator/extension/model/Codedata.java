@@ -34,6 +34,35 @@ public class Codedata {
     private String packageName;
     private String moduleName;
     private String version;
+    // Source-generation hints carried by connector-shipped models (phase2 schema).
+    private Integer position;
+    private String path;
+    private String valueQualifier;
+    // Payload-composition and annotation hints carried by the unified TriggerUISchemaModel (phase6 schema).
+    // Payload: `template` wraps the element type ({{type}}), `defaultType`/`boundType` are the
+    // element candidates, `bindable` marks a user-definable schema, `modifier`/`targetParam` mark a
+    // PAYLOAD_MODIFIER flag. Annotations: `field` names the mapping field, `optional` gates its
+    // emission; a leaf's rendered kind (e.g. string quoting) derives from the node's types[].
+    private String template;
+    private String defaultType;
+    private String boundType;
+    private Boolean bindable;
+    private String modifier;
+    private String targetParam;
+    private String field;
+    // Base identifier used when generating a wrapper type name for an included-record payload
+    // binding (e.g. "KafkaAnydataConsumer" -> generated "KafkaAnydataConsumer1" in types.bal).
+    private String typeIdentifier;
+    private Boolean optional;
+    // The literal an ENUM_LITERAL choice branch emits (qualified by `valueQualifier`).
+    private String value;
+    // Payload: whether the bound parameter's identifier may be renamed in the edit UI (unset
+    // defaults to editable). False for connectors that bind to a fixed, structural identifier.
+    private Boolean nameEditable;
+    // LISTENER_VAR_NAME: the node's shipped value is a connector-curated default the creation flow
+    // must keep as the base name (still made project-unique) instead of deriving a protocol-based one.
+    private Boolean preserveValue;
+    private String castType;
 
     public Codedata() {
     }
@@ -125,6 +154,134 @@ public class Codedata {
         this.version = version;
     }
 
+    public Integer getPosition() {
+        return position;
+    }
+
+    public void setPosition(Integer position) {
+        this.position = position;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getValueQualifier() {
+        return valueQualifier;
+    }
+
+    public void setValueQualifier(String valueQualifier) {
+        this.valueQualifier = valueQualifier;
+    }
+
+    public String getTemplate() {
+        return template;
+    }
+
+    public void setTemplate(String template) {
+        this.template = template;
+    }
+
+    public String getDefaultType() {
+        return defaultType;
+    }
+
+    public void setDefaultType(String defaultType) {
+        this.defaultType = defaultType;
+    }
+
+    public String getBoundType() {
+        return boundType;
+    }
+
+    public void setBoundType(String boundType) {
+        this.boundType = boundType;
+    }
+
+    public Boolean getBindable() {
+        return bindable;
+    }
+
+    public void setBindable(Boolean bindable) {
+        this.bindable = bindable;
+    }
+
+    public String getModifier() {
+        return modifier;
+    }
+
+    public void setModifier(String modifier) {
+        this.modifier = modifier;
+    }
+
+    public String getTargetParam() {
+        return targetParam;
+    }
+
+    public void setTargetParam(String targetParam) {
+        this.targetParam = targetParam;
+    }
+
+    public String getField() {
+        return field;
+    }
+
+    public void setField(String field) {
+        this.field = field;
+    }
+
+    public String getTypeIdentifier() {
+        return typeIdentifier;
+    }
+
+    public void setTypeIdentifier(String typeIdentifier) {
+        this.typeIdentifier = typeIdentifier;
+    }
+
+    public Boolean getOptional() {
+        return optional;
+    }
+
+    public void setOptional(Boolean optional) {
+        this.optional = optional;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public Boolean getNameEditable() {
+        return nameEditable;
+    }
+
+    public void setNameEditable(Boolean nameEditable) {
+        this.nameEditable = nameEditable;
+    }
+
+    public Boolean getPreserveValue() {
+        return preserveValue;
+    }
+
+    public void setPreserveValue(Boolean preserveValue) {
+        this.preserveValue = preserveValue;
+    }
+
+    public String getCastType() {
+        return castType;
+    }
+
+    public void setCastType(String castType) {
+        this.castType = castType;
+    }
+
     public static class Builder {
         private LineRange lineRange;
         private String type;
@@ -134,6 +291,9 @@ public class Codedata {
         private String packageName;
         private String moduleName;
         private String version;
+        private Integer position;
+        private String path;
+        private String valueQualifier;
 
         public Builder() {
         }
@@ -178,6 +338,21 @@ public class Codedata {
             return this;
         }
 
+        public Builder setPosition(Integer position) {
+            this.position = position;
+            return this;
+        }
+
+        public Builder setPath(String path) {
+            this.path = path;
+            return this;
+        }
+
+        public Builder setValueQualifier(String valueQualifier) {
+            this.valueQualifier = valueQualifier;
+            return this;
+        }
+
         public Codedata build() {
             Codedata codedata = new Codedata();
             codedata.setLineRange(lineRange);
@@ -188,6 +363,9 @@ public class Codedata {
             codedata.setPackageName(packageName);
             codedata.setModuleName(moduleName);
             codedata.setVersion(version);
+            codedata.setPosition(position);
+            codedata.setPath(path);
+            codedata.setValueQualifier(valueQualifier);
             return codedata;
         }
     }

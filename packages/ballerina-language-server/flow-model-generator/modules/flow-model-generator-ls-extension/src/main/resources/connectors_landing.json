@@ -21,6 +21,7 @@
     "rabbitmq:Client"
   ],
   "Cloud": [
+    "azure.storage.files:Client",
     "aws.s3:Client",
     "aws.sqs:Client",
     "aws.dynamodb:Client",

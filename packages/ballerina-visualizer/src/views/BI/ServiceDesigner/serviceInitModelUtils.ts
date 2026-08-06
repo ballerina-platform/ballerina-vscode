@@ -74,6 +74,7 @@ export function mapPropertiesToFormFields(properties: { [key: string]: PropertyM
             value,
             types: property.types,
             advanced: property.advanced,
+            hidden: property.hidden,
             diagnostics: [],
             items,
             choices: property.choices,

@@ -1,0 +1,660 @@
+{
+  "description": "removeDeprecated=false must still run the FTP deprecated-mode adjustment (keeping path/folderPath as primary fields), not skip it entirely",
+  "codedata": {
+    "type": "Listener",
+    "orgName": "ballerina",
+    "packageName": "ftp",
+    "moduleName": "ftp",
+    "version": "2.16.0"
+  },
+  "filePath": "sample2/main.bal",
+  "removeDeprecated": false,
+  "response": {
+    "listener": {
+      "name": "Ftp Listener",
+      "type": "ftp",
+      "displayName": "Ftp",
+      "description": "Gets invoked during object initialization.\n",
+      "moduleName": "ftp",
+      "orgName": "ballerina",
+      "version": "2.16.0",
+      "packageName": "ftp",
+      "listenerProtocol": "ftp",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.16.0.png",
+      "properties": {
+        "host": {
+          "metadata": {
+            "label": "Host",
+            "description": "Target server hostname or IP address"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "host"
+          },
+          "placeholder": "\"\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "port": {
+          "metadata": {
+            "label": "Port",
+            "description": "Port number of the remote service"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "port"
+          },
+          "placeholder": "0",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "int",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "int",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "auth": {
+          "metadata": {
+            "label": "Auth",
+            "description": "Authentication options for connecting to the server"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "auth"
+          },
+          "placeholder": "{}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:AuthConfiguration",
+              "typeMembers": [
+                {
+                  "type": "AuthConfiguration",
+                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:AuthConfiguration",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "path": {
+          "metadata": {
+            "label": "Path",
+            "description": "Directory path on the FTP server to monitor for file changes"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "path"
+          },
+          "placeholder": "\"\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "variableNameKey": {
+          "metadata": {
+            "label": "Name",
+            "description": "The name of the listener"
+          },
+          "codedata": {
+            "type": "LISTENER_VAR_NAME"
+          },
+          "value": "ftpListener",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": true
+        },
+        "listenerType": {
+          "metadata": {
+            "label": "Listener Type",
+            "description": "The type of the listener"
+          },
+          "value": "Listener",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": true
+        },
+        "protocol": {
+          "metadata": {
+            "label": "Protocol",
+            "description": "Protocol to use for the connection: FTP (unsecure) or SFTP (over SSH)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "protocol"
+          },
+          "placeholder": "\"sftp\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "ftp:Protocol",
+              "options": [
+                {
+                  "label": "sftp",
+                  "value": "\"sftp\""
+                },
+                {
+                  "label": "ftps",
+                  "value": "\"ftps\""
+                },
+                {
+                  "label": "ftp",
+                  "value": "\"ftp\""
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:Protocol",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "fileNamePattern": {
+          "metadata": {
+            "label": "File Name Pattern",
+            "description": "File name pattern (regex) to filter which files trigger events"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "fileNamePattern"
+          },
+          "placeholder": "\"\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "pollingInterval": {
+          "metadata": {
+            "label": "Polling Interval",
+            "description": "Polling interval in seconds for checking file changes"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "pollingInterval"
+          },
+          "placeholder": "0.0d",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "decimal",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "decimal",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "userDirIsRoot": {
+          "metadata": {
+            "label": "User Dir Is Root",
+            "description": "If set to `true`, treats the login home directory as the root (`/`) and\nprevents the underlying VFS from attempting to change to the actual server root.\nIf `false`, treats the actual server root as `/`, which may cause a `CWD /` command\nthat can fail on servers restricting root access (e.g., chrooted environments)."
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "userDirIsRoot"
+          },
+          "placeholder": "false",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "ballerinaType": "boolean",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "boolean",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "fileAgeFilter": {
+          "metadata": {
+            "label": "File Age Filter",
+            "description": "Configuration for filtering files based on age (optional)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "fileAgeFilter"
+          },
+          "placeholder": "{}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:FileAgeFilter",
+              "typeMembers": [
+                {
+                  "type": "FileAgeFilter",
+                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:FileAgeFilter",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "fileDependencyConditions": {
+          "metadata": {
+            "label": "File Dependency Conditions",
+            "description": "Array of dependency conditions for conditional file processing (default: [])"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "fileDependencyConditions"
+          },
+          "placeholder": "[]",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "REPEATABLE_LIST",
+              "ballerinaType": "ftp:FileDependencyCondition[]",
+              "template": {
+                "types": [
+                  {
+                    "fieldType": "RECORD_MAP_EXPRESSION",
+                    "ballerinaType": "ftp:FileDependencyCondition",
+                    "typeMembers": [
+                      {
+                        "type": "FileDependencyCondition",
+                        "packageInfo": "ballerina:ftp:2.16.0",
+                        "packageName": "ftp",
+                        "kind": "RECORD_TYPE",
+                        "selected": false
+                      }
+                    ],
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "ftp:FileDependencyCondition",
+                    "selected": false
+                  }
+                ],
+                "enabled": false,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:FileDependencyCondition[]",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "laxDataBinding": {
+          "metadata": {
+            "label": "Lax Data Binding",
+            "description": "If set to `true`, enables relaxed data binding for XML and JSON responses.\nnull values in JSON/XML are allowed to be mapped to optional fields\nmissing fields in JSON/XML are allowed to be mapped as null values"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "laxDataBinding"
+          },
+          "placeholder": "false",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "FLAG",
+              "ballerinaType": "boolean",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "boolean",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "connectTimeout": {
+          "metadata": {
+            "label": "Connect Timeout",
+            "description": "Connection timeout in seconds "
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "connectTimeout"
+          },
+          "placeholder": "0.0d",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "NUMBER",
+              "ballerinaType": "decimal",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "decimal",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "socketConfig": {
+          "metadata": {
+            "label": "Socket Config",
+            "description": "Socket timeout configurations "
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "socketConfig"
+          },
+          "placeholder": "{}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:SocketConfig",
+              "typeMembers": [
+                {
+                  "type": "SocketConfig",
+                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:SocketConfig",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "proxy": {
+          "metadata": {
+            "label": "Proxy",
+            "description": "Proxy configuration for SFTP connections (SFTP only)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "proxy"
+          },
+          "placeholder": "{host: \"\", port: 0}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:ProxyConfiguration",
+              "typeMembers": [
+                {
+                  "type": "ProxyConfiguration",
+                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:ProxyConfiguration",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "fileTransferMode": {
+          "metadata": {
+            "label": "File Transfer Mode",
+            "description": "File transfer mode: BINARY or ASCII (FTP only)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "fileTransferMode"
+          },
+          "placeholder": "\"ASCII\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "ftp:FileTransferMode",
+              "options": [
+                {
+                  "label": "ASCII",
+                  "value": "\"ASCII\""
+                },
+                {
+                  "label": "BINARY",
+                  "value": "\"BINARY\""
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:FileTransferMode",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "sftpCompression": {
+          "metadata": {
+            "label": "Sftp Compression",
+            "description": "Compression algorithms (SFTP only)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "sftpCompression"
+          },
+          "placeholder": "[]",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "REPEATABLE_LIST",
+              "ballerinaType": "ftp:TransferCompression[]",
+              "template": {
+                "types": [
+                  {
+                    "fieldType": "SINGLE_SELECT",
+                    "ballerinaType": "ftp:TransferCompression",
+                    "options": [
+                      {
+                        "label": "none",
+                        "value": "\"none\""
+                      },
+                      {
+                        "label": "zlib@openssh.com",
+                        "value": "\"zlib@openssh.com\""
+                      },
+                      {
+                        "label": "zlib",
+                        "value": "\"zlib\""
+                      }
+                    ],
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "ftp:TransferCompression",
+                    "selected": false
+                  }
+                ],
+                "enabled": false,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:TransferCompression[]",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "sftpSshKnownHosts": {
+          "metadata": {
+            "label": "Sftp Ssh Known Hosts",
+            "description": "Path to SSH known_hosts file (SFTP only)"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "sftpSshKnownHosts"
+          },
+          "placeholder": "\"\"",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "ballerinaType": "string",
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        }
+      }
+    }
+  }
+}

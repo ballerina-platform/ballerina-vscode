@@ -28,9 +28,11 @@ export const window = {
 };
 
 export const workspace = {
-    getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve() }),
+    getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve(), inspect: () => undefined }),
     workspaceFolders: [] as unknown[],
+    isTrusted: true,
     onDidChangeConfiguration: () => ({ dispose() {} }),
+    onDidGrantWorkspaceTrust: () => ({ dispose() {} }),
 };
 
 export const commands = {

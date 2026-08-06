@@ -1,0 +1,4 @@
+[package]
+org = "wso2"
+name = "pinned_mcp"
+version = "0.1.0"

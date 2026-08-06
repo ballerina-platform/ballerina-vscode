@@ -20,33 +20,69 @@ import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { ThreadSummary } from "@wso2/ballerina-core";
 import { Codicon } from "@wso2/ui-toolkit";
+import { DangerActionButton, SecondaryActionButton } from "../../styles";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatRelativeTime(ts: number): string {
-    const diffMs = Date.now() - ts;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHr = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHr / 24);
-    if (diffSec < 60) { return "Just now"; }
-    if (diffMin < 60) { return `${diffMin}m`; }
-    if (diffHr < 24) { return `${diffHr}h`; }
-    if (diffDay < 7) { return `${diffDay}d`; }
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const RECENT_WINDOW_DAYS = 7;
+const GROUP_ORDER = ["TODAY", "YESTERDAY", "PAST WEEK", "OLDER"] as const;
+
+type GroupLabelText = typeof GROUP_ORDER[number];
+
+function startOfDay(ts: number): number {
+    const date = new Date(ts);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+}
+
+/**
+ * Whole calendar days between two instants. Both the row label and the group heading derive from
+ * this, so they can never disagree the way elapsed-time and calendar-day views of "yesterday" did.
+ * Rounded because a DST boundary makes a local day 23 or 25 hours long.
+ */
+function calendarDaysAgo(ts: number, now: number): number {
+    return Math.round((startOfDay(now) - startOfDay(ts)) / MS_PER_DAY);
+}
+
+function formatRelativeTime(ts: number, now: number): string {
+    const daysAgo = calendarDaysAgo(ts, now);
+    if (daysAgo <= 0) {
+        const diffMin = Math.floor((now - ts) / 60_000);
+        if (diffMin < 1) { return "Just now"; }
+        if (diffMin < 60) { return `${diffMin}m`; }
+        return `${Math.floor(diffMin / 60)}h`;
+    }
+    if (daysAgo < RECENT_WINDOW_DAYS) { return `${daysAgo}d`; }
     return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function groupByDate(threads: ThreadSummary[]): { label: string; items: ThreadSummary[] }[] {
-    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-    const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfWeek.getDate() - 6);
-    const groups: Record<string, ThreadSummary[]> = { TODAY: [], "PAST WEEK": [], OLDER: [] };
-    for (const t of threads) {
-        if (t.updatedAt >= startOfToday.getTime()) { groups.TODAY.push(t); }
-        else if (t.updatedAt >= startOfWeek.getTime()) { groups["PAST WEEK"].push(t); }
-        else { groups.OLDER.push(t); }
+function groupLabelFor(ts: number, now: number): GroupLabelText {
+    const daysAgo = calendarDaysAgo(ts, now);
+    if (daysAgo <= 0) { return "TODAY"; }
+    if (daysAgo === 1) { return "YESTERDAY"; }
+    return daysAgo < RECENT_WINDOW_DAYS ? "PAST WEEK" : "OLDER";
+}
+
+function promptCountLabel(turnCount: number): string | undefined {
+    if (turnCount === 0) { return undefined; }
+    return `${turnCount} prompt${turnCount === 1 ? "" : "s"}`;
+}
+
+function formatMeta(thread: ThreadSummary, now: number): string {
+    const time = formatRelativeTime(thread.updatedAt, now);
+    return thread.turnCount > 0 ? `${thread.turnCount} · ${time}` : time;
+}
+
+function groupByDate(threads: ThreadSummary[], now: number): { label: string; items: ThreadSummary[] }[] {
+    const groups: Record<GroupLabelText, ThreadSummary[]> = {
+        TODAY: [], YESTERDAY: [], "PAST WEEK": [], OLDER: [],
+    };
+    for (const thread of threads) {
+        groups[groupLabelFor(thread.updatedAt, now)].push(thread);
     }
-    return (["TODAY", "PAST WEEK", "OLDER"] as const)
-        .filter(k => groups[k].length > 0)
+    return GROUP_ORDER
+        .filter(label => groups[label].length > 0)
         .map(label => ({ label, items: groups[label] }));
 }
 
@@ -55,23 +91,25 @@ function groupByDate(threads: ThreadSummary[]): { label: string; items: ThreadSu
 const Overlay = styled.div`
     position: fixed;
     inset: 0;
-    z-index: 200;
+    z-index: 999;
 `;
 
 const DropdownContainer = styled.div`
     position: absolute;
-    top: 40px;
+    top: calc(100% + 6px);
     right: 0;
-    width: 320px;
+    width: 300px;
     max-height: 420px;
-    background: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-editorHoverWidget-background);
+    border: 1px solid var(--vscode-editorHoverWidget-border);
     border-radius: 4px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: var(--vscode-editorHoverWidget-foreground);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    z-index: 201;
+    z-index: 1000;
+    font-size: 12px;
     font-family: var(--vscode-font-family);
 `;
 
@@ -79,8 +117,8 @@ const SearchRow = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
     flex-shrink: 0;
 `;
 
@@ -98,40 +136,109 @@ const SearchInput = styled.input`
 const SessionList = styled.div`
     flex: 1;
     overflow-y: auto;
-    padding: 4px 0;
+    padding: 4px;
 `;
 
 const GroupLabel = styled.div`
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.5px;
     color: var(--vscode-descriptionForeground);
-    padding: 8px 12px 4px;
+    padding: 6px 4px 2px;
 `;
 
-const SessionItem = styled.div<{ isActive: boolean }>(({ isActive }: { isActive: boolean }) => ({
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "6px 12px",
-    cursor: "pointer",
-    position: "relative" as const,
-    background: isActive ? "var(--vscode-list-activeSelectionBackground)" : "transparent",
-    color: isActive ? "var(--vscode-list-activeSelectionForeground)" : "var(--vscode-foreground)",
-    outline: "none",
-    "&:hover": {
-        background: isActive ? "var(--vscode-list-activeSelectionBackground)" : "var(--vscode-list-hoverBackground)",
-    },
-    "&:hover .delete-btn, &:focus-within .delete-btn": { opacity: 1 },
-    "&:focus-visible": { outline: "1px solid var(--vscode-focusBorder)" },
-}));
+const EmptyState = styled.div`
+    padding: 16px 8px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+`;
 
+const LoadingState = styled(EmptyState)`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    .codicon-modifier-spin {
+        animation: codicon-spin 1.2s steps(30) infinite;
+    }
+    @keyframes codicon-spin {
+        100% { transform: rotate(360deg); }
+    }
+`;
+
+const ErrorState = styled(EmptyState)`
+    color: var(--vscode-errorForeground);
+`;
+
+const SessionItem = styled.div<{ isActive: boolean; isReadOnly: boolean }>(
+    ({ isActive, isReadOnly }: { isActive: boolean; isReadOnly: boolean }) => ({
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "4px",
+        borderRadius: "3px",
+        cursor: isReadOnly ? "default" : "pointer",
+        position: "relative" as const,
+        background: isActive ? "var(--vscode-list-activeSelectionBackground)" : "transparent",
+        color: isActive ? "var(--vscode-list-activeSelectionForeground)" : "inherit",
+        outline: "none",
+        "&:hover": {
+            background: isActive
+                ? "var(--vscode-list-activeSelectionBackground)"
+                : isReadOnly ? "transparent" : "var(--vscode-list-hoverBackground)",
+        },
+        "&:hover .row-actions, &:focus-within .row-actions": { opacity: 1 },
+        "&:focus-visible": { outline: "1px solid var(--vscode-focusBorder)" },
+    })
+);
+
+const ActionButton = SecondaryActionButton;
+const DeleteButton = DangerActionButton;
+
+const ConfirmRow = styled.div`
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+`;
+
+const ConfirmText = styled.span`
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    strong { font-weight: 600; }
+`;
+
+const Spacer = styled.div`
+    flex: 1;
+`;
+
+const ReadOnlyHint = styled.div`
+    padding: 6px 8px;
+    border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    text-align: center;
+    flex-shrink: 0;
+`;
+
+// Selected rows sit on list-activeSelectionBackground, which is a saturated accent in many themes.
+// Anything on that row has to follow the row's own resolved foreground, or it disappears into it.
 const ActiveDot = styled.div<{ isActive: boolean }>(({ isActive }: { isActive: boolean }) => ({
     width: "6px",
     height: "6px",
     borderRadius: "50%",
-    background: isActive ? "var(--vscode-button-background)" : "var(--vscode-descriptionForeground)",
+    background: isActive ? "currentColor" : "var(--vscode-descriptionForeground)",
     flexShrink: 0,
     opacity: isActive ? 1 : 0.5,
 }));
@@ -144,36 +251,63 @@ const SessionName = styled.span`
     text-overflow: ellipsis;
 `;
 
-const SessionTime = styled.span`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    flex-shrink: 0;
+const SessionMeta = styled.span<{ isActive: boolean }>(({ isActive }: { isActive: boolean }) => ({
+    fontSize: "10px",
+    color: isActive ? "inherit" : "var(--vscode-descriptionForeground)",
+    opacity: isActive ? 0.85 : 1,
+    flexShrink: 0,
+}));
+
+const RenameInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-focusBorder);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+    outline: none;
 `;
 
-const DeleteBtn = styled.button`
-    opacity: 0;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px 4px;
-    color: var(--vscode-descriptionForeground);
-    display: flex;
+const RowActions = styled.div`
+    display: inline-flex;
     align-items: center;
-    border-radius: 3px;
+    gap: 2px;
     flex-shrink: 0;
+    opacity: 0;
     transition: opacity 0.1s;
-    &:hover, &:focus-visible { color: var(--vscode-errorForeground); background: var(--vscode-list-hoverBackground); opacity: 1; }
 `;
+
+const RowIconButton = styled.button<{ isDanger?: boolean }>(({ isDanger }: { isDanger?: boolean }) => ({
+    width: "20px",
+    height: "20px",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    padding: 0,
+    color: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "3px",
+    flexShrink: 0,
+    "&:hover, &:focus-visible": {
+        color: isDanger ? "var(--vscode-errorForeground)" : "inherit",
+        background: "var(--vscode-toolbar-hoverBackground)",
+    },
+}));
 
 const NewChatRow = styled.button`
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 6px;
+    padding: 6px 8px;
     border: none;
-    border-top: 1px solid var(--vscode-panel-border);
+    border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
     background: transparent;
-    color: var(--vscode-button-foreground, var(--vscode-foreground));
+    color: inherit;
     font-size: 12px;
     font-family: var(--vscode-font-family);
     cursor: pointer;
@@ -187,50 +321,97 @@ const NewChatRow = styled.button`
 
 export interface SessionHistoryDropdownProps {
     threads: ThreadSummary[];
+    loading?: boolean;
+    error?: string | null;
+    readOnly?: boolean;
     onNewChat: () => void;
     onSwitch: (threadId: string) => void;
     onDelete: (threadId: string) => void;
+    onRename: (threadId: string, name: string) => void;
     onClose: () => void;
 }
 
 export function SessionHistoryDropdown({
     threads,
+    loading = false,
+    error = null,
+    readOnly = false,
     onNewChat,
     onSwitch,
     onDelete,
+    onRename,
     onClose,
 }: SessionHistoryDropdownProps): JSX.Element {
     const [search, setSearch] = useState("");
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+    const [renaming, setRenaming] = useState<{ threadId: string; name: string } | null>(null);
+    const [now, setNow] = useState(() => Date.now());
     const inputRef = useRef<HTMLInputElement>(null);
+    // Enter, Escape and blur can all reach the rename handlers for the same edit.
+    const renameSettledRef = useRef(false);
 
     useEffect(() => {
         inputRef.current?.focus();
+    }, []);
+
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 60_000);
+        return () => clearInterval(id);
+    }, []);
+
+    useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') { onClose(); }
+            if (e.key !== 'Escape') { return; }
+            if (confirmDelete) { setConfirmDelete(null); } else if (renaming) { cancelRename(); } else { onClose(); }
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [onClose]);
+    }, [onClose, confirmDelete, renaming]);
 
     const filtered = search.trim()
         ? threads.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
         : threads;
 
-    const groups = groupByDate(filtered);
+    const groups = groupByDate(filtered, now);
 
     const handleSwitch = (threadId: string) => {
+        if (readOnly) { return; }
         onSwitch(threadId);
         onClose();
     };
 
-    const handleDelete = (e: React.MouseEvent, threadId: string) => {
-        e.stopPropagation();
-        onDelete(threadId);
+    const handleDelete = (threadId: string) => {
+        try {
+            onDelete(threadId);
+        } finally {
+            setConfirmDelete(null);
+        }
     };
 
     const handleNewChat = () => {
+        if (readOnly) { return; }
         onNewChat();
         onClose();
+    };
+
+    const startRename = (threadId: string, name: string) => {
+        renameSettledRef.current = false;
+        setRenaming({ threadId, name });
+    };
+
+    const cancelRename = () => {
+        renameSettledRef.current = true;
+        setRenaming(null);
+    };
+
+    const commitRename = () => {
+        if (!renaming || renameSettledRef.current) { return; }
+        renameSettledRef.current = true;
+        const { threadId, name } = renaming;
+        setRenaming(null);
+        const current = threads.find(t => t.id === threadId)?.name;
+        if (name.trim() && name.trim() === current?.trim()) { return; }
+        onRename(threadId, name);
     };
 
     return (
@@ -248,45 +429,107 @@ export function SessionHistoryDropdown({
                 </SearchRow>
 
                 <SessionList>
-                    {groups.length === 0 && (
-                        <GroupLabel style={{ fontWeight: 400, textTransform: "none" }}>No sessions found</GroupLabel>
+                    {error && <ErrorState>{error}</ErrorState>}
+                    {/* Only when there is nothing to show yet — a refresh must not blank the list. */}
+                    {loading && threads.length === 0 && !error && (
+                        <LoadingState>
+                            <span className="codicon codicon-loading codicon-modifier-spin" />
+                            Loading sessions...
+                        </LoadingState>
+                    )}
+                    {!loading && !error && groups.length === 0 && (
+                        <EmptyState>{search.trim() ? "No matching sessions" : "No sessions yet"}</EmptyState>
                     )}
                     {groups.map(group => (
                         <div key={group.label}>
                             <GroupLabel>{group.label}</GroupLabel>
-                            {group.items.map(thread => (
-                                <SessionItem
-                                    key={thread.id}
-                                    isActive={thread.isActive}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => handleSwitch(thread.id)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSwitch(thread.id); } }}
-                                >
-                                    <ActiveDot isActive={thread.isActive} />
-                                    <SessionName title={thread.name}>{thread.name}</SessionName>
-                                    <SessionTime>{formatRelativeTime(thread.updatedAt)}</SessionTime>
-                                    <DeleteBtn
-                                        className="delete-btn"
-                                        onClick={e => handleDelete(e, thread.id)}
-                                        // Keep keyboard activation of delete from also bubbling to
-                                        // SessionItem's onKeyDown, which would switch threads. The native
-                                        // button still activates (delete) on Enter/Space itself.
-                                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); } }}
-                                        title="Delete session"
+                            {group.items.map(thread => {
+                                const isConfirming = confirmDelete === thread.id;
+                                const isRenaming = renaming?.threadId === thread.id;
+                                const isBusy = isConfirming || isRenaming;
+                                return (
+                                    <SessionItem
+                                        key={thread.id}
+                                        // Selection background would wreck the action buttons' contrast.
+                                        isActive={thread.isActive && !isConfirming}
+                                        isReadOnly={readOnly || isBusy}
+                                        role="button"
+                                        tabIndex={readOnly || isBusy ? -1 : 0}
+                                        aria-disabled={readOnly}
+                                        onClick={() => { if (!isBusy) { handleSwitch(thread.id); } }}
+                                        onKeyDown={(e) => {
+                                            if (isBusy) { return; }
+                                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSwitch(thread.id); }
+                                        }}
                                     >
-                                        <Codicon name="trash" sx={{ fontSize: "12px" }} />
-                                    </DeleteBtn>
-                                </SessionItem>
-                            ))}
+                                        {isConfirming ? (
+                                            <ConfirmRow>
+                                                <ConfirmText>Delete <strong>{thread.name}</strong>?</ConfirmText>
+                                                <Spacer />
+                                                <DeleteButton type="button" onClick={() => handleDelete(thread.id)}>Yes, delete</DeleteButton>
+                                                <ActionButton type="button" onClick={() => setConfirmDelete(null)}>Cancel</ActionButton>
+                                            </ConfirmRow>
+                                        ) : (
+                                            <>
+                                                <ActiveDot isActive={thread.isActive} />
+                                                {isRenaming ? (
+                                                    <RenameInput
+                                                        autoFocus
+                                                        value={renaming.name}
+                                                        onChange={e => setRenaming({ threadId: thread.id, name: e.target.value })}
+                                                        onBlur={commitRename}
+                                                        onClick={e => e.stopPropagation()}
+                                                        onKeyDown={e => {
+                                                            e.stopPropagation();
+                                                            if (e.key === 'Enter') { commitRename(); }
+                                                            if (e.key === 'Escape') { cancelRename(); }
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <SessionName title={thread.name}>{thread.name}</SessionName>
+                                                )}
+                                                <SessionMeta
+                                                    isActive={thread.isActive}
+                                                    title={promptCountLabel(thread.turnCount)}
+                                                >
+                                                    {formatMeta(thread, now)}
+                                                </SessionMeta>
+                                                {!readOnly && !isRenaming && (
+                                                    <RowActions className="row-actions">
+                                                        <RowIconButton
+                                                            onClick={e => { e.stopPropagation(); startRename(thread.id, thread.name); }}
+                                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); } }}
+                                                            title="Rename session"
+                                                        >
+                                                            <Codicon name="edit" sx={{ fontSize: "12px" }} />
+                                                        </RowIconButton>
+                                                        <RowIconButton
+                                                            isDanger
+                                                            onClick={e => { e.stopPropagation(); setConfirmDelete(thread.id); }}
+                                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); } }}
+                                                            title="Delete session"
+                                                        >
+                                                            <Codicon name="trash" sx={{ fontSize: "12px" }} />
+                                                        </RowIconButton>
+                                                    </RowActions>
+                                                )}
+                                            </>
+                                        )}
+                                    </SessionItem>
+                                );
+                            })}
                         </div>
                     ))}
                 </SessionList>
 
-                <NewChatRow onClick={handleNewChat}>
-                    <Codicon name="add" sx={{ fontSize: "13px" }} />
-                    New Chat
-                </NewChatRow>
+                {readOnly ? (
+                    <ReadOnlyHint>Finish or stop the current response to switch sessions.</ReadOnlyHint>
+                ) : (
+                    <NewChatRow onClick={handleNewChat}>
+                        <Codicon name="add" sx={{ fontSize: "13px" }} />
+                        New Chat
+                    </NewChatRow>
+                )}
             </DropdownContainer>
         </>
     );

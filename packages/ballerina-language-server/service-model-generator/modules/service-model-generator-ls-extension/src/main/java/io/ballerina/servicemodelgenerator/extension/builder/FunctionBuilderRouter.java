@@ -26,15 +26,11 @@ import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
-import io.ballerina.servicemodelgenerator.extension.builder.function.CdcFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.DefaultFunctionBuilder;
-import io.ballerina.servicemodelgenerator.extension.builder.function.FTPFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.GraphqlFunctionBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.function.HttpFunctionBuilder;
-import io.ballerina.servicemodelgenerator.extension.builder.function.KafkaFunctionBuilder;
-import io.ballerina.servicemodelgenerator.extension.builder.function.McpFunctionBuilder;
-import io.ballerina.servicemodelgenerator.extension.builder.function.RabbitMQFunctionBuilder;
-import io.ballerina.servicemodelgenerator.extension.builder.function.SolaceFunctionBuilder;
+import io.ballerina.servicemodelgenerator.extension.builder.function.SchemaDrivenFunctionBuilder;
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceMetadata;
@@ -52,17 +48,9 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.DEFAULT;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.FTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.KAFKA;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.MSSQL;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.MYSQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.OBJECT_METHOD;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.POSTGRESQL;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.RABBITMQ;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.SOLACE;
 import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils.deriveServiceType;
 
 /**
@@ -71,25 +59,40 @@ import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtil
  * @since 1.2.0
  */
 public class FunctionBuilderRouter {
+    // FTP/KAFKA/RABBITMQ/MSSQL/POSTGRESQL/MYSQL/MCP/SOLACE are deliberately absent: each now ships a
+    // bundled TriggerUISchemaModel schema (see TriggerModelReader.BUNDLED_TRIGGER_MODEL_RESOURCES), so
+    // useSchemaDrivenPath always routes them to SchemaDrivenFunctionBuilder before this map is
+    // consulted — a hardcoded entry here would be dead code. HTTP/GRAPHQL are not (yet) schema-driven
+    // and keep their dedicated builders.
     private static final Map<String, Supplier<? extends NodeBuilder<Function>>> CONSTRUCTOR_MAP = new HashMap<>() {{
         put(HTTP, HttpFunctionBuilder::new);
         put(GRAPHQL, GraphqlFunctionBuilder::new);
-        put(RABBITMQ, RabbitMQFunctionBuilder::new);
-        put(MCP, McpFunctionBuilder::new);
-        put(KAFKA, KafkaFunctionBuilder::new);
-        put(SOLACE, SolaceFunctionBuilder::new);
-        put(MSSQL, () -> new CdcFunctionBuilder(MSSQL));
-        put(POSTGRESQL, () -> new CdcFunctionBuilder(POSTGRESQL));
-        put(MYSQL, () -> new CdcFunctionBuilder(MYSQL));
-        put(FTP, FTPFunctionBuilder::new);
     }};
 
     private static NodeBuilder<Function> getFunctionBuilder(String protocol) {
         return CONSTRUCTOR_MAP.getOrDefault(protocol, DefaultFunctionBuilder::new).get();
     }
 
+    /**
+     * Returns {@code true} when the connector's schema is bundled as a classpath resource in this jar,
+     * or -- on a miss, when {@code orgName} is known -- synthesizable from the connector's own shipped
+     * {@code resources/trigger-authoring.json} plus semantic-API introspection of its {@code .bala}
+     * (see {@link TriggerModelReader#getSchemaDrivenTriggerModel}). Mirrors
+     * {@code ServiceBuilderRouter} (the hardcoded builder still wins whenever neither source has a
+     * model). {@code orgName == null} degrades to the bundled-only check -- {@link #getModelTemplate}
+     * has no org field to resolve a {@code .bala} with.
+     */
+    private static boolean useSchemaDrivenPath(String orgName, String moduleName) {
+        if (moduleName == null) {
+            return false;
+        }
+        return TriggerModelReader.getInstance().hasSchemaDrivenModel(orgName, moduleName);
+    }
+
     public static Optional<Function> getModelTemplate(String moduleName, String functionType) {
-        NodeBuilder<Function> functionBuilder = getFunctionBuilder(moduleName);
+        NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(null, moduleName)
+                ? new SchemaDrivenFunctionBuilder()
+                : getFunctionBuilder(moduleName);
         GetModelContext context = GetModelContext.fromServiceAndFunctionType(moduleName, functionType);
         return functionBuilder.getModelTemplate(context);
     }
@@ -98,7 +101,13 @@ public class FunctionBuilderRouter {
                                                           SemanticModel semanticModel, Document document,
                                                           NonTerminalNode node,
                                                           WorkspaceManager workspaceManager) throws Exception {
-        NodeBuilder<Function> functionBuilder = getFunctionBuilder(moduleName);
+        // Schema-driven connectors add handlers via the generic builder; route by the function's
+        // stamped connector identity (codedata), mirroring updateFunction.
+        Codedata fnCodedata = function.getCodedata();
+        NodeBuilder<Function> functionBuilder = fnCodedata != null
+                        && useSchemaDrivenPath(fnCodedata.getOrgName(), moduleName)
+                        ? new SchemaDrivenFunctionBuilder()
+                        : getFunctionBuilder(moduleName);
         Project project = document != null ? document.module().project() : null;
         AddModelContext context = new AddModelContext(null, function, semanticModel, project,
                 workspaceManager, filePath, document, node);
@@ -113,7 +122,11 @@ public class FunctionBuilderRouter {
         if (function.getKind().equals(OBJECT_METHOD)) {
             moduleName = DEFAULT;
         }
-        NodeBuilder<Function> functionBuilder = getFunctionBuilder(moduleName);
+        Codedata fnCodedata = function.getCodedata();
+        NodeBuilder<Function> functionBuilder = fnCodedata != null
+                        && useSchemaDrivenPath(fnCodedata.getOrgName(), moduleName)
+                        ? new SchemaDrivenFunctionBuilder()
+                        : getFunctionBuilder(moduleName);
         UpdateModelContext context =
                 new UpdateModelContext(null, function, semanticModel, project, workspaceManager, filePath,
                         document, null, functionNode);
@@ -128,7 +141,9 @@ public class FunctionBuilderRouter {
             context = new ModelFromSourceContext(functionNode, null, semanticModel, null, "",
                     metadata.serviceTypeIdentifier(), moduleID.orgName(), moduleID.packageName(),
                     moduleID.moduleName(), moduleID.version());
-            NodeBuilder<Function> functionBuilder = getFunctionBuilder(moduleID.moduleName());
+            NodeBuilder<Function> functionBuilder = useSchemaDrivenPath(moduleID.orgName(), moduleID.moduleName())
+                            ? new SchemaDrivenFunctionBuilder()
+                            : getFunctionBuilder(moduleID.moduleName());
             Function function = functionBuilder.getModelFromSource(context);
             Codedata codedata = function.getCodedata();
             codedata.setOrgName(moduleID.orgName());

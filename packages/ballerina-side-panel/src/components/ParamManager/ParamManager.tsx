@@ -57,6 +57,8 @@ export interface ParamManagerProps {
     readonly?: boolean;
     selectedNode?: NodeKind;
     setSubComponentEnabled?: (isAdding: boolean) => void;
+    /** Overrides the "+ Add X" button text (defaults to the selectedNode-derived label below). */
+    addButtonLabel?: string;
 }
 
 const AddButtonWrapper = styled.div`
@@ -162,6 +164,7 @@ export function ParamManagerEditor(props: ParamManagerEditorProps) {
                             }}
                             selectedNode={selectedNode}
                             setSubComponentEnabled={setSubComponentEnabled}
+                            addButtonLabel={field.addNewButtonLabel}
                         />
                         {error && <ErrorBanner errorMsg={error.message.toString()} />}
                     </>
@@ -218,13 +221,13 @@ export function ParamManager(props: ParamManagerProps) {
     const [paramComponents, setParamComponents] = useState<React.ReactElement[]>([]);
     const [isGraphql, setIsGraphql] = useState<boolean>(false);
     const [autoOpenedWaitDataEditor, setAutoOpenedWaitDataEditor] = useState<boolean>(false);
-    const addButtonLabel = selectedNode === "DATA_MAPPER_DEFINITION"
+    const addButtonLabel = props.addButtonLabel ?? (selectedNode === "DATA_MAPPER_DEFINITION"
         ? "Input"
         : selectedNode === "WAIT_DATA"
             ? "Data Waits"
             : isGraphql
                 ? "Argument"
-                : "Parameter";
+                : "Parameter");
 
     const onEdit = (param: Parameter) => {
         setEditingSegmentId(param.id);

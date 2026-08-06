@@ -33,6 +33,7 @@ import {
     SemanticDiffRequest,
     SemanticDiffResponse,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     UpdateChatMessageRequest,
     PlanApprovalRequest,
     ApproveTaskRequest,
@@ -82,12 +83,12 @@ import {
     ThreadSummary,
     SwitchThreadRequest,
     DeleteThreadRequest,
+    RenameThreadRequest,
     // TODO(auto-memory): temporarily disabled for this release.
     // ClearMemoryRequest,
     // OpenMemoryRequest,
     GetRunStatusRequest,
     GetRunStatusResponse,
-    HasPendingReviewRequest,
 } from "./interfaces";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
@@ -119,8 +120,7 @@ export const isUserAuthenticated: RequestType<void, boolean> = { method: `${_pre
 export const openAIPanel: RequestType<AIPanelPrompt, void> = { method: `${_preFix}/openAIPanel` };
 export const getSemanticDiff: RequestType<SemanticDiffRequest, SemanticDiffResponse> = { method: `${_preFix}/getSemanticDiff` };
 export const isWorkspaceProject: RequestType<void, boolean> = { method: `${_preFix}/isWorkspaceProject` };
-export const acceptChanges: RequestType<void, void> = { method: `${_preFix}/acceptChanges` };
-export const declineChanges: RequestType<void, void> = { method: `${_preFix}/declineChanges` };
+export const revertGeneration: RequestType<RevertGenerationRequest, void> = { method: `${_preFix}/revertGeneration` };
 export const approvePlan: RequestType<PlanApprovalRequest, void> = { method: `${_preFix}/approvePlan` };
 export const declinePlan: RequestType<PlanApprovalRequest, void> = { method: `${_preFix}/declinePlan` };
 export const approveTask: RequestType<ApproveTaskRequest, void> = { method: `${_preFix}/approveTask` };
@@ -137,7 +137,6 @@ export const restoreCheckpoint: RequestType<RestoreCheckpointRequest, void> = { 
 export const clearChat: RequestType<void, void> = { method: `${_preFix}/clearChat` };
 export const updateChatMessage: RequestType<UpdateChatMessageRequest, void> = { method: `${_preFix}/updateChatMessage` };
 export const getActiveTempDir: RequestType<void, string> = { method: `${_preFix}/getActiveTempDir` };
-export const hasPendingReview: RequestType<HasPendingReviewRequest, boolean> = { method: `${_preFix}/hasPendingReview` };
 export const getRunStatus: RequestType<GetRunStatusRequest, GetRunStatusResponse> = { method: `${_preFix}/getRunStatus` };
 export const getLatestFollowupSuggestions: RequestType<void, FollowupSuggestion[]> = { method: `${_preFix}/getLatestFollowupSuggestions` };
 export const getUsage: RequestType<void, UsageResponse | undefined> = { method: `${_preFix}/getUsage` };
@@ -181,6 +180,7 @@ export const agentsMdFileInfoChanged: NotificationType<AgentsMdFileInfoDTO> = { 
 export const listThreads: RequestType<void, ThreadSummary[]> = { method: `${_preFix}/listThreads` };
 export const switchThread: RequestType<SwitchThreadRequest, void> = { method: `${_preFix}/switchThread` };
 export const deleteThread: RequestType<DeleteThreadRequest, void> = { method: `${_preFix}/deleteThread` };
+export const renameThread: RequestType<RenameThreadRequest, void> = { method: `${_preFix}/renameThread` };
 // TODO(auto-memory): temporarily disabled for this release.
 // export const clearMemory: RequestType<ClearMemoryRequest, void> = { method: `${_preFix}/clearMemory` };
 // export const openMemoryFiles: NotificationType<OpenMemoryRequest> = { method: `${_preFix}/openMemoryFiles` };

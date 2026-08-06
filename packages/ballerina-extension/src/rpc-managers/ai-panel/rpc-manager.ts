@@ -40,6 +40,7 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
     SubmitFeedbackRequest,
@@ -83,7 +84,7 @@ import {
     ThreadSummary,
     SwitchThreadRequest,
     DeleteThreadRequest,
-    HasPendingReviewRequest,
+    RenameThreadRequest,
     CreateManagedConnectionRequest,
     CreateManagedConnectionResponse,
     // TODO(auto-memory): temporarily disabled for this release.
@@ -95,7 +96,7 @@ import {
     openOrCreateAgentsMd as openOrCreateAgentsMdImpl,
 } from "../../features/ai/agent/agents-md";
 import { ConfigurationTarget } from "vscode";
-import { getMcpClientManager, ensureMcpConfigFileExists, writeMcpServer, updateMcpServer, deleteMcpServer } from "../../features/ai/agent/mcp";
+import { getMcpClientManager, ensureMcpConfigFileExists, writeMcpServer, updateMcpServer, deleteMcpServer, isMcpToolsEnabled, MCP_ENABLE_SETTING } from "../../features/ai/agent/mcp";
 import { notifyMcpServersChanged, notifyMcpLoadErrorsChanged } from "../../RPCLayer";
 import * as os from "os";
 import * as fs from 'fs';
@@ -121,9 +122,9 @@ import { generateDocumentationForService } from "../../features/ai/documentation
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
-import { sendChatComponentNotification, sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
+import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
 import { submitFeedback as submitFeedbackUtil } from "../../features/ai/utils/feedback";
-import { sendGenerationDiscardTelemetry, sendGenerationKeptTelemetry } from "../../features/ai/utils/generation-response";
+import { sendGenerationDiscardTelemetry } from "../../features/ai/utils/generation-response";
 import { getLLMDiagnosticArrayAsString } from "../../features/natural-programming/utils";
 import { enhancePrompt as enhancePromptService } from "../../features/ai/service/prompt-enhancement/promptEnhancement";
 import { StateMachine, updateView } from "../../stateMachine";
@@ -156,7 +157,7 @@ import { LLM_API_BASE_PATH, WI_EXTENSION_ID } from "../../features/ai/constants"
 import { ContextTypesExecutor } from '../../features/ai/executors/datamapper/ContextTypesExecutor';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
 import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
-import { chatStateStorage } from '../../views/ai-panel/chatStateStorage';
+import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
 import { runEventStore } from '../../features/ai/utils/run-event-store';
 import { restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
 import { runningServicesManager } from '../../features/ai/agent/tools/running-service-manager';
@@ -197,6 +198,19 @@ const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
     cancelled: "Connection cancelled.",
     superseded: "Connection cancelled — a newer connection attempt was started.",
 };
+
+/**
+ * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
+ * run's writes. The panel already disables these actions; this backstops a webview reload
+ * or a click that races the turn starting.
+ */
+function refuseWhileRunning(projectRootPath: string, action: string): boolean {
+    if (!runEventStore.hasActiveRun(projectRootPath)) {
+        return false;
+    }
+    console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
+    return true;
+}
 
 export class AiPanelRpcManager implements AIPanelAPI {
 
@@ -522,46 +536,18 @@ export class AiPanelRpcManager implements AIPanelAPI {
         return isWorkspace;
     }
 
-    async acceptChanges(): Promise<void> {
+    async revertGeneration(params: RevertGenerationRequest): Promise<void> {
         try {
             const projectRootPath = resolveProjectRootPath();
-            const threadId = getActiveThreadId();
-
-            const doneGeneration = chatStateStorage.getDoneGeneration(projectRootPath, threadId);
-            if (!doneGeneration) {
-                console.warn("[Review Actions] No open generation found for accept");
+            // Resolve the thread from the generation the bar names, not the active-thread pointer:
+            // another thread can hold its own revertible generation.
+            const located = chatStateStorage.findGenerationScope(projectRootPath, params.generationId);
+            const doneGeneration = located?.generation;
+            if (!located || !isRevertible(doneGeneration)) {
+                console.warn(`[Review Actions] Not a revertible generation: ${params.generationId}`);
                 return;
             }
-
-            console.log(`[Review Actions] Accepting generation ${doneGeneration.id} with ${doneGeneration.reviewState.modifiedFiles.length} modified file(s)`);
-
-            // Its edits are already live in the workspace — accept just finalizes status.
-            chatStateStorage.finalizeLastGenerationIfDone(projectRootPath, threadId);
-            // The review is over: drop its cached nav state and stale restore Memento.
-            approvalViewManager.clearReviewData();
-            console.log(`[Review Actions] Accepted generation: ${doneGeneration.id}`);
-
-            sendGenerationKeptTelemetry(doneGeneration.id);
-
-            // Notify webview to update review component status and persist
-            sendChatComponentNotification("review", { status: "accepted" });
-            sendSaveChatNotification(Command.Agent, doneGeneration.id);
-        } catch (error) {
-            console.error("[Review Actions] Error accepting changes:", error);
-            throw error;
-        }
-    }
-
-    async declineChanges(): Promise<void> {
-        try {
-            const projectRootPath = resolveProjectRootPath();
-            const threadId = getActiveThreadId();
-
-            const doneGeneration = chatStateStorage.getDoneGeneration(projectRootPath, threadId);
-            if (!doneGeneration) {
-                console.warn("[Review Actions] No open generation found for decline");
-                return;
-            }
+            const threadId = located.threadId;
 
             console.log(`[Review Actions] Reverting generation ${doneGeneration.id}`);
 
@@ -588,17 +574,13 @@ User reverted the last made changes. The files have been restored to the state b
             });
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
-            // The review is over: drop its cached nav state and stale restore Memento.
-            approvalViewManager.clearReviewData();
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
 
             sendGenerationDiscardTelemetry(doneGeneration.id);
 
-            // Notify webview to update review component status and persist
-            sendChatComponentNotification("review", { status: "discarded" });
             sendSaveChatNotification(Command.Agent, doneGeneration.id);
         } catch (error) {
-            console.error("[Review Actions] Error declining changes:", error);
+            console.error("[Review Actions] Error reverting generation:", error);
             throw error;
         }
     }
@@ -813,6 +795,7 @@ User reverted the last made changes. The files have been restored to the state b
 
     async clearChat(): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileRunning(projectRootPath, 'clearChat')) { return; }
         // Create a new thread — preserves all existing history
         const newThreadId = chatStateStorage.createNewThread(projectRootPath);
         clearCompactionDisabledWarning(projectRootPath, newThreadId);
@@ -826,12 +809,18 @@ User reverted the last made changes. The files have been restored to the state b
 
     async switchThread(params: SwitchThreadRequest): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileRunning(projectRootPath, 'switchThread')) { return; }
         chatStateStorage.switchToThread(projectRootPath, params.threadId);
     }
 
     async deleteThread(params: DeleteThreadRequest): Promise<void> {
         const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileRunning(projectRootPath, 'deleteThread')) { return; }
         await chatStateStorage.deleteThread(projectRootPath, params.threadId);
+    }
+
+    async renameThread(params: RenameThreadRequest): Promise<void> {
+        chatStateStorage.renameThread(resolveProjectRootPath(), params.threadId, params.name);
     }
 
     // TODO(auto-memory): memory management temporarily disabled for this release — restore once the memory feature is refined.
@@ -940,7 +929,12 @@ User reverted the last made changes. The files have been restored to the state b
                 uiMessages.push({
                     role: 'assistant',
                     content: generation.uiResponse,
-                    messageId: generation.id
+                    messageId: generation.id,
+                    // Never hand the panel a 'done' it cannot act on, or the bar renders live
+                    // with dead buttons.
+                    generationStatus: generation.reviewState.status === 'done' && !isRevertible(generation)
+                        ? 'accepted'
+                        : generation.reviewState.status
                 });
             }
         }
@@ -978,13 +972,6 @@ User reverted the last made changes. The files have been restored to the state b
         const projectPath = doneGeneration.reviewState.tempProjectPath;
         console.log(">>> active temp project path", projectPath);
         return projectPath;
-    }
-
-    async hasPendingReview(params: HasPendingReviewRequest): Promise<boolean> {
-        const projectRootPath = params?.projectRootPath || resolveProjectRootPath();
-        const threadId = params?.threadId
-            || chatStateStorage.getActiveThreadId(projectRootPath);
-        return !!chatStateStorage.getDoneGeneration(projectRootPath, threadId);
     }
 
     async getRunStatus(params: GetRunStatusRequest): Promise<GetRunStatusResponse> {
@@ -1108,14 +1095,14 @@ User reverted the last made changes. The files have been restored to the state b
     async openFileDiff(params: OpenFileDiffRequest): Promise<void> {
         AiPanelRpcManager.registerDiffContentProvider();
 
-        const context = StateMachine.context();
-        const workspaceId = context.workspacePath || context.projectPath;
-        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
-        const generation = chatStateStorage.getGeneration(workspaceId, threadId, params.generationId);
-        const tempProjectPath = generation?.reviewState.tempProjectPath;
+        const projectRootPath = resolveProjectRootPath();
+        const generation = chatStateStorage.findGenerationScope(projectRootPath, params.generationId)?.generation;
+        // Direct-edit mode edits the workspace in place, so the review root is the workspace root —
+        // re-derived rather than restored, since a persisted absolute path can outlive its workspace.
+        const tempProjectPath = generation?.reviewState.tempProjectPath ?? projectRootPath;
 
-        if (!tempProjectPath) {
-            console.error("[openFileDiff] No generation or temp project path for generationId:", params.generationId);
+        if (!generation) {
+            console.error("[openFileDiff] No generation for generationId:", params.generationId);
             return;
         }
 
@@ -1428,7 +1415,7 @@ User reverted the last made changes. The files have been restored to the state b
     }
 
     async getMcpToolsEnabled(): Promise<boolean> {
-        return workspace.getConfiguration('ballerina').get<boolean>('copilot.enableMcpTools', false);
+        return isMcpToolsEnabled(resolveProjectRootPath() || undefined);
     }
 
 
@@ -1537,7 +1524,7 @@ User reverted the last made changes. The files have been restored to the state b
 
     async setMcpToolsEnabled(params: SetMcpToolsEnabledRequest): Promise<void> {
         await workspace.getConfiguration('ballerina')
-            .update('copilot.enableMcpTools', !!params?.enabled, ConfigurationTarget.Global);
+            .update(MCP_ENABLE_SETTING, !!params?.enabled, ConfigurationTarget.Global);
     }
 
     async getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {

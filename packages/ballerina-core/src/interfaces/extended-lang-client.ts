@@ -26,7 +26,7 @@ import { CodeActionParams, DefinitionParams, DocumentSymbolParams, ExecuteComman
 import { Category, Flow, FlowNode, CodeData, ConfigVariable, FunctionNode, Property, PropertyTypeMemberInfo, DIRECTORY_MAP, Imports, NodeKind, InputType, FormFieldInputType, ProjectStructureArtifactResponse, VISIBILITY } from "./bi";
 import { ConnectorRequest, ConnectorResponse } from "../rpc-types/connector-wizard/interfaces";
 import { SqFlow } from "../rpc-types/sequence-diagram/interfaces";
-import { FieldType, FunctionModel, ListenerModel, ServiceClassModel, ServiceInitModel, ServiceModel } from "./service";
+import { FieldType, FunctionModel, ListenerModel, PropertyModel, ServiceClassModel, ServiceInitModel, ServiceModel, ValidationResult } from "./service";
 import { CDModel } from "./component-diagram";
 import { DMModel, ExpandedDMModel, IntermediateClause, Mapping, VisualizableField, FnMetadata, ResultClauseType, IOType } from "./data-mapper";
 import { ArtifactData, DataMapperMetadata, SCOPE } from "./shared-types";
@@ -1406,10 +1406,12 @@ export interface TriggerModelsRequest {
     packageName?: string;
     query?: string;
     keyWord?: string;
+    includeLocalRepository?: boolean;
 }
 
 export interface TriggerModelsResponse {
     local: ServiceModel[];
+    localRepositoryResults?: ServiceModel[];
 }
 
 // <-------- Trigger Related ------->
@@ -1450,6 +1452,7 @@ export interface ListenerSourceCodeResponse {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    validationErrors?: ValidationResult[];
 }
 export interface ServiceModelRequest {
     filePath: string;
@@ -1457,7 +1460,9 @@ export interface ServiceModelRequest {
     listenerName?: string;
     orgName?: string;
     pkgName?: string;
+    version?: string;
     projectPath?: string;
+    isLocalRepository?: boolean;
 }
 export interface ServiceModelResponse {
     service: ServiceModel;
@@ -1495,12 +1500,17 @@ export interface ExpressionTokensResponse {
     data: number[];
 }
 
+/**
+ * `validationErrors` are rule failures from the language server's save-time gate. An ERROR here
+ * means the model was refused and `textEdits` is empty; WARNINGs accompany a successful generation.
+ */
 export interface SourceEditResponse {
     textEdits?: {
         [key: string]: TextEdit[];
     };
     errorMsg?: string;
     stacktrace?: string;
+    validationErrors?: ValidationResult[];
 }
 
 export interface ServiceClassSourceRequest {
@@ -1556,6 +1566,28 @@ export interface ServiceInitSourceRequest {
     filePath: string;
     serviceInitModel: ServiceInitModel;
     projectPath?: string;
+}
+
+/**
+ * A live validation request for a single form node. `version` is the caller's per-field revision;
+ * it comes back untouched on the response so an answer about a stale value can be discarded.
+ * `codedata` locates the enclosing service, for rules scoped to one service.
+ */
+export interface ValidatePropertyRequest {
+    filePath: string;
+    propertyPath: string;
+    property: PropertyModel;
+    moduleName?: string;
+    codedata?: CodeData;
+    version: number;
+}
+
+export interface ValidatePropertyResponse {
+    propertyPath: string;
+    version: number;
+    validationErrors: ValidationResult[];
+    errorMsg?: string;
+    stacktrace?: string;
 }
 
 // <-------- Type Related ------->
@@ -1846,6 +1878,7 @@ export interface ResourceSourceCodeResponse {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    validationErrors?: ValidationResult[];
 }
 
 export interface ResourceReturnTypesRequest {
@@ -2062,6 +2095,34 @@ export interface WorkspaceDeploymentRequest {
 
 // 2201.12.3 -> New Project Component Artifacts Tree
 
+/**
+ * A structured, multi-representation icon descriptor resolved by the Language Server (Phase-6 icon
+ * architecture). The LS fills `url`/`kind`/`source` and any connector-declared `glyph`/`color`; the IDE
+ * completes missing `glyph`/`color` from its brand-icon registry and applies the `kind` default.
+ * `light`/`dark` are a paired set of theme-specific images (data: URI) used when a single `url` isn't
+ * theme-aware.
+ */
+export interface IconDescriptor {
+    url?: string;
+    glyph?: string;
+    color?: string;
+    kind?: string;
+    source?: string;
+    light?: string;
+    dark?: string;
+}
+
+/**
+ * Normalizes a wire icon value into an {@link IconDescriptor}. Accepts a bare string (legacy: a plain
+ * URL) for backward compatibility, reading it as `{ url }`.
+ */
+export function toIconDescriptor(icon?: string | IconDescriptor): IconDescriptor | undefined {
+    if (icon === undefined || icon === null) {
+        return undefined;
+    }
+    return typeof icon === "string" ? { url: icon } : icon;
+}
+
 export interface BaseArtifact<T = any> {
     id: string;
     location: {
@@ -2080,7 +2141,7 @@ export interface BaseArtifact<T = any> {
     module?: string;
     scope: string;
     visibility?: VISIBILITY;
-    icon?: string; // Optional for those that have an icon
+    icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted
     children?: Record<string, BaseArtifact>; // To allow nested structures
     accessor?: string; // Specific to Entry Points
     value?: T; // Generic value property to hold different types
@@ -2180,6 +2241,7 @@ export interface BIInterface extends BaseLangClientInterface {
 
     // New Service Designer APIs
     getTriggerModels: (params: TriggerModelsRequest) => Promise<TriggerModelsResponse>;
+    searchTriggers: (params: TriggerModelsRequest) => Promise<TriggerModelsResponse>;
     getListeners: (params: ListenersRequest) => Promise<ListenersResponse>;
     getListenerModel: (params: ListenerModelRequest) => Promise<ListenerModelResponse>;
     addListenerSourceCode: (params: ListenerSourceCodeRequest) => Promise<ListenerSourceCodeResponse>;
@@ -2193,6 +2255,7 @@ export interface BIInterface extends BaseLangClientInterface {
     getResourceReturnTypes: (params: ResourceReturnTypesRequest) => Promise<VisibleTypesResponse>;
     getServiceInitModel: (params: ServiceModelRequest) => Promise<ServiceModelInitResponse>;
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<SourceEditResponse>;
+    validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
 
     // Function APIs
     getFunctionNode: (params: FunctionNodeRequest) => Promise<FunctionNodeResponse>;

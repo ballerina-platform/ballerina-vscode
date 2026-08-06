@@ -48,6 +48,7 @@ import io.ballerina.servicemodelgenerator.extension.model.context.AddModelContex
 import io.ballerina.servicemodelgenerator.extension.model.context.GetModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.ModelFromSourceContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.UpdateModelContext;
+import io.ballerina.servicemodelgenerator.extension.util.HttpUtil;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceClassUtil;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtils;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
@@ -66,6 +67,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_HEADER_PARAM_ANNOTATION;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULT;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_DEFAULTABLE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.KIND_INCLUDED_RECORD;
@@ -161,36 +164,47 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
     }
 
     public static Optional<Parameter> getParameterModel(ParameterNode parameterNode) {
+        Parameter parameterModel;
         if (parameterNode instanceof RequiredParameterNode parameter) {
             if (parameter.paramName().isEmpty()) {
                 return Optional.empty();
             }
             String paramName = parameter.paramName().get().text().trim();
             String paramType = parameter.typeName().toString().trim();
-            Parameter parameterModel = createParameter(paramName, KIND_REQUIRED, paramType);
-            return Optional.of(parameterModel);
+            parameterModel = createParameter(paramName, KIND_REQUIRED, paramType);
         } else if (parameterNode instanceof DefaultableParameterNode parameter) {
             if (parameter.paramName().isEmpty()) {
                 return Optional.empty();
             }
             String paramName = parameter.paramName().get().text().trim();
             String paramType = parameter.typeName().toString().trim();
-            Parameter parameterModel = createParameter(paramName, KIND_DEFAULTABLE, paramType);
+            parameterModel = createParameter(paramName, KIND_DEFAULTABLE, paramType);
             Value defaultValue = parameterModel.getDefaultValue();
             defaultValue.setValue(parameter.expression().toString().trim());
             defaultValue.setTypes(List.of(PropertyType.types(Value.FieldType.EXPRESSION)));
             defaultValue.setEnabled(true);
-            return Optional.of(parameterModel);
         } else if (parameterNode instanceof IncludedRecordParameterNode parameter) {
             if (parameter.paramName().isEmpty()) {
                 return Optional.empty();
             }
             String paramName = parameter.paramName().get().text().trim();
             String paramType = parameter.typeName().toString().trim();
-            Parameter parameterModel = createParameter(paramName, KIND_INCLUDED_RECORD, paramType);
-            return Optional.of(parameterModel);
+            parameterModel = createParameter(paramName, KIND_INCLUDED_RECORD, paramType);
+        } else {
+            return Optional.empty();
         }
-        return Optional.empty();
+        // An @http:Header-annotated parameter round-trips through source the same way regardless of
+        // which builder added it — a schema-driven function's user-added header parameter (see
+        // TriggerFunctionAdapter's parameterSchema) uses the exact same annotation HTTP resources do,
+        // so re-detect it here with the same shared logic HttpFunctionBuilder uses. Otherwise a saved
+        // header parameter would lose its header identity (and its headerName) the next time the
+        // model is re-read from source, reverting to a plain parameter.
+        Optional<String> annotationRef = HttpUtil.getHttpParamTypeAndSetHeaderName(
+                parameterModel, Utils.getParamAnnotations(parameterNode));
+        if (annotationRef.filter(HTTP_HEADER_PARAM_ANNOTATION::equals).isPresent()) {
+            parameterModel.setHttpParamType(HTTP_PARAM_TYPE_HEADER);
+        }
+        return Optional.of(parameterModel);
     }
 
     public static Map<String, List<TextEdit>> buildModel(AddModelContext context) throws Exception {
@@ -210,12 +224,13 @@ public abstract class AbstractFunctionBuilder implements NodeBuilder<Function> {
             functionLineRange = members.get(members.size() - 1).lineRange();
         }
         Map<String, String> imports = new HashMap<>();
+        ModulePartNode rootNode = context.document().syntaxTree().rootNode();
+        // Pass the file so annotation module prefixes resolve to what it actually imports.
         String functionNode = NEW_LINE_WITH_TAB + generateFunctionDefSource(context.function(), List.of(),
-                Utils.FunctionAddContext.FUNCTION_ADD, FUNCTION_ADD, imports)
+                Utils.FunctionAddContext.FUNCTION_ADD, FUNCTION_ADD, imports, rootNode)
                 .replace(NEW_LINE, NEW_LINE_WITH_TAB);
 
         List<String> importStmts = new ArrayList<>();
-        ModulePartNode rootNode = context.document().syntaxTree().rootNode();
         imports.values().forEach(moduleId -> {
             String[] importParts = moduleId.split("/");
             String orgName = importParts[0];

@@ -18,7 +18,7 @@
  */
 
 import { FunctionDefinition } from "@wso2/syntax-tree";
-import { AIMachineContext, AIMachineStateValue, ChatNotify } from "../../state-machine-types";
+import { AIMachineContext, AIMachineStateValue, ChatNotify, GenerationReviewState } from "../../state-machine-types";
 import { Command, SkillCommand, TemplateId } from "../../interfaces/ai-panel";
 import { AllDataMapperSourceRequest, ExtendedDataMapperMetadata } from "../../interfaces/extended-lang-client";
 import { ComponentInfo, Diagnostics, DMModel, ImportStatements, LinePosition, LineRange, OperationType } from "../..";
@@ -427,6 +427,10 @@ export interface SemanticDiffResponse {
     semanticDiffs: SemanticDiff[];
 }
 
+export interface RevertGenerationRequest {
+    generationId: string;
+}
+
 export interface RestoreCheckpointRequest {
     checkpointId: string;
 }
@@ -529,6 +533,7 @@ export interface UIChatMessage {
     content: string;
     checkpointId?: string;
     messageId?: string;
+    generationStatus?: GenerationReviewState["status"];
 }
 
 /**
@@ -551,7 +556,7 @@ export interface ThreadSummary {
     isActive: boolean;
     createdAt: number;
     updatedAt: number;
-    messageCount: number;
+    turnCount: number;
 }
 
 export interface SwitchThreadRequest {
@@ -560,6 +565,11 @@ export interface SwitchThreadRequest {
 
 export interface DeleteThreadRequest {
     threadId: string;
+}
+
+export interface RenameThreadRequest {
+    threadId: string;
+    name: string;
 }
 
 // TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
@@ -579,13 +589,6 @@ export interface AbortAIGenerationRequest {
     /** Project root path (defaults to current workspace/project root) */
     projectRootPath?: string;
     /** Thread identifier (defaults to 'default') */
-    threadId?: string;
-}
-
-export interface HasPendingReviewRequest {
-    /** Project root path (defaults to current workspace/project root). */
-    projectRootPath?: string;
-    /** Thread identifier (defaults to the active thread). */
     threadId?: string;
 }
 

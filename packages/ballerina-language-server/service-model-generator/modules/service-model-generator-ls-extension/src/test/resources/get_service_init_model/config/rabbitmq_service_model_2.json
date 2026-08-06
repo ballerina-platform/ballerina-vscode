@@ -6,21 +6,23 @@
   "moduleName": "rabbitmq",
   "response": {
     "serviceInitModel": {
-      "id": "10",
       "displayName": "RabbitMQ Event Integration",
       "description": "Create a service to handle messages from a RabbitMQ queue",
       "orgName": "ballerinax",
       "packageName": "rabbitmq",
       "moduleName": "rabbitmq",
-      "version": "3.2.0",
+      "version": "3.6.0",
       "type": "rabbitmq",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
       "properties": {
-        "configureListener": {
+        "listener": {
           "metadata": {
             "label": "Configure RabbitMQ Listener",
             "description": "Select an existing RabbitMQ listener or create a new one"
           },
-          "placeholder": "",
+          "codedata": {
+            "type": "LISTENER_CONFIG"
+          },
           "value": "1",
           "choices": [
             {
@@ -28,8 +30,6 @@
                 "label": "Create new",
                 "description": "Create a new RabbitMQ listener"
               },
-              "placeholder": "true",
-              "value": "true",
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -43,20 +43,19 @@
                         "description": "Provide a name for the listener being created"
                       },
                       "codedata": {
-                        "argType": "LISTENER_VAR_NAME"
+                        "type": "LISTENER_VAR_NAME"
                       },
-                      "placeholder": "rabbitmqListener",
                       "value": "rabbitmqListener",
                       "types": [
                         {
                           "fieldType": "IDENTIFIER",
-                          "ballerinaType": "Listener",
-                          "selected": false
+                          "ballerinaType": "rabbitmq:Listener",
+                          "selected": true
                         }
                       ],
                       "enabled": true,
                       "editable": true,
-                      "optional": true,
+                      "optional": false,
                       "advanced": false
                     },
                     "host": {
@@ -65,9 +64,10 @@
                         "description": "The host used for establishing the connection"
                       },
                       "codedata": {
-                        "argType": "LISTENER_PARAM_REQUIRED"
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "position": 1
                       },
-                      "placeholder": "\"localhost\"",
+                      "placeholder": "localhost",
                       "value": "\"localhost\"",
                       "types": [
                         {
@@ -92,7 +92,8 @@
                         "description": "The port used for establishing the connection"
                       },
                       "codedata": {
-                        "argType": "LISTENER_PARAM_REQUIRED"
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "position": 2
                       },
                       "placeholder": "5672",
                       "value": "5672",
@@ -100,7 +101,18 @@
                         {
                           "fieldType": "NUMBER",
                           "ballerinaType": "int",
-                          "selected": true
+                          "selected": true,
+                          "validations": [
+                            {
+                              "rule": "common.validate.port",
+                              "args": {
+                                "min": 1.0,
+                                "max": 65535.0
+                              },
+                              "message": "Port must be between {min} and {max}",
+                              "severity": "WARNING"
+                            }
+                          ]
                         },
                         {
                           "fieldType": "EXPRESSION",
@@ -129,7 +141,7 @@
               "types": [
                 {
                   "fieldType": "FORM",
-                  "selected": false
+                  "selected": true
                 }
               ],
               "enabled": false,
@@ -142,19 +154,17 @@
                 "label": "Use existing",
                 "description": "Select an existing RabbitMQ listener"
               },
-              "placeholder": "true",
-              "value": "true",
               "properties": {
                 "listenerConfig": {
                   "metadata": {
                     "label": "Listener Configurations",
-                    "description": "Configure the RabbitMQ listener"
+                    "description": "Configuration of the selected listener."
                   },
                   "properties": {
                     "existingListener": {
                       "metadata": {
-                        "label": "Listener Name",
-                        "description": "Select an existing RabbitMQ listener"
+                        "label": "Select Listener",
+                        "description": "Select from the existing rabbitmq listeners"
                       },
                       "value": "orderListener",
                       "items": [
@@ -165,7 +175,7 @@
                         "orderListener": {
                           "metadata": {
                             "label": "orderListener",
-                            "description": "RabbitMQ listener: orderListener"
+                            "description": "rabbitmq listener: orderListener"
                           },
                           "value": "orderListener",
                           "properties": {
@@ -174,6 +184,11 @@
                                 "label": "Host",
                                 "description": "The host used for establishing the connection"
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_REQUIRED",
+                                "position": 1
+                              },
+                              "placeholder": "localhost",
                               "value": "rabbitmq:DEFAULT_HOST",
                               "types": [
                                 {
@@ -197,12 +212,28 @@
                                 "label": "Port",
                                 "description": "The port used for establishing the connection"
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_REQUIRED",
+                                "position": 2
+                              },
+                              "placeholder": "5672",
                               "value": "5671",
                               "types": [
                                 {
                                   "fieldType": "NUMBER",
                                   "ballerinaType": "int",
-                                  "selected": true
+                                  "selected": true,
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.port",
+                                      "args": {
+                                        "min": 1.0,
+                                        "max": 65535.0
+                                      },
+                                      "message": "Port must be between {min} and {max}",
+                                      "severity": "WARNING"
+                                    }
+                                  ]
                                 },
                                 {
                                   "fieldType": "EXPRESSION",
@@ -230,7 +261,7 @@
                         "deliveryListener": {
                           "metadata": {
                             "label": "deliveryListener",
-                            "description": "RabbitMQ listener: deliveryListener"
+                            "description": "rabbitmq listener: deliveryListener"
                           },
                           "value": "deliveryListener",
                           "properties": {
@@ -239,6 +270,11 @@
                                 "label": "Host",
                                 "description": "The host used for establishing the connection"
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_REQUIRED",
+                                "position": 1
+                              },
+                              "placeholder": "localhost",
                               "value": "rabbitmq:DEFAULT_HOST",
                               "types": [
                                 {
@@ -262,12 +298,28 @@
                                 "label": "Port",
                                 "description": "The port used for establishing the connection"
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_REQUIRED",
+                                "position": 2
+                              },
+                              "placeholder": "5672",
                               "value": "5671",
                               "types": [
                                 {
                                   "fieldType": "NUMBER",
                                   "ballerinaType": "int",
-                                  "selected": true
+                                  "selected": true,
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.port",
+                                      "args": {
+                                        "min": 1.0,
+                                        "max": 65535.0
+                                      },
+                                      "message": "Port must be between {min} and {max}",
+                                      "severity": "WARNING"
+                                    }
+                                  ]
                                 },
                                 {
                                   "fieldType": "EXPRESSION",
@@ -312,7 +364,7 @@
                     }
                   ],
                   "enabled": true,
-                  "editable": false,
+                  "editable": true,
                   "optional": false,
                   "advanced": false
                 }
@@ -320,7 +372,7 @@
               "types": [
                 {
                   "fieldType": "FORM",
-                  "selected": false
+                  "selected": true
                 }
               ],
               "enabled": true,
@@ -332,7 +384,7 @@
           "types": [
             {
               "fieldType": "CHOICE",
-              "selected": false
+              "selected": true
             }
           ],
           "enabled": true,
@@ -340,13 +392,16 @@
           "optional": false,
           "advanced": false
         },
-        "basePath": {
+        "queueName": {
           "metadata": {
             "label": "Queue Name",
             "description": "The name of the queue to listen to"
           },
           "codedata": {
-            "argType": "SERVICE_BASE_PATH"
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "rabbitmq",
+            "path": "queueName"
           },
           "placeholder": "myQueue",
           "value": "\"myQueue\"",

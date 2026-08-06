@@ -221,6 +221,14 @@
                         "experimental"
                     ]
                 },
+                "ballerina.enableAdditionalTriggerSearch": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "For trigger developer testing purposes only: also searches the local Ballerina repository (~/.ballerina/repositories/local) and Ballerina Central for trigger/connector packages.",
+                    "tags": [
+                        "experimental"
+                    ]
+                },
                 "ballerina.samplesDownloadDirectory": {
                     "type": "string",
                     "default": "",
@@ -837,13 +845,13 @@
                 "command": "ballerina.icp.start",
                 "title": "Start ICP",
                 "category": "Ballerina",
-                "enablement": "isSupportedProject && !ballerina.icpRunning && !devant.editor"
+                "enablement": "isSupportedProject && ballerina.icpSupported && !ballerina.icpRunning && !devant.editor"
             },
             {
                 "command": "ballerina.icp.stop",
                 "title": "Stop ICP",
                 "category": "Ballerina",
-                "enablement": "isSupportedProject && ballerina.icpRunning && !devant.editor"
+                "enablement": "isSupportedProject && ballerina.icpSupported && ballerina.icpRunning && !devant.editor"
             },
             {
                 "command": "ballerina.showTraceWindow",
@@ -1324,14 +1332,14 @@
                 "description": "start",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f249"
+                    "fontCharacter": "\\f24a"
                 }
             },
             "ballerina-debug": {
                 "description": "debug",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c0"
+                    "fontCharacter": "\\f1c1"
                 }
             },
             "ballerina-source-view": {
@@ -1345,7 +1353,7 @@
                 "description": "persist-diagram",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f21f"
+                    "fontCharacter": "\\f220"
                 }
             },
             "ballerina-cached-rounded": {
@@ -1443,7 +1451,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c5"
+                    "fontCharacter": "\\f1c6"
                 }
             },
             "distro-file-submodule": {
@@ -1529,7 +1537,8 @@
         "build": "pnpm run compile && pnpm run lint && pnpm run postbuild",
         "rebuild": "pnpm run clean && pnpm run compile && pnpm run postbuild",
         "postbuild": "pnpm run copyLS && pnpm run copyFonts && pnpm run copyJSLibs && pnpm run clearVsix && pnpm run package && pnpm run copyVSIX",
-        "copyJSLibs": "copyfiles -f ../ballerina-visualizer/build/*.js resources/jslibs && copyfiles -f ../ballerina-visualizer/build/images/* resources/jslibs/images && copyfiles -f ../trace-visualizer/build/*.js resources/jslibs && copyfiles -f ../graphql/build/*.js resources/jslibs",
+        "copyJSLibs": "copyfiles -f ../ballerina-visualizer/build/*.js resources/jslibs && copyfiles -f ../ballerina-visualizer/build/images/* resources/jslibs/images && copyfiles -f ../trace-visualizer/build/*.js resources/jslibs && copyfiles -f ../graphql/build/*.js resources/jslibs && pnpm run copyFederation",
+        "copyFederation": "node ./scripts/copy-federation.js",
         "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {

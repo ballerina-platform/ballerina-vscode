@@ -17,7 +17,7 @@
   "response": {
     "metadata": {
       "label": "onConsumerRecord",
-      "description": "The `onConsumerRecord` remote method will be triggered when a message is received from Kafka topic(s)"
+      "description": "The `onConsumerRecord` remote method is triggered when a batch of messages is received from the subscribed Kafka topic(s)."
     },
     "kind": "REMOTE",
     "name": {
@@ -236,7 +236,8 @@
       },
       "orgName": "ballerinax",
       "packageName": "kafka",
-      "moduleName": "kafka"
+      "moduleName": "kafka",
+      "version": "4.6.5"
     }
   }
 }

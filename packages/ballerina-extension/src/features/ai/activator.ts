@@ -41,7 +41,16 @@ import { resolveProjectPath } from '../../utils/project-utils';
 import { MESSAGES } from '../project';
 import { AICommandConfig } from './executors/base/AICommandExecutor';
 import { AgentExecutor } from './agent/AgentExecutor';
-import { initMcpClientManager, disposeMcpClientManager, watchMcpConfig, getMcpClientManager, type EnabledOverrideStore } from './agent/mcp';
+import {
+    initMcpClientManager,
+    disposeMcpClientManager,
+    watchMcpConfig,
+    getMcpClientManager,
+    isMcpToolsEnabled,
+    MCP_ENABLE_SETTING_KEY,
+    type EnabledOverrideStore,
+    type McpClientManager
+} from './agent/mcp';
 import { registerAgentsMdWatcher } from './agent/agents-md';
 import { resolveProjectRootPath } from './agent';
 import { extension } from '../../BalExtensionContext';
@@ -264,20 +273,30 @@ export function activateAIFeatures(ballerinaExternalInstance: BallerinaExtension
     });
 }
 
-const MCP_ENABLE_SETTING = 'copilot.enableMcpTools';
-
-let mcpWatchDisposer: (() => void) | null = null;
-let mcpTrustDisposable: { dispose(): void } | null = null;
-
-// MCP runs only when the user enabled it.
+// MCP runs when the user enabled it, or when the project carries a `.mcp.json`.
 function isMcpEnabled(): boolean {
-    return vscodeWorkspace.getConfiguration('ballerina').get<boolean>(MCP_ENABLE_SETTING, false);
+    return isMcpToolsEnabled(resolveProjectRootPath() || undefined);
 }
 
-function setupMcp(): void {
+/** Pushes the given manager's current state to the webview, unless it's since been torn down. */
+function pushMcpUpdate(manager: McpClientManager): void {
+    if (getMcpClientManager() !== manager) {
+        return;
+    }
+    try {
+        notifyMcpServersChanged(manager.listServers());
+        notifyMcpLoadErrorsChanged(manager.getLoadErrors());
+    } catch (err) {
+        console.warn('[mcp] Failed to push servers-changed notification:', err);
+    }
+}
+
+// Returns the manager's initial-refresh promise so callers can await first setup finishing
+// before a subsequent queued transition (e.g. a rapid disable) is allowed to run.
+function setupMcp(): Promise<void> {
     if (getMcpClientManager()) {
         // Already set up; nothing to do.
-        return;
+        return Promise.resolve();
     }
     // Override store keys are `${scope}:${name}` (e.g. `workspace:foo`).
     function readMcpOverrideMap(): Record<string, boolean> {
@@ -337,46 +356,16 @@ function setupMcp(): void {
     const workspacePath = resolveProjectRootPath() || undefined;
     const workspaceTrusted = vscodeWorkspace.isTrusted;
     const manager = initMcpClientManager(overrides, workspacePath, workspaceTrusted);
-    const pushUpdate = () => {
-        // A refresh in flight at teardown could otherwise re-publish this disposed
-        // manager's state after the empty disabled state was already sent.
-        if (getMcpClientManager() !== manager) {
-            return;
-        }
-        try {
-            notifyMcpServersChanged(manager.listServers());
-            notifyMcpLoadErrorsChanged(manager.getLoadErrors());
-        } catch (err) {
-            console.warn('[mcp] Failed to push servers-changed notification:', err);
-        }
-    };
-    // Initial connect — fire and forget; failures are recorded per-server, not thrown.
-    manager.refresh()
+    // Trust changes and file edits both flow through reevaluate()'s single reconciler
+    // below, which keeps an already-running manager's trust flag and config in sync —
+    // no separate trust listener needed here.
+    return manager.refresh()
         .then(() => manager.pruneOrphanOverrides())
-        .then(pushUpdate)
+        .then(() => pushMcpUpdate(manager))
         .catch(err => console.warn('[mcp] Initial refresh failed:', err));
-    // Project-tree .mcp.json is watched too; the watcher fires whether or not
-    // workspace trust has been granted, but loadMcpConfig will skip the file
-    // until trust + workspace path are both set.
-    mcpWatchDisposer = watchMcpConfig(workspacePath, () => {
-        manager.refresh().then(pushUpdate).catch(err => console.warn('[mcp] Watch-triggered refresh failed:', err));
-    });
-    // React to workspace trust being granted mid-session — workspace-scope
-    // servers come online without a window reload.
-    mcpTrustDisposable = vscodeWorkspace.onDidGrantWorkspaceTrust(() => {
-        manager.setWorkspaceTrusted(true).then(pushUpdate).catch(err => console.warn('[mcp] Trust-grant refresh failed:', err));
-    });
 }
 
 async function teardownMcp(): Promise<void> {
-    if (mcpWatchDisposer) {
-        try { mcpWatchDisposer(); } catch { /* ignore */ }
-        mcpWatchDisposer = null;
-    }
-    if (mcpTrustDisposable) {
-        try { mcpTrustDisposable.dispose(); } catch { /* ignore */ }
-        mcpTrustDisposable = null;
-    }
     await disposeMcpClientManager();
     try {
         notifyMcpServersChanged([]);
@@ -398,19 +387,45 @@ function activateMcp(): void {
     if (isMcpEnabled()) {
         setupMcp();
     }
-    const disposable = vscodeWorkspace.onDidChangeConfiguration((e) => {
-        const enableChanged = e.affectsConfiguration(`ballerina.${MCP_ENABLE_SETTING}`);
-        if (!enableChanged) {
-            return;
-        }
+    // Single reconciler for every trigger: a setting change, trust being granted, or a
+    // project-scope file being created/edited/deleted. Recomputes whether MCP should be
+    // running and, if it already is, opportunistically refreshes it (covers edits that
+    // don't flip the on/off decision — e.g. adding a server to an already-loaded file).
+    const reevaluate = () => {
+        const enabled = isMcpEnabled();
         queueMcpLifecycleTransition(async () => {
-            if (isMcpEnabled()) {
-                setupMcp();
-            } else {
+            const existing = getMcpClientManager();
+            if (enabled) {
+                if (existing) {
+                    // Sync the trust flag first (a cheap no-op if it hasn't changed — see
+                    // McpClientManager.setWorkspaceTrusted), then always refresh so a plain
+                    // file edit still picks up, regardless of what triggered this reconcile.
+                    await existing.setWorkspaceTrusted(vscodeWorkspace.isTrusted)
+                        .then(() => existing.refresh())
+                        .then(() => pushMcpUpdate(existing))
+                        .catch(err => console.warn('[mcp] Watch-triggered refresh failed:', err));
+                } else {
+                    await setupMcp();
+                }
+            } else if (existing) {
                 await teardownMcp();
             }
         });
-        sendConfigChangeNotification('mcpToolsEnabled', isMcpEnabled());
-    });
-    extension.context?.subscriptions.push(disposable);
+        sendConfigChangeNotification('mcpToolsEnabled', enabled);
+    };
+    const subscriptions: vscode.Disposable[] = [
+        vscodeWorkspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration(MCP_ENABLE_SETTING_KEY)) {
+                reevaluate();
+            }
+        }),
+        // Trust unlocks the project `.mcp.json`, which may be the only opt-in signal.
+        vscodeWorkspace.onDidGrantWorkspaceTrust(() => reevaluate()),
+    ];
+    // One watcher covers the user-global file plus every project-scope path (primary and
+    // additional), whether or not MCP is currently on — a file appearing/disappearing may
+    // flip the implicit opt-in, and an edit to an already-loaded file needs a refresh.
+    const disposeMcpWatcher = watchMcpConfig(resolveProjectRootPath() || undefined, reevaluate);
+    subscriptions.push({ dispose: disposeMcpWatcher });
+    extension.context?.subscriptions.push(...subscriptions);
 }

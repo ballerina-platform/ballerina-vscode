@@ -1,0 +1,339 @@
+# CodeRabbit config - https://docs.coderabbit.ai/getting-started/yaml-configuration
+#
+# `inheritance` is on, so anything left unset keeps resolving from the dashboard
+# instead of snapping back to a schema default. So only set a value when there is a
+# reason: CI already covers it, a tracked issue says so, or the rules below depend
+# on it. Arrays merge child-first: an org-level path_instructions entry lands
+# after ours, or is dropped entirely if it carries the same `path`.
+inheritance: true
+
+tone_instructions: >-
+  Be concise. Treat only these as blocking-severity: leaked secrets, a missing
+  WSO2 license header, a broken published API or RPC contract, and undisposed
+  VS Code listeners. Everything else is a suggestion.
+
+reviews:
+  # Both match the schema default, but every instruction below assumes a chill
+  # baseline that comments rather than blocks. Pinned so an org-level switch to
+  # `assertive` cannot quietly change how all of it is applied.
+  profile: chill
+  request_changes_workflow: false
+  # Same reason. This one fails the active review-status surface -- the check
+  # run, or the legacy commit-status mirror when `review_progress` is off --
+  # whenever a review errors, so a CodeRabbit-side failure would block the
+  # merge. It already defaults to false; pinned so inheritance cannot flip it.
+  fail_commit_status: false
+
+  # The Playwright E2E suite runs only when a PR carries this label, or when the
+  # base branch ends in `.x` (see .github/workflows/pull-request.yml). Nothing in
+  # the PR template mentions that, so UI changes routinely merge without it.
+  #
+  # Listing a label here restricts CodeRabbit to suggesting only from this list,
+  # which is the intent. `Checks/Run LS Tests` also changes what CI runs but is
+  # left out on purpose: the `ls` path filter turns it on automatically, so a
+  # suggestion adds nothing. This label has no such fallback.
+  labeling_instructions:
+    - label: 'Checks/Run Ballerina UI Tests'
+      instructions: >-
+        A run is four parallel Playwright jobs capped at 60 minutes each, so
+        the default answer is no. Suggest this label only when the change
+        could break an end-to-end flow the suite actually covers; read
+        packages/ballerina-extension/e2e-test/e2e-playwright-tests/test.list.ts
+        to see what that is. Do not suggest it for styling, copy, or
+        layout-only changes, or for language server, build config, test, or
+        documentation changes.
+
+  # labeling_instructions only reaches the author through the walkthrough, so this
+  # has to stay on for the suggestion to appear at all.
+  suggested_labels: true
+  # Left off deliberately. Applying this label starts a full Playwright run, so a
+  # misjudged PR would burn CI with no one having agreed to it. Suggest, and let
+  # the author decide.
+  auto_apply_labels: false
+
+  auto_review:
+    base_branches:
+      - 'main'
+      - '\d+\.\d+\.x'
+      - 'release/.*'
+      - 'feature/.*'
+      - 'hotfix/.*'
+      - 'staging/.*'
+
+  path_filters:
+    # Build output. Gitignored already; listed so a stray commit is still skipped.
+    - '!**/node_modules/**'
+    - '!**/dist/**'
+    # Scoped to the package root: a bare '**/build/**' also catches
+    # .github/actions/build/action.yml, and '**/lib/**' catches
+    # packages/ballerina-extension/test/lib/index.ts.
+    - '!packages/*/build/**'
+    - '!packages/*/build-app/**'
+    - '!packages/*/lib/**'
+    - '!**/out/**'
+    - '!**/vsix/**'
+    - '!**/coverage/**'
+    - '!common/temp/**'
+    - '!.rush/**'
+    - '!**/.gradle/**'
+    - '!**/extractedDistribution/**'
+    # Build-time copy of packages/ballerina-grammar/syntaxes/.
+    - '!packages/ballerina-extension/grammar/ballerina-grammar/**'
+
+    # Separate repo. Git tracks it as one gitlink with no trailing path, so both
+    # forms are needed.
+    - '!submodules'
+    - '!submodules/**'
+
+    # Generated content that is tracked anyway.
+    # ~10k expected-output blobs for the language server.
+    - '!packages/ballerina-language-server/**/src/test/resources/**'
+    # Only the JSON under main/resources, not the whole tree. It mixes big
+    # generated blobs (moduleInfo.json is 452K) with hand-written files that
+    # matter -- miss a META-INF/services entry and the LS silently fails to load
+    # an extension.
+    - '!packages/ballerina-language-server/**/src/main/resources/**/*.json'
+    - '!packages/ballerina-extension/test/data/**'
+    - '!packages/ballerina-extension/ui-test/data/**'
+    - '!**/*.sqlite'
+    - '!packages/ballerina-grammar/test/resources/snapshots/**'
+    # Emitted by packages/syntax-tree/generator/src/generators.ts.
+    - '!packages/syntax-tree/src/syntax-tree-interfaces.ts'
+    - '!packages/syntax-tree/src/check-kind-util.ts'
+    - '!packages/syntax-tree/src/base-visitor.ts'
+    # Vendored from wso2/code-quality-tools, tracked despite the build/ path.
+    - '!packages/ballerina-language-server/build-config/checkstyle/build/**'
+
+    # Lockfiles, rush state, media.
+    - '!**/pnpm-lock.yaml'
+    - '!**/package-lock.json'
+    - '!common/config/rush/repo-state.json'
+    - '!docs/**/images/**'
+    - '!resources/images/**'
+
+    # packages/ballerina-extension/package.json stays reviewable despite its size.
+    # Its `contributes` block is where command and setting regressions land.
+
+  path_instructions:
+    # Blocklist
+    - path: '**/*.{ts,tsx,java}'
+      instructions: |
+        These four are the only findings to raise as blocking. State them plainly
+        and do not soften them. Everything else in this file is a suggestion.
+
+        1. SECRETS. Any token, API key, password, connection string, or
+           credential in source or in a test fixture.
+
+        2. LICENSE HEADER. Every new source file needs the WSO2 Apache-2.0
+           header, and the form differs by language. For .ts and .tsx, copy the
+           17-line form from the top of packages/ballerina-core/src/index.ts.
+           For .java, match the 15-line form used by sibling files in the same
+           package -- the Java headers use different wording from the
+           TypeScript one, so do not carry it across. A new file should use the
+           current year; do not copy the year from the file you took the
+           header from.
+
+        3. BREAKING A PUBLISHED SURFACE. Flag changes to the exported extension
+           API, to RPC message contracts, or to public Java interfaces when the
+           PR description does not say how compatibility is handled. Renaming or
+           removing an exported symbol, changing a RequestType payload shape, and
+           changing a method string all count.
+
+        4. UNDISPOSED LISTENERS. A vscode.Disposable, event listener, or webview
+           panel created without being pushed to a _disposables array or to
+           context.subscriptions leaks for the life of the extension host. Check
+           that every subscription in a new or edited class has a disposal path.
+           Note that some existing listeners in
+           packages/ballerina-extension/src/views/ already get this wrong; do not
+           treat surrounding code as the standard.
+
+    # Repo mechanics
+    - path: '**/*.{ts,tsx,json}'
+      instructions: |
+        Conventions specific to this Rush monorepo. Each is written down in
+        AGENTS.md or CONTRIBUTING.md, or enforced by a hook.
+
+        - EXACT VERSIONS. No `^` or `~` range in any package.json dependencies,
+          devDependencies, or peerDependencies. `workspace:`, `file:`, `link:`,
+          `git+`, `npm:`, `*`, and `latest` are allowed. This is enforced only by
+          .husky/pre-commit -> common/scripts/validate-package-versions.js, and a
+          `--no-verify` push slips past it, so check it in review.
+
+        - VERSION BUMPS belong only in packages/ballerina-extension/package.json.
+          That field is read by both vsce and Gradle. `-SNAPSHOT` only on main.
+
+        - NO NEW TOOLING. Flag a new task runner, an alternative bundler, or a
+          per-package install script. Use rush and the existing TypeScript build
+          (AGENTS.md, "Use the existing TypeScript / build infrastructure").
+
+        - SUBMODULE SEPARATION. Flag any diff that changes
+          submodules/wso2-vscode-extensions alongside packages/. Submodule edits
+          belong in their own commit against their own repo (AGENTS.md,
+          "Submodule changes are not monorepo changes").
+
+    # CVE suppressions. Its own entry because .trivyignore has no extension, so
+    # no `**/*.{ext}` glob above reaches it.
+    - path: '{.trivyignore,common/config/rush/pnpm-config.json}'
+      instructions: |
+        A fixable CVE goes to common/config/rush/pnpm-config.json under
+        globalOverrides, not to .trivyignore. .trivyignore must stay one plain
+        ID per line.
+
+        A new .trivyignore entry needs a linked tracking issue in the comment
+        above it, next to the reason no usable fix exists. Ask for one when it
+        is missing -- without it nothing prompts a recheck once upstream
+        publishes a fix.
+
+    # RPC boundary
+    - path: 'packages/{ballerina-core,ballerina-rpc-client,ballerina-extension}/**/*.ts'
+      instructions: |
+        The extension-to-webview contract is a three-layer split that has to move
+        together. For an area <area>:
+
+          packages/ballerina-core/src/rpc-types/<area>/rpc-type.ts
+              RequestType / NotificationType descriptors, method strings
+          packages/ballerina-rpc-client/src/rpc-clients/<area>/rpc-client.ts
+              webview-side typed client
+          packages/ballerina-extension/src/rpc-managers/<area>/rpc-handler.ts
+              host-side handler, registered from src/RPCLayer.ts
+
+        Flag:
+
+        - A descriptor added, renamed, or with a changed payload type, without
+          the matching client method and host handler in the same PR. This is
+          silent breakage: the type error surfaces in neither package because
+          they build independently.
+        - A handler registered in RPCLayer.ts with no corresponding descriptor,
+          or a descriptor with no registration.
+        - Hand-edits to any file carrying the marker comment
+          "THIS FILE INCLUDES AUTO GENERATED CODE". These are produced by the RPC
+          generator; change the source rpc-types entry and regenerate.
+        - `sendRequest` with no rejection handling. The generated clients
+          `return this._messenger.sendRequest(...)` bare, so a throw on the host
+          side becomes an unhandled promise rejection inside the webview with no
+          user-visible error.
+
+    # React webviews
+    - path: 'packages/*/src/**/*.tsx'
+      instructions: |
+        - useEffect dependency arrays and stale closures. `react-hooks/
+          exhaustive-deps` is an error in the shared toolkit config, but there are
+          roughly 31 eslint-disable comments for it across the tree. A new disable
+          needs a reason in the comment saying why the dep is safe to omit.
+
+        - THEME TOKENS. Colors come from ThemeColors or `var(--vscode-*)`.
+          A hardcoded hex or rgb() value breaks the light, dark, and
+          high-contrast themes. Flag it.
+
+        - REUSE THE TOOLKIT. Prefer an existing @wso2/ui-toolkit component over a
+          new one-off. Say which one when you can name it.
+
+        - ERROR BOUNDARIES. A React.lazy panel belongs inside Suspense and
+          WebviewErrorBoundary; without one, a render throw blanks the webview.
+
+        - HOST-TO-WEBVIEW CHURN. A notification pushed on every document change
+          floods the webview. The established pattern is lodash.debounce(fn, 500)
+          plus a readiness gate on `viewActive === "viewReady"` and panel.active.
+          Flag an unguarded onDidChangeTextDocument that leads to an RPC
+          notification.
+
+        - E2E COVERAGE. When the change introduces a new UI feature or a major
+          flow that the suites under
+          packages/ballerina-extension/e2e-test/e2e-playwright-tests/ do not
+          already cover, encourage adding an E2E test and point at the authoring
+          workflow in .claude/skills/ballerina-e2e-writer/SKILL.md. Encourage, do
+          not require -- promotion into the suite is a deliberate step and
+          test.list.ts controls ordering.
+
+        CI runs no ESLint or Prettier on this repo, and six packages are still on
+        legacy tslint, so these are not caught anywhere else.
+
+    # Java LS backend
+    - path: 'packages/ballerina-language-server/**/*.java'
+      instructions: |
+        Do NOT comment on formatting, naming, import order, line length, javadoc
+        presence, or anything else stylistic. The Gradle build already gates
+        those with checkstyle (wso2/code-quality-tools v1.4, jdk-17) and spotbugs
+        (effort MAX, reportLevel LOW, with a validateSpotbugs task that fails on a
+        non-empty report), and it runs on every PR. Repeating them is pure
+        duplicate noise.
+
+        Review logic instead:
+
+        - Null-safety when walking the syntax tree. Optional/nullable results from
+          symbol and type lookups that are dereferenced without a check.
+        - Resources opened without try-with-resources or a finally close.
+        - Concurrency in LS request handling: shared mutable state across
+          requests, non-thread-safe collections, document state read after it may
+          have been invalidated.
+        - Swallowed exceptions. A catch block that logs nothing and returns a
+          default hides real failures from the client.
+        - Cancellation tokens accepted and then ignored on long operations.
+        - New behavior with no TestNG coverage.
+
+    # Test files
+    - path: '**/{*.test.ts,*.test.tsx,*.spec.ts,*.spec.tsx,e2e-test/**,jest.*.js}'
+      instructions: |
+        - JEST CONFIG FILENAMES (hard rule). Only a file named exactly
+          `jest.config.js` is PR-gated in CI. Never accept a rename of
+          jest.ls-integration.config.js, jest.realdata.config.js,
+          jest.headless-view.config.js, or jest.perf.config.js to jest.config.js.
+          Those need Java, a Ballerina distribution, or VS Code, and would break
+          every PR. Flag it loudly if you see it.
+
+        - REGRESSION POLICY. A bug fix ships a fixture named `issue-<n>.json` that
+          feeds an existing invariant assertion, not a new one-off test. Assert a
+          rule over a corpus, not the single reported case.
+
+        - E2E SELECTORS. data-testid only. Emotion generates hashed class names
+          that change per build, so a class-name selector is a future flake.
+
+        - TEST TYPE ERRORS. Test files are excluded from the build's type-check;
+          `node scripts/typecheck-tests.js` covers them. Flag `as any` used to
+          silence a type error in a test rather than fixing the type.
+
+        - Review test quality where tests exist: hardcoded sleeps instead of
+          waits, missing assertions, mocking so broad the test asserts nothing.
+
+    # Test coverage. Separate from the block above because "a test is missing"
+    # has to fire on the source file, not on a test file that may not exist.
+    - path: 'packages/**/*.{ts,tsx,java}'
+      instructions: |
+        Test expectations, split by how hard the rule is.
+
+        REQUIRE a test when the PR adds new behavior: a new VS Code command, a new
+        RPC handler, a new state-machine transition, or a new LS endpoint. Say
+        which level it belongs at (L1 unit/contract, L2 component render, L3
+        LS-integration, L4 E2E) per docs/TEST_GUIDE.md.
+
+        ASK, do not demand, when existing logic changed and no test file was
+        touched. Phrase it as a question. Refactors, dependency bumps, and
+        config-only PRs legitimately have no test change, and nagging on those
+        trains people to ignore you.
+
+  # Tools default to on, and with inheritance an omitted tool keeps whatever the
+  # dashboard says. So these are only the ones worth turning off.
+  tools:
+    # 2156 .java files, and Gradle runs checkstyle + spotbugs on every PR in
+    # Build_Stage. Enabling this reports the same findings twice.
+    pmd:
+      enabled: false
+
+    # Trivy already runs in reusable-build.yml and schedule.yml. osvScanner
+    # covers the same dependency-CVE ground.
+    trivy:
+      enabled: false
+    osvScanner:
+      enabled: false
+
+    # Off by decision, not because CI covers it -- nothing lints TypeScript here.
+    # The configs are too uneven to act on: six packages still use tslint, the
+    # rest split across .eslintrc and flat config, data-mapper and overview-view
+    # have conflicting configs, and four packages have a lint script that cannot
+    # run. The rules worth keeping are in path_instructions above.
+    #
+    # TODO: set to true once the ESLint migration lands --
+    # wso2-enterprise/integration-engineering#2167. CodeRabbit has no tslint
+    # integration, so those six packages stay uncovered until they move.
+    eslint:
+      enabled: false

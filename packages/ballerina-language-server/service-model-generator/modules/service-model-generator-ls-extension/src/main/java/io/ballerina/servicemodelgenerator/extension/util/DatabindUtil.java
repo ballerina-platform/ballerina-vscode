@@ -28,6 +28,7 @@ import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.ArrayTypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.RecordFieldNode;
@@ -263,7 +264,7 @@ public final class DatabindUtil {
      * @param payloadFieldName The field name to look up
      * @return DataBindingTypeInfo or null if not found
      */
-    private static DataBindingTypeInfo extractDataBindingType(FunctionDefinitionNode functionNode, String paramName,
+    public static DataBindingTypeInfo extractDataBindingType(FunctionDefinitionNode functionNode, String paramName,
                                                               SemanticModel semanticModel,
                                                               String payloadFieldName) {
         Optional<RequiredParameterNode> targetParam = findRequiredParameter(functionNode, paramName);
@@ -695,7 +696,7 @@ public final class DatabindUtil {
      * @param baseType                 The base event type (for reference checking)
      * @return Map of TextEdits to delete the type, or empty if type is still in use
      */
-    private static Map<String, List<TextEdit>> handleDataBindingDeletion(UpdateModelContext context,
+    public static Map<String, List<TextEdit>> handleDataBindingDeletion(UpdateModelContext context,
                                                                          Function function,
                                                                          Parameter disabledDataBindingParam,
                                                                          String baseType) {
@@ -865,7 +866,7 @@ public final class DatabindUtil {
      * @param prefix           The prefix for generated type names
      * @return The generated unique type name
      */
-    private static String generateNewDataBindTypeName(String contextFilePath, WorkspaceManager workspaceManager,
+    public static String generateNewDataBindTypeName(String contextFilePath, WorkspaceManager workspaceManager,
                                                       SemanticModel semanticModel, FunctionDefinitionNode functionNode,
                                                       String prefix) {
         if (semanticModel == null) {
@@ -901,6 +902,15 @@ public final class DatabindUtil {
             String moduleName = baseType.substring(0, baseType.indexOf(COLON));
             String org = "ballerinax";
             String importModule = moduleName.toLowerCase(java.util.Locale.ENGLISH);
+
+            // The guess above (org "ballerinax", module == prefix) breaks for dotted module names
+            // (e.g. "solace.jms", whose default prefix is "jms", not a real "ballerinax/jms" package) —
+            // an explicit override keyed by that same prefix takes precedence when supplied.
+            if (importsForTypeDef != null && importsForTypeDef.containsKey(moduleName)) {
+                String[] overrideParts = importsForTypeDef.get(moduleName).split("/");
+                org = overrideParts[0];
+                importModule = overrideParts[1].split(":")[0];
+            }
 
             if (!importExists(modulePartNode, org, importModule)) {
                 imports.add(getImportStmt(org, importModule));
@@ -959,7 +969,7 @@ public final class DatabindUtil {
      * @param importsForTypeDef Map of imports needed for the type definition
      * @return Map of file paths to TextEdit lists
      */
-    private static Map<String, List<TextEdit>> createTypeDefinitionEdits(Project project, String typeName,
+    public static Map<String, List<TextEdit>> createTypeDefinitionEdits(Project project, String typeName,
                                                                          String baseType, String dataBindingType,
                                                                          String payloadFieldName,
                                                                          String contextFilePath,
@@ -974,18 +984,29 @@ public final class DatabindUtil {
 
         String typeDefinition = generateTypeDefinition(typeName, baseType, dataBindingType, payloadFieldName);
 
-        // Determine insertion point
+        // Determine insertion point: always after the last existing declaration (member, else the
+        // last import), never above pre-existing imports — a members-empty file can still have
+        // imports (imports() and members() are separate lists), so that alone doesn't mean "empty".
         LinePosition insertPosition;
+        String typeDefPrefix;
         ModulePartNode modulePartNode = context.modulePartNode();
 
-        if (modulePartNode.members().isEmpty()) {
-            // No members yet — anchor at the module-part start, which skips leading minutiae
-            // (license/doc comments) so the type definition lands below them.
-            insertPosition = modulePartNode.lineRange().startLine();
-        } else {
+        if (!modulePartNode.members().isEmpty()) {
             // Insert at the end of the file
             Node lastMember = modulePartNode.members().get(modulePartNode.members().size() - 1);
             insertPosition = lastMember.lineRange().endLine();
+            typeDefPrefix = "\n\n";
+        } else if (!modulePartNode.imports().isEmpty()) {
+            // No type/function members yet, but the file already has imports — anchor after the
+            // last one so the type definition doesn't land above them.
+            ImportDeclarationNode lastImport = modulePartNode.imports().get(modulePartNode.imports().size() - 1);
+            insertPosition = lastImport.lineRange().endLine();
+            typeDefPrefix = "\n\n";
+        } else {
+            // Truly empty — anchor at the module-part start, which skips leading minutiae
+            // (license/doc comments) so the type definition lands below them.
+            insertPosition = modulePartNode.lineRange().startLine();
+            typeDefPrefix = "";
         }
 
         List<TextEdit> edits = new ArrayList<>();
@@ -997,8 +1018,7 @@ public final class DatabindUtil {
         }
 
         // Add the type definition
-        TextEdit typeEdit = new TextEdit(Utils.toRange(insertPosition),
-                (modulePartNode.members().isEmpty() ? "" : "\n\n") + typeDefinition);
+        TextEdit typeEdit = new TextEdit(Utils.toRange(insertPosition), typeDefPrefix + typeDefinition);
         edits.add(typeEdit);
 
         // Construct the path to types.bal
@@ -1065,7 +1085,7 @@ public final class DatabindUtil {
      * @param baseType      The base record type (e.g., "kafka:AnydataConsumerRecord") to check against
      * @return The databind type name, or null if not found or not a subtype of baseType
      */
-    private static String extractExistingDatabindTypeName(FunctionDefinitionNode functionNode, String paramName,
+    public static String extractExistingDatabindTypeName(FunctionDefinitionNode functionNode, String paramName,
                                                           SemanticModel semanticModel, Document document,
                                                           String baseType) {
         Optional<RequiredParameterNode> targetParam = findRequiredParameter(functionNode, paramName);
@@ -1200,7 +1220,7 @@ public final class DatabindUtil {
      * @param importsForTypeDef  Map of imports needed for the type definition
      * @return Map of file paths to TextEdit lists
      */
-    private static Map<String, List<TextEdit>> updateTypeDefinitionEdits(UpdateModelContext context,
+    public static Map<String, List<TextEdit>> updateTypeDefinitionEdits(UpdateModelContext context,
                                                                          String existingTypeName,
                                                                          String baseType,
                                                                          String newDataBindingType,
@@ -1312,7 +1332,7 @@ public final class DatabindUtil {
      * @param typeName The data binding type name (e.g., "Order")
      * @param editable Whether the data binding parameter should be editable
      */
-    private record DataBindingTypeInfo(
+    public record DataBindingTypeInfo(
             String typeName,
             boolean editable
     ) {

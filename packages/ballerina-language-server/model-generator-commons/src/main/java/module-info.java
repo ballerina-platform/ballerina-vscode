@@ -31,6 +31,10 @@ module io.ballerina.model.generator.commons {
     requires io.ballerina.lang;
     requires io.ballerina.runtime;
     requires java.sql;
+    requires com.github.benmanes.caffeine;
 
     exports io.ballerina.modelgenerator.commons;
+    exports io.ballerina.modelgenerator.commons.trigger;
+    exports io.ballerina.modelgenerator.commons.trigger.models;
+    exports io.ballerina.modelgenerator.commons.trigger.utils;
 }

@@ -23,6 +23,9 @@ import { InputMode } from "../..";
 import { EditorMode } from "./ExpandedEditor";
 import { EXPANDABLE_MODES } from "./ExpandedEditor/modes/types";
 
+// Re-exported so that the existing imports of these helpers keep working.
+export { stringToRawArrayElements, buildStringArray } from "./rawValueUtils";
+
 export function isDropdownField(field: FormField) {
     return field.type === "MULTIPLE_SELECT" || field.type === "SINGLE_SELECT" || field.type?.toUpperCase() === "ENUM";
 }
@@ -215,50 +218,6 @@ export const getMapSubFormFieldFromTypes = (formId: string, types: InputType[]):
     ]
 }
 
-export function stringToRawArrayElements(input: string): string[] {
-    // remove outer [ ]
-    const s = input.trim().slice(1, -1);
-
-    if (s === "") {
-        return [];
-    }
-
-    const result: string[] = [];
-    let current = "";
-    let depth = 0;
-    let inString = false;
-
-    for (let i = 0; i < s.length; i++) {
-        const char = s[i];
-        const prev = s[i - 1];
-
-        // handle string boundaries
-        if (char === '"' && prev !== "\\") {
-            inString = !inString;
-            current += char;
-            continue;
-        }
-
-        if (!inString) {
-            if (char === "[" || char === "{") depth++;
-            if (char === "]" || char === "}") depth--;
-
-            if (char === "," && depth === 0) {
-                result.push(current);
-                current = "";
-                continue;
-            }
-        }
-
-        current += char;
-    }
-
-    // Always push the final element (even if empty) to preserve trailing empty values
-    result.push(current);
-
-    return result;
-}
-
 export function stringToRawObjectEntries(
     input: string
 ): { key: string; value: string }[] {
@@ -337,14 +296,6 @@ function pushPair(
             }
         }
     }
-}
-
-export function buildStringArray(elements: FormField[]): string {
-    if (typeof elements === "string") return elements;
-    const parts = elements.map(el => {
-        return ((el.value as string) ?? "").trim();
-    });
-    return `[${parts.join(", ")}]`;
 }
 
 export function buildStringMap(elements: FormField[][] | string): string {

@@ -1,0 +1,1267 @@
+{
+  "schemaVersion": "1.0",
+  "id": "sap.jco",
+  "displayName": "SAP JCo Event Integration",
+  "description": "Create a service to handle IDocs or RFC calls from SAP via the JCo listener",
+  "orgName": "ballerinax",
+  "packageName": "sap.jco",
+  "moduleName": "sap.jco",
+  "version": "2.0.1",
+  "type": "sap.jco",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_sap.jco_2.0.1.png",
+  "kind": "event",
+  "listenerKind": "SINGLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Listener",
+        "description": "Select an existing SAP JCo listener or create a new one."
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create New Listener",
+            "description": "Define a new SAP JCo listener in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the SAP JCo listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "sap.jco:Listener"
+                    }
+                  ],
+                  "value": "jcoListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name",
+                      "message": "A listener with this name already exists in the project"
+                    }
+                  ]
+                },
+                "serverOrAdvancedConfig": {
+                  "metadata": {
+                    "label": "Server Configuration",
+                    "description": "Choose between structured server configuration or raw JCo properties."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true
+                    }
+                  ],
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "Server Configuration",
+                        "description": "Provide SAP gateway and connection details."
+                      },
+                      "value": "true",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "castType": "jco:ServerConfig",
+                        "position": 1
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "properties": {
+                        "gwhost": {
+                          "metadata": {
+                            "label": "Gateway Host",
+                            "description": "SAP gateway host to register the server with."
+                          },
+                          "placeholder": "sap-gw.example.com",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "originalName": "gwhost",
+                            "position": 1,
+                            "path": "gwhost"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ]
+                        },
+                        "gwserv": {
+                          "metadata": {
+                            "label": "Gateway Service",
+                            "description": "SAP gateway service name or port number."
+                          },
+                          "placeholder": "3300",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "originalName": "gwserv",
+                            "position": 1,
+                            "path": "gwserv"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ]
+                        },
+                        "progid": {
+                          "metadata": {
+                            "label": "Program ID",
+                            "description": "Program ID registered in the SAP system via transaction SM59."
+                          },
+                          "placeholder": "JCO_LISTENER",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "originalName": "progid",
+                            "position": 1,
+                            "path": "progid"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ]
+                        },
+                        "connectionCount": {
+                          "metadata": {
+                            "label": "Connection Count",
+                            "description": "Maximum number of concurrent RFC connections (default: 2)."
+                          },
+                          "placeholder": "2",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "originalName": "connectionCount",
+                            "position": 1,
+                            "path": "connectionCount"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "NUMBER",
+                              "ballerinaType": "int",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "int",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "repositoryDestination": {
+                          "metadata": {
+                            "label": "Repository Destination",
+                            "description": "Repository destination used to look up RFC and IDoc metadata."
+                          },
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "types": [
+                            {
+                              "fieldType": "CHOICE",
+                              "selected": true
+                            }
+                          ],
+                          "choices": [
+                            {
+                              "metadata": {
+                                "label": "Destination Configurations",
+                                "description": "Provide SAP connection credentials directly; the listener registers them as an internal JCo destination automatically."
+                              },
+                              "value": "true",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "properties": {
+                                "ashost": {
+                                  "metadata": {
+                                    "label": "Application Server Host",
+                                    "description": "SAP application server host name."
+                                  },
+                                  "placeholder": "sap.example.com",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "ashost",
+                                    "position": 1,
+                                    "path": "repositoryDestination.ashost"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                },
+                                "sysnr": {
+                                  "metadata": {
+                                    "label": "System Number",
+                                    "description": "SAP system number."
+                                  },
+                                  "placeholder": "00",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "sysnr",
+                                    "position": 1,
+                                    "path": "repositoryDestination.sysnr"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                },
+                                "jcoClient": {
+                                  "metadata": {
+                                    "label": "Client Number",
+                                    "description": "SAP client number."
+                                  },
+                                  "placeholder": "100",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "jcoClient",
+                                    "position": 1,
+                                    "path": "repositoryDestination.jcoClient"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                },
+                                "user": {
+                                  "metadata": {
+                                    "label": "User",
+                                    "description": "SAP logon user name."
+                                  },
+                                  "placeholder": "admin",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "user",
+                                    "position": 1,
+                                    "path": "repositoryDestination.user"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                },
+                                "passwd": {
+                                  "metadata": {
+                                    "label": "Password",
+                                    "description": "SAP logon password."
+                                  },
+                                  "placeholder": "",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "passwd",
+                                    "position": 1,
+                                    "path": "repositoryDestination.passwd"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                },
+                                "lang": {
+                                  "metadata": {
+                                    "label": "Language",
+                                    "description": "SAP logon language (default: EN)."
+                                  },
+                                  "placeholder": "EN",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": true,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "lang",
+                                    "position": 1,
+                                    "path": "repositoryDestination.lang"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ]
+                                },
+                                "group": {
+                                  "metadata": {
+                                    "label": "Group",
+                                    "description": "SAP logon group for message server load balancing (default: PUBLIC)."
+                                  },
+                                  "placeholder": "PUBLIC",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": true,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "group",
+                                    "position": 1,
+                                    "path": "repositoryDestination.group"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "metadata": {
+                                "label": "Destination ID",
+                                "description": "The destination ID of an already-initialised JCo client."
+                              },
+                              "value": "true",
+                              "enabled": false,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "properties": {
+                                "destinationId": {
+                                  "metadata": {
+                                    "label": "Destination ID",
+                                    "description": "The destination ID of an already-initialised JCo client."
+                                  },
+                                  "placeholder": "MY_SAP_DEST",
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                                    "originalName": "repositoryDestination",
+                                    "position": 1,
+                                    "path": "repositoryDestination"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.required"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Advanced Properties",
+                        "description": "Provide raw JCo properties as key-value pairs (e.g. jco.server.gwhost)."
+                      },
+                      "value": "true",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "castType": "jco:AdvancedConfig",
+                        "position": 1
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "properties": {
+                        "advancedConfig": {
+                          "metadata": {
+                            "label": "JCo Properties",
+                            "description": "SAP JCo server properties as key-value pairs (e.g. jco.server.gwhost)."
+                          },
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_REQUIRED",
+                            "originalName": "serverConfig",
+                            "position": 1
+                          },
+                          "types": [
+                            {
+                              "fieldType": "REPEATABLE_MAP",
+                              "ballerinaType": "string",
+                              "selected": true,
+                              "template": {
+                                "types": [
+                                  {
+                                    "fieldType": "TEXT",
+                                    "ballerinaType": "string",
+                                    "selected": true
+                                  }
+                                ],
+                                "enabled": true,
+                                "optional": false,
+                                "editable": true,
+                                "advanced": false,
+                                "hidden": false
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "advancedConfig": {
+                  "metadata": {
+                    "label": "Advanced Configurations",
+                    "description": "Advanced server configuration options."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "GROUP_SECTION",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "properties": {
+                    "serverName": {
+                      "metadata": {
+                        "label": "Server Name",
+                        "description": "Unique name to register this server with the JCo framework (defaults to a generated UUID)."
+                      },
+                      "placeholder": "",
+                      "value": "",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": true,
+                      "advanced": true,
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "originalName": "serverName",
+                        "position": 2
+                      },
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use Existing Listener",
+            "description": "Attach to a SAP JCo listener already declared in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener",
+                "description": "Select an existing SAP JCo listener to attach to."
+              },
+              "types": [
+                {
+                  "fieldType": "SINGLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "sap.jco:Listener"
+                }
+              ],
+              "items": [],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceType": {
+      "metadata": {
+        "label": "Service Type",
+        "description": "Select the type of SAP service to handle."
+      },
+      "types": [
+        {
+          "fieldType": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "jco:GenericServiceType",
+          "options": [
+            {
+              "label": "IDocService",
+              "value": "jco:IDocService"
+            },
+            {
+              "label": "RfcService",
+              "value": "jco:RfcService"
+            }
+          ]
+        }
+      ],
+      "value": "jco:IDocService",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "jco"
+      },
+      "validations": [
+        {
+          "rule": "common.validate.required"
+        }
+      ]
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "IDocService",
+        "description": "Handles IDocs pushed from an SAP system."
+      },
+      "name": "jco:IDocService",
+      "description": "Handles IDocs pushed from an SAP system.",
+      "enabled": true,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "jco",
+        "originalName": "IDocService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Receive",
+            "description": "Invoked when an IDoc is received from the SAP system."
+          },
+          "name": "onReceive",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Invoked when an IDoc is received from the SAP system.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReceive",
+            "moduleName": "jco"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "IDoc",
+                "description": "The received IDoc, as XML."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "xml",
+                "value": "xml",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "iDoc",
+                  "description": ""
+                },
+                "placeholder": "iDoc",
+                "value": "iDoc",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when a framework-level error occurs while the listener is handling a request (e.g. JCo gateway/server errors, connectivity problems, IDoc parsing failures)."
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Invoked when a framework-level error occurs while the listener is handling a request. This covers JCo gateway and server errors surfaced asynchronously by the JCo runtime (connection retries, registration failures) and pre-dispatch failures such as IDoc rendering or parsing. It is not invoked for errors raised by the IDoc receive handler itself - IDoc delivery is fire-and-forget and per-call errors are logged instead.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "jco"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Error",
+                "description": "The framework-level error that occurred."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "error",
+                "value": "error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "err",
+                  "description": ""
+                },
+                "placeholder": "err",
+                "value": "err",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "RfcService",
+        "description": "Handles inbound RFC calls from an SAP system. SAP invokes the service as if it were a registered RFC function module."
+      },
+      "name": "jco:RfcService",
+      "description": "Handles inbound RFC calls from an SAP system. SAP invokes the service as if it were a registered RFC function module.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "jco",
+        "originalName": "RfcService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Call",
+            "description": "Invoked synchronously when SAP calls a function module registered on this server."
+          },
+          "name": "onCall",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Invoked synchronously when SAP calls a function module registered on this server. The return value is serialized and sent back to the SAP caller as the RFC response.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCall",
+            "moduleName": "jco"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Function Name",
+                "description": "The name of the RFC function module being invoked."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "string",
+                "value": "string",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "functionName",
+                  "description": ""
+                },
+                "placeholder": "functionName",
+                "value": "functionName",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "RFC Parameters",
+                "description": "Import and table parameters passed from SAP for this call."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "jco:RfcParameters",
+                "value": "jco:RfcParameters",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "parameters",
+                  "description": ""
+                },
+                "placeholder": "parameters",
+                "value": "parameters",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "jco:RfcRecord|xml|error?",
+            "typeEditable": false,
+            "typeConstraint": "jco:RfcRecord|xml|error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when a framework-level error occurs while the listener is handling a request (e.g. JCo gateway/server errors, connectivity problems, RFC parameter/response failures)."
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Invoked when a framework-level error occurs while the listener is handling a request. This covers JCo gateway and server errors surfaced asynchronously by the JCo runtime (connection retries, registration failures), pre-dispatch failures such as RFC parameter construction, and post-dispatch failures such as RFC response serialization. It is not invoked for errors raised by the RFC call handler itself - those surface to the SAP caller as an ABAP exception.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "jco"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Error",
+                "description": "The framework-level error that occurred."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "error",
+                "value": "error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "err",
+                  "description": ""
+                },
+                "placeholder": "err",
+                "value": "err",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "progid",
+      "displayName": "Program ID",
+      "kind": "LISTENER_PARAM",
+      "paramKind": "CONFIG_FIELD",
+      "path": "progid"
+    }
+  ],
+  "importStatements": []
+}

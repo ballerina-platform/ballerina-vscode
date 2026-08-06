@@ -26,6 +26,7 @@ import { cardMatchesSearch, OutOfScopeComponentTooltip } from './componentListUt
 
 interface IntegrationAPIPanelProps {
     scope: SCOPE;
+    /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
 };
 

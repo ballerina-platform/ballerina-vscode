@@ -68,7 +68,6 @@ import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LinePosition;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
-import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.eclipse.lsp4j.MessageType;
 
@@ -300,6 +299,19 @@ public class FunctionDataBuilder {
             }
         }
 
+        // Resolve packages in the current workspace before looking in the local cache or Central. A workspace
+        // package can also exist in the cache, but that copy may be stale and resolvedPackage() initially selects
+        // its default module. In particular, this would make a function in a sibling package's submodule invisible.
+        if (project != null) {
+            Optional<PackageUtil.WorkspacePackageResolution> workspaceResolution =
+                    PackageUtil.getSemanticModelFromWorkspace(project,
+                            moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName(), moduleInfo.version());
+            if (workspaceResolution.isPresent()) {
+                applyWorkspaceResolution(workspaceResolution.get());
+                return;
+            }
+        }
+
         // For external functions: resolve from central repository
         Package resolvedPackage = PackageUtil.resolveModulePackage(
                 moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version()).orElse(null);
@@ -351,25 +363,11 @@ public class FunctionDataBuilder {
 
         checkLocalModule();
 
-        // Check if the package exists in the workspace
+        // Check if the package exists in the workspace. This is retained as a fallback for builders that derive or
+        // replace their project while resolving local data.
         if (semanticModel == null && project != null) {
-            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
-            if (workspaceProject.isPresent()) {
-                List<Project> childProjects = compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get());
-                for (Project childProject : childProjects) {
-                    Package currentPackage = childProject.currentPackage();
-                    String currentPackageName = currentPackage.packageName().value();
-                    if (currentPackage.packageOrg().value().equals(moduleInfo.org()) &&
-                            (currentPackageName.equals(moduleInfo.packageName()) ||
-                                    currentPackageName.equals(moduleInfo.moduleName()))) {
-                        // TODO: Extend the support for sub-modules of a project.
-                        semanticModel(PackageUtil.getCompilation(childProject)
-                                .getSemanticModel(currentPackage.getDefaultModule().moduleId()));
-                        break;
-                    }
-                }
-            }
+            PackageUtil.getSemanticModelFromWorkspace(project, moduleInfo.org(), moduleInfo.packageName(),
+                    moduleInfo.moduleName(), moduleInfo.version()).ifPresent(this::applyWorkspaceResolution);
         }
 
         // Check the index before attempting external package resolution.
@@ -554,6 +552,20 @@ public class FunctionDataBuilder {
                 getParameters(paramSymbol, documentationMap, paramForTypeInfer, union)));
         functionData.setParameters(parameters);
         return functionData;
+    }
+
+    private void applyWorkspaceResolution(PackageUtil.WorkspacePackageResolution workspaceResolution) {
+        SemanticModel workspaceSemanticModel = workspaceResolution.semanticModel();
+        Package workspacePackage = workspaceResolution.resolvedPackage();
+        semanticModel(workspaceSemanticModel);
+        this.resolvedPackage = workspacePackage;
+        Symbol targetSymbol = functionSymbol != null ? functionSymbol : workspaceSemanticModel.moduleSymbols().stream()
+                .filter(symbol -> symbol instanceof FunctionSymbol && symbol.nameEquals(functionName))
+                .findFirst()
+                .orElse(null);
+        this.document = targetSymbol == null ? null : targetSymbol.getLocation()
+                .map(location -> CommonUtils.getDocument(workspacePackage.project(), location))
+                .orElse(null);
     }
 
     private void checkLocalModule() {

@@ -336,3 +336,4 @@ async function generatePendingArtifact(
 export function openPackageOverview(projectRoot: string): void {
     openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
 }
+

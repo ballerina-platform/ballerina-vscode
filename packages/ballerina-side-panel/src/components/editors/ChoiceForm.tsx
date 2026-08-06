@@ -157,6 +157,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                 types: expression.types,
                 editable: expression.editable,
                 enabled: expression?.enabled ?? true,
+                hidden: expression.hidden,
                 optional: expression.optional,
                 value,
                 advanced: expression.advanced,
@@ -208,8 +209,9 @@ export function ChoiceForm(props: ChoiceFormProps) {
             </ChoiceSection>
 
             {(() => {
-                const nonAdvancedFields = dynamicFields.filter(dfield => !dfield.advanced);
-                const advancedFields = dynamicFields.filter(dfield => dfield.advanced);
+                const visibleFields = dynamicFields.filter(dfield => !dfield.hidden);
+                const nonAdvancedFields = visibleFields.filter(dfield => !dfield.advanced);
+                const advancedFields = visibleFields.filter(dfield => dfield.advanced);
 
                 if (nonAdvancedFields.length === 0 && advancedFields.length === 0) return null;
 

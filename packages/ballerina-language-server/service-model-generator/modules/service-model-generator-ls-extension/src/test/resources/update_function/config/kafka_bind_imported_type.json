@@ -1,31 +1,37 @@
 {
   "filePath": "kafka_databind/main.bal",
-  "description": "Remove data binding from kafka event handler",
+  "description": "Rebind kafka event handler payload to an imported type",
   "function": {
     "metadata": {
       "label": "onConsumerRecord",
-      "description": "The `onConsumerRecord` remote method will be triggered when a message is received from Kafka topic(s)"
+      "description": "The `onConsumerRecord` remote method is triggered when a batch of messages is received from the subscribed Kafka topic(s)."
     },
     "kind": "REMOTE",
     "name": {
       "metadata": {
         "label": "onConsumerRecord",
-        "description": "The `onConsumerRecord` remote method will be triggered when a message is received from Kafka topic(s)"
-      },
-      "codedata": {
-        "type": "FUNCTION_NAME"
+        "description": "The `onConsumerRecord` remote method is triggered when a batch of messages is received from the subscribed Kafka topic(s)."
       },
       "placeholder": "onConsumerRecord",
-      "valueType": "IDENTIFIER",
-      "valueTypeConstraint": "string",
       "value": "onConsumerRecord",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
       "enabled": true,
       "editable": false,
       "optional": false,
       "advanced": false
     },
     "documentation": {
-      "valueType": "STRING",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
       "enabled": true,
       "editable": true,
       "optional": true,
@@ -34,31 +40,66 @@
     "parameters": [
       {
         "metadata": {
-          "label": "Data Binding",
-          "description": "Data binding parameter"
+          "label": "Message Configuration",
+          "description": "Define the shape of the Kafka message"
         },
         "kind": "DATA_BINDING",
         "type": {
-          "valueType": "TYPE",
-          "value": "ai:Schema",
-          "enabled": true,
-          "editable": false,
-          "optional": false,
-          "advanced": false,
           "imports": {
             "ai": "ballerina/ai:1.6.1"
-          }
+          },
+          "metadata": {
+            "label": "Message Configuration",
+            "description": "Define the shape of the Kafka message"
+          },
+          "codedata": {
+            "type": "PAYLOAD_TYPE_INCLUDED_RECORD",
+            "template": "{{type}}[]",
+            "defaultType": "kafka:AnydataConsumerRecord",
+            "boundType": "ai:Schema",
+            "bindable": true,
+            "field": "content",
+            "typeIdentifier": "KafkaAnydataConsumer",
+            "nameEditable": false
+          },
+          "placeholder": "kafka:AnydataConsumerRecord[]",
+          "value": "KafkaAnydataConsumer1[]",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
         },
         "name": {
-          "valueType": "IDENTIFIER",
+          "metadata": {
+            "label": "Message Configuration",
+            "description": "Define the shape of the Kafka message"
+          },
+          "placeholder": "records",
           "value": "records",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
           "enabled": true,
           "editable": false,
           "optional": false,
           "advanced": false
         },
         "documentation": {
-          "valueType": "STRING",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
           "enabled": true,
           "editable": true,
           "optional": true,
@@ -73,80 +114,23 @@
       },
       {
         "metadata": {
-          "label": "messages",
-          "description": "The messages received for Kafka topic(s)"
-        },
-        "kind": "REQUIRED",
-        "type": {
-          "metadata": {
-            "label": "Type",
-            "description": "The type of the parameter"
-          },
-          "placeholder": "kafka:AnydataConsumerRecord[]",
-          "valueType": "TYPE",
-          "value": "kafka:AnydataConsumerRecord[]",
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
-        "name": {
-          "metadata": {
-            "label": "messages",
-            "description": "The messages received for Kafka topic(s)"
-          },
-          "codedata": {
-            "type": "PARAMETER_NAME"
-          },
-          "placeholder": "messages",
-          "valueType": "IDENTIFIER",
-          "value": "messages",
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
-        "defaultValue": {
-          "metadata": {
-            "label": "Default Value",
-            "description": "The default value of the parameter"
-          },
-          "placeholder": "",
-          "valueType": "EXPRESSION",
-          "value": "",
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
-        "documentation": {
-          "valueType": "STRING",
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
-        "enabled": false,
-        "editable": true,
-        "optional": false,
-        "advanced": false,
-        "hidden": false,
-        "isGraphqlId": false
-      },
-      {
-        "metadata": {
-          "label": "caller",
-          "description": "The Kafka caller object to commit the offsets"
+          "label": "Caller",
+          "description": "Enable this to access the Kafka caller in your service for manual offset management and partition operations."
         },
         "kind": "OPTIONAL",
         "type": {
           "metadata": {
-            "label": "Type",
+            "label": "Parameter Type",
             "description": "The type of the parameter"
           },
           "placeholder": "kafka:Caller",
-          "valueType": "TYPE",
           "value": "kafka:Caller",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
           "enabled": true,
           "editable": false,
           "optional": true,
@@ -154,35 +138,29 @@
         },
         "name": {
           "metadata": {
-            "label": "caller",
-            "description": "The Kafka caller object to commit the offsets"
-          },
-          "codedata": {
-            "type": "PARAMETER_NAME"
+            "label": "Caller",
+            "description": "Enable this to access the Kafka caller in your service for manual offset management and partition operations."
           },
           "placeholder": "caller",
-          "valueType": "IDENTIFIER",
           "value": "caller",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
           "enabled": true,
-          "editable": true,
+          "editable": false,
           "optional": false,
           "advanced": false
         },
-        "defaultValue": {
-          "metadata": {
-            "label": "Default Value",
-            "description": "The default value of the parameter"
-          },
-          "placeholder": "",
-          "valueType": "EXPRESSION",
-          "value": "",
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
         "documentation": {
-          "valueType": "STRING",
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
           "enabled": true,
           "editable": true,
           "optional": true,
@@ -191,7 +169,7 @@
         "enabled": false,
         "editable": true,
         "optional": true,
-        "advanced": false,
+        "advanced": true,
         "hidden": false,
         "isGraphqlId": false
       }
@@ -201,11 +179,16 @@
       "isGraphqlId": false,
       "metadata": {
         "label": "Return Type",
-        "description": "The return type of the function"
+        "description": "The return type of the function."
       },
       "placeholder": "error?",
-      "valueType": "TYPE",
       "value": "error?",
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "selected": true
+        }
+      ],
       "enabled": true,
       "editable": false,
       "optional": true,
@@ -213,7 +196,7 @@
     },
     "enabled": true,
     "optional": false,
-    "editable": false,
+    "editable": true,
     "canAddParameters": false,
     "codedata": {
       "lineRange": {
@@ -227,34 +210,31 @@
           "offset": 5
         }
       },
-      "moduleName": "kafka"
+      "orgName": "ballerinax",
+      "packageName": "kafka",
+      "moduleName": "kafka",
+      "version": "4.5.0"
     },
-    "properties": {
-      "wrapperTypeName": {
-        "value": "KafkaAnydataConsumer",
-        "enabled": false,
-        "editable": false,
-        "optional": false,
-        "advanced": false
-      },
-      "payloadFieldName": {
-        "value": "value",
-        "enabled": false,
-        "editable": false,
-        "optional": false,
-        "advanced": false
-      },
-      "canDataBind": {
-        "value": "true",
-        "enabled": false,
-        "editable": false,
-        "optional": false,
-        "advanced": false
-      }
-    }
+    "properties": {},
+    "group": "onConsumerRecord",
+    "repeatable": "FALSE",
+    "nameEditable": false
   },
   "output": {
     "kafka_databind/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerina/ai;\n"
+      },
       {
         "range": {
           "start": {
@@ -266,7 +246,7 @@
             "character": 83
           }
         },
-        "newText": "(KafkaAnydataConsumer1[] messages) returns error? "
+        "newText": "(KafkaAnydataConsumer1[] records) returns error? "
       }
     ],
     "kafka_databind/types.bal": [
@@ -294,7 +274,7 @@
             "character": 3
           }
         },
-        "newText": "\n\ntype KafkaAnydataConsumer1 record {|\n    *kafka:AnydataConsumerRecord;\n    ai:Schema value;\n|};"
+        "newText": "\n\ntype KafkaAnydataConsumer1 record {|\n    *kafka:AnydataConsumerRecord;\n    ai:Schema content;\n|};"
       }
     ]
   }

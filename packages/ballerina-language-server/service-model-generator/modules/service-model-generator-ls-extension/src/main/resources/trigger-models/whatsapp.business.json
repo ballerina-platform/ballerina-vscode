@@ -1,0 +1,1265 @@
+{
+  "schemaVersion": "1.0",
+  "id": "whatsapp.business",
+  "displayName": "WhatsApp Business",
+  "description": "Create a service to handle WhatsApp Business Cloud webhook events (messages, template and account updates, and more)",
+  "orgName": "ballerinax",
+  "packageName": "whatsapp.business",
+  "moduleName": "whatsapp.business",
+  "version": "2.0.1",
+  "type": "business",
+  "icon": "icon.png",
+  "kind": "event",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure WhatsApp Business Listener",
+        "description": "Select an existing WhatsApp Business listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new WhatsApp Business listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the WhatsApp Business webhook listener"
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "business:Listener"
+                    }
+                  ],
+                  "value": "businessListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name",
+                      "message": "A listener with this name already exists in the project"
+                    }
+                  ]
+                },
+                "listenTo": {
+                  "metadata": {
+                    "label": "Port",
+                    "description": "A port number to bind a new HTTP listener to, or an existing `http:Listener` to reuse"
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "originalName": "listenTo",
+                    "position": 1
+                  },
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "int|http:Listener",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int|http:Listener",
+                      "selected": false
+                    }
+                  ],
+                  "placeholder": "8090"
+                },
+                "verifyToken": {
+                  "metadata": {
+                    "label": "Verify Token",
+                    "description": "The verification token configured in the Meta App dashboard. Matched against\n`hub.verify_token` during the webhook subscription handshake before the `hub.challenge` is\nechoed back."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                    "originalName": "verifyToken",
+                    "path": "verifyToken"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                },
+                "appSecret": {
+                  "metadata": {
+                    "label": "App Secret",
+                    "description": "The Meta app secret. Every inbound notification is authenticated by validating the\n`X-Hub-Signature-256` header against the raw request body (HMAC-SHA256)."
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                    "originalName": "appSecret",
+                    "path": "appSecret"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Select an existing WhatsApp Business listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing WhatsApp Business listeners to attach to"
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "business:Listener"
+                }
+              ],
+              "items": [],
+              "value": [],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "WhatsApp Service",
+        "description": "Handles WhatsApp Business Cloud webhook events. Handler methods are recognised by convention, not declared on the type; declare only the ones you need."
+      },
+      "name": "WhatsAppService",
+      "description": "The service type a consumer implements to handle WhatsApp Business Cloud webhook events. Attach\nan implementation to a `Listener` to receive notifications.\n\nThere are ten possible handlers, one per webhook field the WhatsApp Business Cloud webhook\nsubscription can select. Unlike most Ballerina service types, none of them are required \u2014\ndeclare only the ones you care about; a field whose handler you did not declare (or a field\noutside this closed set, e.g. `account_alerts`, `group_lifecycle_update`) is logged and dropped\nrather than delivered anywhere.\n\nAn eleventh, optional handler, `onError`, does not correspond to a webhook field. It is invoked\nwhenever one of the ten handlers above returns an `error` while being dispatched \u2014 the\nnotification has already been acknowledged to Meta by that point, so this is the only way to\nreact to a handler failure other than logging (which always happens regardless of whether\n`onError` is declared).\n\nA compiler plugin validates every remote function you do declare on a `WhatsAppService`: its\nname must be one of the eleven below, its parameter must match the documented event type, and it\nmust return `error?`. Anything else is a compile-time error.\n\n- `remote function onMessages(MessagesNotification notification) returns error?` \u2014 Invoked once\nper `messages` webhook notification: either a batch of inbound messages or a batch of status\nupdates. Meta always sends these as two mutually exclusive shapes under this one field, never\nboth together; narrow with `notification is Messages` / `notification is MessageStatuses`.\n- `remote function onAccountReviewUpdate(AccountReviewUpdate update) returns error?` \u2014\nInvoked when a WhatsApp Business Account's review decision changes.\n- `remote function onAccountUpdate(AccountUpdate update) returns error?` \u2014 Invoked on\naccount-lifecycle and compliance changes (verification, violations, partner changes,\npricing-tier updates, restrictions, disconnection).\n- `remote function onBusinessCapabilityUpdate(BusinessCapabilityUpdate update) returns error?`\n\u2014 Invoked when a WABA's messaging or phone-number capability limits change.\n- `remote function onMessageTemplateQualityUpdate(MessageTemplateQualityUpdate update) returns error?`\n\u2014 Invoked when a message template's quality score changes.\n- `remote function onMessageTemplateStatusUpdate(MessageTemplateStatusUpdate update) returns error?`\n\u2014 Invoked when a message template's status changes (approved, rejected, disabled, ...).\n- `remote function onPhoneNumberNameUpdate(PhoneNumberNameUpdate update) returns error?` \u2014\nInvoked when a business phone number's display-name review outcome is available.\n- `remote function onPhoneNumberQualityUpdate(PhoneNumberQualityUpdate update) returns error?`\n\u2014 Invoked when a business phone number's messaging throughput/quality tier changes.\n- `remote function onSecurity(Security security) returns error?` \u2014 Invoked on\ntwo-step-verification PIN changes and reset requests for a business phone number.\n- `remote function onTemplateCategoryUpdate(TemplateCategoryUpdate update) returns error?` \u2014\nInvoked when a message template's category changes, or is about to change.\n- `remote function onError(HandlerError handlerError) returns error?` \u2014 Invoked when any of the\nhandlers above returns an error while being dispatched for an incoming notification.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "business",
+        "originalName": "WhatsAppService"
+      },
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Messages",
+            "description": "Invoked once per `messages` webhook notification carrying either a batch of inbound messages or a batch of delivery/read status updates. Narrow with `notification is business:Messages` / `notification is business:MessageStatuses`."
+          },
+          "name": "onMessages",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessages",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Notification",
+                "description": "Invoked once per `messages` webhook notification carrying either a batch of inbound messages or a batch of delivery/read status updates. Narrow with `notification is business:Messages` / `notification is business:MessageStatuses`."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:MessagesNotification",
+                "value": "business:MessagesNotification",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "notification",
+                  "description": "Invoked once per `messages` webhook notification carrying either a batch of inbound messages or a batch of delivery/read status updates. Narrow with `notification is business:Messages` / `notification is business:MessageStatuses`."
+                },
+                "placeholder": "notification",
+                "value": "notification",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Account Review Update",
+            "description": "Invoked when a WhatsApp Business Account's review decision changes."
+          },
+          "name": "onAccountReviewUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onAccountReviewUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Review Update",
+                "description": "Invoked when a WhatsApp Business Account's review decision changes."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:AccountReviewUpdate",
+                "value": "business:AccountReviewUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a WhatsApp Business Account's review decision changes."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Account Update",
+            "description": "Invoked on account-lifecycle and compliance changes: verification, violations, partner changes, pricing-tier updates, restrictions, or disconnection."
+          },
+          "name": "onAccountUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onAccountUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Account Update",
+                "description": "Invoked on account-lifecycle and compliance changes: verification, violations, partner changes, pricing-tier updates, restrictions, or disconnection."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:AccountUpdate",
+                "value": "business:AccountUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked on account-lifecycle and compliance changes: verification, violations, partner changes, pricing-tier updates, restrictions, or disconnection."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Business Capability Update",
+            "description": "Invoked when a WhatsApp Business Account's messaging or phone-number capability limits change."
+          },
+          "name": "onBusinessCapabilityUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onBusinessCapabilityUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Capability Update",
+                "description": "Invoked when a WhatsApp Business Account's messaging or phone-number capability limits change."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:BusinessCapabilityUpdate",
+                "value": "business:BusinessCapabilityUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a WhatsApp Business Account's messaging or phone-number capability limits change."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Message Template Quality Update",
+            "description": "Invoked when a message template's quality score changes."
+          },
+          "name": "onMessageTemplateQualityUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessageTemplateQualityUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Quality Update",
+                "description": "Invoked when a message template's quality score changes."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:MessageTemplateQualityUpdate",
+                "value": "business:MessageTemplateQualityUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a message template's quality score changes."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Message Template Status Update",
+            "description": "Invoked when a message template's status changes (approved, rejected, disabled, archived, unarchived, ...)."
+          },
+          "name": "onMessageTemplateStatusUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessageTemplateStatusUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Status Update",
+                "description": "Invoked when a message template's status changes (approved, rejected, disabled, archived, unarchived, ...)."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:MessageTemplateStatusUpdate",
+                "value": "business:MessageTemplateStatusUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a message template's status changes (approved, rejected, disabled, archived, unarchived, ...)."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Phone Number Name Update",
+            "description": "Invoked when a business phone number's display-name review outcome is available."
+          },
+          "name": "onPhoneNumberNameUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPhoneNumberNameUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Name Update",
+                "description": "Invoked when a business phone number's display-name review outcome is available."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:PhoneNumberNameUpdate",
+                "value": "business:PhoneNumberNameUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a business phone number's display-name review outcome is available."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Phone Number Quality Update",
+            "description": "Invoked when a business phone number's messaging throughput/quality tier changes."
+          },
+          "name": "onPhoneNumberQualityUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPhoneNumberQualityUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Quality Update",
+                "description": "Invoked when a business phone number's messaging throughput/quality tier changes."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:PhoneNumberQualityUpdate",
+                "value": "business:PhoneNumberQualityUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a business phone number's messaging throughput/quality tier changes."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Security",
+            "description": "Invoked on two-step-verification PIN changes and reset requests for a business phone number."
+          },
+          "name": "onSecurity",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onSecurity",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Security Event",
+                "description": "Invoked on two-step-verification PIN changes and reset requests for a business phone number."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:Security",
+                "value": "business:Security",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "security",
+                  "description": "Invoked on two-step-verification PIN changes and reset requests for a business phone number."
+                },
+                "placeholder": "security",
+                "value": "security",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Template Category Update",
+            "description": "Invoked when a message template's category changes, or is about to change (24-hour advance notice)."
+          },
+          "name": "onTemplateCategoryUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTemplateCategoryUpdate",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Category Update",
+                "description": "Invoked when a message template's category changes, or is about to change (24-hour advance notice)."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:TemplateCategoryUpdate",
+                "value": "business:TemplateCategoryUpdate",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "update",
+                  "description": "Invoked when a message template's category changes, or is about to change (24-hour advance notice)."
+                },
+                "placeholder": "update",
+                "value": "update",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when any of the other handlers returns an error while being dispatched for an incoming notification."
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "business"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Handler Error",
+                "description": "Invoked when any of the other handlers returns an error while being dispatched for an incoming notification."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "business:HandlerError",
+                "value": "business:HandlerError",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "handlerError",
+                  "description": "Invoked when any of the other handlers returns an error while being dispatched for an incoming notification."
+                },
+                "placeholder": "handlerError",
+                "value": "handlerError",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "importStatements": [
+    "ballerina/http"
+  ],
+  "listenerKind": "MULTIPLE_SELECT_LISTENER"
+}

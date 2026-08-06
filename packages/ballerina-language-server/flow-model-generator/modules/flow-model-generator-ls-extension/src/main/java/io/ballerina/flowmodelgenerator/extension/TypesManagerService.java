@@ -103,7 +103,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
     private WorkspaceManagerProxy workspaceManagerProxy;
 
     // Cache key for SemanticModel
-    private record CacheKey(String org, String packageName, String version) {
+    private record CacheKey(String org, String packageName, String moduleName, String version) {
     }
 
     // Cache for SemanticModel instances
@@ -606,13 +606,14 @@ public class TypesManagerService implements ExtendedLanguageServerService {
 
     private Optional<SemanticModel> getCachedSemanticModel(String org, String packageName, String moduleName,
                                                            String version, Path filePath) {
+        String normalizedModuleName = moduleName == null || moduleName.isBlank() ? packageName : moduleName;
         // Check cache with filePath
-        CacheKey keyWithPath = new CacheKey(org, packageName, version);
+        CacheKey keyWithPath = new CacheKey(org, packageName, normalizedModuleName, version);
         // Try to load via filePath-specific method
 
         WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
         Optional<SemanticModel> model = PackageUtil.getSemanticModelIfMatched(workspaceManager, filePath, org,
-                packageName, moduleName, version);
+                packageName, normalizedModuleName, version);
         if (model.isPresent()) {
             semanticModelCache.put(keyWithPath, model.get());
             return model;
@@ -624,7 +625,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         }
 
         // Fallback to general package lookup
-        CacheKey keyWithoutPath = new CacheKey(org, packageName, version);
+        CacheKey keyWithoutPath = new CacheKey(org, packageName, normalizedModuleName, version);
         cachedModel = semanticModelCache.get(keyWithoutPath);
         if (cachedModel != null) {
             return Optional.of(cachedModel);
@@ -634,7 +635,8 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         try {
             Project project = workspaceManager.loadProject(filePath);
             Optional<SemanticModel> workspaceModel = PackageUtil.getSemanticModelFromWorkspace(
-                    project, org, packageName, moduleName);
+                            project, org, packageName, normalizedModuleName, version)
+                    .map(PackageUtil.WorkspacePackageResolution::semanticModel);
             if (workspaceModel.isPresent()) {
                 semanticModelCache.put(keyWithoutPath, workspaceModel.get());
                 return workspaceModel;
@@ -643,7 +645,7 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             // Fall through to general package lookup
         }
 
-        ModuleInfo moduleInfo = new ModuleInfo(org, packageName, moduleName, version);
+        ModuleInfo moduleInfo = new ModuleInfo(org, packageName, normalizedModuleName, version);
         model = PackageUtil.getSemanticModel(moduleInfo);
         model.ifPresent(m -> semanticModelCache.put(keyWithoutPath, m));
         return model;

@@ -208,14 +208,10 @@ public class PackageUtil {
                                                      String version) {
         ResolutionRequest resolutionRequest = ResolutionRequest.from(
                 PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version)));
+        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
 
-        Collection<ResolutionResponse> resolutionResponses =
-                buildProject.projectEnvironmentContext().getService(PackageResolver.class)
-                        .resolvePackages(Collections.singletonList(resolutionRequest),
-                                ResolutionOptions.builder().setOffline(FORCE_OFFLINE).setSticky(false).build());
-        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
-        if (resolutionResponse.isEmpty() || resolutionResponse.get().resolvedPackage() == null) {
-            // Offline and the package could not be resolved from the local repositories.
+        Optional<ResolutionResponse> resolutionResponse = resolveResponse(packageResolver, resolutionRequest, false);
+        if (resolutionResponse.isEmpty()) {
             return Optional.empty();
         }
 
@@ -224,6 +220,24 @@ public class PackageUtil {
         defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
         BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
         return Optional.ofNullable(balaProject.currentPackage());
+    }
+
+    /**
+     * A response is only usable when it actually {@code RESOLVED} — {@code resolvePackages} can return
+     * a non-empty collection containing an {@code UNRESOLVED} entry (with a {@code null} {@code
+     * resolvedPackage()}) rather than an empty collection, which previously slipped past an {@code
+     * isEmpty()} check and threw a {@code NullPointerException} on {@code resolvedPackage().project()}
+     * — silently swallowed by callers' broad {@code catch (Throwable)}, masquerading as "package not
+     * found".
+     */
+    private static Optional<ResolutionResponse> resolveResponse(PackageResolver packageResolver,
+                                                                 ResolutionRequest resolutionRequest,
+                                                                 boolean offline) {
+        return packageResolver.resolvePackages(Collections.singletonList(resolutionRequest),
+                        ResolutionOptions.builder().setOffline(offline).setSticky(false).build())
+                .stream()
+                .filter(response -> response.resolutionStatus() == ResolutionResponse.ResolutionStatus.RESOLVED)
+                .findFirst();
     }
 
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name) {
@@ -263,6 +277,41 @@ public class PackageUtil {
         ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
         defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
         BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
+        return Optional.ofNullable(balaProject.currentPackage());
+    }
+
+    /**
+     * Offline counterpart of {@link #getModulePackage(BuildProject, String, String)}: resolves a module
+     * package strictly from what's already available locally, never reaching out to Central. Returns
+     * {@code Optional.empty()} when the package isn't already resolvable offline, leaving the decision
+     * to actually pull it to the LS's existing explicit, user-notified pull flow (see
+     * {@link #pullModuleAndNotify}) rather than pulling it silently as a side effect of a read.
+     */
+    public static Optional<Package> getModulePackageOffline(BuildProject buildProject, String org, String name) {
+        ResolutionRequest resolutionRequest = ResolutionRequest.from(
+                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)));
+        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
+        Collection<PackageMetadataResponse> packageMetadataResponses = packageResolver.resolvePackageMetadata(
+                Collections.singletonList(resolutionRequest),
+                ResolutionOptions.builder().setOffline(true).build());
+        Optional<PackageMetadataResponse> pkgMetadata = packageMetadataResponses.stream().findFirst();
+        if (pkgMetadata.isEmpty() ||
+                pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+            return Optional.empty();
+        }
+
+        Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
+                Collections.singletonList(ResolutionRequest.from(pkgMetadata.get().resolvedDescriptor())),
+                ResolutionOptions.builder().setOffline(true).build());
+        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
+        if (resolutionResponse.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
+        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath);
         return Optional.ofNullable(balaProject.currentPackage());
     }
 
@@ -355,10 +404,28 @@ public class PackageUtil {
      * @param org         the organization name of the target package
      * @param packageName the package name of the target package
      * @param moduleName  the module name of the target package
-     * @return an Optional containing the semantic model if a matching sibling project is found
+     * @return an Optional containing the semantic model and package if a matching sibling project is found
      */
-    public static Optional<SemanticModel> getSemanticModelFromWorkspace(Project project, String org,
-                                                                        String packageName, String moduleName) {
+    public static Optional<WorkspacePackageResolution> getSemanticModelFromWorkspace(Project project, String org,
+                                                                                      String packageName,
+                                                                                      String moduleName) {
+        return getSemanticModelFromWorkspace(project, org, packageName, moduleName, null);
+    }
+
+    /**
+     * Retrieves the semantic model for a version-matching package from sibling projects within the same workspace.
+     *
+     * @param project     the current project used to find the workspace
+     * @param org         the organization name of the target package
+     * @param packageName the package name of the target package
+     * @param moduleName  the module name of the target package
+     * @param version     the requested package version, or null when any workspace version is acceptable
+     * @return an Optional containing the semantic model and package if a matching sibling project is found
+     */
+    public static Optional<WorkspacePackageResolution> getSemanticModelFromWorkspace(Project project, String org,
+                                                                                      String packageName,
+                                                                                      String moduleName,
+                                                                                      String version) {
         BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
         Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
         if (workspaceProject.isEmpty()) {
@@ -370,23 +437,29 @@ public class PackageUtil {
             String currentPackageName = currentPackage.packageName().value();
             boolean orgMatches = currentPackage.packageOrg().value().equals(org);
             boolean nameMatches = currentPackageName.equals(packageName) || currentPackageName.equals(moduleName);
-            if (!orgMatches || !nameMatches) {
+            boolean versionMatches = version == null
+                    || currentPackage.descriptor().version().toString().equals(version);
+            if (!orgMatches || !nameMatches || !versionMatches) {
                 continue;
             }
 
             ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-            if (moduleName == null || moduleName.isEmpty() || packageName.equals(moduleName)) {
-                return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+            if (moduleName == null || moduleName.isEmpty() || currentPackageName.equals(moduleName)) {
+                return Optional.of(new WorkspacePackageResolution(
+                        getCompilation(childProject).getSemanticModel(moduleId), currentPackage));
             }
             for (Module mod : currentPackage.modules()) {
                 if (mod.moduleName().toString().equals(moduleName)) {
-                    moduleId = mod.moduleId();
-                    break;
+                    return Optional.of(new WorkspacePackageResolution(
+                            getCompilation(childProject).getSemanticModel(mod.moduleId()), currentPackage));
                 }
             }
-            return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+            return Optional.empty();
         }
         return Optional.empty();
+    }
+
+    public record WorkspacePackageResolution(SemanticModel semanticModel, Package resolvedPackage) {
     }
 
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {

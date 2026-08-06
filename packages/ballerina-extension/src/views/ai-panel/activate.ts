@@ -32,9 +32,20 @@ import { findBallerinaPackageRoot } from '../../utils';
 import { findWorkspaceTypeFromWorkspaceFolders } from '../../rpc-managers/common/utils';
 import { AiPanelWebview } from './webview';
 import { setCompanionTextEditor, setCompanionVisualizer } from './activeFileContext';
+import { chatStateStorage } from './chatStateStorage';
+import { sendGenerationStatusNotification } from '../../features/ai/utils/ai-utils';
+import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
 
 export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
     setCompanionTextEditor(vscode.window.activeTextEditor);
+    ballerinaExtInstance.context.subscriptions.push({
+        dispose: chatStateStorage.onGenerationStatusChanged((generationId, status) => {
+            sendGenerationStatusNotification(generationId, status);
+            if (status === 'accepted' || status === 'reverted') {
+                approvalViewManager.clearReviewData(generationId);
+            }
+        })
+    });
     ballerinaExtInstance.context.subscriptions.push(
         vscode.commands.registerCommand(SHARED_COMMANDS.OPEN_AI_PANEL, handleOpenAIPanel)
     );

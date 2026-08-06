@@ -56,6 +56,7 @@ export const openExternalUrl: NotificationType<OpenExternalUrlRequest> = { metho
 export const selectFileOrDirPath: RequestType<FileOrDirRequest, FileOrDirResponse> = { method: `${_preFix}/selectFileOrDirPath` };
 export const selectFileOrFolderPath: RequestType<void, FileOrDirResponse> = { method: `${_preFix}/selectFileOrFolderPath` };
 export const experimentalEnabled: RequestType<void, boolean> = { method: `${_preFix}/experimentalEnabled` };
+export const additionalTriggerSearchEnabled: RequestType<void, boolean> = { method: `${_preFix}/additionalTriggerSearchEnabled` };
 export const isNPSupported: RequestType<void, boolean> = { method: `${_preFix}/isNPSupported` };
 export const getWorkspaceRoot: RequestType<void, WorkspaceRootResponse> = { method: `${_preFix}/getWorkspaceRoot` };
 export const showErrorMessage: NotificationType<ShowErrorMessageRequest> = { method: `${_preFix}/showErrorMessage` };

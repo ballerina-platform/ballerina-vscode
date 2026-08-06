@@ -6,55 +6,46 @@
   "moduleName": "trigger.twilio",
   "response": {
     "serviceInitModel": {
-      "id": "15",
+      "id": "trigger.twilio",
       "displayName": "Twilio Event Integration",
-      "description": "Create a service to handle events from Twilio",
+      "description": "Create a service to handle call and SMS status webhook events from Twilio",
       "orgName": "ballerinax",
       "packageName": "trigger.twilio",
       "moduleName": "trigger.twilio",
       "version": "0.10.0",
-      "type": "trigger.twilio",
+      "type": "twilio",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.twilio_0.10.0.png",
       "properties": {
-        "basePath": {
+        "listenerVarName": {
           "metadata": {
-            "label": "Event Channel",
-            "description": "The event channel name"
+            "label": "Listener Name",
+            "description": "Provide a name for the listener being created."
           },
           "codedata": {
-            "argType": "SERVICE_TYPE_DESCRIPTOR"
+            "type": "LISTENER_VAR_NAME"
           },
-          "placeholder": "\"CallStatusService\"",
-          "value": "",
+          "value": "twilioListener",
           "types": [
             {
-              "fieldType": "SINGLE_SELECT",
-              "ballerinaType": "twilio:GenericServiceType",
-              "options": [
-                {
-                  "label": "CallStatusService",
-                  "value": "CallStatusService"
-                },
-                {
-                  "label": "SmsStatusService",
-                  "value": "SmsStatusService"
-                }
-              ],
+              "fieldType": "IDENTIFIER",
+              "ballerinaType": "trigger.twilio:Listener",
               "selected": true
             }
           ],
           "enabled": true,
           "editable": true,
           "optional": false,
-          "advanced": false
+          "advanced": true
         },
         "listenOn": {
           "metadata": {
-            "label": "Webhook Listener Port",
-            "description": "The port on which the webhook listener accepts incoming requests"
+            "label": "Listen On",
+            "description": "The port to listen on."
           },
           "codedata": {
-            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+            "argType": "LISTENER_PARAM_REQUIRED",
+            "originalName": "listenOn",
+            "position": 1
           },
           "placeholder": "8090",
           "value": "8090",
@@ -66,34 +57,46 @@
             },
             {
               "fieldType": "EXPRESSION",
-              "ballerinaType": "int",
+              "ballerinaType": "int|http:Listener",
               "selected": false
             }
           ],
           "enabled": true,
           "editable": true,
-          "optional": false,
+          "optional": true,
           "advanced": false
         },
-        "listenerVarName": {
+        "serviceType": {
           "metadata": {
-            "label": "Listener Name",
-            "description": "Provide a name for the listener being created"
+            "label": "Event Channel",
+            "description": "Select the Twilio event channel to listen for events."
           },
           "codedata": {
-            "type": "LISTENER_VAR_NAME"
+            "type": "SERVICE_TYPE_DESCRIPTOR",
+            "moduleName": "twilio"
           },
-          "value": "twilioListener",
+          "value": "twilio:CallStatusService",
           "types": [
             {
-              "fieldType": "IDENTIFIER",
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "twilio:GenericServiceType",
+              "options": [
+                {
+                  "label": "Call Status",
+                  "value": "twilio:CallStatusService"
+                },
+                {
+                  "label": "SMS Status",
+                  "value": "twilio:SmsStatusService"
+                }
+              ],
               "selected": true
             }
           ],
           "enabled": true,
           "editable": true,
           "optional": false,
-          "advanced": true
+          "advanced": false
         }
       }
     }

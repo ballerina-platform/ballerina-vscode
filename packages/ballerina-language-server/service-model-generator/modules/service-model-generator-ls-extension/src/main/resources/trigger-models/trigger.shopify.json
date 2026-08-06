@@ -1,0 +1,1727 @@
+{
+  "schemaVersion": "1.0",
+  "displayName": "Shopify",
+  "description": "Create a service to handle webhook events from Shopify",
+  "orgName": "ballerinax",
+  "packageName": "trigger.shopify",
+  "moduleName": "trigger.shopify",
+  "version": "1.6.0",
+  "type": "shopify",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.shopify_1.6.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure Shopify Listener",
+        "description": "Select an existing Shopify listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new Shopify listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the Shopify listener"
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "shopify:Listener"
+                    }
+                  ],
+                  "value": "shopifyListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "apiSecretKey": {
+                  "metadata": {
+                    "label": "API Secret Key",
+                    "description": "The Shopify API secret key used to validate incoming webhook requests"
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "path": "apiSecretKey",
+                    "originalName": "apiSecretKey",
+                    "position": 1
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "selected": true,
+                      "ballerinaType": "string"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "string"
+                    }
+                  ]
+                },
+                "listenOn": {
+                  "metadata": {
+                    "label": "Port",
+                    "description": "The port on which the webhook listener accepts incoming HTTP requests"
+                  },
+                  "placeholder": "8090",
+                  "value": "8090",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "position": 2,
+                    "originalName": "listenOn"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "selected": true,
+                      "ballerinaType": "int"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "int|http:Listener"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Select an existing Shopify listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listeners",
+                "description": "Select the existing listener(s) to attach the service to."
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "shopify:Listener"
+                }
+              ],
+              "items": [
+                "shopifyListener"
+              ],
+              "value": [
+                "shopifyListener"
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceType": {
+      "metadata": {
+        "label": "Event Type",
+        "description": "Select the type of Shopify events to handle"
+      },
+      "types": [
+        {
+          "fieldType": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "shopify:GenericServiceType",
+          "options": [
+            {
+              "label": "Orders",
+              "value": "shopify:OrdersService"
+            },
+            {
+              "label": "Customers",
+              "value": "shopify:CustomersService"
+            },
+            {
+              "label": "Products",
+              "value": "shopify:ProductsService"
+            },
+            {
+              "label": "Fulfillments",
+              "value": "shopify:FulfillmentsService"
+            }
+          ]
+        }
+      ],
+      "value": "shopify:OrdersService",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "shopify"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Orders",
+        "description": "Triggers when a new event related to Shopify orders is received. Available actions: onOrdersCreate, onOrdersCancelled, onOrdersFulfilled, onOrdersPaid, onOrdersPartiallyFulfilled, and onOrdersUpdated."
+      },
+      "name": "shopify:OrdersService",
+      "description": "Triggers when a new event related to Shopify orders is received. Available actions: onOrdersCreate, onOrdersCancelled, onOrdersFulfilled, onOrdersPaid, onOrdersPartiallyFulfilled, and onOrdersUpdated.",
+      "enabled": true,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "shopify",
+        "originalName": "OrdersService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Orders Create",
+            "description": "Triggered when an order is created."
+          },
+          "name": "onOrdersCreate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersCreate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Orders Cancelled",
+            "description": "Triggered when an order is cancelled."
+          },
+          "name": "onOrdersCancelled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is cancelled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersCancelled",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Orders Fulfilled",
+            "description": "Triggered when an order is fulfilled."
+          },
+          "name": "onOrdersFulfilled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is fulfilled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersFulfilled",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Orders Paid",
+            "description": "Triggered when an order is paid."
+          },
+          "name": "onOrdersPaid",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is paid.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersPaid",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Orders Partially Fulfilled",
+            "description": "Triggered when an order is partially fulfilled."
+          },
+          "name": "onOrdersPartiallyFulfilled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is partially fulfilled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersPartiallyFulfilled",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Orders Updated",
+            "description": "Triggered when an order is updated."
+          },
+          "name": "onOrdersUpdated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an order is updated.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOrdersUpdated",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify order event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:OrderEvent",
+                "value": "shopify:OrderEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify order event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Customers",
+        "description": "Triggers when a new event related to Shopify customers is received. Available actions: onCustomersCreate, onCustomersDisable, onCustomersEnable, onCustomersUpdate, and onCustomersMarketingConsentUpdate."
+      },
+      "name": "shopify:CustomersService",
+      "description": "Triggers when a new event related to Shopify customers is received. Available actions: onCustomersCreate, onCustomersDisable, onCustomersEnable, onCustomersUpdate, and onCustomersMarketingConsentUpdate.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "shopify",
+        "originalName": "CustomersService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Customers Create",
+            "description": "Triggered when a customer is created."
+          },
+          "name": "onCustomersCreate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a customer is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCustomersCreate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify customer event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:CustomerEvent",
+                "value": "shopify:CustomerEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify customer event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Customers Disable",
+            "description": "Triggered when a customer is disabled."
+          },
+          "name": "onCustomersDisable",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a customer is disabled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCustomersDisable",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify customer event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:CustomerEvent",
+                "value": "shopify:CustomerEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify customer event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Customers Enable",
+            "description": "Triggered when a customer is enabled."
+          },
+          "name": "onCustomersEnable",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a customer is enabled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCustomersEnable",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify customer event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:CustomerEvent",
+                "value": "shopify:CustomerEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify customer event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Customers Update",
+            "description": "Triggered when a customer is updated."
+          },
+          "name": "onCustomersUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a customer is updated.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCustomersUpdate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify customer event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:CustomerEvent",
+                "value": "shopify:CustomerEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify customer event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Customers Marketing Consent Update",
+            "description": "Triggered when a customer's marketing consent is updated."
+          },
+          "name": "onCustomersMarketingConsentUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a customer's marketing consent is updated.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCustomersMarketingConsentUpdate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify customer event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:CustomerEvent",
+                "value": "shopify:CustomerEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify customer event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Products",
+        "description": "Triggers when a new event related to Shopify products is received. Available actions: onProductsCreate and onProductsUpdate."
+      },
+      "name": "shopify:ProductsService",
+      "description": "Triggers when a new event related to Shopify products is received. Available actions: onProductsCreate and onProductsUpdate.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "shopify",
+        "originalName": "ProductsService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Products Create",
+            "description": "Triggered when a product is created."
+          },
+          "name": "onProductsCreate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a product is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductsCreate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify product event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:ProductEvent",
+                "value": "shopify:ProductEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify product event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Products Update",
+            "description": "Triggered when a product is updated."
+          },
+          "name": "onProductsUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a product is updated.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductsUpdate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify product event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:ProductEvent",
+                "value": "shopify:ProductEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify product event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Fulfillments",
+        "description": "Triggers when a new event related to Shopify fulfillments is received. Available actions: onFulfillmentsCreate and onFulfillmentsUpdate."
+      },
+      "name": "shopify:FulfillmentsService",
+      "description": "Triggers when a new event related to Shopify fulfillments is received. Available actions: onFulfillmentsCreate and onFulfillmentsUpdate.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "shopify",
+        "originalName": "FulfillmentsService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Fulfillments Create",
+            "description": "Triggered when a fulfillment is created."
+          },
+          "name": "onFulfillmentsCreate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a fulfillment is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFulfillmentsCreate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify fulfillment event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:FulfillmentEvent",
+                "value": "shopify:FulfillmentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify fulfillment event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Fulfillments Update",
+            "description": "Triggered when a fulfillment is updated."
+          },
+          "name": "onFulfillmentsUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a fulfillment is updated.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFulfillmentsUpdate",
+            "moduleName": "shopify"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The Shopify fulfillment event payload."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "shopify:FulfillmentEvent",
+                "value": "shopify:FulfillmentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The Shopify fulfillment event payload."
+                },
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "serviceType",
+      "displayName": "Event Type",
+      "kind": "SERVICE_DESCRIPTION"
+    }
+  ]
+}

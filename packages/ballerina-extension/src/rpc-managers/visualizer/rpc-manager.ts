@@ -29,6 +29,7 @@ import {
     OpenViewRequest,
     PopupVisualizerLocation,
     ProjectStructureArtifactResponse,
+    NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     SaveEvalThreadRequest,
     SaveEvalThreadResponse,
@@ -319,8 +320,8 @@ export class VisualizerRpcManager implements VisualizerAPI {
         approvalViewManager.reopenApprovalViewPopup(params.requestId);
     }
 
-    navigateReviewMode(index: number): void {
-        approvalViewManager.navigateReviewMode(index).catch((err) =>
+    navigateReviewMode(params: NavigateReviewModeRequest): void {
+        approvalViewManager.navigateReviewMode(params.generationId, params.index).catch((err) =>
             console.error("[Visualizer] Failed to navigate review mode:", err));
     }
 

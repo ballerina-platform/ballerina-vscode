@@ -1360,6 +1360,17 @@ modules = [
 
 [[package]]
 org = "ballerinax"
+name = "solace.jms"
+version = "0.1.0"
+dependencies = [
+	{org = "ballerina", name = "jballerina.java"}
+]
+modules = [
+	{org = "ballerinax", packageName = "solace.jms", moduleName = "solace.jms"}
+]
+
+[[package]]
+org = "ballerinax"
 name = "trigger.github"
 version = "0.11.0"
 dependencies = [
@@ -1497,6 +1508,7 @@ dependencies = [
 	{org = "ballerinax", name = "salesforce"},
 	{org = "ballerinax", name = "snowflake"},
 	{org = "ballerinax", name = "solace"},
+	{org = "ballerinax", name = "solace.jms"},
 	{org = "ballerinax", name = "trigger.github"},
 	{org = "ballerinax", name = "trigger.hubspot"},
 	{org = "ballerinax", name = "trigger.salesforce"},

@@ -208,6 +208,7 @@ import {
     createEmptyBIWorkspace,
     deleteProjectFromWorkspace,
     openInVSCode,
+    refreshProjectInfoAndWait,
     validateProjectPath,
     getSuggestedProjectDefaults
 } from "../../utils/bi";
@@ -819,10 +820,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             try {
                 const packageRoot = await addProjectToExistingWorkspace(params);
                 // The project was already open, so the new package is the news: land on
-                // its own overview. The refresh is silent because a non-silent one
-                // navigates to the project overview and would clobber that.
-                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: packageRoot });
-                StateMachine.refreshProjectInfo({ silent: true });
+                // its own overview. Refresh BEFORE navigating — that view fetches project
+                // structure on mount, so navigating first would show it a bare spinner.
+                if (await refreshProjectInfoAndWait()) {
+                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: packageRoot });
+                }
             } catch (error) {
                 window.showErrorMessage("Error adding integration to existing project");
                 console.error("Error adding integration to existing project:", error);
@@ -1060,21 +1062,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async getConfigVariablesV2(params: ConfigVariableRequest): Promise<ConfigVariableResponse> {
-        return new Promise(async (resolve) => {
-            const projectPath = StateMachine.context().projectPath;
-            const showLibraryConfigVariables = extension.ballerinaExtInstance.showLibraryConfigVariables();
+        const projectPath = StateMachine.context().projectPath;
+        const showLibraryConfigVariables = extension.ballerinaExtInstance.showLibraryConfigVariables();
 
-            // if params includeLibraries is not set, then use settings
-            const includeLibraries = params?.includeLibraries !== undefined
-                ? params.includeLibraries
-                : showLibraryConfigVariables !== false;
+        // if params includeLibraries is not set, then use settings
+        const includeLibraries = params?.includeLibraries !== undefined
+            ? params.includeLibraries
+            : showLibraryConfigVariables !== false;
 
-            const variables = await StateMachine.langClient().getConfigVariablesV2({
-                projectPath: projectPath,
-                includeLibraries
-            }) as ConfigVariableResponse;
-            resolve(variables);
-        });
+        return await StateMachine.langClient().getConfigVariablesV2({
+            projectPath: projectPath,
+            includeLibraries
+        }) as ConfigVariableResponse;
     }
 
     async updateConfigVariablesV2(params: UpdateConfigVariableRequestV2): Promise<UpdateConfigVariableResponseV2> {

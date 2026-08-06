@@ -1,0 +1,95 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "Listener" },
+      "services": [
+        "issues", "issueComment", "pullRequest", "pullRequestReview",
+        "pullRequestReviewComment", "release", "label", "milestone",
+        "push", "projectCard"
+      ]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "issues",
+      "type": { "name": "IssuesService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "issueComment",
+      "type": { "name": "IssueCommentService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "pullRequest",
+      "type": { "name": "PullRequestService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "pullRequestReview",
+      "type": { "name": "PullRequestReviewService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "pullRequestReviewComment",
+      "type": { "name": "PullRequestReviewCommentService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "release",
+      "type": { "name": "ReleaseService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "label",
+      "type": { "name": "LabelService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "milestone",
+      "type": { "name": "MilestoneService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "push",
+      "type": { "name": "PushService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "projectCard",
+      "type": { "name": "ProjectCardService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    }
+  ]
+}

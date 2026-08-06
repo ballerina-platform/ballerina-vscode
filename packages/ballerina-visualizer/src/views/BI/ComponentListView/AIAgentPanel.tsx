@@ -32,11 +32,13 @@ import { BodyText } from "../../styles";
 import ButtonCard from "../../../components/ButtonCard";
 import { AI_CHAT_AGENT_CARD, ARTIFACT_CATEGORY_META } from "../components/artifactCards";
 import { cardMatchesSearch, isBetaModule, OutOfScopeComponentTooltip } from "./componentListUtils";
+import { RelativeLoader } from "../../../components/RelativeLoader";
 import { getEntryNodeIcon } from "./EventIntegrationPanel";
 
 interface AIAgentPanelProps {
     scope: SCOPE;
     triggers: TriggerModelsResponse;
+    /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
 }
 
@@ -97,6 +99,7 @@ export function AIAgentPanel(props: AIAgentPanelProps) {
                     disabled={isDisabled}
                     tooltip={isDisabled ? OutOfScopeComponentTooltip : ""}
                 />}
+                {props.triggers.local.length === 0 && <RelativeLoader />}
                 {mcpTriggers
                     .map((item, index) => {
                         return (

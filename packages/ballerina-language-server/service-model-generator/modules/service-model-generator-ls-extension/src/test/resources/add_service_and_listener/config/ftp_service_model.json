@@ -129,7 +129,7 @@
             "character": 3
           }
         },
-        "newText": "\nlistener ftp:Listener ftpListener = new(protocol= ftp:FTP, host=\"127.0.0.1\", auth= { credentials: { username: string `asasj \" dsad \n jans \n`, password: \"testpwd\" } }, port= 21);\n\n@ftp:ServiceConfig {\n    path: \"/\"\n}\nservice on ftpListener {\n}\n"
+        "newText": "\nlistener ftp:Listener ftpListener = new (host = \"127.0.0.1\", portNumber = 21, folderPath = \"/\");\nservice ftp:Service on ftpListener {\n\n}\n"
       }
     ]
   }

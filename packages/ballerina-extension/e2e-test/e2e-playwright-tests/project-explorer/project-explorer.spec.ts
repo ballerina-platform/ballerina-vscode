@@ -195,7 +195,10 @@ export default function createTests() {
             await addBtn.click();
 
             const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
-            await expect(artifactWebView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 15000 });
+            // Doubled from 15s: this runs late in the suite (right after a tree delete,
+            // deep into a long serial run), where the artifact picker can take longer to
+            // render than earlier in a fresh session.
+            await expect(artifactWebView.getByRole('heading', { name: 'Artifacts', exact: true })).toBeVisible({ timeout: 30000 });
 
             logStep('Selecting "Automation" and creating it');
             const automationCard = artifactWebView.locator('[data-testid="automation"], #automation').first();

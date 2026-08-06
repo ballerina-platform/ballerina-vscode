@@ -25,7 +25,13 @@ import {
     Parameter,
     FormImports,
 } from "@wso2/ballerina-side-panel";
-import { findCurrentIntegrationCategory, normalizeFunctionSearchCategories } from "./function-category";
+import {
+    buildHelperCategory,
+    CURRENT_INTEGRATION_CATEGORY_TITLE,
+    findCurrentIntegrationCategory,
+    getItemKind,
+    normalizeFunctionSearchCategories,
+} from "./function-category";
 import { AddNodeVisitor, RemoveNodeVisitor, NodeIcon, traverseFlow, ConnectorIcon, AIModelIcon } from "@wso2/bi-diagram";
 import {
     Category,
@@ -191,9 +197,11 @@ function convertDiagramCategoryToSidePanelCategory(category: Category, functionT
                 return false;
             }
             if ((item as PanelCategory).items !== undefined) {
-                // Always keep subcategories that represent the current integration, even if empty
+                // Always keep subcategories that represent the active package, even if empty
                 const title = (item as PanelCategory).title;
-                if (title?.toLowerCase().endsWith("(current integration)")) {
+                if (title?.toLowerCase().endsWith(
+                    `(${CURRENT_INTEGRATION_CATEGORY_TITLE.toLowerCase()})`
+                )) {
                     return true;
                 }
                 // For other categories, use recursive check to see if they have any functions
@@ -380,7 +388,7 @@ export function getRegularFunctions(functions: Category[]): Category[] {
 
 export function getDataMappingFunctions(functions: Category[]): Category[] {
     return functions
-        .filter((category) => category.metadata.label === "Current Integration")
+        .filter((category) => category.metadata.label === CURRENT_INTEGRATION_CATEGORY_TITLE)
         .filter((category) => category.items.length > 0);
 }
 
@@ -880,12 +888,9 @@ export const convertToHelperPaneConfigurableVariable = (variables: VisibleType[]
     };
 };
 
-const isCategoryType = (item: Item): item is Category => {
-    return !(item as AvailableNode)?.codedata;
-};
-
 export const getFunctionItemKind = (category: string): FunctionKind => {
-    if (category.toLocaleLowerCase().includes("current") || category.toLocaleLowerCase().includes("within project")) {
+    if (category.toLocaleLowerCase().includes("current")
+        || category.toLocaleLowerCase().includes("within project")) {
         return functionKinds.CURRENT;
     } else if (category.toLocaleLowerCase().includes("imported")) {
         return functionKinds.IMPORTED;
@@ -900,37 +905,23 @@ export const convertToHelperPaneFunction = (functions: Category[]): HelperPaneFu
     };
     for (const category of functions.filter((category) => category.metadata.label !== "Agent Tools")) {
         const categoryKind = getFunctionItemKind(category.metadata.label);
-        const items: HelperPaneCompletionItem[] = [];
-        const subCategory: HelperPaneFunctionCategory[] = [];
-        for (const categoryItem of category?.items) {
-            if (isCategoryType(categoryItem)) {
-                if (categoryItem.metadata.label === "Agent Tools") {
-                    continue;
-                }
-                subCategory.push({
-                    label: categoryItem.metadata.label,
-                    items: categoryItem.items.map((item) => ({
-                        label: item.metadata.label,
-                        insertText: item.metadata.label,
-                        kind: categoryKind,
-                        codedata: !isCategoryType(item) && item.codedata,
-                    })),
-                });
-            } else {
-                items.push({
-                    label: categoryItem.metadata.label,
-                    insertText: categoryItem.metadata.label,
-                    kind: categoryKind,
-                    codedata: categoryItem.codedata,
-                });
-            }
-        }
-
-        const categoryItem: HelperPaneFunctionCategory = {
-            label: category.metadata.label,
-            items: items.length ? items : undefined,
-            subCategory: subCategory.length ? subCategory : undefined,
-        };
+        const categoryItem = buildHelperCategory<
+            HelperPaneCompletionItem,
+            HelperPaneFunctionCategory,
+            HelperPaneFunctionCategory
+        >(
+            category,
+            categoryKind,
+            (item, fallback) => ({
+                label: item.metadata.label,
+                insertText: item.metadata.label,
+                kind: getItemKind(item.codedata, fallback),
+                codedata: item.codedata,
+            }),
+            (label, items) => ({ label, items }),
+            (label, items, subCategory) => ({ label, items, subCategory }),
+            (item) => item.metadata.label !== "Agent Tools"
+        );
         response.category.push(categoryItem);
     }
     return response;

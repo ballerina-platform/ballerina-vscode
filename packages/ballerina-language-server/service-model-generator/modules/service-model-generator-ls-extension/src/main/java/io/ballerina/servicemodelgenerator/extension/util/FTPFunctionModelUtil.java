@@ -23,132 +23,26 @@ import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
-import io.ballerina.compiler.syntax.tree.ExpressionNode;
-import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
-import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
-import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
-import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
-import io.ballerina.servicemodelgenerator.extension.model.Function;
-import io.ballerina.servicemodelgenerator.extension.model.Parameter;
-import io.ballerina.servicemodelgenerator.extension.model.Value;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.BALLERINA;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.FTP;
 
 /**
- * Shared helper methods for FTP function-model extraction and mapping.
+ * Shared FTP annotation resolution, used by {@link FTPListenerUtil}. The function-model
+ * synchronization and post-process-action mapping this class used to carry (for the FTP
+ * service/function source-extraction builders) were removed with those builders once every
+ * connector with a bundled TriggerUISchemaModel schema — FTP included — moved onto the generic
+ * schema-driven builders.
  *
  * @since 1.6.0
  */
 public final class FTPFunctionModelUtil {
 
-    public static final String DATA_BINDING = "DATA_BINDING";
-    public static final String STREAM = "stream";
-    public static final String CONTENT = "content";
-    public static final String ANNOTATIONS = "annotations";
-    public static final String POST_PROCESS_ACTION = "postProcessAction";
-    public static final String POST_PROCESS_ACTION_ON_SUCCESS = "onSuccess";
-    public static final String POST_PROCESS_ACTION_ON_ERROR = "onError";
-    public static final String FUNCTION_CONFIG = "FunctionConfig";
-    public static final String AFTER_PROCESS = "afterProcess";
-    public static final String AFTER_ERROR = "afterError";
-    public static final String ACTION_DELETE = "DELETE";
-    public static final String ACTION_MOVE = "MOVE";
-    public static final String MOVE_TO = "moveTo";
-
     private FTPFunctionModelUtil() {
-    }
-
-    /**
-     * Shared function-shape synchronization used by FTP service/function source extraction flows.
-     * Currently used by {@code FTPServiceBuilder#getModelFromSource} and
-     * {@code FTPFunctionBuilder#mergeWithTemplate}.
-     */
-    public static void syncFunctionFromSource(Function sourceFunc, Function modelFunc) {
-        if (sourceFunc == null || modelFunc == null) {
-            return;
-        }
-
-        enableParameters(sourceFunc, modelFunc);
-        updateDatabindingParameter(sourceFunc, modelFunc);
-        syncStreamProperty(sourceFunc, modelFunc);
-    }
-
-    /**
-     * Shared mapper from {@code @ftp:FunctionConfig} annotation values to UI-facing postProcessAction properties.
-     * Used by both service-level and function-level model-from-source endpoints.
-     */
-    public static void populatePostProcessActionsFromAnnotation(FunctionDefinitionNode functionNode, Function modelFunc,
-                                                                SemanticModel semanticModel,
-                                                                boolean disableRootProperty) {
-        Value annotationsContainer = modelFunc.getProperties().get(ANNOTATIONS);
-        if (annotationsContainer == null || annotationsContainer.getProperties() == null) {
-            return;
-        }
-        Value postProcessAction = annotationsContainer.getProperties().get(POST_PROCESS_ACTION);
-        if (postProcessAction == null || postProcessAction.getProperties() == null) {
-            return;
-        }
-
-        Map<String, Value> postProcessProps = postProcessAction.getProperties();
-        Value successProperty = postProcessProps.get(POST_PROCESS_ACTION_ON_SUCCESS);
-        Value errorProperty = postProcessProps.get(POST_PROCESS_ACTION_ON_ERROR);
-
-        if (functionNode.metadata().isEmpty()) {
-            disablePostProcessActions(postProcessAction, successProperty, errorProperty, disableRootProperty);
-            return;
-        }
-
-        Optional<AnnotationNode> functionConfig = findFtpAnnotation(functionNode.metadata().get().annotations(),
-                FUNCTION_CONFIG, semanticModel);
-        if (functionConfig.isEmpty()) {
-            disablePostProcessActions(postProcessAction, successProperty, errorProperty, disableRootProperty);
-            return;
-        }
-
-        Optional<MappingConstructorExpressionNode> annotValue = functionConfig.get().annotValue();
-        if (annotValue.isEmpty()) {
-            disablePostProcessActions(postProcessAction, successProperty, errorProperty, disableRootProperty);
-            return;
-        }
-
-        boolean hasAfterProcess = false;
-        boolean hasAfterError = false;
-        for (MappingFieldNode field : annotValue.get().fields()) {
-            if (field.kind() != SyntaxKind.SPECIFIC_FIELD) {
-                continue;
-            }
-            SpecificFieldNode specificField = (SpecificFieldNode) field;
-            String fieldName = specificField.fieldName().toString().trim();
-            Optional<ExpressionNode> valueExpr = specificField.valueExpr();
-            if (valueExpr.isEmpty()) {
-                continue;
-            }
-            if (AFTER_PROCESS.equals(fieldName)) {
-                hasAfterProcess = true;
-                applyPostProcessAction(successProperty, valueExpr.get());
-            } else if (AFTER_ERROR.equals(fieldName)) {
-                hasAfterError = true;
-                applyPostProcessAction(errorProperty, valueExpr.get());
-            }
-        }
-
-        if (successProperty != null) {
-            successProperty.setEnabled(hasAfterProcess);
-        }
-        if (errorProperty != null) {
-            errorProperty.setEnabled(hasAfterError);
-        }
-        if (disableRootProperty) {
-            postProcessAction.setEnabled(hasAfterProcess || hasAfterError);
-        }
     }
 
     /**
@@ -164,118 +58,6 @@ public final class FTPFunctionModelUtil {
             }
         }
         return Optional.empty();
-    }
-
-    private static void enableParameters(Function sourceFunc, Function modelFunc) {
-        if (modelFunc.getParameters() == null || sourceFunc.getParameters() == null) {
-            return;
-        }
-        modelFunc.getParameters().forEach(parameter -> parameter.setEnabled(false));
-        for (Parameter sourceParam : sourceFunc.getParameters()) {
-            modelFunc.getParameters().stream()
-                    .filter(modelParam -> modelParam.getType().getValue().equals(sourceParam.getType().getValue())
-                            || DATA_BINDING.equals(modelParam.getKind())
-                            || CONTENT.equals(modelParam.getName().getValue()))
-                    .forEach(modelParam -> modelParam.setEnabled(true));
-        }
-    }
-
-    private static void updateDatabindingParameter(Function sourceFunc, Function modelFunc) {
-        if (sourceFunc.getParameters() == null || sourceFunc.getParameters().isEmpty()
-                || modelFunc.getParameters() == null || modelFunc.getParameters().isEmpty()) {
-            return;
-        }
-
-        Parameter sourceParam = sourceFunc.getParameters().getFirst();
-        Parameter modelParam = modelFunc.getParameters().getFirst();
-        if (modelParam.getType() != null && DATA_BINDING.equals(modelParam.getKind())) {
-            if (sourceParam.getName() != null && modelParam.getName() != null) {
-                modelParam.getName().setValue(sourceParam.getName().getValue());
-            }
-            if (sourceParam.getType() != null && modelParam.getType() != null) {
-                modelParam.getType().setValue(sourceParam.getType().getValue());
-            }
-        }
-    }
-
-    private static void syncStreamProperty(Function sourceFunc, Function modelFunc) {
-        Value streamProperty = modelFunc.getProperties().get(STREAM);
-        if (streamProperty == null) {
-            return;
-        }
-        boolean isStream = isStreamParameter(sourceFunc);
-        streamProperty.setValue(String.valueOf(isStream));
-        streamProperty.setEnabled(isStream);
-        streamProperty.setEditable(true);
-    }
-
-    private static boolean isStreamParameter(Function sourceFunc) {
-        if (sourceFunc.getParameters() == null || sourceFunc.getParameters().isEmpty()) {
-            return false;
-        }
-        Parameter firstParam = sourceFunc.getParameters().getFirst();
-        if (firstParam.getType() == null) {
-            return false;
-        }
-        String paramType = firstParam.getType().getValue();
-        return paramType != null && paramType.startsWith("stream<");
-    }
-
-    private static void disablePostProcessActions(Value postProcessAction, Value successProperty, Value errorProperty,
-                                                  boolean disableRootProperty) {
-        if (successProperty != null) {
-            successProperty.setEnabled(false);
-        }
-        if (errorProperty != null) {
-            errorProperty.setEnabled(false);
-        }
-        if (disableRootProperty && postProcessAction != null) {
-            postProcessAction.setEnabled(false);
-        }
-    }
-
-    private static void applyPostProcessAction(Value actionProperty, ExpressionNode valueExpr) {
-        if (actionProperty == null || actionProperty.getChoices() == null) {
-            return;
-        }
-
-        if (valueExpr instanceof MappingConstructorExpressionNode mappingExpr) {
-            selectPostProcessChoice(actionProperty, ACTION_MOVE, extractMoveProperties(mappingExpr));
-            return;
-        }
-
-        String exprText = valueExpr.toSourceCode().trim();
-        if (exprText.endsWith(ACTION_DELETE)) {
-            selectPostProcessChoice(actionProperty, ACTION_DELETE, null);
-        }
-    }
-
-    private static Map<String, String> extractMoveProperties(MappingConstructorExpressionNode mappingExpr) {
-        Map<String, String> moveProps = new HashMap<>();
-        for (MappingFieldNode field : mappingExpr.fields()) {
-            if (field.kind() != SyntaxKind.SPECIFIC_FIELD) {
-                continue;
-            }
-            SpecificFieldNode specificField = (SpecificFieldNode) field;
-            String fieldName = specificField.fieldName().toString().trim();
-            Optional<ExpressionNode> valueExpr = specificField.valueExpr();
-            valueExpr.ifPresent(expressionNode -> moveProps.put(fieldName,
-                    expressionNode.toSourceCode().trim()));
-        }
-        return moveProps;
-    }
-
-    private static void selectPostProcessChoice(Value actionProperty, String action, Map<String, String> moveProps) {
-        for (Value choice : actionProperty.getChoices()) {
-            boolean isSelected = action.equals(choice.getValue());
-            choice.setEnabled(isSelected);
-            if (isSelected && ACTION_MOVE.equals(action) && moveProps != null && choice.getProperties() != null) {
-                Value moveTo = choice.getProperties().get(MOVE_TO);
-                if (moveTo != null && moveProps.containsKey(MOVE_TO)) {
-                    moveTo.setValue(moveProps.get(MOVE_TO));
-                }
-            }
-        }
     }
 
     private static boolean isMatchingFtpAnnotation(AnnotationNode annotation, String annotationName,

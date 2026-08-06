@@ -745,7 +745,8 @@ export function CreateIntegrationWizard({
                             (step === TYPE_STEP && !selection)
                         }
                         // The package already exists and is empty — only Next applies.
-                        skipLabel={isExistingPackage ? undefined : "Create Empty Integration"}
+                        // Only offered on the Name step; the Type step requires a selection.
+                        skipLabel={!isExistingPackage && step === NAME_STEP ? "Create Empty Integration" : undefined}
                         onSkip={() => handleCreateIntegration()}
                         skipDisabled={isSubmitting || !!nameError || (!embedded && !!pathError)}
                     />

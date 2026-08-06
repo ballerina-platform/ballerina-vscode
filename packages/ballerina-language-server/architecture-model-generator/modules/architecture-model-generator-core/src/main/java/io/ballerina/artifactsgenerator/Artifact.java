@@ -84,24 +84,35 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
+            Map.entry("ai", "AI Agent Services"),
+            Map.entry("mcp", "MCP Service"),
             Map.entry("http", "HTTP Service"),
             Map.entry("graphql", "GraphQL Service"),
             Map.entry("tcp", "TCP Service"),
-            Map.entry("file", "Local Files"),
-            Map.entry("ftp", "FTP Integration"),
+            Map.entry("kafka", "Kafka Event Integration"),
+            Map.entry("rabbitmq", "RabbitMQ Event Integration"),
             Map.entry("mqtt", "MQTT Event Integration"),
             Map.entry("asb", "Azure Service Bus Event Integration"),
-            Map.entry("rabbitmq", "RabbitMQ Event Integration"),
-            Map.entry("kafka", "Kafka Event Integration"),
+            Map.entry("aws.sqs", "SQS Event Integration"),
             Map.entry("salesforce", "Salesforce Event Integration"),
-            Map.entry("github", "GitHub Event Integration"),
             Map.entry("twilio", "Twilio Event Integration"),
-            Map.entry("ai", "AI Agent Services"),
+            Map.entry("github", "GitHub Event Integration"),
             Map.entry("solace", "Solace Event Integration"),
+            Map.entry("solace.jms", "Solace (JMS) Event Integration"),
+            Map.entry("shopify", "Shopify Event Integration"),
+            Map.entry("oracledb", "CDC Oracle Service"),
             Map.entry("mssql", "CDC MSSQL Service"),
             Map.entry("postgresql", "CDC PostgreSQL Service"),
             Map.entry("mysql", "CDC MySQL Service"),
-            Map.entry("shopify", "Shopify Event Integration")
+            Map.entry("hubspot", "Hubspot Event Integration"),
+            Map.entry("jco", "SAP JCO Event Integration"),
+            Map.entry("ftp", "FTP Integration"),
+            Map.entry("file", "Local Files"),
+            Map.entry("smb", "SMB Integration"),
+            Map.entry("files", "Azure Storage Files Integration"),
+            Map.entry("business", "Whatsapp Event Integration"),
+            Map.entry("chat", "Google Chat Event Integration"),
+            Map.entry("telegram", "Telegram Event Integration")
     );
 
     /**
@@ -113,7 +124,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
             "mssql", new String[]{"tables"},
             "postgresql", new String[]{"tables"},
             "mysql", new String[]{"tables"},
-            "ftp", new String[]{"path"}
+            "ftp", new String[]{"path"},
+            "rabbitmq", new String[]{"queueName"}
     );
 
     public static String getCategory(String type) {

@@ -36,7 +36,8 @@ import {
     OperationType,
     Protocol,
     webToolToggle,
-    onCopilotChatNotify
+    onCopilotChatNotify,
+    GenerationReviewState
 } from "@wso2/ballerina-core";
 import { ModelMessage } from "ai";
 import { MessageRole } from "./ai-types";
@@ -318,6 +319,15 @@ export function sendClarifyNotification(event: ChatNotify & { type: "clarify_eve
 
 export function sendSkillEnableNotification(event: ChatNotify & { type: "skill_enable_event" }): void {
     sendAIPanelNotification(event);
+}
+
+export function sendGenerationStatusNotification(generationId: string, status: GenerationReviewState["status"]): void {
+    const msg: ChatNotify = {
+        type: "generation_status",
+        generationId,
+        status,
+    };
+    sendAIPanelNotification(msg);
 }
 
 export function sendWebToolToggleNotification(active: boolean): void {

@@ -55,7 +55,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "transform",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -74,7 +79,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "add",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -92,7 +102,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "sum",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -111,7 +126,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "prefixSum",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -130,7 +150,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "safeDivide",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -148,7 +173,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "greet",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -166,7 +196,12 @@
             "org": "nipunaf",
             "module": "proj",
             "symbol": "sum2",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         }

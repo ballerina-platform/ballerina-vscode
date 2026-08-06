@@ -38,7 +38,7 @@ import {
     IconOverlay,
     activeStateLabel,
     subscribeAgentRunStatus,
-    subscribeHeroPresence,
+    subscribeOrbSuppressed,
     subscribeMiniChatOpen,
 } from "./shared";
 import { createMiniChatPrompt, MiniChatPrompt } from "./promptHandoff";
@@ -313,8 +313,8 @@ export function AgentStatusOrb() {
     const snapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const [inviteText, setInviteText] = useState("");
     const [inviteDismissed, setInviteDismissed] = useState(false);
-    /** A landing-page hero box is on screen — it is the copilot surface there. */
-    const [heroPresent, setHeroPresent] = useState(false);
+    /** The current view opts out of the floating orb. */
+    const [orbSuppressed, setOrbSuppressed] = useState(false);
     /** Mini chat overlay toggled by clicking the orb. */
     const [miniOpen, setMiniOpen] = useState(false);
     /** Contextual prompt handed to the mini chat once on open. */
@@ -350,16 +350,16 @@ export function AgentStatusOrb() {
         });
     }, [rpcClient]);
 
-    useEffect(() => subscribeHeroPresence(setHeroPresent), []);
+    useEffect(() => subscribeOrbSuppressed(setOrbSuppressed), []);
 
     useEffect(() => () => clearTimeout(snapTimerRef.current), []);
 
     // The orb hides without unmounting, so mini-chat state outlives it. Left alone,
     // `miniOpen` stays true and the mini resurfaces unprompted as soon as the orb
-    // returns — the full panel closing, or navigating off a hero-bearing view.
+    // returns — the full panel closing, or navigating off a view that opts out.
     // A prompt queued by `subscribeMiniChatOpen` is discarded for the same reason:
     // MiniChat cannot mount while hidden, so it is never taken, only left to go stale.
-    const orbHidden = !status || status.aiPanelOpen || heroPresent;
+    const orbHidden = !status || status.aiPanelOpen || orbSuppressed;
     useEffect(() => {
         if (orbHidden) {
             setMiniOpen(false);

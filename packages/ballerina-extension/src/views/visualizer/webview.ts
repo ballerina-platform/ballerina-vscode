@@ -81,8 +81,13 @@ export class VisualizerWebview {
             }
         }, 500);
 
+        // Silent: this fires whenever the workspace's Ballerina.toml changes and the panel
+        // regains focus — including changes the extension's OWN create/add flows just made
+        // to register a new package. A non-silent refresh force-navigates to the workspace
+        // overview, which would yank the user away from a view they were just, deliberately,
+        // navigated to (e.g. the new package's own overview right after creating it).
         const debouncedRefreshWorkspaceProjectInfo = debounce(() => {
-            StateMachine.refreshProjectInfo();
+            StateMachine.refreshProjectInfo({ silent: true });
         }, 500);
 
         const debouncedRefreshDataMapper = debounce(async () => {

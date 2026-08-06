@@ -233,6 +233,15 @@ export function isInWI(): boolean {
     return !!extensions.getExtension(WI_EXTENSION_ID);
 }
 
+/**
+ * ICP (Integration Control Plane) ships inside the WSO2 Integrator installation, so it is only
+ * offered when the Integrator extension is present. Users running the Ballerina extension on its
+ * own get no ICP commands, status bar item, or ICP sections in the overview webviews.
+ */
+export function isICPSupported(): boolean {
+    return isInWI();
+}
+
 export function isInDevant(): boolean {
     return !!process.env.CLOUD_STS_TOKEN;
 }

@@ -90,6 +90,7 @@ import { McpManagerPanel } from "../../McpManagerPanel";
 export type PanelRoute = "settings" | "mcp" | "skills";
 import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
+import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import {
     serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
@@ -251,7 +252,7 @@ function scaffoldKeyHash(text: string, hiddenContext: string | undefined): strin
 
 const AIChat: React.FC = () => {
     const { rpcClient } = useRpcContext();
-    const [messages, setMessages] = useState<Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>>([]);
+    const [messages, setMessages] = useState<PanelMessage[]>([]);
     const renderedMessagesRef = useRef(messages);
     const messagesCommitWaitersRef = useRef<Array<() => void>>([]);
     const [messagesCommitSignal, setMessagesCommitSignal] = useState(0);
@@ -294,7 +295,7 @@ const AIChat: React.FC = () => {
     };
 
     const ensureAssistantMessage = (
-        chatMessages: Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>
+        chatMessages: PanelMessage[]
     ): number => {
         const targetIndex = getLatestAssistantMessageIndex(chatMessages);
         // Reuse the trailing assistant bubble only if it belongs to the CURRENT turn — i.e. it
@@ -375,10 +376,10 @@ const AIChat: React.FC = () => {
 
     const [availableCheckpointIds, setAvailableCheckpointIds] = useState<Set<string>>(new Set());
     const [restoringCheckpointId, setRestoringCheckpointId] = useState<string | null>(null);
-    const [hasActiveReview, setHasActiveReview] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [threads, setThreads] = useState<ThreadSummary[]>([]);
-    const newChatAnchorRef = useRef<HTMLDivElement>(null);
+    const [threadsLoading, setThreadsLoading] = useState(false);
+    const [threadsError, setThreadsError] = useState<string | null>(null);
 
     const [approvalRequest, setApprovalRequest] = useState<TaskApprovalRequest | null>(null);
     const [approvalOverlay, setApprovalOverlay] = useState<ApprovalOverlayState>({ show: false });
@@ -710,7 +711,6 @@ const AIChat: React.FC = () => {
             // Clear stale context usage — token count changed with the restore.
             // Widget will reappear with accurate data on the next agent turn.
             setContextUsage(null);
-            setHasActiveReview(false);
             // History is trimmed to the checkpoint — re-derive so the reverted turn's chips drop.
             await refreshFollowupSuggestions();
         } catch (error) {
@@ -856,6 +856,12 @@ const AIChat: React.FC = () => {
             if (runStatus.isPlanMode !== undefined) {
                 setAgentMode(runStatus.isPlanMode ? AgentMode.Plan : AgentMode.Edit);
             }
+            // The status notification is not buffered with the run's events, so the bubble
+            // the replay rebuilds below would lose it — carry the loaded value across.
+            const loadedGenerationStatus = historyMessages.find(
+                (message) => message.type === "assistant_message" && message.messageId === generationId
+            )?.generationStatus;
+
             if (!runStatus.truncated) {
                 // Drop any assistant bubble already loaded for this generation (stale
                 // partial uiResponse) — the replay rebuilds the full turn from scratch,
@@ -903,6 +909,13 @@ const AIChat: React.FC = () => {
                 }
             } finally {
                 replayingRef.current = false;
+            }
+            if (loadedGenerationStatus) {
+                setMessages(prev => prev.map(m =>
+                    m.type === "assistant_message" && m.messageId === generationId
+                        ? { ...m, generationStatus: loadedGenerationStatus }
+                        : m
+                ));
             }
             if (!runStatus.isRunning && generationId && !runStatus.truncated) {
                 // Finished while the panel was closed. Persist the rebuilt transcript so
@@ -958,17 +971,6 @@ const AIChat: React.FC = () => {
                 } catch (error) {
                     console.error('[AIChat] Failed to load initial chat history:', error);
                     // Continue with empty messages - don't block the UI
-                }
-                // Re-derive the review flag: it is otherwise only set by the live stream
-                // event, so a webview reload would leave a pending review inactive
-                // (ReviewBar unclickable, auto-accept-on-send skipped).
-                try {
-                    const pending = await rpcClient.getAiPanelRpcClient().hasPendingReview({});
-                    if (pending) {
-                        setHasActiveReview(true);
-                    }
-                } catch (error) {
-                    console.error('[AIChat] Failed to check pending review state:', error);
                 }
 
                 // Reconnect to an in-flight run: the run keeps executing on the
@@ -1468,9 +1470,10 @@ const AIChat: React.FC = () => {
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
-            if (componentType === "review") {
-                setHasActiveReview(true);
-            }
+
+        } else if (type === "generation_status") {
+            const { generationId, status } = response;
+            setMessages(prevMessages => applyGenerationStatus(prevMessages, generationId, status));
 
         } else if (type === "messages") {
             messagesRef.current = response.messages;
@@ -1739,7 +1742,7 @@ const AIChat: React.FC = () => {
             const t = setTimeout(() => scrollToEnd("auto"), 120);
             return () => clearTimeout(t);
         }
-    }, [messages, hasActiveReview, isLoading, isCodeLoading, followupSuggestions]);
+    }, [messages, isLoading, isCodeLoading, followupSuggestions]);
 
     async function handleSendQuery(content: {
         input: Input[];
@@ -1847,10 +1850,6 @@ const AIChat: React.FC = () => {
 
         if (content.input.length === 0) {
             return;
-        }
-        if (hasActiveReview) {
-            await rpcClient.getAiPanelRpcClient().acceptChanges().catch((e: unknown) => console.warn("[AIChat] auto-accept failed:", e));
-            setHasActiveReview(false);
         }
         const generationId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         activeRunGenerationIdRef.current = generationId;
@@ -2195,12 +2194,24 @@ const AIChat: React.FC = () => {
         loadThreads();
     }
 
+    // Six call sites fire this without serializing, so a slow earlier response could otherwise
+    // overwrite a newer list — or end the spinner while a newer request is still running.
+    const loadThreadsSeqRef = useRef(0);
+
     async function loadThreads(): Promise<void> {
+        const seq = ++loadThreadsSeqRef.current;
+        setThreadsLoading(true);
+        setThreadsError(null);
         try {
             const list = await rpcClient.getAiPanelRpcClient().listThreads();
+            if (seq !== loadThreadsSeqRef.current) { return; }
             setThreads(list);
-        } catch {
-            // Non-critical — session history unavailable
+        } catch (error) {
+            if (seq !== loadThreadsSeqRef.current) { return; }
+            console.error('[AIChat] Failed to load chat sessions:', error);
+            setThreadsError("Couldn't load sessions. Close and reopen to retry.");
+        } finally {
+            if (seq === loadThreadsSeqRef.current) { setThreadsLoading(false); }
         }
     }
 
@@ -2213,15 +2224,13 @@ const AIChat: React.FC = () => {
             rpcClient.getAiPanelRpcClient().getCheckpoints(),
         ]);
 
-        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId })));
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
 
         // Rebuild the checkpoint availability set for the switched-to thread.
         // Without this, every checkpointId from the old thread would be absent from the set
         // and all restore buttons would appear disabled.
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
 
-        // Clear review and restore state that belongs to the previous thread
-        setHasActiveReview(false);
         setRestoringCheckpointId(null);
         setApprovalRequest(null);
         setContextUsage(null);
@@ -2232,18 +2241,22 @@ const AIChat: React.FC = () => {
     async function handleDeleteThread(threadId: string): Promise<void> {
         await rpcClient.getAiPanelRpcClient().deleteThread({ threadId });
 
-        // Reload messages and checkpoints for the (possibly new) active thread in parallel
+        // Reload messages and checkpoints for the (possibly new) active thread
         const [msgs, checkpoints] = await Promise.all([
             rpcClient.getAiPanelRpcClient().getChatMessages(),
             rpcClient.getAiPanelRpcClient().getCheckpoints(),
         ]);
-        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId })));
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
         setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
-        setHasActiveReview(false);
         setRestoringCheckpointId(null);
         setApprovalRequest(null);
         setContextUsage(null);
         await refreshFollowupSuggestions();
+        loadThreads();
+    }
+
+    async function handleRenameThread(threadId: string, name: string): Promise<void> {
+        await rpcClient.getAiPanelRpcClient().renameThread({ threadId, name });
         loadThreads();
     }
 
@@ -2278,25 +2291,6 @@ const AIChat: React.FC = () => {
         }
     }, [otherMessages.length]);
 
-
-    const updateReviewStatus = (message: { role: string; content: string; type: string }, newStatus: "discarded") => {
-        setMessages(prevMessages => {
-            const msgs = [...prevMessages];
-            const idx = msgs.findIndex(m => m === message);
-            if (idx === -1) return prevMessages;
-            const entries = parseStream(msgs[idx].content);
-            const updated = entries.map(entry => ({
-                ...entry,
-                items: entry.items.map(item =>
-                    item.kind === "component" && (item as any).componentType === "review"
-                        ? { ...item, data: { ...(item as any).data, status: newStatus } }
-                        : item
-                )
-            }));
-            msgs[idx] = { ...msgs[idx], content: serializeStream(updated, msgs[idx].content) };
-            return msgs;
-        });
-    };
 
     const saveDocumentation = async () => {
         if (!docGenIntermediaryState) return;
@@ -2506,27 +2500,26 @@ const AIChat: React.FC = () => {
                             </AuthProviderChip>
                         )}
                         <HeaderButtons>
-                            {/* Single button — click opens session history dropdown. New chat is created from within the dropdown. */}
-                            <div ref={newChatAnchorRef} style={{ position: "relative" }}>
+                            {/* New chat is created from a row inside the dropdown, not from this button. */}
+                            <div style={{ position: "relative" }}>
                                 <Button
                                     appearance="icon"
-                                    onClick={() => { loadThreads(); setHistoryOpen(v => !v); }}
+                                    onClick={() => { void loadThreads(); setHistoryOpen(v => !v); }}
                                     tooltip="Chat sessions"
-                                    disabled={isLoading}
                                 >
-                                    <Icon name="NewChat" sx={{ fontSize: "16px", marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} />
-                                    New Chat
-                                    <Codicon
-                                        name={historyOpen ? "chevron-up" : "chevron-down"}
-                                        sx={{ fontSize: "10px", marginLeft: 4, position: "relative", top: "1px" }}
-                                    />
+                                    <Icon name="CopilotChatRounded" sx={{ fontSize: "18px", marginRight: 6 }} iconSx={{ position: "relative" }} />
+                                    Chats
                                 </Button>
                                 {historyOpen && (
                                     <SessionHistoryDropdown
                                         threads={threads}
+                                        loading={threadsLoading}
+                                        error={threadsError}
+                                        readOnly={isLoading}
                                         onNewChat={handleClearChat}
                                         onSwitch={handleSwitchThread}
                                         onDelete={handleDeleteThread}
+                                        onRename={handleRenameThread}
                                         onClose={() => setHistoryOpen(false)}
                                     />
                                 )}
@@ -2571,6 +2564,7 @@ const AIChat: React.FC = () => {
                                     const isUserMessage = message.role === "User";
                                     const isAssistantMessage = message.role === "Copilot";
                                     const isLatestAssistantMessage = isAssistantMessage && index === lastAssistantIndex;
+                                    const reviewBar = deriveReviewBarState(message.generationStatus, isLatestAssistantMessage, isLoading);
 
                             // Note: Cannot use useMemo here as it's inside map() callback
                             // The stateless regex implementation in splitContent() ensures no corruption during streaming
@@ -2636,13 +2630,9 @@ const AIChat: React.FC = () => {
                                                                 isWorkspace={(reviewItem as any).data.isWorkspace}
                                                                 diffPackageMap={(reviewItem as any).data.diffPackageMap}
                                                                 generationId={(reviewItem as any).data.generationId}
-                                                                isDiscarded={(reviewItem as any)?.data?.status === "discarded"}
+                                                                isDiscarded={reviewBar.isDiscarded}
                                                                 rpcClient={isLatestAssistantMessage ? rpcClient : undefined}
-                                                                isActive={isLatestAssistantMessage && !isLoading && hasActiveReview}
-                                                                onDiscarded={() => {
-                                                                    updateReviewStatus(message, "discarded");
-                                                                    setHasActiveReview(false);
-                                                                }}
+                                                                isActive={reviewBar.isActive}
                                                             />
                                                         )}
                                                         {buttonItems.map((item: StreamItem, ci: number) => {

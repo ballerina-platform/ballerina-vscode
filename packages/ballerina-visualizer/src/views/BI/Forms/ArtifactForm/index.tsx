@@ -39,7 +39,8 @@ import {
     ExpressionCompletionsResponse,
     InputType,
     getPrimaryInputType,
-    Diagnostic
+    Diagnostic,
+    ValidationResult
 } from "@wso2/ballerina-core";
 import {
     FormField,
@@ -129,6 +130,7 @@ interface ArtifactFormProps {
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
+    serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
 }
 
@@ -168,6 +170,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         recordsOnly,
         secondarySubmitText,
         onSecondarySubmit,
+        serverValidationErrors,
         footerActionButton
     } = props;
 
@@ -1106,6 +1109,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     preserveOrder={preserveFieldOrder}
                     injectedComponents={injectedComponents}
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
+                    serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
                     onValidityChange={onValidityChange}

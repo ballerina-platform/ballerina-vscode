@@ -56,6 +56,7 @@ import {
     Imports,
     getSecondaryInputType,
     DIRECTORY_MAP,
+    ValidationResult,
     AvailableNode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -68,7 +69,10 @@ import {
     isPrioritizedField,
     hasRequiredParameters,
     hasOptionalParameters,
+    collectFieldKeys,
+    resolveValidationFieldKey,
 } from "./utils";
+import { DiagnosticsStoreContext, useDiagnosticsStoreState } from "./DiagnosticsStore";
 import FormDescription from "./FormDescription";
 import MarkdownDescription from "./MarkdownDescription";
 import TypeHelperText from "./TypeHelperText";
@@ -351,6 +355,9 @@ export interface FormProps {
     }
     formDiagnostics?: { message: string; severity: "ERROR" | "WARNING" | "INFO" }[];
     formDiagnosticsAction?: React.ReactNode;
+    // Rule failures returned by the language server's save-time gate. Each is rendered on the field
+    // its `propertyPath` resolves to; anything unresolvable falls back to the form-level banner.
+    serverValidationErrors?: ValidationResult[];
     preserveOrder?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
@@ -404,6 +411,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         popupManager,
         formDiagnostics,
         formDiagnosticsAction,
+        serverValidationErrors,
         compact = false,
         isInferredReturnType,
         concertRequired = true,
@@ -441,12 +449,48 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         formState: { isValidating, isValid: formStateIsValid, errors, dirtyFields, isDirty },
     } = useForm<FormValues>();
 
+    // Owned here (not just rendered via DiagnosticsStoreProvider below) so the Save button can read
+    // hasBlockingErrors()/isAnyValidating() directly: Form renders the provider as its own
+    // descendant, so Form itself is never inside it and could not otherwise reach the context value.
+    const diagnosticsStore = useDiagnosticsStoreState();
+
     useEffect(() => {
         if (!fileName || !rpcClient) {
             return;
         }
         rpcClient.getBIDiagramRpcClient().formDirtyDidChange({ filePath: fileName, isDirty });
     }, [isDirty, fileName, rpcClient]);
+
+    // Failures the language server's save-time gate produced. They arrive after submit, so they are
+    // pushed onto their fields here rather than through the per-keystroke validate rules.
+    const [unmappedValidationErrors, setUnmappedValidationErrors] = useState<ValidationResult[]>([]);
+    // `formFields` is read inside the effect but deliberately kept out of its dependencies: several
+    // callers pass a freshly-built array (e.g. `formFields={[formField]}` in FormArrayEditor), whose
+    // identity changes every render. Depending on it here would re-run the effect on every render,
+    // and the state writes below would re-render again — a loop that never converges. A ref gives
+    // the effect the current fields without making them a trigger.
+    const formFieldsRef = useRef(formFields);
+    formFieldsRef.current = formFields;
+    useEffect(() => {
+        if (!serverValidationErrors?.length) {
+            // Keep the existing (already empty) array rather than allocating a new one, so this is
+            // a genuine no-op instead of a re-render.
+            setUnmappedValidationErrors((previous) => (previous.length === 0 ? previous : []));
+            return;
+        }
+        const fieldKeys = collectFieldKeys(formFieldsRef.current);
+        const unmapped: ValidationResult[] = [];
+        serverValidationErrors.forEach((validationError) => {
+            const key = resolveValidationFieldKey(validationError.propertyPath, fieldKeys);
+            if (key) {
+                setError(key, { type: "server_validation", message: validationError.message });
+            } else {
+                unmapped.push(validationError);
+            }
+        });
+        setUnmappedValidationErrors((previous) =>
+            previous.length === 0 && unmapped.length === 0 ? previous : unmapped);
+    }, [serverValidationErrors, setError]);
 
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
@@ -899,15 +943,22 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const hasIncompleteRequiredFields = !!onFormValidation &&
         hasIncompleteRequiredFormFields(formFields, watchedValues);
 
+    // Computed once per render and shared by disableSaveButton below and the onValidityChange effect,
+    // rather than calling the store twice — see the disableSaveButton comment for what these cover.
+    const hasBlockingLiveErrors = diagnosticsStore.hasBlockingErrors();
+    const isLiveValidating = diagnosticsStore.isAnyValidating();
+
     // Call onValidityChange when form validity changes
     useEffect(() => {
         if (onValidityChange) {
             // formStateIsValid captures errors from PathEditor and other validators (setError)
             const formIsValid = isValid && formStateIsValid && !isValidating && Object.keys(errors).length === 0 && !hasIncompleteRequiredFields &&
-                (!concertMessage || !concertRequired || isUserConcert) && !isIdentifierEditing && !isSubComponentEnabled;
+                (!concertMessage || !concertRequired || isUserConcert) && !isIdentifierEditing && !isSubComponentEnabled &&
+                !hasBlockingLiveErrors && !isLiveValidating;
             onValidityChange(formIsValid);
         }
-    }, [isValid, formStateIsValid, isValidating, errors, hasIncompleteRequiredFields, concertMessage, concertRequired, isUserConcert, isIdentifierEditing, isSubComponentEnabled, onValidityChange]);
+    }, [isValid, formStateIsValid, isValidating, errors, hasIncompleteRequiredFields, concertMessage, concertRequired,
+        isUserConcert, isIdentifierEditing, isSubComponentEnabled, hasBlockingLiveErrors, isLiveValidating, onValidityChange]);
 
     const handleIdentifierEditingStateChange = (isEditing: boolean) => {
         setIsIdentifierEditing(isEditing);
@@ -917,10 +968,17 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         setIsUserConcert(checked);
     };
 
+    // hasBlockingErrors()/isAnyValidating() cover the live connector `validations[]` rules rendered
+    // directly by the editors (see TextEditor/ExpressionEditor): those ERRORs are visible to the user
+    // but, unlike react-hook-form's own errors, were not previously reflected in formStateIsValid —
+    // so Save was clickable while a field still showed a red error. isAnyValidating additionally
+    // blocks submit while a debounced language-server check is still in flight for any field, so a
+    // click cannot race a verdict that has not landed yet.
     const disableSaveButton =
         isValidating || props.disableSaveButton || (concertMessage && concertRequired && !isUserConcert) ||
         isIdentifierEditing || isSubComponentEnabled || isValidatingForm || hasIncompleteRequiredFields ||
-        !formStateIsValid || Object.keys(errors).length > 0;
+        !formStateIsValid || Object.keys(errors).length > 0 ||
+        hasBlockingLiveErrors || isLiveValidating;
 
     const handleShowMoreClick = () => {
         setIsMarkdownExpanded(!isMarkdownExpanded);
@@ -1111,6 +1169,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                             {formDiagnosticsAction}
                         </S.FormDiagnosticsActionContainer>
                     )}
+                </S.FormDiagnosticsContainer>
+            )}
+            {unmappedValidationErrors.length > 0 && (
+                <S.FormDiagnosticsContainer>
+                    <ErrorBanner errorMsg={unmappedValidationErrors.map((error) => error.message).join("\n")} />
                 </S.FormDiagnosticsContainer>
             )}
 
@@ -1379,6 +1442,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     );
 
     return (
+        <DiagnosticsStoreContext.Provider value={diagnosticsStore}>
         <FormFieldLoadingProvider
             loadingFields={loadingFields}
             registerLoading={registerLoading}
@@ -1483,6 +1547,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                 </S.Container>
             </Provider>
         </FormFieldLoadingProvider>
+        </DiagnosticsStoreContext.Provider>
     );
 });
 

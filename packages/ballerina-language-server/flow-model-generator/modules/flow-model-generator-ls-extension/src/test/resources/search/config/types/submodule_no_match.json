@@ -19,7 +19,37 @@
           "Data Mapper"
         ]
       },
-      "items": []
+      "items": [
+        {
+          "metadata": {
+            "label": "mod1.Weather (Generated)",
+            "description": "",
+            "keywords": []
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "ForecastCondition",
+                "description": ""
+              },
+              "codedata": {
+                "node": "RECORD",
+                "org": "lakshanweerasinghe",
+                "module": "mod1.Weather",
+                "packageName": "mod1",
+                "symbol": "ForecastCondition",
+                "version": "0.1.0",
+                "isGenerated": true,
+                "data": {
+                  "moduleRelation": "SAME_PACKAGE_MODULE",
+                  "moduleKind": "SUBMODULE"
+                }
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
     },
     {
       "metadata": {
@@ -31,31 +61,7 @@
           "Library"
         ]
       },
-      "items": [
-        {
-          "metadata": {
-            "label": "mod1.Weather",
-            "description": "",
-            "keywords": []
-          },
-          "items": [
-            {
-              "metadata": {
-                "label": "ForecastCondition",
-                "description": ""
-              },
-              "codedata": {
-                "org": "lakshanweerasinghe",
-                "module": "mod1.Weather",
-                "packageName": "mod1",
-                "symbol": "ForecastCondition",
-                "version": "0.1.0"
-              },
-              "enabled": true
-            }
-          ]
-        }
-      ]
+      "items": []
     },
     {
       "metadata": {

@@ -34,6 +34,7 @@ import {
     createBIProjectPure,
     isAlreadyOpenFolder,
     openInVSCode,
+    refreshProjectInfoAndWait,
     resolveCreateLandingContext,
 } from "../../utils/bi";
 import { generateArtifactInPlace, openPackageOverview, schedulePendingIntegration } from "./pending-artifact";
@@ -129,10 +130,11 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
         if (params.artifact) {
             await generateArtifactInPlace(packageRoot, params.artifact, true);
         } else {
-            openPackageOverview(packageRoot);
-            // Silent: a non-silent refresh would navigate to the project overview and
-            // clobber the package overview just opened.
-            StateMachine.refreshProjectInfo({ silent: true });
+            // Refresh BEFORE navigating: the package overview fetches project structure
+            // on mount, so navigating first would show it a spinner instead of the page.
+            if (await refreshProjectInfoAndWait()) {
+                openPackageOverview(packageRoot);
+            }
         }
         return;
     }

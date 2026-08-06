@@ -18,5 +18,18 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.request;
 
-public record TriggerListRequest(String organization, String packageName, String query, String keyWord) {
+/**
+ * @param organization           restricts {@code getTriggerModels}'s bundled-index lookup to a single org
+ * @param packageName            restricts {@code getTriggerModels}'s bundled-index lookup to a package
+ * @param query                  the free-text search term for {@code searchTriggers}
+ * @param keyWord                an additional bundled-index filter keyword
+ * @param includeLocalRepository whether {@code searchTriggers} should also search the Ballerina local
+ *                               repository ({@code ~/.ballerina/repositories/local}) for packages
+ *                               shipping a trigger-metadata.json/trigger-ui-schema.json directly --
+ *                               gated behind the client's own experimental setting, so this defaults to
+ *                               {@code false} (Gson's zero-value default) for any client that predates
+ *                               this field or has the setting off, with zero behavior change.
+ */
+public record TriggerListRequest(String organization, String packageName, String query, String keyWord,
+                                 boolean includeLocalRepository) {
 }

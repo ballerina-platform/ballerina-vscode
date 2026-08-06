@@ -32,6 +32,7 @@ import ballerinax/cdc as _;
 import ballerinax/mssql as _;
 import ballerinax/mssql.cdc.driver as _;
 import ballerinax/salesforce as _;
+import ballerinax/solace.jms as _;
 import ballerina/ftp as _;
 import ballerina/data.csv as _;
 import ballerina/workflow as _;

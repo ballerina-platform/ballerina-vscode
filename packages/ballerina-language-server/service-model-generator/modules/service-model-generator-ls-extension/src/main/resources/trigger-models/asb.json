@@ -1,0 +1,641 @@
+{
+  "schemaVersion": "1.0",
+  "displayName": "Azure Service Bus Event Integration",
+  "description": "Create a service to handle messages from an Azure Service Bus queue or topic subscription",
+  "orgName": "ballerinax",
+  "packageName": "asb",
+  "moduleName": "asb",
+  "version": "3.10.0",
+  "type": "asb",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_asb_3.10.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure RabbitMQ Listener",
+        "description": "Select an existing Azure Service Bus listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new RabbitMQ listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the Azure Service Bus listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "asb:Listener"
+                    }
+                  ],
+                  "value": "asbListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "connectionString": {
+                  "metadata": {
+                    "label": "Connection String",
+                    "description": "The connection string to connect to the Azure Service Bus namespace."
+                  },
+                  "placeholder": "Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key>",
+                  "value": "\"Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<key-name>;SharedAccessKey=<key>\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                    "path": "connectionString"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                },
+                "entityConfig": {
+                  "$comment": "CURATE ASSUMPTION: entityConfig is a genuine union (asb:TopicSubsConfig|asb:QueueConfig) — the introspector doesn't enumerate union-member fields (only concrete RECORD_FIELD/INCLUDED_RECORD types), so queueName/topicName/subscriptionName aren't independently tool-verified listener-arg paths. Modeled like ftp.json's afterProcess.action: one tool-verified LISTENER_PARAM_INCLUDED_FIELD at 'entityConfig' (FIELD_VALUE_CHOICE) whose selected branch is a MAPPING_CONSTRUCTOR built from MAPPING_FIELD leaves — same composition technique the schema already uses for annotation values, applied here to a listener field instead.",
+                  "metadata": {
+                    "label": "Entity Type",
+                    "description": "Whether this listener subscribes to a queue or to a topic subscription."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true,
+                      "options": [
+                        {
+                          "label": "Queue",
+                          "value": "QUEUE",
+                          "helperText": "Receive messages from a Service Bus queue."
+                        },
+                        {
+                          "label": "Topic Subscription",
+                          "value": "TOPIC",
+                          "helperText": "Receive messages from a subscription on a Service Bus topic."
+                        }
+                      ]
+                    }
+                  ],
+                  "value": "QUEUE",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                    "path": "entityConfig"
+                  },
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "Queue",
+                        "description": "Receive messages from a Service Bus queue."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "QUEUE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                        "path": "entityConfig"
+                      },
+                      "properties": {
+                        "queueName": {
+                          "metadata": {
+                            "label": "Queue Name",
+                            "description": "Name of the Service Bus queue to subscribe to."
+                          },
+                          "placeholder": "myQueue",
+                          "value": "myQueue",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "entityConfig.queueName"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Topic Subscription",
+                        "description": "Receive messages from a subscription on a Service Bus topic."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "TOPIC",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                        "path": "entityConfig"
+                      },
+                      "properties": {
+                        "topicName": {
+                          "metadata": {
+                            "label": "Topic Name",
+                            "description": "Name of the Service Bus topic."
+                          },
+                          "placeholder": "myTopic",
+                          "value": "myTopic",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "entityConfig.topicName"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "subscriptionName": {
+                          "metadata": {
+                            "label": "Subscription Name",
+                            "description": "Name of the subscription associated with the topic."
+                          },
+                          "placeholder": "mySubscription",
+                          "value": "mySubscription",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "entityConfig.subscriptionName"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Select an existing RabbitMQ listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing listeners to attach the service to (no new(...) is generated)."
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "asb:Listener"
+                }
+              ],
+              "items": [
+                "asbListener"
+              ],
+              "value": [
+                "asbListener"
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "ASB Consumer",
+        "description": "Consumes messages from the subscribed Azure Service Bus queue or topic subscription."
+      },
+      "name": "Service",
+      "description": "Handles messages received from an Azure Service Bus queue or topic subscription.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "asb",
+        "originalName": "Service"
+      },
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Message",
+            "description": "The `onMessage` remote method is triggered when a message is received from the subscribed queue or topic subscription."
+          },
+          "name": "onMessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessage",
+            "moduleName": "asb"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Message",
+                "description": "The message received from the subscribed queue or topic subscription."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "value": "asb:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "message",
+                  "description": "The message received from the subscribed queue or topic subscription."
+                },
+                "placeholder": "message",
+                "value": "message",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": false,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Azure Service Bus caller used to complete, abandon, defer or dead-letter the message (required for manual settlement when Auto Complete is off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the Azure Service Bus caller parameter in the handler signature."
+                },
+                "placeholder": "asb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "asb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "Azure Service Bus caller used to complete, abandon, defer or dead-letter the message."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Triggered when an error occurs while retrieving or dispatching a message."
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "asb"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Error Context",
+                "description": "Context of the message-retrieval error (entity path, source, reason)."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "asb:ErrorContext",
+                "value": "asb:ErrorContext",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "errorContext",
+                  "description": "Context of the message-retrieval error."
+                },
+                "placeholder": "errorContext",
+                "value": "errorContext",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Error",
+                "description": "The error that occurred while retrieving or processing the message."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "error",
+                "value": "error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "asbError",
+                  "description": "The error that occurred while retrieving or processing the message."
+                },
+                "placeholder": "asbError",
+                "value": "asbError",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [],
+  "importStatements": []
+}

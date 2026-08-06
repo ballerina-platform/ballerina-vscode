@@ -23,6 +23,7 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentable;
 import io.ballerina.compiler.api.symbols.Documentation;
+import io.ballerina.compiler.api.symbols.EnumSymbol;
 import io.ballerina.compiler.api.symbols.Qualifiable;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.Symbol;
@@ -39,6 +40,7 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.PackageModuleUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.SearchResult;
 import io.ballerina.projects.Module;
@@ -60,17 +62,19 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Represents a command to search for types within a module. This class extends SearchCommand and provides functionality
- * to search for both project-specific and library types.
+ * Represents a command to search for types available to a module. This class extends SearchCommand and provides
+ * functionality to search for package, workspace-package, and dependency types.
  *
  * <p>
  * The search includes:
- * <li>Types within the current project/module </li>
+ * <li>Types in the current module and other modules in the active package</li>
+ * <li>Types in other packages in the Ballerina workspace</li>
  * <li>Imported types from dependencies</li>
  * <li>Available types from the standard library (if enabled)</li>
  *
  * <p>The search results are organized into different categories:</p>
- * <li>CURRENT_INTEGRATION: Types from the current project</li>
+ * <li>CURRENT_INTEGRATION: Types from the active integration</li>
+ * <li>CURRENT_WORKSPACE: Types from integrations in the current project</li>
  * <li>IMPORTED_TYPES: Types from imported modules</li>
  * <li>AVAILABLE_TYPES: Types available but not imported (optional)</li>
  * </p>
@@ -88,7 +92,10 @@ class TypeSearchCommand extends SearchCommand {
         // Obtain the imported project names
         Package currentPackage = project.currentPackage();
         PackageUtil.getCompilation(currentPackage);
-        moduleNames = currentPackage.getDefaultModule().moduleDependencies().stream()
+        Module currentModule = PackageModuleUtils.findModule(currentPackage,
+                        position == null ? null : position.fileName())
+                .orElse(currentPackage.getDefaultModule());
+        moduleNames = currentModule.moduleDependencies().stream()
                 .map(moduleDependency -> {
                     ModuleName name = moduleDependency.descriptor().name();
                     if (Objects.nonNull(name.moduleNamePart()) && !name.moduleNamePart().isEmpty()) {
@@ -108,7 +115,6 @@ class TypeSearchCommand extends SearchCommand {
         }
 
         buildLibraryNodes(searchResults);
-        buildImportedLocalModules();
         return rootBuilder.build().items();
     }
 
@@ -117,7 +123,6 @@ class TypeSearchCommand extends SearchCommand {
         buildWorkspaceNodes();
         List<SearchResult> typeSearchList = dbManager.searchTypes(query, limit, offset);
         buildLibraryNodes(typeSearchList);
-        buildImportedLocalModules();
         return rootBuilder.build().items();
     }
 
@@ -139,120 +144,109 @@ class TypeSearchCommand extends SearchCommand {
         return rootBuilder.build().items();
     }
 
-    private List<Symbol> getTypes(Project project) {
-        Package currentPackage = project.currentPackage();
-        return PackageUtil.getCompilation(currentPackage)
-                .getSemanticModel(currentPackage.getDefaultModule().moduleId())
-                .moduleSymbols().stream()
-                .filter(symbol -> symbol instanceof TypeDefinitionSymbol || symbol instanceof ClassSymbol)
+    private List<TypeSymbolEntry> getTypes(SemanticModel semanticModel) {
+        return semanticModel.moduleSymbols().stream()
+                .filter(symbol -> symbol instanceof TypeDefinitionSymbol || symbol instanceof ClassSymbol
+                        || symbol instanceof EnumSymbol)
+                .map(symbol -> new TypeSymbolEntry(symbol,
+                        symbol instanceof EnumSymbol ? SymbolKind.ENUM : symbol.kind()))
                 .toList();
     }
 
     private void buildWorkspaceNodes() {
+        Module currentModule = PackageModuleUtils.findModule(project.currentPackage(),
+                        position == null ? null : position.fileName())
+                .orElse(project.currentPackage().getDefaultModule());
         Optional<WorkspaceProject> workspaceProject = project.workspaceProject();
         if (workspaceProject.isEmpty()) {
-            Category.Builder projectBuilder = rootBuilder.stepIn(Category.Name.CURRENT_INTEGRATION);
-            buildProjectNodes(project, projectBuilder);
+            Category.Builder packageBuilder = rootBuilder.stepIn(Category.Name.CURRENT_INTEGRATION);
+            buildPackageModules(project, currentModule, packageBuilder);
             return;
         }
 
-        PackageName currProjPackageName = this.project.currentPackage().packageName();
-
         Category.Builder workspaceBuilder = rootBuilder.stepIn(Category.Name.CURRENT_WORKSPACE);
-
-        // Build current integration first to ensure it appears at the top
-        Category.Builder currIntProjBuilder = workspaceBuilder.stepIn(
-                currProjPackageName.value() + CURRENT_INTEGRATION_INDICATOR, "", List.of());
-        buildProjectNodes(this.project, currIntProjBuilder);
-
-        List<BuildProject> projects = workspaceProject.get().projects();
-        for (BuildProject project : projects) {
-            PackageName packageName = project.currentPackage().packageName();
-            if (packageName.equals(currProjPackageName)) {
+        String activePackageLabel = project.currentPackage().packageName().value();
+        Category.Builder currentPackageBuilder = workspaceBuilder.stepIn(
+                activePackageLabel + CURRENT_INTEGRATION_INDICATOR, "", List.of());
+        buildPackageModules(project, currentModule, currentPackageBuilder);
+        PackageName currentPackageName = project.currentPackage().packageName();
+        for (BuildProject buildProject : workspaceProject.get().projects()) {
+            if (buildProject.currentPackage().packageName().equals(currentPackageName)) {
                 continue;
             }
-
-            Category.Builder projectBuilder = workspaceBuilder.stepIn(packageName.value(), "", List.of());
-            buildProjectNodes(project, projectBuilder);
+            Category.Builder packageBuilder = workspaceBuilder.stepIn(
+                    buildProject.currentPackage().packageName().value(), "", List.of());
+            buildPackageModules(buildProject, currentModule, packageBuilder);
         }
     }
 
-    private void buildProjectNodes(Project project, Category.Builder projectBuilder) {
-        List<Symbol> types = getTypes(project);
+    private void buildPackageModules(Project targetProject, Module currentModule, Category.Builder parentBuilder) {
+        WorkspaceModuleSearchUtils.ModuleItems packageItems = WorkspaceModuleSearchUtils.buildPackageModules(
+                project, targetProject, currentModule, context -> new WorkspaceModuleSearchUtils.ModuleItems(
+                        buildProjectNodes(context.module(), context.semanticModel(), context.current(),
+                                context.relation()),
+                        List.of()));
+        parentBuilder.items(packageItems.items());
+    }
 
-        boolean isCurrIntProject = this.project.currentPackage().packageName()
-                .equals(project.currentPackage().packageName());
-
-        List<Symbol> filteredTypes;
-        if (!isCurrIntProject) {
-            filteredTypes = types.stream()
-                    .filter(type -> type instanceof Qualifiable q
-                            && q.qualifiers().contains(Qualifier.PUBLIC))
-                    .toList();
-        } else {
-            filteredTypes = types;
-        }
-
+    private List<Item> buildProjectNodes(Module module, SemanticModel semanticModel, boolean current,
+                                         String moduleRelation) {
         List<ScoredType> scoredTypes = new ArrayList<>();
-        for (Symbol typeSymbol : filteredTypes) {
+        for (TypeSymbolEntry typeEntry : getTypes(semanticModel)) {
+            Symbol typeSymbol = typeEntry.symbol();
+            if (!current && (!(typeSymbol instanceof Qualifiable qualifiable)
+                    || !qualifiable.qualifiers().contains(Qualifier.PUBLIC))) {
+                continue;
+            }
             if (typeSymbol.getName().isEmpty()) {
                 continue;
             }
             String typeName = typeSymbol.getName().get();
-            String description = "";
-            if (typeSymbol instanceof Documentable documentable) {
-                Documentation documentation = documentable.documentation().orElse(null);
-                description = documentation != null ? documentation.description().orElse("") : "";
-            }
-
+            String description = typeSymbol instanceof Documentable documentable
+                    ? documentable.documentation().flatMap(Documentation::description).orElse("") : "";
             int score = RelevanceCalculator.calculateFuzzyRelevanceScore(typeName, description, query);
             if (score > 0) {
-                scoredTypes.add(new ScoredType(typeSymbol, typeName, description, score));
+                scoredTypes.add(new ScoredType(typeSymbol, typeEntry.kind(), typeName, description, score));
             }
         }
-
         scoredTypes.sort(Comparator.comparingInt(ScoredType::score).reversed());
 
-        String orgName = project.currentPackage().packageOrg().toString();
-        String packageName = project.currentPackage().packageName().toString();
-        String version = project.currentPackage().packageVersion().toString();
-
+        String orgName = module.packageInstance().packageOrg().toString();
+        String packageName = module.packageInstance().packageName().toString();
+        String moduleName = PackageModuleUtils.fullModuleName(module);
+        String moduleKind = PackageModuleUtils.moduleKind(module);
+        String version = module.packageInstance().packageVersion().toString();
+        boolean generated = PackageModuleUtils.isGenerated(module);
         List<Item> availableNodes = new ArrayList<>();
         for (ScoredType scoredType : scoredTypes) {
             Optional<? extends TypeSymbol> typeDescriptor = SymbolUtil.getTypeDescriptor(scoredType.symbol());
-            typeDescriptor = (typeDescriptor.isPresent() &&
-                    typeDescriptor.get().typeKind() == TypeDescKind.TYPE_REFERENCE)
-                    ? Optional.of(((TypeReferenceTypeSymbol) typeDescriptor.get()).typeDescriptor())
-                    : typeDescriptor;
-
-            // The following information is needed for config editor
-            NodeKind nodeKind = NodeKind.TYPEDESC;
-            if (typeDescriptor.isPresent() && typeDescriptor.get().typeKind() != null
+            typeDescriptor = typeDescriptor.isPresent()
+                    && typeDescriptor.get().typeKind() == TypeDescKind.TYPE_REFERENCE
+                    ? Optional.of(((TypeReferenceTypeSymbol) typeDescriptor.get()).typeDescriptor()) : typeDescriptor;
+            NodeKind nodeKind = scoredType.kind() == SymbolKind.ENUM ? NodeKind.ENUM : NodeKind.TYPEDESC;
+            if (nodeKind != NodeKind.ENUM && typeDescriptor.isPresent() && typeDescriptor.get().typeKind() != null
                     && typeDescriptor.get().typeKind() != TypeDescKind.COMPILATION_ERROR) {
                 nodeKind = typeDescriptor.get().kind() == SymbolKind.CLASS
-                        ? NodeKind.CLASS
-                        : toNodeKind(typeDescriptor.get().typeKind());
-
+                        ? NodeKind.CLASS : toNodeKind(typeDescriptor.get().typeKind());
             }
-
-            Metadata metadata = new Metadata.Builder<>(null)
+            Metadata.Builder<Object> metadataBuilder = new Metadata.Builder<>(null)
                     .label(scoredType.typeName())
-                    .description(scoredType.description())
-                    .build();
-
-            Codedata codedata = new Codedata.Builder<>(null)
+                    .description(scoredType.description());
+            Codedata.Builder<Object> codedataBuilder = new Codedata.Builder<>(null)
                     .node(nodeKind)
                     .org(orgName)
-                    .module(packageName)
+                    .module(moduleName)
                     .packageName(packageName)
                     .symbol(scoredType.typeName())
-                    .version(version)
-                    .build();
-
+                    .version(version);
+            codedataBuilder.isGenerated(generated)
+                    .data("moduleRelation", moduleRelation)
+                    .data("moduleKind", moduleKind);
+            Metadata metadata = metadataBuilder.build();
+            Codedata codedata = codedataBuilder.build();
             availableNodes.add(new AvailableNode(metadata, codedata, true));
         }
-
-        projectBuilder.items(availableNodes);
+        return availableNodes;
     }
 
     private void buildLibraryNodes(List<SearchResult> typeSearchList) {
@@ -292,71 +286,6 @@ class TypeSearchCommand extends SearchCommand {
         }
     }
 
-    private void buildImportedLocalModules() {
-        Iterable<Module> modules = project.currentPackage().modules();
-        for (Module module : modules) {
-            if (module.isDefaultModule()) {
-                continue;
-            }
-            SemanticModel semanticModel = PackageUtil.getCompilation(module.packageInstance())
-                    .getSemanticModel(module.moduleId());
-            if (semanticModel == null) {
-                continue;
-            }
-            List<Symbol> symbols = semanticModel.moduleSymbols();
-            String moduleName = module.moduleName().toString();
-            Category.Builder moduleBuilder = rootBuilder.stepIn(Category.Name.IMPORTED_TYPES);
-            String orgName = module.packageInstance().packageOrg().toString();
-            String packageName = module.packageInstance().packageName().toString();
-            String version = module.packageInstance().packageVersion().toString();
-
-            // Collect all types with their scores for ranking
-            List<ScoredType> scoredTypes = new ArrayList<>();
-
-            for (Symbol symbol : symbols) {
-                if (symbol instanceof TypeDefinitionSymbol || symbol instanceof ClassSymbol) {
-                    if (symbol.getName().isEmpty()) {
-                        continue;
-                    }
-                    String typeName = symbol.getName().get();
-                    String description = "";
-                    if (symbol instanceof Documentable documentable) {
-                        Documentation documentation = documentable.documentation().orElse(null);
-                        description = documentation != null ? documentation.description().orElse("") : "";
-                    }
-
-                    // Calculate the relevance score, and filter out types with score 0 (no match)
-                    int score = RelevanceCalculator.calculateFuzzyRelevanceScore(typeName, description, query);
-                    if (score > 0) {
-                        scoredTypes.add(new ScoredType(symbol, typeName, description, score));
-                    }
-                }
-            }
-
-            // Sort by score in descending order (highest score first)
-            scoredTypes.sort(Comparator.comparingInt(ScoredType::score).reversed());
-
-            // Build nodes from sorted list
-            for (ScoredType scoredType : scoredTypes) {
-                Metadata metadata = new Metadata.Builder<>(null)
-                        .label(scoredType.typeName())
-                        .description(scoredType.description())
-                        .build();
-
-                Codedata codedata = new Codedata.Builder<>(null)
-                        .org(orgName)
-                        .module(moduleName)
-                        .packageName(packageName)
-                        .symbol(scoredType.typeName())
-                        .version(version)
-                        .build();
-
-                moduleBuilder.stepIn(moduleName, "", List.of())
-                        .node(new AvailableNode(metadata, codedata, true));
-            }
-        }
-    }
-
     private static NodeKind toNodeKind(TypeDescKind typeDescKind) {
         return switch (typeDescKind) {
             case ARRAY -> NodeKind.ARRAY;
@@ -374,14 +303,18 @@ class TypeSearchCommand extends SearchCommand {
         };
     }
 
+    private record TypeSymbolEntry(Symbol symbol, SymbolKind kind) {
+    }
+
     /**
-     * Helper record to store type definition and class symbols along with their relevance scores for ranking.
+     * Helper record to store type symbols along with their classification and relevance scores for ranking.
      *
      * @param symbol      the symbol representing the type
+     * @param kind        the symbol classification
      * @param typeName    the name of the type
      * @param description the description of the type
      * @param score       the relevance score for ranking
      */
-    private record ScoredType(Symbol symbol, String typeName, String description, int score) {
+    private record ScoredType(Symbol symbol, SymbolKind kind, String typeName, String description, int score) {
     }
 }

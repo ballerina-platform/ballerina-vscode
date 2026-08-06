@@ -37,7 +37,7 @@ import { activate as activateBIFeatures } from './features/bi';
 import { activate as activateERDiagram } from './views/persist-layer-diagram';
 import { activateAiPanel } from './views/ai-panel';
 import { activateMigrationPanel } from './views/migration-panel';
-import { debug, handleResolveMissingDependencies, isInDevant, log } from './utils';
+import { debug, handleResolveMissingDependencies, isICPSupported, isInDevant, log } from './utils';
 import { activateUriHandlers } from './utils/uri-handlers';
 import { StateMachine } from './stateMachine';
 import { activateSubscriptions } from './views/visualizer/activate';
@@ -289,8 +289,8 @@ async function activateBallerinaInternal(ballerinaExtInstance: BallerinaExtensio
         // Activate Tracing Feature
         activateTracing(ballerinaExtInstance);
 
-        // Activate ICP (Integration Control Plane) — skip in Devant
-        if (!isInDevant()) {
+        // Activate ICP (Integration Control Plane) — skip in Devant and without the Integrator extension
+        if (!isInDevant() && isICPSupported()) {
             activateICP(ballerinaExtInstance);
         }
 

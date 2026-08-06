@@ -6,139 +6,248 @@
   "moduleName": "mqtt",
   "response": {
     "serviceInitModel": {
-      "id": "6",
+      "id": "mqtt",
       "displayName": "MQTT Event Integration",
-      "description": "Create a service to handle messages from an MQTT broker",
+      "description": "Create a service to handle messages received from an MQTT broker",
       "orgName": "ballerina",
       "packageName": "mqtt",
       "moduleName": "mqtt",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "type": "mqtt",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mqtt_1.4.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mqtt_1.4.1.png",
       "properties": {
-        "serviceUri": {
+        "listener": {
           "metadata": {
-            "label": "Service URI",
-            "description": "The URI of the MQTT broker"
+            "label": "Configure MQTT Listener",
+            "description": "Select an existing MQTT listener or create a new one"
           },
           "codedata": {
-            "argType": "LISTENER_PARAM_REQUIRED"
+            "type": "LISTENER_CONFIG"
           },
-          "placeholder": "tcp://localhost:1883",
-          "value": "\"tcp://localhost:1883\"",
-          "types": [
+          "value": "0",
+          "choices": [
             {
-              "fieldType": "TEXT",
-              "ballerinaType": "string",
-              "selected": true
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "string",
-              "selected": false
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
-        "clientId": {
-          "metadata": {
-            "label": "Client ID",
-            "description": "A unique identifier to identify by the MQTT broker"
-          },
-          "codedata": {
-            "argType": "LISTENER_PARAM_REQUIRED"
-          },
-          "placeholder": "unique_client_001",
-          "value": "\"unique_client_001\"",
-          "types": [
-            {
-              "fieldType": "TEXT",
-              "ballerinaType": "string",
-              "selected": true
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "string",
-              "selected": false
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
-        "subscriptions": {
-          "metadata": {
-            "label": "Subscriptions",
-            "description": "The topics to subscribe to"
-          },
-          "codedata": {
-            "argType": "LISTENER_PARAM_REQUIRED"
-          },
-          "placeholder": "topic1",
-          "value": "\"topic1\"",
-          "types": [
-            {
-              "fieldType": "TEXT",
-              "ballerinaType": "string",
-              "selected": true
-            },
-            {
-              "fieldType": "REPEATABLE_LIST",
-              "ballerinaType": "string[]",
-              "template": {
-                "types": [
-                  {
-                    "fieldType": "TEXT",
-                    "ballerinaType": "string",
-                    "selected": false
-                  },
-                  {
-                    "fieldType": "EXPRESSION",
-                    "ballerinaType": "string",
-                    "selected": false
-                  }
-                ],
-                "enabled": false,
-                "editable": false,
-                "optional": false,
-                "advanced": false
+              "metadata": {
+                "label": "Create new",
+                "description": "Create a new MQTT listener"
               },
-              "selected": false
+              "properties": {
+                "listenerConfig": {
+                  "metadata": {
+                    "label": "Listener Configurations",
+                    "description": "Configure the MQTT listener."
+                  },
+                  "properties": {
+                    "listenerVarName": {
+                      "metadata": {
+                        "label": "Listener Name",
+                        "description": "Provide a name for the listener being created."
+                      },
+                      "codedata": {
+                        "type": "LISTENER_VAR_NAME"
+                      },
+                      "value": "mqttListener",
+                      "types": [
+                        {
+                          "fieldType": "IDENTIFIER",
+                          "ballerinaType": "mqtt:Listener",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": true
+                    },
+                    "serverUri": {
+                      "metadata": {
+                        "label": "Server URI",
+                        "description": "The URI of the remote MQTT broker."
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "position": 1
+                      },
+                      "placeholder": "tcp://localhost:1883",
+                      "value": "\"tcp://localhost:1883\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "clientId": {
+                      "metadata": {
+                        "label": "Client ID",
+                        "description": "A unique identifier to identify by the MQTT broker."
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "position": 2
+                      },
+                      "placeholder": "mqtt-listener-1",
+                      "value": "\"mqtt-listener-1\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "subscriptions": {
+                      "metadata": {
+                        "label": "Subscriptions",
+                        "description": "Topic(s) to subscribe to on the broker."
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "position": 3
+                      },
+                      "placeholder": "mqtt/topic",
+                      "value": "\"mqtt/topic\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "REPEATABLE_LIST",
+                          "ballerinaType": "string[]",
+                          "template": {
+                            "metadata": {
+                              "label": "Topic"
+                            },
+                            "types": [
+                              {
+                                "fieldType": "TEXT",
+                                "ballerinaType": "string",
+                                "selected": true
+                              },
+                              {
+                                "fieldType": "EXPRESSION",
+                                "ballerinaType": "string",
+                                "selected": false
+                              }
+                            ],
+                            "enabled": false,
+                            "editable": true,
+                            "optional": false,
+                            "advanced": false
+                          },
+                          "selected": false
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string|string[]|mqtt:Subscription|mqtt:Subscription[]",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    }
+                  },
+                  "types": [
+                    {
+                      "fieldType": "GROUP_SECTION",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
             },
             {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "string|string[]",
-              "selected": false
+              "metadata": {
+                "label": "Use existing (none available)",
+                "description": "No compatible listener of this type is present in the project."
+              },
+              "properties": {
+                "existingListener": {
+                  "metadata": {
+                    "label": "Listeners",
+                    "description": "Select one or more existing MQTT listeners to attach the service to (no new(...) is generated)."
+                  },
+                  "codedata": {
+                    "type": "KEY_EXISTING_LISTENER"
+                  },
+                  "value": [
+                    "mqttListener"
+                  ],
+                  "items": [
+                    "mqttListener"
+                  ],
+                  "types": [
+                    {
+                      "fieldType": "MULTI_SELECT_LISTENER",
+                      "ballerinaType": "mqtt:Listener",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": false,
+              "optional": false,
+              "advanced": false
             }
           ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
-        "listenerVarName": {
-          "metadata": {
-            "label": "Listener Name",
-            "description": "Provide a name for the listener being created"
-          },
-          "codedata": {
-            "type": "LISTENER_VAR_NAME"
-          },
-          "value": "mqttListener",
           "types": [
             {
-              "fieldType": "IDENTIFIER",
+              "fieldType": "CHOICE",
               "selected": true
             }
           ],
           "enabled": true,
           "editable": true,
           "optional": false,
-          "advanced": true
+          "advanced": false
         }
       }
     }

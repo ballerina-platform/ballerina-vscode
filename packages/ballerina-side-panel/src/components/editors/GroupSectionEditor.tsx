@@ -40,12 +40,24 @@ export function GroupSectionEditor(props: FormFieldEditorProps) {
 
     const regularChildren = field.advanceProps?.filter(child => child.type !== "GROUP_SECTION") || [];
     const nestedGroupChildren = field.advanceProps?.filter(child => child.type === "GROUP_SECTION") || [];
-    const collapsedFields = nestedGroupChildren.flatMap(group => group.advanceProps || []);
-    const nestedGroupLabel = nestedGroupChildren[0]?.label;
+
+    // Leaf children of this group flagged `advanced` must hide under the collapsible section too —
+    // only the non-advanced ones render inline.
+    const visibleChildren = regularChildren.filter(child => !child.advanced);
+    const advancedChildren = regularChildren.filter(child => child.advanced);
+    // Advanced leaves plus any nested-group fields are collapsed together behind one toggle.
+    const collapsedFields = [
+        ...advancedChildren,
+        ...nestedGroupChildren.flatMap(group => group.advanceProps || []),
+    ];
+    // "Advanced Configurations" whenever advanced leaves are present; otherwise the nested group's label.
+    const collapsedSectionLabel = advancedChildren.length > 0
+        ? "Advanced Configurations"
+        : nestedGroupChildren[0]?.label;
 
     return (
         <FormSectionGroup title={field.label} defaultExpanded={fieldInputType.selected !== false}>
-            {regularChildren.map((childField) => (
+            {visibleChildren.map((childField) => (
                 <FieldFactory
                     key={childField.key}
                     field={childField}
@@ -54,7 +66,7 @@ export function GroupSectionEditor(props: FormFieldEditorProps) {
             ))}
             {collapsedFields.length > 0 && (
                 <FormRow>
-                    {nestedGroupLabel}
+                    {collapsedSectionLabel}
                     <FormButtonContainer>
                         {!showAdvancedOptions && (
                             <LinkButton

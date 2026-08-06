@@ -39,20 +39,27 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
     await projectPathInput.first().fill(dataFolder);
   }
 
-  await frame.getByRole('button', { name: 'Create Integration' }).click({ force: true });
+  // A plain (even force:true) Playwright click silently no-ops on this button in the
+  // current UI — confirmed via manual daemon poking. A real DOM click is required.
+  await domClick(frame.getByRole('button', { name: 'Create Integration' }));
   frame = await waitForGuest(BI_INTEGRATOR_LABEL, 120000);
   // Two landing flows exist: older builds land on the project overview (click
   // the integration name to open it), newer builds land directly on the
-  // integration overview ('Add Artifact' already visible). Poll for either.
+  // integration overview. Once there, an empty integration shows 'Add
+  // Integration' instead of 'Add Artifact' — accept either as "landed".
   const deadline = Date.now() + 120000;
   let landed = false;
   while (Date.now() < deadline) {
     const current = await snapshot().catch(() => '');
-    if (current.includes('Add Artifact')) { landed = true; break; }
+    if (current.includes('Add Artifact') || current.includes('Add Integration')) { landed = true; break; }
     if (current.includes(integrationName)) {
       await frame.getByText(integrationName, { exact: true }).first().click({ force: true }).catch(() => {});
-      await waitForText('Add Artifact', 60000);
-      landed = true;
+      const opened = Date.now() + 60000;
+      while (Date.now() < opened) {
+        const inner = await snapshot().catch(() => '');
+        if (inner.includes('Add Artifact') || inner.includes('Add Integration')) { landed = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));

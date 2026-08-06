@@ -30,7 +30,7 @@ export * from "./ModeSwitcherContext";
 export * from "./SliderEditor";
 export * from "./MultiModeExpressionEditor/ChipExpressionEditor/components/ChipExpressionEditor";
 export * from "./MultiModeExpressionEditor/Configurations";
-export { getPropertyFromFormField } from "./utils";
+export { getPropertyFromFormField, getRecordTypeFields } from "./utils";
 export { getTypeCompletionSearchText } from "./typeCompletionUtils";
 export { InputMode } from "./MultiModeExpressionEditor/ChipExpressionEditor/types";
 export { HelperPaneMenuItem } from "./MultiModeExpressionEditor/ChipExpressionEditor/ChipExpressionDefaultConfig";

@@ -10,35 +10,16 @@
     "offset": 0
   },
   "response": {
-    "id": "10",
+    "id": "0",
     "name": "RabbitMQ Event Integration",
     "type": "rabbitmq",
     "displayName": "RabbitMQ Event Integration",
     "moduleName": "rabbitmq",
     "orgName": "ballerinax",
-    "version": "3.2.0",
+    "version": "3.6.0",
     "packageName": "rabbitmq",
     "listenerProtocol": "rabbitmq",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.2.0.png",
-    "documentation": {
-      "metadata": {
-        "label": "Description",
-        "description": "The description of the class"
-      },
-      "codedata": {
-        "type": "DOCUMENTATION"
-      },
-      "types": [
-        {
-          "fieldType": "TEXT",
-          "selected": true
-        }
-      ],
-      "enabled": true,
-      "editable": true,
-      "optional": true,
-      "advanced": false
-    },
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
     "properties": {
       "listener": {
         "metadata": {
@@ -91,32 +72,51 @@
       },
       "serviceType": {
         "metadata": {
-          "label": "Service Type",
-          "description": "The name of the service contract type"
+          "label": "RabbitMQ Consumer",
+          "description": "Consumes messages from the subscribed RabbitMQ queue."
         },
-        "codedata": {
-          "type": "SERVICE_TYPE"
-        },
-        "placeholder": "Service",
+        "placeholder": "rabbitmq:Service",
         "value": "Service",
         "types": [
           {
-            "fieldType": "SINGLE_SELECT",
-            "options": [
-              {
-                "label": "",
-                "value": ""
-              },
-              {
-                "label": "Service",
-                "value": "Service"
-              }
-            ],
+            "fieldType": "TYPE",
             "selected": true
           }
         ],
         "enabled": false,
         "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "serviceConfig": {
+        "metadata": {
+          "label": "Service Configuration",
+          "description": "Queue name and other advance configurations for the RabbitMQ service."
+        },
+        "codedata": {
+          "type": "SERVICE_ANNOTATION",
+          "originalName": "ServiceConfig",
+          "moduleName": "rabbitmq"
+        },
+        "value": "",
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "rabbitmq:RabbitMQServiceConfig",
+            "typeMembers": [
+              {
+                "type": "RabbitMQServiceConfig",
+                "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                "packageName": "rabbitmq",
+                "kind": "RECORD_TYPE",
+                "selected": true
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
         "optional": false,
         "advanced": false
       },
@@ -128,9 +128,8 @@
         "codedata": {
           "type": "STRING_LITERAL"
         },
-        "placeholder": "\"\"",
+        "placeholder": "\"QueueName\"",
         "value": "\"queueName\"",
-        "values": [],
         "types": [
           {
             "fieldType": "SERVICE_PATH",
@@ -139,7 +138,7 @@
         ],
         "enabled": true,
         "editable": true,
-        "optional": false,
+        "optional": true,
         "advanced": false
       },
       "readOnlyMetadata": {
@@ -162,39 +161,6 @@
         "editable": true,
         "optional": false,
         "advanced": false
-      },
-      "annotServiceConfig": {
-        "metadata": {
-          "label": "Service Configuration",
-          "description": "Define advanced queue configurations "
-        },
-        "codedata": {
-          "type": "ANNOTATION_ATTACHMENT",
-          "originalName": "ServiceConfig"
-        },
-        "placeholder": "{}",
-        "value": "",
-        "values": [],
-        "types": [
-          {
-            "fieldType": "RECORD_MAP_EXPRESSION",
-            "ballerinaType": "rabbitmq:RabbitMQServiceConfig",
-            "typeMembers": [
-              {
-                "type": "RabbitMQServiceConfig",
-                "packageInfo": "ballerinax:rabbitmq:3.2.0",
-                "packageName": "rabbitmq",
-                "kind": "RECORD_TYPE",
-                "selected": true
-              }
-            ],
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": true,
-        "advanced": false
       }
     },
     "codedata": {
@@ -216,21 +182,21 @@
     "functions": [
       {
         "metadata": {
-          "label": "onMessage",
-          "description": "The `onMessage` remote method will be triggered when a message is received in the specified queue"
+          "label": "On Message",
+          "description": "Triggered when a message is received from the subscribed queue (fire-and-forget consumption)."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
-            "label": "onMessage",
-            "description": "The `onMessage` remote method will be triggered when a message is received in the specified queue"
+            "label": "On Message",
+            "description": "Triggered when a message is received from the subscribed queue (fire-and-forget consumption)."
           },
           "placeholder": "onMessage",
           "value": "onMessage",
           "types": [
             {
               "fieldType": "IDENTIFIER",
-              "selected": false
+              "selected": true
             }
           ],
           "enabled": true,
@@ -241,17 +207,27 @@
         "parameters": [
           {
             "metadata": {
-              "label": "message",
-              "description": "The message received from the RabbitMQ queue"
+              "label": "Message Configuration",
+              "description": "Define the shape of the RabbitMQ message content"
             },
-            "kind": "REQUIRED",
+            "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Parameter Type",
-                "description": "The type of the parameter"
+                "label": "Message Configuration",
+                "description": "Define the shape of the RabbitMQ message content"
+              },
+              "codedata": {
+                "type": "PAYLOAD_TYPE_INCLUDED_RECORD",
+                "template": "{{type}}",
+                "defaultType": "rabbitmq:AnydataMessage",
+                "boundType": "Order",
+                "bindable": true,
+                "field": "content",
+                "typeIdentifier": "RabbitmqAnydataMessage",
+                "nameEditable": false
               },
               "placeholder": "rabbitmq:AnydataMessage",
-              "value": "rabbitmq:AnydataMessage",
+              "value": "Order",
               "types": [
                 {
                   "fieldType": "TYPE",
@@ -260,13 +236,13 @@
               ],
               "enabled": true,
               "editable": true,
-              "optional": true,
+              "optional": false,
               "advanced": false
             },
             "name": {
               "metadata": {
-                "label": "message",
-                "description": "The message received from the RabbitMQ queue"
+                "label": "Message Configuration",
+                "description": "Define the shape of the RabbitMQ message content"
               },
               "placeholder": "message",
               "value": "message",
@@ -277,29 +253,11 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
               "advanced": false
             },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
-            "enabled": false,
+            "enabled": true,
             "editable": true,
             "optional": false,
             "advanced": false,
@@ -308,8 +266,8 @@
           },
           {
             "metadata": {
-              "label": "caller",
-              "description": "The RabbitMQ caller object to acknowledge the message"
+              "label": "Caller",
+              "description": "RabbitMQ caller used to manually acknowledge/reject messages (required for manual ack when Auto Acknowledge is off)."
             },
             "kind": "OPTIONAL",
             "type": {
@@ -332,8 +290,8 @@
             },
             "name": {
               "metadata": {
-                "label": "caller",
-                "description": "The RabbitMQ caller object to acknowledge the message"
+                "label": "Caller",
+                "description": "RabbitMQ caller used to manually acknowledge/reject messages (required for manual ack when Auto Acknowledge is off)."
               },
               "placeholder": "caller",
               "value": "caller",
@@ -344,71 +302,14 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
-              "advanced": false
-            },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
               "advanced": false
             },
             "enabled": false,
             "editable": true,
             "optional": true,
-            "advanced": false,
-            "hidden": false,
-            "isGraphqlId": false
-          },
-          {
-            "metadata": {
-              "label": "Data Binding",
-              "description": "Data binding parameter"
-            },
-            "kind": "DATA_BINDING",
-            "type": {
-              "value": "Order",
-              "types": [
-                {
-                  "fieldType": "TYPE",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": false,
-              "optional": false,
-              "advanced": false
-            },
-            "name": {
-              "value": "message",
-              "types": [
-                {
-                  "fieldType": "IDENTIFIER",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": false,
-              "optional": false,
-              "advanced": false
-            },
-            "enabled": true,
-            "editable": true,
-            "optional": false,
-            "advanced": false,
+            "advanced": true,
             "hidden": false,
             "isGraphqlId": false
           }
@@ -418,9 +319,9 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
-          "placeholder": "error?",
+          "placeholder": "rabbitmq:Error?|error?",
           "value": "error?",
           "types": [
             {
@@ -435,7 +336,7 @@
         },
         "enabled": true,
         "optional": true,
-        "editable": false,
+        "editable": true,
         "canAddParameters": false,
         "codedata": {
           "lineRange": {
@@ -449,42 +350,29 @@
               "offset": 5
             }
           },
-          "moduleName": "rabbitmq"
+          "orgName": "ballerinax",
+          "packageName": "rabbitmq",
+          "moduleName": "rabbitmq",
+          "version": "3.6.0"
         },
-        "properties": {
-          "wrapperTypeName": {
-            "value": "RabbitMQAnydataMessage",
-            "enabled": false,
-            "editable": false,
-            "optional": false,
-            "advanced": false
-          },
-          "payloadFieldName": {
-            "value": "content",
-            "enabled": false,
-            "editable": false,
-            "optional": false,
-            "advanced": false
-          },
-          "canDataBind": {
-            "value": "true",
-            "enabled": false,
-            "editable": false,
-            "optional": false,
-            "advanced": false
-          }
-        }
-      },
+        "properties": {},
+        "group": "consume",
+        "variantLabel": "On Message",
+        "repeatable": "ONE_OF_GROUP",
+        "nameEditable": false
+      }
+    ],
+    "schemaFunctions": [
       {
         "metadata": {
-          "label": "onError",
-          "description": "The `onError` remote method will be triggered when an error occurs during the message processing"
+          "label": "On Error",
+          "description": "Triggered when an error occurs while dispatching a message to On Message / On Request."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
-            "label": "onError",
-            "description": "The `onError` remote method will be triggered when an error occurs during the message processing"
+            "label": "On Error",
+            "description": "Triggered when an error occurs while dispatching a message to On Message / On Request."
           },
           "placeholder": "onError",
           "value": "onError",
@@ -502,8 +390,8 @@
         "parameters": [
           {
             "metadata": {
-              "label": "message",
-              "description": "The message received from the RabbitMQ queue"
+              "label": "Message",
+              "description": "The message that was being processed when the error occurred."
             },
             "kind": "REQUIRED",
             "type": {
@@ -520,14 +408,14 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": true,
               "advanced": false
             },
             "name": {
               "metadata": {
-                "label": "message",
-                "description": "The message received from the RabbitMQ queue"
+                "label": "Message",
+                "description": "The message that was being processed when the error occurred."
               },
               "placeholder": "message",
               "value": "message",
@@ -538,30 +426,12 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
               "advanced": false
             },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
             "enabled": true,
-            "editable": true,
+            "editable": false,
             "optional": false,
             "advanced": false,
             "hidden": false,
@@ -569,8 +439,8 @@
           },
           {
             "metadata": {
-              "label": "rabbitmqError",
-              "description": "The error occurred during the message processing"
+              "label": "RabbitMQ Error",
+              "description": "The error that occurred while processing the message."
             },
             "kind": "REQUIRED",
             "type": {
@@ -593,8 +463,8 @@
             },
             "name": {
               "metadata": {
-                "label": "rabbitmqError",
-                "description": "The error occurred during the message processing"
+                "label": "RabbitMQ Error",
+                "description": "The error that occurred while processing the message."
               },
               "placeholder": "rabbitmqError",
               "value": "rabbitmqError",
@@ -605,30 +475,12 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
               "advanced": false
             },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
             "enabled": true,
-            "editable": true,
+            "editable": false,
             "optional": false,
             "advanced": false,
             "hidden": false,
@@ -640,7 +492,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
           "placeholder": "error?",
           "value": "error?",
@@ -657,8 +509,18 @@
         },
         "enabled": false,
         "optional": true,
-        "editable": false,
-        "canAddParameters": false
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "rabbitmq",
+          "moduleName": "rabbitmq",
+          "version": "3.6.0"
+        },
+        "properties": {},
+        "group": "onError",
+        "repeatable": "FALSE",
+        "nameEditable": false
       }
     ]
   }

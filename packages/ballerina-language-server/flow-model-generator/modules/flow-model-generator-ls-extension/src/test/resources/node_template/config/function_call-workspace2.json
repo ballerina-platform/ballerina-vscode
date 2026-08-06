@@ -16,7 +16,7 @@
     "metadata": {
       "label": "greetUser",
       "description": "",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/wso2_null_null.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/wso2_null_0.1.0.png"
     },
     "codedata": {
       "node": "FUNCTION_CALL",

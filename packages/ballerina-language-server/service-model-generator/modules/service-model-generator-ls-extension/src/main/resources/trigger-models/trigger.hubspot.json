@@ -1,0 +1,4278 @@
+{
+  "schemaVersion": "1.0",
+  "displayName": "HubSpot Event Integration",
+  "description": "Create a service to handle webhook events from HubSpot",
+  "orgName": "ballerinax",
+  "packageName": "trigger.hubspot",
+  "moduleName": "trigger.hubspot",
+  "version": "0.12.0",
+  "type": "hubspot",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Listener",
+        "description": "Attach the service to a new or existing HubSpot webhook listener."
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "value": "createNew",
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create New Listener",
+            "description": "Define a new HubSpot webhook listener in the project."
+          },
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the HubSpot webhook listener."
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created"
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "value": "hubspotListener",
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "hubspot:Listener"
+                    }
+                  ],
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "clientSecret": {
+                  "metadata": {
+                    "label": "Client Secret",
+                    "description": "The Client Secret of HubSpot App"
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "placeholder": "",
+                  "value": "",
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "selected": true,
+                      "ballerinaType": "string"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "string"
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "path": "clientSecret",
+                    "originalName": "clientSecret",
+                    "position": 1
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    }
+                  ]
+                },
+                "callbackURL": {
+                  "metadata": {
+                    "label": "Callback URL",
+                    "description": "The Callback URL"
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "placeholder": "",
+                  "value": "",
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "selected": true,
+                      "ballerinaType": "string"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "string"
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "path": "callbackURL",
+                    "originalName": "callbackURL",
+                    "position": 1
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    }
+                  ]
+                },
+                "listenOn": {
+                  "metadata": {
+                    "label": "Webhook Listener Port",
+                    "description": "The port on which the webhook listener accepts incoming HTTP requests"
+                  },
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "placeholder": "8090",
+                  "value": "8090",
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "selected": true,
+                      "ballerinaType": "int"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "int|http:Listener"
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "position": 2,
+                    "originalName": "listenOn"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use Existing Listener",
+            "description": "Attach to HubSpot listener(s) already declared in the project."
+          },
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing listeners to attach the service to."
+              },
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "value": [
+                "hubspotListener"
+              ],
+              "types": [
+                {
+                  "fieldType": "MULTIPLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "hubspot:Listener"
+                }
+              ],
+              "items": [
+                "hubspotListener"
+              ],
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ],
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      }
+    },
+    "serviceType": {
+      "metadata": {
+        "label": "Service Type",
+        "description": "The HubSpot object whose events this service listens for"
+      },
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "value": "hubspot:CompanyService",
+      "types": [
+        {
+          "fieldType": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "hubspot:GenericServiceType",
+          "options": [
+            {
+              "label": "Company",
+              "value": "hubspot:CompanyService"
+            },
+            {
+              "label": "Contact",
+              "value": "hubspot:ContactService"
+            },
+            {
+              "label": "Conversation",
+              "value": "hubspot:ConversationService"
+            },
+            {
+              "label": "Deal",
+              "value": "hubspot:DealService"
+            },
+            {
+              "label": "Ticket",
+              "value": "hubspot:TicketService"
+            },
+            {
+              "label": "Product",
+              "value": "hubspot:ProductService"
+            },
+            {
+              "label": "Line Item",
+              "value": "hubspot:LineItemService"
+            }
+          ]
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Company",
+        "description": "Triggers when a new event related to HubSpot Company is received. Available actions: onCompanyCreation, onCompanyDeletion, onCompanyPropertychange, onCompanyAssociationchange, onCompanyMerge, onCompanyRestore."
+      },
+      "name": "hubspot:CompanyService",
+      "description": "Triggers when a new event related to HubSpot Company is received. Available actions: onCompanyCreation, onCompanyDeletion, onCompanyPropertychange, onCompanyAssociationchange, onCompanyMerge, onCompanyRestore.",
+      "enabled": true,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "CompanyService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Company is created."
+          },
+          "name": "onCompanyCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Company is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Company is deleted."
+          },
+          "name": "onCompanyDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Company is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Company changes."
+          },
+          "name": "onCompanyPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Company changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Association Change",
+            "description": "Triggered when an association of a Company changes."
+          },
+          "name": "onCompanyAssociationchange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an association of a Company changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyAssociationchange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Company records are merged."
+          },
+          "name": "onCompanyMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Company records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Company is restored."
+          },
+          "name": "onCompanyRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Company is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCompanyRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Contact",
+        "description": "Triggers when a new event related to HubSpot Contact is received. Available actions: onContactCreation, onContactDeletion, onContactPropertychange, onContactAssociationchange, onContactMerge, onContactRestore, onContactPrivacydeletion."
+      },
+      "name": "hubspot:ContactService",
+      "description": "Triggers when a new event related to HubSpot Contact is received. Available actions: onContactCreation, onContactDeletion, onContactPropertychange, onContactAssociationchange, onContactMerge, onContactRestore, onContactPrivacydeletion.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "ContactService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Contact is created."
+          },
+          "name": "onContactCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Contact is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Contact is deleted."
+          },
+          "name": "onContactDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Contact is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Contact changes."
+          },
+          "name": "onContactPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Contact changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Association Change",
+            "description": "Triggered when an association of a Contact changes."
+          },
+          "name": "onContactAssociationchange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an association of a Contact changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactAssociationchange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Contact records are merged."
+          },
+          "name": "onContactMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Contact records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Contact is restored."
+          },
+          "name": "onContactRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Contact is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Privacy Deletion",
+            "description": "Triggered when a Contact's data is deleted for privacy compliance (e.g. GDPR)."
+          },
+          "name": "onContactPrivacydeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Contact's data is deleted for privacy compliance (e.g. GDPR).",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onContactPrivacydeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Conversation",
+        "description": "Triggers when a new event related to HubSpot Conversation is received. Available actions: onConversationCreation, onConversationDeletion, onConversationPropertychange, onConversationPrivacydeletion, onConversationNewmessage."
+      },
+      "name": "hubspot:ConversationService",
+      "description": "Triggers when a new event related to HubSpot Conversation is received. Available actions: onConversationCreation, onConversationDeletion, onConversationPropertychange, onConversationPrivacydeletion, onConversationNewmessage.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "ConversationService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Conversation is created."
+          },
+          "name": "onConversationCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Conversation is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConversationCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Conversation is deleted."
+          },
+          "name": "onConversationDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Conversation is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConversationDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Conversation changes."
+          },
+          "name": "onConversationPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Conversation changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConversationPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Privacy Deletion",
+            "description": "Triggered when a Conversation's data is deleted for privacy compliance (e.g. GDPR)."
+          },
+          "name": "onConversationPrivacydeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Conversation's data is deleted for privacy compliance (e.g. GDPR).",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConversationPrivacydeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On New Message",
+            "description": "Triggered when a new message is received in a conversation."
+          },
+          "name": "onConversationNewmessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new message is received in a conversation.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConversationNewmessage",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Deal",
+        "description": "Triggers when a new event related to HubSpot Deal is received. Available actions: onDealCreation, onDealDeletion, onDealPropertychange, onDealAssociationchange, onDealMerge, onDealRestore."
+      },
+      "name": "hubspot:DealService",
+      "description": "Triggers when a new event related to HubSpot Deal is received. Available actions: onDealCreation, onDealDeletion, onDealPropertychange, onDealAssociationchange, onDealMerge, onDealRestore.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "DealService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Deal is created."
+          },
+          "name": "onDealCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Deal is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Deal is deleted."
+          },
+          "name": "onDealDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Deal is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Deal changes."
+          },
+          "name": "onDealPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Deal changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Association Change",
+            "description": "Triggered when an association of a Deal changes."
+          },
+          "name": "onDealAssociationchange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an association of a Deal changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealAssociationchange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Deal records are merged."
+          },
+          "name": "onDealMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Deal records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Deal is restored."
+          },
+          "name": "onDealRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Deal is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDealRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Ticket",
+        "description": "Triggers when a new event related to HubSpot Ticket is received. Available actions: onTicketCreation, onTicketDeletion, onTicketPropertychange, onTicketAssociationchange, onTicketMerge, onTicketRestore."
+      },
+      "name": "hubspot:TicketService",
+      "description": "Triggers when a new event related to HubSpot Ticket is received. Available actions: onTicketCreation, onTicketDeletion, onTicketPropertychange, onTicketAssociationchange, onTicketMerge, onTicketRestore.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "TicketService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Ticket is created."
+          },
+          "name": "onTicketCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Ticket is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Ticket is deleted."
+          },
+          "name": "onTicketDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Ticket is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Ticket changes."
+          },
+          "name": "onTicketPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Ticket changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Association Change",
+            "description": "Triggered when an association of a Ticket changes."
+          },
+          "name": "onTicketAssociationchange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an association of a Ticket changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketAssociationchange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Ticket records are merged."
+          },
+          "name": "onTicketMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Ticket records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Ticket is restored."
+          },
+          "name": "onTicketRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Ticket is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onTicketRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Product",
+        "description": "Triggers when a new event related to HubSpot Product is received. Available actions: onProductCreation, onProductDeletion, onProductPropertychange, onProductMerge, onProductRestore."
+      },
+      "name": "hubspot:ProductService",
+      "description": "Triggers when a new event related to HubSpot Product is received. Available actions: onProductCreation, onProductDeletion, onProductPropertychange, onProductMerge, onProductRestore.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "ProductService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Product is created."
+          },
+          "name": "onProductCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Product is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Product is deleted."
+          },
+          "name": "onProductDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Product is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Product changes."
+          },
+          "name": "onProductPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Product changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Product records are merged."
+          },
+          "name": "onProductMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Product records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Product is restored."
+          },
+          "name": "onProductRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Product is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onProductRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Line Item",
+        "description": "Triggers when a new event related to HubSpot Line Item is received. Available actions: onLineItemCreation, onLineItemDeletion, onLineItemPropertychange, onLineItemAssociationchange, onLineItemMerge, onLineItemRestore."
+      },
+      "name": "hubspot:LineItemService",
+      "description": "Triggers when a new event related to HubSpot Line Item is received. Available actions: onLineItemCreation, onLineItemDeletion, onLineItemPropertychange, onLineItemAssociationchange, onLineItemMerge, onLineItemRestore.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "hubspot",
+        "originalName": "LineItemService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Creation",
+            "description": "Triggered when a new Line Item is created."
+          },
+          "name": "onLineItemCreation",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a new Line Item is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemCreation",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deletion",
+            "description": "Triggered when a Line Item is deleted."
+          },
+          "name": "onLineItemDeletion",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a Line Item is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemDeletion",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Property Change",
+            "description": "Triggered when a property of a Line Item changes."
+          },
+          "name": "onLineItemPropertychange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a property of a Line Item changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemPropertychange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Association Change",
+            "description": "Triggered when an association of a Line Item changes."
+          },
+          "name": "onLineItemAssociationchange",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an association of a Line Item changes.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemAssociationchange",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Merge",
+            "description": "Triggered when two Line Item records are merged."
+          },
+          "name": "onLineItemMerge",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when two Line Item records are merged.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemMerge",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggered when a deleted Line Item is restored."
+          },
+          "name": "onLineItemRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a deleted Line Item is restored.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLineItemRestore",
+            "moduleName": "hubspot"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Event",
+                "description": "The information about the triggered HubSpot webhook event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "hubspot:WebhookEvent",
+                "value": "hubspot:WebhookEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ]
+              },
+              "name": {
+                "metadata": {
+                  "label": "event",
+                  "description": "The information about the triggered HubSpot webhook event."
+                },
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false,
+                "placeholder": "event",
+                "value": "event",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ]
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "serviceType",
+      "displayName": "Service Type",
+      "kind": "SERVICE_DESCRIPTION"
+    }
+  ]
+}

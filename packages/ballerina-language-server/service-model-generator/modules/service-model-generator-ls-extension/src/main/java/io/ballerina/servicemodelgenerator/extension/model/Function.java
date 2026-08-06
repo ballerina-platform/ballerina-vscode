@@ -18,10 +18,17 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+import com.google.gson.annotations.JsonAdapter;
 import io.ballerina.modelgenerator.commons.Annotation;
+import io.ballerina.modelgenerator.commons.trigger.models.Repeatable;
 import io.ballerina.servicemodelgenerator.extension.util.Constants;
 import io.ballerina.servicemodelgenerator.extension.util.ServiceClassUtil;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +67,17 @@ public class Function {
     private boolean canAddParameters;
     private Codedata codedata;
     private Map<String, Value> properties;
+    // Handler-catalog fields carried by the unified TriggerUISchemaModel (phase6): functions sharing a
+    // `group` are format variants of one logical handler (each labelled by `variantLabel`, offered
+    // to the user under `addLabel`); `repeatable` says whether/how the handler can be added more
+    // than once (see Repeatable) and `nameEditable:false` locks the emitted function name to the
+    // variant's.
+    private String group;
+    private String variantLabel;
+    private String addLabel;
+    @JsonAdapter(RepeatableSerializer.class)
+    private Repeatable repeatable;
+    private Boolean nameEditable;
 
     public Function(MetaData metadata, List<String> qualifiers, String kind, Value accessor, Value name,
                     Value documentation, List<Parameter> parameters, Map<String, Parameter> schema,
@@ -77,6 +95,7 @@ public class Function {
         this.enabled = enabled;
         this.optional = optional;
         this.editable = editable;
+        this.canAddParameters = canAddParameters;
         this.codedata = codedata;
         this.properties = properties;
     }
@@ -376,6 +395,46 @@ public class Function {
         return this.properties.get(key);
     }
 
+    public String getGroup() {
+        return group;
+    }
+
+    public void setGroup(String group) {
+        this.group = group;
+    }
+
+    public String getVariantLabel() {
+        return variantLabel;
+    }
+
+    public void setVariantLabel(String variantLabel) {
+        this.variantLabel = variantLabel;
+    }
+
+    public String getAddLabel() {
+        return addLabel;
+    }
+
+    public void setAddLabel(String addLabel) {
+        this.addLabel = addLabel;
+    }
+
+    public Repeatable getRepeatable() {
+        return repeatable;
+    }
+
+    public void setRepeatable(Repeatable repeatable) {
+        this.repeatable = repeatable;
+    }
+
+    public Boolean getNameEditable() {
+        return nameEditable;
+    }
+
+    public void setNameEditable(Boolean nameEditable) {
+        this.nameEditable = nameEditable;
+    }
+
     public boolean isCanAddParameters() {
         return canAddParameters;
     }
@@ -484,6 +543,13 @@ public class Function {
         public Function build() {
             return new Function(metadata, qualifiers, kind, accessor, name, documentation, parameters, schema,
                     returnType, enabled, optional, editable, canAddParameters, codedata, properties);
+        }
+    }
+
+    public static class RepeatableSerializer implements JsonSerializer<Repeatable> {
+        @Override
+        public JsonElement serialize(Repeatable src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(src.name());
         }
     }
 }

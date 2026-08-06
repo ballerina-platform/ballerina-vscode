@@ -19,6 +19,7 @@
 import { ReactNode } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
+import { useSuppressAgentStatusOrb } from "../../../../../../components/AgentStatusOrb/shared";
 import {
     HeaderRow,
     BackButton,
@@ -94,6 +95,10 @@ export interface CreateFlowShellProps {
  * the library form feels like one continuous flow rather than separate forms.
  */
 export function CreateFlowShell({ title, subtitle, onBack, bodyFill, fill, children }: CreateFlowShellProps) {
+    // The embedded panels render inside an overview, whose view still counts as
+    // orb-worthy — so the shell has to opt out for them.
+    useSuppressAgentStatusOrb();
+
     return (
         <ShellBackdrop fill={fill}>
             <ShellContainer>

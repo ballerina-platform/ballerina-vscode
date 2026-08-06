@@ -114,6 +114,9 @@ type MiniTail =
  *    chat stream. ⚠️ If migration is ever folded into the main chat, this one could
  *    start mutating persisted content in the panel — and the tripwire will NOT catch
  *    that, since it only fires on newly added `ChatNotify` variants.
+ *  - `generation_status` reports a generation's review status, which the mini chat
+ *    never renders — it has no revert affordance. The panel reads it off the message
+ *    rather than the transcript, so ignoring it here loses nothing.
  */
 /**
  * The events whose content `applyContentEvent` folds into the transcript. Naming the
@@ -141,7 +144,8 @@ type UnmodelledNotifyType =
     | "compaction_end"
     | "config_change"
     | "migration_progress"
-    | "followup_suggestions";
+    | "followup_suggestions"
+    | "generation_status";
 
 /** Friendly one-line label for a tool call (mirrors the status-bar phrasing). */
 function describeTool(toolName: string, toolInput: any): string {

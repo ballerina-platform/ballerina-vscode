@@ -16,10 +16,11 @@
  * under the License.
  */
 
+import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify } from "@wso2/ballerina-core";
-import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 
 /** WSO2 brand orange — the pulse-icon color from wso2.com/about/brand. */
@@ -283,6 +284,25 @@ export function subscribeAgentRunStatus(
     };
 }
 
+/**
+ * True while the Copilot panel is open — inline copilot surfaces stand down so
+ * the panel is the only chat entry point. Seeded from the cached status so a
+ * remount does not flash the surface it is about to hide.
+ */
+export function useAiPanelOpen(): boolean {
+    const { rpcClient } = useRpcContext();
+    const [open, setOpen] = useState(() => currentStatus?.aiPanelOpen ?? false);
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        return subscribeAgentRunStatus(rpcClient, (status) => setOpen(status?.aiPanelOpen ?? false));
+    }, [rpcClient]);
+
+    return open;
+}
+
 // ---------------------------------------------------------------------------
 // Contextual mini-chat launch requests.
 //
@@ -339,33 +359,66 @@ export function subscribeCopilotChatNotify(
 }
 
 // ---------------------------------------------------------------------------
-// Hero-box presence.
+// Floating-orb suppression.
 //
-// While a landing-page hero box is on screen it IS the copilot surface for
-// that view, so the floating orb hides itself to avoid showing two orbs.
+// A view opts out of the floating orb either because its own hero box is the
+// copilot surface there, or because it deliberately offers no ambient copilot.
 // ---------------------------------------------------------------------------
 
-let heroCount = 0;
-const heroListeners = new Set<(present: boolean) => void>();
+let orbSuppressCount = 0;
+const orbSuppressListeners = new Set<(suppressed: boolean) => void>();
 
-function notifyHeroPresence() {
-    heroListeners.forEach((listener) => listener(heroCount > 0));
+function notifyOrbSuppressed() {
+    orbSuppressListeners.forEach((listener) => listener(orbSuppressCount > 0));
 }
 
-/** Called by a hero box on mount; returns the matching unmount cleanup. */
-export function registerHeroPresence(): () => void {
-    heroCount++;
-    notifyHeroPresence();
-    return () => {
-        heroCount--;
-        notifyHeroPresence();
-    };
+/**
+ * Hides the floating orb while the caller is mounted and `suppressed` holds.
+ * Layout effect, not passive: suppression has to land in the same frame as the
+ * render that caused it, or the orb paints once over a view that opts out.
+ */
+export function useSuppressAgentStatusOrb(suppressed = true): void {
+    useLayoutEffect(() => {
+        if (!suppressed) {
+            return;
+        }
+        orbSuppressCount++;
+        notifyOrbSuppressed();
+        return () => {
+            orbSuppressCount--;
+            notifyOrbSuppressed();
+        };
+    }, [suppressed]);
 }
 
-export function subscribeHeroPresence(listener: (present: boolean) => void): () => void {
-    heroListeners.add(listener);
-    listener(heroCount > 0);
+/**
+ * The hubs and design canvases the ambient orb belongs on. Forms, wizards, list
+ * and settings pages, setup/welcome pages, Copilot's own views and anything still
+ * loading go without it, so a view added later has to opt in here rather than
+ * inherit the overlay.
+ */
+const VIEWS_WITH_ORB: ReadonlySet<MACHINE_VIEW> = new Set([
+    MACHINE_VIEW.PackageOverview,
+    MACHINE_VIEW.BIComponentView,
+    MACHINE_VIEW.BIDiagram,
+    MACHINE_VIEW.ServiceDesigner,
+    MACHINE_VIEW.BIServiceClassDesigner,
+    MACHINE_VIEW.AIAgentDesigner,
+    MACHINE_VIEW.ERDiagram,
+    MACHINE_VIEW.TypeDiagram,
+    MACHINE_VIEW.GraphQLDiagram,
+    MACHINE_VIEW.DataMapper,
+    MACHINE_VIEW.InlineDataMapper,
+]);
+
+export function viewHidesAgentStatusOrb(view: MACHINE_VIEW | null | undefined): boolean {
+    return !view || !VIEWS_WITH_ORB.has(view);
+}
+
+export function subscribeOrbSuppressed(listener: (suppressed: boolean) => void): () => void {
+    orbSuppressListeners.add(listener);
+    listener(orbSuppressCount > 0);
     return () => {
-        heroListeners.delete(listener);
+        orbSuppressListeners.delete(listener);
     };
 }

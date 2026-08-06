@@ -22,6 +22,7 @@ import { Dropdown } from "@wso2/ui-toolkit";
 
 import { FormField } from "../Form/types";
 import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
+import { buildValidate } from "../Form/validationRules";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
 
@@ -69,7 +70,8 @@ export function DropdownEditor(props: DropdownEditorProps) {
             description={field.documentation}
             {...register(field.key, {
                 required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-                value: getValueForDropdown(field)
+                value: getValueForDropdown(field),
+                validate: buildValidate(field)
             })}
             label={capitalize(field.label)}
             items={dropdownItems}

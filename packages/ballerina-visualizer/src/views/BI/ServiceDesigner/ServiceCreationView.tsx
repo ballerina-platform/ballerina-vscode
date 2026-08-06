@@ -16,14 +16,14 @@
  * under the License.
  */
 
-import { Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
+import { Button, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, LineRange, RecordTypeField, ServiceInitModel } from "@wso2/ballerina-core";
+import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import styled from "@emotion/styled";
@@ -90,6 +90,7 @@ export interface ServiceCreationViewProps {
     packageName: string;
     moduleName: string;
     version?: string;
+    isLocalRepository?: boolean;
 }
 
 interface HeaderInfo {
@@ -106,7 +107,7 @@ enum PullingStatus {
 
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
-    const { projectPath, orgName, packageName, moduleName } = props;
+    const { projectPath, orgName, packageName, moduleName, version, isLocalRepository } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -117,18 +118,25 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     const [filePath, setFilePath] = useState<string>("");
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [serverValidationErrors, setServerValidationErrors] = useState<ValidationResult[]>([]);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
+
+    const isMountedRef = useRef(true);
 
     const MAIN_BALLERINA_FILE = "main.bal";
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setPullingStatus(PullingStatus.FETCHING);
+    // Lifted out of the effect (rather than a local closure) so the ERROR state's Retry button can
+    // call it again — previously a failed fetch here left the loading screen stuck forever with no
+    // way out: PullingStatus.ERROR was rendered but never actually set anywhere.
+    const fetchData = async () => {
+        setPullingStatus(PullingStatus.FETCHING);
 
+        try {
             const promise = rpcClient
                 .getServiceDesignerRpcClient()
                 .getServiceInitModel({
-                    filePath: "", orgName: orgName, pkgName: packageName, moduleName: moduleName, listenerName: ""
+                    filePath: "", orgName: orgName, pkgName: packageName, moduleName: moduleName,
+                    listenerName: "", version: version, isLocalRepository: isLocalRepository
                 });
 
             let timer: ReturnType<typeof setTimeout> | null = null;
@@ -139,7 +147,9 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             const timeoutPromise = new Promise<void>((resolve) => {
                 timer = setTimeout(() => {
                     didTimeout = true;
-                    setPullingStatus(PullingStatus.PULLING);
+                    if (isMountedRef.current) {
+                        setPullingStatus(PullingStatus.PULLING);
+                    }
                     resolve();
                 }, 3000);
             });
@@ -154,6 +164,10 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 }),
                 timeoutPromise.then(() => promise)
             ]);
+
+            if (!isMountedRef.current) {
+                return;
+            }
 
             // If the response arrived before the timer, package is present, load form immediately
             if (!didTimeout && res?.serviceInitModel) {
@@ -174,17 +188,35 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 setServiceInitModel(res.serviceInitModel);
                 setFormFields(mapPropertiesToFormFields(res.serviceInitModel.properties));
                 setPullingStatus(undefined);
+            } else {
+                // The call resolved but came back with no model to show — treat it the same as a
+                // failure rather than leaving the loading UI stuck with nothing to display.
+                setPullingStatus(PullingStatus.ERROR);
+                return;
             }
 
             rpcClient
                 .getVisualizerRpcClient()
                 .joinProjectPath({ segments: [MAIN_BALLERINA_FILE] })
                 .then((response) => {
-                    setFilePath(response.filePath);
+                    if (isMountedRef.current) {
+                        setFilePath(response.filePath);
+                    }
                 });
-        };
+        } catch (error) {
+            console.error("Error fetching service init model:", error);
+            if (isMountedRef.current) {
+                setPullingStatus(PullingStatus.ERROR);
+            }
+        }
+    };
 
+    useEffect(() => {
+        isMountedRef.current = true;
         fetchData();
+        return () => {
+            isMountedRef.current = false;
+        };
     }, []);
 
     useEffect(() => {
@@ -193,6 +225,9 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 .getBIDiagramRpcClient()
                 .getEndOfFile({ filePath })
                 .then((res) => {
+                    if (!isMountedRef.current) {
+                        return;
+                    }
                     setTargetLineRange({
                         startLine: res,
                         endLine: res,
@@ -226,6 +261,19 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             .getServiceDesignerRpcClient()
             .createServiceAndListener({ filePath: "", serviceInitModel: updatedModel });
 
+        if (!isMountedRef.current) {
+            return;
+        }
+
+        // The language server refused the model: nothing was written, so keep the form open and
+        // hand the failures to it rather than leaving the user on a stuck "Saving" button. Only an
+        // ERROR blocks — a WARNING rides along with a successful save and must not trap the form.
+        if (hasBlockingValidationErrors(res.validationErrors)) {
+            setServerValidationErrors(res.validationErrors);
+            setIsSaving(false);
+            return;
+        }
+        setServerValidationErrors([]);
 
         const newArtifact = res.artifacts.find(res => res.isNew && model.moduleName === res.moduleName);
         if (newArtifact) {
@@ -233,6 +281,8 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             setIsSaving(false);
             return;
         }
+        // No artifact came back and nothing was rejected — release the button rather than hanging.
+        setIsSaving(false);
     }
 
     return (
@@ -244,24 +294,36 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                     )}
                     {pullingStatus === PullingStatus.PULLING && (
                         <StatusCard>
-                            <DownloadIcon color={ThemeColors.ON_SURFACE} />
+                            {isLocalRepository ? (
+                                <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                            ) : (
+                                <DownloadIcon color={ThemeColors.ON_SURFACE} />
+                            )}
                             <StatusText variant="body2">
-                                Please wait while the {packageName} package is being pulled...
+                                {isLocalRepository
+                                    ? `Please wait while the ${packageName} package is being loaded from your `
+                                        + "local repository..."
+                                    : `Please wait while the ${packageName} package is being pulled...`}
                             </StatusText>
                         </StatusCard>
                     )}
                     {pullingStatus === PullingStatus.SUCCESS && (
                         <StatusCard>
                             <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
-                            <StatusText variant="body2">Package pulled successfully.</StatusText>
+                            <StatusText variant="body2">
+                                {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
+                            </StatusText>
                         </StatusCard>
                     )}
                     {pullingStatus === PullingStatus.ERROR && (
                         <StatusCard>
                             <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
                             <StatusText variant="body2">
-                                Failed to pull the package. Please try again.
+                                {isLocalRepository
+                                    ? "Failed to load the package from your local repository. Please try again."
+                                    : "Failed to pull the package. Please try again."}
                             </StatusText>
+                            <Button appearance="secondary" onClick={fetchData}>Retry</Button>
                         </StatusCard>
                     )}
                 </StatusContainer>
@@ -292,6 +354,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                                 nestedForm={true}
                                                 onSubmit={handleOnSubmit}
                                                 onChange={handleOnChange}
+                                                serverValidationErrors={serverValidationErrors}
                                                 preserveFieldOrder={true}
                                                 recordTypeFields={recordTypeFields}
                                                 submitText="Create"

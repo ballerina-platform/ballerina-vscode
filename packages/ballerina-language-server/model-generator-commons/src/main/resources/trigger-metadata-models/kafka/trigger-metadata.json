@@ -1,0 +1,70 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "Listener" },
+      "services": ["service"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": { "name": "Service" },
+      "concrete": false,
+      "multipleListenersAllowed": false,
+      "multipleServicesPerListenerAllowed": false,
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onConsumerRecord",
+            "kind": "remote",
+            "presence": "required",
+            "params": [
+              {
+                "type": [{ "name": "AnydataConsumerRecord[]" }, { "name": "BytesConsumerRecord[]" }],
+                "presence": "required",
+                "dataBinding": "consumerRecordPayload"
+              },
+              { "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onError",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "Error" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [],
+
+  "dataBindingRules": [
+    {
+      "id": "consumerRecordPayload",
+      "envelopeType": { "name": "AnydataConsumerRecord" },
+      "cardinality": "array",
+      "supportedModes": [
+        {
+          "mode": "direct",
+          "typeConstraint": [{ "name": "anydata" }],
+          "excludes": [{ "name": "AnydataConsumerRecord" }]
+        },
+        {
+          "mode": "includedRecord",
+          "includes": { "name": "AnydataConsumerRecord" },
+          "bindableFields": ["value"]
+        }
+      ]
+    }
+  ]
+}

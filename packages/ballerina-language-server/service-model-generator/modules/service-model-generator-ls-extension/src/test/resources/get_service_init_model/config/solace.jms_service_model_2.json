@@ -1,0 +1,1275 @@
+{
+  "description": "Test getting solace.jms service init model when there are existing listeners",
+  "filePath": "sample2/main.bal",
+  "orgName": "ballerinax",
+  "pkgName": "solace.jms",
+  "moduleName": "solace.jms",
+  "response": {
+    "serviceInitModel": {
+      "id": "solace.jms",
+      "displayName": "Solace (JMS) Event Integration",
+      "description": "Create a service to handle messages from a Solace queue or topic using JMS.",
+      "orgName": "ballerinax",
+      "packageName": "solace.jms",
+      "moduleName": "solace.jms",
+      "version": "0.1.0",
+      "type": "solace.jms",
+      "icon": "icon.png",
+      "properties": {
+        "listener": {
+          "metadata": {
+            "label": "Listener",
+            "description": "Attach the service to a new or existing listener."
+          },
+          "codedata": {
+            "type": "LISTENER_CONFIG"
+          },
+          "value": "1",
+          "choices": [
+            {
+              "metadata": {
+                "label": "Create New Listener",
+                "description": "Define a new listener in the project."
+              },
+              "properties": {
+                "listenerConfig": {
+                  "metadata": {
+                    "label": "Listener Configurations",
+                    "description": "Configure the Solace JMS listener."
+                  },
+                  "properties": {
+                    "listenerVarName": {
+                      "metadata": {
+                        "label": "Listener Name",
+                        "description": "Provide a name for the listener being created."
+                      },
+                      "codedata": {
+                        "type": "LISTENER_VAR_NAME"
+                      },
+                      "value": "jmsListener",
+                      "types": [
+                        {
+                          "fieldType": "IDENTIFIER",
+                          "ballerinaType": "jms:Listener",
+                          "selected": true
+                        }
+                      ],
+                      "validations": [
+                        {
+                          "rule": "common.validate.identifier"
+                        },
+                        {
+                          "rule": "ls.validate.unique.listener.name",
+                          "message": "A listener with this name already exists in the project"
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "url": {
+                      "metadata": {
+                        "label": "Broker URL",
+                        "description": "The broker URL with format: [protocol:]host[:port]."
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "originalName": "url",
+                        "position": 1
+                      },
+                      "placeholder": "smf://localhost:55555",
+                      "value": "\"smf://localhost:55555\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "validations": [
+                        {
+                          "rule": "common.validate.required"
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "messageVpn": {
+                      "metadata": {
+                        "label": "Message VPN",
+                        "description": "The name of the message VPN to connect to."
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                        "originalName": "messageVpn",
+                        "path": "messageVpn"
+                      },
+                      "placeholder": "default",
+                      "value": "\"default\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": true,
+                      "advanced": false
+                    },
+                    "auth": {
+                      "metadata": {
+                        "label": "Authentication",
+                        "description": "The authentication configuration (basic, Kerberos, or OAuth2)."
+                      },
+                      "value": "",
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Basic Authentication",
+                            "description": "Username and password authentication."
+                          },
+                          "value": "true",
+                          "properties": {
+                            "username": {
+                              "metadata": {
+                                "label": "Username",
+                                "description": "Username for broker authentication."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.username"
+                              },
+                              "placeholder": "admin",
+                              "value": "",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "validations": [
+                                {
+                                  "rule": "common.validate.required"
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false
+                            },
+                            "password": {
+                              "metadata": {
+                                "label": "Password",
+                                "description": "Password for broker authentication."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.password"
+                              },
+                              "placeholder": "",
+                              "value": "",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": true,
+                              "advanced": false
+                            }
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        },
+                        {
+                          "metadata": {
+                            "label": "Kerberos Authentication",
+                            "description": "Kerberos (GSS-KRB) authentication."
+                          },
+                          "value": "true",
+                          "properties": {
+                            "serviceName": {
+                              "metadata": {
+                                "label": "Service Name",
+                                "description": "Kerberos service name."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.serviceName"
+                              },
+                              "placeholder": "solace",
+                              "value": "\"solace\"",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": true,
+                              "advanced": false
+                            },
+                            "jaasLoginContext": {
+                              "metadata": {
+                                "label": "JAAS Login Context",
+                                "description": "JAAS login context name."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.jaasLoginContext"
+                              },
+                              "placeholder": "SolaceGSS",
+                              "value": "\"SolaceGSS\"",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": true,
+                              "advanced": false
+                            },
+                            "mutualAuthentication": {
+                              "metadata": {
+                                "label": "Mutual Authentication",
+                                "description": "Enable Kerberos mutual authentication."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.mutualAuthentication"
+                              },
+                              "value": "false",
+                              "types": [
+                                {
+                                  "fieldType": "FLAG",
+                                  "ballerinaType": "boolean",
+                                  "selected": true
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": true,
+                              "advanced": false
+                            },
+                            "jaasConfigFileReloadEnabled": {
+                              "metadata": {
+                                "label": "JAAS Config Reload",
+                                "description": "Enable automatic reload of the JAAS configuration file."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.jaasConfigFileReloadEnabled"
+                              },
+                              "value": "false",
+                              "types": [
+                                {
+                                  "fieldType": "FLAG",
+                                  "ballerinaType": "boolean",
+                                  "selected": true
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": true,
+                              "advanced": false
+                            }
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        },
+                        {
+                          "metadata": {
+                            "label": "OAuth 2.0 Authentication",
+                            "description": "OAuth 2.0 token-based authentication."
+                          },
+                          "value": "true",
+                          "properties": {
+                            "issuer": {
+                              "metadata": {
+                                "label": "Issuer",
+                                "description": "OAuth 2.0 issuer identifier URI."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.issuer"
+                              },
+                              "placeholder": "https://auth.example.com",
+                              "value": "",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "validations": [
+                                {
+                                  "rule": "common.validate.required"
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false
+                            },
+                            "tokenType": {
+                              "metadata": {
+                                "label": "Token Type",
+                                "description": "Choose which OAuth 2.0 token to authenticate with."
+                              },
+                              "value": "",
+                              "choices": [
+                                {
+                                  "metadata": {
+                                    "label": "Access Token",
+                                    "description": "Authenticate using an OAuth 2.0 access token."
+                                  },
+                                  "value": "true",
+                                  "properties": {
+                                    "accessToken": {
+                                      "metadata": {
+                                        "label": "Access Token",
+                                        "description": "OAuth 2.0 access token for authentication."
+                                      },
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.accessToken"
+                                      },
+                                      "placeholder": "",
+                                      "value": "",
+                                      "types": [
+                                        {
+                                          "fieldType": "TEXT",
+                                          "ballerinaType": "string",
+                                          "selected": true
+                                        },
+                                        {
+                                          "fieldType": "EXPRESSION",
+                                          "ballerinaType": "string",
+                                          "selected": false
+                                        }
+                                      ],
+                                      "validations": [
+                                        {
+                                          "rule": "common.validate.required"
+                                        }
+                                      ],
+                                      "enabled": true,
+                                      "editable": true,
+                                      "optional": false,
+                                      "advanced": false
+                                    }
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false
+                                },
+                                {
+                                  "metadata": {
+                                    "label": "OIDC Token",
+                                    "description": "Authenticate using an OpenID Connect (OIDC) ID token."
+                                  },
+                                  "value": "true",
+                                  "properties": {
+                                    "oidcToken": {
+                                      "metadata": {
+                                        "label": "OIDC Token",
+                                        "description": "OpenID Connect (OIDC) ID token for authentication."
+                                      },
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.oidcToken"
+                                      },
+                                      "placeholder": "",
+                                      "value": "",
+                                      "types": [
+                                        {
+                                          "fieldType": "TEXT",
+                                          "ballerinaType": "string",
+                                          "selected": true
+                                        },
+                                        {
+                                          "fieldType": "EXPRESSION",
+                                          "ballerinaType": "string",
+                                          "selected": false
+                                        }
+                                      ],
+                                      "validations": [
+                                        {
+                                          "rule": "common.validate.required"
+                                        }
+                                      ],
+                                      "enabled": true,
+                                      "editable": true,
+                                      "optional": false,
+                                      "advanced": false
+                                    }
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "enabled": false,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false
+                                }
+                              ],
+                              "types": [
+                                {
+                                  "fieldType": "CHOICE",
+                                  "selected": true
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false
+                            }
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        }
+                      ],
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": true,
+                      "advanced": false
+                    },
+                    "advancedConfig": {
+                      "metadata": {
+                        "label": "Advanced Configurations",
+                        "description": "Advanced TLS, timeout, and retry settings."
+                      },
+                      "properties": {
+                        "secureSocket": {
+                          "metadata": {
+                            "label": "Secure Socket",
+                            "description": "The SSL/TLS configuration for secure connections."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "originalName": "secureSocket",
+                            "path": "secureSocket"
+                          },
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "RECORD_MAP_EXPRESSION",
+                              "ballerinaType": "jms:SecureSocket",
+                              "typeMembers": [
+                                {
+                                  "type": "SecureSocket",
+                                  "packageInfo": "ballerinax:solace.jms:0.1.0",
+                                  "packageName": "solace.jms",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": false
+                                }
+                              ],
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "jms:SecureSocket",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": true
+                        },
+                        "connectTimeout": {
+                          "metadata": {
+                            "label": "Connect Timeout",
+                            "description": "The maximum time in seconds for a connection attempt."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "originalName": "connectTimeout",
+                            "path": "connectTimeout"
+                          },
+                          "placeholder": "30",
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "NUMBER",
+                              "ballerinaType": "decimal",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "decimal",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": true
+                        },
+                        "readTimeout": {
+                          "metadata": {
+                            "label": "Read Timeout",
+                            "description": "The maximum time in seconds for reading connection replies."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "originalName": "readTimeout",
+                            "path": "readTimeout"
+                          },
+                          "placeholder": "10",
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "NUMBER",
+                              "ballerinaType": "decimal",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "decimal",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": true
+                        },
+                        "retryConfig": {
+                          "metadata": {
+                            "label": "Retry Config",
+                            "description": "Retry configuration for connection attempts."
+                          },
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "originalName": "retryConfig",
+                            "path": "retryConfig"
+                          },
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "RECORD_MAP_EXPRESSION",
+                              "ballerinaType": "jms:RetryConfiguration",
+                              "typeMembers": [
+                                {
+                                  "type": "RetryConfiguration",
+                                  "packageInfo": "ballerinax:solace.jms:0.1.0",
+                                  "packageName": "solace.jms",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": false
+                                }
+                              ],
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "jms:RetryConfiguration",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": true
+                        }
+                      },
+                      "types": [
+                        {
+                          "fieldType": "GROUP_SECTION",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": true,
+                      "advanced": true
+                    }
+                  },
+                  "types": [
+                    {
+                      "fieldType": "GROUP_SECTION",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            {
+              "metadata": {
+                "label": "Use Existing Listener",
+                "description": "Attach to a listener already declared in the project."
+              },
+              "properties": {
+                "listenerConfig": {
+                  "metadata": {
+                    "label": "Listener Configurations",
+                    "description": "Configuration of the selected listener."
+                  },
+                  "properties": {
+                    "existingListener": {
+                      "metadata": {
+                        "label": "Select Listener",
+                        "description": "Select from the existing jms listeners"
+                      },
+                      "value": "solaceJmsListener",
+                      "items": [
+                        "solaceJmsListener"
+                      ],
+                      "properties": {
+                        "solaceJmsListener": {
+                          "metadata": {
+                            "label": "solaceJmsListener",
+                            "description": "jms listener: solaceJmsListener"
+                          },
+                          "value": "solaceJmsListener",
+                          "properties": {
+                            "url": {
+                              "metadata": {
+                                "label": "Broker URL",
+                                "description": "The broker URL with format: [protocol:]host[:port]."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_REQUIRED",
+                                "originalName": "url",
+                                "position": 1
+                              },
+                              "placeholder": "smf://localhost:55555",
+                              "value": "\"smf://localhost:55555\"",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": false,
+                              "optional": false,
+                              "advanced": false
+                            },
+                            "messageVpn": {
+                              "metadata": {
+                                "label": "Message VPN",
+                                "description": "The name of the message VPN to connect to."
+                              },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                                "originalName": "messageVpn",
+                                "path": "messageVpn"
+                              },
+                              "placeholder": "default",
+                              "value": "\"default\"",
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "ballerinaType": "string",
+                                  "selected": true
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "ballerinaType": "string",
+                                  "selected": false
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": false,
+                              "optional": false,
+                              "advanced": false
+                            },
+                            "auth": {
+                              "metadata": {
+                                "label": "Authentication",
+                                "description": "The authentication configuration (basic, Kerberos, or OAuth2)."
+                              },
+                              "value": "",
+                              "choices": [
+                                {
+                                  "metadata": {
+                                    "label": "Basic Authentication",
+                                    "description": "Username and password authentication."
+                                  },
+                                  "value": "true",
+                                  "properties": {},
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "enabled": false,
+                                  "editable": false,
+                                  "optional": false,
+                                  "advanced": false
+                                },
+                                {
+                                  "metadata": {
+                                    "label": "Kerberos Authentication",
+                                    "description": "Kerberos (GSS-KRB) authentication."
+                                  },
+                                  "value": "true",
+                                  "properties": {},
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "enabled": false,
+                                  "editable": false,
+                                  "optional": false,
+                                  "advanced": false
+                                },
+                                {
+                                  "metadata": {
+                                    "label": "OAuth 2.0 Authentication",
+                                    "description": "OAuth 2.0 token-based authentication."
+                                  },
+                                  "value": "true",
+                                  "properties": {
+                                    "tokenType": {
+                                      "metadata": {
+                                        "label": "Token Type",
+                                        "description": "Choose which OAuth 2.0 token to authenticate with."
+                                      },
+                                      "value": "",
+                                      "choices": [
+                                        {
+                                          "metadata": {
+                                            "label": "Access Token",
+                                            "description": "Authenticate using an OAuth 2.0 access token."
+                                          },
+                                          "value": "true",
+                                          "properties": {},
+                                          "types": [
+                                            {
+                                              "fieldType": "FORM",
+                                              "selected": true
+                                            }
+                                          ],
+                                          "enabled": true,
+                                          "editable": false,
+                                          "optional": false,
+                                          "advanced": false
+                                        },
+                                        {
+                                          "metadata": {
+                                            "label": "OIDC Token",
+                                            "description": "Authenticate using an OpenID Connect (OIDC) ID token."
+                                          },
+                                          "value": "true",
+                                          "properties": {},
+                                          "types": [
+                                            {
+                                              "fieldType": "FORM",
+                                              "selected": true
+                                            }
+                                          ],
+                                          "enabled": false,
+                                          "editable": false,
+                                          "optional": false,
+                                          "advanced": false
+                                        }
+                                      ],
+                                      "types": [
+                                        {
+                                          "fieldType": "CHOICE",
+                                          "selected": true
+                                        }
+                                      ],
+                                      "enabled": true,
+                                      "editable": false,
+                                      "optional": false,
+                                      "advanced": false
+                                    }
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "enabled": true,
+                                  "editable": false,
+                                  "optional": false,
+                                  "advanced": false
+                                }
+                              ],
+                              "types": [
+                                {
+                                  "fieldType": "CHOICE",
+                                  "selected": true
+                                }
+                              ],
+                              "enabled": true,
+                              "editable": false,
+                              "optional": false,
+                              "advanced": false
+                            }
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": false,
+                          "optional": false,
+                          "advanced": false
+                        }
+                      },
+                      "types": [
+                        {
+                          "fieldType": "SINGLE_SELECT",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    }
+                  },
+                  "types": [
+                    {
+                      "fieldType": "GROUP_SECTION",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            }
+          ],
+          "types": [
+            {
+              "fieldType": "CHOICE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "destination": {
+          "metadata": {
+            "label": "Destination",
+            "description": "The Solace destination to expect messages from."
+          },
+          "codedata": {
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "jms"
+          },
+          "value": "queue",
+          "choices": [
+            {
+              "metadata": {
+                "label": "Queue",
+                "description": "Subscribe to a queue for point-to-point messaging."
+              },
+              "codedata": {
+                "type": "MAPPING_CONSTRUCTOR"
+              },
+              "value": "true",
+              "properties": {
+                "queueName": {
+                  "metadata": {
+                    "label": "Queue Name",
+                    "description": "The queue name to consume messages from."
+                  },
+                  "codedata": {
+                    "type": "SERVICE_ANNOTATION",
+                    "originalName": "ServiceConfig",
+                    "moduleName": "jms",
+                    "path": "queueName"
+                  },
+                  "placeholder": "orders",
+                  "value": "",
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            {
+              "metadata": {
+                "label": "Topic",
+                "description": "Subscribe to a topic for publish/subscribe messaging."
+              },
+              "codedata": {
+                "type": "MAPPING_CONSTRUCTOR"
+              },
+              "value": "true",
+              "properties": {
+                "topicName": {
+                  "metadata": {
+                    "label": "Topic Name",
+                    "description": "The topic name to subscribe to."
+                  },
+                  "codedata": {
+                    "type": "SERVICE_ANNOTATION",
+                    "originalName": "ServiceConfig",
+                    "moduleName": "jms",
+                    "path": "topicName"
+                  },
+                  "placeholder": "orders/events",
+                  "value": "",
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                },
+                "durability": {
+                  "metadata": {
+                    "label": "Durability",
+                    "description": "Durability: TEMPORARY (auto-deleted when the session disconnects) or DURABLE (pre-provisioned, named subscription)."
+                  },
+                  "value": "0",
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "Temporary",
+                        "description": "Auto-deleted when the session disconnects."
+                      },
+                      "value": "true",
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    {
+                      "metadata": {
+                        "label": "Durable",
+                        "description": "Pre-provisioned, named subscription; survives client disconnects."
+                      },
+                      "value": "true",
+                      "properties": {
+                        "durabilityValue": {
+                          "metadata": {
+                            "label": "Durability",
+                            "description": "Recorded as \"DURABLE\" to match the selection above."
+                          },
+                          "codedata": {
+                            "type": "SERVICE_ANNOTATION",
+                            "originalName": "ServiceConfig",
+                            "moduleName": "jms",
+                            "path": "durability"
+                          },
+                          "value": "\"DURABLE\"",
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "jms:Durability",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": false,
+                          "optional": false,
+                          "advanced": false,
+                          "hidden": true
+                        },
+                        "subscriberName": {
+                          "metadata": {
+                            "label": "Subscriber Name",
+                            "description": "The name used to identify the durable subscription. Required when durability is DURABLE."
+                          },
+                          "codedata": {
+                            "type": "SERVICE_ANNOTATION",
+                            "originalName": "ServiceConfig",
+                            "moduleName": "jms",
+                            "path": "subscriberName"
+                          },
+                          "placeholder": "mySubscriber",
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false
+                        }
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    }
+                  ],
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            }
+          ],
+          "types": [
+            {
+              "fieldType": "CHOICE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "ackMode": {
+          "metadata": {
+            "label": "Acknowledgement Mode",
+            "description": "The JMS session acknowledgement mode."
+          },
+          "codedata": {
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "jms",
+            "path": "ackMode"
+          },
+          "value": "\"AUTO_ACKNOWLEDGE\"",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "jms:AcknowledgementMode",
+              "options": [
+                {
+                  "label": "Session Transacted",
+                  "value": "\"SESSION_TRANSACTED\""
+                },
+                {
+                  "label": "Auto Acknowledge",
+                  "value": "\"AUTO_ACKNOWLEDGE\""
+                },
+                {
+                  "label": "Client Acknowledge",
+                  "value": "\"CLIENT_ACKNOWLEDGE\""
+                },
+                {
+                  "label": "Dups Ok Acknowledge",
+                  "value": "\"DUPS_OK_ACKNOWLEDGE\""
+                }
+              ],
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        }
+      }
+    }
+  }
+}

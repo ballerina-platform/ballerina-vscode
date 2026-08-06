@@ -70,6 +70,10 @@ public class PropertyType {
     private final Integer defaultItems;
     private final String pattern;
     private final String patternErrorMessage;
+    // Validation rules scoped to THIS type member; run only while it is the active/selected mode.
+    // Not a constructor param so the existing callers stay untouched; set via the Builder and
+    // deserialized directly by Gson from the connector model.
+    private List<ValidationRule> validations;
 
     public PropertyType(Value.FieldType fieldType, String ballerinaType, List<Option> options,
                         List<PropertyTypeMemberInfo> typeMembers, Value template, boolean selected, Integer minItems,
@@ -599,6 +603,14 @@ public class PropertyType {
         return patternErrorMessage;
     }
 
+    public List<ValidationRule> validations() {
+        return validations;
+    }
+
+    public void setValidations(List<ValidationRule> validations) {
+        this.validations = validations;
+    }
+
     public Value template() {
         return template;
     }
@@ -614,6 +626,7 @@ public class PropertyType {
         private Integer defaultItems;
         private String pattern;
         private String patternErrorMessage;
+        private List<ValidationRule> validations;
 
         public Builder() {
         }
@@ -679,9 +692,16 @@ public class PropertyType {
             return this;
         }
 
+        public Builder validations(List<ValidationRule> validations) {
+            this.validations = validations;
+            return this;
+        }
+
         public PropertyType build() {
-            return new PropertyType(fieldType, ballerinaType, options, typeMembers, template, selected, minItems,
-                    defaultItems, pattern, patternErrorMessage);
+            PropertyType propertyType = new PropertyType(fieldType, ballerinaType, options, typeMembers, template,
+                    selected, minItems, defaultItems, pattern, patternErrorMessage);
+            propertyType.setValidations(validations);
+            return propertyType;
         }
     }
 

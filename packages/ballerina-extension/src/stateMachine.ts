@@ -73,6 +73,10 @@ export let history: History;
 export let undoRedoManager: IUndoRedoManager;
 let pendingProjectRootUpdateResolvers: Array<() => void> = [];
 let scaffoldPromptTriggered = false;
+// Single-flight: concurrent REFRESH_PROJECT_INFO triggers (e.g. addProjectToWorkspace and a
+// pending-artifact resolution firing close together) would otherwise each fetch project info
+// independently. Share one in-flight fetch instead of one per trigger.
+let projectInfoRefreshInFlight: Promise<void> | null = null;
 
 const stateMachine = createMachine<MachineContext>(
     {
@@ -128,27 +132,39 @@ const stateMachine = createMachine<MachineContext>(
             REFRESH_PROJECT_INFO: {
                 actions: [
                     async (context, event) => {
-                        try {
-                            const projectPath = context.workspacePath || context.projectPath;
-                            if (!projectPath) {
-                                console.warn("No project path available for refreshing project info");
-                                return;
-                            }
-
-                            // Fetch updated project info from language server
-                            const projectInfo = await context.langClient.getProjectInfo({ projectPath });
-
-                            // Update context with new project info. `silent` is carried
-                            // through so a caller that has already navigated somewhere
-                            // deliberate isn't bounced to the workspace overview below.
-                            stateService.send({
-                                type: 'UPDATE_PROJECT_INFO',
-                                projectInfo,
-                                silent: event.silent
-                            });
-                        } catch (error) {
-                            console.error("Error refreshing project info:", error);
+                        // Single-flight: a burst of REFRESH_PROJECT_INFO triggers piling up
+                        // while a fetch is already in progress share that fetch's result
+                        // instead of each firing their own `getProjectInfo` request.
+                        if (projectInfoRefreshInFlight) {
+                            await projectInfoRefreshInFlight;
+                            return;
                         }
+                        projectInfoRefreshInFlight = (async () => {
+                            try {
+                                const projectPath = context.workspacePath || context.projectPath;
+                                if (!projectPath) {
+                                    console.warn("No project path available for refreshing project info");
+                                    return;
+                                }
+
+                                // Fetch updated project info from language server
+                                const projectInfo = await context.langClient.getProjectInfo({ projectPath });
+
+                                // Update context with new project info. `silent` is carried
+                                // through so a caller that has already navigated somewhere
+                                // deliberate isn't bounced to the workspace overview below.
+                                stateService.send({
+                                    type: 'UPDATE_PROJECT_INFO',
+                                    projectInfo,
+                                    silent: event.silent
+                                });
+                            } catch (error) {
+                                console.error("Error refreshing project info:", error);
+                            } finally {
+                                projectInfoRefreshInFlight = null;
+                            }
+                        })();
+                        await projectInfoRefreshInFlight;
                     }
                 ]
             },

@@ -39,17 +39,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a command to search for functions within a module. This class extends SearchCommand and provides
- * functionality to search for both project-specific and library functions.
+ * Represents a command to search for functions available to a module. This class extends SearchCommand and provides
+ * functionality to search for package, workspace-package, and dependency functions.
  *
  * <p>
  * The search includes:
- * <li>Functions within the current project/module </li>
+ * <li>Functions in the current module and other modules in the active package</li>
+ * <li>Functions in other packages in the Ballerina workspace</li>
  * <li>Imported functions from dependencies</li>
  * <li>Available functions from the standard library (if enabled)</li>
  *
  * <p>The search results are organized into different categories:</p>
- * <li>CURRENT_INTEGRATION: Functions from the current project</li>
+ * <li>CURRENT_INTEGRATION: Functions from the active integration</li>
+ * <li>CURRENT_WORKSPACE: Functions from integrations in the current project</li>
  * <li>IMPORTED_FUNCTIONS: Functions from imported modules</li>
  * <li>AVAILABLE_FUNCTIONS: Functions available but not imported (optional)</li>
  * </p>
@@ -88,7 +90,7 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> defaultView() {
-        WorkspaceFunctionNodeBuilder.buildWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
+        WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
         List<SearchResult> searchResults = new ArrayList<>();
         if (!moduleNames.isEmpty()) {
             searchResults.addAll(dbManager.searchFunctionsByPackages(moduleNames, List.of(), limit, offset));
@@ -101,7 +103,7 @@ class FunctionSearchCommand extends SearchCommand {
 
     @Override
     protected List<Item> search() {
-        WorkspaceFunctionNodeBuilder.buildWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
+        WorkspaceFunctionNodeBuilder.buildSubmoduleWorkspaceNodes(rootBuilder, project, position, query, functionsDoc);
         List<SearchResult> functionSearchList = dbManager.searchFunctions(query, limit, offset);
         buildLibraryNodes(functionSearchList);
         return rootBuilder.build().items();

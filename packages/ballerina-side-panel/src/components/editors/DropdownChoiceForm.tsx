@@ -95,7 +95,8 @@ export function DropdownChoiceForm(props: DropdownChoiceFormProps) {
             </ChoiceSection>
             <FormSection>
                 {dynamicFields
-                    .filter(dfield => dfield.type !== "GROUP_SECTION" && !dfield.advanced && !dfield.optional)
+                    .filter(dfield => dfield.type !== "GROUP_SECTION" && !dfield.advanced && !dfield.optional
+                        && !dfield.hidden)
                     .map((dfield, index) => (
                         <FieldFactory
                             key={dfield.key}

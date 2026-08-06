@@ -15,10 +15,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { Icon } from '@wso2/ui-toolkit';
+import React, { useMemo } from 'react';
+import { Icon, ImageWithFallback } from '@wso2/ui-toolkit';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
+import { EVENT_TYPE, MACHINE_VIEW, SCOPE, ServiceModel, TriggerModelsResponse, resolveBrandIcon, resolveKindDefaultIcon } from '@wso2/ballerina-core';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -32,6 +32,7 @@ interface FileIntegrationPanelProps {
     triggers: TriggerModelsResponse;
     /** True only while the trigger models are still being fetched. */
     isLoadingTriggers?: boolean;
+    /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
 };
 
@@ -98,18 +99,26 @@ export function FileIntegrationPanel(props: FileIntegrationPanelProps) {
 
 // TODO: This should be removed once the new icons are added to the BE API.
 export function getFileIntegrationIcon(item: ServiceModel) {
-    return getCustomFileIntegrationIcon(item.moduleName) || <img src={item.icon} alt={item.name} style={{ width: "38px" }} />;
+    const brandIcon = getCustomFileIntegrationIcon(item.moduleName);
+    if (brandIcon) {
+        return brandIcon;
+    }
+    const kindDefault = resolveKindDefaultIcon(item.type);
+    return (
+        <ImageWithFallback
+            imageUrl={item.icon}
+            fallbackEl={<Icon name={kindDefault.glyph} />}
+            size={38}
+        />
+    );
 }
 
 // INFO: This is a temporary function to get the custom icon for the file integration triggers.
 // TODO: This should be removed once the new icons are added to the BE API.
 export function getCustomFileIntegrationIcon(type: string) {
-    switch (type) {
-        case "ftp":
-            return <Icon name="bi-ftp" />;
-        case "file":
-            return <Icon name="bi-file" />;
-        default:
-            return null;
+    const brand = resolveBrandIcon(type);
+    if (!brand) {
+        return null;
     }
+    return <Icon name={brand.glyph} sx={brand.color ? { color: brand.color } : undefined} />;
 }

@@ -52,7 +52,8 @@ import { AssertionError } from "assert";
 import {
     BALLERINA_HOME, ENABLE_ALL_CODELENS, ENABLE_TELEMETRY, ENABLE_SEMANTIC_HIGHLIGHTING, OVERRIDE_BALLERINA_HOME,
     ENABLE_PERFORMANCE_FORECAST, ENABLE_DEBUG_LOG, ENABLE_BALLERINA_LS_DEBUG,
-    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_RUN_FAST, ENABLE_INLAY_HINTS, FILE_DOWNLOAD_PATH,
+    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_RUN_FAST, ENABLE_ADDITIONAL_TRIGGER_SEARCH,
+    ENABLE_INLAY_HINTS, FILE_DOWNLOAD_PATH,
     ENABLE_LIVE_RELOAD,
     ENABLE_AI_SUGGESTIONS,
     ENABLE_SEQUENCE_DIAGRAM_VIEW,
@@ -2479,6 +2480,10 @@ export class BallerinaExtension {
 
     public enabledRunFast(): boolean {
         return <boolean>workspace.getConfiguration().get(ENABLE_RUN_FAST);
+    }
+
+    public enabledAdditionalTriggerSearch(): boolean {
+        return <boolean>workspace.getConfiguration().get(ENABLE_ADDITIONAL_TRIGGER_SEARCH);
     }
 
     public getFileDownloadPath(): string {

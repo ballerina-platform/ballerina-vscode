@@ -36,6 +36,12 @@ export type ListenerModel = {
 };
 
 
+/**
+ * For schema-driven triggers (unified TriggerModel), `functions` and `schemaFunctions` split the
+ * handlers in two: `functions` holds what exists in the user's source, `schemaFunctions` the
+ * connector-shipped addable catalog (one entry per handler variant; consumed variants are removed
+ * by the language server).
+ */
 export interface ServiceModel {
     id: number;
     name: string;
@@ -50,6 +56,7 @@ export interface ServiceModel {
     icon: string;
     properties?: ConfigProperties;
     functions?: FunctionModel[];
+    schemaFunctions?: FunctionModel[];
     codedata?: CodeData;
 }
 
@@ -71,6 +78,35 @@ export interface FieldType extends ParameterModel {
     isFinal: boolean;
 }
 
+/**
+ * How a schema-driven trigger handler may be added to a service, and how consuming one affects the
+ * addable catalog (mirrors the language server's `Repeatable`):
+ * - FALSE: single instance — adding it removes only that handler from the catalog.
+ * - TRUE: may be added repeatedly — never leaves the catalog (pairs with a name-editable handler).
+ * - ONE_OF_GROUP: mutually exclusive within its `group` — adding any member removes every sibling
+ *   (e.g. RabbitMQ onMessage / onRequest).
+ * - ONE_EACH_PER_GROUP: each member of the `group` may be added once — adding one removes only that
+ *   member, siblings stay (e.g. FTP per-file-format handlers).
+ * - LEGACY: a deprecated variant hidden from the addable catalog by default (never offered for new
+ *   development); once present in the source it displaces every NON-LEGACY schema function, ignoring
+ *   `group` (e.g. FTP's onFileChange vs. its format-specific / delete handlers). Distinct LEGACY
+ *   entries are independent of each other: one being present neither hides nor is hidden by another.
+ */
+export enum RepeatBehavior {
+    FALSE = "FALSE",
+    TRUE = "TRUE",
+    ONE_OF_GROUP = "ONE_OF_GROUP",
+    ONE_EACH_PER_GROUP = "ONE_EACH_PER_GROUP",
+    LEGACY = "LEGACY",
+}
+
+/**
+ * `group`/`variantLabel`/`addLabel`/`repeatable`/`nameEditable` are handler-catalog fields carried
+ * by schema-driven triggers (unified TriggerModel): functions sharing a `group` are format variants
+ * of one logical handler (labelled by `variantLabel`, offered under `addLabel`); `repeatable` says
+ * whether/how the handler may be added more than once (see {@link RepeatBehavior}) and
+ * `nameEditable: false` locks the emitted function name to the variant's.
+ */
 export interface FunctionModel {
     metadata?: MetaData;
     kind: "REMOTE" | "RESOURCE" | "QUERY" | "MUTATION" | "SUBSCRIPTION" | "DEFAULT" | "INIT";
@@ -78,6 +114,12 @@ export interface FunctionModel {
     optional: boolean;
     editable: boolean;
     codedata?: CodeData;
+
+    group?: string;
+    variantLabel?: string;
+    addLabel?: string;
+    repeatable?: RepeatBehavior;
+    nameEditable?: boolean;
 
     canAddParameters?: boolean;
 
@@ -145,15 +187,57 @@ export interface ParamDetails {
     defaulValue?: string;
 }
 
+/**
+ * `badge` is a short category tag shown as a chip before the function name in the service designer
+ * (e.g. "Event", "Tool", "GET", "FUNC", "INIT", or a trigger-specific value like "onCreate").
+ * Optional; the designer falls back to "Event" for handlers when absent.
+ */
 interface MetaData {
     label: string;
     description: string;
     notice?: string;
     groupNo?: number;
     groupName?: string;
+    badge?: string;
 }
 
-interface CodeData {
+/**
+ * Payload-composition hints of schema-driven triggers, carried on the `codedata` of a payload/type
+ * node: the rendered type is template({{type}} -> boundType ?? defaultType), optionally superseded
+ * by an active PAYLOAD_MODIFIER's own template (e.g. stream<{{type}}, error?>). `typeIdentifier` is
+ * the base identifier used when generating a wrapper type name for an included-record payload
+ * binding (e.g. "KafkaAnydataConsumer" -> generated "KafkaAnydataConsumer1" in types.bal). Meaningful
+ * only on a payload/type node — see `PayloadComposer` (LS) / `payloadComposer.ts` (FE).
+ */
+interface PayloadCodeDataHints {
+    template?: string;
+    defaultType?: string;
+    boundType?: string;
+    bindable?: boolean;
+    modifier?: string;
+    targetParam?: string;
+    typeIdentifier?: string;
+}
+
+/**
+ * Annotation-tree hints (COMPLEX_FUNCTION_ANNOTATION -> MAPPING_FIELD leaves), carried on the
+ * `codedata` of an annotation leaf. A leaf's rendered kind (e.g. string quoting) derives from the
+ * node's types[], not codedata; `value` is the literal an ENUM_LITERAL choice branch emits (qualified
+ * by `valueQualifier`, see {@link CodeData}). Meaningful only on an annotation leaf — see
+ * `AnnotationEmitter` (LS) / `AnnotationConfigSection.tsx` (FE).
+ */
+interface AnnotationCodeDataHints {
+    field?: string;
+    optional?: boolean;
+    value?: string;
+}
+
+/**
+ * `nameEditable` says whether the bound parameter's identifier may be renamed in the edit UI. Unset
+ * defaults to editable; false for connectors that bind to a fixed, structural identifier (e.g.
+ * kafka's `records`, a CDC `before`/`after`) where only the bound type is user-selected.
+ */
+interface CodeData extends PayloadCodeDataHints, AnnotationCodeDataHints {
     lineRange?: LineRange;
     type?: string;
     argType?: string;
@@ -162,6 +246,47 @@ interface CodeData {
     packageName?: string;
     moduleName?: string;
     version?: string;
+    position?: number;
+    path?: string;
+    valueQualifier?: string;
+    nameEditable?: boolean;
+}
+
+export type ValidationSeverity = "ERROR" | "WARNING";
+
+/**
+ * A named validation rule carried by an editable form node.
+ *
+ * The rule id's namespace decides where it runs: `common.*` runs both in the webview
+ * (as-you-type) and on the language server (save-time re-check), `vscode.*` runs in the
+ * webview only, `ls.*` on the language server only. The vocabulary is open — an unknown
+ * id is skipped with a dev-console warning so newer connector models stay loadable by
+ * older clients. `message` overrides the rule's default message, supporting {placeholder}
+ * interpolation from `args` plus the built-ins {label} and {value}. `severity` defaults to ERROR;
+ * WARNING renders inline but does not block submit.
+ */
+export interface ValidationRule {
+    rule: string;
+    args?: Record<string, unknown>;
+    message?: string;
+    severity?: ValidationSeverity;
+}
+
+/** A rule failure, produced client-side or returned by the LS keyed by property path. */
+export interface ValidationResult {
+    propertyPath: string;
+    rule: string;
+    message: string;
+    severity: ValidationSeverity;
+}
+
+/**
+ * Whether any result blocks source generation. Only ERROR does; a WARNING is returned alongside a
+ * successful save and must not be mistaken for a rejection. Callers deciding whether to navigate
+ * away after a save must gate on this rather than on the list being non-empty.
+ */
+export function hasBlockingValidationErrors(validationErrors?: ValidationResult[]): boolean {
+    return (validationErrors ?? []).some((error) => error.severity === "ERROR");
 }
 
 export interface PropertyModel {
@@ -213,5 +338,6 @@ export interface ServiceInitModel {
     type: string;
     icon: string;
     properties: { [key: string]: PropertyModel };
+    isLocalRepository?: boolean;
 }
 

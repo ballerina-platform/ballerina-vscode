@@ -66,12 +66,16 @@ import {
     getServiceModel,
     getServiceModelFromCode,
     getTriggerModels,
+    searchTriggers,
     updateListenerSourceCode,
     updateResourceSourceCode,
     updateServiceSourceCode,
     GetOASSpecRequest,
+    ValidatePropertyRequest,
+    ValidatePropertyResponse,
     GetOASSpecResponse,
-    getOASSpec
+    getOASSpec,
+    validateProperty
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -89,6 +93,10 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     getTriggerModels(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {
         return this._messenger.sendRequest(getTriggerModels, HOST_EXTENSION, params);
+    }
+
+    searchTriggers(params: TriggerModelsRequest): Promise<TriggerModelsResponse> {
+        return this._messenger.sendRequest(searchTriggers, HOST_EXTENSION, params);
     }
 
     getListeners(params: ListenersRequest): Promise<ListenersResponse> {
@@ -165,6 +173,10 @@ export class ServiceDesignerRpcClient implements ServiceDesignerAPI {
 
     generateExamplePayloadJson(params: PayloadContext): Promise<object> {
         return this._messenger.sendRequest(generateExamplePayloadJson, HOST_EXTENSION, params);
+    }
+
+    validateProperty(params: ValidatePropertyRequest): Promise<ValidatePropertyResponse> {
+        return this._messenger.sendRequest(validateProperty, HOST_EXTENSION, params);
     }
 
     getOASSpec(params: GetOASSpecRequest): Promise<GetOASSpecResponse> {

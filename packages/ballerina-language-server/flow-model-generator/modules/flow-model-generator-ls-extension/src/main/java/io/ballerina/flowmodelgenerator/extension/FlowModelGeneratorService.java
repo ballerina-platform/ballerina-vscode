@@ -684,10 +684,15 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 SearchCommand.Kind searchKind = SearchCommand.Kind.valueOf(request.searchKind());
                 LineRange position = request.position();
                 if (request.position() != null) {
-                    position = LineRange.from(
-                            Optional.ofNullable(filePath.getFileName()).map(Path::toString).orElse(""),
-                            request.position().startLine(),
+                    String positionFileName = searchKind == SearchCommand.Kind.TYPE
+                            || searchKind == SearchCommand.Kind.FUNCTION
+                            ? filePath.toString()
+                            : Optional.ofNullable(filePath.getFileName()).map(Path::toString).orElse("");
+                    position = LineRange.from(positionFileName, request.position().startLine(),
                             request.position().endLine());
+                } else if (searchKind == SearchCommand.Kind.TYPE) {
+                    LinePosition start = LinePosition.from(0, 0);
+                    position = LineRange.from(filePath.toString(), start, start);
                 }
 
                 SearchCommand command = SearchCommand.from(searchKind, project, position, request.queryMap(),

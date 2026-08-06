@@ -95,6 +95,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -472,10 +473,40 @@ public class CommonUtils {
             DocumentId documentId = project.documentId(
                     project.kind() == ProjectKind.SINGLE_FILE_PROJECT ? project.sourceRoot() :
                             project.sourceRoot().resolve(location.lineRange().fileName()));
-            return project.currentPackage().getDefaultModule().document(documentId);
+            return project.currentPackage().module(documentId.moduleId()).document(documentId);
         } catch (ProjectException ex) {
-            return null;
+            return findDocument(project, location, null).orElse(null);
         }
+    }
+
+    private static Optional<Document> findDocument(Project project, Location location, String moduleName) {
+        String locationFileName = location.lineRange().fileName().replace('\\', '/');
+        List<Document> exactMatches = new ArrayList<>();
+        List<Document> suffixMatches = new ArrayList<>();
+        for (Module module : project.currentPackage().modules()) {
+            if (moduleName != null && !module.moduleName().toString().equals(moduleName)) {
+                continue;
+            }
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                String documentPath = project.documentPath(documentId)
+                        .map(Path::toString)
+                        .orElse(document.name())
+                        .replace('\\', '/');
+                if (document.name().equals(locationFileName) || documentPath.equals(locationFileName)) {
+                    exactMatches.add(document);
+                } else if (documentPath.endsWith("/" + locationFileName)) {
+                    suffixMatches.add(document);
+                }
+            }
+        }
+        if (exactMatches.size() == 1) {
+            return Optional.of(exactMatches.getFirst());
+        }
+        if (!exactMatches.isEmpty() || suffixMatches.size() != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(suffixMatches.getFirst());
     }
 
     /***
@@ -1353,7 +1384,8 @@ public class CommonUtils {
     }
 
     /**
-     * Gets the view line range for a symbol if it belongs to the current package or a workspace project.
+     * Gets the view line range for a symbol in a default module if it belongs to the current package or a workspace
+     * project.
      *
      * <p>
      * TODO: The API currently relies on the syntax tree to determine the corresponding line range. The communication
@@ -1376,8 +1408,13 @@ public class CommonUtils {
             return Optional.empty();
         }
 
-        String symbolOrg = moduleId.get().orgName();
-        String symbolPackage = moduleId.get().packageName();
+        ModuleID symbolModule = moduleId.get();
+        String symbolOrg = symbolModule.orgName();
+        String symbolPackage = symbolModule.packageName();
+        // Integrator cannot open flow models for non-default modules.
+        if (!symbolModule.moduleName().equals(symbolPackage)) {
+            return Optional.empty();
+        }
         Location location = symbolLocation.get();
 
         // Only check if the organization matches
@@ -1385,9 +1422,10 @@ public class CommonUtils {
             return Optional.empty();
         }
 
-        // Check if it's the default package
+        // Check if the symbol belongs to any module in the current package.
         if (symbolPackage.equals(moduleInfo.packageName())) {
-            return CommonUtil.findNode(symbol, CommonUtils.getDocument(project, location).syntaxTree())
+            return findDocument(project, location, symbolModule.moduleName())
+                    .flatMap(document -> CommonUtil.findNode(symbol, document.syntaxTree()))
                     .map(Node::lineRange);
         }
 
@@ -1403,8 +1441,9 @@ public class CommonUtils {
         for (Project wsProject : workspaceProjects) {
             String wsPackageName = wsProject.currentPackage().packageName().value();
             if (wsPackageName.equals(symbolPackage)) {
-                // Use the sibling project to get the document
-                return CommonUtil.findNode(symbol, CommonUtils.getDocument(wsProject, location).syntaxTree())
+                // Use the sibling project and the symbol's owner module to get the document.
+                return findDocument(wsProject, location, symbolModule.moduleName())
+                        .flatMap(document -> CommonUtil.findNode(symbol, document.syntaxTree()))
                         .map(Node::lineRange);
             }
         }
@@ -1687,4 +1726,3 @@ public class CommonUtils {
     }
 
 }
-

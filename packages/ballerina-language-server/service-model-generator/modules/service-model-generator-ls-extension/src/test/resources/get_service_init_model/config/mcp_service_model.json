@@ -6,26 +6,28 @@
   "moduleName": "mcp",
   "response": {
     "serviceInitModel": {
-      "id": "8",
       "displayName": "MCP Service",
-      "description": "Create MCP service",
+      "description": "Create a service that exposes tools to MCP clients over the Streamable HTTP transport.",
       "orgName": "ballerina",
       "packageName": "mcp",
       "moduleName": "mcp",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "type": "mcp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.2.0.png",
       "properties": {
         "serviceName": {
           "metadata": {
             "label": "Service Name",
-            "description": "The name of the mcp service"
+            "description": "The name of the mcp service."
           },
           "codedata": {
-            "argType": "SOURCE_ANNOTATION"
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "StreamableHttpServiceConfig",
+            "moduleName": "mcp",
+            "path": "info.name"
           },
           "placeholder": "MCP Service",
-          "value": "",
+          "value": "\"MCP Service\"",
           "types": [
             {
               "fieldType": "TEXT",
@@ -46,12 +48,15 @@
         "version": {
           "metadata": {
             "label": "Version",
-            "description": "The version of the mcp service"
+            "description": "The version of the mcp service."
           },
           "codedata": {
-            "argType": "SOURCE_ANNOTATION"
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "StreamableHttpServiceConfig",
+            "moduleName": "mcp",
+            "path": "info.version"
           },
-          "placeholder": "\"1.0.0\"",
+          "placeholder": "1.0.0",
           "value": "\"1.0.0\"",
           "types": [
             {
@@ -70,13 +75,43 @@
           "optional": false,
           "advanced": false
         },
-        "port": {
+        "serviceType": {
           "metadata": {
-            "label": "Port",
-            "description": "The port on which the MCP service listens"
+            "label": "Service Type",
+            "description": "The MCP service type. New services use the Streamable HTTP transport; mcp:Service is deprecated and only resolved when already present in the source."
           },
           "codedata": {
-            "argType": "LISTENER_PARAM_REQUIRED"
+            "type": "SERVICE_TYPE_DESCRIPTOR"
+          },
+          "value": "StreamableHttpService",
+          "types": [
+            {
+              "fieldType": "SINGLE_SELECT",
+              "ballerinaType": "mcp:StreamableHttpService",
+              "options": [
+                {
+                  "label": "Streamable HTTP Service",
+                  "value": "StreamableHttpService"
+                }
+              ],
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false,
+          "hidden": true
+        },
+        "listenTo": {
+          "metadata": {
+            "label": "Port",
+            "description": "The port on which the MCP service listens."
+          },
+          "codedata": {
+            "argType": "LISTENER_PARAM_REQUIRED",
+            "originalName": "listenTo",
+            "position": 1
           },
           "placeholder": "8080",
           "value": "8080",
@@ -84,12 +119,28 @@
             {
               "fieldType": "NUMBER",
               "ballerinaType": "int",
-              "selected": true
+              "selected": true,
+              "validations": [
+                {
+                  "rule": "common.validate.port",
+                  "args": {
+                    "min": 1.0,
+                    "max": 65535.0
+                  },
+                  "message": "Port must be between {min} and {max}",
+                  "severity": "WARNING"
+                }
+              ]
             },
             {
               "fieldType": "EXPRESSION",
               "ballerinaType": "int",
               "selected": false
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.required"
             }
           ],
           "enabled": true,
@@ -103,7 +154,7 @@
             "description": "The base path of the MCP service"
           },
           "codedata": {
-            "argType": "SERVICE_BASE_PATH"
+            "type": "SERVICE_BASE_PATH"
           },
           "placeholder": "/mcp",
           "value": "/mcp",
@@ -112,6 +163,11 @@
               "fieldType": "SERVICE_PATH",
               "ballerinaType": "string",
               "selected": true
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.required"
             }
           ],
           "enabled": true,
@@ -131,7 +187,17 @@
           "types": [
             {
               "fieldType": "IDENTIFIER",
+              "ballerinaType": "mcp:StreamableHttpListener",
               "selected": true
+            }
+          ],
+          "validations": [
+            {
+              "rule": "common.validate.identifier"
+            },
+            {
+              "rule": "ls.validate.unique.listener.name",
+              "message": "A listener with this name already exists in the project"
             }
           ],
           "enabled": true,

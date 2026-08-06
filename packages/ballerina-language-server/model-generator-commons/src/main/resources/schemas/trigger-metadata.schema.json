@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wso2.github.io/ballerina-vscode/schemas/trigger-metadata.schema.json",
+  "title": "Ballerina Trigger Metadata",
+  "description": "Machine contract for a connector's resources/trigger-metadata.json: the authoring rules (presence, oneOf relationships, identifier semantics, non-concrete handler shapes) that sit above the syntax tree and semantic model and cannot be recovered by introspecting the library alone. See README.md/spec.md for the governing DRY principle and field-by-field rationale.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["listeners", "serviceTypes"],
+  "properties": {
+    "listeners": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/listener" }
+    },
+    "serviceTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/serviceType" }
+    },
+    "annotations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/annotation" },
+      "description": "Prefer omitting the key entirely when the connector declares no annotations; an empty array is also accepted."
+    },
+    "dataBindingRules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dataBindingRule" },
+      "description": "Prefer omitting the key entirely when the connector declares no data-binding rules; an empty array is also accepted."
+    }
+  },
+
+  "$defs": {
+    "typeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "packageInfo": { "$ref": "#/$defs/packageInfo" }
+      }
+    },
+
+    "typeRefOrUnion": {
+      "description": "A single TypeRef, or a JSON array of them for a union. Order matters: the first element is the codegen default when nothing else disambiguates.",
+      "oneOf": [
+        { "$ref": "#/$defs/typeRef" },
+        { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/typeRef" } }
+      ]
+    },
+
+    "packageInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["org", "packageName", "moduleName", "version"],
+      "properties": {
+        "org": { "type": "string" },
+        "packageName": { "type": "string" },
+        "moduleName": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+
+    "presence": { "enum": ["required", "optional"] },
+
+    "presenceForm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presence", "form"],
+      "properties": {
+        "presence": { "$ref": "#/$defs/presence" },
+        "form": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Legal shapes for this slot, e.g. \"basePath\", \"stringLiteral\", \"identifierSegment\". More than one entry means either is syntactically valid."
+        }
+      }
+    },
+
+    "presenceValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["presence", "values"],
+      "properties": {
+        "presence": { "$ref": "#/$defs/presence" },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "The closed set of legal literal values for this slot, e.g. HTTP methods or a GraphQL accessor."
+        }
+      }
+    },
+
+    "listener": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "services"],
+      "properties": {
+        "type": { "$ref": "#/$defs/typeRef" },
+        "services": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "serviceTypes[].id values this listener can host."
+        },
+        "requiredImports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/requiredImport" }
+        }
+      }
+    },
+
+    "requiredImport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["importType", "packageInfo"],
+      "properties": {
+        "importType": { "enum": ["driver"] },
+        "packageInfo": { "$ref": "#/$defs/packageInfo" }
+      }
+    },
+
+    "serviceType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "concrete", "multipleListenersAllowed", "multipleServicesPerListenerAllowed", "handlers"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "$ref": "#/$defs/typeRef" },
+        "concrete": {
+          "type": "boolean",
+          "description": "true: the type declares its own methods directly (fully introspectable). false: marker/abstract type; handlers.options is the only source of truth."
+        },
+        "multipleListenersAllowed": { "type": "boolean" },
+        "multipleServicesPerListenerAllowed": { "type": "boolean" },
+        "identifier": {
+          "$ref": "#/$defs/presenceForm",
+          "description": "Omit the whole key when the identifier slot carries no meaning for this service type."
+        },
+        "handlers": { "$ref": "#/$defs/handlers" },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rule" }
+        }
+      }
+    },
+
+    "handlers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backedByConcreteType"],
+      "properties": {
+        "backedByConcreteType": {
+          "type": "boolean",
+          "description": "true: the service type's own declared methods are the handlers; options is empty/absent. false: options is the only source of truth."
+        },
+        "addMode": {
+          "enum": ["subset", "many"],
+          "description": "subset: a fixed, named vocabulary, each option carrying its own presence. many: an open-ended, user-named set, represented as a single option named \"*\". Absent when backedByConcreteType is true."
+        },
+        "options": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/handlerOption" }
+        }
+      }
+    },
+
+    "handlerOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "description": "The handler's method name, or \"*\" for an open/many-shaped handler." },
+        "kind": { "enum": ["remote", "resource"] },
+        "presence": {
+          "$ref": "#/$defs/presence",
+          "description": "Meaningful only under addMode: \"subset\"."
+        },
+        "annotations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Ids into the top-level annotations[] registry, attachPoint: \"function\"."
+        },
+        "params": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/param" }
+        },
+        "returns": { "$ref": "#/$defs/typeRefOrUnion" },
+        "method": { "$ref": "#/$defs/presenceValues", "description": "Resource-kind extra (HTTP): the legal HTTP verbs." },
+        "path": { "$ref": "#/$defs/presenceForm", "description": "Resource-kind extra (HTTP): the legal path-segment shapes." },
+        "accessor": { "$ref": "#/$defs/presenceValues", "description": "Resource-kind extra (GraphQL): \"get\" (query field) or \"subscribe\" (subscription)." },
+        "fieldName": { "$ref": "#/$defs/presenceForm", "description": "Resource-kind extra (GraphQL): the legal field-name shapes." },
+        "graphqlOperation": {
+          "enum": ["query", "mutation", "subscription"],
+          "description": "Resource-kind extra (GraphQL), informational."
+        }
+      }
+    },
+
+    "param": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "presence"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The conventional/domain-meaningful parameter name; omitted where the name carries no meaning beyond its position."
+        },
+        "type": { "$ref": "#/$defs/typeRefOrUnion" },
+        "presence": { "$ref": "#/$defs/presence" },
+        "addMode": {
+          "enum": ["many"],
+          "description": "This slot can repeat zero or more times, each occurrence independently named/typed by the user. Absent means \"at most one\"."
+        },
+        "dataBinding": {
+          "type": "string",
+          "description": "Id into the top-level dataBindingRules[] registry; present only when the raw value can be projected into a different, user-defined type."
+        },
+        "annotations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Ids into the top-level annotations[] registry, attachPoint: \"parameter\"."
+        }
+      }
+    },
+
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "members"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "enum": ["oneOf"] },
+        "members": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/ruleMember" },
+          "description": "Exactly one of these must be chosen — not zero, not more than one."
+        }
+      }
+    },
+
+    "ruleMember": {
+      "type": "object",
+      "description": "Exactly one of the three shapes below is populated. additionalProperties is scoped per-branch (not on this object directly) so it doesn't shadow the oneOf.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["annotation", "field"],
+          "properties": {
+            "annotation": { "type": "string" },
+            "field": { "type": "string" },
+            "preferred": { "const": true }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["part"],
+          "properties": {
+            "part": { "const": "identifier" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["handler"],
+          "properties": {
+            "handler": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "attachPoint", "presence"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "$ref": "#/$defs/typeRef" },
+        "attachPoint": { "enum": ["service", "function", "parameter", "return"] },
+        "appliesTo": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "serviceTypes[].id values. Include only when nothing else already links this annotation to a service type."
+        },
+        "presence": { "$ref": "#/$defs/presence" }
+      }
+    },
+
+    "dataBindingRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "supportedModes"],
+      "properties": {
+        "id": { "type": "string" },
+        "envelopeType": {
+          "$ref": "#/$defs/typeRef",
+          "description": "The record being wrapped. Present only when supportedModes includes an includedRecord entry — restating it there too would either duplicate that entry's own \"includes\" or falsely imply a partial-envelope relationship on a rule with only direct/streamable modes."
+        },
+        "cardinality": {
+          "enum": ["array"],
+          "description": "Present when the bound value is an array/batch of the described type — a mode resolves to the array element type, not the param's whole type."
+        },
+        "supportedModes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/supportedMode" }
+        }
+      }
+    },
+
+    "supportedMode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["direct", "includedRecord", "streamable"] },
+        "typeConstraint": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/typeRef" },
+          "description": "direct/streamable only: the legal alternatives."
+        },
+        "excludes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/typeRef" },
+          "description": "direct only: types in typeConstraint's general category that are explicitly disallowed."
+        },
+        "includes": {
+          "$ref": "#/$defs/typeRef",
+          "description": "includedRecord only: the base record being included via *Type;."
+        },
+        "bindableFields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "includedRecord only: field names the user's record is free to override."
+        }
+      }
+    }
+  }
+}

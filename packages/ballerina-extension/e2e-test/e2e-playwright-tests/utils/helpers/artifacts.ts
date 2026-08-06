@@ -16,12 +16,35 @@
  * under the License.
  */
 
+import { Frame, Locator } from "@playwright/test";
 import { getWebview } from "./webview";
 import { page } from "./setup";
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR } from "./constants";
 
 /**
- * Add an artifact to the project
+ * Clicks a locator via the DOM `click()` method instead of a coordinate-based
+ * mouse click. The floating Copilot orb (AgentStatusOrb) is fixed-position,
+ * docks at the webview's bottom-center by default, and sits ABOVE page
+ * content (z-index 10000) — the wizard's Configure-step submit button is a
+ * full-width, bottom-pinned "footer action button" (see ArtifactForm's
+ * `footerActionButton`), so its center point can coincide exactly with the
+ * orb's. A coordinate click there — even with `force: true`, which only
+ * skips Playwright's actionability checks, not real hit-testing — lands on
+ * the orb instead and silently opens its mini chat rather than submitting
+ * the form. Dispatching through the DOM node bypasses hit-testing entirely.
+ */
+export async function domClick(locator: Locator): Promise<void> {
+    await locator.waitFor({ state: "attached", timeout: 15000 });
+    await locator.evaluate((el: HTMLElement) => el.click());
+}
+
+/**
+ * Add an artifact to the project. The overview header shows "Add Artifact" (opening the
+ * flat artifact-list picker) once the integration has at least one artifact; on a still-empty
+ * integration it shows "Add Integration" instead, which reopens the creation wizard's Type
+ * step — a card picker restricted to the subset of kinds the wizard supports, but sharing the
+ * same card ids as the flat picker. That step requires an explicit "Next" after selecting the
+ * card, unlike the flat picker's direct card-click.
  */
 export async function addArtifact(artifactName: string, testId: string) {
     console.log(`Adding artifact: ${artifactName}`);
@@ -29,12 +52,30 @@ export async function addArtifact(artifactName: string, testId: string) {
     if (!artifactWebView) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
     }
-    // Navigate to the overview page
-    await artifactWebView.getByRole('button', { name: ' Add Artifact' }).click();
-    // how to get element by id
-    const addArtifactBtn = artifactWebView.locator(`#${testId}`);
-    await addArtifactBtn.waitFor();
-    await addArtifactBtn.click();
+    const addArtifactBtn = artifactWebView.getByRole('button', { name: /Add Artifact/i });
+    const addIntegrationBtn = artifactWebView.getByRole('button', { name: /Add Integration/i });
+    await Promise.race([
+        addArtifactBtn.waitFor({ timeout: 30000 }),
+        addIntegrationBtn.waitFor({ timeout: 30000 }),
+    ]);
+
+    // `force` throughout — the floating Copilot orb/invite box intermittently overlaps
+    // and intercepts pointer events on cards and buttons across these views.
+    if (await addIntegrationBtn.isVisible().catch(() => false)) {
+        await addIntegrationBtn.click({ force: true });
+        const card = artifactWebView.locator(`#${testId}`);
+        await card.waitFor();
+        await domClick(card);
+        // The Type step's "Next" is right-aligned (not full-width), so it doesn't
+        // sit under the orb's bottom-center dock point — a coordinate click is fine.
+        await artifactWebView.getByRole('button', { name: 'Next' }).click({ force: true, timeout: 60000 });
+        return;
+    }
+
+    await addArtifactBtn.click({ force: true });
+    const card = artifactWebView.locator(`#${testId}`);
+    await card.waitFor();
+    await domClick(card);
 }
 
 /**
@@ -45,6 +86,23 @@ export async function addArtifact(artifactName: string, testId: string) {
 export async function createArtifactAndGetWebview(artifactName: string, testId: string) {
     await addArtifact(artifactName, testId);
     return getWebview(BI_INTEGRATOR_LABEL, page);
+}
+
+/**
+ * Submits the artifact creation form shown after `addArtifact`/
+ * `createArtifactAndGetWebview` — "Create" in the in-project form, "Create
+ * Integration" in the wizard's Configure step (reached on a still-empty
+ * integration). MUST use `domClick`, not a coordinate click: unlike the
+ * in-project form's button, the wizard's is a full-width footer action
+ * button (see ArtifactForm's `footerActionButton`) whose center sits exactly
+ * where the floating Copilot orb docks by default, so a coordinate click —
+ * even with `force: true` — can silently land on the orb instead and open its
+ * mini chat rather than submitting the form.
+ */
+export async function submitArtifactCreation(webview: Frame): Promise<void> {
+    const submitBtn = webview.getByRole('button', { name: /^Create( Integration)?$/ });
+    await submitBtn.waitFor({ state: 'visible', timeout: 60000 });
+    await domClick(submitBtn);
 }
 
 /**

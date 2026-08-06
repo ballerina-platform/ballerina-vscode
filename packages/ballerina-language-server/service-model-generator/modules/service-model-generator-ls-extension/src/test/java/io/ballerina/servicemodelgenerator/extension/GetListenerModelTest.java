@@ -48,14 +48,15 @@ public class GetListenerModelTest extends AbstractLSTest {
         bufferedReader.close();
 
         String sourcePath = sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString();
-        ListenerModelRequest request = new ListenerModelRequest(testConfig.codedata(), sourcePath);
+        ListenerModelRequest request = new ListenerModelRequest(testConfig.codedata(), sourcePath,
+                testConfig.removeDeprecated());
         JsonObject jsonMap = getResponse(request);
 
         boolean assertTrue = testConfig.response().getAsJsonObject().equals(jsonMap);
         if (!assertTrue) {
             GetListenerModelTest.TestConfig updatedConfig =
                     new GetListenerModelTest.TestConfig(testConfig.description(), testConfig.codedata(),
-                            testConfig.filePath(), jsonMap);
+                            testConfig.filePath(), testConfig.removeDeprecated(), jsonMap);
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -85,14 +86,15 @@ public class GetListenerModelTest extends AbstractLSTest {
     /**
      * Represents the test configuration.
      *
-     * @param description description of the test
-     * @param codedata    codedata for the test
-     * @param filePath    file path of the test
-     * @param response    expected response
+     * @param description      description of the test
+     * @param codedata         codedata for the test
+     * @param filePath         file path of the test
+     * @param removeDeprecated whether to build the "deprecated fields removed" listener model shape
+     * @param response         expected response
      * @since 1.0.0
      */
     private record TestConfig(String description, Codedata codedata, String filePath,
-                              JsonElement response) {
+                              Boolean removeDeprecated, JsonElement response) {
         public String description() {
             return description == null ? "" : description;
         }

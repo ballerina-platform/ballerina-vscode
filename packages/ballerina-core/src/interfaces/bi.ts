@@ -21,6 +21,7 @@ import { LinePosition } from "./common";
 import { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types";
 import { ValueTypeConstraint } from "../rpc-types/ai-agent/interfaces";
 import { Type } from "./extended-lang-client";
+import { ValidationResult, ValidationRule } from "./service";
 
 export type { NodePosition };
 
@@ -197,6 +198,7 @@ export interface BaseType {
     defaultItems?: number; // default number of items for EXPRESSION_SET fields
     pattern?: string; // regex pattern for validation (e.g., for TEXT fields)
     patternErrorMessage?: string; // custom error message when pattern validation fails
+    validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
 }
 
 export interface EnumOptions {
@@ -427,12 +429,22 @@ export interface ProjectStructureResponse {
     projects: ProjectStructure[];
 }
 
+/**
+ * `kind` is the semantic integration kind (event/file/http/graphql/ai) from the trigger metadata.
+ * `iconColor` is an optional tint for a monochrome brand glyph (e.g. "#f60"); `iconLight`/`iconDark`
+ * are theme-specific images (data: URI / path) paired with each other, used when `icon` alone isn't
+ * theme-aware.
+ */
 export interface ProjectStructureArtifactResponse {
     id: string;
     name: string;
     path: string;
     type: string;
+    kind?: string;
     icon?: string;
+    iconColor?: string;
+    iconLight?: string;
+    iconDark?: string;
     context?: string;
     moduleName?: string;
     position?: NodePosition;
@@ -441,9 +453,14 @@ export interface ProjectStructureArtifactResponse {
     visibility?: VISIBILITY;
 }
 
+/**
+ * `validationErrors` is set when the language server's save-time gate refused the model: `artifacts`
+ * is empty and no source was written. The form renders these per field by `propertyPath`.
+ */
 export interface UpdatedArtifactsResponse {
     artifacts: ProjectStructureArtifactResponse[];
     error?: string;
+    validationErrors?: ValidationResult[];
 }
 
 export type Item = Category | AvailableNode;

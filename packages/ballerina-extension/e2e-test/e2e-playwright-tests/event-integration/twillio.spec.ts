@@ -17,7 +17,7 @@
  * under the License.
  */
 import { test } from '@playwright/test';
-import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
@@ -34,20 +34,20 @@ export default function createTests() {
             const artifactWebView = await createArtifactAndGetWebview('Twillio Integration', 'trigger-trigger-twilio');
             listenerName = `twilioListener`;
 
+            // Event Channel already defaults to "Call Status" (twilio:CallStatusService),
+            // matching this test's intent, and no other field is required — submit directly.
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
-            await form.fill({
-                values: {
-                    'Event Channel': {
-                        type: 'dropdown',
-                        value: 'CallStatusService',
-                    }
-                }
-            });
             await form.submit('Create');
 
             await artifactWebView.locator(`text="onQueued"`).waitFor();
             await artifactWebView.locator(`text="onRinging"`).waitFor();
+            // The remaining handlers are collapsed behind "Show More Resources" on the
+            // integration overview card; the dedicated service page shows them directly.
+            const showMoreResources = artifactWebView.getByText('Show More Resources');
+            if (await showMoreResources.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await domClick(showMoreResources);
+            }
             await artifactWebView.locator(`text="onInProgress"`).waitFor();
             await artifactWebView.locator(`text="onBusy"`).waitFor();
             await artifactWebView.locator(`text="onFailed"`).waitFor();
@@ -65,9 +65,16 @@ export default function createTests() {
             console.log('Editing a service in test attempt: ', testAttempt);
             const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
-            const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
-            await editBtn.waitFor();
-            await editBtn.click({ force: true });
+            // The Create test can leave the webview either on the integration overview
+            // (service shown as a diagram node — click it to reach the dedicated service
+            // page) or already on that dedicated page (Configure visible directly).
+            const entryNode = artifactWebView.locator('[data-testid="entry-node-service"]');
+            if (await entryNode.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await domClick(entryNode);
+            }
+            const configureBtn = artifactWebView.getByRole('button', { name: 'Configure' });
+            await configureBtn.waitFor();
+            await domClick(configureBtn);
 
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
@@ -76,14 +83,15 @@ export default function createTests() {
                     'listenOn': {
                         type: 'cmEditor',
                         value: `9090`,
-                        additionalProps: { clickLabel: true, switchMode: 'primary-mode', window: global.window }
+                        additionalProps: { switchMode: 'primary-mode' }
                     }
                 }
             });
+            await page.page.keyboard.press('Escape');
             await form.submit('Save Changes');
             await confirmSaveChangesAndGoBack(artifactWebView);
 
-            await editBtn.waitFor();
+            await configureBtn.waitFor();
 
             await artifactWebView.locator(`text="onQueued"`).waitFor();
             await artifactWebView.locator(`text="onRinging"`).waitFor();

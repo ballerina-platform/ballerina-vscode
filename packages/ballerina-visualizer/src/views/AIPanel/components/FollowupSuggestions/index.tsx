@@ -25,8 +25,8 @@ const Container = styled.div`
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    /* Deliberately asymmetric: the chips belong to the input below, not the message above. */
-    margin: 20px 0 -22px;
+    /* Keep the bottom at zero: a negative margin puts the chips past the transcript's scroll end. */
+    margin: 20px 0 0;
 `;
 
 const AiHint = styled.span`

@@ -24,6 +24,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { AddPanel, Chip, ChipRow, ClearSearchButton, Container, EmptyState, FilterBar, SearchSlot } from "./styles";
 import { AutomationPanel } from "./AutomationPanel";
+import { CentralSearchPanel } from "./CentralSearchPanel";
 import { WorkflowPanel } from "./WorkflowPanel";
 import { EventIntegrationPanel } from "./EventIntegrationPanel";
 import { FileIntegrationPanel } from "./FileIntegrationPanel";
@@ -70,6 +71,9 @@ export function ComponentListView(props: ComponentListViewProps) {
     const [isNPSupported, setIsNPSupported] = useState<boolean>(false);
     const [isLibrary, setIsLibrary] = useState<boolean>(false);
     const [activeCategory, setActiveCategory] = useState<CategoryChipKey>(ALL_CATEGORY);
+    // Page-level gallery search: filters every section's cards in place and, while active, adds a
+    // "More on Ballerina Central" section — results there can belong to any category, which is why
+    // search lives here rather than inside one section.
     const [searchQuery, setSearchQuery] = useState<string>("");
     const addPanelRef = useRef<HTMLDivElement>(null);
     const [noResults, setNoResults] = useState(false);
@@ -166,6 +170,7 @@ export function ComponentListView(props: ComponentListViewProps) {
                                 {showCategory("integration-as-api") && <IntegrationAPIPanel scope={scope} searchQuery={q} />}
                                 {showCategory("event-integration") && <EventIntegrationPanel triggers={triggers} isLoadingTriggers={isLoadingTriggers} scope={scope} searchQuery={q} />}
                                 {showCategory("file-integration") && <FileIntegrationPanel triggers={triggers} isLoadingTriggers={isLoadingTriggers} scope={scope} searchQuery={q} />}
+                                {q.trim() && <CentralSearchPanel query={q} triggers={triggers} />}
                             </>
                         )}
                         {showCategory(OTHER_CATEGORY) && (

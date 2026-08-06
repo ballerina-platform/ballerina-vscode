@@ -6,35 +6,35 @@
   "moduleName": "trigger.hubspot",
   "response": {
     "serviceInitModel": {
-      "id": "21",
       "displayName": "HubSpot Event Integration",
-      "description": "Create a service to handle events from HubSpot",
+      "description": "Create a service to handle webhook events from HubSpot",
       "orgName": "ballerinax",
       "packageName": "trigger.hubspot",
       "moduleName": "trigger.hubspot",
       "version": "0.12.0",
-      "type": "event",
+      "type": "hubspot",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.0.png",
       "properties": {
-        "configureListener": {
+        "listener": {
           "metadata": {
-            "label": "Configure HubSpot Listener",
-            "description": "Select an existing HubSpot listener or create a new one"
+            "label": "Listener",
+            "description": "Attach the service to a new or existing HubSpot webhook listener."
           },
-          "placeholder": "",
+          "codedata": {
+            "type": "LISTENER_CONFIG"
+          },
           "value": "0",
           "choices": [
             {
               "metadata": {
-                "label": "Create new",
-                "description": "Create a new HubSpot listener"
+                "label": "Create New Listener",
+                "description": "Define a new HubSpot webhook listener in the project."
               },
-              "placeholder": "true",
-              "value": "true",
               "properties": {
                 "listenerConfig": {
                   "metadata": {
                     "label": "Listener Configurations",
-                    "description": "Configure the HubSpot listener"
+                    "description": "Configure the HubSpot webhook listener."
                   },
                   "properties": {
                     "listenerVarName": {
@@ -43,14 +43,13 @@
                         "description": "Provide a name for the listener being created"
                       },
                       "codedata": {
-                        "argType": "LISTENER_VAR_NAME"
+                        "type": "LISTENER_VAR_NAME"
                       },
                       "value": "hubspotListener",
-                      "placeholder": "hubspotListener",
                       "types": [
                         {
                           "fieldType": "IDENTIFIER",
-                          "ballerinaType": "Listener",
+                          "ballerinaType": "hubspot:Listener",
                           "selected": true
                         }
                       ],
@@ -62,10 +61,13 @@
                     "clientSecret": {
                       "metadata": {
                         "label": "Client Secret",
-                        "description": "The client secret of the HubSpot app used to validate incoming webhook requests"
+                        "description": "The Client Secret of HubSpot App"
                       },
                       "codedata": {
-                        "argType": "LISTENER_PARAM_CONFIG_FIELD"
+                        "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                        "originalName": "clientSecret",
+                        "position": 1,
+                        "path": "clientSecret"
                       },
                       "placeholder": "",
                       "value": "",
@@ -79,6 +81,11 @@
                           "fieldType": "EXPRESSION",
                           "ballerinaType": "string",
                           "selected": false
+                        }
+                      ],
+                      "validations": [
+                        {
+                          "rule": "common.validate.required"
                         }
                       ],
                       "enabled": true,
@@ -89,10 +96,13 @@
                     "callbackURL": {
                       "metadata": {
                         "label": "Callback URL",
-                        "description": "The callback URL registered with the HubSpot app"
+                        "description": "The Callback URL"
                       },
                       "codedata": {
-                        "argType": "LISTENER_PARAM_CONFIG_FIELD"
+                        "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                        "originalName": "callbackURL",
+                        "position": 1,
+                        "path": "callbackURL"
                       },
                       "placeholder": "",
                       "value": "",
@@ -108,6 +118,11 @@
                           "selected": false
                         }
                       ],
+                      "validations": [
+                        {
+                          "rule": "common.validate.required"
+                        }
+                      ],
                       "enabled": true,
                       "editable": true,
                       "optional": false,
@@ -115,11 +130,13 @@
                     },
                     "listenOn": {
                       "metadata": {
-                        "label": "Port",
+                        "label": "Webhook Listener Port",
                         "description": "The port on which the webhook listener accepts incoming HTTP requests"
                       },
                       "codedata": {
-                        "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "originalName": "listenOn",
+                        "position": 2
                       },
                       "placeholder": "8090",
                       "value": "8090",
@@ -131,13 +148,13 @@
                         },
                         {
                           "fieldType": "EXPRESSION",
-                          "ballerinaType": "http:Listener",
+                          "ballerinaType": "int|http:Listener",
                           "selected": false
                         }
                       ],
                       "enabled": true,
                       "editable": true,
-                      "optional": false,
+                      "optional": true,
                       "advanced": false
                     }
                   },
@@ -156,7 +173,7 @@
               "types": [
                 {
                   "fieldType": "FORM",
-                  "selected": false
+                  "selected": true
                 }
               ],
               "enabled": true,
@@ -167,25 +184,32 @@
             {
               "metadata": {
                 "label": "Use existing (none available)",
-                "description": "Select an existing HubSpot listener"
+                "description": "No compatible listener of this type is present in the project."
               },
-              "placeholder": "true",
-              "value": "true",
               "properties": {
-                "listenerConfig": {
+                "existingListener": {
                   "metadata": {
-                    "label": "Listener Configurations",
-                    "description": "Configure the HubSpot listener"
+                    "label": "Listener(s)",
+                    "description": "Select one or more existing listeners to attach the service to."
                   },
-                  "properties": {},
+                  "codedata": {
+                    "type": "KEY_EXISTING_LISTENER"
+                  },
+                  "value": [
+                    "hubspotListener"
+                  ],
+                  "items": [
+                    "hubspotListener"
+                  ],
                   "types": [
                     {
-                      "fieldType": "GROUP_SECTION",
+                      "fieldType": "MULTIPLE_SELECT_LISTENER",
+                      "ballerinaType": "hubspot:Listener",
                       "selected": true
                     }
                   ],
                   "enabled": true,
-                  "editable": false,
+                  "editable": true,
                   "optional": false,
                   "advanced": false
                 }
@@ -193,7 +217,7 @@
               "types": [
                 {
                   "fieldType": "FORM",
-                  "selected": false
+                  "selected": true
                 }
               ],
               "enabled": false,
@@ -205,7 +229,7 @@
           "types": [
             {
               "fieldType": "CHOICE",
-              "selected": false
+              "selected": true
             }
           ],
           "enabled": true,
@@ -213,28 +237,49 @@
           "optional": false,
           "advanced": false
         },
-        "basePath": {
+        "serviceType": {
           "metadata": {
-            "label": "Event Type",
-            "description": "Select the type of HubSpot events to handle"
+            "label": "Service Type",
+            "description": "The HubSpot object whose events this service listens for"
           },
           "codedata": {
-            "argType": "SERVICE_TYPE_DESCRIPTOR"
+            "type": "SERVICE_TYPE_DESCRIPTOR",
+            "moduleName": "hubspot"
           },
-          "placeholder": "CompanyService",
-          "value": "CompanyService",
+          "value": "hubspot:CompanyService",
           "types": [
             {
               "fieldType": "SINGLE_SELECT",
               "ballerinaType": "hubspot:GenericServiceType",
               "options": [
-                {"label": "Company", "value": "CompanyService"},
-                {"label": "Contact", "value": "ContactService"},
-                {"label": "Conversation", "value": "ConversationService"},
-                {"label": "Deal", "value": "DealService"},
-                {"label": "Ticket", "value": "TicketService"},
-                {"label": "Product", "value": "ProductService"},
-                {"label": "Line Item", "value": "LineItemService"}
+                {
+                  "label": "Company",
+                  "value": "hubspot:CompanyService"
+                },
+                {
+                  "label": "Contact",
+                  "value": "hubspot:ContactService"
+                },
+                {
+                  "label": "Conversation",
+                  "value": "hubspot:ConversationService"
+                },
+                {
+                  "label": "Deal",
+                  "value": "hubspot:DealService"
+                },
+                {
+                  "label": "Ticket",
+                  "value": "hubspot:TicketService"
+                },
+                {
+                  "label": "Product",
+                  "value": "hubspot:ProductService"
+                },
+                {
+                  "label": "Line Item",
+                  "value": "hubspot:LineItemService"
+                }
               ],
               "selected": true
             }

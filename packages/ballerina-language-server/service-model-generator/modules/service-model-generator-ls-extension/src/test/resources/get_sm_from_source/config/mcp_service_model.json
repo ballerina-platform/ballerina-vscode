@@ -10,40 +10,21 @@
     "offset": 0
   },
   "response": {
-    "id": "8",
+    "id": "0",
     "name": "MCP Service",
     "type": "mcp",
     "displayName": "MCP Service",
     "moduleName": "mcp",
     "orgName": "ballerina",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "packageName": "mcp",
     "listenerProtocol": "mcp",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.0.png",
-    "documentation": {
-      "metadata": {
-        "label": "Description",
-        "description": "The description of the class"
-      },
-      "codedata": {
-        "type": "DOCUMENTATION"
-      },
-      "types": [
-        {
-          "fieldType": "TEXT",
-          "selected": true
-        }
-      ],
-      "enabled": true,
-      "editable": true,
-      "optional": true,
-      "advanced": false
-    },
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.3.png",
     "properties": {
       "listener": {
         "metadata": {
-          "label": "Listeners",
-          "description": "The Listeners to be bound with the service"
+          "label": "Listener",
+          "description": "The Listener to be bound with the service"
         },
         "codedata": {
           "type": "LISTENER"
@@ -74,7 +55,7 @@
         },
         "types": [
           {
-            "fieldType": "MULTIPLE_SELECT_LISTENER",
+            "fieldType": "SINGLE_SELECT_LISTENER",
             "options": [
               {
                 "label": "mcpListener",
@@ -91,27 +72,14 @@
       },
       "serviceType": {
         "metadata": {
-          "label": "MCP Service Type",
-          "description": "The service type descriptor"
+          "label": "MCP Service",
+          "description": "Handles MCP tool calls over the Streamable HTTP transport."
         },
-        "codedata": {
-          "type": "SERVICE_TYPE"
-        },
-        "placeholder": "",
+        "placeholder": "mcp:Service",
         "value": "Service",
         "types": [
           {
-            "fieldType": "SINGLE_SELECT",
-            "options": [
-              {
-                "label": "",
-                "value": ""
-              },
-              {
-                "label": "Service",
-                "value": "Service"
-              }
-            ],
+            "fieldType": "TYPE",
             "selected": true
           }
         ],
@@ -123,12 +91,12 @@
       "basePath": {
         "metadata": {
           "label": "Base Path",
-          "description": ""
+          "description": "The base path of the service"
         },
         "codedata": {
           "type": "SERVICE_BASE_PATH"
         },
-        "placeholder": "/mcp",
+        "placeholder": "/",
         "value": "/mcp",
         "values": [],
         "types": [
@@ -142,12 +110,38 @@
         "optional": false,
         "advanced": false
       },
+      "annotServiceConfig": {
+        "metadata": {
+          "label": "ServiceConfig",
+          "description": "ServiceConfig"
+        },
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "ServiceConfig",
+          "moduleName": "mcp"
+        },
+        "value": "{\n    info: {\n        name: \"MCP Weather Server\",\n        version: \"1.0.0\"\n    },\n    sessionMode: mcp:AUTO\n}",
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
       "readOnlyMetadata": {
         "codedata": {
           "type": "READONLY"
         },
         "placeholder": "false",
-        "value": {},
+        "value": {
+          "Base Path": [
+            "/mcp"
+          ]
+        },
         "types": [
           {
             "fieldType": "SINGLE_SELECT",
@@ -157,39 +151,6 @@
         "enabled": true,
         "editable": true,
         "optional": false,
-        "advanced": false
-      },
-      "annotServiceConfig": {
-        "metadata": {
-          "label": "Service Configuration",
-          "description": "Define mcp service configuration"
-        },
-        "codedata": {
-          "type": "ANNOTATION_ATTACHMENT",
-          "originalName": "ServiceConfig"
-        },
-        "placeholder": "{}",
-        "value": "{\n    info: {\n        name: \"MCP Weather Server\",\n        version: \"1.0.0\"\n    },\n    sessionMode: mcp:AUTO\n}",
-        "values": [],
-        "types": [
-          {
-            "fieldType": "RECORD_MAP_EXPRESSION",
-            "ballerinaType": "mcp:ServiceConfiguration",
-            "typeMembers": [
-              {
-                "type": "ServiceConfiguration",
-                "packageInfo": "ballerina:mcp:1.0.0",
-                "packageName": "mcp",
-                "kind": "RECORD_TYPE",
-                "selected": true
-              }
-            ],
-            "selected": true
-          }
-        ],
-        "enabled": true,
-        "editable": true,
-        "optional": true,
         "advanced": false
       }
     },
@@ -212,15 +173,18 @@
     "functions": [
       {
         "metadata": {
-          "label": "",
-          "description": ""
+          "label": "Tool",
+          "description": "Define a tool function that MCP clients can discover and call.",
+          "badge": "Tool"
         },
         "kind": "REMOTE",
-        "accessor": {
+        "name": {
           "metadata": {
-            "label": "Accessor",
-            "description": "The accessor of the function"
+            "label": "Tool Name",
+            "description": "The name of the MCP tool"
           },
+          "placeholder": "newTool",
+          "value": "getCurrentWeather",
           "types": [
             {
               "fieldType": "IDENTIFIER",
@@ -232,21 +196,22 @@
           "optional": false,
           "advanced": false
         },
-        "name": {
+        "documentation": {
           "metadata": {
-            "label": "Function Name",
-            "description": "The name of the function"
+            "label": "Tool Description",
+            "description": "Description of what this MCP tool does"
           },
-          "value": "getCurrentWeather",
+          "placeholder": "Describe what this tool does...",
+          "value": "",
           "types": [
             {
-              "fieldType": "IDENTIFIER",
-              "selected": false
+              "fieldType": "DOC_TEXT",
+              "selected": true
             }
           ],
           "enabled": true,
           "editable": true,
-          "optional": false,
+          "optional": true,
           "advanced": false
         },
         "parameters": [
@@ -332,11 +297,18 @@
         ],
         "schema": {
           "parameter": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "A parameter the tool call must (or may) supply."
+            },
+            "kind": "REQUIRED",
             "type": {
               "metadata": {
-                "label": "Parameter Type",
+                "label": "Type",
                 "description": "The type of the parameter"
               },
+              "placeholder": "string",
+              "value": "string",
               "types": [
                 {
                   "fieldType": "TYPE",
@@ -350,9 +322,11 @@
             },
             "name": {
               "metadata": {
-                "label": "Parameter Name",
-                "description": "The name of the parameter"
+                "label": "Name",
+                "description": "The parameter's identifier"
               },
+              "placeholder": "paramName",
+              "value": "",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -367,8 +341,10 @@
             "defaultValue": {
               "metadata": {
                 "label": "Default Value",
-                "description": "The default value of the parameter"
+                "description": "The default value, if this parameter is optional"
               },
+              "placeholder": "",
+              "value": "",
               "types": [
                 {
                   "fieldType": "EXPRESSION",
@@ -378,16 +354,18 @@
               "enabled": true,
               "editable": true,
               "optional": true,
-              "advanced": false
+              "advanced": true
             },
             "documentation": {
               "metadata": {
                 "label": "Description",
                 "description": "The description of the parameter"
               },
+              "placeholder": "",
+              "value": "",
               "types": [
                 {
-                  "fieldType": "TEXT",
+                  "fieldType": "DOC_TEXT",
                   "selected": true
                 }
               ],
@@ -398,19 +376,20 @@
             },
             "enabled": true,
             "editable": true,
-            "optional": false,
+            "optional": true,
             "advanced": false,
             "hidden": false,
             "isGraphqlId": false
           }
         },
         "returnType": {
-          "hasError": false,
+          "hasError": true,
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
+          "placeholder": "anydata|error",
           "value": "Weather|error",
           "types": [
             {
@@ -420,12 +399,12 @@
           ],
           "enabled": true,
           "editable": true,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
         "optional": true,
-        "editable": false,
+        "editable": true,
         "canAddParameters": true,
         "codedata": {
           "lineRange": {
@@ -438,38 +417,32 @@
               "line": 22,
               "offset": 6
             }
-          }
+          },
+          "orgName": "ballerina",
+          "packageName": "mcp",
+          "moduleName": "mcp",
+          "version": "1.0.3"
         },
-        "properties": {
-          "annotTool": {
-            "metadata": {
-              "label": "Tool",
-              "description": "Tool"
-            },
-            "codedata": {
-              "type": "ANNOTATION_ATTACHMENT",
-              "originalName": "Tool",
-              "moduleName": "mcp"
-            },
-            "value": "{\n        description: string `\n            **Description**: Get current weather conditions for a location\n            **Parameters**:\n            - location (string, required): City name or coordinates (e.g., \"London\", \"40.7128,-74.0060\")\n            `\n    }",
-            "enabled": false,
-            "editable": false,
-            "optional": false,
-            "advanced": false
-          }
-        }
+        "properties": {},
+        "group": "newTool",
+        "addLabel": "Add Tool",
+        "repeatable": "TRUE",
+        "nameEditable": true
       },
       {
         "metadata": {
-          "label": "",
-          "description": ""
+          "label": "Tool",
+          "description": "Define a tool function that MCP clients can discover and call.",
+          "badge": "Tool"
         },
         "kind": "REMOTE",
-        "accessor": {
+        "name": {
           "metadata": {
-            "label": "Accessor",
-            "description": "The accessor of the function"
+            "label": "Tool Name",
+            "description": "The name of the MCP tool"
           },
+          "placeholder": "newTool",
+          "value": "getWeatherForecast",
           "types": [
             {
               "fieldType": "IDENTIFIER",
@@ -481,28 +454,16 @@
           "optional": false,
           "advanced": false
         },
-        "name": {
-          "metadata": {
-            "label": "Function Name",
-            "description": "The name of the function"
-          },
-          "value": "getWeatherForecast",
-          "types": [
-            {
-              "fieldType": "IDENTIFIER",
-              "selected": false
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": false
-        },
         "documentation": {
-          "value": "Get weather forecast for upcoming days",
+          "metadata": {
+            "label": "Tool Description",
+            "description": "Description of what this MCP tool does"
+          },
+          "placeholder": "Describe what this tool does...",
+          "value": "",
           "types": [
             {
-              "fieldType": "TEXT",
+              "fieldType": "DOC_TEXT",
               "selected": true
             }
           ],
@@ -675,11 +636,18 @@
         ],
         "schema": {
           "parameter": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "A parameter the tool call must (or may) supply."
+            },
+            "kind": "REQUIRED",
             "type": {
               "metadata": {
-                "label": "Parameter Type",
+                "label": "Type",
                 "description": "The type of the parameter"
               },
+              "placeholder": "string",
+              "value": "string",
               "types": [
                 {
                   "fieldType": "TYPE",
@@ -693,9 +661,11 @@
             },
             "name": {
               "metadata": {
-                "label": "Parameter Name",
-                "description": "The name of the parameter"
+                "label": "Name",
+                "description": "The parameter's identifier"
               },
+              "placeholder": "paramName",
+              "value": "",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",
@@ -710,8 +680,10 @@
             "defaultValue": {
               "metadata": {
                 "label": "Default Value",
-                "description": "The default value of the parameter"
+                "description": "The default value, if this parameter is optional"
               },
+              "placeholder": "",
+              "value": "",
               "types": [
                 {
                   "fieldType": "EXPRESSION",
@@ -721,16 +693,18 @@
               "enabled": true,
               "editable": true,
               "optional": true,
-              "advanced": false
+              "advanced": true
             },
             "documentation": {
               "metadata": {
                 "label": "Description",
                 "description": "The description of the parameter"
               },
+              "placeholder": "",
+              "value": "",
               "types": [
                 {
-                  "fieldType": "TEXT",
+                  "fieldType": "DOC_TEXT",
                   "selected": true
                 }
               ],
@@ -741,19 +715,20 @@
             },
             "enabled": true,
             "editable": true,
-            "optional": false,
+            "optional": true,
             "advanced": false,
             "hidden": false,
             "isGraphqlId": false
           }
         },
         "returnType": {
-          "hasError": false,
+          "hasError": true,
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
+          "placeholder": "anydata|error",
           "value": "WeatherForecast|error",
           "types": [
             {
@@ -763,12 +738,12 @@
           ],
           "enabled": true,
           "editable": true,
-          "optional": true,
+          "optional": false,
           "advanced": false
         },
         "enabled": true,
         "optional": true,
-        "editable": false,
+        "editable": true,
         "canAddParameters": true,
         "codedata": {
           "lineRange": {
@@ -781,9 +756,185 @@
               "line": 35,
               "offset": 5
             }
+          },
+          "orgName": "ballerina",
+          "packageName": "mcp",
+          "moduleName": "mcp",
+          "version": "1.0.3"
+        },
+        "properties": {},
+        "group": "newTool",
+        "addLabel": "Add Tool",
+        "repeatable": "TRUE",
+        "nameEditable": true
+      }
+    ],
+    "schemaFunctions": [
+      {
+        "metadata": {
+          "label": "Tool",
+          "description": "Define a tool function that MCP clients can discover and call."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "Tool Name",
+            "description": "The name of the MCP tool"
+          },
+          "placeholder": "newTool",
+          "value": "newTool",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "documentation": {
+          "metadata": {
+            "label": "Tool Description",
+            "description": "Description of what this MCP tool does"
+          },
+          "placeholder": "Describe what this tool does...",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "DOC_TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "parameters": [],
+        "schema": {
+          "parameter": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "A parameter the tool call must (or may) supply."
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "string",
+              "value": "string",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Name",
+                "description": "The parameter's identifier"
+              },
+              "placeholder": "paramName",
+              "value": "",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            "defaultValue": {
+              "metadata": {
+                "label": "Default Value",
+                "description": "The default value, if this parameter is optional"
+              },
+              "placeholder": "",
+              "value": "",
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true
+            },
+            "documentation": {
+              "metadata": {
+                "label": "Description",
+                "description": "The description of the parameter"
+              },
+              "placeholder": "",
+              "value": "",
+              "types": [
+                {
+                  "fieldType": "DOC_TEXT",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": true,
+            "optional": true,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
           }
         },
-        "properties": {}
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "anydata|error",
+          "value": "anydata|error",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": true,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "mcp",
+          "moduleName": "mcp",
+          "version": "1.0.3"
+        },
+        "properties": {},
+        "group": "newTool",
+        "addLabel": "Add Tool",
+        "repeatable": "TRUE",
+        "nameEditable": true
       }
     ]
   }

@@ -19,7 +19,7 @@
 import { HistoryEntry } from "../../history";
 import { ProjectStructureArtifactResponse, UpdatedArtifactsResponse } from "../../interfaces/bi";
 import { ColorThemeKind } from "../../state-machine-types";
-import { AddToUndoStackRequest, HandleApprovalPopupCloseRequest, JoinProjectPathRequest, JoinProjectPathResponse, OpenViewRequest, ReopenApprovalViewRequest, UndoRedoStateResponse, SaveEvalThreadRequest, SaveEvalThreadResponse, GoBackRequest, GoHomeRequest } from "./interfaces";
+import { AddToUndoStackRequest, HandleApprovalPopupCloseRequest, JoinProjectPathRequest, JoinProjectPathResponse, NavigateReviewModeRequest, OpenViewRequest, ReopenApprovalViewRequest, UndoRedoStateResponse, SaveEvalThreadRequest, SaveEvalThreadResponse, GoBackRequest, GoHomeRequest } from "./interfaces";
 
 export interface VisualizerAPI {
     openView: (params: OpenViewRequest) => void;
@@ -39,5 +39,5 @@ export interface VisualizerAPI {
     handleApprovalPopupClose: (params: HandleApprovalPopupCloseRequest) => void;
     reopenApprovalView: (params: ReopenApprovalViewRequest) => void;
     saveEvalThread: (params: SaveEvalThreadRequest) => Promise<SaveEvalThreadResponse>;
-    navigateReviewMode: (index: number) => void;
+    navigateReviewMode: (params: NavigateReviewModeRequest) => void;
 }

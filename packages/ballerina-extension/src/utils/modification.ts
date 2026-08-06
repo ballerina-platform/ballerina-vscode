@@ -82,8 +82,9 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
     }
     const contentWithNewline = ensureTrailingNewline(content);
     writeFileSync(filePath, contentWithNewline);
+    const fileUri = Uri.file(filePath).toString();
     StateMachine.langClient().didChange({
-        textDocument: { uri: filePath, version: 1 },
+        textDocument: { uri: fileUri, version: 1 },
         contentChanges: [
             {
                 text: contentWithNewline,
@@ -92,7 +93,7 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
     });
     StateMachine.langClient().didOpen({
         textDocument: {
-            uri: Uri.file(filePath).toString(),
+            uri: fileUri,
             languageId: 'ballerina',
             version: 1,
             text: contentWithNewline
@@ -103,8 +104,9 @@ export function writeBallerinaFileDidOpenTemp(filePath: string, content: string)
 export async function writeBallerinaFileDidOpen(filePath: string, content: string) {
     const contentWithNewline = ensureTrailingNewline(content);
     writeFileSync(filePath, contentWithNewline);
+    const fileUri = Uri.file(filePath).toString();
     StateMachine.langClient().didChange({
-        textDocument: { uri: filePath, version: 1 },
+        textDocument: { uri: fileUri, version: 1 },
         contentChanges: [
             {
                 text: contentWithNewline,
@@ -113,7 +115,7 @@ export async function writeBallerinaFileDidOpen(filePath: string, content: strin
     });
     StateMachine.langClient().didOpen({
         textDocument: {
-            uri: Uri.file(filePath).toString(),
+            uri: fileUri,
             languageId: 'ballerina',
             version: 1,
             text: contentWithNewline

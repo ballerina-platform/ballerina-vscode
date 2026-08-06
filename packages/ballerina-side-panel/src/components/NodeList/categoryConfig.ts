@@ -47,8 +47,12 @@ export interface CategoryConfig {
     fixed?: boolean; // Whether the header should be non-collapsible
 }
 
-export const normalizeCategoryTitle = (title: string): string => {
-    if (CURRENT_INTEGRATION_CATEGORY_ALIASES.has(title)) {
+export const normalizeCategoryTitle = (title: string | null | undefined): string => {
+    if (typeof title !== "string") {
+        return "";
+    }
+    if (CURRENT_INTEGRATION_CATEGORY_ALIASES.has(title)
+        || title.toLowerCase().endsWith(`(${CURRENT_INTEGRATION_CATEGORY_TITLE.toLowerCase()})`)) {
         return CURRENT_INTEGRATION_CATEGORY_TITLE;
     }
     return title;

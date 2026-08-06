@@ -1,0 +1,384 @@
+{
+  "filePath": "sample1/main.bal",
+  "description": "Test adding a solace.jms service",
+  "serviceInitModel": {
+    "id": "solace.jms",
+    "displayName": "Solace (JMS) Event Integration",
+    "description": "Create a service to handle messages from a Solace queue or topic using JMS.",
+    "orgName": "ballerinax",
+    "packageName": "solace.jms",
+    "moduleName": "solace.jms",
+    "version": "0.1.0",
+    "type": "solace.jms",
+    "properties": {
+      "listener": {
+        "metadata": {
+          "label": "Listener",
+          "description": "Attach the service to a new or existing listener."
+        },
+        "codedata": {
+          "type": "LISTENER_CONFIG"
+        },
+        "value": "createNew",
+        "choices": [
+          {
+            "metadata": {
+              "label": "Create New Listener",
+              "description": "Define a new listener in the project."
+            },
+            "properties": {
+              "listenerConfig": {
+                "metadata": {
+                  "label": "Listener Configurations",
+                  "description": "Configure the Solace JMS listener."
+                },
+                "properties": {
+                  "listenerVarName": {
+                    "metadata": {
+                      "label": "Listener Name",
+                      "description": "Provide a name for the listener being created."
+                    },
+                    "codedata": {
+                      "type": "LISTENER_VAR_NAME"
+                    },
+                    "value": "solaceJmsListener",
+                    "types": [
+                      {
+                        "fieldType": "IDENTIFIER",
+                        "ballerinaType": "jms:Listener",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "hidden": false
+                  },
+                  "url": {
+                    "metadata": {
+                      "label": "Broker URL",
+                      "description": "The Solace broker URL."
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_REQUIRED",
+                      "originalName": "url",
+                      "position": 1
+                    },
+                    "value": "\"smf://localhost:55555\"",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "hidden": false
+                  },
+                  "messageVpn": {
+                    "metadata": {
+                      "label": "Message VPN",
+                      "description": "The name of the message VPN to connect to."
+                    },
+                    "codedata": {
+                      "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                      "originalName": "messageVpn",
+                      "path": "messageVpn"
+                    },
+                    "value": "\"default\"",
+                    "types": [
+                      {
+                        "fieldType": "TEXT",
+                        "ballerinaType": "string",
+                        "selected": true
+                      },
+                      {
+                        "fieldType": "EXPRESSION",
+                        "ballerinaType": "string",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": true,
+                    "advanced": false,
+                    "hidden": false
+                  }
+                },
+                "types": [
+                  {
+                    "fieldType": "GROUP_SECTION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false
+          },
+          {
+            "metadata": {
+              "label": "Use Existing Listener",
+              "description": "Attach to a listener already declared in the project."
+            },
+            "properties": {
+              "existingListener": {
+                "metadata": {
+                  "label": "Listener",
+                  "description": "Select an existing listener to attach to."
+                },
+                "codedata": {
+                  "type": "KEY_EXISTING_LISTENER"
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "MULTIPLE_SELECT_LISTENER",
+                    "ballerinaType": "jms:Listener",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": false,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false
+          }
+        ],
+        "types": [
+          {
+            "fieldType": "CHOICE",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "destination": {
+        "metadata": {
+          "label": "Destination",
+          "description": "The Solace destination to expect messages from."
+        },
+        "codedata": {
+          "type": "SERVICE_ANNOTATION",
+          "originalName": "ServiceConfig",
+          "moduleName": "jms"
+        },
+        "value": "queue",
+        "choices": [
+          {
+            "metadata": {
+              "label": "Queue",
+              "description": "Subscribe to a queue for point-to-point messaging."
+            },
+            "codedata": {
+              "type": "MAPPING_CONSTRUCTOR"
+            },
+            "value": "true",
+            "properties": {
+              "queueName": {
+                "metadata": {
+                  "label": "Queue Name",
+                  "description": "The queue name to consume messages from."
+                },
+                "codedata": {
+                  "type": "SERVICE_ANNOTATION",
+                  "originalName": "ServiceConfig",
+                  "moduleName": "jms",
+                  "path": "queueName"
+                },
+                "value": "\"orders\"",
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string",
+                    "selected": false
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false
+          },
+          {
+            "metadata": {
+              "label": "Topic",
+              "description": "Subscribe to a topic for publish/subscribe messaging."
+            },
+            "codedata": {
+              "type": "MAPPING_CONSTRUCTOR"
+            },
+            "value": "true",
+            "properties": {
+              "topicName": {
+                "metadata": {
+                  "label": "Topic Name",
+                  "description": "The topic name to subscribe to."
+                },
+                "codedata": {
+                  "type": "SERVICE_ANNOTATION",
+                  "originalName": "ServiceConfig",
+                  "moduleName": "jms",
+                  "path": "topicName"
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "TEXT",
+                    "ballerinaType": "string",
+                    "selected": true
+                  },
+                  {
+                    "fieldType": "EXPRESSION",
+                    "ballerinaType": "string",
+                    "selected": false
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "hidden": false
+              }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": true
+              }
+            ],
+            "enabled": false,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false
+          }
+        ],
+        "types": [
+          {
+            "fieldType": "CHOICE",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false
+      },
+      "ackMode": {
+        "metadata": {
+          "label": "Acknowledgement Mode",
+          "description": "The JMS session acknowledgement mode."
+        },
+        "codedata": {
+          "type": "SERVICE_ANNOTATION",
+          "originalName": "ServiceConfig",
+          "moduleName": "jms",
+          "path": "ackMode"
+        },
+        "value": "\"AUTO_ACKNOWLEDGE\"",
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "ballerinaType": "jms:AcknowledgementMode",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false,
+        "hidden": false
+      }
+    }
+  },
+  "output": {
+    "sample1/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerinax/solace.jms;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 57,
+            "character": 3
+          },
+          "end": {
+            "line": 57,
+            "character": 3
+          }
+        },
+        "newText": "\nlistener jms:Listener solaceJmsListener = new (\"smf://localhost:55555\", messageVpn = \"default\");\n@jms:ServiceConfig {queueName: \"orders\", ackMode: \"AUTO_ACKNOWLEDGE\"}\nservice jms:Service on solaceJmsListener {\n\n}\n"
+      }
+    ]
+  }
+}

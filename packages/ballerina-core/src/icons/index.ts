@@ -106,4 +106,6 @@ export { GraphqlMutationIcon } from "./GraphqlMutationIcon";
 export { GraphqlSubscriptionIcon } from "./GraphqlSubscriptionIcon";
 export { default as BackArrow } from './BackArrow';
 export { TIcon } from './TIcon';
+export { BRAND_ICON_REGISTRY, resolveBrandIcon, KIND_DEFAULT_ICON, resolveKindDefaultIcon } from './brand-icon-registry';
+export type { BrandIcon } from './brand-icon-registry';
 

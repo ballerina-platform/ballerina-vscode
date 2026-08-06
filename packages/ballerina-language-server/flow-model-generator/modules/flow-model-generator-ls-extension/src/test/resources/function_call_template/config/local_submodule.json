@@ -1,0 +1,19 @@
+{
+  "description": "Same-package submodule functions use qualified call templates and package module IDs",
+  "filePath": "proj/source.bal",
+  "codedata": {
+    "node": "FUNCTION_CALL",
+    "org": "org",
+    "module": "proj.manual",
+    "packageName": "proj",
+    "symbol": "manualPublic",
+    "version": "0.1.0",
+    "data": {
+      "moduleRelation": "SAME_PACKAGE_MODULE"
+    }
+  },
+  "kind": "IMPORTED",
+  "functionCall": "manual:manualPublic(${1})",
+  "prefix": "manual",
+  "moduleId": "org/proj.manual:0.1.0"
+}

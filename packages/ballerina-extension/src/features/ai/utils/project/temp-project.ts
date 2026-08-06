@@ -210,19 +210,20 @@ function isOwnedTempDir(tempPath: string): boolean {
  * @param tempPath Path to the temporary project to delete
  */
 export async function cleanupTempProject(tempPath: string): Promise<void> {
-    const baselinePath = getReviewBaselinePath(tempPath);
-    if (!fs.existsSync(tempPath) && !fs.existsSync(baselinePath)) {
+    removeReviewBaseline(getReviewBaselinePath(tempPath));
+
+    if (!fs.existsSync(tempPath)) {
         return;
     }
 
     if (!isOwnedTempDir(tempPath)) {
-        console.error(`[cleanupTempProject] Refusing to delete non-temp path: ${tempPath}`);
+        console.log(`[cleanupTempProject] Keeping non-temp path: ${tempPath}`);
         return;
     }
 
     try {
         // Find all .bal files and send didClose notifications
-        const balFiles = fs.existsSync(tempPath) ? findAllBalFiles(tempPath) : [];
+        const balFiles = findAllBalFiles(tempPath);
         if (balFiles.length > 0) {
             sendAgentDidCloseBatch(tempPath, balFiles); // Handles both file:// and ai:// schemas
             await new Promise(resolve => setTimeout(resolve, 300)); // Wait for LS to process
@@ -230,14 +231,23 @@ export async function cleanupTempProject(tempPath: string): Promise<void> {
     } catch (error) {
         console.error(`Failed to notify the language server before cleaning up ${tempPath}:`, error);
     } finally {
-        // Remove both directories even when an LS notification fails.
-        for (const directory of [tempPath, baselinePath]) {
-            try {
-                fs.rmSync(directory, { recursive: true, force: true });
-            } catch (error) {
-                console.error(`Failed to cleanup temp project artifact at ${directory}:`, error);
-            }
+        try {
+            fs.rmSync(tempPath, { recursive: true, force: true });
+        } catch (error) {
+            console.error(`Failed to cleanup temp project at ${tempPath}:`, error);
         }
+    }
+}
+
+/** Always ours to delete, even when tempPath is the live workspace and must be left in place. */
+function removeReviewBaseline(baselinePath: string): void {
+    if (!path.basename(baselinePath).endsWith(REVIEW_BASELINE_SUFFIX) || !fs.existsSync(baselinePath)) {
+        return;
+    }
+    try {
+        fs.rmSync(baselinePath, { recursive: true, force: true });
+    } catch (error) {
+        console.error(`Failed to cleanup review baseline at ${baselinePath}:`, error);
     }
 }
 

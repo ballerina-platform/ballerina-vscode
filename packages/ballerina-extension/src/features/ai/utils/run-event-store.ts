@@ -255,6 +255,17 @@ export class RunEventStore {
         return { isRunning: state.isRunning, events, generationId: state.generationId, truncated: state.truncated };
     }
 
+    /** True while any thread in the workspace has a live run. */
+    hasActiveRun(projectRootPath: string): boolean {
+        const prefix = `${projectRootPath}::`;
+        for (const [key, state] of this.runs) {
+            if (state.isRunning && key.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Drops the buffered events for a generation once its transcript has been
      * durably persisted as `uiResponse` (replay is no longer needed). No-op if

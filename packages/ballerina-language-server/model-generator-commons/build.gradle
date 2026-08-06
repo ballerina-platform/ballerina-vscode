@@ -44,6 +44,7 @@ dependencies {
     implementation "org.ballerinalang:ballerina-runtime:${ballerinaLangVersion}"
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:${eclipseLsp4jVersion}"
     implementation "com.google.code.gson:gson:${gsonVersion}"
+    implementation "com.github.ben-manes.caffeine:caffeine:${caffeineVersion}"
     implementation "org.testng:testng:${testngVersion}"
 }
 
@@ -62,5 +63,11 @@ compileJava {
                 '--module-path', classpath.asPath,
         ]
         classpath = files()
+    }
+}
+
+test {
+    useTestNG() {
+        suites "src/test/resources/testng.xml"
     }
 }

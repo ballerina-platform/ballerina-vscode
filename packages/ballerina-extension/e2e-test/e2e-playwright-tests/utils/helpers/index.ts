@@ -39,7 +39,7 @@ export {
 export { getWebview } from './webview';
 
 // Re-export from artifacts
-export { addArtifact, createArtifactAndGetWebview, enableICP } from './artifacts';
+export { addArtifact, createArtifactAndGetWebview, enableICP, submitArtifactCreation, domClick } from './artifacts';
 
 // Re-export from serviceActions
 export { confirmSaveChangesAndGoBack, deleteArtifactFromTree } from './serviceActions';

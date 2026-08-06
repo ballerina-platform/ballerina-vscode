@@ -6,7 +6,7 @@
   "moduleName": "ftp",
   "response": {
     "serviceInitModel": {
-      "id": "0",
+      "id": "12",
       "displayName": "FTP Integration",
       "description": "Create a service to listen for file actions on a remote server",
       "orgName": "ballerina",
@@ -16,10 +16,13 @@
       "type": "ftp",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.19.0.png",
       "properties": {
-        "configureListener": {
+        "listener": {
           "metadata": {
             "label": "Configure FTP Listener",
             "description": "Select an existing FTP listener or create a new one"
+          },
+          "codedata": {
+            "type": "LISTENER_CONFIG"
           },
           "value": "1",
           "choices": [
@@ -28,7 +31,6 @@
                 "label": "Create new",
                 "description": "Create a new FTP listener"
               },
-              "value": "true",
               "properties": {
                 "listenerConfig": {
                   "metadata": {
@@ -48,6 +50,7 @@
                       "types": [
                         {
                           "fieldType": "IDENTIFIER",
+                          "ballerinaType": "ftp:Listener",
                           "selected": true
                         }
                       ],
@@ -56,56 +59,65 @@
                       "optional": false,
                       "advanced": false
                     },
-                    "designApproach": {
+                    "host": {
+                      "metadata": {
+                        "label": "Host",
+                        "description": "Hostname or IP address of the remote server (e.g., ftp.example.com)"
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                        "path": "host"
+                      },
+                      "placeholder": "localhost",
+                      "value": "\"localhost\"",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "protocol": {
                       "metadata": {
                         "label": "Protocol",
                         "description": "Select the protocol for the remote server connection"
                       },
-                      "placeholder": "",
-                      "value": "",
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                        "path": "protocol",
+                        "valueQualifier": "ftp"
+                      },
+                      "value": "FTP",
                       "choices": [
                         {
                           "metadata": {
-                            "label": "ftp",
-                            "description": ""
+                            "label": "FTP",
+                            "description": "Plain FTP with basic-auth credentials."
                           },
-                          "placeholder": "true",
+                          "codedata": {
+                            "type": "ENUM_VALUE",
+                            "valueQualifier": "ftp"
+                          },
                           "value": "FTP",
                           "properties": {
-                            "host": {
+                            "port": {
                               "metadata": {
-                                "label": "Host",
-                                "description": "Hostname or IP address of the remote server (e.g., ftp.example.com)"
+                                "label": "Port",
+                                "description": "Port to connect on."
                               },
                               "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
-                              },
-                              "placeholder": "127.0.0.1",
-                              "value": "\"127.0.0.1\"",
-                              "types": [
-                                {
-                                  "fieldType": "TEXT",
-                                  "ballerinaType": "string",
-                                  "selected": true
-                                },
-                                {
-                                  "fieldType": "EXPRESSION",
-                                  "ballerinaType": "string",
-                                  "selected": false
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            },
-                            "portNumber": {
-                              "metadata": {
-                                "label": "Port Number",
-                                "description": "Port to connect on"
-                              },
-                              "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                                "path": "port"
                               },
                               "placeholder": "21",
                               "value": "21",
@@ -123,24 +135,28 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             },
-                            "authentication": {
+                            "auth": {
                               "metadata": {
                                 "label": "Authentication",
                                 "description": "Select the authentication method"
                               },
-                              "placeholder": "",
                               "value": "",
                               "choices": [
                                 {
                                   "metadata": {
                                     "label": "No Authentication",
-                                    "description": ""
+                                    "description": "Connect without providing authentication credentials."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": true,
                                   "editable": true,
                                   "optional": false,
@@ -149,18 +165,20 @@
                                 {
                                   "metadata": {
                                     "label": "Basic Authentication",
-                                    "description": ""
+                                    "description": "Authenticate using a username and password."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
                                   "properties": {
-                                    "userName": {
+                                    "username": {
                                       "metadata": {
                                         "label": "Username",
                                         "description": "Remote server username for authentication"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.username"
+                                      },
+                                      "value": "\"user\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -183,8 +201,11 @@
                                         "label": "Password",
                                         "description": "Remote server password for authentication"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.password"
+                                      },
+                                      "value": "\"password\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -203,6 +224,12 @@
                                       "advanced": false
                                     }
                                   },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": false,
                                   "editable": true,
                                   "optional": false,
@@ -217,10 +244,16 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             }
                           },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
                           "enabled": true,
                           "editable": true,
                           "optional": false,
@@ -228,49 +261,26 @@
                         },
                         {
                           "metadata": {
-                            "label": "sftp",
-                            "description": ""
+                            "label": "SFTP",
+                            "description": "SFTP over SSH with private-key or basic-auth authentication."
                           },
-                          "placeholder": "true",
+                          "codedata": {
+                            "type": "ENUM_VALUE",
+                            "valueQualifier": "ftp"
+                          },
                           "value": "SFTP",
                           "properties": {
-                            "host": {
+                            "port": {
                               "metadata": {
-                                "label": "Host",
-                                "description": "Hostname or IP address of the remote server (e.g., ftp.example.com)"
+                                "label": "Port",
+                                "description": "Port to connect on."
                               },
                               "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                                "path": "port"
                               },
-                              "placeholder": "127.0.0.1",
-                              "value": "\"127.0.0.1\"",
-                              "types": [
-                                {
-                                  "fieldType": "TEXT",
-                                  "ballerinaType": "string",
-                                  "selected": true
-                                },
-                                {
-                                  "fieldType": "EXPRESSION",
-                                  "ballerinaType": "string",
-                                  "selected": false
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            },
-                            "portNumber": {
-                              "metadata": {
-                                "label": "Port Number",
-                                "description": "Port to connect on"
-                              },
-                              "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
-                              },
-                              "placeholder": "21",
-                              "value": "21",
+                              "placeholder": "22",
+                              "value": "22",
                               "types": [
                                 {
                                   "fieldType": "NUMBER",
@@ -285,24 +295,28 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             },
-                            "authentication": {
+                            "auth": {
                               "metadata": {
                                 "label": "Authentication",
                                 "description": "Select the authentication method"
                               },
-                              "placeholder": "",
                               "value": "",
                               "choices": [
                                 {
                                   "metadata": {
                                     "label": "No Authentication",
-                                    "description": ""
+                                    "description": "Connect without providing authentication credentials."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": true,
                                   "editable": true,
                                   "optional": false,
@@ -311,18 +325,20 @@
                                 {
                                   "metadata": {
                                     "label": "Basic Authentication",
-                                    "description": ""
+                                    "description": "Authenticate using a username and password."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
                                   "properties": {
-                                    "userName": {
+                                    "username": {
                                       "metadata": {
                                         "label": "Username",
                                         "description": "Remote server username for authentication"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.username"
+                                      },
+                                      "value": "\"user\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -345,8 +361,11 @@
                                         "label": "Password",
                                         "description": "Remote server password for authentication"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.password"
+                                      },
+                                      "value": "\"password\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -365,6 +384,12 @@
                                       "advanced": false
                                     }
                                   },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": false,
                                   "editable": true,
                                   "optional": false,
@@ -373,54 +398,21 @@
                                 {
                                   "metadata": {
                                     "label": "Certificate Based Authentication",
-                                    "description": ""
+                                    "description": "SSH private-key authentication for the SFTP server."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
                                   "properties": {
-                                    "privateKey": {
+                                    "privateKeyPath": {
                                       "metadata": {
                                         "label": "Private Key",
-                                        "description": "Private key configuration for SSH-based authentication"
+                                        "description": "Private key configuration for SSH-based authentication."
                                       },
                                       "codedata": {
-                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD"
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.privateKey.path"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
-                                      "types": [
-                                        {
-                                          "fieldType": "RECORD_MAP_EXPRESSION",
-                                          "ballerinaType": "ftp:PrivateKey",
-                                          "typeMembers": [
-                                            {
-                                              "type": "PrivateKey",
-                                              "packageInfo": "ballerina:ftp:2.19.0",
-                                              "packageName": "ftp",
-                                              "kind": "RECORD_TYPE",
-                                              "selected": true
-                                            }
-                                          ],
-                                          "selected": true
-                                        },
-                                        {
-                                          "fieldType": "EXPRESSION",
-                                          "ballerinaType": "ftp:PrivateKey",
-                                          "selected": false
-                                        }
-                                      ],
-                                      "enabled": true,
-                                      "editable": true,
-                                      "optional": false,
-                                      "advanced": false
-                                    },
-                                    "userName": {
-                                      "metadata": {
-                                        "label": "Username",
-                                        "description": "Remote server username for key-based authentication"
-                                      },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "placeholder": "/path/to/private.key",
+                                      "value": "\"/path/to/private.key\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -435,10 +427,43 @@
                                       ],
                                       "enabled": true,
                                       "editable": true,
-                                      "optional": true,
+                                      "optional": false,
+                                      "advanced": false
+                                    },
+                                    "username": {
+                                      "metadata": {
+                                        "label": "Username",
+                                        "description": "Remote server username for key-based authentication"
+                                      },
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.username"
+                                      },
+                                      "value": "\"user\"",
+                                      "types": [
+                                        {
+                                          "fieldType": "TEXT",
+                                          "ballerinaType": "string",
+                                          "selected": true
+                                        },
+                                        {
+                                          "fieldType": "EXPRESSION",
+                                          "ballerinaType": "string",
+                                          "selected": false
+                                        }
+                                      ],
+                                      "enabled": true,
+                                      "editable": true,
+                                      "optional": false,
                                       "advanced": false
                                     }
                                   },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": false,
                                   "editable": true,
                                   "optional": false,
@@ -453,10 +478,16 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             }
                           },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
                           "enabled": false,
                           "editable": true,
                           "optional": false,
@@ -464,46 +495,23 @@
                         },
                         {
                           "metadata": {
-                            "label": "ftps",
-                            "description": ""
+                            "label": "FTPS",
+                            "description": "FTP over implicit/explicit TLS with basic-auth credentials."
                           },
-                          "placeholder": "true",
+                          "codedata": {
+                            "type": "ENUM_VALUE",
+                            "valueQualifier": "ftp"
+                          },
                           "value": "FTPS",
                           "properties": {
-                            "host": {
+                            "port": {
                               "metadata": {
-                                "label": "Host",
-                                "description": "Hostname or IP address of the remote server (e.g., ftp.example.com)"
+                                "label": "Port",
+                                "description": "Port to connect on."
                               },
                               "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
-                              },
-                              "placeholder": "127.0.0.1",
-                              "value": "\"127.0.0.1\"",
-                              "types": [
-                                {
-                                  "fieldType": "TEXT",
-                                  "ballerinaType": "string",
-                                  "selected": true
-                                },
-                                {
-                                  "fieldType": "EXPRESSION",
-                                  "ballerinaType": "string",
-                                  "selected": false
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": true,
-                              "optional": false,
-                              "advanced": false
-                            },
-                            "portNumber": {
-                              "metadata": {
-                                "label": "Port Number",
-                                "description": "Port to connect on"
-                              },
-                              "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD"
+                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                                "path": "port"
                               },
                               "placeholder": "21",
                               "value": "21",
@@ -521,24 +529,28 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             },
-                            "authentication": {
+                            "auth": {
                               "metadata": {
                                 "label": "Authentication",
                                 "description": "Select the authentication method"
                               },
-                              "placeholder": "",
                               "value": "",
                               "choices": [
                                 {
                                   "metadata": {
                                     "label": "No Authentication",
-                                    "description": ""
+                                    "description": "Connect without providing authentication credentials."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": true,
                                   "editable": true,
                                   "optional": false,
@@ -547,18 +559,20 @@
                                 {
                                   "metadata": {
                                     "label": "Basic Authentication",
-                                    "description": ""
+                                    "description": "Authenticate using a username and password."
                                   },
-                                  "placeholder": "true",
                                   "value": "true",
                                   "properties": {
-                                    "userName": {
+                                    "username": {
                                       "metadata": {
                                         "label": "Username",
                                         "description": "Remote server username for authentication"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.username"
+                                      },
+                                      "value": "\"user\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -582,10 +596,10 @@
                                         "description": "Remote server password for authentication"
                                       },
                                       "codedata": {
-                                        "type": "IDENTIFIER"
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.password"
                                       },
-                                      "placeholder": "",
-                                      "value": "",
+                                      "value": "\"password\"",
                                       "types": [
                                         {
                                           "fieldType": "TEXT",
@@ -604,6 +618,12 @@
                                       "advanced": false
                                     }
                                   },
+                                  "types": [
+                                    {
+                                      "fieldType": "FORM",
+                                      "selected": true
+                                    }
+                                  ],
                                   "enabled": false,
                                   "editable": true,
                                   "optional": false,
@@ -618,7 +638,7 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": false
                             },
                             "secureSocket": {
@@ -627,9 +647,9 @@
                                 "description": "Configure SSL/TLS configuration for secure connection."
                               },
                               "codedata": {
-                                "argType": "LISTENER_PARAM_INCLUDED_FIELD"
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "auth.secureSocket"
                               },
-                              "placeholder": "",
                               "value": "",
                               "types": [
                                 {
@@ -654,10 +674,16 @@
                               ],
                               "enabled": true,
                               "editable": true,
-                              "optional": false,
+                              "optional": true,
                               "advanced": true
                             }
                           },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
                           "enabled": false,
                           "editable": true,
                           "optional": false,
@@ -667,6 +693,21 @@
                       "types": [
                         {
                           "fieldType": "CHOICE",
+                          "ballerinaType": "ftp:Protocol",
+                          "options": [
+                            {
+                              "label": "FTP",
+                              "value": "FTP"
+                            },
+                            {
+                              "label": "SFTP",
+                              "value": "SFTP"
+                            },
+                            {
+                              "label": "FTPS",
+                              "value": "FTPS"
+                            }
+                          ],
                           "selected": true
                         }
                       ],
@@ -688,6 +729,12 @@
                   "advanced": false
                 }
               },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
               "enabled": false,
               "editable": true,
               "optional": false,
@@ -698,18 +745,17 @@
                 "label": "Use existing",
                 "description": "Select an existing FTP listener"
               },
-              "value": "true",
               "properties": {
                 "listenerConfig": {
                   "metadata": {
-                    "label": "Listener Configuration",
-                    "description": "Existing listener configuration"
+                    "label": "Listener Configurations",
+                    "description": "Configuration of the selected listener."
                   },
                   "properties": {
                     "existingListener": {
                       "metadata": {
-                        "label": "Listener Name",
-                        "description": "Select an existing FTP listener"
+                        "label": "Select Listener",
+                        "description": "Select from the existing ftp listeners"
                       },
                       "value": "sftpListener",
                       "items": [
@@ -719,85 +765,20 @@
                         "sftpListener": {
                           "metadata": {
                             "label": "sftpListener",
-                            "description": "FTP listener: sftpListener"
+                            "description": "ftp listener: sftpListener"
                           },
                           "value": "sftpListener",
                           "properties": {
-                            "protocol": {
-                              "metadata": {
-                                "label": "Protocol",
-                                "description": "Select the protocol for the remote server connection"
-                              },
-                              "value": "SFTP",
-                              "choices": [
-                                {
-                                  "metadata": {
-                                    "label": "ftp",
-                                    "description": ""
-                                  },
-                                  "value": "FTP",
-                                  "types": [
-                                    {
-                                      "fieldType": "FORM",
-                                      "selected": true
-                                    }
-                                  ],
-                                  "enabled": false,
-                                  "editable": false,
-                                  "optional": false,
-                                  "advanced": false
-                                },
-                                {
-                                  "metadata": {
-                                    "label": "sftp",
-                                    "description": ""
-                                  },
-                                  "value": "SFTP",
-                                  "types": [
-                                    {
-                                      "fieldType": "FORM",
-                                      "selected": true
-                                    }
-                                  ],
-                                  "enabled": true,
-                                  "editable": false,
-                                  "optional": false,
-                                  "advanced": false
-                                },
-                                {
-                                  "metadata": {
-                                    "label": "ftps",
-                                    "description": ""
-                                  },
-                                  "value": "FTPS",
-                                  "types": [
-                                    {
-                                      "fieldType": "FORM",
-                                      "selected": true
-                                    }
-                                  ],
-                                  "enabled": false,
-                                  "editable": false,
-                                  "optional": false,
-                                  "advanced": false
-                                }
-                              ],
-                              "types": [
-                                {
-                                  "fieldType": "CHOICE",
-                                  "selected": true
-                                }
-                              ],
-                              "enabled": true,
-                              "editable": false,
-                              "optional": false,
-                              "advanced": false
-                            },
                             "host": {
                               "metadata": {
                                 "label": "Host",
                                 "description": "Hostname or IP address of the remote server (e.g., ftp.example.com)"
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                "path": "host"
+                              },
+                              "placeholder": "localhost",
                               "value": "\"127.0.0.1\"",
                               "types": [
                                 {
@@ -816,11 +797,16 @@
                               "optional": false,
                               "advanced": false
                             },
-                            "portNumber": {
+                            "port": {
                               "metadata": {
-                                "label": "Port Number",
-                                "description": "Port to connect on"
+                                "label": "Port",
+                                "description": "Port to connect on."
                               },
+                              "codedata": {
+                                "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                                "path": "port"
+                              },
+                              "placeholder": "22",
                               "value": "22",
                               "types": [
                                 {
@@ -839,7 +825,7 @@
                               "optional": false,
                               "advanced": false
                             },
-                            "authentication": {
+                            "auth": {
                               "metadata": {
                                 "label": "Authentication",
                                 "description": "Select the authentication method"
@@ -849,9 +835,10 @@
                                 {
                                   "metadata": {
                                     "label": "No Authentication",
-                                    "description": ""
+                                    "description": "Connect without providing authentication credentials."
                                   },
                                   "value": "true",
+                                  "properties": {},
                                   "types": [
                                     {
                                       "fieldType": "FORM",
@@ -866,14 +853,18 @@
                                 {
                                   "metadata": {
                                     "label": "Basic Authentication",
-                                    "description": ""
+                                    "description": "Authenticate using a username and password."
                                   },
                                   "value": "true",
                                   "properties": {
-                                    "userName": {
+                                    "username": {
                                       "metadata": {
                                         "label": "Username",
                                         "description": "Remote server username for authentication"
+                                      },
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.username"
                                       },
                                       "value": "\"defaultUser\"",
                                       "types": [
@@ -897,6 +888,10 @@
                                       "metadata": {
                                         "label": "Password",
                                         "description": "Remote server password for authentication"
+                                      },
+                                      "codedata": {
+                                        "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                        "path": "auth.credentials.password"
                                       },
                                       "value": "\"defaultPassword\"",
                                       "types": [
@@ -931,34 +926,10 @@
                                 {
                                   "metadata": {
                                     "label": "Certificate Based Authentication",
-                                    "description": ""
+                                    "description": "SSH private-key authentication for the SFTP server."
                                   },
                                   "value": "true",
-                                  "properties": {
-                                    "userName": {
-                                      "metadata": {
-                                        "label": "Username",
-                                        "description": "Remote server username for key-based authentication"
-                                      },
-                                      "value": "\"defaultUser\"",
-                                      "types": [
-                                        {
-                                          "fieldType": "TEXT",
-                                          "ballerinaType": "string",
-                                          "selected": true
-                                        },
-                                        {
-                                          "fieldType": "EXPRESSION",
-                                          "ballerinaType": "string",
-                                          "selected": false
-                                        }
-                                      ],
-                                      "enabled": true,
-                                      "editable": false,
-                                      "optional": false,
-                                      "advanced": false
-                                    }
-                                  },
+                                  "properties": {},
                                   "types": [
                                     {
                                       "fieldType": "FORM",
@@ -1014,11 +985,17 @@
                     }
                   ],
                   "enabled": true,
-                  "editable": false,
+                  "editable": true,
                   "optional": false,
                   "advanced": false
                 }
               },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
               "enabled": true,
               "editable": true,
               "optional": false,
@@ -1044,7 +1021,8 @@
           "codedata": {
             "type": "SERVICE_ANNOTATION",
             "originalName": "ServiceConfig",
-            "moduleName": "ftp"
+            "moduleName": "ftp",
+            "path": "path"
           },
           "placeholder": "/",
           "value": "\"/\"",
