@@ -42,7 +42,7 @@ import { extension } from './BalExtensionContext';
 import { AIStateMachine, openAIPanelWithPrompt } from './views/ai-panel/aiMachine';
 import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { StateMachinePopup } from './stateMachinePopup';
-import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant } from './utils';
+import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant, isAgentBuilderMode } from './utils';
 import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
@@ -65,6 +65,7 @@ interface MachineContext extends VisualizerLocation {
     errorCode: string | null;
     dependenciesResolved?: boolean;
     isInDevant: boolean;
+    isAgentBuilderMode: boolean;
     isViewUpdateTransition?: boolean;
 }
 
@@ -89,7 +90,8 @@ const stateMachine = createMachine<MachineContext>(
             isBISupported: false,
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
-            isInDevant: isInDevant()
+            isInDevant: isInDevant(),
+            isAgentBuilderMode: isAgentBuilderMode()
         },
         on: {
             RESET_TO_EXTENSION_READY: {
@@ -956,6 +958,7 @@ export const StateMachine = {
     service: () => { return stateService; },
     context: () => { return stateService.getSnapshot().context; },
     langClient: () => { return stateService.getSnapshot().context.langClient; },
+    isAgentBuilderMode: () => { return stateService.getSnapshot().context.isAgentBuilderMode; },
     state: () => { return stateService.getSnapshot().value as MachineStateValue; },
     setEditMode: () => { stateService.send({ type: EVENT_TYPE.FILE_EDIT }); },
     setReadyMode: () => { stateService.send({ type: EVENT_TYPE.EDIT_DONE }); },

@@ -1034,7 +1034,7 @@ export function deleteProjectFromWorkspace(workspacePath: string, packagePath: s
     }
 }
 
-function addPackageToToml(tomlContent: string, packageName: string): string {
+export function addPackageToToml(tomlContent: string, packageName: string): string {
     const packagesRegex = /packages\s*=\s*\[([\s\S]*?)\]/;
     const match = tomlContent.match(packagesRegex);
 

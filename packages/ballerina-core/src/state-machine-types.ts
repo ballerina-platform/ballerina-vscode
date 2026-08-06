@@ -133,6 +133,7 @@ export interface VisualizerLocation {
     syntaxTree?: STNode;
     isBI?: boolean;
     isInDevant?: boolean;
+    isAgentBuilderMode?: boolean;
     focusFlowDiagramView?: FocusFlowDiagramView;
     serviceType?: string;
     type?: Type;

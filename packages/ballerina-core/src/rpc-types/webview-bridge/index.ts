@@ -287,6 +287,35 @@ export interface WizardCapabilitiesResponse {
     isWorkspaceSupported?: boolean;
 }
 
+export interface AgentBuilderModeResponse {
+    isAgentBuilderMode: boolean;
+}
+
+export interface AgentBuilderSample {
+    displayName: string;
+    description?: string;
+    componentType?: string;
+    buildPack?: string;
+    repositoryUrl: string;
+    componentPath: string;
+    thumbnailPath?: string;
+    tags?: string[];
+    imageUrl?: string;
+}
+
+export interface AgentBuilderSamplesResponse {
+    samples: AgentBuilderSample[];
+}
+
+export interface CreateAgentFromSampleRequest {
+    sample: AgentBuilderSample;
+    agentName: string;
+    projectRoot: string;
+    projectName: string;
+    integrationName: string;
+    packageName: string;
+}
+
 /** Settled answer to "does this distribution support projects/workspaces?".
  *  The `getWorkspaceSupport` RPC resolves only once the extension has determined
  *  it, so callers never observe the pre-init default. */

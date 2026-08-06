@@ -173,6 +173,7 @@ async function getContext(): Promise<VisualizerLocation> {
             syntaxTree: context.syntaxTree,
             isBI: context.isBI,
             isInDevant: context.isInDevant,
+            isAgentBuilderMode: context.isAgentBuilderMode,
             projectPath: context.projectPath,
             workspacePath: context.workspacePath,
             serviceType: context.serviceType,

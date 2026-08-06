@@ -59,6 +59,17 @@ interface ConfigureStepProps {
 
 /** The Configure step — dispatches to the artifact-kind-specific configuration form. */
 export function ConfigureStep({ wsClient, selection, scaffold, isSubmitting, cachedServiceModel, onServiceModelLoaded, onSubmit }: ConfigureStepProps) {
+    if (selection.kind === "ai-agent") {
+        return (
+            <ConfigureStepContainer>
+                <AIAgentConfigureForm
+                    isSubmitting={isSubmitting}
+                    onSubmit={(name) => onSubmit({ version: 1, kind: "AI_CHAT_AGENT", aiAgent: { name } })}
+                />
+            </ConfigureStepContainer>
+        );
+    }
+
     if (scaffold.status === "creating" || scaffold.status === "idle") {
         return (
             <ConfigureStepContainer>
@@ -119,13 +130,6 @@ export function ConfigureStep({ wsClient, selection, scaffold, isSubmitting, cac
                                     }
                                 />
                             </WizardRpcAdapterProvider>
-                        );
-                    case "ai-agent":
-                        return (
-                            <AIAgentConfigureForm
-                                isSubmitting={isSubmitting}
-                                onSubmit={(name) => onSubmit({ version: 1, kind: "AI_CHAT_AGENT", aiAgent: { name } })}
-                            />
                         );
                     default:
                         return null;

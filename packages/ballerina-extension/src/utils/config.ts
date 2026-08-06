@@ -246,6 +246,16 @@ export function isInDevant(): boolean {
     return !!process.env.CLOUD_STS_TOKEN;
 }
 
+export function isAgentBuilderMode(): boolean {
+    const value = process.env.AGENT_BUILDER_MODE?.trim().toLowerCase();
+    return value === 'true' || value === '1';
+}
+
+
+export function getAgentBuilderSamplesUrl(): string | undefined {
+    return process.env.AGENT_BUILDER_SAMPLES_URL?.trim() || undefined;
+}
+
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {
     const ballerinaTomlPath = path.join(uri.fsPath, 'Ballerina.toml');
 

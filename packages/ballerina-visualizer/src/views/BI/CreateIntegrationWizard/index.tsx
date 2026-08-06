@@ -21,6 +21,7 @@ import styled from "@emotion/styled";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { Stepper } from "@wso2/ui-toolkit/lib/components/Stepper/Stepper";
 import {
+    AgentBuilderSample,
     INTEGRATION_ARTIFACT_LABELS,
     PendingIntegrationArtifactPayload,
     ServiceInitModel,
@@ -31,9 +32,10 @@ import { useBiWsContext } from "../wsManager/WsClientContext";
 import { HeaderRow, HeaderSubtitle, HeaderText, IconButton } from "../ImportIntegration/styles";
 import { BackButtonSlot, StepBody, StepPinnedHeader, StepScrollArea, StepSectionLabel, WizardPage, WizardTopBar } from "./styles";
 import { joinPath, sanitizePackageName, splitPath, validateComponentName } from "../ProjectForm/utils";
-import { ArtifactCard } from "./artifactCatalog";
+import { agentSamplesToCards, ArtifactCard } from "./artifactCatalog";
 import { BasicInfo, ProjectContext, ScaffoldState, WizardStep } from "./types";
 import { useRealtimeProjectPathValidation } from "./hooks/useRealtimeProjectPathValidation";
+import { useAgentBuilderMode } from "./hooks/useAgentBuilderMode";
 import { deriveDirectoryName, isDirectoryNameTouched } from "../ProjectForm/hooks/useDirectoryNameCoupling";
 import {
     checkNameCollision as resolveNameCollisionMessage,
@@ -100,6 +102,7 @@ export function CreateIntegrationWizard({
     onArtifactAdded,
 }: CreateIntegrationWizardProps) {
     const { wsClient, onBack } = useBiWsContext();
+    const agentBuilderMode = useAgentBuilderMode(wsClient);
     // The package exists and keeps its name/location, so name/path/creation logic is inert.
     const isExistingPackage = !!existingPackagePath;
     // An existing package collects no name, so the Name step doesn't apply to it.
@@ -119,6 +122,7 @@ export function CreateIntegrationWizard({
     // Existing folders/titles in the target project, for live collision flagging.
     const [takenNames, setTakenNames] = useState<TakenNames>(emptyTakenNames());
     const [triggers, setTriggers] = useState<TriggerModelsResponse | null>(null);
+    const [agentSamples, setAgentSamples] = useState<AgentBuilderSample[] | null>(null);
     const [selection, setSelection] = useState<ArtifactCard | null>(null);
     // Cached per selected card so re-entering Configure skips the model fetch.
     const [serviceModelCache, setServiceModelCache] = useState<{ id: string; model: ServiceInitModel } | null>(null);
@@ -298,6 +302,14 @@ export function CreateIntegrationWizard({
             .getTriggerModels({ query: "" })
             .then((res) => setTriggers(res))
             .catch((error: unknown) => console.error(">>> Error fetching trigger models", error));
+
+        wsClient
+            .getAgentBuilderSamples()
+            .then((res) => setAgentSamples(res?.samples ?? []))
+            .catch((error: unknown) => {
+                console.error(">>> Error fetching the agent sample catalogue", error);
+                setAgentSamples([]);
+            });
     }, [wsClient, projectContext?.workspacePath, isExistingPackage]);
 
     // The collision list describes one location, but Browse / editing the path can retarget
@@ -348,6 +360,13 @@ export function CreateIntegrationWizard({
             resolveNameCollisionMessage(basicInfo.integrationName, takenNames, sanitizePackageName)
         );
     }, [takenNames, basicInfo.integrationName]);
+
+    useEffect(() => {
+        if (!agentBuilderMode || isExistingPackage || selection || !agentSamples?.length) {
+            return;
+        }
+        setSelection(agentSamplesToCards(agentSamples)[0]);
+    }, [agentBuilderMode, isExistingPackage, selection, agentSamples]);
 
     useEffect(() => {
         // Best-effort discard; the mount-time sweep is the race-free backstop.
@@ -502,7 +521,36 @@ export function CreateIntegrationWizard({
             return;
         }
         setStep(CONFIGURE_STEP);
-        void ensureScaffold();
+        // The agent form needs no LS model, so it needs no staging package either.
+        if (selection.kind !== "ai-agent") {
+            void ensureScaffold();
+        }
+    };
+
+    const handleCreateAgent = async (sample: AgentBuilderSample, agentName: string) => {
+        setSubmitError(null);
+        if (!embedded && !(await validatePathForSubmit())) {
+            return;
+        }
+        setSubmittingKind("AI_CHAT_AGENT");
+        setIsSubmitting(true);
+        try {
+            await wsClient.createAgentFromSample({
+                sample,
+                agentName,
+                projectRoot: projectContext?.workspacePath?.trim()
+                    || joinPath(basicInfo.baseDir.trim(), effectiveDirectoryName),
+                projectName: projectContext?.workspaceName?.trim() || effectiveName,
+                integrationName: effectiveName,
+                packageName,
+            });
+            // The extension opens the new folder — stay submitting until teardown.
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(">>> Error creating the agent", error);
+            setSubmitError(`Failed to create the agent: ${message}`);
+            setIsSubmitting(false);
+        }
     };
 
     /**
@@ -556,9 +604,11 @@ export function CreateIntegrationWizard({
         }
     };
 
-    /** Routes the configured artifact to the mode's submit path: generate into the
-     *  existing package, or create the package and its first artifact together. */
     const handleConfiguredArtifact = (artifact: PendingIntegrationArtifactPayload) => {
+        if (selection?.agentSample) {
+            void handleCreateAgent(selection.agentSample, artifact.aiAgent?.name ?? effectiveName);
+            return;
+        }
         if (existingPackagePath) {
             void handleAddArtifactToExistingPackage(existingPackagePath, artifact);
             return;
@@ -657,8 +707,10 @@ export function CreateIntegrationWizard({
                     {step === TYPE_STEP && (
                         <IntegrationTypeStep
                             triggers={triggers}
+                            agentSamples={isExistingPackage ? [] : agentSamples}
                             selection={selection}
                             compact={embedded}
+                            agentBuilderMode={agentBuilderMode}
                             onSelect={(card) => {
                                 if (card.id !== selection?.id) {
                                     setServiceModelCache(null);

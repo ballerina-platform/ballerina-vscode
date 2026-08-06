@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { ServiceModel, TriggerModelsResponse } from "@wso2/ballerina-core";
+import { AgentBuilderSample, ServiceModel, TriggerModelsResponse } from "@wso2/ballerina-core";
+import { Icon } from "@wso2/ui-toolkit";
 
 import {
     ARTIFACT_CATEGORY_META,
@@ -40,10 +41,11 @@ import { getFileIntegrationIcon } from "../ComponentListView/FileIntegrationPane
 export type { ArtifactCard, ArtifactCategoryKey, ArtifactKind } from "../components/artifactCards";
 
 /** Trigger types resolved dynamically via `getTriggerModels`. */
-export type DynamicTriggerType = "event" | "file" | "mcp";
+export type DynamicTriggerType = "event" | "file";
 
-/** Marker expanded at render time into `triggersToCards(triggers, <type>)`. */
-export type DynamicCardSource = `dynamic:${DynamicTriggerType}`;
+export const AGENT_SAMPLE_SOURCE = "dynamic:agent-sample";
+
+export type DynamicCardSource = `dynamic:${DynamicTriggerType}` | typeof AGENT_SAMPLE_SOURCE;
 
 /** An ordered category section of the Integration Type step. */
 export interface ArtifactCategory {
@@ -61,8 +63,6 @@ export interface ArtifactCategory {
 /**
  * Converts trigger models into artifact cards, replicating the per-panel
  * filtering, icon resolution, and beta badging:
- * - `event` mirrors EventIntegrationPanel, `mcp` mirrors the trigger cards in AIAgentPanel
- *   (dotted module names dashed in ids, `getEntryNodeIcon`, `isBetaModule` badges).
  * - `file` mirrors FileIntegrationPanel (raw module name in ids,
  *   `getFileIntegrationIcon`, no beta badge).
  *
@@ -74,6 +74,24 @@ export function triggersToCards(triggers: TriggerModelsResponse, type: DynamicTr
     return triggers.local
         .filter((trigger) => trigger.type === type)
         .map((trigger) => triggerToCard(trigger, type));
+}
+
+/**
+ * Converts agent samples into artifact cards. The sample rides along on the card so
+ * the wizard's "Create Agent" submit knows which template to copy.
+ *
+ * @param samples The catalogue entries fetched via `getAgentBuilderSamples`.
+ * @returns One card per sample, in catalogue order.
+ */
+export function agentSamplesToCards(samples: AgentBuilderSample[]): ArtifactCard[] {
+    return samples.map((sample) => ({
+        id: `agent-sample-${sample.componentPath.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
+        kind: "ai-agent",
+        displayName: sample.displayName,
+        description: sample.description,
+        icon: <Icon name="bi-ai-agent" />,
+        agentSample: sample,
+    }));
 }
 
 function triggerToCard(item: ServiceModel, type: DynamicTriggerType): ArtifactCard {
@@ -117,11 +135,7 @@ function category(key: ArtifactCategoryKey, cards: (ArtifactCard | DynamicCardSo
 export const ARTIFACT_CATEGORIES: ArtifactCategory[] = [
     category("automation", [AUTOMATION_CARD]),
     category("workflow", [WORKFLOW_CARD]),
-    // TODO: Re-add `AI_CHAT_AGENT_CARD` (from ../components/artifactCards) as the
-    // first card here once creating an AI chat agent from the pre-project wizard is
-    // fully supported. It stays available on the in-project Add-Artifact screen
-    // (ComponentListView/AIAgentPanel), which is why the card itself is untouched.
-    category("ai-integration", ["dynamic:mcp"]),
+    category("ai-integration", [AGENT_SAMPLE_SOURCE]),
     category("integration-as-api", [...INTEGRATION_API_CARDS]),
     category("event-integration", ["dynamic:event"]),
     category("file-integration", ["dynamic:file"]),

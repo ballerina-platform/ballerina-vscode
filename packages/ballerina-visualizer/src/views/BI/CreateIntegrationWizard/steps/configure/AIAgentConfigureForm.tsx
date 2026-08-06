@@ -19,7 +19,6 @@
 import { useState } from "react";
 import styled from "@emotion/styled";
 import { Button, TextField } from "@wso2/ui-toolkit";
-import { FormHeader } from "../../../../../components/FormHeader";
 
 /** Mirrors the height-filling + pinned-footer layout the other configure forms
  *  get from ArtifactForm's `footerActionButton` mode, so all three "Create
@@ -32,6 +31,7 @@ const FormContainer = styled.div`
     min-height: 0;
     display: flex;
     flex-direction: column;
+    margin-bottom: 20px;
 `;
 
 const FieldGroup = styled.div`
@@ -93,10 +93,10 @@ export function AIAgentConfigureForm({ isSubmitting, onSubmit }: AIAgentConfigur
 
     return (
         <FormContainer>
-            <FormHeader title="Create AI Chat Agent" subtitle="Create an intelligent chat agent" />
+            <span>Create an AI chat agent</span>
             <FieldGroup>
                 <TextField
-                    label="Name"
+                    label="Agent Name"
                     placeholder="Enter a name for the agent"
                     value={name}
                     autoFocus={true}
@@ -113,6 +113,7 @@ export function AIAgentConfigureForm({ isSubmitting, onSubmit }: AIAgentConfigur
                     appearance="primary"
                     onClick={handleCreate}
                     disabled={isSubmitting || !!nameError}
+                    sx={{ width: "100%" }}
                     buttonSx={{ width: "100%", height: "35px" }}
                 >
                     Create Integration
