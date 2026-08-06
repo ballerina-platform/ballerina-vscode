@@ -21,7 +21,12 @@
         "name": "graphQlConnection",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_graphql_1.17.0.png",
+          "glyph": "bi-graphql",
+          "kind": "graphql",
+          "source": "central"
+        },
         "module": "graphql",
         "children": {}
       },
@@ -42,7 +47,11 @@
         "name": "httpConnection",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       },
@@ -63,7 +72,10 @@
         "name": "localClient",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/$anon_._0.0.0.png",
+          "source": "central"
+        },
         "module": ".",
         "children": {}
       },
@@ -84,7 +96,12 @@
         "name": "tcpConnection",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.5.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_tcp_1.13.5.png",
+          "glyph": "bi-tcp",
+          "kind": "listener",
+          "source": "central"
+        },
         "module": "tcp",
         "children": {}
       }

@@ -21,7 +21,11 @@
         "name": "httpClient",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       },
@@ -42,7 +46,11 @@
         "name": "httpClient2",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       }
@@ -65,7 +73,11 @@
         "name": "ls",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       },
@@ -86,7 +98,11 @@
         "name": "securedEP",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       },
@@ -107,7 +123,11 @@
         "name": "securedEP2",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {}
       }
@@ -170,7 +190,11 @@
         "name": "HTTP Service - /api2",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {
           "get#path": {
@@ -212,7 +236,11 @@
         "name": "HTTP Service - /api1",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {
           "get#path": {
@@ -273,7 +301,11 @@
         "name": "HTTP Service - /",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {
           "init": {
@@ -334,7 +366,11 @@
         "name": "HTTP Service - /",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.3.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png",
+          "kind": "http",
+          "source": "central"
+        },
         "module": "http",
         "children": {
           "init": {

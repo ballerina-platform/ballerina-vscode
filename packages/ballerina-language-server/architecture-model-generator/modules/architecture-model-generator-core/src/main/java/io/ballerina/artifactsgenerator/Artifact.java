@@ -24,11 +24,14 @@ import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.designmodelgenerator.core.CommonUtils;
+import io.ballerina.modelgenerator.commons.IconDescriptor;
+import io.ballerina.modelgenerator.commons.trigger.utils.TriggerArtifactResolver;
 import io.ballerina.runtime.api.utils.IdentifierUtils;
 import io.ballerina.tools.text.LineRange;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -43,14 +46,14 @@ import java.util.Optional;
  * @param accessor   accessor of the artifact
  * @param scope      lexical scope of the artifact (global/local/object)
  * @param visibility visibility of the artifact (public/module/private)
- * @param icon       icon representing the artifact
+ * @param icon       resolved icon descriptor for the artifact (url/glyph/color/kind/source)
  * @param children   map of child artifacts (id -> child)
  * @param module     module name of the artifact
  * @param metadata   metadata about the artifact
  * @since 1.0.0
  */
 public record Artifact(String id, LineRange location, String type, String name, String accessor,
-                       String scope, String visibility, String icon, String module,
+                       String scope, String visibility, IconDescriptor icon, String module,
                        Map<String, Artifact> children, Map<String, Object> metadata) {
 
     private static final String CATEGORY_ENTRY_POINTS = "Entry Points";
@@ -207,8 +210,9 @@ public record Artifact(String id, LineRange location, String type, String name, 
         private String accessor;
         private Scope scope = Scope.GLOBAL;
         private Visibility visibility = null;
-        private String icon;
+        private IconDescriptor icon;
         private String module;
+        private ModuleID moduleId;
         private final Map<String, Artifact> children = new HashMap<>();
         private Map<String, Object> metadata = null;
 
@@ -260,7 +264,8 @@ public record Artifact(String id, LineRange location, String type, String name, 
                 return this;
             }
             ModuleID moduleId = moduleSymbol.get().id();
-            this.icon = CommonUtils.generateIcon(moduleId);
+            this.moduleId = moduleId;
+            this.icon = TriggerArtifactResolver.resolveIcon(moduleId);
             this.module = moduleId.moduleName();
             return this;
         }
@@ -273,20 +278,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceNameWithPath(String path) {
-            if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = path;
-            } else {
-                this.name = entryPointMap.get(module) + " - " + path;
-            }
+            Optional<String> displayName = moduleId == null
+                    ? Optional.empty() : TriggerArtifactResolver.resolveDisplayName(moduleId);
+            this.name = displayName.map(dn -> dn + " - " + path).orElse(path);
             return this;
         }
 
         public Builder serviceName(String name) {
-            if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = name;
-            } else {
-                this.name = entryPointMap.get(module);
-            }
+            Optional<String> displayName = moduleId == null
+                    ? Optional.empty() : TriggerArtifactResolver.resolveDisplayName(moduleId);
+            this.name = displayName.orElse(name);
             return this;
         }
 
@@ -310,16 +311,16 @@ public record Artifact(String id, LineRange location, String type, String name, 
          * @return true if name was successfully extracted from annotation, false otherwise
          */
         public boolean trySetNameFromAnnotation(ServiceDeclarationNode serviceNode) {
-            if (module != null && moduleAnnotationFields.containsKey(module)) {
-                String[] fieldNames = moduleAnnotationFields.get(module);
-
-                for (String fieldName : fieldNames) {
-                    Optional<String> extractedValue = CommonUtils.extractServiceAnnotationField(serviceNode, fieldName);
-                    if (extractedValue.isPresent()) {
-                        this.name = Objects.requireNonNullElse(entryPointMap.get(module), "") + " - " +
-                                extractedValue.get();
-                        return true;
-                    }
+            if (moduleId == null) {
+                return false;
+            }
+            List<String> fieldNames = TriggerArtifactResolver.resolveLabelFields(moduleId);
+            for (String fieldName : fieldNames) {
+                Optional<String> extractedValue = CommonUtils.extractServiceAnnotationField(serviceNode, fieldName);
+                if (extractedValue.isPresent()) {
+                    String displayName = TriggerArtifactResolver.resolveDisplayName(moduleId).orElse("");
+                    this.name = displayName + " - " + extractedValue.get();
+                    return true;
                 }
             }
             return false;
