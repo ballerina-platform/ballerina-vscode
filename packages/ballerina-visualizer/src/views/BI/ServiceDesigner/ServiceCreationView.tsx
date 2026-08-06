@@ -42,20 +42,34 @@ const Container = styled.div`
     flex-direction: column;
     gap: 10;
     margin: 20px;
-    /* padding: 0 20px 20px; */
     max-width: 600px;
     height: 100%;
-    > div:last-child {
-        /* padding: 20px 0; */
-        > div:last-child {
-            justify-content: flex-start;
-        }
-    }
 `;
 
+// Every step lines up on CONTENT_INSET. The nested ArtifactForm already pads its own content
+// by NESTED_FORM_INSET, so it only needs the difference.
+const CONTENT_INSET = 16;
+const NESTED_FORM_INSET = 5;
+const BODY_FONT_SIZE = "13px";
+
 const FormContainer = styled.div`
-    /* padding-top: 15px; */
     padding-bottom: 100px;
+`;
+
+const NestedFormWrapper = styled.div`
+    padding: 0 ${CONTENT_INSET - NESTED_FORM_INSET}px;
+`;
+
+const SelectionContainer = styled.div`
+    padding-bottom: 100px;
+`;
+
+const SelectionBody = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 ${CONTENT_INSET}px;
+    margin-top: 16px;
 `;
 
 const StatusContainer = styled.div`
@@ -84,15 +98,17 @@ const StatusText = styled(Typography)`
     color: ${ThemeColors.ON_SURFACE};
 `;
 
-const SelectionHeader = styled.div`
+// FormHeader ships its own inset and a 14px (body2) subtitle; normalise both.
+const HeaderWrapper = styled.div`
+    padding: 0 ${CONTENT_INSET}px;
     & > div { padding: 0; }
+    & p { font-size: ${BODY_FONT_SIZE}; }
 `;
 
 const Toolbar = styled.div`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-top: 16px;
 `;
 
 const ToolbarRow = styled.div`
@@ -109,21 +125,21 @@ const MethodFilters = styled.div`
 `;
 
 const MethodChip = styled.button<{ active: boolean; color: string }>`
-    border: 1px solid ${(p) => p.active ? p.color : ThemeColors.OUTLINE_VARIANT};
-    background-color: ${(p) => p.active ? p.color : "transparent"};
-    color: ${(p) => p.active ? "#fff" : ThemeColors.ON_SURFACE_VARIANT};
+    border: 1px solid ${(p: { active: boolean; color: string }) => p.active ? p.color : ThemeColors.OUTLINE_VARIANT};
+    background-color: ${(p: { active: boolean; color: string }) => p.active ? p.color : "transparent"};
+    color: ${(p: { active: boolean; color: string }) => p.active ? "#fff" : ThemeColors.ON_SURFACE_VARIANT};
     border-radius: 4px;
     padding: 3px 10px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: bold;
     font-family: monospace;
+    text-transform: uppercase;
     cursor: pointer;
 `;
 
 const SelectionSummary = styled.div`
-    margin-top: 14px;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
-    font-size: 12px;
+    font-size: ${BODY_FONT_SIZE};
 `;
 
 const EndpointList = styled.div`
@@ -133,13 +149,13 @@ const EndpointList = styled.div`
     border-radius: 6px;
     max-height: 340px;
     overflow-y: auto;
-    margin-top: 12px;
 `;
 
+// Small gap: the label-less CheckBox still reserves its empty label slot.
 const EndpointRow = styled.div`
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 4px;
     padding: 10px 14px;
     cursor: pointer;
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
@@ -155,18 +171,21 @@ const EndpointMeta = styled.div`
     flex: 1;
 `;
 
+// Fixed min-width so the paths line up in a column.
 const MethodPill = styled.span<{ color: string }>`
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    min-width: 56px;
     padding: 3px 7px;
     border-radius: 4px;
-    background-color: ${(p) => p.color};
+    background-color: ${(p: { color: string }) => p.color};
     color: #fff;
     font-weight: bold;
     font-size: 11px;
     font-family: monospace;
+    text-transform: uppercase;
 `;
 
 const EndpointPath = styled.span`
@@ -175,6 +194,7 @@ const EndpointPath = styled.span`
     flex: 0 1 auto;
     font-family: monospace;
     font-size: 13px;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -183,7 +203,7 @@ const EndpointPath = styled.span`
 const EndpointDesc = styled.span`
     min-width: 0;
     flex: 1;
-    font-size: 12px;
+    font-size: ${BODY_FONT_SIZE};
     color: ${ThemeColors.ON_SURFACE_VARIANT};
     overflow: hidden;
     text-overflow: ellipsis;
@@ -193,6 +213,7 @@ const EndpointDesc = styled.span`
 const EmptyMessage = styled.div`
     padding: 24px;
     text-align: center;
+    font-size: ${BODY_FONT_SIZE};
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
@@ -200,31 +221,25 @@ const SelectionActions = styled.div`
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 8px;
 `;
 
 const AdvancedConfigurationRow = styled.div`
-    margin-top: 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    font-size: ${BODY_FONT_SIZE};
 `;
 
 const AdvancedFields = styled.div`
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
-    margin-top: 12px;
 `;
 
-const AdvancedField = styled.label<{ fullWidth?: boolean }>`
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+const AdvancedField = styled.div<{ fullWidth?: boolean }>`
     min-width: 0;
-    grid-column: ${(p) => p.fullWidth ? "1 / -1" : "auto"};
-    font-size: 12px;
-    font-weight: 600;
+    grid-column: ${(p: { fullWidth?: boolean }) => p.fullWidth ? "1 / -1" : "auto"};
 `;
 
 
@@ -587,13 +602,13 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                     <ViewContent>
                         <Container>
                             {selectionMode ? (
-                                <FormContainer>
-                                    <SelectionHeader>
+                                <SelectionContainer>
+                                    <HeaderWrapper>
                                         <FormHeader
                                             title="Select Tools to Expose"
                                             subtitle="Each selected operation becomes an MCP tool that proxies requests to the underlying REST API."
                                         />
-                                    </SelectionHeader>
+                                    </HeaderWrapper>
                                     {loadingEndpoints ? (
                                         <RelativeLoader message="Reading OpenAPI specification..." />
                                     ) : endpointError ? (
@@ -602,7 +617,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                             <StatusText variant="body2">{endpointError}</StatusText>
                                         </StatusCard>
                                     ) : (
-                                        <>
+                                        <SelectionBody>
                                             <Toolbar>
                                                 <TextField
                                                     placeholder="Search operations..."
@@ -663,7 +678,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                                         <span>Advanced Configurations</span>
                                                         <LinkButton
                                                             onClick={() => setShowAdvancedConfiguration((show) => !show)}
-                                                            sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
+                                                            sx={{ fontSize: 13, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
                                                         >
                                                             <Codicon name={showAdvancedConfiguration ? "chevron-up" : "chevron-down"} iconSx={{ fontSize: 12 }} sx={{ height: 12 }} />
                                                             {showAdvancedConfiguration ? "Collapse" : "Expand"}
@@ -671,11 +686,11 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                                     </AdvancedConfigurationRow>
                                                     {showAdvancedConfiguration && (
                                                         <AdvancedFields>
-                                                            <AdvancedField fullWidth>Service name<TextField value={mcpImportConfiguration.serviceName} onTextChange={(value) => updateMcpImportConfiguration("serviceName", value)} /></AdvancedField>
-                                                            <AdvancedField>Version<TextField value={mcpImportConfiguration.version} onTextChange={(value) => updateMcpImportConfiguration("version", value)} /></AdvancedField>
-                                                            <AdvancedField>Port<TextField value={mcpImportConfiguration.port} onTextChange={(value) => updateMcpImportConfiguration("port", value)} /></AdvancedField>
-                                                            <AdvancedField fullWidth>Base path<TextField value={mcpImportConfiguration.basePath} onTextChange={(value) => updateMcpImportConfiguration("basePath", value)} /></AdvancedField>
-                                                            <AdvancedField fullWidth>Listener name<TextField value={mcpImportConfiguration.listenerName} onTextChange={(value) => updateMcpImportConfiguration("listenerName", value)} /></AdvancedField>
+                                                            <AdvancedField fullWidth><TextField label="Service Name" value={mcpImportConfiguration.serviceName} onTextChange={(value) => updateMcpImportConfiguration("serviceName", value)} /></AdvancedField>
+                                                            <AdvancedField><TextField label="Version" value={mcpImportConfiguration.version} onTextChange={(value) => updateMcpImportConfiguration("version", value)} /></AdvancedField>
+                                                            <AdvancedField><TextField label="Port" value={mcpImportConfiguration.port} onTextChange={(value) => updateMcpImportConfiguration("port", value)} /></AdvancedField>
+                                                            <AdvancedField fullWidth><TextField label="Base Path" value={mcpImportConfiguration.basePath} onTextChange={(value) => updateMcpImportConfiguration("basePath", value)} /></AdvancedField>
+                                                            <AdvancedField fullWidth><TextField label="Listener Name" value={mcpImportConfiguration.listenerName} onTextChange={(value) => updateMcpImportConfiguration("listenerName", value)} /></AdvancedField>
                                                         </AdvancedFields>
                                                     )}
                                                 </>
@@ -686,28 +701,32 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                                                     {isSaving ? "Creating..." : `Create with ${selectedTools.size} tool${selectedTools.size === 1 ? "" : "s"}`}
                                                 </Button>
                                             </SelectionActions>
-                                        </>
+                                        </SelectionBody>
                                     )}
-                                </FormContainer>
+                                </SelectionContainer>
                             ) : (
                                 <>
                                     {visibleFormFields && visibleFormFields.length > 0 && (
                                         <FormContainer>
-                                            <FormHeader title={`Create ${model.displayName}`} />
+                                            <HeaderWrapper>
+                                                <FormHeader title={`Create ${model.displayName}`} />
+                                            </HeaderWrapper>
                                             {filePath && targetLineRange && (
-                                                <ArtifactForm
-                                                    fileName={filePath}
-                                                    targetLineRange={targetLineRange}
-                                                    fields={visibleFormFields}
-                                                    isSaving={isSaving}
-                                                    nestedForm={true}
-                                                    onSubmit={handleOnSubmit}
-                                                    onChange={handleOnChange}
-                                                    serverValidationErrors={serverValidationErrors}
-                                                    preserveFieldOrder={true}
-                                                    recordTypeFields={recordTypeFields}
-                                                    submitText="Create"
-                                                />
+                                                <NestedFormWrapper>
+                                                    <ArtifactForm
+                                                        fileName={filePath}
+                                                        targetLineRange={targetLineRange}
+                                                        fields={visibleFormFields}
+                                                        isSaving={isSaving}
+                                                        nestedForm={true}
+                                                        onSubmit={handleOnSubmit}
+                                                        onChange={handleOnChange}
+                                                        serverValidationErrors={serverValidationErrors}
+                                                        preserveFieldOrder={true}
+                                                        recordTypeFields={recordTypeFields}
+                                                        submitText="Create"
+                                                    />
+                                                </NestedFormWrapper>
                                             )}
                                         </FormContainer>
                                     )}
