@@ -113,6 +113,7 @@ export function AIAgentConfigureForm({ isSubmitting, onSubmit }: AIAgentConfigur
                     appearance="primary"
                     onClick={handleCreate}
                     disabled={isSubmitting || !!nameError}
+                    sx={{ width: "100%" }}
                     buttonSx={{ width: "100%", height: "35px" }}
                 >
                     Create Integration
