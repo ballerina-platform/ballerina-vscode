@@ -21,7 +21,13 @@
         "name": "rabbitmqListener",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.5.0.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
+          "glyph": "bi-rabbitmq",
+          "color": "#f60",
+          "kind": "event",
+          "source": "central"
+        },
         "module": "rabbitmq",
         "children": {}
       }
@@ -44,7 +50,13 @@
         "name": "RabbitMQ Event Integration - \"queueName\"",
         "scope": "Global",
         "visibility": "module",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.5.0.png",
+        "icon": {
+          "url": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png",
+          "glyph": "bi-rabbitmq",
+          "color": "#f60",
+          "kind": "event",
+          "source": "central"
+        },
         "module": "rabbitmq",
         "children": {
           "onMessage": {
