@@ -63,20 +63,20 @@ export const CHART_COLORS = {
 const NODE_COLOR_GROUPS = {
     // Control flow group - blue variants
     BLUE_GROUP: ["IF", "WHILE", "FOREACH", "MATCH", "RETURN"],
-
+    
     // Break/continue - cyan variants
     CYAN_CONTROL_GROUP: ["BREAK", "CONTINUE"],
-
+    
     // Function/method group - green variants
     GREEN_FUNCTION_GROUP: [
-        "FUNCTION",
-        "FUNCTION_CALL",
+        "FUNCTION", 
+        "FUNCTION_CALL", 
         "DATA_MAPPER_CALL",
-        "REMOTE_ACTION_CALL",
+        "REMOTE_ACTION_CALL", 
         "RESOURCE_ACTION_CALL",
         "METHOD_CALL"
     ],
-
+    
     // AI/NP function group - cyan variants
     CYAN_FUNCTION_GROUP: [
         "AGENT_CALL",
@@ -103,18 +103,18 @@ const NODE_COLOR_GROUPS = {
     ],
     // Data related - magenta variants
     MAGENTA_DATA_GROUP: ["VARIABLE", "NEW_DATA", "UPDATE_DATA", "ASSIGN"],
-
+    
     // Comments, concurrency and transactions - magenta variants
     MAGENTA_MISC_GROUP: [
-        "COMMENT",
-        "FORK",
-        "WAIT",
-        "TRANSACTION",
-        "COMMIT",
+        "COMMENT", 
+        "FORK", 
+        "WAIT", 
+        "TRANSACTION", 
+        "COMMIT", 
         "ROLLBACK",
         "LOCK"
     ],
-
+    
     // Error handling - yellow variants
     YELLOW_GROUP: ["ERROR_HANDLER", "PANIC", "FAIL", "RETRY"],
 };
@@ -327,11 +327,11 @@ export function NodeIcon(props: NodeIconProps) {
 
     // Get icon renderer from the mapping or use CodeIcon as default
     const IconRenderer = NODE_ICONS[type] || (({ size, color }: { size: number; color: string; isDBConnection?: boolean }) => <CodeIcon />);
-
+    
     return (
         <>
             <IconWrapper color={themeAwareColor}>
-                <IconRenderer size={size} color={themeAwareColor} isDBConnection={isDBConnection} />
+                <IconRenderer size={size} color={themeAwareColor} isDBConnection={isDBConnection}/>
             </IconWrapper>
             <ThemeListener onThemeChange={handleThemeChange} />
         </>
