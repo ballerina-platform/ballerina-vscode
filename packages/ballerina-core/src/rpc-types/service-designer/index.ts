@@ -24,6 +24,8 @@ import {
     ExportOASResponse,
     GetOASSpecRequest,
     GetOASSpecResponse,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
 } from "./interfaces";
 
 export interface ServiceDesignerAPI {
@@ -50,5 +52,6 @@ export interface ServiceDesignerAPI {
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<UpdatedArtifactsResponse>;
     generateExamplePayloadJson: (params: PayloadContext) => Promise<object>;
     getOASSpec: (params: GetOASSpecRequest) => Promise<GetOASSpecResponse>;
+    listOpenApiEndpoints: (params: OpenApiEndpointsRequest) => Promise<OpenApiEndpointsResponse>;
     validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
 }

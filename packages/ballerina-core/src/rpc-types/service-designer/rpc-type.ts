@@ -25,6 +25,8 @@ import {
     ExportOASResponse,
     GetOASSpecRequest,
     GetOASSpecResponse,
+    OpenApiEndpointsRequest,
+    OpenApiEndpointsResponse,
 } from "./interfaces";
 import { RequestType } from "vscode-messenger-common";
 
@@ -52,4 +54,5 @@ export const getServiceInitModel: RequestType<ServiceModelRequest, ServiceModelI
 export const createServiceAndListener: RequestType<ServiceInitSourceRequest, UpdatedArtifactsResponse> = { method: `${_preFix}/createServiceAndListener` };
 export const generateExamplePayloadJson: RequestType<PayloadContext, object> = { method: `${_preFix}/generateExamplePayloadJson` };
 export const getOASSpec: RequestType<GetOASSpecRequest, GetOASSpecResponse> = { method: `${_preFix}/getOASSpec` };
+export const listOpenApiEndpoints: RequestType<OpenApiEndpointsRequest, OpenApiEndpointsResponse> = { method: `${_preFix}/listOpenApiEndpoints` };
 export const validateProperty: RequestType<ValidatePropertyRequest, ValidatePropertyResponse> = { method: `${_preFix}/validateProperty` };

@@ -31,6 +31,7 @@ import { CDModel } from "./component-diagram";
 import { DMModel, ExpandedDMModel, IntermediateClause, Mapping, VisualizableField, FnMetadata, ResultClauseType, IOType } from "./data-mapper";
 import { ArtifactData, DataMapperMetadata, SCOPE } from "./shared-types";
 import { ToolParameters } from "../rpc-types/ai-agent/interfaces";
+import { OpenApiEndpointsRequest, OpenApiEndpointsResponse } from "../rpc-types/service-designer/interfaces";
 
 export interface DidOpenParams {
     textDocument: TextDocumentItem;
@@ -2266,6 +2267,7 @@ export interface BIInterface extends BaseLangClientInterface {
     addFunctionSourceCode: (params: FunctionSourceCodeRequest) => Promise<ResourceSourceCodeResponse>;
     getResourceReturnTypes: (params: ResourceReturnTypesRequest) => Promise<VisibleTypesResponse>;
     getServiceInitModel: (params: ServiceModelRequest) => Promise<ServiceModelInitResponse>;
+    listOpenApiEndpoints: (params: OpenApiEndpointsRequest) => Promise<OpenApiEndpointsResponse>;
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<SourceEditResponse>;
     validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
 

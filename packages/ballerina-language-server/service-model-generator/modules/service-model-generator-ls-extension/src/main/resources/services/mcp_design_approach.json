@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "label": "Service Contract",
+    "description": "Create the MCP service from scratch or by importing an OpenAPI specification"
+  },
+  "enabled": true,
+  "editable": true,
+  "value": "",
+  "types": [
+    {
+      "fieldType": "CHOICE",
+      "selected": true
+    }
+  ],
+  "optional": false,
+  "advanced": false,
+  "choices": [
+    {
+      "metadata": {
+        "label": "Design From Scratch",
+        "description": "Create an empty MCP service and add tools manually"
+      },
+      "enabled": true,
+      "editable": true,
+      "value": "true",
+      "types": [{ "fieldType": "FORM", "selected": true }],
+      "optional": false,
+      "advanced": false,
+      "properties": {}
+    },
+    {
+      "metadata": {
+        "label": "Import From OpenAPI Specification",
+        "description": "Generate MCP tools from an OpenAPI specification."
+      },
+      "enabled": false,
+      "editable": true,
+      "value": "true",
+      "types": [{ "fieldType": "FORM", "selected": true }],
+      "optional": false,
+      "advanced": false,
+      "properties": {
+        "spec": {
+          "metadata": {
+            "label": "OpenAPI Specification",
+            "description": "Provide an OpenAPI specification to generate MCP tools."
+          },
+          "enabled": true,
+          "editable": true,
+          "value": "",
+          "types": [{ "fieldType": "FILE_SELECT", "ballerinaType": "string", "selected": true }],
+          "optional": false,
+          "advanced": false,
+          "codedata": { "type": "OPENAPI" }
+        }
+      }
+    }
+  ]
+}
