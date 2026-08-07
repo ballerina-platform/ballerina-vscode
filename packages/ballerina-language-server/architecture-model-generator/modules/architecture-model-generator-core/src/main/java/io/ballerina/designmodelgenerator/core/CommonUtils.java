@@ -72,6 +72,7 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
+    private static final String DATA_LOADER_TYPE_NAME = "DataLoader";
 
     private static final String WSO2_MODEL_PROVIDER = "Wso2ModelProvider";
     private static final String WSO2_EMBEDDING_PROVIDER = "Wso2EmbeddingProvider";
@@ -295,6 +296,11 @@ public class CommonUtils {
         return classSymbol != null && (hasAiTypeInclusion(classSymbol, ST_MEMORY_STORE_TYPE_NAME));
     }
 
+    public static boolean isAiDataLoader(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, DATA_LOADER_TYPE_NAME);
+    }
+
     public static boolean isAiKnowledgeBase(Symbol symbol) {
         if (symbol instanceof ObjectTypeSymbol objectTypeSymbol) {
             return hasAiTypeInclusion(objectTypeSymbol, KNOWLEDGE_BASE_TYPE_NAME);
@@ -305,7 +311,7 @@ public class CommonUtils {
 
     public static boolean isHiddenAiClass(Symbol symbol) {
         return isAgentClass(symbol) || isAiKnowledgeBase(symbol) || isAiMemory(symbol) ||
-                isAiShortTermMemoryStore(symbol);
+                isAiShortTermMemoryStore(symbol) || isAiDataLoader(symbol);
     }
 
     private static boolean hasAiTypeInclusion(ObjectTypeSymbol objectTypeSymbol, String includedTypeName) {
