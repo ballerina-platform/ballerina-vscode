@@ -75,7 +75,7 @@ The tool replaces the entire task list on each call. If you omit tasks, they wil
 - Have 5 tasks? Send all 5 EVERY time
 - Updating 1 task? Send ALL tasks with the update
 - NEVER omit completed tasks when moving to next task
-- Think: You're replacing the entire list, not editing one item
+- Remember: You're replacing the entire list, not editing one item
 - Tasks are identified by their description - keep descriptions consistent
 
 **Validation:**

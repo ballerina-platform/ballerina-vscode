@@ -312,6 +312,8 @@ export interface GenerateAgentCodeRequest {
     isPlanMode: boolean;
     codeContext?: CodeContext;
     webSearchEnabled?: boolean;
+    /** Enable extended (adaptive) thinking for this run. Undefined/false keeps thinking disabled. */
+    thinking?: boolean;
     /** Identifies the UI surface so the host can resolve the correct ambient file context. */
     promptSource?: 'ai-panel' | 'mini-chat';
     /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */

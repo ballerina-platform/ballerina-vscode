@@ -25,6 +25,7 @@ import ConfigCard from "./ConfigCard";
 import ConnectorCard from "./ConnectorCard";
 import CommandOutputCard from "./CommandOutputCard";
 import TryItCard from "./TryItCard";
+import ThinkingSegment from "./ThinkingSegment";
 import {
     DoneCircle,
     DotWrapper,
@@ -108,6 +109,8 @@ function renderItem(item: StreamItem, idx: number, streamActive: boolean, rpcCli
                 </ItemRow>
             );
         }
+        case "thinking":
+            return <ThinkingSegment key={idx} item={item} streamActive={streamActive} />;
         case "plan":
             return (
                 <TodoSection

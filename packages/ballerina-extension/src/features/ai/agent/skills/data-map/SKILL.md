@@ -19,7 +19,7 @@ When generating mapping expressions, follow this strict priority order:
 1. **User-defined mappings** — ABSOLUTE HIGHEST PRIORITY. Complete precedence over everything else.
 2. **Existing sub-mappings** — use the sub-mapping output name as a direct reference.
 3. **Context and constraints** — apply all provided business rules and transformation logic.
-4. **Ballerina programming knowledge** — use built-in functions and standard approaches.
+4. **Ballerina programming knowledge** — use built-in functions and standard approaches; if unsure of an exact function or signature, verify via library lookup or compile diagnostics instead of assuming.
 5. **Default handling** — only for non-optional fields when no mapping is available.
 
 ### Mapping Output Modes

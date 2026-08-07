@@ -23,7 +23,7 @@ export function getRequirementAnalysisCodeGenPrefix(requirementAnalysisDocument:
 
 You are tasked with generating Ballerina code based on a requirement analysis document for a system. The document contains an overview of the system and its use cases. Your objective is to create a Ballerina implementation that reflects the requirements described in the document.
 
-First, carefully read and analyze the following requirement analysis document and provide an accurate Ballerina program based on this document:
+Read the following requirement analysis document and provide an accurate Ballerina program based on it:
 
 <requirement_analysis_document>
 ${requirementAnalysisDocument}
@@ -59,7 +59,7 @@ You are an expert test automation engineer specializing in generating test artif
 **Processing Steps**:
 
 [PHASE 1: TEST PLAN Generation]
-1. Analyze requirement specifications to identify:
+1. From the requirement specification, note (briefly — this is a coverage checklist for the test plan, not exhaustive upfront analysis; see Thinking behavior):
    - Core functional requirements
    - Business rules and constraints
    - Success criteria
