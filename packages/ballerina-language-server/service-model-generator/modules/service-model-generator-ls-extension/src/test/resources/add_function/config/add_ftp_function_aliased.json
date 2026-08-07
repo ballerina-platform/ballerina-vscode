@@ -16,7 +16,7 @@
   "function": {
     "metadata": {
       "label": "On Create",
-      "description": "Invoked when a file is created in the monitored directory. Comma-separated rows — binds each row to T, emits T[] (or stream<T, error?> for large files).",
+      "description": "Invoked when a file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
       "badge": "onCreate"
     },
     "kind": "REMOTE",
@@ -49,7 +49,7 @@
       {
         "metadata": {
           "label": "Content",
-          "description": "Comma-separated rows — binds each row to T, emits T[] (or stream<T, error?> for large files)."
+          "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
         },
         "kind": "DATA_BINDING",
         "type": {
@@ -127,7 +127,7 @@
     "properties": {
       "afterFileProcessing": {
         "metadata": {
-          "label": "After File Processing",
+          "label": "File Handling Options",
           "description": "@ftp:FunctionConfig — actions performed on the source file after a handler runs."
         },
         "codedata": {

@@ -796,7 +796,7 @@
     },
     "path": {
       "metadata": {
-        "label": "Monitoring Path",
+        "label": "Monitored Path",
         "description": "The folder on the remote server to monitor for file actions (e.g., /uploads or /incoming)"
       },
       "types": [
@@ -880,7 +880,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files).",
+            "description": "Invoked when a file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
             "addLabel": "Add On Create Handler (CSV)",
             "badge": "onCreate"
           },
@@ -909,13 +909,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+                "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "CSV Content",
-                  "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "value": "",
                 "types": [
@@ -929,30 +929,10 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
-                  "rows": {
-                    "metadata": {
-                      "label": "Rows",
-                      "description": "Content Schema contains a row of CSV Row type"
-                    },
-                    "value": true,
-                    "types": [
-                      {
-                        "fieldType": "METADATA_FLAG",
-                        "selected": true
-                      }
-                    ],
-                    "enabled": true,
-                    "editable": false,
-                    "optional": false,
-                    "advanced": false,
-                    "codedata": {
-                      "type": "METADATA_FLAG"
-                    }
-                  },
                   "stream": {
                     "metadata": {
                       "label": "Stream (Large Files)",
-                      "description": "Process the file content in chunks"
+                      "description": "Process the file content in chunks."
                     },
                     "value": false,
                     "types": [
@@ -979,7 +959,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Row Schema",
-                      "description": "Define or select the bound row type (T). Content is delivered as T[], or stream<T, error?> when streaming is enabled."
+                      "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
                     "enabled": true,
@@ -1047,7 +1027,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1072,7 +1052,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1168,8 +1148,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1468,7 +1448,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Binds the file content to json or a custom record type.",
+            "description": "Invoked when a file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (JSON)",
             "badge": "onCreate"
           },
@@ -1497,13 +1477,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Binds the file content to json or a custom record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "JSON Content",
-                  "description": "Binds the file content to json or a custom record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "value": "",
                 "types": [
@@ -1520,7 +1500,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to json)."
+                      "description": "Create a record type describing the file content. Defaults to json."
                     },
                     "value": "json",
                     "enabled": true,
@@ -1587,7 +1567,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1612,7 +1592,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1708,8 +1688,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2008,7 +1988,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Binds the file content to xml or a custom record type.",
+            "description": "Invoked when a file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (XML)",
             "badge": "onCreate"
           },
@@ -2037,13 +2017,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Binds the file content to xml or a custom record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "XML Content",
-                  "description": "Binds the file content to xml or a custom record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "value": "",
                 "types": [
@@ -2060,7 +2040,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to xml)."
+                      "description": "Create a record type describing the file content. Defaults to xml."
                     },
                     "value": "xml",
                     "enabled": true,
@@ -2127,7 +2107,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2152,7 +2132,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2248,8 +2228,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2548,7 +2528,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Delivers the file content as a plain string.",
+            "description": "Invoked when a file is created in the monitored directory. The content arrives as plain text.",
             "addLabel": "Add On Create Handler (Text)",
             "badge": "onCreate"
           },
@@ -2577,13 +2557,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Delivers the file content as a plain string."
+                "description": "The content arrives as plain text."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Text Content",
-                  "description": "Delivers the file content as a plain string."
+                  "description": "The content arrives as plain text."
                 },
                 "value": "",
                 "types": [
@@ -2600,7 +2580,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "The text file content as a plain string."
+                      "description": "The file content as plain text."
                     },
                     "value": "string",
                     "enabled": false,
@@ -2653,7 +2633,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2678,7 +2658,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2774,8 +2754,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3074,7 +3054,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Invoked when a file is created in the monitored directory. Delivers the raw file content as byte[] (or stream<byte[], error?> for large files).",
+            "description": "Invoked when a file is created in the monitored directory. The content arrives as raw, unparsed bytes.",
             "addLabel": "Add On Create Handler (Raw Bytes)",
             "badge": "onCreate"
           },
@@ -3103,13 +3083,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+                "description": "The content arrives as raw, unparsed bytes."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Raw Bytes Content",
-                  "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "value": "",
                 "types": [
@@ -3126,7 +3106,7 @@
                   "stream": {
                     "metadata": {
                       "label": "Stream (Large Files)",
-                      "description": "Deliver the content as stream<byte[], error?> to process large binary files in chunks."
+                      "description": "Process the file content in chunks."
                     },
                     "value": false,
                     "types": [
@@ -3153,7 +3133,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "Raw file content as byte[], or stream<byte[], error?> when streaming is enabled."
+                      "description": "The raw file content as bytes."
                     },
                     "value": "byte[]",
                     "enabled": true,
@@ -3207,7 +3187,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -3232,7 +3212,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3328,8 +3308,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
