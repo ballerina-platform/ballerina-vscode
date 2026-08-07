@@ -248,6 +248,7 @@ export function CreateIntegrationWizard({
     const trimmedDirectoryName = basicInfo.directoryName.trim();
     const effectiveDirectoryName = basicInfo.dirTouched ? trimmedDirectoryName : trimmedDirectoryName || packageName;
     const fullPath = joinPath(basicInfo.baseDir, basicInfo.directoryName);
+    const createDisabled = isSubmitting || !!nameError || (!embedded && !!pathError);
 
     useEffect(() => {
         // Sweep any temp staging package left by an abandoned session (the unmount cancel can be lost).
@@ -527,7 +528,10 @@ export function CreateIntegrationWizard({
      *  The real project is created fresh at the final path here (and only here);
      *  the standalone wizard re-validates the path (the embedded flow trusts the
      *  chooser's validation). */
-    const handleCreateIntegration = async (artifact?: PendingIntegrationArtifactPayload) => {
+    const handleCreateIntegration = async (
+        artifact?: PendingIntegrationArtifactPayload,
+        startWithCopilot?: boolean
+    ) => {
         setSubmitError(null);
         if (!embedded && !(await validatePathForSubmit())) {
             return;
@@ -546,6 +550,7 @@ export function CreateIntegrationWizard({
                     convertToWorkspace: projectContext?.convertToWorkspace,
                 },
                 artifact,
+                startWithCopilot,
             });
             // The extension reloads the window — stay in the submitting state until teardown.
         } catch (error) {
@@ -554,6 +559,11 @@ export function CreateIntegrationWizard({
             setSubmitError(`Failed to create the integration: ${message}`);
             setIsSubmitting(false);
         }
+    };
+
+    /** Creates the integration empty and lands on it, ready for the Copilot prompt bar. */
+    const handleStartWithCopilot = (): void => {
+        void handleCreateIntegration(undefined, true);
     };
 
     /** Routes the configured artifact to the mode's submit path: generate into the
@@ -696,7 +706,10 @@ export function CreateIntegrationWizard({
                         // Only offered on the Name step; the Type step requires a selection.
                         skipLabel={!isExistingPackage && step === NAME_STEP ? "Create Empty Integration" : undefined}
                         onSkip={() => handleCreateIntegration()}
-                        skipDisabled={isSubmitting || !!nameError || (!embedded && !!pathError)}
+                        skipDisabled={createDisabled}
+                        copilotLabel={!isExistingPackage && step === NAME_STEP ? "Start with Copilot" : undefined}
+                        onCopilot={handleStartWithCopilot}
+                        copilotDisabled={createDisabled}
                     />
                 )}
             </StepBody>
