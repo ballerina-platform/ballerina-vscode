@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.converters.JsonToTypeMapper;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyTypeMemberInfo;
 import io.ballerina.flowmodelgenerator.core.model.TypeData;
+import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
@@ -486,7 +487,30 @@ public class TypesManagerService implements ExtendedLanguageServerService {
         return CompletableFuture.supplyAsync(() -> {
             RecordValueGenerateResponse response = new RecordValueGenerateResponse();
             try {
-                response.setRecordValue(RecordValueGenerator.generate(request.type().getAsJsonObject()));
+                JsonObject typeJson = request.type().getAsJsonObject();
+
+                // A type constraint surfaces a top-level union ambiguity; codedata alone is enough to probe the
+                // concrete type for a nested ambiguity. Either is sufficient to attempt cast resolution.
+                String typeConstraint = request.typeConstraint();
+                if ((typeConstraint != null && !typeConstraint.isBlank()) || request.codedata() != null) {
+                    // Probing is best-effort: an invalid typeConstraint/codedata/filePath must never fail the
+                    // request — fall back to the bare value the endpoint would have produced before.
+                    try {
+                        Path filePath = PathUtil.convertUriStringToPath(request.filePath());
+                        WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
+                        Project project = workspaceManager.loadProject(filePath);
+                        Optional<Document> document = workspaceManager.document(filePath);
+                        Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
+                        if (document.isPresent() && semanticModel.isPresent()) {
+                            AmbiguousTypeCastResolver.applyAmbiguityCasts(project, document.get(),
+                                    semanticModel.get(), typeConstraint, request.codedata(), typeJson);
+                        }
+                    } catch (Throwable ignored) {
+                        // Best-effort cast probing failed; return the bare value below.
+                    }
+                }
+
+                response.setRecordValue(RecordValueGenerator.generate(typeJson));
             } catch (Throwable e) {
                 response.setError(e);
             }
