@@ -134,12 +134,12 @@
                             {
                               "fieldType": "TEXT",
                               "ballerinaType": "string",
-                              "selected": false
+                              "selected": true
                             },
-                                                        {
+                            {
                               "fieldType": "EXPRESSION",
                               "ballerinaType": "string",
-                              "selected": true
+                              "selected": false
                             }
                           ],
                           "enabled": true,
@@ -166,12 +166,12 @@
                             {
                               "fieldType": "TEXT",
                               "ballerinaType": "string",
-                              "selected": false
+                              "selected": true
                             },
-                                                        {
+                            {
                               "fieldType": "EXPRESSION",
                               "ballerinaType": "string",
-                              "selected": true
+                              "selected": false
                             }
                           ],
                           "enabled": true,
@@ -196,9 +196,14 @@
                           },
                           "types": [
                             {
-                              "fieldType": "EXPRESSION",
+                              "fieldType": "TEXT",
                               "ballerinaType": "string",
                               "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
                             }
                           ],
                           "enabled": true,
@@ -290,6 +295,9 @@
                           "fieldType": "FORM",
                           "selected": true
                         }
+                      ],
+                      "importStatements": [
+                        "ballerinax/aws.auth"
                       ],
                       "properties": {
                         "defaultCredentialsValue": {
@@ -844,7 +852,5 @@
       "path": "ServiceConfig.queueUrl"
     }
   ],
-  "importStatements": [
-    "ballerinax/aws.auth"
-  ]
+  "importStatements": []
 }
