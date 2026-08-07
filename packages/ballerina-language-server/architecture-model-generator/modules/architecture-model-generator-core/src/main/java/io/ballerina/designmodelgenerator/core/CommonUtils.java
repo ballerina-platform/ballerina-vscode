@@ -72,6 +72,7 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String KNOWLEDGE_BASE_TYPE_NAME = "KnowledgeBase";
+    private static final String DATA_LOADER_TYPE_NAME = "DataLoader";
     private static final String FIXED_TYPED_AGENT_TYPE_NAME = "FixedTypedAgent";
     private static final String DEPENDENTLY_TYPED_AGENT_TYPE_NAME = "DependentlyTypedAgent";
 
@@ -319,9 +320,15 @@ public class CommonUtils {
         return classSymbol != null && hasAiTypeInclusion(classSymbol, KNOWLEDGE_BASE_TYPE_NAME);
     }
 
+    public static boolean isAiDataLoader(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, DATA_LOADER_TYPE_NAME);
+    }
+
     public static boolean isHiddenAiClass(Symbol symbol) {
         return isAgentClass(symbol) || isAiFixedTypedAgent(symbol) || isAiDependentlyTypedAgent(symbol)
-                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol);
+                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol)
+                || isAiDataLoader(symbol);
     }
 
     private static boolean hasAiTypeInclusion(ObjectTypeSymbol objectTypeSymbol, String includedTypeName) {

@@ -90,6 +90,7 @@ import java.util.stream.Stream;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDataLoader;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiVectorStore;
@@ -863,7 +864,8 @@ public class ModelGenerator {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
                     isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol) ||
-                    isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol)) {
+                    isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol) ||
+                    isAiDataLoader(typeSymbol)) {
                 return true;
             }
         }
