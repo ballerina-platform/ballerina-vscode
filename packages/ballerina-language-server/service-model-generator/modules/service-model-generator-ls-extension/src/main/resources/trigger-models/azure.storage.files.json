@@ -1290,7 +1290,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Row Schema",
+                      "label": "Content Schema",
                       "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
@@ -1348,7 +1348,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1373,7 +1373,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1469,8 +1469,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1885,7 +1885,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1910,7 +1910,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2006,8 +2006,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2412,7 +2412,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2437,7 +2437,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2533,8 +2533,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2935,7 +2935,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2960,7 +2960,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3056,8 +3056,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3458,7 +3458,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "File properties: path, name, size, eTag and last-modified time."
+                "description": "File properties such as path, name, size, eTag and last-modified time."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -3483,7 +3483,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "File properties: path, name, size, eTag and last-modified time."
+                  "description": "File properties such as path, name, size, eTag and last-modified time."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3579,8 +3579,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {

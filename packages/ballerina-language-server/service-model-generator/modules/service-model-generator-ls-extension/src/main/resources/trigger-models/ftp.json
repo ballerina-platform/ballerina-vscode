@@ -929,26 +929,6 @@
                 "optional": false,
                 "advanced": false,
                 "properties": {
-                  "rows": {
-                    "metadata": {
-                      "label": "Rows",
-                      "description": "Each row of the file arrives as one record."
-                    },
-                    "value": true,
-                    "types": [
-                      {
-                        "fieldType": "METADATA_FLAG",
-                        "selected": true
-                      }
-                    ],
-                    "enabled": true,
-                    "editable": false,
-                    "optional": false,
-                    "advanced": false,
-                    "codedata": {
-                      "type": "METADATA_FLAG"
-                    }
-                  },
                   "stream": {
                     "metadata": {
                       "label": "Stream (Large Files)",
@@ -978,7 +958,7 @@
                   },
                   "payload": {
                     "metadata": {
-                      "label": "Row Schema",
+                      "label": "Content Schema",
                       "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
@@ -1047,7 +1027,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1072,7 +1052,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1168,8 +1148,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -1587,7 +1567,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -1612,7 +1592,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -1708,8 +1688,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2127,7 +2107,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2152,7 +2132,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2248,8 +2228,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -2653,7 +2633,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -2678,7 +2658,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -2774,8 +2754,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {
@@ -3207,7 +3187,7 @@
             {
               "metadata": {
                 "label": "File Metadata (fileInfo)",
-                "description": "Additional file properties such as size, modification time and permissions."
+                "description": "File properties such as size, modification time and permissions."
               },
               "kind": "OPTIONAL",
               "type": {
@@ -3232,7 +3212,7 @@
               "name": {
                 "metadata": {
                   "label": "fileInfo",
-                  "description": "Additional file properties such as size, modification time and permissions."
+                  "description": "File properties such as size, modification time and permissions."
                 },
                 "placeholder": "fileInfo",
                 "value": "fileInfo",
@@ -3328,8 +3308,8 @@
           "properties": {
             "afterFileProcessing": {
               "metadata": {
-                "label": "After File Processing",
-                "description": "@ftp:FunctionConfig \u2014 actions performed on the source file after a handler runs."
+                "label": "File Handling Options",
+                "description": "What happens to the source file after the handler runs."
               },
               "types": [
                 {

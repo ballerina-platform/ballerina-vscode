@@ -127,7 +127,7 @@
     "properties": {
       "afterFileProcessing": {
         "metadata": {
-          "label": "After File Processing",
+          "label": "File Handling Options",
           "description": "@ftp:FunctionConfig — actions performed on the source file after a handler runs."
         },
         "codedata": {
