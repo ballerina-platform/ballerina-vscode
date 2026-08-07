@@ -22,6 +22,8 @@ import { cloneDeep } from "lodash";
 import { URI, Utils } from "vscode-uri";
 import { BALLERINA } from "../../../constants";
 
+const KNOWN_AGENT_NAME_SUFFIXES = ["agent", "model"];
+
 export const AI_WSO2_MODEL_PROVIDER = "wso2ModelProvider";
 
 const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
@@ -40,6 +42,63 @@ const OPENAI_PROVIDER_CODEDATA: CodeData = {
     object: "OpenAiProvider",
     symbol: "init",
 };
+
+export function toCamelCase(name: string): string {
+    const words = name.trim().split(/[\s_]+/).filter(Boolean);
+    if (words.length === 0) return "";
+    const firstWord = words[0];
+    // Lowercase leading acronyms: "HR" -> "hr", "HTMLParser" -> "htmlParser"
+    const leadingUpper = firstWord.match(/^[A-Z]+/);
+    let lowerFirst: string;
+    if (leadingUpper && leadingUpper[0].length === firstWord.length) {
+        lowerFirst = firstWord.toLowerCase();
+    } else if (leadingUpper && leadingUpper[0].length > 1) {
+        lowerFirst = leadingUpper[0].slice(0, -1).toLowerCase() + firstWord.slice(leadingUpper[0].length - 1);
+    } else {
+        lowerFirst = firstWord.charAt(0).toLowerCase() + firstWord.slice(1);
+    }
+    return lowerFirst + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
+}
+
+export function toBaseName(name: string): string {
+    const camel = toCamelCase(name);
+    // Strip known suffixes to avoid e.g. "salesAgentAgent"
+    const lower = camel.toLowerCase();
+    for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
+        if (lower.endsWith(suffix) && lower.length > suffix.length) {
+            return camel.slice(0, -suffix.length);
+        }
+    }
+    return camel;
+}
+
+export interface CreatedBuiltInAgent {
+    agentVarName: string;
+    modelVarName: string;
+    baseName: string;
+    // True when the shared WSO2 default model provider was used. The caller is responsible for
+    // invoking configureDefaultModelProvider() at the point that fits its flow.
+    usedDefaultModelProvider: boolean;
+}
+
+export const fetchAgentNodeTemplate = async (
+    rpcClient: BallerinaRpcClient,
+    projectPath: string
+): Promise<FlowNode> => {
+    const aiModuleOrg = await getAiModuleOrg(rpcClient);
+    const agentSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
+        filePath: projectPath,
+        queryMap: { orgName: aiModuleOrg },
+        searchKind: "AGENT",
+    });
+    const agentNode = agentSearchResponse?.categories?.[0]?.items?.[0] as AvailableNode | undefined;
+    if (!agentNode) {
+        throw new Error("No agent node found in search response");
+    }
+    return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
+};
+
+export const ZERO_LINE_RANGE: LineRange = { startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } };
 
 function refreshNodeLineRangeFromArtifacts(
     node: FlowNode,
@@ -94,26 +153,6 @@ export const resolveAgentNodePosition = async (
         : undefined;
 };
 
-export function toCamelCase(name: string): string {
-    const words = name.trim().split(/[\s_]+/).filter(Boolean);
-    if (words.length === 0) return "";
-    const firstWord = words[0];
-    const leadingUpper = firstWord.match(/^[A-Z]+/);
-    let lowerFirst: string;
-    if (leadingUpper && leadingUpper[0].length === firstWord.length) {
-        lowerFirst = firstWord.toLowerCase();
-    } else if (leadingUpper && leadingUpper[0].length > 1) {
-        lowerFirst = leadingUpper[0].slice(0, -1).toLowerCase() + firstWord.slice(leadingUpper[0].length - 1);
-    } else {
-        lowerFirst = firstWord.charAt(0).toLowerCase() + firstWord.slice(1);
-    }
-    return lowerFirst + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("");
-}
-
-export function toBaseName(name: string): string {
-    return toCamelCase(name).replace(/^(.+?)(?:agent|model)$/i, "$1");
-}
-
 export interface CreatedBuiltInAgent {
     agentVarName: string;
     modelVarName: string;
@@ -152,27 +191,6 @@ export const ensureModelProvider = async (
     }
 
     return { modelVarName, usedDefaultModelProvider: modelProviderCodedata.symbol === GET_DEFAULT_MODEL_PROVIDER };
-};
-
-/**
- * Fetches the AGENT node template for the project's AI module. The template exposes the friendly
- * `role`/`instructions` fields (the raw `systemPrompt` record is hidden and reconstructed by the LS).
- */
-export const fetchAgentNodeTemplate = async (
-    rpcClient: BallerinaRpcClient,
-    projectPath: string
-): Promise<FlowNode> => {
-    const aiModuleOrg = await getAiModuleOrg(rpcClient);
-    const agentSearchResponse = await rpcClient.getBIDiagramRpcClient().search({
-        filePath: projectPath,
-        queryMap: { orgName: aiModuleOrg },
-        searchKind: "AGENT",
-    });
-    const agentNode = agentSearchResponse?.categories?.[0]?.items?.[0] as AvailableNode | undefined;
-    if (!agentNode) {
-        throw new Error("No agent node found in search response");
-    }
-    return getNodeTemplate(rpcClient, agentNode.codedata, projectPath);
 };
 
 export const createBuiltInAgent = async (
@@ -222,6 +240,37 @@ export const fetchOAuthConfigProperties = async (
     } catch (error) {
         console.error("Error fetching OAuth config properties:", error);
         return [];
+    }
+};
+
+/**
+ * The agent's own `run` return type, for prefilling Result Type. `string` for a dependently-typed
+ * agent, the baked type for a fixed-typed one.
+ */
+export const fetchAgentRunReturnType = async (
+    rpcClient: BallerinaRpcClient,
+    filePath: string,
+    agentVarName: string,
+    hostClassName?: string
+): Promise<string> => {
+    try {
+        const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+            position: { line: 0, offset: 0 },
+            filePath,
+            id: {
+                node: "AGENT_TOOL",
+                data: {
+                    toolKind: "AGENT_CALL",
+                    agentVarName,
+                    ...(hostClassName ? { hostClassName } : {}),
+                },
+            } as CodeData,
+        });
+        const value = (response?.flowNode?.properties as any)?.type?.value;
+        return typeof value === "string" ? value.trim() : "";
+    } catch (error) {
+        console.error("Error resolving the agent run return type:", error);
+        return "";
     }
 };
 
@@ -616,12 +665,14 @@ export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, desc
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
-    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string): FlowNode {
+    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string,
+    returnType?: string): FlowNode {
     const data: AgentToolData = {
         toolKind: "AGENT_CALL",
         agentVarName,
         includeContext,
         description,
+        ...(returnType?.trim() ? { returnType: returnType.trim() } : {}),
         ...(agentReceiver ? { agentReceiver } : {}),
         ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
     };

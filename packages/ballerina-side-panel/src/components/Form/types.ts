@@ -58,6 +58,9 @@ export type FormField = {
     dynamicFormFields?: { [key: string]: FormField[] }
     paramManagerProps?: ParamConfig;
     types: InputType[];
+    hideModeSwitcher?: boolean;
+    growRange?: { start: number; offset: number };
+    group?: string;
     groupNo?: number;
     groupName?: string;
     addNewButton?: boolean;
@@ -81,6 +84,15 @@ export type FormField = {
         showMarkers?: boolean;
         valueFormatter?: (value: number) => string;
     };
+};
+
+/** A collapsible section of fields, declared by the form host. */
+export type FieldGroup = {
+    /** Matches `FormField.group`. */
+    id: string;
+    label: string;
+    /** Pass false when the group holds a required empty field, so Save can't fail unseen. */
+    defaultCollapsed?: boolean;
 };
 
 export type ParameterValue = {

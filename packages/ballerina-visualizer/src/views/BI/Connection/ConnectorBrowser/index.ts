@@ -16,18 +16,19 @@
  * under the License.
  */
 
-const base = require('@wso2/test-config/jest-preset');
-
-module.exports = {
-    ...base,
-    rootDir: '.',
-    moduleNameMapper: {
-        ...base.moduleNameMapper,
-        // Local file mock (keeps existing behavior for this package).
-        '\\.(svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$': '<rootDir>/src/test/fileMock.js',
-        '^@wso2/ballerina-side-panel$': '<rootDir>/../ballerina-side-panel/src/utils/formatMethodName.ts',
-    },
-    // These unit tests mock @wso2/ballerina-core and use the pre-built CJS libs,
-    // so no node_modules (incl. @wso2 packages) need transformation.
-    transformIgnorePatterns: ['node_modules/'],
-};
+export { ConnectorBrowser, WizardStep } from "./ConnectorBrowser";
+export type { ActionSelection } from "./ConnectorBrowser";
+export { ConnectorActionList } from "./ConnectorActionList";
+export { ConnectorList } from "./ConnectorList";
+export {
+    actionDisplayLabel,
+    buildConnectionSelectField,
+    displayResourcePath,
+    fetchConnectorActions,
+    firstSentence,
+    formatActionLabel,
+    formatResourceSignature,
+    normalizeConnectorSearchCategories,
+    REST_RESOURCE_PATH,
+    toResourcePathTemplate,
+} from "./connectorActions";

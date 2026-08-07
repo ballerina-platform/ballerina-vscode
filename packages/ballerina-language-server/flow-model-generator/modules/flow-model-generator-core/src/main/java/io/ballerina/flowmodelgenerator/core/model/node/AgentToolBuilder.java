@@ -27,6 +27,7 @@ import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
@@ -99,6 +100,7 @@ public class AgentToolBuilder extends NodeBuilder {
     public static final String AGENT_RECEIVER_KEY = "agentReceiver";
     public static final String INCLUDE_CONTEXT_KEY = "includeContext";
     public static final String HOST_CLASS_NAME_KEY = "hostClassName";
+    public static final String RETURN_TYPE_KEY = "returnType";
 
     private static final String RUN = "run";
     private static final String RESPONSE_VAR = "response";
@@ -114,8 +116,34 @@ public class AgentToolBuilder extends NodeBuilder {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         properties().functionNameTemplate("tool", context.getAllVisibleSymbolNames());
-        FunctionDefinitionBuilder.setMandatoryProperties(this, "", "", "");
+        FunctionDefinitionBuilder.setMandatoryProperties(this, resolveTemplateReturnType(context), "", "");
         FunctionDefinitionBuilder.setOptionalProperties(this);
+    }
+
+    /**
+     * The return type to prefill for an agent-call tool: the agent's own {@code run} return type,
+     * which is concrete for a fixed-typed agent and {@code string} for a dependently-typed one.
+     */
+    private static String resolveTemplateReturnType(TemplateContext context) {
+        Codedata codedata = context.codedata();
+        Map<String, Object> data = codedata != null ? codedata.data() : null;
+        if (data == null || !ToolKind.AGENT_CALL.name().equals(dataString(data, TOOL_KIND_KEY, ""))) {
+            return "";
+        }
+        String agentVarName = dataString(data, AGENT_VAR_NAME_KEY, "");
+        if (agentVarName.isBlank()) {
+            return "";
+        }
+        try {
+            context.workspaceManager().loadProject(context.filePath());
+            SemanticModel semanticModel = context.workspaceManager().semanticModel(context.filePath()).orElse(null);
+            ModuleInfo hostModule = resolveHostModule(context.filePath(), context.workspaceManager());
+            return resolveAgentRunReturnType(semanticModel, agentVarName, hostModule, null,
+                    context.workspaceManager(), context.filePath(),
+                    dataString(data, HOST_CLASS_NAME_KEY, null));
+        } catch (Throwable e) {
+            return "";
+        }
     }
 
     @Override
@@ -426,6 +454,10 @@ public class AgentToolBuilder extends NodeBuilder {
 
             @Override
             ReturnInfo resolveReturn(ToolGenContext ctx) {
+                String chosen = dataString(ctx.data, RETURN_TYPE_KEY, "").trim();
+                if (!chosen.isEmpty()) {
+                    return new ReturnInfo(chosen, true, "The response from the " + ctx.agentVarName + " agent.");
+                }
                 ModuleInfo hostModule = resolveHostModule(ctx.filePath, ctx.workspaceManager);
                 String typeName = resolveAgentRunReturnType(ctx.semanticModel, ctx.agentVarName, hostModule, ctx.sb,
                         ctx.workspaceManager, ctx.filePath, ctx.hostClassName);
@@ -913,11 +945,13 @@ public class AgentToolBuilder extends NodeBuilder {
         if (optReturn.isEmpty() || hasInferredTypedescReturn(runMethod, optReturn.get())) {
             return "string";
         }
-        acceptTypeImports(optReturn.get(), hostModule, sourceBuilder);
         String signature = CommonUtils.getTypeSignature(semanticModel, optReturn.get(), true, hostModule);
-        if (signature.isBlank() || signature.equals("anydata") || signature.equals("()")) {
+        if (signature.isBlank() || signature.equals("anydata") || signature.equals("()")
+                || isInferredTypedescReturn(runMethod, signature)) {
             return "string";
         }
+        // Only a concrete type is worth importing; a dependent one is not emitted.
+        acceptTypeImports(optReturn.get(), hostModule, sourceBuilder);
         return signature;
     }
 
@@ -937,6 +971,23 @@ public class AgentToolBuilder extends NodeBuilder {
         return names.contains(type.getName().orElse(""));
     }
 
+    /**
+     * Whether {@code run} returns its own inferred {@code typedesc} parameter, as
+     * {@code ai:DependentlyTypedAgent} does with {@code typedesc<Trace|anydata> td = <>} returning
+     * {@code td|Error}. That name means nothing outside the method's signature, so emitting it
+     * produces a tool that does not compile.
+     */
+    private static boolean isInferredTypedescReturn(MethodSymbol runMethod, String returnSignature) {
+        Optional<List<ParameterSymbol>> params = runMethod.typeDescriptor().params();
+        if (params.isEmpty()) {
+            return false;
+        }
+        return params.get().stream()
+                .filter(param -> CommonUtils.getRawType(param.typeDescriptor()).typeKind() == TypeDescKind.TYPEDESC)
+                .map(param -> param.getName().orElse(""))
+                .anyMatch(name -> !name.isBlank() && name.equals(returnSignature));
+    }
+
     private static ModuleInfo resolveHostModule(Path filePath, WorkspaceManager workspaceManager) {
         try {
             workspaceManager.loadProject(filePath);
@@ -947,6 +998,10 @@ public class AgentToolBuilder extends NodeBuilder {
     }
 
     private static void acceptTypeImports(TypeSymbol typeSymbol, ModuleInfo hostModule, SourceBuilder sourceBuilder) {
+        if (sourceBuilder == null) {
+            // Resolving for a template preview; there is no source to add imports to.
+            return;
+        }
         if (typeSymbol instanceof UnionTypeSymbol union) {
             union.memberTypeDescriptors().forEach(member -> acceptTypeImports(member, hostModule, sourceBuilder));
             return;

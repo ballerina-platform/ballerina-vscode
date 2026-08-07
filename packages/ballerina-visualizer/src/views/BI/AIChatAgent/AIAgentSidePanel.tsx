@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { NodeList, Category as PanelCategory, FormField, FormImports, FormValues, MarkdownDescription } from "@wso2/ballerina-side-panel";
@@ -64,10 +64,29 @@ import { buildAgentToolFields, createDefaultParameterValue, createToolInputField
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
 import { FUNCTION_CALL, METHOD_CALL, REMOTE_ACTION_CALL, RESOURCE_ACTION_CALL } from "../../../constants";
 import { NewToolSelectionMode } from "./NewTool";
-import { fetchOAuthConfigProperties } from "./utils";
+import { fetchOAuthConfigProperties, ZERO_LINE_RANGE } from "./utils";
 import { updateResourcePathProperty } from "./agentTools";
 import { AddConnectionPopupContent } from "../Connection/AddConnectionPopup/AddConnectionPopupContent";
 import { ConnectionConfigurationForm } from "../Connection/ConnectionConfigurationPopup";
+import {
+    ActionSelection,
+    ConnectorBrowser,
+    WizardStep,
+    buildConnectionSelectField,
+    displayResourcePath,
+} from "../Connection/ConnectorBrowser";
+import {
+    INCLUDE_CONTEXT_KEY,
+    OAUTH_GROUP,
+    RESULT_TYPE_GROUP,
+    TOOL_INPUT_GROUP,
+    buildIncludeContextField,
+    buildToolFormGroups,
+    getExistingToolNames,
+    resourceToolNameSeed,
+    suggestToolName,
+} from "./toolForm";
+import { useCreateNode } from "../../../components/ConnectionSelector/useCreateNode";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import {
     BackButton,
@@ -99,53 +118,6 @@ const PopupLoaderContainer = styled.div`
     p {
         font-size: 13px;
     }
-`;
-
-const ImplementationInfoContainer = styled.div`
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-top: 20px;
-    margin-top: -4px;
-    border-top: 1px solid var(--vscode-editorWidget-border);
-`;
-
-const ImplementationInfo = styled.div`
-    display: flex;
-    align-items: center;
-    background-color: var(--vscode-input-background);
-    border: 1px solid var(--vscode-editorWidget-border);
-    padding: 10px 10px;
-    border-radius: 4px;
-    margin-top: 4px;
-    overflow: hidden;
-    p {
-        margin: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-`;
-
-const ImplementationDescription = styled.span`
-    color: var(--vscode-list-deemphasizedForeground)
-`;
-
-const ContextOption = styled.label`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-`;
-
-const ContextHint = styled.div`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 2px;
-    line-height: 1.4;
 `;
 
 const DependencyFormContainer = styled.div`
@@ -378,6 +350,8 @@ export enum SidePanelView {
     CONNECTOR_SELECT = "CONNECTOR_SELECT",
     DEPENDENCY_FORM = "DEPENDENCY_FORM",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
+    /** Connector-first browsing (connector -> action) for CONNECTION mode. */
+    CONNECTOR_WIZARD = "CONNECTOR_WIZARD",
 }
 
 export interface ConnectionDependencyConfig {
@@ -410,11 +384,14 @@ export interface ExtendedAgentToolRequest {
     functionNode?: FunctionNode;
     flowNode?: FlowNode;
     parameterImports?: { [prefix: string]: string };
+    /** Variable name the action is invoked on. */
+    connectionName?: string;
 }
 
 // Ensure "io", "log", and "time" module functions always appear under "Standard Library",
 // even if they've been imported (which moves them to "Imported Functions" from the LS)
 const STANDARD_LIB_MODULES = ["io", "log", "time"];
+
 function ensureStandardLibModules(categories: PanelCategory[]): PanelCategory[] {
     const stdLib = categories.find((cat) => cat.title === "Standard Library");
     const imported = categories.find((cat) => cat.title?.includes("Imported"));
@@ -452,8 +429,17 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const { rpcClient } = useRpcContext();
     const dependencyMode = Boolean(connectionDependency);
 
-    const [sidePanelView, setSidePanelView] = useState<SidePanelView>(SidePanelView.NODE_LIST);
+    // Dependency mode is excluded: its connections must be class members, not module-level.
+    const connectorFirst = mode === NewToolSelectionMode.CONNECTION && !dependencyMode;
+
+    const [sidePanelView, setSidePanelView] = useState<SidePanelView>(
+        connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST
+    );
     const [categories, setCategories] = useState<PanelCategory[]>([]);
+    // Back handler for the wizard's current step.
+    const wizardBackRef = useRef<(() => void) | undefined>(undefined);
+    // Connector of the chosen action; unset when the action came from an existing connection.
+    const connectorRef = useRef<AvailableNode | undefined>(undefined);
     const [selectedNodeCodeData, setSelectedNodeCodeData] = useState<CodeData>(undefined);
     const [toolNodeId, setToolNodeId] = useState<string>(undefined);
 
@@ -465,7 +451,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const [fields, setFields] = useState<FormField[]>(INITIAL_FIELDS);
     const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
     const [showOAuthConfig, setShowOAuthConfig] = useState<boolean>(false);
-    const [includeContext, setIncludeContext] = useState<boolean>(false);
 
     const targetRef = useRef<LineRange>(
         dependencyMode && agentNode?.codedata?.lineRange
@@ -494,6 +479,14 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     const oauthConfigPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
     const isSelectingNodeRef = useRef<boolean>(false);
 
+    // Backs the "Create New <Connector>" link. Modal, like the agent creation flow.
+    const handleCreateNode = useCreateNode(
+        agentFilePath.current,
+        targetRef.current,
+        () => { void fetchNodes(true); },
+        { preferModal: true }
+    );
+
     // Create custom diagnostic filter for Tool Input parameters
     const customDiagnosticFilter = useCallback((diagnostics: Diagnostic[]) => {
         if (!parameterFieldsRef.current || parameterFieldsRef.current.length === 0) {
@@ -518,28 +511,50 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
     useEffect(() => {
         if (sidePanelView === SidePanelView.TOOL_FORM) {
             onViewChange?.(SidePanelView.TOOL_FORM, () => {
-                setSidePanelView(SidePanelView.NODE_LIST);
-                setFields(INITIAL_FIELDS);
-                onViewChange?.(SidePanelView.NODE_LIST);
+                // Back from the tool form returns to the action list, not the root list.
+                const target = connectorFirst ? SidePanelView.CONNECTOR_WIZARD : SidePanelView.NODE_LIST;
+                resetToolForm();
+                setSidePanelView(target);
+                onViewChange?.(target, connectorFirst ? wizardBackRef.current : undefined);
             });
+        } else if (sidePanelView === SidePanelView.CONNECTOR_WIZARD) {
+            onViewChange?.(SidePanelView.CONNECTOR_WIZARD, wizardBackRef.current);
         } else {
             onViewChange?.(SidePanelView.NODE_LIST);
         }
     }, [sidePanelView]);
 
+    /** Clear anything carried from a previous action selection. */
+    const resetToolForm = () => {
+        setFields(INITIAL_FIELDS);
+        setRecordTypeFields([]);
+        setShowOAuthConfig(false);
+        connectorRef.current = undefined;
+        flowNode.current = null;
+        functionNode.current = null;
+        oauthConfigPropertiesRef.current = [];
+        parameterFieldsRef.current = [];
+    };
+
+    /** "receiver -> action". No connection is bound yet, so fall back to the connector name. */
     const getImplementationString = (codeData: CodeData | undefined): string => {
         if (!codeData) {
             return "";
         }
+        const receiver = codeData.parentSymbol
+            || connectorRef.current?.metadata?.label
+            || codeData.object
+            || codeData.module
+            || "";
         switch (codeData.node) {
             case RESOURCE_ACTION_CALL:
-                return `${codeData.parentSymbol} -> ${codeData.symbol} ${codeData.resourcePath}`;
+                return `${receiver} -> ${codeData.symbol} ${displayResourcePath(codeData.resourcePath)}`;
             case REMOTE_ACTION_CALL:
-                return `${codeData.parentSymbol} -> ${codeData.symbol}`;
+                return `${receiver} -> ${codeData.symbol}`;
             case FUNCTION_CALL:
                 return `${codeData.symbol}`;
             case METHOD_CALL:
-                return `${codeData.parentSymbol} -> ${codeData.symbol}`;
+                return `${receiver} -> ${codeData.symbol}`;
             default:
                 return "";
         }
@@ -562,11 +577,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         });
     }, [rpcClient]);
 
-    const fetchNodes = async () => {
-        setLoading(true);
+    const fetchNodes = async (silent = false) => {
+        const settleLoading = () => { if (!silent) setLoading(false); };
+        if (!silent) setLoading(true);
 
         if (mode === NewToolSelectionMode.CUSTOM_TOOL) {
-            setLoading(false);
+            settleLoading();
             return;
         }
 
@@ -578,7 +594,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 setCategories(categories);
                 initialCategoriesRef.current = categories;
             } catch { } finally {
-                setLoading(false);
+                settleLoading();
             }
             return;
         }
@@ -627,6 +643,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     });
                 }
                 connectionsCategory.at(0).items = filteredConnectionsCategory;
+
             }
             const convertedCategories = convertBICategoriesToSidePanelCategories(connectionsCategory);
             if (dependencyMode) {
@@ -664,7 +681,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setCategories(filteredCategories);
             initialCategoriesRef.current = filteredCategories;
         } finally {
-            setLoading(false);
+            settleLoading();
         }
     };
 
@@ -762,7 +779,32 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         return extractRecordTypeFieldsFromEntries(entries);
     };
 
-    const loadFunctionCallFields = async (node: AvailableNode): Promise<void> => {
+    // Return-type fields get their own card; the supported-types docs dwarf the form.
+    const isResultTypeField = (field: FormField) =>
+        field.key === "type"
+        || field.key === "targetType"
+        || field.key === "rowType"
+        || field.codedata?.kind === "PARAM_FOR_TYPE_INFER"
+        || getPrimaryInputType(field.types)?.fieldType === "TYPE";
+
+    /** Mappings default to identity, so both paths put them in collapsible cards. */
+    const buildGroupedInputFields = (toolInputFields: FormField[], parameterFields: FormField[]): FormField[] =>
+        [
+            // First row of the inputs card: ctx is prepended to the tool's parameter list.
+            buildIncludeContextField(TOOL_INPUT_GROUP) as FormField,
+            ...toolInputFields,
+            ...parameterFields.map((field) => ({
+                ...field,
+                value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value,
+            })),
+        ].map((field) => ({
+            ...field,
+            group: isResultTypeField(field) ? RESULT_TYPE_GROUP : TOOL_INPUT_GROUP,
+            // The advanced split is redundant inside a card.
+            advanced: false,
+        }));
+
+    const loadFunctionCallFields = async (node: AvailableNode, options?: { suggestedToolName?: string }): Promise<void> => {
         try {
             const functionNodeResponse = await rpcClient.getBIDiagramRpcClient().getFunctionNode({
                 functionName: node.codedata.symbol,
@@ -834,28 +876,39 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
             setFields((prevFields) => [
-                ...prevFields.map((field) =>
-                    field.key === "description" ? { ...field, value: templateDescription } : field
-                ),
-                ...toolInputFields,
-                ...functionParameterFields.map(field => ({
-                    ...field,
-                    value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value
-                })),
-                ...oauthFields,
+                ...prevFields.map((field) => {
+                    if (field.key === "description") {
+                        return { ...field, value: templateDescription };
+                    }
+                    if (field.key === "name" && options?.suggestedToolName) {
+                        return { ...field, value: options.suggestedToolName };
+                    }
+                    return field;
+                }),
+                ...buildGroupedInputFields(toolInputFields, functionParameterFields),
+                ...oauthFields.map((field) => ({ ...field, group: OAUTH_GROUP, advanced: false })),
             ]);
         } catch (error) {
             console.error(">>> Error fetching function node or template", error);
         }
     };
 
-    const loadConnectionCallFields = async (node: AvailableNode): Promise<void> => {
+    const loadConnectionCallFields = async (
+        node: AvailableNode,
+        options?: { connectionName?: string; suggestedToolName?: string; connector?: AvailableNode }
+    ): Promise<void> => {
         try {
             const nodeTemplate = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: { line: 0, offset: 0 },
                 filePath: agentFilePath.current,
                 id: node.codedata,
             });
+
+            // `connection` is the receiver the LS renders; library templates leave it unset.
+            const connectionProperty = nodeTemplate.flowNode?.properties?.connection as Property | undefined;
+            if (options?.connectionName && connectionProperty) {
+                connectionProperty.value = options.connectionName;
+            }
 
             if (nodeTemplate.flowNode) {
                 // Remove imports from optional+advanced properties to avoid unnecessary imports in genTool
@@ -869,7 +922,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 }
                 flowNode.current = nodeTemplate.flowNode;
             } else {
-                console.error("Node template flowNode not found");
+                console.error("Node template flowNode not found", { response: nodeTemplate });
             }
 
             const nodeParameterFields = nodeTemplate.flowNode?.properties
@@ -877,7 +930,26 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 : [];
 
             const toolInputFields = createToolInputFields(prepareToolInputFields(nodeParameterFields));
-            const templateDescription = stripCodeFences(nodeTemplate.flowNode?.metadata?.description || "");
+            // Swap the hidden `connection` property for a reference select, shown first.
+            let connectionField: FormField | undefined;
+            if (options?.connector) {
+                const connectionIndex = nodeParameterFields.findIndex((field) => field.key === "connection");
+                const ballerinaType = getPrimaryInputType(
+                    nodeParameterFields[connectionIndex]?.types
+                )?.ballerinaType;
+                connectionField = buildConnectionSelectField(
+                    options.connector.codedata,
+                    ballerinaType,
+                    options.connectionName ?? ""
+                ) as unknown as FormField;
+                if (connectionIndex >= 0) {
+                    nodeParameterFields.splice(connectionIndex, 1);
+                }
+            }
+            // Resource-action templates have no metadata description; fall back to the docs one.
+            const templateDescription = stripCodeFences(
+                nodeTemplate.flowNode?.metadata?.description || node.metadata?.description || ""
+            );
             let oauthFields: FormField[] = [];
             const oauthProperties = await fetchOAuthConfigProperties(rpcClient, agentFilePath.current);
             oauthConfigPropertiesRef.current = oauthProperties;
@@ -892,20 +964,38 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             const oauthRecordTypeFields = extractRecordTypeFieldsFromEntries(oauthProperties);
             setRecordTypeFields([...nodeRecordTypeFields, ...oauthRecordTypeFields]);
 
+            const groupedInputFields = buildGroupedInputFields(toolInputFields, nodeParameterFields);
+
             setFields((prevFields) => [
-                ...prevFields.map((field) =>
-                    field.key === "description" ? { ...field, value: templateDescription } : field
-                ),
-                ...toolInputFields,
-                ...nodeParameterFields.map(field => ({
-                    ...field,
-                    value: typeof field.value === 'string' ? field.value.replace(/^\$/, '') : field.value
-                })),
-                ...oauthFields,
+                ...prevFields.map((field) => {
+                    if (field.key === "description") {
+                        return { ...field, value: templateDescription };
+                    }
+                    if (field.key === "name" && options?.suggestedToolName) {
+                        return { ...field, value: options.suggestedToolName };
+                    }
+                    return field;
+                }),
+                ...(connectionField ? [connectionField] : []),
+                ...groupedInputFields,
+                ...oauthFields.map((field) => ({ ...field, group: OAUTH_GROUP, advanced: false })),
             ]);
         } catch (error) {
             console.error(">>> Error fetching node template", error);
         }
+    };
+
+    /** A unique tool name derived from the action, e.g. `append` -> `appendTool`. */
+    const suggestToolNameForAction = (codedata: CodeData | undefined): string | undefined => {
+        const symbol = codedata?.symbol;
+        if (!symbol) {
+            return undefined;
+        }
+        // A resource action's symbol is just `get`/`post`, so name it after the endpoint too.
+        const seed = codedata?.node === RESOURCE_ACTION_CALL && codedata?.resourcePath
+            ? resourceToolNameSeed(symbol, codedata.resourcePath)
+            : symbol;
+        return suggestToolName(seed, getExistingToolNames(agentNode));
     };
 
     const handleOnSelectNode = async (nodeId: string, metadata?: any) => {
@@ -920,10 +1010,41 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             setSelectedNodeCodeData(node.codedata);
 
             if (nodeId === FUNCTION_CALL) {
-                await loadFunctionCallFields(node);
+                await loadFunctionCallFields(node, {
+                    suggestedToolName: suggestToolNameForAction(node.codedata),
+                });
             } else if (nodeId === REMOTE_ACTION_CALL || nodeId === RESOURCE_ACTION_CALL || nodeId === METHOD_CALL) {
-                await loadConnectionCallFields(node);
+                await loadConnectionCallFields(node, {
+                    suggestedToolName: suggestToolNameForAction(node.codedata),
+                });
             }
+
+            setSidePanelView(SidePanelView.TOOL_FORM);
+        } finally {
+            setLoading(false);
+            isSelectingNodeRef.current = false;
+        }
+    };
+
+    /** Action chosen: open the tool form, where the connection is just another field. */
+    const handleWizardSelect = async (selection: ActionSelection) => {
+        if (isSelectingNodeRef.current) return;
+        isSelectingNodeRef.current = true;
+        setLoading(true);
+
+        try {
+            const { action, connector, connectionName } = selection;
+            connectorRef.current = connector;
+
+            setToolNodeId(action.codedata.node);
+            selectedNodeRef.current = action;
+            setSelectedNodeCodeData(action.codedata);
+
+            await loadConnectionCallFields(action, {
+                connectionName,
+                connector,
+                suggestedToolName: suggestToolNameForAction(action.codedata),
+            });
 
             setSidePanelView(SidePanelView.TOOL_FORM);
         } finally {
@@ -1202,9 +1323,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     }
                 });
             }
-        } else if ((toolNodeId === REMOTE_ACTION_CALL || toolNodeId === RESOURCE_ACTION_CALL || toolNodeId === METHOD_CALL) && Array.isArray(data["parameters"])) {
+        } else if (toolNodeId === REMOTE_ACTION_CALL || toolNodeId === RESOURCE_ACTION_CALL || toolNodeId === METHOD_CALL) {
+            // Clone regardless of tool inputs; some templates expose no `parameters` field.
             clonedFlowNode = flowNode.current ? cloneDeep(flowNode.current) : null;
-            toolParameters = updateToolParameters(data["parameters"]);
+            if (Array.isArray(data["parameters"])) {
+                toolParameters = updateToolParameters(data["parameters"]);
+            }
 
             // Update flowNode parameter values from data["parameters"]
             if (clonedFlowNode?.properties && typeof clonedFlowNode?.properties === "object" && !Array.isArray(clonedFlowNode?.properties)) {
@@ -1237,6 +1361,11 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             clonedFlowNode.properties.variable.value = flowNode.current?.properties?.variable?.value || cleanName + "Result";
         }
 
+        // Already applied to the node properties above; read it back for the request.
+        const chosenConnection = String(
+            data["connection"] ?? clonedFlowNode?.properties?.connection?.value ?? ""
+        ).trim();
+
         // Inject OAuth client config into codedata.data.auth
         const targetNode = clonedFunctionNode || clonedFlowNode;
         if (targetNode && showOAuthConfig) {
@@ -1265,14 +1394,17 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         const toolModel: ExtendedAgentToolRequest = {
             toolName: cleanName,
             description: data["description"],
-            includeContext,
+            includeContext: data[INCLUDE_CONTEXT_KEY] === true,
             selectedCodeData: selectedNodeCodeData,
             toolParameters: toolParameters,
             functionNode: clonedFunctionNode,
             flowNode: clonedFlowNode,
             parameterImports: paramImports,
+            connectionName: chosenConnection || undefined,
         };
         console.log("New Agent Tool:", toolModel);
+
+
         setSubmittingTool(true);
         try {
             await onSubmit(toolModel);
@@ -1281,11 +1413,17 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
         }
     };
 
+    const toolFormGroups = useMemo(() => buildToolFormGroups(fields), [fields]);
+
     let searchPlaceholder = "Search";
+    let listDescription: string | undefined;
     if (mode === NewToolSelectionMode.CONNECTION) {
         searchPlaceholder = "Search connections";
     } else if (mode === NewToolSelectionMode.FUNCTION) {
         searchPlaceholder = "Search functions";
+        listDescription =
+            "Pick a function from your integration or from a library. " +
+            "The function you choose becomes the tool.";
     }
 
     const isConnectionPopupOpen =
@@ -1308,7 +1446,37 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     <RelativeLoader />
                 </LoaderContainer>
             )}
-            {!loading && sidePanelView !== SidePanelView.TOOL_FORM && displayedCategories.length > 0 && (
+            {/* Stays mounted so Back returns to the action list instead of restarting. */}
+            {connectorFirst && (
+                <div
+                    style={{
+                        display: sidePanelView === SidePanelView.CONNECTOR_WIZARD && !loading ? "contents" : "none",
+                    }}
+                >
+                    <ConnectorBrowser
+                        filePath={agentFilePath.current}
+                        target={targetRef.current.startLine}
+                        existingConnectionCategories={categories}
+                        connectorSet="GROUPED"
+                        description="Pick an existing connection or a connector to browse its actions."
+                        noActionsHint="You can still add it as a connection and create the tool from an action later."
+                        onSelect={handleWizardSelect}
+                        onStepChange={(step, goBack) => {
+                            wizardBackRef.current = goBack;
+                            // Keep the host's back arrow in sync.
+                            onViewChange?.(
+                                step === WizardStep.CONNECTOR_LIST
+                                    ? SidePanelView.NODE_LIST
+                                    : SidePanelView.CONNECTOR_WIZARD,
+                                goBack
+                            );
+                        }}
+                    />
+                </div>
+            )}
+            {/* Legacy list. The wizard owns every list view in connector-first mode. */}
+            {!loading && !connectorFirst && sidePanelView !== SidePanelView.TOOL_FORM
+                && displayedCategories.length > 0 && (
                 <NodeList
                     categories={displayedCategories}
                     onSelect={handleOnSelectNode}
@@ -1317,6 +1485,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                     onAddFunction={() => handleOnAddFunction(MACHINE_VIEW.BIFunctionForm, DIRECTORY_MAP.FUNCTION)}
                     onSearchTextChange={mode !== NewToolSelectionMode.CONNECTION ? (searchText) => handleSearchFunction(searchText, FUNCTION_TYPE.REGULAR, true) : undefined}
                     title={"Functions"}
+                    description={listDescription}
                     searchPlaceholder={searchPlaceholder}
                     panelBodySx={{ height: "calc(100vh - 140px)" }}
                     alwaysCollapsedCategories={["Imported Functions"]}
@@ -1540,10 +1709,12 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 <ArtifactForm
                     preserveFieldOrder={false}
                     fileName={agentFilePath.current}
-                    targetLineRange={{ startLine: { line: 0, offset: 0 }, endLine: { line: 0, offset: 0 } }}
+                    targetLineRange={ZERO_LINE_RANGE}
                     fields={fields}
                     recordTypeFields={recordTypeFields}
                     onSubmit={handleToolSubmit}
+                    onCreateNode={handleCreateNode}
+                    groups={toolFormGroups}
                     submitText={"Save Tool"}
                     isSaving={submittingTool}
                     helperPaneSide="left"
@@ -1569,48 +1740,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                 </ImplementationBadge>
                             ),
                             index: 0,
-                        },
-                        {
-                            component: (
-                                <ImplementationInfoContainer>
-                                    <p style={{ margin: "0px", fontWeight: "bold" }}>Implementation</p>
-                                    <ImplementationDescription>Configure how tool inputs map to the {mode === NewToolSelectionMode.CONNECTION ? "connection" : "function"}.</ImplementationDescription>
-                                    <ImplementationInfo title={getImplementationString(selectedNodeRef.current.codedata)}>
-                                        <p>{getImplementationString(selectedNodeRef.current.codedata)}</p>
-                                    </ImplementationInfo>
-                                </ImplementationInfoContainer>
-                            ),
-                            index: 3,
-                        },
-                        ...(showOAuthConfig ? [{
-                            component: (
-                                <ImplementationInfoContainer>
-                                    <p style={{ margin: "0px", fontWeight: "bold" }}>OAuth Client Configuration</p>
-                                    <ImplementationDescription>Represents the OAuth 2.0 client configuration required to interact with an external Authorization Server and validate issued access tokens.</ImplementationDescription>
-                                </ImplementationInfoContainer>
-                            ),
-                            index: fields.filter((f) => f.advanced && !f.hidden).length - oauthConfigPropertiesRef.current.length,
-                            advanced: true,
-                        }] : []),
-                        {
-                            component: (
-                                <ContextOption>
-                                    <input
-                                        type="checkbox"
-                                        checked={includeContext}
-                                        onChange={(event) => setIncludeContext(event.target.checked)}
-                                    />
-                                    <div>
-                                        Pass agent context
-                                        <ContextHint>
-                                            Adds ai:Context ctx as the first parameter so this tool can access the
-                                            invoking agent's context.
-                                        </ContextHint>
-                                    </div>
-                                </ContextOption>
-                            ),
-                            index: 0,
-                            advanced: true,
                         },
                     ]}
                 />

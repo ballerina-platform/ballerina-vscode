@@ -975,6 +975,7 @@ export type SearchQueryParams = {
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
     source?: string;
+    connectorSet?: "GROUPED";
 }
 
 export type SearchKind =

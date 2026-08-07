@@ -572,11 +572,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 setShowProgressIndicator(false);
                 showEditForm.current = false;
                 return;
-                }
+            }
 
-                nodeTemplateRef.current = response.flowNode;
-                showEditForm.current = true;
-            })
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = true;
+        })
             .finally(() => {
                 setShowProgressIndicator(false);
             });

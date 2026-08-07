@@ -76,6 +76,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const filterKey = hasFilters
         ? nodeReferenceFilters!.map((f) => `${f.module ?? ""}:${f.object ?? ""}`).join("|")
         : "";
+    const startLineKey = `${targetLineRange?.startLine?.line}:${targetLineRange?.startLine?.offset}`;
     const applyNodeReferenceFilter = (items: NodeReferenceSelectItem[]): NodeReferenceSelectItem[] => {
         if (!hasFilters) return items;
         return items.filter(item =>
@@ -92,10 +93,10 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const [loading, setLoading] = useState<boolean>(!!searchNodesKind && !itemsPreloaded);
     const requestIdRef = useRef(0);
 
-    const fetchItems = () => {
+    const fetchItems = (silent = false) => {
         const requestId = ++requestIdRef.current;
         if (!searchNodesKind || itemsPreloaded) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
         rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: fileName,
             position: targetLineRange.startLine,
@@ -115,9 +116,14 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                         iconUrl,
                     };
                 });
-            setSelectItems(ensureValueInItems(
+            const resolved = ensureValueInItems(
                 applyNodeReferenceFilter([...staticItems, ...items]), value, searchNodesKind
-            ));
+            );
+            setSelectItems(resolved);
+            // Fetched items arrive after the mount-time staticItems preselect.
+            if (!value && resolved.length > 0) {
+                onChange(resolved[0].value, resolved[0].value.length);
+            }
         }).finally(() => {
             if (requestId === requestIdRef.current) setLoading(false);
         });
@@ -131,7 +137,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             return;
         }
         fetchItems();
-    }, [queryKey, fileName, targetLineRange.startLine, filterKey, itemsPreloaded]);
+    }, [queryKey, fileName, startLineKey, filterKey, itemsPreloaded]);
 
     useEffect(() => {
         if (!value && staticItems.length > 0) {
@@ -142,7 +148,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     useEffect(() => {
         if (!value || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
-        fetchItems();
+        fetchItems(true);
     }, [value]);
 
     const showCreateNew = !!onCreateNode && !!searchNodesKind && field.editable && !field.actionCallback;
