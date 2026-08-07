@@ -19,6 +19,7 @@
 package io.ballerina.flowmodelgenerator.extension;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
@@ -134,17 +135,17 @@ public class TypesManagerService implements ExtendedLanguageServerService {
             try {
                 Path filePath = PathUtil.convertUriStringToPath(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get(request.filePath());
-                workspaceManager.loadProject(filePath);
-                Optional<Document> document = workspaceManager.document(filePath);
-                Optional<SemanticModel> semanticModel = workspaceManager.semanticModel(filePath);
-                if (document.isEmpty() || semanticModel.isEmpty()) {
+                Optional<FileSystemUtils.ModuleModel> moduleModel =
+                        FileSystemUtils.resolveModuleModel(workspaceManager, filePath);
+                if (moduleModel.isEmpty()) {
+                    response.setTypes(new JsonArray());
                     return response;
                 }
-                TypesManager typesManager = new TypesManager(document.get());
-                JsonElement allTypes = typesManager.getAllTypes(semanticModel.get());
+                TypesManager typesManager = new TypesManager(moduleModel.get().document());
+                JsonElement allTypes = typesManager.getAllTypes(moduleModel.get().semanticModel());
                 response.setTypes(allTypes);
             } catch (Throwable e) {
-                throw new RuntimeException(e);
+                response.setError(e);
             }
             return response;
         });

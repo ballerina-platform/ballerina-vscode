@@ -22,6 +22,8 @@ import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
@@ -121,6 +123,59 @@ public class FileSystemUtils {
         Package currentPackage = project.currentPackage();
         return PackageUtil.getCompilation(currentPackage)
                 .getSemanticModel(currentPackage.getDefaultModule().moduleId());
+    }
+
+    /**
+     * Represents the document and the semantic model of a module.
+     *
+     * @param document      a document belonging to the module
+     * @param semanticModel the semantic model of the module
+     * @since 1.0.0
+     */
+    public record ModuleModel(Document document, SemanticModel semanticModel) {
+    }
+
+    /**
+     * Resolves the document and the semantic model of the module that the given path belongs to, without creating the
+     * file when it is absent.
+     * <p>
+     * If the file exists, its own document and semantic model are returned. Otherwise, the package is located from the
+     * parent directory of the path, and a document of the resolved module is returned instead. This suits requests that
+     * are scoped to a module rather than to a single file, such as retrieving every type of a package.
+     *
+     * @param workspaceManager the workspace manager used to load the project
+     * @param filePath         the path of the file, which need not exist on disk
+     * @return the module model, or empty if the resolved module holds no documents
+     * @throws ProjectException           if the package of the given path cannot be located
+     * @throws WorkspaceDocumentException if an error occurs while loading the project
+     * @throws EventSyncException         if an error occurs while publishing the project update event
+     */
+    public static Optional<ModuleModel> resolveModuleModel(WorkspaceManager workspaceManager, Path filePath)
+            throws WorkspaceDocumentException, EventSyncException {
+        if (Files.exists(filePath)) {
+            workspaceManager.loadProject(filePath);
+            Optional<Document> document = workspaceManager.document(filePath);
+            if (document.isPresent()) {
+                return Optional.of(new ModuleModel(document.get(), getSemanticModel(workspaceManager, filePath)));
+            }
+        }
+
+        Path parentPath = filePath.getParent();
+        if (parentPath == null) {
+            return Optional.empty();
+        }
+
+        // ProjectPaths.packageRoot() resolves the package root of any directory within the package. Hence, the parent
+        // directory is used to locate the project of a file that does not exist on disk.
+        Project project = workspaceManager.loadProject(parentPath);
+        Package currentPackage = project.currentPackage();
+        Module module = workspaceManager.module(parentPath).orElseGet(currentPackage::getDefaultModule);
+        Optional<DocumentId> documentId = module.documentIds().stream().findFirst();
+        if (documentId.isEmpty()) {
+            return Optional.empty();
+        }
+        SemanticModel semanticModel = PackageUtil.getCompilation(currentPackage).getSemanticModel(module.moduleId());
+        return Optional.of(new ModuleModel(module.document(documentId.get()), semanticModel));
     }
 
     /**
