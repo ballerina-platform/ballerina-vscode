@@ -136,6 +136,36 @@ public class FileSystemUtils {
     }
 
     /**
+     * Loads the project that the given path belongs to, without creating the file when it is absent.
+     * <p>
+     * If the file exists, the project is loaded from the file itself. Otherwise, it is located from the parent
+     * directory of the path. This suits requests that are scoped to a project rather than to a single file, such as
+     * searching for the available connectors while the file that holds them is yet to be created.
+     *
+     * @param workspaceManager the workspace manager used to load the project
+     * @param filePath         the path of the file, which need not exist on disk
+     * @return the project the given path belongs to
+     * @throws ProjectException           if the package of the given path cannot be located
+     * @throws WorkspaceDocumentException if an error occurs while loading the project
+     * @throws EventSyncException         if an error occurs while publishing the project update event
+     */
+    public static Project resolveProject(WorkspaceManager workspaceManager, Path filePath)
+            throws WorkspaceDocumentException, EventSyncException {
+        if (Files.exists(filePath)) {
+            return workspaceManager.loadProject(filePath);
+        }
+
+        // ProjectPaths.packageRoot() rejects a path that does not exist on disk, while it resolves the package root
+        // of any directory within the package. Hence, the parent directory is used to locate the project of a file
+        // that does not exist on disk.
+        Path parentPath = filePath.getParent();
+        if (parentPath == null) {
+            throw new ProjectException("Failed to locate the package of the path: " + filePath);
+        }
+        return workspaceManager.loadProject(parentPath);
+    }
+
+    /**
      * Resolves the document and the semantic model of the module that the given path belongs to, without creating the
      * file when it is absent.
      * <p>
@@ -165,9 +195,7 @@ public class FileSystemUtils {
             return Optional.empty();
         }
 
-        // ProjectPaths.packageRoot() resolves the package root of any directory within the package. Hence, the parent
-        // directory is used to locate the project of a file that does not exist on disk.
-        Project project = workspaceManager.loadProject(parentPath);
+        Project project = resolveProject(workspaceManager, filePath);
         Package currentPackage = project.currentPackage();
         Module module = workspaceManager.module(parentPath).orElseGet(currentPackage::getDefaultModule);
         Optional<DocumentId> documentId = module.documentIds().stream().findFirst();
