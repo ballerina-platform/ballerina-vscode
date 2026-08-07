@@ -1,0 +1,6 @@
+[package]
+org = "wso2"
+name = "shopify_stripe_integration"
+version = "0.2.0"
+title = "shopify_stripe_integration"
+distribution= "2201.13.1"
