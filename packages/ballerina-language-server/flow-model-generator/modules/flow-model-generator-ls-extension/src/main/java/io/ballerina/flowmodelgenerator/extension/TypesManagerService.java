@@ -40,7 +40,6 @@ import io.ballerina.flowmodelgenerator.core.model.TypeData;
 import io.ballerina.flowmodelgenerator.core.type.AmbiguousTypeCastResolver;
 import io.ballerina.flowmodelgenerator.core.type.RecordValueGenerator;
 import io.ballerina.flowmodelgenerator.core.type.TypeSymbolAnalyzerFromTypeModel;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.extension.request.DeleteTypeRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FilePathRequest;
 import io.ballerina.flowmodelgenerator.extension.request.FindTypeRequest;
@@ -62,6 +61,7 @@ import io.ballerina.flowmodelgenerator.extension.response.TypeOfExpressionRespon
 import io.ballerina.flowmodelgenerator.extension.response.TypeResponse;
 import io.ballerina.flowmodelgenerator.extension.response.TypeUpdateResponse;
 import io.ballerina.flowmodelgenerator.extension.response.VerifyTypeDeleteResponse;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
