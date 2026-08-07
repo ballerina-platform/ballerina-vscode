@@ -23,15 +23,18 @@ import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
-import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
+import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManagerProxy;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -88,9 +91,9 @@ public class DocumentContext {
             return Optional.of(project);
         }
         try {
-            project = workspaceManager().loadProject(inputFilePath);
+            project = FileSystemUtils.resolveProject(workspaceManager(), inputFilePath);
             return Optional.of(project);
-        } catch (Exception ignored) {
+        } catch (RuntimeException | WorkspaceDocumentException | EventSyncException ignored) {
             return Optional.empty();
         }
     }
@@ -152,8 +155,13 @@ public class DocumentContext {
         if (initialized) {
             return;
         }
+
+        Optional<Project> optProject = project();
+        if (optProject.isEmpty()) {
+            throw new IllegalStateException("Project not found for the file: " + inputFilePath);
+        }
+
         // Check if the document exists
-        PackageUtil.loadProject(workspaceManager(), inputFilePath);
         Optional<Document> inputDoc;
         try {
             inputDoc = workspaceManager.document(inputFilePath);
@@ -169,17 +177,18 @@ public class DocumentContext {
             return;
         }
 
-        // Generate the reserved file if not exists
-        Optional<Module> optModule = workspaceManager().module(inputFilePath);
+        // Resolve the module that the file belongs to. WorkspaceManager.module() cannot resolve a path that does not
+        // exist on disk. Hence, the parent directory is used for such a file.
+        Path modulePath = Files.exists(inputFilePath) ? inputFilePath : inputFilePath.getParent();
+        if (modulePath == null) {
+            throw new IllegalStateException("Module not found for the file: " + inputFilePath);
+        }
+        Optional<Module> optModule = workspaceManager().module(modulePath);
         if (optModule.isPresent()) {
             module = optModule.get();
         } else {
             // Get the default module if not exists
-            Optional<Project> project = project();
-            if (project.isEmpty()) {
-                throw new IllegalStateException("Project not found for the file: " + inputFilePath);
-            }
-            module = project.get().currentPackage().getDefaultModule();
+            module = optProject.get().currentPackage().getDefaultModule();
         }
 
         // If the file is not found, it defaults to the end of a random file. Although we can create a
@@ -193,7 +202,7 @@ public class DocumentContext {
         }
         DocumentId documentId = documentIds.iterator().next();
         document = module.document(documentId);
-        filePath = inputFilePath.resolve(document.name());
+        filePath = modulePath.resolve(document.name());
         fileUri = CommonUtils.getExprUri(filePath.toString());
         initialized = true;
     }
