@@ -1076,8 +1076,8 @@
     },
     "path": {
       "metadata": {
-        "label": "Monitoring Path",
-        "description": "The folder on the share to monitor for file actions (e.g., /uploads or /incoming); / watches the share root"
+        "label": "Monitored Path",
+        "description": "The folder on the share to monitor for file actions (e.g., /uploads or /incoming)"
       },
       "types": [
         {
@@ -1239,7 +1239,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+            "description": "Invoked when a .csv file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
             "addLabel": "Add On Create Handler (CSV)",
             "badge": "onCreate"
           },
@@ -1257,7 +1257,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+          "documentation": "Handles a newly created CSV file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileCsv",
@@ -1268,13 +1268,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "types": [
                   {
@@ -1291,7 +1291,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Row Schema",
-                      "description": "Define or select the bound row type (T); content is delivered as T[]. Defaults to string[] rows."
+                      "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
                     "enabled": false,
@@ -1321,7 +1321,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                  "description": "Define a row schema below to receive the rows as custom types (e.g., User[], Student[])."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -1766,7 +1766,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+            "description": "Invoked when a .json file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (JSON)",
             "badge": "onCreate"
           },
@@ -1784,7 +1784,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+          "documentation": "Handles a newly created JSON file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileJson",
@@ -1795,13 +1795,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "types": [
                   {
@@ -1818,7 +1818,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to map<json>). Bind a record type for schema-checked access; bare json is not supported."
+                      "description": "Create a record type describing the file content. Defaults to map<json>; bare json is not supported."
                     },
                     "value": "map<json>",
                     "enabled": true,
@@ -1858,7 +1858,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -2303,7 +2303,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+            "description": "Invoked when a .xml file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (XML)",
             "badge": "onCreate"
           },
@@ -2321,7 +2321,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+          "documentation": "Handles a newly created XML file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileXml",
@@ -2332,13 +2332,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "types": [
                   {
@@ -2355,7 +2355,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content Schema",
-                      "description": "Bound content type (defaults to xml). Bind a record type for schema-checked access."
+                      "description": "Create a record type describing the file content. Defaults to xml."
                     },
                     "value": "xml",
                     "enabled": false,
@@ -2385,7 +2385,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                  "description": "Define a schema below to receive the content as a custom type (e.g., User, Student)."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -2830,7 +2830,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles a file whose extension routes to the Text format (.txt).",
+            "description": "Invoked when a .txt file is created in the monitored directory. The content arrives as plain text.",
             "addLabel": "Add On Create Handler (Text)",
             "badge": "onCreate"
           },
@@ -2848,7 +2848,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles a file whose extension routes to the Text format (.txt).",
+          "documentation": "Handles a newly created text file.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFileText",
@@ -2859,13 +2859,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles a file whose extension routes to the Text format (.txt)."
+                "description": "The content arrives as plain text."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                  "description": "The content arrives as plain text."
                 },
                 "types": [
                   {
@@ -2882,7 +2882,7 @@
                   "payload": {
                     "metadata": {
                       "label": "Content",
-                      "description": "The text file content as a plain string."
+                      "description": "The file content as plain text."
                     },
                     "value": "string",
                     "enabled": false,
@@ -2908,7 +2908,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                  "description": "The content arrives as plain text."
                 },
                 "placeholder": "content",
                 "value": "content",
@@ -3353,7 +3353,7 @@
         {
           "metadata": {
             "label": "On Create",
-            "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+            "description": "Invoked when a file is created in the monitored directory. Handles any extension without a typed handler; the content arrives as raw, unparsed bytes.",
             "addLabel": "Add On Create Handler (Raw Bytes)",
             "badge": "onCreate"
           },
@@ -3371,7 +3371,7 @@
           "optional": true,
           "canAddParameters": false,
           "repeatable": "ONE_EACH_PER_GROUP",
-          "documentation": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+          "documentation": "Handles a newly created file as raw bytes.",
           "codedata": {
             "type": "FUNCTION",
             "originalName": "onFile",
@@ -3382,13 +3382,13 @@
             {
               "metadata": {
                 "label": "Content",
-                "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                "description": "The content arrives as raw, unparsed bytes."
               },
               "kind": "DATA_BINDING",
               "type": {
                 "metadata": {
                   "label": "Content",
-                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "types": [
                   {
@@ -3431,7 +3431,7 @@
               "name": {
                 "metadata": {
                   "label": "content",
-                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                  "description": "The content arrives as raw, unparsed bytes."
                 },
                 "placeholder": "content",
                 "value": "content",
