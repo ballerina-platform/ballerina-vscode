@@ -16,15 +16,16 @@
  *  under the License.
  */
 
-package io.ballerina.flowmodelgenerator.core.utils;
+package io.ballerina.modelgenerator.commons;
 
 import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.flowmodelgenerator.core.model.Codedata;
-import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
+import io.ballerina.projects.DocumentId;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
+import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -34,12 +35,13 @@ import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.TextDocumentItem;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A utility class for file system operations interacting with the Ballerina language server.
@@ -53,7 +55,8 @@ import java.util.Optional;
  */
 public class FileSystemUtils {
 
-    private static final List<Path> CREATED_FILES = new ArrayList<>();
+    // Two requests may create a file of the same package at once, and the list is iterated while it is written to.
+    private static final List<Path> CREATED_FILES = new CopyOnWriteArrayList<>();
 
     /**
      * Retrieves a document from the workspace manager for the given file path. If the file does not exist, it creates a
@@ -70,10 +73,7 @@ public class FileSystemUtils {
             // Create the file on disk first so that ProjectPaths.packageRoot() can locate the package root.
             // Without this, workspaceManager.document() throws ProjectException (not NoSuchElementException)
             // for non-existent files, bypassing the catch block below.
-            if (!Files.exists(filePath)) {
-                Files.createFile(filePath);
-                CREATED_FILES.add(filePath);
-            }
+            createFileIfAbsent(filePath);
             document = workspaceManager.document(filePath).orElseThrow();
         } catch (NoSuchElementException e) {
             // File exists on disk but is not yet loaded in the workspace; load it via didOpen.
@@ -97,6 +97,28 @@ public class FileSystemUtils {
             throw new RuntimeException("Error occurred while creating the file: " + filePath, e);
         }
         return document;
+    }
+
+    /**
+     * Creates the file when it is absent, and tolerates a creation that another request performs at the same time.
+     * <p>
+     * The check of the presence of the file and its creation cannot be atomic on the file system. Hence, the
+     * {@link FileAlreadyExistsException} of the loser of that race is held, since the file that it required is
+     * present by then, and the request that created it holds it for removal.
+     *
+     * @param filePath the path of the file to create
+     * @throws IOException if the file cannot be created
+     */
+    private static void createFileIfAbsent(Path filePath) throws IOException {
+        if (Files.exists(filePath)) {
+            return;
+        }
+        try {
+            Files.createFile(filePath);
+            CREATED_FILES.add(filePath);
+        } catch (FileAlreadyExistsException e) {
+            // Another request created the file first, and it holds the file for removal.
+        }
     }
 
     /**
@@ -124,6 +146,87 @@ public class FileSystemUtils {
     }
 
     /**
+     * Represents the document and the semantic model of a module.
+     *
+     * @param document      a document belonging to the module
+     * @param semanticModel the semantic model of the module
+     * @since 1.0.0
+     */
+    public record ModuleModel(Document document, SemanticModel semanticModel) {
+    }
+
+    /**
+     * Loads the project that the given path belongs to, without creating the file when it is absent.
+     * <p>
+     * If the file exists, the project is loaded from the file itself. Otherwise, it is located from the parent
+     * directory of the path. This suits requests that are scoped to a project rather than to a single file, such as
+     * searching for the available connectors while the file that holds them is yet to be created.
+     *
+     * @param workspaceManager the workspace manager used to load the project
+     * @param filePath         the path of the file, which need not exist on disk
+     * @return the project the given path belongs to
+     * @throws ProjectException           if the package of the given path cannot be located
+     * @throws WorkspaceDocumentException if an error occurs while loading the project
+     * @throws EventSyncException         if an error occurs while publishing the project update event
+     */
+    public static Project resolveProject(WorkspaceManager workspaceManager, Path filePath)
+            throws WorkspaceDocumentException, EventSyncException {
+        if (Files.exists(filePath)) {
+            return workspaceManager.loadProject(filePath);
+        }
+
+        // ProjectPaths.packageRoot() rejects a path that does not exist on disk, while it resolves the package root
+        // of any directory within the package. Hence, the parent directory is used to locate the project of a file
+        // that does not exist on disk.
+        Path parentPath = filePath.getParent();
+        if (parentPath == null) {
+            throw new ProjectException("Failed to locate the package of the path: " + filePath);
+        }
+        return workspaceManager.loadProject(parentPath);
+    }
+
+    /**
+     * Resolves the document and the semantic model of the module that the given path belongs to, without creating the
+     * file when it is absent.
+     * <p>
+     * If the file exists, its own document and semantic model are returned. Otherwise, the package is located from the
+     * parent directory of the path, and a document of the resolved module is returned instead. This suits requests that
+     * are scoped to a module rather than to a single file, such as retrieving every type of a package.
+     *
+     * @param workspaceManager the workspace manager used to load the project
+     * @param filePath         the path of the file, which need not exist on disk
+     * @return the module model, or empty if the resolved module holds no documents
+     * @throws ProjectException           if the package of the given path cannot be located
+     * @throws WorkspaceDocumentException if an error occurs while loading the project
+     * @throws EventSyncException         if an error occurs while publishing the project update event
+     */
+    public static Optional<ModuleModel> resolveModuleModel(WorkspaceManager workspaceManager, Path filePath)
+            throws WorkspaceDocumentException, EventSyncException {
+        if (Files.exists(filePath)) {
+            workspaceManager.loadProject(filePath);
+            Optional<Document> document = workspaceManager.document(filePath);
+            if (document.isPresent()) {
+                return Optional.of(new ModuleModel(document.get(), getSemanticModel(workspaceManager, filePath)));
+            }
+        }
+
+        Path parentPath = filePath.getParent();
+        if (parentPath == null) {
+            return Optional.empty();
+        }
+
+        Project project = resolveProject(workspaceManager, filePath);
+        Package currentPackage = project.currentPackage();
+        Module module = workspaceManager.module(parentPath).orElseGet(currentPackage::getDefaultModule);
+        Optional<DocumentId> documentId = module.documentIds().stream().findFirst();
+        if (documentId.isEmpty()) {
+            return Optional.empty();
+        }
+        SemanticModel semanticModel = PackageUtil.getCompilation(currentPackage).getSemanticModel(module.moduleId());
+        return Optional.of(new ModuleModel(module.document(documentId.get()), semanticModel));
+    }
+
+    /**
      * Creates a file at the specified path if it does not already exist in the workspace.
      * <p>
      * This method first attempts to load the project containing the specified file. If the project loads successfully,
@@ -142,8 +245,7 @@ public class FileSystemUtils {
         } catch (ProjectException e) {
             // Create a new file as it does not exist
             try {
-                Files.createFile(filePath);
-                CREATED_FILES.add(filePath);
+                createFileIfAbsent(filePath);
                 FileEvent fileEvent = new FileEvent(filePath.toUri().toString(), FileChangeType.Created);
                 workspaceManager.didChangeWatched(filePath, fileEvent);
             } catch (IOException | WorkspaceDocumentException fileCreationException) {
@@ -154,18 +256,18 @@ public class FileSystemUtils {
     }
 
     /**
-     * Resolves the file path based on the provided codedata and project root.
+     * Resolves the file path based on the provided line range and project root.
      * <p>
-     * If the codedata does not have a line range, returns the project root. Otherwise, resolves the file path by
-     * combining the project root with the filename from the codedata's line range.
+     * If the line range is not available, returns the project root. Otherwise, resolves the file path by combining
+     * the project root with the filename of the line range.
      *
-     * @param codedata    The codedata containing file information
+     * @param lineRange   The line range holding the file information
      * @param projectRoot The project root path
      * @return The resolved file path
      */
-    public static Path resolveFilePathFromCodedata(Codedata codedata, Path projectRoot) {
-        if (codedata.lineRange() != null) {
-            String fileName = codedata.lineRange().fileName();
+    public static Path resolveFilePathFromLineRange(LineRange lineRange, Path projectRoot) {
+        if (lineRange != null) {
+            String fileName = lineRange.fileName();
             Path actualProjectRoot = projectRoot;
             if (Files.isRegularFile(projectRoot)) {
                 Path parent = projectRoot.getParent();
@@ -194,5 +296,8 @@ public class FileSystemUtils {
                 throw new RuntimeException("Error occurred while deleting the file: " + path, e);
             }
         });
+        // The list is cleared so that it holds the files of the current test class alone, and so that it does not
+        // grow without a bound in a language server that is long lived.
+        CREATED_FILES.clear();
     }
 }

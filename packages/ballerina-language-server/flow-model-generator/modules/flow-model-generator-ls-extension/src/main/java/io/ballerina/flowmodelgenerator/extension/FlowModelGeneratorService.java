@@ -41,7 +41,6 @@ import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticRequest;
 import io.ballerina.flowmodelgenerator.core.diagnostics.DiagnosticsDebouncer;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.search.SearchCommand;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.extension.request.ClassMemberRequest;
 import io.ballerina.flowmodelgenerator.extension.request.ComponentDeleteRequest;
 import io.ballerina.flowmodelgenerator.extension.request.CopilotContextRequest;
@@ -71,6 +70,7 @@ import io.ballerina.flowmodelgenerator.extension.response.FlowNodeDeleteResponse
 import io.ballerina.flowmodelgenerator.extension.response.FunctionDefinitionResponse;
 import io.ballerina.flowmodelgenerator.extension.response.SearchNodesResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
@@ -727,7 +727,13 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
             try {
                 Path filePath = Path.of(request.filePath());
                 WorkspaceManager workspaceManager = this.workspaceManagerProxy.get();
-                Path projectPath = workspaceManager.projectRoot(filePath);
+                // The search is scoped to the project rather than to the requested file, and the file need not exist
+                // on disk yet (e.g., searching for connectors before connections.bal is created). Hence, resolve the
+                // project without requiring the file, instead of creating it.
+                Project project = FileSystemUtils.resolveProject(workspaceManager, filePath);
+                // The source root is used instead of WorkspaceManager.projectRoot() since the latter cannot resolve
+                // the package root of a file that is absent on disk.
+                Path projectPath = project.sourceRoot();
 
                 // Ensure functions.bal is loaded into the workspace before reading the project.
                 // loadProject returns a cached project that can predate a freshly-generated
@@ -740,7 +746,6 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                         ? Optional.ofNullable(FileSystemUtils.getDocument(workspaceManager, functionsBalPath))
                         : Optional.empty();
 
-                Project project = workspaceManager.loadProject(filePath);
                 SearchCommand.Kind searchKind = SearchCommand.Kind.valueOf(request.searchKind());
                 LineRange position = request.position();
                 if (request.position() != null) {
@@ -758,7 +763,9 @@ public class FlowModelGeneratorService implements ExtendedLanguageServerService 
                 SearchCommand command = SearchCommand.from(searchKind, project, position, request.queryMap(),
                         functionsDoc.orElse(null));
                 JsonArray categories = command.execute();
-                if (request.position() != null) {
+                // A document cannot be resolved for a file that does not exist, and such a file has no test function
+                // to be inside of either.
+                if (request.position() != null && Files.exists(filePath)) {
                     Optional<Document> document = workspaceManager.document(filePath);
                     LinePosition cursorPosition = request.position().startLine();
                     if (document.isPresent() &&
