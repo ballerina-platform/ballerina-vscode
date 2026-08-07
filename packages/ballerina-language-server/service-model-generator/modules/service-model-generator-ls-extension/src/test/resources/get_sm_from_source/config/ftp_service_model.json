@@ -1234,13 +1234,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Content Schema",
+              "label": "Row Schema",
               "description": "Create a record type describing one row of the file. Each row arrives as one record."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Content Schema",
+                "label": "Row Schema",
                 "description": "Create a record type describing one row of the file. Each row arrives as one record."
               },
               "codedata": {
@@ -1265,7 +1265,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Content Schema",
+                "label": "Row Schema",
                 "description": "Create a record type describing one row of the file. Each row arrives as one record."
               },
               "placeholder": "content",

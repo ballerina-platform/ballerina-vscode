@@ -1290,7 +1290,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Content Schema",
+                      "label": "Row Schema",
                       "description": "Create a record type describing one row of the file. Each row arrives as one record."
                     },
                     "value": "string[][]",
