@@ -420,6 +420,11 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
+const USAGE_TEXT_RIGHT_X = 190;
+const USAGE_LABEL_CHAR_WIDTH = 7.4;
+const USAGE_SERVICE_CHAR_WIDTH = 7.2;
+const USAGE_MENU_SIZE = 24;
+
 const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
     ai: { glyph: "comment-discussion", isCodicon: true },
     automation: { glyph: "bi-task" },
@@ -484,8 +489,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
     const [memoryMenuAnchorEl, setMemoryMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [memoryMenuButtonElement, setMemoryMenuButtonElement] = useState<HTMLElement | null>(null);
+    const [usageAnchorEl, setUsageAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
+    const [selectedUsage, setSelectedUsage] = useState<AgentUsage | null>(null);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
+    const isUsageMenuOpen = Boolean(usageAnchorEl);
     useEffect(() => {
         let active = true;
         if (variant !== "typedAgent" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
@@ -624,6 +632,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         handleToolMenuClose();
     };
 
+    const handleUsageMenuClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>, usage: AgentUsage) => {
+        event.stopPropagation();
+        setUsageAnchorEl(event.currentTarget);
+        setSelectedUsage(usage);
+    };
+
+    const handleUsageMenuClose = () => {
+        setUsageAnchorEl(null);
+        setSelectedUsage(null);
+    };
+
+    const onDeleteTrigger = (usage: AgentUsage) => {
+        agentNode?.onDeleteTrigger?.(usage, model.node);
+        handleUsageMenuClose();
+    };
+
     const onAddBreakpoint = () => {
         addBreakpoint && addBreakpoint(model.node);
         setAnchorEl(null);
@@ -728,6 +752,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         openView?.({ documentUri: usage.documentUri, position: usage.position });
     };
 
+    const canDeleteTrigger = (usage: AgentUsage) =>
+        !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
+
+    const usageMenuX = (usage: AgentUsage) => {
+        const chars = (text: string, limit: number) =>
+            Math.min(text.length, limit) + (text.length > limit ? 3 : 0);
+        const labelWidth = chars(usage.label, 20) * USAGE_LABEL_CHAR_WIDTH;
+        const serviceWidth = usage.serviceLabel
+            ? chars(usage.serviceLabel, 24) * USAGE_SERVICE_CHAR_WIDTH
+            : 0;
+        return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
+    };
+
     const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
     const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
@@ -808,6 +845,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         data-testid="agent-usage-row"
                         transform={`translate(0, ${index * AGENT_USAGE_ROW_PITCH})`}
                         onClick={() => onUsageClick(usage)}
+                        onContextMenu={(event) => {
+                            if (canDeleteTrigger(usage)) {
+                                event.preventDefault();
+                                handleUsageMenuClick(event as any, usage);
+                            }
+                        }}
                         css={css`
                             cursor: pointer;
                             > g {
@@ -821,6 +864,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             }
                             &:hover text {
                                 fill: ${ThemeColors.SECONDARY};
+                            }
+                            &:hover .usage-menu-button {
+                                opacity: 1;
+                                visibility: visible;
                             }
                         `}
                     >
@@ -851,7 +898,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         </foreignObject>
 
                         <text
-                            x="190"
+                            x={USAGE_TEXT_RIGHT_X}
                             y="20"
                             textAnchor="end"
                             fill={ThemeColors.ON_SURFACE}
@@ -864,7 +911,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         </text>
                         {usage.serviceLabel && (
                             <text
-                                x="190"
+                                x={USAGE_TEXT_RIGHT_X}
                                 y="36"
                                 textAnchor="end"
                                 fill={ThemeColors.ON_SURFACE_VARIANT}
@@ -889,6 +936,36 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
                             }}
                         />
+
+                        {canDeleteTrigger(usage) && (
+                            <foreignObject
+                                x={usageMenuX(usage)}
+                                y="12"
+                                width={USAGE_MENU_SIZE}
+                                height={USAGE_MENU_SIZE}
+                                className="usage-menu-button"
+                                data-testid="agent-usage-menu"
+                                css={css`
+                                    opacity: 0;
+                                    visibility: hidden;
+                                    transition: opacity 0.2s ease-in-out;
+                                    pointer-events: all;
+                                `}
+                            >
+                                <NodeStyles.MenuButton
+                                    appearance="icon"
+                                    onClick={(e) => handleUsageMenuClick(e, usage)}
+                                    css={css`
+                                        padding: 2px;
+                                        height: ${USAGE_MENU_SIZE}px;
+                                        width: ${USAGE_MENU_SIZE}px;
+                                        min-width: ${USAGE_MENU_SIZE}px;
+                                    `}
+                                >
+                                    <MoreVertIcon />
+                                </NodeStyles.MenuButton>
+                            </foreignObject>
+                        )}
                         </g>
                     </g>
                 ))}
@@ -912,6 +989,26 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         {`+${hiddenUsageCount} more`}
                     </text>
                 )}
+
+                <Popover
+                    open={isUsageMenuOpen}
+                    anchorEl={usageAnchorEl}
+                    handleClose={handleUsageMenuClose}
+                    sx={{ padding: 0, borderRadius: 0 }}
+                >
+                    <Menu>
+                        {selectedUsage && (
+                            <MenuItem
+                                key="delete-trigger"
+                                item={{
+                                    id: "deleteTrigger",
+                                    label: "Delete Trigger",
+                                    onClick: () => onDeleteTrigger(selectedUsage),
+                                }}
+                            />
+                        )}
+                    </Menu>
+                </Popover>
 
                 {showsAddTile && (
                     <g

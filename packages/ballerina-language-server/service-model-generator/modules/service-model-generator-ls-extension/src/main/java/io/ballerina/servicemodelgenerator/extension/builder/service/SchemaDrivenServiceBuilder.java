@@ -21,21 +21,18 @@ package io.ballerina.servicemodelgenerator.extension.builder.service;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
-import io.ballerina.servicemodelgenerator.extension.connector.AgentBindingRenderer;
 import io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolver;
 import io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolver;
 import io.ballerina.servicemodelgenerator.extension.connector.IncludedRecordBinder;
 import io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtil;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
-import io.ballerina.servicemodelgenerator.extension.connector.adapter.PropertyValueAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerReadOnlyMetadataAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerServiceAdapter;
 import io.ballerina.servicemodelgenerator.extension.connector.adapter.TriggerSourceMerger;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
 import io.ballerina.servicemodelgenerator.extension.model.MetaData;
-import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.Service;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
@@ -76,9 +73,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.ServiceModelUtil
 public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
 
     public static final String KIND = "schema-driven";
-    private static final String AGENT_NAME_PROPERTY = "agentName";
-    private static final String AGENT_ORG_PROPERTY = "agentOrg";
-    private static final String SESSION_SCOPE_PROPERTY = "sessionScope";
 
     @Override
     public String kind() {
@@ -99,61 +93,7 @@ public class SchemaDrivenServiceBuilder extends AbstractServiceBuilder {
         ServiceInitModel initModel = triggerInit.get();
         refreshListenerName(initModel, context);
         populateExistingListeners(initModel, context);
-        populateAgentBinding(initModel, context, version);
         return initModel;
-    }
-
-    private void populateAgentBinding(ServiceInitModel initModel, GetServiceInitModelContext context,
-                                      String version) {
-        String agentName = context.agentName();
-        if (agentName == null || agentName.isBlank()) {
-            return;
-        }
-        Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
-                .getSchemaDrivenTriggerModel(context.orgName(), context.moduleName(), version,
-                        context.isLocalRepository());
-        if (triggerModel.isEmpty() || triggerModel.get().agentBinding() == null) {
-            return;
-        }
-        TriggerUISchemaModel.AgentBinding binding = triggerModel.get().agentBinding();
-        initModel.addProperty(AGENT_NAME_PROPERTY, hiddenValue(agentName));
-        String agentOrgName = context.agentOrgName();
-        if (agentOrgName != null && !agentOrgName.isBlank()) {
-            initModel.addProperty(AGENT_ORG_PROPERTY, hiddenValue(agentOrgName));
-        }
-        if (binding.properties() != null) {
-            binding.properties().forEach((key, property) ->
-                    initModel.addProperty(key, PropertyValueAdapter.toValue(property)));
-        }
-        sessionScopeValue(binding).ifPresent(value -> initModel.addProperty(SESSION_SCOPE_PROPERTY, value));
-    }
-
-    private Optional<Value> sessionScopeValue(TriggerUISchemaModel.AgentBinding binding) {
-        List<TriggerUISchemaModel.SessionScope> scopes = binding.sessionScopes();
-        if (scopes == null || scopes.size() < 2) {
-            return Optional.empty();
-        }
-        TriggerUISchemaModel.SessionScope selected = AgentBindingRenderer.selectSessionScope(binding, null);
-        List<Option> options = scopes.stream()
-                .map(scope -> new Option(scope.label(), scope.id()))
-                .toList();
-        return Optional.of(new Value.ValueBuilder()
-                .metadata("Conversation Scope",
-                        "What counts as one conversation, and so what the agent remembers together.")
-                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT, options)))
-                .enabled(true)
-                .editable(true)
-                .value(selected == null ? "" : selected.id())
-                .build());
-    }
-
-    private Value hiddenValue(String value) {
-        return new Value.ValueBuilder()
-                .enabled(true)
-                .editable(false)
-                .setHidden(true)
-                .value(value)
-                .build();
     }
 
     @Override

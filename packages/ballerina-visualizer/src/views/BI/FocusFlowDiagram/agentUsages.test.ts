@@ -189,3 +189,121 @@ describe("findAgentUsages", () => {
         expect(findAgentUsages(model, { filePath: "/other.bal", startLine: 0 })).toEqual([]);
     });
 });
+
+const TRIGGERS_BAL = "/proj/triggers.bal";
+const WHATSAPP_SERVICE_UUID = "wa-service";
+const TELEGRAM_SERVICE_UUID = "tg-service";
+
+const triggerModel = {
+    ...model,
+    listeners: [
+        {
+            symbol: "whatsappListener",
+            location: { filePath: TRIGGERS_BAL, ...range(3) },
+            attachedServices: [WHATSAPP_SERVICE_UUID],
+            uuid: "wa-listener",
+        },
+        {
+            symbol: "telegramListener",
+            location: { filePath: TRIGGERS_BAL, ...range(40) },
+            attachedServices: [TELEGRAM_SERVICE_UUID, "some-other-service"],
+            uuid: "tg-listener",
+        },
+    ],
+    services: [
+        ...(model.services ?? []),
+        {
+            location: { filePath: TRIGGERS_BAL, ...range(5) },
+            attachedListeners: ["wa-listener"],
+            connections: [AGENT_UUID],
+            functions: [],
+            remoteFunctions: [
+                {
+                    name: "onMessages",
+                    location: { filePath: TRIGGERS_BAL, ...range(12) },
+                    connections: [AGENT_UUID],
+                },
+            ],
+            resourceFunctions: [],
+            absolutePath: "/whatsapp",
+            type: "whatsapp:WhatsAppService",
+            icon: "whatsapp.png",
+            uuid: WHATSAPP_SERVICE_UUID,
+            enableFlowModel: true,
+            sortText: "triggers.bal5",
+        },
+        {
+            location: { filePath: TRIGGERS_BAL, ...range(42) },
+            attachedListeners: ["tg-listener"],
+            connections: [AGENT_UUID],
+            remoteFunctions: [
+                {
+                    name: "onMessage",
+                    location: { filePath: TRIGGERS_BAL, ...range(48) },
+                    connections: [AGENT_UUID],
+                },
+            ],
+            resourceFunctions: [],
+            absolutePath: "/telegram",
+            type: "telegram:TelegramService",
+            functions: [
+                { name: "init", location: { filePath: TRIGGERS_BAL, ...range(44) }, connections: [] },
+                {
+                    name: "replyToTelegramMessage",
+                    location: { filePath: TRIGGERS_BAL, ...range(52) },
+                    connections: [AGENT_UUID],
+                },
+            ],
+            icon: "telegram.png",
+            uuid: TELEGRAM_SERVICE_UUID,
+            enableFlowModel: true,
+            sortText: "triggers.bal42",
+        },
+    ],
+} as unknown as CDModel;
+
+const CHANNELS = new Set(["whatsapp", "telegram"]);
+
+describe("findAgentUsages trigger payload", () => {
+    const usagesOf = (label: string) =>
+        findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .find((usage) => usage.label === label);
+
+    it("marks a channel service as a removable trigger, pointing at the service declaration", () => {
+        expect(usagesOf("onMessages")?.trigger).toMatchObject({
+            serviceName: "/whatsapp",
+            documentUri: TRIGGERS_BAL,
+            position: { startLine: 5, endLine: 6 },
+        });
+    });
+
+    it("takes the listener down with a trigger that is its only service", () => {
+        expect(usagesOf("onMessages")?.trigger?.listeners).toEqual([
+            {
+                symbol: "whatsappListener",
+                documentUri: TRIGGERS_BAL,
+                position: { startLine: 3, startColumn: 0, endLine: 4, endColumn: 1 },
+            },
+        ]);
+    });
+
+    it("leaves a listener alone while another service is still attached to it", () => {
+        expect(usagesOf("onMessage")?.trigger?.listeners).toEqual([]);
+    });
+
+    it("leaves an entry point the user wrote themselves un-deletable", () => {
+        expect(usagesOf("POST /chat")?.trigger).toBeUndefined();
+    });
+
+    it("gives a trigger one row, not one per function that reaches the agent", () => {
+        const telegramRows = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .filter((usage) => usage.type === "telegram:TelegramService");
+
+        expect(telegramRows.map((usage) => usage.label)).toEqual(["onMessage"]);
+    });
+
+    it("offers nothing to delete when the channel list could not be read", () => {
+        const usages = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 });
+        expect(usages.every((usage) => usage.trigger === undefined)).toBe(true);
+    });
+});

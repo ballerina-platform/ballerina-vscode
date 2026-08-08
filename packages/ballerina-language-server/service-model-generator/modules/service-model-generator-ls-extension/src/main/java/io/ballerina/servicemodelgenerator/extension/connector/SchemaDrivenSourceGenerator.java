@@ -33,9 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
-import java.util.stream.Stream;
 
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.argName;
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.fieldName;
@@ -97,10 +95,6 @@ public final class SchemaDrivenSourceGenerator {
     private static final String LISTENER_TYPE = "Listener";
     private static final String NEW = "new";
     private static final String ERROR = "error";
-    private static final String AGENT_NAME_PROPERTY = "agentName";
-    private static final String AGENT_ORG_PROPERTY = "agentOrg";
-    private static final String SESSION_SCOPE_PROPERTY = "sessionScope";
-    private static final String BALLERINA_ORG = "ballerina";
     // Default target for a CDC operation flag with no explicit `path` (the cdc convention).
     private static final String CDC_OPTIONS_FIELD = "options";
     private static final String CDC_SKIPPED_OPERATIONS_FIELD = "skippedOperations";
@@ -137,47 +131,22 @@ public final class SchemaDrivenSourceGenerator {
                                                                    ModulePartNode rootNode, String filePath) {
         List<TextEdit> edits = new ArrayList<>();
         String emitAlias = resolveEmitAlias(rootNode, filledInitForm, triggerModel);
-        AgentBindingRenderer.Bindings bindings = resolveAgentBindings(filledInitForm, triggerModel, emitAlias,
-                rootNode);
-        String imports = buildImports(filledInitForm, triggerModel, rootNode, emitAlias, bindings);
+        String imports = buildImports(filledInitForm, triggerModel, rootNode, emitAlias, List.of());
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }
         edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().endLine()),
-                buildServiceBlockForTrigger(filledInitForm, triggerModel, emitAlias, bindings)));
+                buildServiceBlockForTrigger(filledInitForm, triggerModel, emitAlias)));
         return Map.of(filePath, edits);
-    }
-
-    private static AgentBindingRenderer.Bindings resolveAgentBindings(ServiceInitModel filledInitForm,
-                                                                     TriggerUISchemaModel triggerModel,
-                                                                     String emitAlias, ModulePartNode rootNode) {
-        if (triggerModel == null || triggerModel.agentBinding() == null) {
-            return null;
-        }
-        Map<String, String> formValues = AgentBindingRenderer.flattenFormValues(filledInitForm.getProperties());
-        String agentVarName = formValues.get(AGENT_NAME_PROPERTY);
-        if (agentVarName == null || agentVarName.isBlank()) {
-            return null;
-        }
-        TriggerUISchemaModel.AgentBinding binding = triggerModel.agentBinding();
-        String agentOrgName = formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG);
-        return new AgentBindingRenderer.Bindings(
-                binding,
-                emitAlias,
-                agentVarName,
-                agentOrgName,
-                AgentBindingRenderer.selectSessionScope(binding, formValues.get(SESSION_SCOPE_PROPERTY)),
-                AgentBindingRenderer.uniqueReplyFunctionName(binding.replyFnName(), rootNode),
-                formValues);
     }
 
     /**
      * The connector import plus any additional imports the model declares in {@code importStatements}
-     * (each an {@code org/module} reference). Each is emitted only when not already present in the file.
+     * (each an {@code org/module} reference), plus {@code extraModuleRefs} the caller's generated body
+     * needs. Each is emitted only when not already present in the file.
      */
-    private static String buildImports(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
-                                       ModulePartNode rootNode, String emitAlias,
-                                       AgentBindingRenderer.Bindings bindings) {
+    public static String buildImports(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
+                                      ModulePartNode rootNode, String emitAlias, List<String> extraModuleRefs) {
         StringBuilder imports = new StringBuilder();
         if (!Utils.importExists(rootNode, filledInitForm.getOrgName(), filledInitForm.getModuleName())) {
             imports.append(Utils.getImportStmt(filledInitForm.getOrgName(), filledInitForm.getModuleName(),
@@ -187,9 +156,7 @@ public final class SchemaDrivenSourceGenerator {
         if (triggerModel != null && triggerModel.importStatements() != null) {
             moduleRefs.addAll(triggerModel.importStatements());
         }
-        if (bindings != null && bindings.binding().imports() != null) {
-            moduleRefs.addAll(bindings.binding().imports());
-        }
+        moduleRefs.addAll(extraModuleRefs);
         for (String moduleRef : moduleRefs) {
             if (moduleRef == null) {
                 continue;
@@ -225,28 +192,16 @@ public final class SchemaDrivenSourceGenerator {
      */
     public static String buildServiceBlockForTrigger(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
                                                      String emitAlias) {
-        return buildServiceBlockForTrigger(filledInitForm, triggerModel, emitAlias, null);
-    }
-
-    public static String buildServiceBlockForTrigger(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
-                                                     String emitAlias, AgentBindingRenderer.Bindings bindings) {
         String selfPrefix = getProtocol(filledInitForm.getModuleName());
         requalifyValueQualifiers(filledInitForm.getProperties(), selfPrefix, emitAlias);
         ListenerArgs collected = collectListenerArgs(filledInitForm);
         String descriptor = resolveServiceDescriptor(filledInitForm, triggerModel, selfPrefix, emitAlias);
         String basePath = resolveBasePath(filledInitForm);
-        List<String> functions = buildRequiredFunctionSources(filledInitForm, triggerModel, selfPrefix, emitAlias,
-                bindings);
+        List<String> functions = buildRequiredFunctionSources(filledInitForm, triggerModel, selfPrefix, emitAlias);
 
         StringBuilder builder = new StringBuilder(NEW_LINE);
         if (collected.declareListener) {
             builder.append(renderListenerDeclaration(emitAlias, collected)).append(NEW_LINE);
-        }
-        if (bindings != null) {
-            String clientDeclaration = AgentBindingRenderer.renderClientDeclaration(bindings);
-            if (!clientDeclaration.isEmpty()) {
-                builder.append(clientDeclaration).append(NEW_LINE);
-            }
         }
         for (String annotation : buildServiceAnnotations(filledInitForm, selfPrefix, emitAlias)) {
             builder.append(annotation).append(NEW_LINE);
@@ -260,13 +215,25 @@ public final class SchemaDrivenSourceGenerator {
                 .append(NEW_LINE)
                 .append(String.join(TWO_NEW_LINES, functions)).append(NEW_LINE)
                 .append(CLOSE_BRACE).append(NEW_LINE);
-        if (bindings != null) {
-            String replyFunction = AgentBindingRenderer.renderReplyFunction(bindings);
-            if (!replyFunction.isEmpty()) {
-                builder.append(NEW_LINE).append(replyFunction).append(NEW_LINE);
-            }
-        }
         return builder.toString();
+    }
+
+    /**
+     * The listener the filled form describes.
+     *
+     * @param varName     the listener variable the service attaches to
+     * @param declaration the {@code listener ... = new (...);} statement, or {@code null} when
+     *                    attaching to a listener the project already declares
+     */
+    public record ResolvedListener(String varName, String declaration) {
+    }
+
+    public static ResolvedListener resolveListener(ServiceInitModel filledInitForm, String emitAlias) {
+        requalifyValueQualifiers(filledInitForm.getProperties(),
+                getProtocol(filledInitForm.getModuleName()), emitAlias);
+        ListenerArgs collected = collectListenerArgs(filledInitForm);
+        return new ResolvedListener(collected.varName,
+                collected.declareListener ? renderListenerDeclaration(emitAlias, collected) : null);
     }
 
     /**
@@ -464,8 +431,8 @@ public final class SchemaDrivenSourceGenerator {
      * import's prefix, else the model/default alias disambiguated against the prefixes the file has
      * already claimed. See {@link ModuleAliasResolver#resolve}.
      */
-    private static String resolveEmitAlias(ModulePartNode rootNode, ServiceInitModel filledInitForm,
-                                           TriggerUISchemaModel triggerModel) {
+    public static String resolveEmitAlias(ModulePartNode rootNode, ServiceInitModel filledInitForm,
+                                          TriggerUISchemaModel triggerModel) {
         String moduleName = filledInitForm.getModuleName();
         String override = triggerModel != null && triggerModel.importPrefix() != null
                 && !triggerModel.importPrefix().isBlank() ? triggerModel.importPrefix() : null;
@@ -534,8 +501,7 @@ public final class SchemaDrivenSourceGenerator {
     /** Emits the present (enabled, non-optional) handlers of the selected service type. */
     private static List<String> buildRequiredFunctionSources(ServiceInitModel filledInitForm,
                                                              TriggerUISchemaModel triggerModel, String selfPrefix,
-                                                             String emitAlias,
-                                                             AgentBindingRenderer.Bindings bindings) {
+                                                             String emitAlias) {
         List<String> functions = new ArrayList<>();
         TriggerUISchemaModel.ServiceTypeModel serviceType = selectServiceType(filledInitForm, triggerModel);
         if (serviceType == null) {
@@ -545,50 +511,16 @@ public final class SchemaDrivenSourceGenerator {
                 ? List.of() : serviceType.functions();
         for (TriggerUISchemaModel.FunctionModel function : present) {
             if (function.enabled() && !Boolean.TRUE.equals(function.optional())) {
-                functions.add(TAB + buildFunctionSource(function, selfPrefix, emitAlias, bodyFor(function, bindings))
+                functions.add(TAB + buildFunctionSource(function, selfPrefix, emitAlias)
                         .replace(NEW_LINE, NEW_LINE_WITH_TAB));
             }
-        }
-        if (bindings != null && present.stream().noneMatch(function -> isBoundHandler(function, bindings))) {
-            boundHandler(serviceType, bindings).ifPresent(function ->
-                    functions.add(TAB + buildFunctionSource(function, selfPrefix, emitAlias,
-                            AgentBindingRenderer.renderHandlerBody(bindings))
-                            .replace(NEW_LINE, NEW_LINE_WITH_TAB)));
         }
         return functions;
     }
 
-    private static Optional<TriggerUISchemaModel.FunctionModel> boundHandler(
-            TriggerUISchemaModel.ServiceTypeModel serviceType, AgentBindingRenderer.Bindings bindings) {
-        return Stream.concat(
-                        serviceType.functions() == null ? Stream.empty() : serviceType.functions().stream(),
-                        serviceType.schemaFunctions() == null ? Stream.empty()
-                                : serviceType.schemaFunctions().stream())
-                .filter(function -> isBoundHandler(function, bindings))
-                .findFirst();
-    }
-
-    private static boolean isBoundHandler(TriggerUISchemaModel.FunctionModel function,
-                                          AgentBindingRenderer.Bindings bindings) {
-        String handler = bindings.binding().handler();
-        return handler != null && handler.equals(effectiveFunctionName(function));
-    }
-
-    private static String bodyFor(TriggerUISchemaModel.FunctionModel function,
-                                  AgentBindingRenderer.Bindings bindings) {
-        if (bindings == null) {
-            return "";
-        }
-        String handler = bindings.binding().handler();
-        if (handler == null || !handler.equals(effectiveFunctionName(function))) {
-            return "";
-        }
-        return AgentBindingRenderer.renderHandlerBody(bindings);
-    }
-
     /** Renders one handler, leaving module-qualified types exactly as the model authored them. */
     static String buildFunctionSource(TriggerUISchemaModel.FunctionModel function) {
-        return buildFunctionSource(function, "", "", "");
+        return buildFunctionSource(function, "", "");
     }
 
     /**
@@ -596,7 +528,7 @@ public final class SchemaDrivenSourceGenerator {
      * re-qualifying self-module references in parameter and return types onto {@code emitAlias}.
      */
     private static String buildFunctionSource(TriggerUISchemaModel.FunctionModel function, String selfPrefix,
-                                              String emitAlias, String body) {
+                                              String emitAlias) {
         StringBuilder builder = new StringBuilder();
         for (String annotation : AnnotationEmitter.annotationsOf(function.properties())) {
             builder.append(annotation).append(NEW_LINE);
@@ -612,11 +544,7 @@ public final class SchemaDrivenSourceGenerator {
         if (!returnClause.isEmpty()) {
             builder.append(SPACE).append(returnClause);
         }
-        builder.append(SPACE).append(OPEN_BRACE).append(NEW_LINE);
-        if (body != null && !body.isBlank()) {
-            builder.append(TAB).append(body.strip().replace(NEW_LINE, NEW_LINE_WITH_TAB)).append(NEW_LINE);
-        }
-        builder.append(CLOSE_BRACE);
+        builder.append(SPACE).append(OPEN_BRACE).append(NEW_LINE).append(CLOSE_BRACE);
         return builder.toString();
     }
 

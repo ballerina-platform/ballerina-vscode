@@ -162,6 +162,20 @@ export type AgentUsage = {
     icon?: string;
     documentUri: string;
     position: NodePosition;
+    trigger?: AgentUsageTrigger;
+};
+
+export type AgentUsageTrigger = {
+    serviceName: string;
+    documentUri: string;
+    position: NodePosition;
+    listeners: AgentUsageTriggerListener[];
+};
+
+export type AgentUsageTriggerListener = {
+    symbol: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentModelProviderInfo = {

@@ -16,6 +16,7 @@
  * under the License.
  */
 
+import { AgentUsage } from "@wso2/ballerina-core";
 import { FlowNode, ToolData } from "../utils/types";
 
 /** Editing capabilities exposed by a host that renders an agent node. */
@@ -31,4 +32,5 @@ export interface AgentNodeActions {
     onDeleteMemoryManager?: (node: FlowNode) => void;
     onChatWithAgent?: (node: FlowNode) => void;
     onAddTrigger?: (node: FlowNode) => void;
+    onDeleteTrigger?: (usage: AgentUsage, node: FlowNode) => void;
 }

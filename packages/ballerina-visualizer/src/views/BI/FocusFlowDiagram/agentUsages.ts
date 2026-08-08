@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { AgentUsage, CDLocation, CDModel, CDService, NodePosition } from "@wso2/ballerina-core";
+import { AgentUsage, AgentUsageTrigger, CDLocation, CDModel, CDService, NodePosition } from "@wso2/ballerina-core";
+import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
 function toPosition(location: CDLocation): NodePosition {
     return {
@@ -70,7 +71,28 @@ function resourceLabel(accessor: string, path: string): string {
     return `${accessor.toUpperCase()} ${normalized}`;
 }
 
-function usagesForService(service: CDService, uuid: string): AgentUsage[] {
+function modulePrefix(type?: string): string {
+    return type?.includes(":") ? type.split(":")[0] : type ?? "";
+}
+
+function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
+    const listeners = (model.listeners ?? [])
+        .filter((listener) => listener.attachedServices?.includes(service.uuid))
+        .filter((listener) => (listener.attachedServices ?? []).length === 1)
+        .map((listener) => ({
+            symbol: listener.symbol,
+            documentUri: listener.location.filePath,
+            position: toPosition(listener.location),
+        }));
+    return {
+        serviceName: service.absolutePath || service.displayName || service.type,
+        documentUri: service.location.filePath,
+        position: toPosition(service.location),
+        listeners,
+    };
+}
+
+function usagesForService(service: CDService, uuid: string, trigger?: AgentUsageTrigger): AgentUsage[] {
     const label = serviceLabel(service);
     const usages: AgentUsage[] = [];
 
@@ -84,11 +106,12 @@ function usagesForService(service: CDService, uuid: string): AgentUsage[] {
                 icon: service.icon,
                 documentUri: resource.location.filePath,
                 position: toPosition(resource.location),
+                trigger,
             });
         }
     }
 
-    for (const fn of [...(service.remoteFunctions ?? []), ...(service.functions ?? [])]) {
+    for (const fn of service.remoteFunctions ?? []) {
         if (fn.connections?.includes(uuid)) {
             usages.push({
                 label: fn.name,
@@ -98,6 +121,7 @@ function usagesForService(service: CDService, uuid: string): AgentUsage[] {
                 icon: service.icon,
                 documentUri: fn.location.filePath,
                 position: toPosition(fn.location),
+                trigger,
             });
         }
     }
@@ -110,6 +134,7 @@ function usagesForService(service: CDService, uuid: string): AgentUsage[] {
             icon: service.icon,
             documentUri: service.location.filePath,
             position: toPosition(service.location),
+            trigger,
         });
     }
 
@@ -128,7 +153,7 @@ function isGeneratedChatService(filePath?: string): boolean {
     return Boolean(filePath?.endsWith(GENERATED_CHAT_SERVICE_FILE));
 }
 
-export function findAgentUsages(model: CDModel, agent: AgentRef): AgentUsage[] {
+export function findAgentUsages(model: CDModel, agent: AgentRef, triggerProtocols?: Set<string>): AgentUsage[] {
     const uuid = model && findAgentUuid(model, agent);
     if (!uuid) {
         return [];
@@ -137,7 +162,8 @@ export function findAgentUsages(model: CDModel, agent: AgentRef): AgentUsage[] {
     const usages = (model.services ?? [])
         .filter((service) => service.connections?.includes(uuid))
         .filter((service) => !isGeneratedChatService(service.location?.filePath))
-        .flatMap((service) => usagesForService(service, uuid));
+        .flatMap((service) => usagesForService(service, uuid,
+            triggerProtocols?.has(modulePrefix(service.type)) ? triggerFor(model, service) : undefined));
 
     const automation = model.automation;
     if (automation?.connections?.includes(uuid)) {
@@ -165,4 +191,18 @@ export function getCachedUsages(key: string): AgentUsage[] | undefined {
 
 export function setCachedUsages(key: string, usages: AgentUsage[]): void {
     usageCache.set(key, usages);
+}
+
+let triggerProtocols: Set<string> | undefined;
+
+export async function getAgentTriggerProtocols(rpcClient: BallerinaRpcClient): Promise<Set<string>> {
+    if (!triggerProtocols) {
+        const models = await rpcClient.getServiceDesignerRpcClient().getTriggerModels({ query: "" });
+        triggerProtocols = new Set(
+            (models?.local ?? [])
+                .filter((trigger) => trigger.supportsAgentBinding && trigger.listenerProtocol)
+                .map((trigger) => trigger.listenerProtocol)
+        );
+    }
+    return triggerProtocols;
 }

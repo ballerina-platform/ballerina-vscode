@@ -47,6 +47,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -1323,14 +1324,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 triggerProperty.version());
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
-                protocol, icon, declaresAgentBinding(triggerProperty));
-    }
-
-    private boolean declaresAgentBinding(TriggerProperty triggerProperty) {
-        return TriggerModelReader.getInstance()
-                .getSchemaDrivenTriggerModel(triggerProperty.orgName(), triggerProperty.name(),
-                        triggerProperty.version())
-                .map(model -> model.agentBinding() != null)
-                .orElse(false);
+                protocol, icon, AgentTriggerChannels.supports(triggerProperty.name()));
     }
 }

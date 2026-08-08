@@ -1212,27 +1212,5 @@
         }
       ]
     }
-  ],
-  "agentBinding": {
-    "handler": "onMessage",
-    "handlerTemplate": "telegram/on-message.bal.tpl",
-    "replyFnTemplate": "telegram/reply.bal.tpl",
-    "replyFnName": "replyToTelegramMessage",
-    "sessionPrefix": "telegram",
-    "sessionScopes": [
-      {
-        "id": "conversation",
-        "label": "Per conversation",
-        "expr": "message.chat.id.toString()",
-        "isDefault": true
-      }
-    ],
-    "imports": [
-      "ballerina/log"
-    ],
-    "client": {
-      "varName": "telegramClient",
-      "template": "telegram/client.bal.tpl"
-    }
-  }
+  ]
 }
