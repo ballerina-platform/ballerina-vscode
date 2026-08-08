@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentData, FlowNode, MemoryData, NodeMetadata, ToolData, unwrapBallerinaString } from "@wso2/ballerina-core";
+import { AgentData, AgentUsage, FlowNode, MemoryData, NodeMetadata, ToolData, unwrapBallerinaString } from "@wso2/ballerina-core";
 import { parseToolsString } from "../AIChatAgent/utils";
 
 function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions: string } {
@@ -26,6 +26,17 @@ function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions:
     const roleMatch = systemPrompt.match(/role\s*:\s*(string\s*`[^`]*`|"(?:[^"\\]|\\.)*"|`[^`]*`)/);
     const instrMatch = systemPrompt.match(/instructions\s*:\s*(string\s*`[^`]*`|"(?:[^"\\]|\\.)*"|`[^`]*`)/);
     return { role: unwrapBallerinaString(roleMatch?.[1]), instructions: unwrapBallerinaString(instrMatch?.[1]) };
+}
+
+export function withAgentUsages(node: FlowNode, usages: AgentUsage[]): FlowNode {
+    const data = (node.metadata?.data || {}) as NodeMetadata;
+    return {
+        ...node,
+        metadata: {
+            ...node.metadata,
+            data: { ...data, agentInfo: { ...(data.agentInfo || {}), usages } },
+        },
+    } as FlowNode;
 }
 
 export function buildAgentRenderNode(agentNode: FlowNode, connections: FlowNode[] = []): FlowNode {

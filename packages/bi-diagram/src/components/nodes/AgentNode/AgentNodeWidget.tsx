@@ -43,11 +43,23 @@ import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
+import {
+    AgentUsage,
+    NodeMetadata,
+    isDefaultModelProviderExpr,
+    resolveBrandIcon,
+    resolveKindDefaultIcon,
+} from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
-import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId, usageRowFadeIn } from "../agentNodeUtils";
+import {
+    AGENT_USAGE_COLUMN_WIDTH,
+    AGENT_USAGE_ROW_PITCH,
+    getAgentNodeContainerHeight,
+    getAgentNodeUsages,
+    getVisibleAgentUsages,
+} from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 
 export namespace NodeStyles {
@@ -408,6 +420,44 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
+const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
+    ai: { glyph: "comment-discussion", isCodicon: true },
+    automation: { glyph: "bi-task" },
+};
+
+function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
+    const { usage, codedata } = props;
+    const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
+
+    const typeGlyph = modulePart ? USAGE_TYPE_GLYPH[modulePart] : undefined;
+    if (typeGlyph) {
+        return (
+            <Icon
+                name={typeGlyph.glyph}
+                isCodicon={typeGlyph.isCodicon}
+                sx={{ fontSize: 22, width: 22, height: 22 }}
+                iconSx={{ fontSize: "22px" }}
+            />
+        );
+    }
+
+    const brand = resolveBrandIcon(modulePart);
+    if (brand) {
+        return <Icon name={brand.glyph} sx={{ fontSize: 24, width: 24, height: 24, ...(brand.color ? { color: brand.color } : {}) }} />;
+    }
+    if (usage.icon) {
+        return (
+            <ConnectorIcon
+                url={usage.icon}
+                style={{ width: 24, height: 24, fontSize: 24 }}
+                fallbackIcon={<Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />}
+                codedata={codedata}
+            />
+        );
+    }
+    return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />;
+}
+
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
     const isTypeDefinition = variant === "typedAgent";
     return {
@@ -423,7 +473,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const controller = useAgentNodeController(model);
     const {
         onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
-        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
+        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation, openView,
     } = controller.context;
     const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
         setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
@@ -669,6 +719,14 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const nodeModelIconUrl = modelProvider?.path;
     const tools = agentInfo?.tools || [];
 
+    const allUsages = getAgentNodeUsages(model.node);
+    const usages = getVisibleAgentUsages(model.node);
+    const hiddenUsageCount = allUsages.length - usages.length;
+
+    const onUsageClick = (usage: AgentUsage) => {
+        openView?.({ documentUri: usage.documentUri, position: usage.position });
+    };
+
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
     const description = agentInfo?.description;
@@ -732,6 +790,135 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     return (
         <NodeStyles.Node data-testid={isTypeDefinition ? "typed-agent-node" : "agent-node"} readOnly={readOnly}>
+            {usages.length > 0 && <svg
+                data-testid="agent-usage-column"
+                width={AGENT_USAGE_COLUMN_WIDTH + 10}
+                height={model.node.viewState?.ch}
+                viewBox={`0 0 300 ${containerHeight}`}
+                style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
+            >
+                {usages.map((usage: AgentUsage, index: number) => (
+                    <g
+                        key={`${usage.documentUri}-${usage.label}-${index}`}
+                        data-testid="agent-usage-row"
+                        transform={`translate(0, ${index * AGENT_USAGE_ROW_PITCH})`}
+                        onClick={() => onUsageClick(usage)}
+                        css={css`
+                            cursor: pointer;
+                            > g {
+                                animation: ${usageRowFadeIn} 260ms ease-out both;
+                                animation-delay: ${index * 70}ms;
+                            }
+                            &:hover rect:first-of-type {
+                                stroke: ${ThemeColors.SECONDARY};
+                            }
+                            &:hover text {
+                                fill: ${ThemeColors.SECONDARY};
+                            }
+                        `}
+                    >
+                        <g>
+                        {/* Square marks an inbound caller; tools and the model stay circles. */}
+                        <rect
+                            x="198"
+                            y="2"
+                            width="44"
+                            height="44"
+                            rx="10"
+                            fill={ThemeColors.SURFACE_DIM}
+                            stroke={ThemeColors.OUTLINE_VARIANT}
+                            strokeWidth={1.5}
+                            css={css`
+                                transition: stroke 0.4s ease-out;
+                            `}
+                        />
+                        <foreignObject
+                            x="208"
+                            y="12"
+                            width="44"
+                            height="44"
+                            fill={ThemeColors.ON_SURFACE}
+                            style={{ pointerEvents: "none" }}
+                        >
+                            <UsageIcon usage={usage} codedata={model.node?.codedata} />
+                        </foreignObject>
+
+                        <text
+                            x="190"
+                            y="20"
+                            textAnchor="end"
+                            fill={ThemeColors.ON_SURFACE}
+                            fontSize="14px"
+                            fontFamily="GilmerRegular"
+                            dominantBaseline="middle"
+                        >
+                            {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
+                            <title>{[usage.label, usage.serviceLabel, usage.typeLabel].filter(Boolean).join(" — ")}</title>
+                        </text>
+                        {usage.serviceLabel && (
+                            <text
+                                x="190"
+                                y="36"
+                                textAnchor="end"
+                                fill={ThemeColors.ON_SURFACE_VARIANT}
+                                fontSize="12px"
+                                fontFamily="monospace"
+                                dominantBaseline="middle"
+                            >
+                                {usage.serviceLabel.length > 24
+                                    ? `${usage.serviceLabel.slice(0, 24)}...`
+                                    : usage.serviceLabel}
+                            </text>
+                        )}
+
+                        <line
+                            x1="243"
+                            y1="25"
+                            x2="300"
+                            y2="25"
+                            style={{
+                                stroke: ThemeColors.ON_SURFACE,
+                                strokeWidth: 1.5,
+                                markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
+                            }}
+                        />
+                        </g>
+                    </g>
+                ))}
+
+                {hiddenUsageCount > 0 && (
+                    <text
+                        x="242"
+                        y={usages.length * AGENT_USAGE_ROW_PITCH + 24}
+                        textAnchor="end"
+                        fill={ThemeColors.ON_SURFACE_VARIANT}
+                        fontSize="12px"
+                        fontFamily="GilmerRegular"
+                        dominantBaseline="middle"
+                        css={css`
+                            animation: ${usageRowFadeIn} 260ms ease-out both;
+                            animation-delay: ${usages.length * 70}ms;
+                        `}
+                    >
+                        {`+${hiddenUsageCount} more`}
+                    </text>
+                )}
+
+                <defs>
+                    <marker
+                        id={`${model.node.id}-arrow-head-usage`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                    </marker>
+                </defs>
+            </svg>}
+
             <NodeStyles.Box
                 disabled={disabled}
                 hovered={isBoxHovered}

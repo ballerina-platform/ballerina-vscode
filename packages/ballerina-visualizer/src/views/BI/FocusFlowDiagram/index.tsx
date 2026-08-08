@@ -52,7 +52,8 @@ import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAgentChat } from "../AIChatAgent/utils";
-import { buildAgentRenderNode } from "./agent";
+import { buildAgentRenderNode, withAgentUsages } from "./agent";
+import { findAgentUsages } from "./agentUsages";
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
 import {
@@ -108,6 +109,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
     const suppressAgentTypeReloadRef = useRef(false);
     const suppressAgentReloadRef = useRef(false);
+    const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const usageRequestIdRef = useRef(0);
     const [agentFormKey, setAgentFormKey] = useState(0);
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
@@ -259,6 +262,37 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
 
+    const loadAgentUsages = (renderNode: FlowNode, flow: Flow, pos: NodePosition) => {
+        clearTimeout(usageFetchTimerRef.current);
+        const requestId = ++usageRequestIdRef.current;
+        usageFetchTimerRef.current = setTimeout(async () => {
+            try {
+                const location = await rpcClient.getVisualizerLocation();
+                const response = await rpcClient
+                    .getBIDiagramRpcClient()
+                    .getDesignModel({ projectPath: location?.projectPath });
+                if (requestId !== usageRequestIdRef.current) {
+                    return;
+                }
+                const usages = findAgentUsages(response?.designModel, {
+                    filePath,
+                    startLine: pos.startLine,
+                    symbol: typeof renderNode.properties?.variable?.value === "string"
+                        ? renderNode.properties.variable.value.trim()
+                        : undefined,
+                });
+                if (usages.length === 0) {
+                    return;
+                }
+                setModel({ ...flow, nodes: [withAgentUsages(renderNode, usages)] });
+            } catch (error) {
+                console.error(">>> agent focus: failed to load agent usages", error);
+            }
+        }, 600);
+    };
+
+    useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
+
     const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
         const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
@@ -305,6 +339,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 };
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
             setModel(flow);
+            if (kind === "AGENT") {
+                loadAgentUsages(renderNode, flow, pos);
+            }
 
             const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
             setBreakpointInfo(breakpointResponse);

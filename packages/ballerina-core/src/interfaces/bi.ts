@@ -150,6 +150,17 @@ export type AgentNodeInfo = {
     tools?: ToolData[];
     modelProvider?: AgentModelProviderInfo;
     memory?: AgentMemoryInfo;
+    usages?: AgentUsage[];
+};
+
+export type AgentUsage = {
+    label: string; // "POST /chat" or the function name
+    serviceLabel?: string; // "/mathService"
+    type?: string; // "http:Service", "automation", ...
+    typeLabel?: string; // "GraphQL Service", "AI Chat Service", ...
+    icon?: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentModelProviderInfo = {

@@ -42,7 +42,11 @@ import {
 } from "../resources/constants";
 import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNodePresentation";
 import { isEvalTemplateCall } from "@wso2/ballerina-core";
-import { getAgentNodeContainerHeight } from "../components/nodes/AgentWidget/agentNodeLayout";
+import {
+    AGENT_USAGE_COLUMN_WIDTH,
+    getAgentNodeContainerHeight,
+    getAgentNodeUsages,
+} from "../components/nodes/AgentWidget/agentNodeLayout";
 import { reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
 
@@ -319,7 +323,8 @@ export class SizingVisitor implements BaseVisitor {
     endVisitAgent(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         const halfNodeWidth = NODE_WIDTH / 2;
-        const containerLeftWidth = halfNodeWidth;
+        const usageWidth = getAgentNodeUsages(node).length > 0 ? AGENT_USAGE_COLUMN_WIDTH : 0;
+        const containerLeftWidth = halfNodeWidth + usageWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
         const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.AGENT_NODE);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
