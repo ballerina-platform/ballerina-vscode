@@ -66,6 +66,11 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return SchemaDrivenSourceGenerator.resolveServiceDescriptor(initForm, triggerModel, emitAlias);
     }
 
+    /** The service base path, or empty when the channel ships no base-path field. */
+    public String basePath() {
+        return SchemaDrivenSourceGenerator.resolveBasePath(initForm);
+    }
+
     public String qualify(String typeText) {
         return SchemaDrivenSourceGenerator.rewriteSelfPrefix(typeText, initForm.getModuleName(), emitAlias);
     }

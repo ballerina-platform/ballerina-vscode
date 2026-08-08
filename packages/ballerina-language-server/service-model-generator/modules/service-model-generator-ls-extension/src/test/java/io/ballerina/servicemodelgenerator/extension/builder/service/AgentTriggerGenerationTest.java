@@ -221,6 +221,56 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testShopifyRunsOnItsPrimaryEvent() {
+        String src = generateForAgent("trigger.shopify", "orderAgent", null,
+                Map.of("instructions", "Flag orders that look fraudulent."));
+
+        Assert.assertTrue(src.contains("service shopify:OrdersService on shopifyListener"),
+                "the default event channel should be the service type: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnOrdersCreate(event);"),
+                "the primary handler should offload, using the schema's own payload name: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnOrdersCreate(shopify:OrderEvent event)"),
+                "the reply method should take the handler's own payload type: " + src);
+        Assert.assertTrue(src.contains("${event.toJsonString()}`;"),
+                "the whole event should be appended to the prompt: " + src);
+    }
+
+    @Test
+    public void testHubSpotRunsOnItsPrimaryEvent() {
+        String src = generateForAgent("trigger.hubspot", "crmAgent", null,
+                Map.of("instructions", "Summarise the new company."));
+
+        Assert.assertTrue(src.contains("service hubspot:CompanyService on hubspotListener"),
+                "the default event channel should be the service type: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnCompanyCreation(event);"),
+                "the primary handler should offload: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnCompanyCreation(hubspot:WebhookEvent event)"),
+                "the reply method should take the handler's own payload type: " + src);
+        Assert.assertEquals(src.split("start self\\.runAgent", -1).length - 1, 1,
+                "only the primary handler should call the agent: " + src);
+    }
+
+    @Test
+    public void testSalesforceRunsOnItsPrimaryEvent() {
+        String src = generateForAgent("salesforce", "cdcAgent", null,
+                Map.of("instructions", "Explain what changed."));
+
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnCreate(payload);"),
+                "the primary handler should offload: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnCreate(salesforce:EventData payload)"),
+                "the reply method should take the handler's own payload type: " + src);
+    }
+
+    @Test
+    public void testSalesforceKeepsItsChannelPath() {
+        String src = generateForAgent("salesforce", "cdcAgent", null,
+                Map.of("instructions", "Explain what changed."));
+
+        Assert.assertTrue(src.contains("service salesforce:CdcService /data/ChangeEvents on salesforceListener"),
+                "the subscribed channel path must survive, or the service listens to nothing: " + src);
+    }
+
+    @Test
     public void testNoAgentLeavesTheTriggerUntouched() {
         ServiceInitModel form = initForm("whatsapp.business");
         Assert.assertFalse(AgentTriggerServiceBuilder.handles(form),

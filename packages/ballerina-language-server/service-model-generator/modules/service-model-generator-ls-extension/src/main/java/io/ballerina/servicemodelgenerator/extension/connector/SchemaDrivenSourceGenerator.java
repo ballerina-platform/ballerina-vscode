@@ -889,7 +889,7 @@ public final class SchemaDrivenSourceGenerator {
      * anywhere in the filled init form, emitted between the service descriptor and {@code on}. Empty
      * when the model ships no base-path field.
      */
-    private static String resolveBasePath(ServiceInitModel filledInitForm) {
+    public static String resolveBasePath(ServiceInitModel filledInitForm) {
         return findBasePath(filledInitForm.getProperties());
     }
 

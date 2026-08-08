@@ -30,11 +30,17 @@ import java.util.Optional;
 public final class AgentTriggerChannels {
 
     private static final String GITHUB_MODULE = "trigger.github";
+    private static final String SHOPIFY_MODULE = "trigger.shopify";
+    private static final String HUBSPOT_MODULE = "trigger.hubspot";
+    private static final String SALESFORCE_MODULE = "salesforce";
 
     private static final Map<String, AgentTriggerChannel> BY_MODULE = new LinkedHashMap<>() {{
             put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
             put(TelegramChannel.MODULE_NAME, new TelegramChannel());
             put(GITHUB_MODULE, new EventAgentTriggerChannel(GITHUB_MODULE));
+            put(SHOPIFY_MODULE, new EventAgentTriggerChannel(SHOPIFY_MODULE));
+            put(HUBSPOT_MODULE, new EventAgentTriggerChannel(HUBSPOT_MODULE));
+            put(SALESFORCE_MODULE, new EventAgentTriggerChannel(SALESFORCE_MODULE));
         }};
 
     private AgentTriggerChannels() {

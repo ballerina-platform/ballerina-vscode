@@ -113,7 +113,10 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         }
         members.add(replyMethod(context, primary, replyMethod, payload));
 
-        return SERVICE + SPACE + context.serviceDescriptor() + SPACE + ON + SPACE + context.listenerVarName()
+        String basePath = context.basePath();
+        return SERVICE + SPACE + context.serviceDescriptor() + SPACE
+                + (basePath.isEmpty() ? "" : basePath + SPACE)
+                + ON + SPACE + context.listenerVarName()
                 + SPACE + OPEN_BRACE + NEW_LINE
                 + String.join(TWO_NEW_LINES, members) + NEW_LINE
                 + CLOSE_BRACE + NEW_LINE;
