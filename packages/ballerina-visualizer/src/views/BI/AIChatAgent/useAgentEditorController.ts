@@ -44,6 +44,7 @@ export interface AgentEditorHost {
     onSelectionChange?(node?: FlowNode): void;
     onLoadingChange?(loading: boolean): void;
     onChat?(node: FlowNode): void;
+    onAddTrigger?(node: FlowNode): void;
     onAgentCreated?(): void;
     resolveAgentNode?(node: FlowNode): FlowNode;
 }
@@ -311,6 +312,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
+        onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
     const back = () => setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");

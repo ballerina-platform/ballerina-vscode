@@ -43,6 +43,7 @@ import {
     UpdatedArtifactsResponse,
     NodePosition,
     NodeMetadata,
+    AgentUsage,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView
 } from "@wso2/ballerina-core";
@@ -51,9 +52,16 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAgentChat } from "../AIChatAgent/utils";
+import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
-import { findAgentUsages } from "./agentUsages";
+import { findAgentUsages, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+
+const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
+    a.length === b.length &&
+    a.every((usage, i) =>
+        usage.label === b[i].label &&
+        usage.serviceLabel === b[i].serviceLabel &&
+        usage.documentUri === b[i].documentUri);
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
 import {
@@ -111,6 +119,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const suppressAgentReloadRef = useRef(false);
     const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const usageRequestIdRef = useRef(0);
+    const usagesDirtyRef = useRef(true);
     const [agentFormKey, setAgentFormKey] = useState(0);
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
@@ -153,6 +162,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     useEffect(() => {
         const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> on project content updated", state);
+            usagesDirtyRef.current = true;
             if (isAgent) {
                 debouncedGetAgentModel();
                 return;
@@ -262,7 +272,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
 
-    const loadAgentUsages = (renderNode: FlowNode, flow: Flow, pos: NodePosition) => {
+    const loadAgentUsages = (renderNode: FlowNode, flow: Flow, pos: NodePosition, projectKey: string) => {
+        const key = usageCacheKey(projectKey, filePath, pos.startLine);
+        const cached = getCachedUsages(key);
+        if (!usagesDirtyRef.current && cached) {
+            return;
+        }
         clearTimeout(usageFetchTimerRef.current);
         const requestId = ++usageRequestIdRef.current;
         usageFetchTimerRef.current = setTimeout(async () => {
@@ -281,10 +296,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         ? renderNode.properties.variable.value.trim()
                         : undefined,
                 });
-                if (usages.length === 0) {
+                usagesDirtyRef.current = false;
+                const previous = getCachedUsages(key);
+                setCachedUsages(key, usages);
+                if (previous && sameUsages(previous, usages)) {
                     return;
                 }
-                setModel({ ...flow, nodes: [withAgentUsages(renderNode, usages)] });
+                setModel({ ...flow, nodes: [withAgentUsages(renderNode, usages, true)] });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
             }
@@ -328,8 +346,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setAgentFormKey((key) => key + 1);
 
             const connections = fetchedFlow?.connections || [];
+            const projectKey = location?.projectPath ?? projectPath ?? "";
+            const cachedUsages = kind === "AGENT"
+                ? getCachedUsages(usageCacheKey(projectKey, filePath, pos.startLine))
+                : undefined;
             const renderNode: FlowNode = kind === "AGENT"
-                ? buildAgentRenderNode(agentDecl, connections)
+                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false)
                 : {
                     ...agentDecl,
                     id: agentDecl.id || "agent-type-focus-node",
@@ -340,7 +362,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
             setModel(flow);
             if (kind === "AGENT") {
-                loadAgentUsages(renderNode, flow, pos);
+                loadAgentUsages(renderNode, flow, pos, projectKey);
             }
 
             const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
@@ -908,6 +930,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
+        onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
     });
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";

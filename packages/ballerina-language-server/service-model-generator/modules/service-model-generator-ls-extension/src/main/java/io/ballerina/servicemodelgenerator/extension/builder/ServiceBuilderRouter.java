@@ -164,7 +164,8 @@ public class ServiceBuilderRouter {
                                                        SemanticModel semanticModel, Document document) {
         GetServiceInitModelContext context = new GetServiceInitModelContext(
                 request.orgName(), request.pkgName(), request.moduleName(), request.version(),
-                project, semanticModel, document, request.isLocalRepository());
+                project, semanticModel, document, request.isLocalRepository(),
+                request.agentName(), request.agentOrgName());
         ServiceNodeBuilder serviceBuilder =
                 useSchemaDrivenPath(request.orgName(), request.moduleName(), request.version(),
                         request.isLocalRepository())

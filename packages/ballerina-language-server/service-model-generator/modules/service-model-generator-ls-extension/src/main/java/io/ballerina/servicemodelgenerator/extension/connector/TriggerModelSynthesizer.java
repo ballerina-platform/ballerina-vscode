@@ -126,7 +126,7 @@ public final class TriggerModelSynthesizer {
         return Optional.of(new TriggerUISchemaModel(
                 SCHEMA_VERSION, id, displayName, null, "", orgName, packageName, moduleName, version,
                 kind, icon, kind, listenerKind, initProperties, serviceTypeModels, List.of(),
-                importStatements, null));
+                importStatements, null, null));
     }
 
     /**

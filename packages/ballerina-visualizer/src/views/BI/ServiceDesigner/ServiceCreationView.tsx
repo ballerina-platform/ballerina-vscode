@@ -91,6 +91,8 @@ export interface ServiceCreationViewProps {
     moduleName: string;
     version?: string;
     isLocalRepository?: boolean;
+    agentName?: string;
+    agentOrgName?: string;
 }
 
 interface HeaderInfo {
@@ -107,7 +109,8 @@ enum PullingStatus {
 
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
-    const { projectPath, orgName, packageName, moduleName, version, isLocalRepository } = props;
+    const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
+        agentName, agentOrgName } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -136,7 +139,8 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 .getServiceDesignerRpcClient()
                 .getServiceInitModel({
                     filePath: "", orgName: orgName, pkgName: packageName, moduleName: moduleName,
-                    listenerName: "", version: version, isLocalRepository: isLocalRepository
+                    listenerName: "", version: version, isLocalRepository: isLocalRepository,
+                    agentName: agentName, agentOrgName: agentOrgName
                 });
 
             let timer: ReturnType<typeof setTimeout> | null = null;

@@ -48,6 +48,7 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ConnectorVersionResolverTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerSourceGenerationTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.AgentBindingGenerationTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelSynthesizerTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReaderSchemaDrivenTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.TriggerServiceAdapterTest"/>

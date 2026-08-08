@@ -122,6 +122,12 @@ export type AgentRef = {
     symbol?: string;
 };
 
+const GENERATED_CHAT_SERVICE_FILE = "_agent_chat.bal";
+
+function isGeneratedChatService(filePath?: string): boolean {
+    return Boolean(filePath?.endsWith(GENERATED_CHAT_SERVICE_FILE));
+}
+
 export function findAgentUsages(model: CDModel, agent: AgentRef): AgentUsage[] {
     const uuid = model && findAgentUuid(model, agent);
     if (!uuid) {
@@ -130,6 +136,7 @@ export function findAgentUsages(model: CDModel, agent: AgentRef): AgentUsage[] {
 
     const usages = (model.services ?? [])
         .filter((service) => service.connections?.includes(uuid))
+        .filter((service) => !isGeneratedChatService(service.location?.filePath))
         .flatMap((service) => usagesForService(service, uuid));
 
     const automation = model.automation;
@@ -144,4 +151,18 @@ export function findAgentUsages(model: CDModel, agent: AgentRef): AgentUsage[] {
     }
 
     return usages;
+}
+
+const usageCache = new Map<string, AgentUsage[]>();
+
+export function usageCacheKey(projectPath: string, filePath: string, startLine: number): string {
+    return `${projectPath}::${filePath}::${startLine}`;
+}
+
+export function getCachedUsages(key: string): AgentUsage[] | undefined {
+    return usageCache.get(key);
+}
+
+export function setCachedUsages(key: string, usages: AgentUsage[]): void {
+    usageCache.set(key, usages);
 }

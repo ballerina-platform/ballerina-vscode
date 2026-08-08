@@ -51,6 +51,8 @@ import java.util.Map;
  * @param importPrefix optional override for the import prefix the connector's own module is
  *                     referenced under. Absent/blank -> the generator computes one (a camelCase join
  *                     of a dotted module name, e.g. {@code trigger.twilio} -> {@code triggerTwilio})
+ * @param agentBinding optional recipe for wiring this trigger's handler to an AI agent. Absent (the
+ *                     default for every connector) -> the handler body is emitted empty as before
  * @since 1.9.0
  */
 public record TriggerUISchemaModel(
@@ -71,7 +73,8 @@ public record TriggerUISchemaModel(
         List<ServiceTypeModel> serviceTypes,
         List<ReadOnlyMetadata> readOnlyMetadata,
         List<String> importStatements,
-        String importPrefix) {
+        String importPrefix,
+        AgentBinding agentBinding) {
 
     /**
      * A service-object type and its handler functions. {@code functions} are present/locked handlers;
@@ -98,6 +101,63 @@ public record TriggerUISchemaModel(
             List<FunctionModel> functions,
             List<FunctionModel> schemaFunctions,
             Codedata codedata) {
+    }
+
+    /**
+     * The per-channel recipe for wiring a handler to an AI agent.
+     *
+     * @param handler         the {@code schemaFunctions} entry whose body is generated (e.g. {@code onMessages})
+     * @param handlerTemplate resource path of the handler-body template
+     * @param replyFnTemplate resource path of the module-level reply function {@code start}ed by the handler
+     * @param replyFnName     the preferred reply function name; uniqued against existing module symbols
+     *                        before emission, so this is a starting point rather than a guarantee
+     * @param sessionPrefix   namespace prepended to the session id, keeping one agent's memory distinct
+     *                        across channels (a phone number and a Telegram chat id can otherwise collide)
+     * @param sessionScopes   the selectable conversation-key expressions; the entry flagged
+     *                        {@code isDefault} wins when the user expresses no preference
+     * @param imports         extra {@code org/module} imports the rendered body needs (e.g. {@code ballerina/log})
+     * @param properties      extra form fields this binding needs beyond the listener's own — WhatsApp's
+     *                        reply client needs an access token the listener never collects, whereas
+     *                        Telegram's client reuses the listener's bot token and declares nothing here
+     * @param client          the reply client declaration, when replying goes out of band rather than
+     *                        through the handler's return value
+     */
+    public record AgentBinding(
+            String handler,
+            String handlerTemplate,
+            String replyFnTemplate,
+            String replyFnName,
+            String sessionPrefix,
+            List<SessionScope> sessionScopes,
+            List<String> imports,
+            Map<String, Property> properties,
+            ClientSpec client) {
+    }
+
+    /**
+     * One selectable answer to what counts as a conversation.
+     *
+     * @param id        stable identifier for this scope
+     * @param label     the human-readable choice shown in the wizard
+     * @param expr      the Ballerina expression yielding the conversation key
+     * @param isDefault whether this scope is preselected
+     */
+    public record SessionScope(
+            String id,
+            String label,
+            String expr,
+            Boolean isDefault) {
+    }
+
+    /**
+     * The out-of-band reply client.
+     *
+     * @param varName  the module-level variable the client is bound to
+     * @param template resource path of the client declaration template
+     */
+    public record ClientSpec(
+            String varName,
+            String template) {
     }
 
     /**

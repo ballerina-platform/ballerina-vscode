@@ -18,7 +18,30 @@
 
 package io.ballerina.servicemodelgenerator.extension.model;
 
+/**
+ * A trigger as listed in the add-integration surfaces.
+ *
+ * @param id                   the trigger's identifier
+ * @param name                 the trigger's module-derived name
+ * @param orgName              the organization publishing the connector
+ * @param packageName          the connector's package name
+ * @param moduleName           the connector's module name
+ * @param version              the connector's version
+ * @param type                 the trigger's category bucket (e.g. {@code event}/{@code file})
+ * @param displayName          the human-readable name shown on the card
+ * @param documentation        a short summary of the trigger
+ * @param listenerProtocol     the protocol its listener speaks
+ * @param icon                 the icon reference shown for this trigger
+ * @param supportsAgentBinding whether this trigger can be wired directly to an AI agent
+ */
 public record TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                                String version, String type, String displayName, String documentation,
-                               String listenerProtocol, String icon) {
+                               String listenerProtocol, String icon, boolean supportsAgentBinding) {
+
+    public TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
+                            String version, String type, String displayName, String documentation,
+                            String listenerProtocol, String icon) {
+        this(id, name, orgName, packageName, moduleName, version, type, displayName, documentation,
+                listenerProtocol, icon, false);
+    }
 }

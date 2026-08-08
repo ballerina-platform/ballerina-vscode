@@ -28,13 +28,16 @@ function parseSystemPrompt(systemPrompt: unknown): { role: string; instructions:
     return { role: unwrapBallerinaString(roleMatch?.[1]), instructions: unwrapBallerinaString(instrMatch?.[1]) };
 }
 
-export function withAgentUsages(node: FlowNode, usages: AgentUsage[]): FlowNode {
+export function withAgentUsages(node: FlowNode, usages: AgentUsage[], animate = true): FlowNode {
     const data = (node.metadata?.data || {}) as NodeMetadata;
     return {
         ...node,
         metadata: {
             ...node.metadata,
-            data: { ...data, agentInfo: { ...(data.agentInfo || {}), usages } },
+            data: {
+                ...data,
+                agentInfo: { ...(data.agentInfo || {}), usages, animateUsages: animate },
+            },
         },
     } as FlowNode;
 }

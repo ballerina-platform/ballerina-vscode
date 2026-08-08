@@ -57,6 +57,7 @@ export interface ServiceModel {
     properties?: ConfigProperties;
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
+    supportsAgentBinding?: boolean;
     codedata?: CodeData;
 }
 

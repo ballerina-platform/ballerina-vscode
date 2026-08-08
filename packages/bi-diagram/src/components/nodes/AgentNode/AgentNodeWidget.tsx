@@ -719,6 +719,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const nodeModelIconUrl = modelProvider?.path;
     const tools = agentInfo?.tools || [];
 
+    const animateUsages = agentInfo?.animateUsages !== false;
     const allUsages = getAgentNodeUsages(model.node);
     const usages = getVisibleAgentUsages(model.node);
     const hiddenUsageCount = allUsages.length - usages.length;
@@ -726,6 +727,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const onUsageClick = (usage: AgentUsage) => {
         openView?.({ documentUri: usage.documentUri, position: usage.position });
     };
+
+    const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
+    const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
@@ -790,7 +795,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     return (
         <NodeStyles.Node data-testid={isTypeDefinition ? "typed-agent-node" : "agent-node"} readOnly={readOnly}>
-            {usages.length > 0 && <svg
+            {(usages.length > 0 || showsAddTile) && <svg
                 data-testid="agent-usage-column"
                 width={AGENT_USAGE_COLUMN_WIDTH + 10}
                 height={model.node.viewState?.ch}
@@ -806,8 +811,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         css={css`
                             cursor: pointer;
                             > g {
-                                animation: ${usageRowFadeIn} 260ms ease-out both;
-                                animation-delay: ${index * 70}ms;
+                                ${animateUsages
+                                    ? `animation: ${usageRowFadeIn} 260ms ease-out both;
+                                       animation-delay: ${index * 70}ms;`
+                                    : ""}
                             }
                             &:hover rect:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
@@ -896,12 +903,74 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         fontFamily="GilmerRegular"
                         dominantBaseline="middle"
                         css={css`
-                            animation: ${usageRowFadeIn} 260ms ease-out both;
-                            animation-delay: ${usages.length * 70}ms;
+                            ${animateUsages
+                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
+                                   animation-delay: ${usages.length * 70}ms;`
+                                : ""}
                         `}
                     >
                         {`+${hiddenUsageCount} more`}
                     </text>
+                )}
+
+                {showsAddTile && (
+                    <g
+                        data-testid="agent-add-trigger"
+                        transform={`translate(0, ${addTileRow * AGENT_USAGE_ROW_PITCH})`}
+                        onClick={onAddTriggerClick}
+                        css={css`
+                            cursor: pointer;
+                            > g {
+                                ${animateUsages
+                                    ? `animation: ${usageRowFadeIn} 260ms ease-out both;
+                                       animation-delay: ${addTileRow * 70}ms;`
+                                    : ""}
+                            }
+                            &:hover rect {
+                                stroke: ${ThemeColors.PRIMARY};
+                            }
+                            &:hover text {
+                                fill: ${ThemeColors.PRIMARY};
+                            }
+                        `}
+                    >
+                        <g>
+                            <rect
+                                x="198"
+                                y="2"
+                                width="44"
+                                height="44"
+                                rx="10"
+                                fill="transparent"
+                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                strokeWidth={1.5}
+                                strokeDasharray="4 3"
+                            />
+                            <text
+                                x="220"
+                                y="25"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fill={ThemeColors.ON_SURFACE_VARIANT}
+                                fontSize="20px"
+                                fontFamily="GilmerRegular"
+                            >
+                                +
+                            </text>
+                            <text
+                                x="190"
+                                y="25"
+                                textAnchor="end"
+                                fill={ThemeColors.ON_SURFACE_VARIANT}
+                                fontSize="13px"
+                                fontFamily="GilmerRegular"
+                                dominantBaseline="middle"
+                            >
+                                Add Trigger
+                                <title>Connect this agent to a channel such as WhatsApp or Telegram</title>
+                            </text>
+                        </g>
+                    </g>
                 )}
 
                 <defs>

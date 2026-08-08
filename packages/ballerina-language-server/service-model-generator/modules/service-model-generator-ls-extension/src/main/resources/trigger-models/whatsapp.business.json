@@ -1285,5 +1285,60 @@
         }
       ]
     }
-  ]
+  ],
+  "agentBinding": {
+    "handler": "onMessages",
+    "handlerTemplate": "whatsapp.business/on-messages.bal.tpl",
+    "replyFnTemplate": "whatsapp.business/reply.bal.tpl",
+    "replyFnName": "replyToWhatsAppMessages",
+    "sessionPrefix": "whatsapp",
+    "sessionScopes": [
+      {
+        "id": "sender",
+        "label": "Per sender",
+        "expr": "message.'from",
+        "isDefault": true
+      }
+    ],
+    "imports": [
+      "ballerina/log"
+    ],
+    "properties": {
+      "accessToken": {
+        "metadata": {
+          "label": "Access Token",
+          "description": "The WhatsApp Business Cloud API access token used to send replies."
+        },
+        "value": "",
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "codedata": {
+          "originalName": "accessToken"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": true
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "validations": [
+          {
+            "rule": "common.validate.required"
+          }
+        ]
+      }
+    },
+    "client": {
+      "varName": "whatsappClient",
+      "template": "whatsapp.business/client.bal.tpl"
+    }
+  }
 }

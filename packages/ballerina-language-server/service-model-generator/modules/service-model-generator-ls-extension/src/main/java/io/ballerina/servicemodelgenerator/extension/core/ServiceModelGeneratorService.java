@@ -1323,6 +1323,14 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 triggerProperty.version());
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
-                protocol, icon);
+                protocol, icon, declaresAgentBinding(triggerProperty));
+    }
+
+    private boolean declaresAgentBinding(TriggerProperty triggerProperty) {
+        return TriggerModelReader.getInstance()
+                .getSchemaDrivenTriggerModel(triggerProperty.orgName(), triggerProperty.name(),
+                        triggerProperty.version())
+                .map(model -> model.agentBinding() != null)
+                .orElse(false);
     }
 }

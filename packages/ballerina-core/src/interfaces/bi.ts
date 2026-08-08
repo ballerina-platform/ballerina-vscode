@@ -151,6 +151,7 @@ export type AgentNodeInfo = {
     modelProvider?: AgentModelProviderInfo;
     memory?: AgentMemoryInfo;
     usages?: AgentUsage[];
+    animateUsages?: boolean;
 };
 
 export type AgentUsage = {
