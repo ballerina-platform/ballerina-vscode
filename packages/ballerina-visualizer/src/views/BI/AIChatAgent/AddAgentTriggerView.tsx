@@ -17,13 +17,13 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
-import { EVENT_TYPE, MACHINE_VIEW, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
+import { AgentTriggerKind, EVENT_TYPE, MACHINE_VIEW, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
 import { View, ViewContent } from '@wso2/ui-toolkit';
 
 import { TopNavigationBar } from '../../../components/TopNavigationBar';
 import { TitleBar } from '../../../components/TitleBar';
 import { useVisualizerContext } from '../../../Context';
-import { CardGrid, Container, PanelViewMore, Title, TitleWrapper } from '../ComponentListView/styles';
+import { AddPanel, CardGrid, Container, PanelViewMore, Title, TitleWrapper } from '../ComponentListView/styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
@@ -34,6 +34,20 @@ export interface AddAgentTriggerViewProps {
     agentOrgName?: string;
     projectPath?: string;
 }
+
+const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[] = [
+    {
+        kind: "CHAT",
+        title: "Chat Channels",
+        description: "Incoming messages are passed to the agent and its reply is sent back.",
+    },
+    {
+        kind: "EVENT",
+        title: "Event Sources",
+        description: "The agent runs when something happens in another system. "
+            + "You describe what it should do, and decide what its answer is for.",
+    },
+];
 
 export function AddAgentTriggerView(props: AddAgentTriggerViewProps) {
     const { agentName, agentOrgName, projectPath } = props;
@@ -70,10 +84,15 @@ export function AddAgentTriggerView(props: AddAgentTriggerViewProps) {
         };
     }, [rpcClient]);
 
-    const channels = useMemo(
-        () => (triggers.local ?? [])
-            .filter((trigger) => trigger.supportsAgentBinding)
-            .sort((a, b) => a.name.localeCompare(b.name)),
+    const sections = useMemo(
+        () => SECTIONS
+            .map((section) => ({
+                ...section,
+                channels: (triggers.local ?? [])
+                    .filter((trigger) => trigger.agentTriggerKind === section.kind)
+                    .sort((a, b) => a.name.localeCompare(b.name)),
+            }))
+            .filter((section) => section.channels.length > 0),
         [triggers]
     );
 
@@ -103,29 +122,31 @@ export function AddAgentTriggerView(props: AddAgentTriggerViewProps) {
             />
             <ViewContent padding>
                 <Container>
-                    <PanelViewMore>
-                        <TitleWrapper>
-                            <Title variant="h2">Chat Channels</Title>
-                            <BodyText>
-                                Incoming messages are passed to the agent and its reply is sent back.
-                            </BodyText>
-                        </TitleWrapper>
-                        <CardGrid>
-                            {isLoading && <RelativeLoader />}
-                            {!isLoading && channels.length === 0 && (
-                                <BodyText>No channels are available in this project.</BodyText>
-                            )}
-                            {channels.map((channel) => (
-                                <ButtonCard
-                                    id={`agent-trigger-${channel.moduleName.replace(/\./g, '-')}`}
-                                    key={channel.id}
-                                    title={channel.name}
-                                    icon={getEntryNodeIcon(channel)}
-                                    onClick={() => handleClick(channel)}
-                                />
-                            ))}
-                        </CardGrid>
-                    </PanelViewMore>
+                    <AddPanel>
+                        {isLoading && <RelativeLoader />}
+                        {!isLoading && sections.length === 0 && (
+                            <BodyText>No channels are available in this project.</BodyText>
+                        )}
+                        {sections.map((section) => (
+                            <PanelViewMore key={section.kind}>
+                                <TitleWrapper>
+                                    <Title variant="h2">{section.title}</Title>
+                                    <BodyText>{section.description}</BodyText>
+                                </TitleWrapper>
+                                <CardGrid>
+                                    {section.channels.map((channel) => (
+                                        <ButtonCard
+                                            id={`agent-trigger-${channel.moduleName.replace(/\./g, '-')}`}
+                                            key={channel.id}
+                                            title={channel.name}
+                                            icon={getEntryNodeIcon(channel)}
+                                            onClick={() => handleClick(channel)}
+                                        />
+                                    ))}
+                                </CardGrid>
+                            </PanelViewMore>
+                        ))}
+                    </AddPanel>
                 </Container>
             </ViewContent>
         </View>

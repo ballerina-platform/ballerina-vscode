@@ -68,6 +68,11 @@ public class TelegramChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public AgentTriggerKind kind() {
+        return AgentTriggerKind.CHAT;
+    }
+
+    @Override
     public String serviceBlock(AgentTriggerContext context) {
         return SERVICE_BLOCK
                 .replace("{{alias}}", context.emitAlias())

@@ -67,6 +67,11 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForAgent(String moduleName, String agentVarName, String agentOrgName) {
+        return generateForAgent(moduleName, agentVarName, agentOrgName, Map.of());
+    }
+
+    private String generateForAgent(String moduleName, String agentVarName, String agentOrgName,
+                                    Map<String, String> channelValues) {
         ServiceInitModel form = initForm(moduleName);
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
                 .enabled(true).editable(false).value(agentVarName).build());
@@ -74,6 +79,8 @@ public class AgentTriggerGenerationTest {
             form.addProperty("agentOrg", new Value.ValueBuilder()
                     .enabled(true).editable(false).value(agentOrgName).build());
         }
+        channelValues.forEach((key, value) -> form.addProperty(key, new Value.ValueBuilder()
+                .enabled(true).editable(true).value(value).build()));
         AgentTriggerChannel channel = AgentTriggerChannels.forModule(moduleName).orElseThrow();
         return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(moduleName), channel,
                 rootOf("\n"), "main.bal"));
@@ -143,6 +150,74 @@ public class AgentTriggerGenerationTest {
         String src = generateForAgent("whatsapp.business", "mathTutorAgent", null);
         Assert.assertTrue(src.contains("import ballerina/log;"),
                 "the channel's own imports should be added: " + src);
+    }
+
+
+    private static final String GITHUB = "trigger.github";
+    private static final String INSTRUCTIONS = "Triage this issue and suggest a priority label.";
+
+    private String generateForGitHub(String instructions) {
+        return generateForAgent(GITHUB, "triageAgent", null, Map.of("instructions", instructions));
+    }
+
+    @Test
+    public void testTheChannelsPrimaryEventRunsTheAgent() {
+        String src = generateForGitHub(INSTRUCTIONS);
+
+        Assert.assertTrue(src.contains("service github:IssuesService on githubListener"),
+                "the selected event channel should be the service type: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnOpened(payload);"),
+                "the primary handler should offload to the agent: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnOpened(github:IssuesEvent payload)"),
+                "the reply method should take the handler's own payload type: " + src);
+    }
+
+    @Test
+    public void testTheRemainingHandlersAreEmitted() {
+        String src = generateForGitHub(INSTRUCTIONS);
+
+        Assert.assertTrue(src.contains("remote function onClosed(github:IssuesEvent payload) returns error? {"),
+                "sibling handlers should be present: " + src);
+        Assert.assertEquals(src.split("start self\\.runAgent", -1).length - 1, 1,
+                "only the primary handler should call the agent: " + src);
+        Assert.assertEquals(src.split("remote function ", -1).length - 1, 7,
+                "the channel's whole handler surface should be emitted: " + src);
+    }
+
+    @Test
+    public void testInstructionsAndTheEventBecomeThePrompt() {
+        String src = generateForGitHub(INSTRUCTIONS);
+
+        Assert.assertTrue(src.contains("string prompt = string `" + INSTRUCTIONS),
+                "the user's instructions should open the prompt: " + src);
+        Assert.assertTrue(src.contains("${payload.toJsonString()}`;"),
+                "the whole event should be appended: " + src);
+        Assert.assertTrue(src.contains("triageAgent.run(prompt)"),
+                "the agent should be called with the composed prompt: " + src);
+    }
+
+    @Test
+    public void testAnEventRunCarriesNoSession() {
+        Assert.assertFalse(generateForGitHub(INSTRUCTIONS).contains("sessionId"),
+                "an event trigger should not share a memory session across events");
+    }
+
+    @Test
+    public void testInstructionsAreEscapedForTheTemplate() {
+        String src = generateForGitHub("Use `code` and ${placeholders} verbatim.");
+
+        Assert.assertTrue(src.contains("Use \\`code\\` and \\${placeholders} verbatim."),
+                "backticks and interpolations should be escaped: " + src);
+    }
+
+    @Test
+    public void testTheAgentsAnswerIsLeftToTheUser() {
+        String src = generateForGitHub(INSTRUCTIONS);
+
+        Assert.assertTrue(src.contains("// TODO: replace this with what should happen with the agent's answer"),
+                "a comment renders as a note in the flow diagram, so the unfinished step is visible: " + src);
+        Assert.assertTrue(src.contains("log:printInfo(\"Agent result\", result = result);"),
+                "the placeholder should be worth keeping while a webhook is wired up: " + src);
     }
 
     @Test

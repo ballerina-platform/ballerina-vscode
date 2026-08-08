@@ -1324,6 +1324,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 triggerProperty.version());
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
-                protocol, icon, AgentTriggerChannels.supports(triggerProperty.name()));
+                protocol, icon, AgentTriggerChannels.kindOf(triggerProperty.name()));
     }
 }

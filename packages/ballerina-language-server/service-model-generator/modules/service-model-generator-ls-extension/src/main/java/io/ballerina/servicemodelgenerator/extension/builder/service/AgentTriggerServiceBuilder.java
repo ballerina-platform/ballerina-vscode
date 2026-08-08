@@ -119,7 +119,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias);
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
-                formValues);
+                formValues, filledModel, triggerModel);
         StringBuilder block = new StringBuilder(NEW_LINE);
         if (listener.declaration() != null) {
             block.append(listener.declaration()).append(NEW_LINE);

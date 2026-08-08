@@ -359,6 +359,12 @@ public final class SchemaDrivenSourceGenerator {
      * form (ftp/github carry an already-qualified value); otherwise reads the selected/first
      * {@code serviceTypes[]} entry (kafka carries the descriptor on the type, not the init form).
      */
+    public static String resolveServiceDescriptor(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
+                                                 String emitAlias) {
+        return resolveServiceDescriptor(filledInitForm, triggerModel,
+                getProtocol(filledInitForm.getModuleName()), emitAlias);
+    }
+
     private static String resolveServiceDescriptor(ServiceInitModel filledInitForm, TriggerUISchemaModel triggerModel,
                                                    String selfPrefix, String emitAlias) {
         String fromForm = findServiceType(filledInitForm.getProperties());
@@ -439,8 +445,12 @@ public final class SchemaDrivenSourceGenerator {
         return ModuleAliasResolver.resolve(rootNode, filledInitForm.getOrgName(), moduleName, override);
     }
 
+    public static String rewriteSelfPrefix(String typeText, String moduleName, String emitAlias) {
+        return ModuleAliasResolver.rewriteSelfPrefix(typeText, getProtocol(moduleName), emitAlias);
+    }
+
     /** @see ModuleAliasResolver#rewriteSelfPrefix(String, String, String) */
-    private static String rewriteSelfPrefix(String typeText, String selfPrefix, String emitAlias) {
+    private static String rewritePrefix(String typeText, String selfPrefix, String emitAlias) {
         return ModuleAliasResolver.rewriteSelfPrefix(typeText, selfPrefix, emitAlias);
     }
 
@@ -476,7 +486,7 @@ public final class SchemaDrivenSourceGenerator {
     }
 
     /** Picks the service type matching the init-form selection; else the enabled one; else the first. */
-    private static TriggerUISchemaModel.ServiceTypeModel selectServiceType(ServiceInitModel filledInitForm,
+    public static TriggerUISchemaModel.ServiceTypeModel selectServiceType(ServiceInitModel filledInitForm,
                                                                    TriggerUISchemaModel triggerModel) {
         if (triggerModel == null || triggerModel.serviceTypes() == null
                 || triggerModel.serviceTypes().isEmpty()) {
@@ -521,6 +531,11 @@ public final class SchemaDrivenSourceGenerator {
     /** Renders one handler, leaving module-qualified types exactly as the model authored them. */
     static String buildFunctionSource(TriggerUISchemaModel.FunctionModel function) {
         return buildFunctionSource(function, "", "");
+    }
+
+    public static String buildHandlerSource(TriggerUISchemaModel.FunctionModel function, String moduleName,
+                                            String emitAlias) {
+        return buildFunctionSource(function, getProtocol(moduleName), emitAlias);
     }
 
     /**
@@ -616,7 +631,7 @@ public final class SchemaDrivenSourceGenerator {
             } else if (Boolean.TRUE.equals(parameter.optional())) {
                 continue;
             }
-            String type = rewriteSelfPrefix(PayloadComposer.effectiveType(parameter.type()), selfPrefix, emitAlias);
+            String type = rewritePrefix(PayloadComposer.effectiveType(parameter.type()), selfPrefix, emitAlias);
             String name = paramName(parameter);
             if (!type.isEmpty() && !name.isEmpty()) {
                 params.add(type + SPACE + name);
@@ -644,7 +659,7 @@ public final class SchemaDrivenSourceGenerator {
                 || returnType.type().isBlank()) {
             return "";
         }
-        String type = rewriteSelfPrefix(returnType.type(), selfPrefix, emitAlias);
+        String type = rewritePrefix(returnType.type(), selfPrefix, emitAlias);
         if (Boolean.TRUE.equals(returnType.hasError()) && !type.contains(ERROR)) {
             type = type + "|" + ERROR;
         }

@@ -36,6 +36,8 @@ export type ListenerModel = {
 };
 
 
+export type AgentTriggerKind = "CHAT" | "EVENT";
+
 /**
  * For schema-driven triggers (unified TriggerModel), `functions` and `schemaFunctions` split the
  * handlers in two: `functions` holds what exists in the user's source, `schemaFunctions` the
@@ -57,7 +59,7 @@ export interface ServiceModel {
     properties?: ConfigProperties;
     functions?: FunctionModel[];
     schemaFunctions?: FunctionModel[];
-    supportsAgentBinding?: boolean;
+    agentTriggerKind?: AgentTriggerKind;
     codedata?: CodeData;
 }
 

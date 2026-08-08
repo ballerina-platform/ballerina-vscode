@@ -200,7 +200,7 @@ export async function getAgentTriggerProtocols(rpcClient: BallerinaRpcClient): P
         const models = await rpcClient.getServiceDesignerRpcClient().getTriggerModels({ query: "" });
         triggerProtocols = new Set(
             (models?.local ?? [])
-                .filter((trigger) => trigger.supportsAgentBinding && trigger.listenerProtocol)
+                .filter((trigger) => trigger.agentTriggerKind && trigger.listenerProtocol)
                 .map((trigger) => trigger.listenerProtocol)
         );
     }

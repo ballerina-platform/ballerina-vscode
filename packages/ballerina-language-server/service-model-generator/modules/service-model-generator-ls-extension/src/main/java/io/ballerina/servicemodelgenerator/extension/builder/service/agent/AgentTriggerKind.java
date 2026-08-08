@@ -18,29 +18,9 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
-import io.ballerina.servicemodelgenerator.extension.model.Value;
+public enum AgentTriggerKind {
 
-import java.util.List;
-import java.util.Map;
+    CHAT,
 
-/**
- * The per-channel knowledge an agent trigger needs.
- *
- * @since 1.9.0
- */
-public interface AgentTriggerChannel {
-
-    String moduleName();
-
-    AgentTriggerKind kind();
-
-    default Map<String, Value> additionalProperties() {
-        return Map.of();
-    }
-
-    default List<String> imports() {
-        return List.of("ballerina/log");
-    }
-
-    String serviceBlock(AgentTriggerContext context);
+    EVENT
 }

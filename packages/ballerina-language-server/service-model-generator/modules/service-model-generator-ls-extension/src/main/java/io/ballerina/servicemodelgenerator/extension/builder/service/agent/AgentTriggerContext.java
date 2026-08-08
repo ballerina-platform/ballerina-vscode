@@ -18,31 +18,55 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+
 import java.util.Map;
 
 /**
  * Everything a channel needs to render one service block.
  *
- * @param emitAlias       the prefix the connector's own module is imported under, so a dotted module
- *                        name (e.g. {@code whatsapp.business}) is referenced the same way the rest of
- *                        the generated block references it
+ * @param emitAlias       the prefix the connector's module is imported under
  * @param listenerVarName the listener the service attaches to
- * @param agentVarName    the agent variable the trigger is being wired to
- * @param agentOrgName    the agent's publishing org, which decides {@code .run} vs {@code ->run}
+ * @param agentVarName    the agent variable the trigger is wired to
+ * @param agentOrgName    the agent's publishing org, deciding {@code .run} vs {@code ->run}
  * @param formValues      the filled creation form, flattened to leaf key -> value
+ * @param initForm        the filled creation form itself
+ * @param triggerModel    the connector's schema
  * @since 1.9.0
  */
 public record AgentTriggerContext(String emitAlias, String listenerVarName, String agentVarName,
-                                  String agentOrgName, Map<String, String> formValues) {
+                                  String agentOrgName, Map<String, String> formValues,
+                                  ServiceInitModel initForm, TriggerUISchemaModel triggerModel) {
 
     private static final String BALLERINA_ORG = "ballerina";
 
     public String agentRun(String queryExpr, String sessionExpr) {
-        String operator = BALLERINA_ORG.equals(agentOrgName) ? "." : "->";
-        return "%s%srun(%s, sessionId = %s)".formatted(agentVarName, operator, queryExpr, sessionExpr);
+        return "%s(%s, sessionId = %s)".formatted(runTarget(), queryExpr, sessionExpr);
+    }
+
+    public String agentRun(String queryExpr) {
+        return "%s(%s)".formatted(runTarget(), queryExpr);
+    }
+
+    private String runTarget() {
+        return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
     public String formValue(String key) {
         return formValues.getOrDefault(key, "");
+    }
+
+    public TriggerUISchemaModel.ServiceTypeModel serviceType() {
+        return SchemaDrivenSourceGenerator.selectServiceType(initForm, triggerModel);
+    }
+
+    public String serviceDescriptor() {
+        return SchemaDrivenSourceGenerator.resolveServiceDescriptor(initForm, triggerModel, emitAlias);
+    }
+
+    public String qualify(String typeText) {
+        return SchemaDrivenSourceGenerator.rewriteSelfPrefix(typeText, initForm.getModuleName(), emitAlias);
     }
 }

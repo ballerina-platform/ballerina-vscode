@@ -29,9 +29,12 @@ import java.util.Optional;
  */
 public final class AgentTriggerChannels {
 
+    private static final String GITHUB_MODULE = "trigger.github";
+
     private static final Map<String, AgentTriggerChannel> BY_MODULE = new LinkedHashMap<>() {{
             put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
             put(TelegramChannel.MODULE_NAME, new TelegramChannel());
+            put(GITHUB_MODULE, new EventAgentTriggerChannel(GITHUB_MODULE));
         }};
 
     private AgentTriggerChannels() {
@@ -43,5 +46,9 @@ public final class AgentTriggerChannels {
 
     public static boolean supports(String moduleName) {
         return forModule(moduleName).isPresent();
+    }
+
+    public static String kindOf(String moduleName) {
+        return forModule(moduleName).map(channel -> channel.kind().name()).orElse(null);
     }
 }

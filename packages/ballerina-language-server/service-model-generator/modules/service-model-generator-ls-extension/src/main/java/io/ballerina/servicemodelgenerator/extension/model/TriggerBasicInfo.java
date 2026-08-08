@@ -32,16 +32,16 @@ package io.ballerina.servicemodelgenerator.extension.model;
  * @param documentation        a short summary of the trigger
  * @param listenerProtocol     the protocol its listener speaks
  * @param icon                 the icon reference shown for this trigger
- * @param supportsAgentBinding whether this trigger can be wired directly to an AI agent
+ * @param agentTriggerKind     how this trigger calls an agent, or {@code null} when it cannot
  */
 public record TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                                String version, String type, String displayName, String documentation,
-                               String listenerProtocol, String icon, boolean supportsAgentBinding) {
+                               String listenerProtocol, String icon, String agentTriggerKind) {
 
     public TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                             String version, String type, String displayName, String documentation,
                             String listenerProtocol, String icon) {
         this(id, name, orgName, packageName, moduleName, version, type, displayName, documentation,
-                listenerProtocol, icon, false);
+                listenerProtocol, icon, null);
     }
 }

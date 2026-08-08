@@ -53,8 +53,10 @@ const Container = styled.div`
 `;
 
 const FormContainer = styled.div`
-    /* padding-top: 15px; */
-    padding-bottom: 100px;
+    padding: 0 16px 100px;
+    > div:first-of-type {
+        padding: 0 4px;
+    }
 `;
 
 const StatusContainer = styled.div`
@@ -306,7 +308,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                             <StatusText variant="body2">
                                 {isLocalRepository
                                     ? `Please wait while the ${packageName} package is being loaded from your `
-                                        + "local repository..."
+                                    + "local repository..."
                                     : `Please wait while the ${packageName} package is being pulled...`}
                             </StatusText>
                         </StatusCard>

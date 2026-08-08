@@ -81,6 +81,11 @@ public class WhatsAppBusinessChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public AgentTriggerKind kind() {
+        return AgentTriggerKind.CHAT;
+    }
+
+    @Override
     public Map<String, Value> additionalProperties() {
         return Map.of(ACCESS_TOKEN, new Value.ValueBuilder()
                 .metadata("Access Token", "The WhatsApp Business Cloud API access token used to send replies.")

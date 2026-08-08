@@ -45,6 +45,7 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     grpc: { glyph: "bi-grpc" },
     graphql: { glyph: "bi-graphql", color: "#e535ab" },
     "java.jms": { glyph: "bi-java" },
+    github: { glyph: "bi-github" },
     "trigger.github": { glyph: "bi-github" },
     http: { glyph: "bi-globe" },
     mcp: { glyph: "bi-mcp" },
