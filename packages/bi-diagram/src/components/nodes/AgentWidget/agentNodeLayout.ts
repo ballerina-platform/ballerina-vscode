@@ -19,7 +19,6 @@
 import { AgentUsage, NodeMetadata } from "@wso2/ballerina-core";
 import {
     AGENT_CALL_TOOL_SECTION_GAP,
-    AGENT_NODE_ADD_TOOL_BUTTON_WIDTH,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     AGENT_NODE_USAGE_GAP,
@@ -35,7 +34,7 @@ export type AgentWidgetType = NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE 
 
 const layoutStrategies = {
     [NodeTypes.AGENT_NODE]: (toolHeight: number) => NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
-        + AGENT_NODE_ADD_TOOL_BUTTON_WIDTH + AGENT_NODE_TOOL_GAP * 2 + toolHeight,
+        + toolHeight + (NODE_HEIGHT + AGENT_NODE_TOOL_GAP),
     [NodeTypes.TYPED_AGENT_NODE]: (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => {
         const memoryHeight = agentInfo?.memory?.propertyKey ? 52 : 0;
         const hasPrompt = Boolean(agentInfo?.systemPrompt?.role && agentInfo?.systemPrompt?.instructions);

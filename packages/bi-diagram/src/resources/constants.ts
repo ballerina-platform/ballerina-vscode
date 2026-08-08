@@ -102,6 +102,7 @@ export const LINK_HOVERED_COLOR = ThemeColors.PRIMARY;
 export const LINK_DISABLED_COLOR = ThemeColors.OUTLINE_VARIANT;
 
 // ─── Add Button Colors ───────────────────────────────────────────────────────
+export const ADD_TILE_COLOR = "var(--vscode-textLink-foreground)";
 export const ADD_BUTTON_COLOR = ThemeColors.ON_SURFACE;
 export const ADD_BUTTON_HOVERED_COLOR = ThemeColors.PRIMARY;
 export const ADD_BUTTON_DISABLED_COLOR = ThemeColors.OUTLINE_VARIANT;
@@ -162,7 +163,6 @@ export const LAST_NODE = "lastNode";
 export const AGENT_NODE_TOOL_GAP = 5;
 export const AGENT_NODE_TOOL_SECTION_GAP = 120;
 export const AGENT_CALL_TOOL_SECTION_GAP = 80;
-export const AGENT_NODE_ADD_TOOL_BUTTON_WIDTH = 20;
 export const AGENT_NODE_USAGE_GAP = 10;
 export const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 

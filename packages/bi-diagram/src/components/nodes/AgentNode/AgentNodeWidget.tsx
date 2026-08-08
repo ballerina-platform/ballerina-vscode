@@ -21,8 +21,9 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
 import {
-    AGENT_NODE_ADD_TOOL_BUTTON_WIDTH,
+    ADD_TILE_COLOR,
     AGENT_NODE_TOOL_GAP,
+    AGENT_NODE_USAGE_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     DRAFT_NODE_BORDER_WIDTH,
     LABEL_HEIGHT,
@@ -45,6 +46,7 @@ import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
     AgentUsage,
+    DEFAULT_MODEL_PROVIDER_LABEL,
     NodeMetadata,
     isDefaultModelProviderExpr,
     resolveBrandIcon,
@@ -312,10 +314,10 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 4px;
         background-color: transparent;
-        color: ${ThemeColors.ON_SURFACE};
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
         font-size: 14px;
         font-family: "GilmerRegular";
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
@@ -323,6 +325,8 @@ export namespace NodeStyles {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
             props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+            color: ${(props: { readOnly: boolean }) =>
+            props.readOnly ? ThemeColors.ON_SURFACE_VARIANT : ThemeColors.SECONDARY};
         }
     `;
 
@@ -741,6 +745,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
+    const modelProviderLabel = isDefaultModelProviderExpr(modelProvider?.name)
+        ? DEFAULT_MODEL_PROVIDER_LABEL
+        : (modelProvider?.name?.length ?? 0) > 20
+            ? `${modelProvider!.name.slice(0, 20)}...`
+            : modelProvider?.name;
     const tools = agentInfo?.tools || [];
 
     const animateUsages = agentInfo?.animateUsages !== false;
@@ -751,6 +760,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const onUsageClick = (usage: AgentUsage) => {
         openView?.({ documentUri: usage.documentUri, position: usage.position });
     };
+    const addToolCx = tools.length > 0 ? 80 : 34;
+    const addTriggerX = usages.length > 0 || hiddenUsageCount > 0 ? 198 : 244;
 
     const canDeleteTrigger = (usage: AgentUsage) =>
         !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
@@ -767,6 +778,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
+    const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
+        - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
     const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
@@ -855,9 +868,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             cursor: pointer;
                             > g {
                                 ${animateUsages
-                                    ? `animation: ${usageRowFadeIn} 260ms ease-out both;
+                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
                                        animation-delay: ${index * 70}ms;`
-                                    : ""}
+                                : ""}
                             }
                             &:hover rect:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
@@ -872,100 +885,100 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         `}
                     >
                         <g>
-                        {/* Square marks an inbound caller; tools and the model stay circles. */}
-                        <rect
-                            x="198"
-                            y="2"
-                            width="44"
-                            height="44"
-                            rx="10"
-                            fill={ThemeColors.SURFACE_DIM}
-                            stroke={ThemeColors.OUTLINE_VARIANT}
-                            strokeWidth={1.5}
-                            css={css`
+                            {/* Square marks an inbound caller; tools and the model stay circles. */}
+                            <rect
+                                x="198"
+                                y="2"
+                                width="44"
+                                height="44"
+                                rx="10"
+                                fill={ThemeColors.SURFACE_DIM}
+                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                strokeWidth={1.5}
+                                css={css`
                                 transition: stroke 0.4s ease-out;
                             `}
-                        />
-                        <foreignObject
-                            x="208"
-                            y="12"
-                            width="44"
-                            height="44"
-                            fill={ThemeColors.ON_SURFACE}
-                            style={{ pointerEvents: "none" }}
-                        >
-                            <UsageIcon usage={usage} codedata={model.node?.codedata} />
-                        </foreignObject>
+                            />
+                            <foreignObject
+                                x="208"
+                                y="12"
+                                width="44"
+                                height="44"
+                                fill={ThemeColors.ON_SURFACE}
+                                style={{ pointerEvents: "none" }}
+                            >
+                                <UsageIcon usage={usage} codedata={model.node?.codedata} />
+                            </foreignObject>
 
-                        <text
-                            x={USAGE_TEXT_RIGHT_X}
-                            y="20"
-                            textAnchor="end"
-                            fill={ThemeColors.ON_SURFACE}
-                            fontSize="14px"
-                            fontFamily="GilmerRegular"
-                            dominantBaseline="middle"
-                        >
-                            {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
-                            <title>{[usage.label, usage.serviceLabel, usage.typeLabel].filter(Boolean).join(" — ")}</title>
-                        </text>
-                        {usage.serviceLabel && (
                             <text
                                 x={USAGE_TEXT_RIGHT_X}
-                                y="36"
+                                y="20"
                                 textAnchor="end"
-                                fill={ThemeColors.ON_SURFACE_VARIANT}
-                                fontSize="12px"
-                                fontFamily="monospace"
+                                fill={ThemeColors.ON_SURFACE}
+                                fontSize="14px"
+                                fontFamily="GilmerRegular"
                                 dominantBaseline="middle"
                             >
-                                {usage.serviceLabel.length > 24
-                                    ? `${usage.serviceLabel.slice(0, 24)}...`
-                                    : usage.serviceLabel}
+                                {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
+                                <title>{[usage.label, usage.serviceLabel, usage.typeLabel].filter(Boolean).join(" — ")}</title>
                             </text>
-                        )}
+                            {usage.serviceLabel && (
+                                <text
+                                    x={USAGE_TEXT_RIGHT_X}
+                                    y="36"
+                                    textAnchor="end"
+                                    fill={ThemeColors.ON_SURFACE_VARIANT}
+                                    fontSize="12px"
+                                    fontFamily="monospace"
+                                    dominantBaseline="middle"
+                                >
+                                    {usage.serviceLabel.length > 24
+                                        ? `${usage.serviceLabel.slice(0, 24)}...`
+                                        : usage.serviceLabel}
+                                </text>
+                            )}
 
-                        <line
-                            x1="243"
-                            y1="25"
-                            x2="300"
-                            y2="25"
-                            style={{
-                                stroke: ThemeColors.ON_SURFACE,
-                                strokeWidth: 1.5,
-                                markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
-                            }}
-                        />
+                            <line
+                                x1="243"
+                                y1="25"
+                                x2="300"
+                                y2="25"
+                                style={{
+                                    stroke: ThemeColors.ON_SURFACE,
+                                    strokeWidth: 1.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
+                                }}
+                            />
 
-                        {canDeleteTrigger(usage) && (
-                            <foreignObject
-                                x={usageMenuX(usage)}
-                                y="12"
-                                width={USAGE_MENU_SIZE}
-                                height={USAGE_MENU_SIZE}
-                                className="usage-menu-button"
-                                data-testid="agent-usage-menu"
-                                css={css`
+                            {canDeleteTrigger(usage) && (
+                                <foreignObject
+                                    x={usageMenuX(usage)}
+                                    y="12"
+                                    width={USAGE_MENU_SIZE}
+                                    height={USAGE_MENU_SIZE}
+                                    className="usage-menu-button"
+                                    data-testid="agent-usage-menu"
+                                    css={css`
                                     opacity: 0;
                                     visibility: hidden;
                                     transition: opacity 0.2s ease-in-out;
                                     pointer-events: all;
                                 `}
-                            >
-                                <NodeStyles.MenuButton
-                                    appearance="icon"
-                                    onClick={(e) => handleUsageMenuClick(e, usage)}
-                                    css={css`
+                                >
+                                    <NodeStyles.MenuButton
+                                        appearance="icon"
+                                        onClick={(e) => handleUsageMenuClick(e, usage)}
+                                        css={css`
                                         padding: 2px;
                                         height: ${USAGE_MENU_SIZE}px;
                                         width: ${USAGE_MENU_SIZE}px;
                                         min-width: ${USAGE_MENU_SIZE}px;
                                     `}
-                                >
-                                    <MoreVertIcon />
-                                </NodeStyles.MenuButton>
-                            </foreignObject>
-                        )}
+                                    >
+                                        <MoreVertIcon />
+                                    </NodeStyles.MenuButton>
+                                </foreignObject>
+                            )}
                         </g>
                     </g>
                 ))}
@@ -1013,54 +1026,57 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 {showsAddTile && (
                     <g
                         data-testid="agent-add-trigger"
-                        transform={`translate(0, ${addTileRow * AGENT_USAGE_ROW_PITCH})`}
+                        transform={`translate(0, ${addTileY})`}
                         onClick={onAddTriggerClick}
                         css={css`
                             cursor: pointer;
                             > g {
                                 ${animateUsages
-                                    ? `animation: ${usageRowFadeIn} 260ms ease-out both;
+                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
                                        animation-delay: ${addTileRow * 70}ms;`
-                                    : ""}
+                                : ""}
                             }
-                            &:hover rect {
-                                stroke: ${ThemeColors.PRIMARY};
+                            &:hover .add-tile {
+                                stroke: ${ThemeColors.SECONDARY};
                             }
                             &:hover text {
-                                fill: ${ThemeColors.PRIMARY};
+                                fill: ${ThemeColors.SECONDARY};
                             }
                         `}
                     >
                         <g>
+                            <rect x={addTriggerX - 86} y="0" width="132" height="48" fill="transparent"
+                                style={{ pointerEvents: "all" }} />
                             <rect
-                                x="198"
+                                className="add-tile"
+                                x={addTriggerX}
                                 y="2"
                                 width="44"
                                 height="44"
                                 rx="10"
                                 fill="transparent"
-                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                stroke={ADD_TILE_COLOR}
                                 strokeWidth={1.5}
                                 strokeDasharray="4 3"
                             />
                             <text
-                                x="220"
+                                x={addTriggerX + 22}
                                 y="25"
                                 textAnchor="middle"
                                 dominantBaseline="middle"
-                                fill={ThemeColors.ON_SURFACE_VARIANT}
+                                fill={ADD_TILE_COLOR}
                                 fontSize="20px"
                                 fontFamily="GilmerRegular"
                             >
                                 +
                             </text>
                             <text
-                                x="190"
+                                x={addTriggerX - 8}
                                 y="25"
                                 textAnchor="end"
-                                fill={ThemeColors.ON_SURFACE_VARIANT}
+                                fill={ADD_TILE_COLOR}
                                 fontSize="13px"
-                                fontFamily="GilmerRegular"
+                                fontFamily="GilmerMedium"
                                 dominantBaseline="middle"
                             >
                                 Add Trigger
@@ -1360,6 +1376,28 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
+                    {modelProvider?.name && (
+                        <text
+                            x="110"
+                            y="28"
+                            textAnchor="start"
+                            fill={ThemeColors.ON_SURFACE}
+                            fontSize="14px"
+                            fontFamily="GilmerRegular"
+                            dominantBaseline="middle"
+                            onClick={onModelEditClick}
+                            css={css`
+                                cursor: ${readOnly ? "default" : "pointer"};
+                                &:hover {
+                                    fill: ${readOnly ? ThemeColors.ON_SURFACE : ThemeColors.SECONDARY};
+                                }
+                            `}
+                        >
+                            {modelProviderLabel}
+                            <title>{modelProviderLabel}</title>
+                        </text>
+                    )}
+
                     <line
                         x1="0"
                         y1="25"
@@ -1572,61 +1610,50 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </Popover>}
 
                 {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
-                    transform={`translate(-11, ${tools.length > 0
+                    data-testid="agent-add-tool"
+                    transform={`translate(0, ${tools.length > 0
                         ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
                         : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
                         })`}
                     onClick={onAddToolClick}
-                    style={{ cursor: "pointer" }}
+                    css={css`
+                        cursor: pointer;
+                        &:hover circle,
+                        &:hover line {
+                            stroke: ${ThemeColors.SECONDARY};
+                        }
+                        &:hover text {
+                            fill: ${ThemeColors.SECONDARY};
+                        }
+                    `}
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        css={css`
-                            cursor: ${readOnly ? "not-allowed" : "pointer"};
-                            &:hover path:last-of-type {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover + .custom-tooltip {
-                                opacity: 1;
-                                visibility: visible;
-                            }
-                        `}
+                    <rect x={addToolCx - 24} y="0" width="128" height="48" fill="transparent"
+                        style={{ pointerEvents: "all" }} />
+                    <circle
+                        cx={addToolCx}
+                        cy="24"
+                        r="22"
+                        fill="transparent"
+                        stroke={ADD_TILE_COLOR}
+                        strokeWidth={1.5}
+                        strokeDasharray="4 3"
+                    />
+                    <line x1={addToolCx - 4.5} y1="24" x2={addToolCx + 4.5} y2="24"
+                        stroke={ADD_TILE_COLOR} strokeWidth={1.5} strokeLinecap="round" />
+                    <line x1={addToolCx} y1="19.5" x2={addToolCx} y2="28.5"
+                        stroke={ADD_TILE_COLOR} strokeWidth={1.5} strokeLinecap="round" />
+                    <text
+                        x={addToolCx + 30}
+                        y="28"
+                        textAnchor="start"
+                        fill={ADD_TILE_COLOR}
+                        fontSize="13px"
+                        fontFamily="GilmerMedium"
+                        dominantBaseline="middle"
                     >
-                        <title>Add New Tool / MCP Server</title>
-                        <path
-                            fill={ThemeColors.SURFACE_BRIGHT}
-                            d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                        />
-                        <path
-                            fill={ThemeColors.ON_SURFACE}
-                            d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8m4-9h-3V8a1 1 0 0 0-2 0v3H8a1 1 0 0 0 0 2h3v3a1 1 0 0 0 2 0v-3h3a1 1 0 0 0 0-2"
-                        />
-                    </svg>
-
-                    <foreignObject x="25" y="-10" width="100" height="30" style={{ pointerEvents: "none" }}>
-                        <div
-                            className="custom-tooltip"
-                            css={css`
-                                background-color: ${ThemeColors.SURFACE_BRIGHT};
-                                color: ${ThemeColors.ON_SURFACE};
-                                padding: 4px 8px;
-                                border-radius: 4px;
-                                font-size: 12px;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                                opacity: 0;
-                                visibility: hidden;
-                                transition: opacity 0.2s ease-in-out;
-                                pointer-events: none;
-                                white-space: nowrap;
-                                font-family: "GilmerRegular";
-                            `}
-                        >
-                            Add New Tool / MCP Server
-                        </div>
-                    </foreignObject>
+                        Add Tool
+                        <title>Add a tool or MCP server for this agent to call</title>
+                    </text>
                 </g>}
 
                 <defs>
