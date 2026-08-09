@@ -175,6 +175,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             console.log(">>> on parent popup submitted", parent);
+            if (!parent?.recentIdentifier && !parent?.artifactType) {
+                return;
+            }
             if (isAgent) {
                 debouncedGetAgentModel();
                 return;
