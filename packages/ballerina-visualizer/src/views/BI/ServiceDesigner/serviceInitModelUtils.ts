@@ -215,9 +215,14 @@ export function updateChoiceInModel(properties: { [key: string]: PropertyModel }
     if (properties[fieldKey]) {
         const property = properties[fieldKey];
         if (getPrimaryInputType(property.types)?.fieldType === "CHOICE" && property.choices) {
+            const selected = Number(value);
+            const moved = property.choices.some((choice, index) => Boolean(choice.enabled) !== (selected === index));
             property.value = value as string;
+            if (!moved) {
+                return false;
+            }
             property.choices.forEach((choice, index) => {
-                choice.enabled = (Number(value) === index);
+                choice.enabled = (selected === index);
             });
             return true;
         }
