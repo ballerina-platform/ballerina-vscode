@@ -157,15 +157,28 @@ function isGeneratedChatService(filePath?: string): boolean {
     return Boolean(filePath?.endsWith(GENERATED_CHAT_SERVICE_FILE));
 }
 
+function groupByChannel(services: CDService[]): CDService[] {
+    const order = new Map<string, number>();
+    services.forEach((service) => {
+        const channel = modulePrefix(service.type);
+        if (!order.has(channel)) {
+            order.set(channel, order.size);
+        }
+    });
+    return [...services].sort((a, b) => order.get(modulePrefix(a.type)) - order.get(modulePrefix(b.type)));
+}
+
 export function findAgentUsages(model: CDModel, agent: AgentRef, triggerProtocols?: Set<string>): AgentUsage[] {
     const uuid = model && findAgentUuid(model, agent);
     if (!uuid) {
         return [];
     }
 
-    const usages = (model.services ?? [])
+    const services = (model.services ?? [])
         .filter((service) => service.connections?.includes(uuid))
-        .filter((service) => !isGeneratedChatService(service.location?.filePath))
+        .filter((service) => !isGeneratedChatService(service.location?.filePath));
+
+    const usages = groupByChannel(services)
         .flatMap((service) => usagesForService(service, uuid,
             triggerProtocols?.has(modulePrefix(service.type)) ? triggerFor(model, service) : undefined));
 

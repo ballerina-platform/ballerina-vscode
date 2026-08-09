@@ -328,3 +328,52 @@ describe("findAgentUsages trigger payload", () => {
         expect(usages.every((usage) => usage.trigger === undefined)).toBe(true);
     });
 });
+
+const scatteredChannels = {
+    ...model,
+    services: [
+        {
+            location: { filePath: TRIGGERS_BAL, ...range(5) },
+            connections: [AGENT_UUID],
+            remoteFunctions: [
+                { name: "onAssigned", location: { filePath: TRIGGERS_BAL, ...range(9) },
+                    connections: [AGENT_UUID] },
+            ],
+            resourceFunctions: [],
+            type: "github:IssuesService",
+            uuid: "gh-1",
+        },
+        {
+            location: { filePath: TRIGGERS_BAL, ...range(30) },
+            connections: [AGENT_UUID],
+            remoteFunctions: [],
+            resourceFunctions: [
+                { accessor: "post", path: "chat", location: { filePath: TRIGGERS_BAL, ...range(32) },
+                    connections: [AGENT_UUID] },
+            ],
+            absolutePath: "/MathTutor",
+            type: "ai:Service",
+            uuid: "chat-1",
+        },
+        {
+            location: { filePath: TRIGGERS_BAL, ...range(60) },
+            connections: [AGENT_UUID],
+            remoteFunctions: [
+                { name: "onReopened", location: { filePath: TRIGGERS_BAL, ...range(64) },
+                    connections: [AGENT_UUID] },
+            ],
+            resourceFunctions: [],
+            type: "github:IssuesService",
+            uuid: "gh-2",
+        },
+    ],
+} as unknown as CDModel;
+
+describe("rail ordering", () => {
+    it("keeps rows of the same channel together", () => {
+        const labels = findAgentUsages(scatteredChannels, { filePath: AGENTS_BAL, startLine: 4 })
+            .map((usage) => usage.label);
+
+        expect(labels).toEqual(["onAssigned", "onReopened", "POST /chat", "main"]);
+    });
+});
