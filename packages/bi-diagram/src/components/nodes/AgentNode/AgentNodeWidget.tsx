@@ -760,8 +760,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const onUsageClick = (usage: AgentUsage) => {
         openView?.({ documentUri: usage.documentUri, position: usage.position });
     };
-    const addToolCx = tools.length > 0 ? 80 : 34;
-    const addTriggerX = usages.length > 0 || hiddenUsageCount > 0 ? 198 : 244;
+    const addToolCx = 80;
+    const addTriggerX = 198;
 
     const canDeleteTrigger = (usage: AgentUsage) =>
         !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
@@ -1039,6 +1039,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             &:hover .add-tile {
                                 stroke: ${ThemeColors.SECONDARY};
                             }
+                            &:hover .add-connector {
+                                stroke: ${ThemeColors.SECONDARY};
+                                marker-end: url(#${model.node.id}-arrow-head-add-hover);
+                            }
                             &:hover text {
                                 fill: ${ThemeColors.SECONDARY};
                             }
@@ -1082,6 +1086,17 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 Add Trigger
                                 <title>Connect this agent to a channel such as WhatsApp or Telegram</title>
                             </text>
+                            <line
+                                className="add-connector"
+                                x1={addTriggerX + 45}
+                                y1="25"
+                                x2="300"
+                                y2="25"
+                                stroke={ADD_TILE_COLOR}
+                                strokeWidth={1.5}
+                                strokeDasharray="6 6"
+                                markerEnd={`url(#${model.node.id}-arrow-head-add)`}
+                            />
                         </g>
                     </g>
                 )}
@@ -1097,6 +1112,28 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         orient="auto"
                     >
                         <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                    </marker>
+                    <marker
+                        id={`${model.node.id}-arrow-head-add-hover`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.SECONDARY}></polygon>
+                    </marker>
+                    <marker
+                        id={`${model.node.id}-arrow-head-add`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ADD_TILE_COLOR}></polygon>
                     </marker>
                 </defs>
             </svg>}
@@ -1622,6 +1659,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         &:hover line {
                             stroke: ${ThemeColors.SECONDARY};
                         }
+                        &:hover .add-connector {
+                            marker-end: url(#${model.node.id}-arrow-head-add-tool-hover);
+                        }
                         &:hover text {
                             fill: ${ThemeColors.SECONDARY};
                         }
@@ -1629,6 +1669,17 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 >
                     <rect x={addToolCx - 24} y="0" width="128" height="48" fill="transparent"
                         style={{ pointerEvents: "all" }} />
+                    <line
+                        className="add-connector"
+                        x1="0"
+                        y1="25"
+                        x2={addToolCx - 23}
+                        y2="25"
+                        stroke={ADD_TILE_COLOR}
+                        strokeWidth={1.5}
+                        strokeDasharray="6 6"
+                        markerEnd={`url(#${model.node.id}-arrow-head-add-tool)`}
+                    />
                     <circle
                         cx={addToolCx}
                         cy="24"
@@ -1657,6 +1708,28 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </g>}
 
                 <defs>
+                    <marker
+                        id={`${model.node.id}-arrow-head-add-tool-hover`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.SECONDARY}></polygon>
+                    </marker>
+                    <marker
+                        id={`${model.node.id}-arrow-head-add-tool`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ADD_TILE_COLOR}></polygon>
+                    </marker>
                     <marker
                         id={`${model.node.id}-arrow-head`}
                         markerWidth="4"
