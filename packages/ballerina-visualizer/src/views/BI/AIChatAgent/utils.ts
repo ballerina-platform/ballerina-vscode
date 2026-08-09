@@ -480,6 +480,7 @@ export const startAddAgentTrigger = (node: FlowNode, rpcClient: BallerinaRpcClie
     }
     void rpcClient.getVisualizerRpcClient().openView({
         type: EVENT_TYPE.OPEN_VIEW,
+        isPopup: true,
         location: {
             view: MACHINE_VIEW.BIAddAgentTrigger,
             artifactInfo: { agentName: agentVarName, agentOrgName: node.codedata?.org },

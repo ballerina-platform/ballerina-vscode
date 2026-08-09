@@ -630,18 +630,6 @@ const MainPanel = () => {
                             setViewComponent(<AIChatAgentWizard initialName={value?.identifier} />);
                             break;
                         }
-                        case MACHINE_VIEW.BIAddAgentTrigger: {
-                            const { AddAgentTriggerView } = await import("./views/BI/AIChatAgent/AddAgentTriggerView");
-                            if (isStaleNavigation()) return;
-                            setViewComponent(
-                                <AddAgentTriggerView
-                                    agentName={value?.artifactInfo?.agentName}
-                                    agentOrgName={value?.artifactInfo?.agentOrgName}
-                                    projectPath={value.projectPath}
-                                />
-                            );
-                            break;
-                        }
                         case MACHINE_VIEW.BIServiceWizard: {
                             const { ServiceCreationView } = await import("./views/BI/ServiceDesigner/ServiceCreationView");
                             if (isStaleNavigation()) return;

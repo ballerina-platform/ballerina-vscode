@@ -27,6 +27,7 @@ import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, RecordTypeField, Se
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
 import { DownloadIcon } from "../../../components/DownloadIcon";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import {
@@ -63,7 +64,26 @@ const StatusContainer = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
+    flex: 1;
+    min-height: 0;
     height: 100%;
+`;
+
+const formIn = keyframes`
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+`;
+
+const FormReveal = styled.div`
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    animation: ${formIn} 160ms ease-out both;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
 `;
 
 const StatusCard = styled.div`
@@ -95,6 +115,9 @@ export interface ServiceCreationViewProps {
     isLocalRepository?: boolean;
     agentName?: string;
     agentOrgName?: string;
+    isPopup?: boolean;
+    defaultValues?: Record<string, string>;
+    onCreated?: () => void;
 }
 
 interface HeaderInfo {
@@ -112,7 +135,7 @@ enum PullingStatus {
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName } = props;
+        agentName, agentOrgName, isPopup, onCreated, defaultValues } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -147,7 +170,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
             let timer: ReturnType<typeof setTimeout> | null = null;
             let didTimeout = false;
-            let res;
 
             // Wait for up to 3 seconds for a fast response
             const timeoutPromise = new Promise<void>((resolve) => {
@@ -160,7 +182,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 }, 3000);
             });
 
-            res = await Promise.race([
+            const res = await Promise.race([
                 promise.then((result) => {
                     if (timer) {
                         clearTimeout(timer);
@@ -175,42 +197,44 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 return;
             }
 
-            // If the response arrived before the timer, package is present, load form immediately
-            if (!didTimeout && res?.serviceInitModel) {
-                setHeaderInfo({
-                    title: res.serviceInitModel.displayName,
-                    moduleName: res.serviceInitModel.moduleName
-                });
-                setServiceInitModel(res.serviceInitModel);
-                setFormFields(mapPropertiesToFormFields(res.serviceInitModel.properties));
-                setPullingStatus(undefined);
-            } else if (didTimeout && res?.serviceInitModel) {
-                // If timer expired, show pulling status then load form
-                setPullingStatus(PullingStatus.SUCCESS);
-                setHeaderInfo({
-                    title: res.serviceInitModel.displayName,
-                    moduleName: res.serviceInitModel.moduleName
-                });
-                setServiceInitModel(res.serviceInitModel);
-                setFormFields(mapPropertiesToFormFields(res.serviceInitModel.properties));
-                setPullingStatus(undefined);
-            } else {
+            const initModel = res?.serviceInitModel;
+            if (!initModel) {
                 // The call resolved but came back with no model to show — treat it the same as a
                 // failure rather than leaving the loading UI stuck with nothing to display.
                 setPullingStatus(PullingStatus.ERROR);
                 return;
             }
 
-            rpcClient
+            Object.entries(defaultValues ?? {}).forEach(([key, value]) => {
+                const field = initModel.properties?.[key];
+                if (field) {
+                    field.value = value;
+                }
+            });
+
+            if (didTimeout) {
+                setPullingStatus(PullingStatus.SUCCESS);
+            }
+
+            const target = await rpcClient
                 .getVisualizerRpcClient()
-                .joinProjectPath({ segments: [MAIN_BALLERINA_FILE] })
-                .then((response) => {
-                    if (isMountedRef.current) {
-                        setFilePath(response.filePath);
-                    }
-                });
+                .joinProjectPath({ segments: [MAIN_BALLERINA_FILE] });
+            const endOfFile = await rpcClient
+                .getBIDiagramRpcClient()
+                .getEndOfFile({ filePath: target.filePath });
+
+            if (!isMountedRef.current) {
+                return;
+            }
+
+            setHeaderInfo({ title: initModel.displayName, moduleName: initModel.moduleName });
+            setServiceInitModel(initModel);
+            setFormFields(mapPropertiesToFormFields(initModel.properties));
+            setFilePath(target.filePath);
+            setTargetLineRange({ startLine: endOfFile, endLine: endOfFile });
+            setPullingStatus(undefined);
         } catch (error) {
-            console.error("Error fetching service init model:", error);
+            console.error("Error loading the service creation form:", error);
             if (isMountedRef.current) {
                 setPullingStatus(PullingStatus.ERROR);
             }
@@ -224,23 +248,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             isMountedRef.current = false;
         };
     }, []);
-
-    useEffect(() => {
-        if (filePath && rpcClient) {
-            rpcClient
-                .getBIDiagramRpcClient()
-                .getEndOfFile({ filePath })
-                .then((res) => {
-                    if (!isMountedRef.current) {
-                        return;
-                    }
-                    setTargetLineRange({
-                        startLine: res,
-                        endLine: res,
-                    });
-                });
-        }
-    }, [filePath, rpcClient]);
 
     useEffect(() => {
         if (model) {
@@ -281,6 +288,12 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
         setServerValidationErrors([]);
 
+        if (onCreated) {
+            onCreated();
+            setIsSaving(false);
+            return;
+        }
+
         const newArtifact = res.artifacts.find(res => res.isNew && model.moduleName === res.moduleName);
         if (newArtifact) {
             rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: newArtifact.path, position: newArtifact.position } });
@@ -291,10 +304,8 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         setIsSaving(false);
     }
 
-    return (
-        <View>
-            {pullingStatus && (
-                <StatusContainer>
+    const statusView = pullingStatus && (
+        <StatusContainer>
                     {pullingStatus === PullingStatus.FETCHING && (
                         <RelativeLoader message="Loading package..." />
                     )}
@@ -332,8 +343,37 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                             <Button appearance="secondary" onClick={fetchData}>Retry</Button>
                         </StatusCard>
                     )}
-                </StatusContainer>
-            )}
+        </StatusContainer>
+    );
+
+    const form = !pullingStatus && formFields && formFields.length > 0 && filePath && targetLineRange && (
+        <ArtifactForm
+            fileName={filePath}
+            targetLineRange={targetLineRange}
+            fields={formFields}
+            isSaving={isSaving}
+            nestedForm={true}
+            onSubmit={handleOnSubmit}
+            onChange={handleOnChange}
+            serverValidationErrors={serverValidationErrors}
+            preserveFieldOrder={true}
+            recordTypeFields={recordTypeFields}
+            submitText="Create"
+        />
+    );
+
+    if (isPopup) {
+        return (
+            <>
+                {statusView}
+                {form && <FormReveal>{form}</FormReveal>}
+            </>
+        );
+    }
+
+    return (
+        <View>
+            {statusView}
 
             {!pullingStatus && (
                 <>
@@ -347,28 +387,12 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                     )}
                     <ViewContent>
                         <Container>
-                            <>
-                                {formFields && formFields.length > 0 && (
-                                    <FormContainer>
-                                        <FormHeader title={`Create ${model.displayName}`} />
-                                        {filePath && targetLineRange && (
-                                            <ArtifactForm
-                                                fileName={filePath}
-                                                targetLineRange={targetLineRange}
-                                                fields={formFields}
-                                                isSaving={isSaving}
-                                                nestedForm={true}
-                                                onSubmit={handleOnSubmit}
-                                                onChange={handleOnChange}
-                                                serverValidationErrors={serverValidationErrors}
-                                                preserveFieldOrder={true}
-                                                recordTypeFields={recordTypeFields}
-                                                submitText="Create"
-                                            />
-                                        )}
-                                    </FormContainer>
-                                )}
-                            </>
+                            {formFields && formFields.length > 0 && (
+                                <FormContainer>
+                                    <FormHeader title={`Create ${model.displayName}`} />
+                                    {form}
+                                </FormContainer>
+                            )}
                         </Container>
                     </ViewContent>
                 </>

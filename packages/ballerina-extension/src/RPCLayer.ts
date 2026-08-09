@@ -213,7 +213,8 @@ async function getPopupContext(): Promise<PopupVisualizerLocation> {
             identifier: context.identifier,
             metadata: context.metadata,
             agentMetadata: context.agentMetadata,
-            dataMapperMetadata: context.dataMapperMetadata
+            dataMapperMetadata: context.dataMapperMetadata,
+            artifactInfo: context.artifactInfo
         });
     });
 }

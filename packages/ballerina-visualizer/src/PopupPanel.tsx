@@ -27,6 +27,7 @@ import { FunctionForm } from "./views/BI/FunctionForm";
 import { DataMapper } from "./views/DataMapper";
 import AddConnectionPopup from "./views/BI/Connection/AddConnectionPopup";
 import AddAgentPopup from "./views/BI/AIChatAgent/AddAgentPopup";
+import AddAgentTriggerPopup from "./views/BI/AIChatAgent/AddAgentTriggerPopup";
 import { ConnectionConfigurationPopup } from "./views/BI/Connection/ConnectionConfigurationPopup";
 import EditConnectionPopup from "./views/BI/Connection/EditConnectionPopup";
 import { ConfigurationCollector } from "./views/AIPanel/components/ConfigurationCollector";
@@ -38,7 +39,8 @@ const ViewContainer = styled.div<{ isFullScreen?: boolean }>`
     width: ${(props: { isFullScreen: boolean; }) => props.isFullScreen ? '100%' : '400px'};
     height: 100%;
     z-index: 2000;
-    background-color: ${ThemeColors.SURFACE_BRIGHT};
+    background-color: ${(props: { isFullScreen: boolean; }) =>
+        props.isFullScreen ? ThemeColors.SURFACE_BRIGHT : 'transparent'};
 `;
 
 const TopBar = styled.div`
@@ -94,6 +96,18 @@ const PopupPanel = (props: PopupPanelProps) => {
                                 onClose={onClose}
                                 onNavigateToOverview={handleNavigateToOverview}
                                 isPopup={true}
+                            />
+                        );
+                    });
+                    break;
+                case MACHINE_VIEW.BIAddAgentTrigger:
+                    rpcClient.getVisualizerLocation().then((location) => {
+                        setViewComponent(
+                            <AddAgentTriggerPopup
+                                agentName={machineState.artifactInfo?.agentName}
+                                agentOrgName={machineState.artifactInfo?.agentOrgName}
+                                projectPath={location.projectPath}
+                                onClose={onClose}
                             />
                         );
                     });
