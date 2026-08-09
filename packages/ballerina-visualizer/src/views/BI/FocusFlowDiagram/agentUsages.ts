@@ -45,8 +45,12 @@ function findAgentUuid(model: CDModel, agent: AgentRef): string | undefined {
     return agent.symbol ? connections.find((connection) => connection.symbol === agent.symbol)?.uuid : undefined;
 }
 
+function unescapePath(path: string): string {
+    return path.replace(/\\(.)/g, "$1");
+}
+
 function serviceLabel(service: CDService): string {
-    return service.displayName || service.absolutePath || service.type;
+    return unescapePath(service.displayName || service.absolutePath || service.type);
 }
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
@@ -68,7 +72,7 @@ function serviceTypeLabel(type?: string): string | undefined {
 
 function resourceLabel(accessor: string, path: string): string {
     const normalized = path === "." ? "/" : path.startsWith("/") ? path : `/${path}`;
-    return `${accessor.toUpperCase()} ${normalized}`;
+    return `${accessor.toUpperCase()} ${unescapePath(normalized)}`;
 }
 
 function modulePrefix(type?: string): string {

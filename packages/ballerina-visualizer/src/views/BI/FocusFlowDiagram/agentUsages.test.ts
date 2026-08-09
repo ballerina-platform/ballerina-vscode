@@ -161,6 +161,27 @@ describe("findAgentUsages", () => {
         expect(usages[1]).toMatchObject({ type: "automation", documentUri: MAIN_BAL });
     });
 
+    it("shows an escaped path the way it is served, not the way it is written in source", () => {
+        const escaped = {
+            ...model,
+            services: [
+                {
+                    ...model.services[0],
+                    absolutePath: "/math\\-tutor\\-agent",
+                    resourceFunctions: [
+                        { ...model.services[0].resourceFunctions[0], path: "sub\\-chat" },
+                    ],
+                },
+            ],
+        } as unknown as CDModel;
+
+        const usages = findAgentUsages(escaped, { filePath: AGENTS_BAL, startLine: 4 });
+        expect(usages[0]).toMatchObject({
+            label: "POST /sub-chat",
+            serviceLabel: "/math-tutor-agent",
+        });
+    });
+
     it("excludes services that do not call the agent", () => {
         const usages = findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages.some((u) => u.serviceLabel === "/healthService")).toBe(false);
