@@ -18,7 +18,12 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service;
 
+import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
@@ -30,7 +35,9 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddServiceInitModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
@@ -40,6 +47,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NEW_LINES;
 
 /**
  * Builds a trigger that is wired to an AI agent.
@@ -52,6 +60,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     private static final String AGENT_NAME_PROPERTY = "agentName";
     private static final String AGENT_ORG_PROPERTY = "agentOrg";
     private static final String BALLERINA_ORG = "ballerina";
+    private static final String INDENT = "    ";
 
     public static boolean handles(String moduleName, String agentName) {
         return agentName != null && !agentName.isBlank() && AgentTriggerChannels.supports(moduleName);
@@ -128,6 +137,14 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
                 formValues, filledModel, triggerModel);
 
+        Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
+                : findService(rootNode, listener.varName(), channelContext.serviceDescriptor());
+        Optional<AgentTriggerChannel.HandlerBinding> binding = channel.handlerBinding(channelContext);
+        if (existing.isPresent() && binding.isPresent()) {
+            edits.addAll(mergeIntoService(existing.get(), binding.get()));
+            return Map.of(filePath, edits);
+        }
+
         StringBuilder block = new StringBuilder(NEW_LINE);
         if (listener.declaration() != null) {
             block.append(listener.declaration()).append(NEW_LINE);
@@ -137,6 +154,37 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         return Map.of(filePath, edits);
     }
 
+    private static Optional<ServiceDeclarationNode> findService(ModulePartNode rootNode, String listenerVarName,
+                                                                String descriptor) {
+        return rootNode.members().stream()
+                .filter(ServiceDeclarationNode.class::isInstance)
+                .map(ServiceDeclarationNode.class::cast)
+                .filter(service -> FTPListenerUtil.isServiceAttachedToListener(service, listenerVarName)
+                        && descriptor.equals(service.typeDescriptor().map(Node::toSourceCode).orElse("").strip()))
+                .findFirst();
+    }
+
+    private static List<TextEdit> mergeIntoService(ServiceDeclarationNode service,
+                                                   AgentTriggerChannel.HandlerBinding binding) {
+        NodeList<Node> members = service.members();
+        Optional<FunctionBodyBlockNode> body = members.stream()
+                .filter(FunctionDefinitionNode.class::isInstance)
+                .map(FunctionDefinitionNode.class::cast)
+                .filter(fn -> fn.functionName().text().equals(binding.handlerName()))
+                .map(FunctionDefinitionNode::functionBody)
+                .filter(FunctionBodyBlockNode.class::isInstance)
+                .map(FunctionBodyBlockNode.class::cast)
+                .findFirst();
+        if (body.isEmpty() || body.get().toSourceCode().contains(binding.offload())) {
+            return List.of();
+        }
+        LineRange lastMember = members.isEmpty() ? service.openBraceToken().lineRange()
+                : members.get(members.size() - 1).lineRange();
+        return List.of(
+                new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
+                        INDENT + binding.offload() + NEW_LINE + INDENT),
+                new TextEdit(Utils.toRange(lastMember.endLine()), TWO_NEW_LINES + binding.replyMethod()));
+    }
 
     private static Value hiddenValue(String value) {
         return new Value.ValueBuilder()

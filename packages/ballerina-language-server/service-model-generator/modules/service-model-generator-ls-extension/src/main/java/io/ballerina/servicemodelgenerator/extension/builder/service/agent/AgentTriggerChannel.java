@@ -63,5 +63,12 @@ public interface AgentTriggerChannel {
     default void customizeInitModel(ServiceInitModel initModel, TriggerUISchemaModel triggerModel) {
     }
 
+    record HandlerBinding(String handlerName, String offload, String replyMethod) {
+    }
+
+    default Optional<HandlerBinding> handlerBinding(AgentTriggerContext context) {
+        return Optional.empty();
+    }
+
     String serviceBlock(AgentTriggerContext context);
 }

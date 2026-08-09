@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_TYPE_DESCRIPTOR;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CLOSE_BRACE;
@@ -168,24 +169,36 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     @Override
-    public String serviceBlock(AgentTriggerContext context) {
-        TriggerUISchemaModel.ServiceTypeModel serviceType = context.serviceType();
-        List<TriggerUISchemaModel.FunctionModel> handlers = serviceType == null || serviceType.functions() == null
-                ? List.of() : serviceType.functions();
+    public Optional<HandlerBinding> handlerBinding(AgentTriggerContext context) {
+        List<TriggerUISchemaModel.FunctionModel> handlers = handlers(context);
         if (handlers.isEmpty()) {
-            return "";
+            return Optional.empty();
         }
         TriggerUISchemaModel.FunctionModel primary = selectHandler(handlers, context.formValue(HANDLER));
-        String replyMethod = REPLY_METHOD_PREFIX + capitalize(primary.name());
+        String replyMethodName = REPLY_METHOD_PREFIX + capitalize(primary.name());
         String payload = payloadName(primary);
+        return Optional.of(new HandlerBinding(primary.name(),
+                "_ = start self." + replyMethodName + "(" + payload + ");",
+                replyMethod(context, primary, replyMethodName, payload)));
+    }
 
-        List<String> members = new ArrayList<>();
-        for (TriggerUISchemaModel.FunctionModel handler : handlers) {
-            members.add(handler == primary
-                    ? render(handler, context, "_ = start self." + replyMethod + "(" + payload + ");")
-                    : render(handler, context, ""));
+    private static List<TriggerUISchemaModel.FunctionModel> handlers(AgentTriggerContext context) {
+        TriggerUISchemaModel.ServiceTypeModel serviceType = context.serviceType();
+        return serviceType == null || serviceType.functions() == null ? List.of() : serviceType.functions();
+    }
+
+    @Override
+    public String serviceBlock(AgentTriggerContext context) {
+        Optional<HandlerBinding> binding = handlerBinding(context);
+        if (binding.isEmpty()) {
+            return "";
         }
-        members.add(replyMethod(context, primary, replyMethod, payload));
+        List<String> members = new ArrayList<>();
+        for (TriggerUISchemaModel.FunctionModel handler : handlers(context)) {
+            members.add(render(handler, context,
+                    handler.name().equals(binding.get().handlerName()) ? binding.get().offload() : ""));
+        }
+        members.add(binding.get().replyMethod());
 
         String basePath = context.basePath();
         return SERVICE + SPACE + context.serviceDescriptor() + SPACE

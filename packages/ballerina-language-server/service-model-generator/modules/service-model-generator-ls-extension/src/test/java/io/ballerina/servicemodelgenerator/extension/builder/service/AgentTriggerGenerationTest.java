@@ -35,6 +35,8 @@ import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -362,6 +364,76 @@ public class AgentTriggerGenerationTest {
                 List.of("onPush"), "Push has one event, and must not be offered the Issues events");
     }
 
+    private String existingIssuesService() {
+        return generateForGitHubEvent("github:IssuesService", "onOpened");
+    }
+
+    private String mergeIntoExisting(String serviceType, String handlerName, String existingSource) {
+        ServiceInitModel form = initForm(GITHUB);
+        AgentTriggerChannel channel = AgentTriggerChannels.forModule(GITHUB).orElseThrow();
+        channel.customizeInitModel(form, triggerModel(GITHUB));
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("triageAgent").build());
+        form.addProperty("instructions", new Value.ValueBuilder()
+                .enabled(true).editable(true).value(INSTRUCTIONS).build());
+        form.getProperties().get("serviceType").setValue(serviceType);
+        form.getProperties().get("serviceType").getProperties().get(serviceType)
+                .getProperties().get("agentEventHandler").setValue(handlerName);
+        form.getProperties().get("listener").getChoices().forEach(choice -> choice.setEnabled(false));
+        Value existingBranch = form.getProperties().get("listener").getChoices().get(1);
+        existingBranch.setEnabled(true);
+        existingBranch.getProperties().get("existingListener").setValue("githubListener");
+        return applyEdits(existingSource, AgentTriggerServiceBuilder.buildEdits(form, triggerModel(GITHUB),
+                channel, rootOf(existingSource), "main.bal"));
+    }
+
+    private String applyEdits(String source, Map<String, List<TextEdit>> edits) {
+        List<TextEdit> ordered = new ArrayList<>(edits.values().iterator().next());
+        ordered.sort(Comparator
+                .comparingInt((TextEdit edit) -> edit.getRange().getStart().getLine())
+                .thenComparingInt(edit -> edit.getRange().getStart().getCharacter())
+                .reversed());
+        List<String> lines = new ArrayList<>(List.of(source.split("\n", -1)));
+        for (TextEdit edit : ordered) {
+            int line = edit.getRange().getStart().getLine();
+            int character = edit.getRange().getStart().getCharacter();
+            String target = lines.get(line);
+            lines.set(line, target.substring(0, character) + edit.getNewText() + target.substring(character));
+        }
+        return String.join("\n", lines);
+    }
+
+
+    @Test
+    public void testASecondEventIsWiredIntoTheServiceThatAlreadyExists() {
+        String src = mergeIntoExisting("github:IssuesService", "onAssigned", existingIssuesService());
+
+        Assert.assertEquals(src.split("service github:IssuesService", -1).length - 1, 1,
+                "a second service on the listener would never be dispatched to: " + src);
+        Assert.assertTrue(src.contains("    remote function onAssigned(github:IssuesEvent payload) returns error? {"
+                        + "\n        _ = start self.runAgentOnAssigned(payload);\n    }"),
+                "the chosen handler should offload to the agent, indented into its body: " + src);
+        Assert.assertTrue(src.contains("    function runAgentOnAssigned(github:IssuesEvent payload) {"),
+                "the reply method should join the service it is called from: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnOpened(payload);"),
+                "the event that was already wired must survive: " + src);
+    }
+
+    @Test
+    public void testWiringTheSameEventTwiceChangesNothing() {
+        String src = mergeIntoExisting("github:IssuesService", "onOpened", existingIssuesService());
+
+        Assert.assertEquals(src, existingIssuesService(),
+                "the event already runs the agent, so there is nothing to add: " + src);
+    }
+
+    @Test
+    public void testAnEventChannelWithNoServiceYetStillGetsOne() {
+        String src = mergeIntoExisting("github:PushService", "onPush", existingIssuesService());
+
+        Assert.assertTrue(src.contains("service github:PushService on githubListener"),
+                "a different event channel needs its own service on the same listener: " + src);
+    }
 
     @Test
     public void testTwilioRunsOnItsPrimaryEvent() {
