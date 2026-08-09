@@ -20,14 +20,19 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
+import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.ARG_TYPE_SERVICE_TYPE_DESCRIPTOR;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.CLOSE_BRACE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.ON;
@@ -44,6 +49,7 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NE
 public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     static final String INSTRUCTIONS = "instructions";
+    static final String HANDLER = "agentEventHandler";
     private static final String DEFAULT_INSTRUCTIONS =
             "Review this event and summarize what happened and what should be done next.";
     private static final String REPLY_METHOD_PREFIX = "runAgent";
@@ -95,6 +101,73 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public void customizeInitModel(ServiceInitModel initModel, TriggerUISchemaModel triggerModel) {
+        if (initModel == null || triggerModel == null || triggerModel.serviceTypes() == null) {
+            return;
+        }
+        Value descriptor = findServiceTypeField(initModel.getProperties());
+        if (descriptor == null) {
+            return;
+        }
+        Map<String, Value> perServiceType = new LinkedHashMap<>();
+        for (TriggerUISchemaModel.ServiceTypeModel serviceType : triggerModel.serviceTypes()) {
+            List<TriggerUISchemaModel.FunctionModel> handlers = serviceType.functions();
+            if (handlers == null || handlers.isEmpty()) {
+                continue;
+            }
+            perServiceType.put(serviceType.name(), new Value.ValueBuilder()
+                    .metadata(serviceType.name(), "Events of " + serviceType.name())
+                    .value(serviceType.name())
+                    .types(List.of(PropertyType.types(Value.FieldType.FORM)))
+                    .enabled(true)
+                    .editable(false)
+                    .setProperties(Map.of(HANDLER, handlerField(handlers)))
+                    .build());
+        }
+        if (!perServiceType.isEmpty()) {
+            descriptor.setProperties(perServiceType);
+        }
+    }
+
+    private static Value handlerField(List<TriggerUISchemaModel.FunctionModel> handlers) {
+        List<Option> options = handlers.stream()
+                .map(handler -> new Option(handlerLabel(handler), handler.name()))
+                .toList();
+        return new Value.ValueBuilder()
+                .metadata("Event", "The event that runs the agent. The channel's other events are still "
+                        + "generated, with empty bodies.")
+                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT, options)))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .value(handlers.getFirst().name())
+                .build();
+    }
+
+    private static String handlerLabel(TriggerUISchemaModel.FunctionModel handler) {
+        String label = handler.metadata() == null ? null : handler.metadata().label();
+        return label == null || label.isBlank() ? handler.name() : label;
+    }
+
+    private static Value findServiceTypeField(Map<String, Value> properties) {
+        if (properties == null) {
+            return null;
+        }
+        for (Value field : properties.values()) {
+            Codedata codedata = field == null ? null : field.getCodedata();
+            if (codedata != null && (ARG_TYPE_SERVICE_TYPE_DESCRIPTOR.equals(codedata.getArgType())
+                    || ARG_TYPE_SERVICE_TYPE_DESCRIPTOR.equals(codedata.getType()))) {
+                return field;
+            }
+            Value nested = field == null ? null : findServiceTypeField(field.getProperties());
+            if (nested != null) {
+                return nested;
+            }
+        }
+        return null;
+    }
+
+    @Override
     public String serviceBlock(AgentTriggerContext context) {
         TriggerUISchemaModel.ServiceTypeModel serviceType = context.serviceType();
         List<TriggerUISchemaModel.FunctionModel> handlers = serviceType == null || serviceType.functions() == null
@@ -102,14 +175,15 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         if (handlers.isEmpty()) {
             return "";
         }
-        TriggerUISchemaModel.FunctionModel primary = handlers.getFirst();
+        TriggerUISchemaModel.FunctionModel primary = selectHandler(handlers, context.formValue(HANDLER));
         String replyMethod = REPLY_METHOD_PREFIX + capitalize(primary.name());
         String payload = payloadName(primary);
 
         List<String> members = new ArrayList<>();
-        members.add(render(primary, context, "_ = start self." + replyMethod + "(" + payload + ");"));
-        for (TriggerUISchemaModel.FunctionModel handler : handlers.subList(1, handlers.size())) {
-            members.add(render(handler, context, ""));
+        for (TriggerUISchemaModel.FunctionModel handler : handlers) {
+            members.add(handler == primary
+                    ? render(handler, context, "_ = start self." + replyMethod + "(" + payload + ");")
+                    : render(handler, context, ""));
         }
         members.add(replyMethod(context, primary, replyMethod, payload));
 
@@ -144,6 +218,14 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     private static String escapeTemplate(String instructions) {
         String text = instructions == null || instructions.isBlank() ? DEFAULT_INSTRUCTIONS : instructions.strip();
         return text.replace("`", "\\`").replace("${", "\\${");
+    }
+
+    private static TriggerUISchemaModel.FunctionModel selectHandler(
+            List<TriggerUISchemaModel.FunctionModel> handlers, String selected) {
+        return handlers.stream()
+                .filter(handler -> handler.name() != null && handler.name().equals(selected))
+                .findFirst()
+                .orElseGet(handlers::getFirst);
     }
 
     private static String payloadName(TriggerUISchemaModel.FunctionModel handler) {

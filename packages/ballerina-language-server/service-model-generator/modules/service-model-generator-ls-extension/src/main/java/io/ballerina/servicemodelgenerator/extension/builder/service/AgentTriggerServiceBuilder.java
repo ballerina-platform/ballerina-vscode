@@ -80,7 +80,13 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (context.agentOrgName() != null && !context.agentOrgName().isBlank()) {
             initModel.addProperty(AGENT_ORG_PROPERTY, hiddenValue(context.agentOrgName()));
         }
-        channel.ifPresent(c -> c.additionalProperties().forEach(initModel::addProperty));
+        channel.ifPresent(c -> {
+            c.additionalProperties().forEach(initModel::addProperty);
+            c.customizeInitModel(initModel, TriggerModelReader.getInstance()
+                    .getSchemaDrivenTriggerModel(initModel.getOrgName(), initModel.getModuleName(),
+                            initModel.getVersion(), initModel.isLocalRepository())
+                    .orElse(null));
+        });
         return initModel;
     }
 
@@ -121,6 +127,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
                 formValues, filledModel, triggerModel);
+
         StringBuilder block = new StringBuilder(NEW_LINE);
         if (listener.declaration() != null) {
             block.append(listener.declaration()).append(NEW_LINE);
@@ -130,6 +137,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         return Map.of(filePath, edits);
     }
 
+
     private static Value hiddenValue(String value) {
         return new Value.ValueBuilder()
                 .enabled(true)
@@ -137,6 +145,15 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .setHidden(true)
                 .value(value)
                 .build();
+    }
+
+    private static Map<String, Value> selectedBranch(Value field) {
+        Map<String, Value> properties = field.getProperties();
+        if (properties == null || properties.isEmpty() || !properties.containsKey(field.getValue())) {
+            return properties;
+        }
+        Value branch = properties.get(field.getValue());
+        return branch == null ? null : branch.getProperties();
     }
 
     private static Map<String, String> flattenFormValues(Map<String, Value> properties) {
@@ -158,7 +175,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
             if (value != null && !value.isBlank()) {
                 flat.putIfAbsent(entry.getKey(), value);
             }
-            collect(field.getProperties(), flat);
+            collect(selectedBranch(field), flat);
             List<Value> choices = field.getChoices();
             if (choices == null) {
                 continue;

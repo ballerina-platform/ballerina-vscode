@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
@@ -57,6 +58,9 @@ public interface AgentTriggerChannel {
 
     default Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode, String alias) {
         return Optional.empty();
+    }
+
+    default void customizeInitModel(ServiceInitModel initModel, TriggerUISchemaModel triggerModel) {
     }
 
     String serviceBlock(AgentTriggerContext context);

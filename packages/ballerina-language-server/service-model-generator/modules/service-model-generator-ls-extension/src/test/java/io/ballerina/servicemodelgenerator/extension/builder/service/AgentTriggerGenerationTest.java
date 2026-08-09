@@ -26,6 +26,7 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentT
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
@@ -161,6 +162,20 @@ public class AgentTriggerGenerationTest {
         return generateForAgent(GITHUB, "triageAgent", null, Map.of("instructions", instructions));
     }
 
+    private String generateForGitHubEvent(String serviceType, String handlerName) {
+        ServiceInitModel form = initForm(GITHUB);
+        AgentTriggerChannel channel = AgentTriggerChannels.forModule(GITHUB).orElseThrow();
+        channel.customizeInitModel(form, triggerModel(GITHUB));
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("triageAgent").build());
+        form.addProperty("instructions", new Value.ValueBuilder()
+                .enabled(true).editable(true).value(INSTRUCTIONS).build());
+        form.getProperties().get("serviceType").getProperties().get(serviceType)
+                .getProperties().get("agentEventHandler").setValue(handlerName);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(GITHUB), channel,
+                rootOf("\n"), "main.bal"));
+    }
+
     @Test
     public void testTheChannelsPrimaryEventRunsTheAgent() {
         String src = generateForGitHub(INSTRUCTIONS);
@@ -270,6 +285,83 @@ public class AgentTriggerGenerationTest {
         Assert.assertTrue(src.contains("service salesforce:CdcService /data/ChangeEvents on salesforceListener"),
                 "the subscribed channel path must survive, or the service listens to nothing: " + src);
     }
+
+    @Test
+    public void testTheChosenEventRunsTheAgentInsteadOfTheFirst() {
+        String src = generateForGitHubEvent("github:IssuesService", "onClosed");
+
+        Assert.assertTrue(src.contains("remote function onClosed(github:IssuesEvent payload) returns error? {\n"
+                        + "        _ = start self.runAgentOnClosed(payload);"),
+                "the chosen handler should offload to the agent: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnClosed(github:IssuesEvent payload)"),
+                "the reply method should be named for the chosen handler: " + src);
+        Assert.assertEquals(src.split("start self\\.runAgent", -1).length - 1, 1,
+                "only the chosen handler should call the agent: " + src);
+        Assert.assertTrue(src.contains("remote function onOpened(github:IssuesEvent payload) returns error? {\n    }"),
+                "the schema's first handler should now be emitted empty: " + src);
+        Assert.assertEquals(src.split("remote function ", -1).length - 1, 7,
+                "the channel's whole handler surface should still be emitted: " + src);
+    }
+
+    @Test
+    public void testAnEventChosenUnderAnotherChannelIsIgnored() {
+        String src = generateForGitHubEvent("github:PushService", "onPush");
+
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnOpened(payload);"),
+                "only the selected channel's branch may be read, or every branch races to supply the event: " + src);
+    }
+
+    @Test
+    public void testAnUnknownEventFallsBackToTheChannelsPrimary() {
+        String src = generateForAgent(GITHUB, "triageAgent", null,
+                Map.of("instructions", INSTRUCTIONS, "agentEventHandler", "onNoSuchEvent"));
+
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnOpened(payload);"),
+                "an unrecognised handler must not produce a service that calls nothing: " + src);
+    }
+
+    @Test
+    public void testTheFormTheWizardAsksForCarriesTheEventChoice() {
+        ServiceInitModel form = initForm(GITHUB);
+        TriggerUISchemaModel resolved = TriggerModelReader.getInstance()
+                .getSchemaDrivenTriggerModel(form.getOrgName(), form.getModuleName(), form.getVersion(),
+                        form.isLocalRepository())
+                .orElse(null);
+        Assert.assertNotNull(resolved, "the builder resolves the schema off the init form's own identity; "
+                + "a miss here silently leaves the form without its event choice");
+
+        AgentTriggerChannels.forModule(GITHUB).orElseThrow().customizeInitModel(form, resolved);
+        Value descriptor = form.getProperties().get("serviceType");
+        Assert.assertNotNull(descriptor.getProperties(),
+                "the event channel dropdown reached the wizard without its per-channel events");
+        Assert.assertTrue(descriptor.getProperties().containsKey("github:IssuesService"),
+                "expected a branch per event channel: " + descriptor.getProperties().keySet());
+    }
+
+
+
+    @Test
+    public void testEachEventChannelOffersItsOwnEvents() {
+        ServiceInitModel form = initForm(GITHUB);
+        AgentTriggerChannels.forModule(GITHUB).orElseThrow().customizeInitModel(form, triggerModel(GITHUB));
+
+        Value descriptor = form.getProperties().get("serviceType");
+        Map<String, Value> perChannel = descriptor.getProperties();
+        Assert.assertNotNull(perChannel, "the event channel dropdown should carry a branch per channel");
+
+        Value issues = perChannel.get("github:IssuesService").getProperties().get("agentEventHandler");
+        List<Option> options = issues.getTypes().getFirst().options();
+        Assert.assertEquals(options.stream().map(Option::value).toList(),
+                List.of("onOpened", "onClosed", "onReopened", "onAssigned", "onUnassigned", "onLabeled",
+                        "onUnlabeled"),
+                "Issues should offer exactly its own events: " + options);
+        Assert.assertEquals(issues.getValue(), "onOpened", "the channel's primary event should be preselected");
+
+        Value push = perChannel.get("github:PushService").getProperties().get("agentEventHandler");
+        Assert.assertEquals(push.getTypes().getFirst().options().stream().map(Option::value).toList(),
+                List.of("onPush"), "Push has one event, and must not be offered the Issues events");
+    }
+
 
     @Test
     public void testTwilioRunsOnItsPrimaryEvent() {
