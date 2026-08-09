@@ -18,10 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
+import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The per-channel knowledge an agent trigger needs.
@@ -40,6 +45,18 @@ public interface AgentTriggerChannel {
 
     default List<String> imports() {
         return List.of("ballerina/log");
+    }
+
+    default boolean isSchemaDriven() {
+        return true;
+    }
+
+    default Optional<ServiceInitModel> initModel(GetServiceInitModelContext context) {
+        return Optional.empty();
+    }
+
+    default Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode, String alias) {
+        return Optional.empty();
     }
 
     String serviceBlock(AgentTriggerContext context);

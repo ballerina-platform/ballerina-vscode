@@ -70,7 +70,9 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
 
     @Override
     public ServiceInitModel getServiceInitModel(GetServiceInitModelContext context) {
-        ServiceInitModel initModel = super.getServiceInitModel(context);
+        Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(context.moduleName());
+        ServiceInitModel initModel = channel.flatMap(c -> c.initModel(context))
+                .orElseGet(() -> super.getServiceInitModel(context));
         if (initModel == null) {
             return null;
         }
@@ -78,8 +80,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (context.agentOrgName() != null && !context.agentOrgName().isBlank()) {
             initModel.addProperty(AGENT_ORG_PROPERTY, hiddenValue(context.agentOrgName()));
         }
-        AgentTriggerChannels.forModule(context.moduleName())
-                .ifPresent(channel -> channel.additionalProperties().forEach(initModel::addProperty));
+        channel.ifPresent(c -> c.additionalProperties().forEach(initModel::addProperty));
         return initModel;
     }
 
@@ -90,11 +91,11 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel(filledModel.getOrgName(), filledModel.getModuleName(),
                         filledModel.getVersion(), filledModel.isLocalRepository());
-        if (channel.isEmpty() || triggerModel.isEmpty()) {
+        if (channel.isEmpty() || (channel.get().isSchemaDriven() && triggerModel.isEmpty())) {
             return super.addServiceInitSource(context);
         }
         ModulePartNode rootNode = context.document().syntaxTree().rootNode();
-        Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.get(),
+        Map<String, List<TextEdit>> edits = new LinkedHashMap<>(buildEdits(filledModel, triggerModel.orElse(null),
                 channel.get(), rootNode, context.filePath()));
         if (filledModel.isLocalRepository()) {
             LocalDependencyEditUtil.addIfMissing(edits, context.project(), filledModel.getOrgName(),
@@ -115,8 +116,8 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }
-        SchemaDrivenSourceGenerator.ResolvedListener listener =
-                SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias);
+        SchemaDrivenSourceGenerator.ResolvedListener listener = channel.listener(rootNode, emitAlias)
+                .orElseGet(() -> SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias));
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
                 formValues, filledModel, triggerModel);

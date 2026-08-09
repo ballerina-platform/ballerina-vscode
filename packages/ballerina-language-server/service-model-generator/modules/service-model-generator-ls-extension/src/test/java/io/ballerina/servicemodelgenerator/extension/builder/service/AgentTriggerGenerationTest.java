@@ -28,6 +28,7 @@ import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSource
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
+import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
@@ -268,6 +269,68 @@ public class AgentTriggerGenerationTest {
 
         Assert.assertTrue(src.contains("service salesforce:CdcService /data/ChangeEvents on salesforceListener"),
                 "the subscribed channel path must survive, or the service listens to nothing: " + src);
+    }
+
+    private String generateForAgentChat(String basePath, String existingSource) {
+        AgentTriggerChannel channel = AgentTriggerChannels.forModule("ai").orElseThrow();
+        ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "ai", "ai",
+                "1.0.0", null, null, null, false, "mathTutorAgent", null)).orElseThrow();
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("mathTutorAgent").build());
+        form.getProperties().get("basePath").setValue(basePath);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, null, channel,
+                rootOf(existingSource), "main.bal"));
+    }
+
+    @Test
+    public void testAgentChatServiceIsWiredToTheAgent() {
+        String src = generateForAgentChat("/math", "\n");
+
+        Assert.assertTrue(src.contains("service /math on agentChatListener"),
+                "the user's path should be the service path: " + src);
+        Assert.assertTrue(src.contains("resource function post chat(@http:Payload ai:ChatReqMessage request)"),
+                "the chat endpoint should be the built-in ai:ChatReqMessage contract: " + src);
+        Assert.assertTrue(src.contains("check mathTutorAgent.run(request.message, sessionId = request.sessionId)"),
+                "the agent should be called with the request's own message and session: " + src);
+        Assert.assertTrue(src.contains("import ballerina/ai;") && src.contains("import ballerina/http;"),
+                "both modules the chat service needs should be imported: " + src);
+    }
+
+    @Test
+    public void testAgentChatEscapesHyphensInThePath() {
+        String src = generateForAgentChat("/math-tutor-agent", "\n");
+
+        Assert.assertTrue(src.contains("service /math\\-tutor\\-agent on agentChatListener"),
+                "'-' is not an identifier character in Ballerina, so the path must escape it: " + src);
+    }
+
+    @Test
+    public void testAgentChatDeclaresAListenerWhenTheProjectHasNone() {
+        String src = generateForAgentChat("/math", "\n");
+
+        Assert.assertTrue(src.contains(
+                        "listener ai:Listener agentChatListener = new (listenOn = check http:getDefaultListener());"),
+                "the first chat service should bring its own listener: " + src);
+    }
+
+    @Test
+    public void testAgentChatReusesTheProjectsExistingListener() {
+        String src = generateForAgentChat("/support", """
+                import ballerina/ai;
+
+                listener ai:Listener sharedChatListener = new (listenOn = check http:getDefaultListener());
+                """);
+
+        Assert.assertTrue(src.contains("service /support on sharedChatListener"),
+                "every chat service shares one listener: " + src);
+        Assert.assertFalse(src.contains("listener ai:Listener agentChatListener"),
+                "a second listener would take a second port for no reason: " + src);
+    }
+
+    @Test
+    public void testAgentChatPathIsAlwaysAbsolute() {
+        Assert.assertTrue(generateForAgentChat("support", "\n").contains("service /support on"),
+                "a path typed without a leading slash must not emit invalid source");
     }
 
     @Test

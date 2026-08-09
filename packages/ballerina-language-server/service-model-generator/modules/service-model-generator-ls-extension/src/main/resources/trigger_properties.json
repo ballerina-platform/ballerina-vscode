@@ -344,5 +344,18 @@
     "version": "0.9.0",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_0.9.0.png",
     "kind": "file"
+  },
+  "26": {
+    "name": "ai",
+    "orgName": "ballerina",
+    "packageName": "ai",
+    "keywords": [
+      "ai",
+      "agent",
+      "chat"
+    ],
+    "triggerName": "Agent Chat",
+    "version": "1.0.0",
+    "kind": "agent-chat"
   }
 }

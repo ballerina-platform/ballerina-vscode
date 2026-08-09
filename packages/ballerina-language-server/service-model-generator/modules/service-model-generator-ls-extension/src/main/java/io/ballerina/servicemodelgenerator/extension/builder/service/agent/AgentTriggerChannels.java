@@ -35,6 +35,7 @@ public final class AgentTriggerChannels {
     private static final String SALESFORCE_MODULE = "salesforce";
 
     private static final Map<String, AgentTriggerChannel> BY_MODULE = new LinkedHashMap<>() {{
+            put(AiChatChannel.MODULE_NAME, new AiChatChannel());
             put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
             put(TelegramChannel.MODULE_NAME, new TelegramChannel());
             put(GITHUB_MODULE, new EventAgentTriggerChannel(GITHUB_MODULE));
