@@ -129,7 +129,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     );
 
     return (
-        <PopupModal onClose={onClose} dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
+        <PopupModal onClose={onClose} expanded dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
             {(close) => (
                 <PopupModalStep key={channel ? channel.moduleName : "picker"} $direction={direction}>
                     <PopupHeader>

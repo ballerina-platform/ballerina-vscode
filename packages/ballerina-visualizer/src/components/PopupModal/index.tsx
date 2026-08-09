@@ -49,7 +49,11 @@ const Backdrop = styled(PopupOverlay)`
     }
 `;
 
-const Box = styled(PopupContainer)`
+const Box = styled(PopupContainer) <{ $expanded?: boolean }>`
+    width: ${(props: { $expanded?: boolean }) => props.$expanded ? "90%" : "80%"};
+    max-width: ${(props: { $expanded?: boolean }) => props.$expanded ? "1000px" : "800px"};
+    height: ${(props: { $expanded?: boolean }) => props.$expanded ? "90vh" : "80vh"};
+    max-height: ${(props: { $expanded?: boolean }) => props.$expanded ? "none" : "800px"};
     animation: ${popIn} ${ENTER_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both;
     &.closing {
         animation-duration: ${EXIT_MS}ms;
@@ -93,13 +97,14 @@ export interface PopupModalProps {
     onClose: () => void;
     dismissOnBackdropClick?: boolean;
     dismissOnEscape?: boolean;
+    expanded?: boolean;
     zIndexBase?: number;
     ariaLabelledBy?: string;
     children: (close: () => void) => ReactNode;
 }
 
 export function PopupModal(props: PopupModalProps) {
-    const { onClose, dismissOnBackdropClick, dismissOnEscape, zIndexBase, ariaLabelledBy, children } = props;
+    const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, zIndexBase, ariaLabelledBy, children } = props;
     const [closing, setClosing] = useState(false);
     const exitTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -139,6 +144,7 @@ export function PopupModal(props: PopupModalProps) {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={ariaLabelledBy}
+                $expanded={expanded}
                 className={closingClass}
                 style={zIndexBase ? { zIndex: zIndexBase + 1 } : undefined}
             >
