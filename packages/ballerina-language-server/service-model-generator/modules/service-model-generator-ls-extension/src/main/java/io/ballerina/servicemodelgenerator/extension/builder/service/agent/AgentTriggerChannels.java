@@ -33,15 +33,18 @@ public final class AgentTriggerChannels {
     private static final String SHOPIFY_MODULE = "trigger.shopify";
     private static final String HUBSPOT_MODULE = "trigger.hubspot";
     private static final String SALESFORCE_MODULE = "salesforce";
+    private static final String TWILIO_MODULE = "trigger.twilio";
 
     private static final Map<String, AgentTriggerChannel> BY_MODULE = new LinkedHashMap<>() {{
             put(AiChatChannel.MODULE_NAME, new AiChatChannel());
             put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
             put(TelegramChannel.MODULE_NAME, new TelegramChannel());
+            put(GoogleChatChannel.MODULE_NAME, new GoogleChatChannel());
             put(GITHUB_MODULE, new EventAgentTriggerChannel(GITHUB_MODULE));
             put(SHOPIFY_MODULE, new EventAgentTriggerChannel(SHOPIFY_MODULE));
             put(HUBSPOT_MODULE, new EventAgentTriggerChannel(HUBSPOT_MODULE));
             put(SALESFORCE_MODULE, new EventAgentTriggerChannel(SALESFORCE_MODULE));
+            put(TWILIO_MODULE, new EventAgentTriggerChannel(TWILIO_MODULE));
         }};
 
     private AgentTriggerChannels() {

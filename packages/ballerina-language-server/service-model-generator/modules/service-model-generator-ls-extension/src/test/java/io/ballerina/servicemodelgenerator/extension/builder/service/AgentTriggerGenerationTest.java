@@ -271,6 +271,62 @@ public class AgentTriggerGenerationTest {
                 "the subscribed channel path must survive, or the service listens to nothing: " + src);
     }
 
+    @Test
+    public void testTwilioRunsOnItsPrimaryEvent() {
+        String src = generateForAgent("trigger.twilio", "callAgent", null,
+                Map.of("instructions", "Summarise the call status change."));
+
+        Assert.assertTrue(src.contains("service twilio:CallStatusService on twilioListener"),
+                "the default event channel should be the service type: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnQueued(event);"),
+                "the primary handler should offload: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnQueued(twilio:CallStatusEventWrapper event)"),
+                "the reply method should take the handler's own payload type: " + src);
+        Assert.assertEquals(src.split("start self\\.runAgent", -1).length - 1, 1,
+                "only the primary handler should call the agent: " + src);
+    }
+
+    private String generateForGoogleChat(String agentVarName, String agentOrgName) {
+        return generateForAgent("googleapis.chat", agentVarName, agentOrgName);
+    }
+
+    @Test
+    public void testGoogleChatServiceIsWiredToTheAgent() {
+        String src = generateForGoogleChat("mathTutorAgent", null);
+
+        Assert.assertTrue(src.contains("service chat:ChatService on chatListener"),
+                "the chat service should be attached to the channel's listener: " + src);
+        Assert.assertTrue(src.contains("remote function onMessage(chat:MessageEvent event, "
+                        + "chat:MessageCaller caller)"),
+                "the handler must be emitted, not left to an off-by-default schema function: " + src);
+        Assert.assertTrue(src.contains("mathTutorAgent.run(text, sessionId = \"googlechat:\" "
+                        + "+ (event.space?.name ?: \"unknown\"))"),
+                "session should key on the space so a conversation keeps its memory: " + src);
+    }
+
+    @Test
+    public void testGoogleChatReleasesTheWebhookBeforeRunningTheAgent() {
+        String src = generateForGoogleChat("mathTutorAgent", null);
+
+        int respond = src.indexOf("check caller->respond();");
+        int offload = src.indexOf("_ = start self.replyToChatMessage(event, caller);");
+        Assert.assertTrue(respond >= 0 && offload > respond,
+                "the dispatcher blocks up to 28s for respond(), so it must be released first: " + src);
+        Assert.assertTrue(src.indexOf("caller->sendMessage(reply)") > offload,
+                "the reply belongs on the offloaded strand, not the handler: " + src);
+    }
+
+    @Test
+    public void testGoogleChatRepliesInTheOriginatingThread() {
+        String src = generateForGoogleChat("mathTutorAgent", null);
+
+        Assert.assertTrue(src.contains("chat:ChatThread? thread = event.message.thread;")
+                        && src.contains("if thread is chat:ChatThread {"),
+                "thread is an optional field, so it cannot be set unconditionally: " + src);
+        Assert.assertTrue(src.contains("reply.thread = thread;"),
+                "the answer should land under the question, not loose in the space: " + src);
+    }
+
     private String generateForAgentChat(String basePath, String existingSource) {
         AgentTriggerChannel channel = AgentTriggerChannels.forModule("ai").orElseThrow();
         ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "ai", "ai",
