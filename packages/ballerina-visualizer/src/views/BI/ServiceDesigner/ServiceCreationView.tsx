@@ -80,6 +80,9 @@ const FormReveal = styled.div`
     flex: 1;
     min-height: 0;
     animation: ${formIn} 160ms ease-out both;
+    > .side-panel-body {
+        flex: 1 0 auto;
+    }
 
     @media (prefers-reduced-motion: reduce) {
         animation: none;
@@ -306,43 +309,43 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const statusView = pullingStatus && (
         <StatusContainer>
-                    {pullingStatus === PullingStatus.FETCHING && (
-                        <RelativeLoader message="Loading package..." />
+            {pullingStatus === PullingStatus.FETCHING && (
+                <RelativeLoader message="Loading package..." />
+            )}
+            {pullingStatus === PullingStatus.PULLING && (
+                <StatusCard>
+                    {isLocalRepository ? (
+                        <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
+                    ) : (
+                        <DownloadIcon color={ThemeColors.ON_SURFACE} />
                     )}
-                    {pullingStatus === PullingStatus.PULLING && (
-                        <StatusCard>
-                            {isLocalRepository ? (
-                                <Icon name="bi-spinner" sx={{ color: ThemeColors.ON_SURFACE, fontSize: "18px" }} />
-                            ) : (
-                                <DownloadIcon color={ThemeColors.ON_SURFACE} />
-                            )}
-                            <StatusText variant="body2">
-                                {isLocalRepository
-                                    ? `Please wait while the ${packageName} package is being loaded from your `
-                                    + "local repository..."
-                                    : `Please wait while the ${packageName} package is being pulled...`}
-                            </StatusText>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.SUCCESS && (
-                        <StatusCard>
-                            <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
-                            </StatusText>
-                        </StatusCard>
-                    )}
-                    {pullingStatus === PullingStatus.ERROR && (
-                        <StatusCard>
-                            <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
-                            <StatusText variant="body2">
-                                {isLocalRepository
-                                    ? "Failed to load the package from your local repository. Please try again."
-                                    : "Failed to pull the package. Please try again."}
-                            </StatusText>
-                            <Button appearance="secondary" onClick={fetchData}>Retry</Button>
-                        </StatusCard>
-                    )}
+                    <StatusText variant="body2">
+                        {isLocalRepository
+                            ? `Please wait while the ${packageName} package is being loaded from your `
+                            + "local repository..."
+                            : `Please wait while the ${packageName} package is being pulled...`}
+                    </StatusText>
+                </StatusCard>
+            )}
+            {pullingStatus === PullingStatus.SUCCESS && (
+                <StatusCard>
+                    <Icon name="bi-success" sx={{ color: ThemeColors.PRIMARY, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {isLocalRepository ? "Package loaded successfully." : "Package pulled successfully."}
+                    </StatusText>
+                </StatusCard>
+            )}
+            {pullingStatus === PullingStatus.ERROR && (
+                <StatusCard>
+                    <Icon name="bi-error" sx={{ color: ThemeColors.ERROR, fontSize: "18px" }} />
+                    <StatusText variant="body2">
+                        {isLocalRepository
+                            ? "Failed to load the package from your local repository. Please try again."
+                            : "Failed to pull the package. Please try again."}
+                    </StatusText>
+                    <Button appearance="secondary" onClick={fetchData}>Retry</Button>
+                </StatusCard>
+            )}
         </StatusContainer>
     );
 
