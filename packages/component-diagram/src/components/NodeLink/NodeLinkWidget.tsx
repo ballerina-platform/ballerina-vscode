@@ -52,7 +52,7 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 fill={"none"}
                 stroke={linkColor}
                 strokeWidth={1.5}
-                strokeDasharray={link.broken ? "5 5" : undefined}
+                strokeDasharray={link.broken || link.dashed ? "5 5" : undefined}
             />
 
             <defs>

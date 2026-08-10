@@ -16,18 +16,6 @@
  * under the License.
  */
 
-import React from "react";
-import { DiagramEngine } from "@projectstorm/react-diagrams-core";
-import { BaseNodeWidget } from "../BaseNode";
-import { FlowNode } from "../../../utils/types";
-import { WorkflowRunNodeModel } from "./WorkflowRunNodeModel";
-
-interface WorkflowRunNodeWidgetProps {
-    model: WorkflowRunNodeModel;
-    engine: DiagramEngine;
-    onClick?: (node: FlowNode) => void;
-}
-
-export function WorkflowRunNodeWidget(props: WorkflowRunNodeWidgetProps) {
-    return <BaseNodeWidget {...props} />;
-}
+export * from "./DurableAgentRunNodeModel";
+export * from "./DurableAgentRunNodeWidget";
+export * from "./DurableAgentRunNodeFactory";

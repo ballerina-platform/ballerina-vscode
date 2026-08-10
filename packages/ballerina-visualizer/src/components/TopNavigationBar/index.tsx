@@ -550,6 +550,8 @@ function getDisplayLabel(location: VisualizerLocation): string {
             return "Function Configuration";
         case MACHINE_VIEW.BIWorkflowForm:
             return "Workflow";
+        case MACHINE_VIEW.BIDurableAgentForm:
+            return "Durable Agentic Workflow";
         case MACHINE_VIEW.BIActivityForm:
             return "Workflow Activity";
         case MACHINE_VIEW.BINPFunctionForm:

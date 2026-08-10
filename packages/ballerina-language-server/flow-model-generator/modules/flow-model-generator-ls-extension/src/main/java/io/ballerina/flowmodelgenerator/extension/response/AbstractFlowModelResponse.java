@@ -35,6 +35,18 @@ public abstract class AbstractFlowModelResponse {
         this.stacktrace = Arrays.toString(e.getStackTrace());
     }
 
+    /**
+     * Reports a failure whose own message is not written for the user. The given message becomes the
+     * reported error, while the exception's message and stack trace are kept for the output channel.
+     *
+     * @param errorMsg the message to report
+     * @param e        the failure being replaced
+     */
+    protected void setError(String errorMsg, Throwable e) {
+        this.errorMsg = errorMsg;
+        this.stacktrace = e + " " + Arrays.toString(e.getStackTrace());
+    }
+
     public String errorMsg() {
         return errorMsg;
     }

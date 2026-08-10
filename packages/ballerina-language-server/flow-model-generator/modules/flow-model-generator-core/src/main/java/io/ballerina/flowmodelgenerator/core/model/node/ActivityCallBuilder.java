@@ -100,6 +100,7 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String NO_RETRY_VALUE = "NoRetry";
     public static final String AUTO_RETRY_VALUE = "AutoRetry";
     public static final String MANUAL_RETRY_VALUE = "ManualRetry";
+    public static final String RETRY_USER_ROLES_KEY = "retryUserRoles";
     public static final String MAX_RETRIES_KEY = "maxRetries";
     public static final String RETRY_DELAY_KEY = "retryDelay";
     public static final String RETRY_BACKOFF_KEY = "retryBackoff";
@@ -366,10 +367,26 @@ public class ActivityCallBuilder extends CallBuilder {
     public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
                                                     String maxRetries, String retryDelay,
                                                     String retryBackoff, String maxRetryDelay) {
-        List<Option> options = List.of(
-                new Option("No Retry", NO_RETRY_VALUE),
+        addRetryPolicyFormProperties(nodeBuilder, retryPolicyValue, maxRetries, retryDelay,
+                retryBackoff, maxRetryDelay, "");
+    }
+
+    public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
+                                                    String maxRetries, String retryDelay,
+                                                    String retryBackoff, String maxRetryDelay,
+                                                    String retryUserRoles) {
+        String selectedValue = retryPolicyValue == null || retryPolicyValue.isBlank()
+                ? NO_RETRY_VALUE : retryPolicyValue;
+        List<Option> options = new ArrayList<>(List.of(
+                new Option("No Automatic Retry", NO_RETRY_VALUE),
                 new Option("Auto Retry", AUTO_RETRY_VALUE),
-                new Option("Manual Retry", MANUAL_RETRY_VALUE));
+                new Option("Human Review", MANUAL_RETRY_VALUE)));
+        // A policy the form cannot represent (a const or variable reference, say) is carried as its
+        // own option, so it renders as the selection and is written back verbatim on save.
+        boolean opaquePolicy = options.stream().noneMatch(option -> selectedValue.equals(option.value()));
+        if (opaquePolicy) {
+            options.add(new Option(selectedValue, selectedValue));
+        }
 
         // Sub-property definitions for the AutoRetry option. Empty values are intentional:
         // the UI reads real values from the root hidden properties with matching keys.
@@ -393,19 +410,27 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Map<String, Property>> dynamicFields = new LinkedHashMap<>();
         dynamicFields.put(NO_RETRY_VALUE, Map.of());
         dynamicFields.put(AUTO_RETRY_VALUE, autoRetryFields);
-        dynamicFields.put(MANUAL_RETRY_VALUE, Map.of());
+        Map<String, Property> manualRetryFields = new LinkedHashMap<>();
+        manualRetryFields.put(RETRY_USER_ROLES_KEY, buildRetrySubProperty("Reviewer Roles",
+                "Role(s) permitted to decide the human review, e.g. \"manager\" or "
+                        + "[\"finance\", \"manager\"]. Leave empty to allow any role.", "string|string[]"));
+        dynamicFields.put(MANUAL_RETRY_VALUE, manualRetryFields);
+        if (opaquePolicy) {
+            dynamicFields.put(selectedValue, Map.of());
+        }
 
         nodeBuilder.properties().custom()
                 .metadata()
                     .label("Retry Policy")
-                    .description("Retry strategy to apply when the activity call fails")
+                    .description("Engine retry strategy when the activity fails: no automatic retry (an AI agent "
+                            + "may still re-invoke it), automatic backoff retries, or a human review task")
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.DROPDOWN_CHOICE)
                     .options(options)
                     .selected(true)
                     .stepOut()
-                .value(retryPolicyValue != null ? retryPolicyValue : NO_RETRY_VALUE)
+                .value(selectedValue)
                 .editable(true)
                 .itemOptions(ItemOption.from(options))
                 .dynamicFormFields(dynamicFields)
@@ -417,6 +442,9 @@ public class ActivityCallBuilder extends CallBuilder {
                 "Max Retries", "Maximum number of retry attempts", "int", maxRetries);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_DELAY_KEY,
                 "Retry Delay", "Initial delay between retries in seconds", "decimal", retryDelay);
+        addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_USER_ROLES_KEY,
+                "Reviewer Roles", "Role(s) permitted to decide the retry review", "string|string[]",
+                retryUserRoles);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_BACKOFF_KEY,
                 "Retry Backoff", "Exponential backoff multiplier", "decimal", retryBackoff);
         addHiddenRetrySubFieldProperty(nodeBuilder, MAX_RETRY_DELAY_KEY,
@@ -532,7 +560,7 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Property> properties = flowNode.properties();
         Set<String> excludedKeys = Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY,
                 CHECK_ERROR_KEY, ADVANCED_PARAM_KEY, RETRY_POLICY_PARAM,
-                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY);
+                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY, RETRY_USER_ROLES_KEY);
         populateActivityCallArg(sourceBuilder, properties, excludedKeys);
         populateRetryPolicyArg(sourceBuilder, properties);
         populateAdvancedArgs(sourceBuilder, properties);
@@ -744,6 +772,26 @@ public class ActivityCallBuilder extends CallBuilder {
                 .name(retryPolicyExpr);
     }
 
+    /**
+     * The retry-policy value for a declaration entry, or {@code null} when no engine retry is
+     * configured (the default, not emitted).
+     *
+     * @param properties the node's properties
+     * @return the policy expression or {@code null}
+     */
+    public static String retryPolicyEntryValue(Map<String, Property> properties) {
+        if (properties == null) {
+            return null;
+        }
+        Property retryPolicy = properties.get(RETRY_POLICY_PARAM);
+        if (retryPolicy == null || retryPolicy.value() == null || retryPolicy.value().toString().isEmpty()
+                || NO_RETRY_VALUE.equals(retryPolicy.value().toString())) {
+            return null;
+        }
+        String expression = retryPolicyExpression(retryPolicy, properties);
+        return expression == null || expression.isEmpty() ? null : expression;
+    }
+
     private static String retryPolicyExpression(Property retryPolicy, Map<String, Property> properties) {
         String value = retryPolicy.value().toString();
         if (AUTO_RETRY_VALUE.equals(value)) {
@@ -751,7 +799,14 @@ public class ActivityCallBuilder extends CallBuilder {
         }
         return switch (value) {
             // NO_RETRY is handled (and skipped) by populateRetryPolicyArg before reaching here.
-            case MANUAL_RETRY_VALUE -> "workflow:ManualRetry";
+            case MANUAL_RETRY_VALUE -> {
+                Property roles = properties.get(RETRY_USER_ROLES_KEY);
+                String rolesValue = roles == null || roles.value() == null
+                        ? "" : roles.value().toString().trim();
+                // ManualRetry is the reviewer role(s); an empty list means any role may decide.
+                yield rolesValue.isBlank() ? "[]" : WorkflowUtil.quoteIfBareRole(rolesValue);
+            }
+            // A policy expression the form could not represent: written back as it was read.
             default -> value;
         };
     }

@@ -122,6 +122,23 @@ public class ModelGenerator {
         this.workspaceManager = workspaceManager;
     }
 
+    // Converts a line position to a text offset, clamping the line to the document and the
+    // offset to that line's length so stale client positions cannot fail the request.
+    private static int clampedTextPosition(TextDocument textDocument, io.ballerina.tools.text.LinePosition position) {
+        try {
+            return textDocument.textPositionFrom(position);
+        } catch (RuntimeException e) {
+            int lineCount = textDocument.toCharArray().length == 0 ? 1 : textDocument.textLines().size();
+            int line = Math.min(Math.max(position.line(), 0), lineCount - 1);
+            try {
+                return textDocument.textPositionFrom(io.ballerina.tools.text.LinePosition.from(line,
+                        Math.min(position.offset(), textDocument.line(line).length())));
+            } catch (RuntimeException inner) {
+                return textDocument.textPositionFrom(io.ballerina.tools.text.LinePosition.from(line, 0));
+            }
+        }
+    }
+
     /**
      * Generates a flow model for the given canvas node.
      *
@@ -133,10 +150,23 @@ public class ModelGenerator {
         SyntaxTree syntaxTree = document.syntaxTree();
         ModulePartNode modulePartNode = syntaxTree.rootNode();
         TextDocument textDocument = syntaxTree.textDocument();
-        int start = textDocument.textPositionFrom(lineRange.startLine());
-        int end = textDocument.textPositionFrom(lineRange.endLine());
+        // The requested range comes from the client's last-known artifact location, which can
+        // be stale right after a source edit reshapes the target (e.g. a capability write
+        // expanding a single-line agent declaration). Clamp both positions to the current
+        // document instead of failing the whole canvas.
+        int start = clampedTextPosition(textDocument, lineRange.startLine());
+        int end = clampedTextPosition(textDocument, lineRange.endLine());
         NonTerminalNode canvasNode = modulePartNode.findNode(TextRange.from(start, end - start), true);
 
+        // A module-level declaration fragment (e.g. a durable agent opened by its name range)
+        // resolves to the whole declaration so the declaration canvas can render.
+        NonTerminalNode declarationAncestor = canvasNode;
+        while (declarationAncestor != null && declarationAncestor.kind() != SyntaxKind.MODULE_VAR_DECL) {
+            declarationAncestor = declarationAncestor.parent();
+        }
+        if (declarationAncestor != null) {
+            canvasNode = declarationAncestor;
+        }
         if (canvasNode instanceof ClassDefinitionNode classDefinitionNode) {
             canvasNode = narrowToInnerAgent(classDefinitionNode, canvasNode);
         }

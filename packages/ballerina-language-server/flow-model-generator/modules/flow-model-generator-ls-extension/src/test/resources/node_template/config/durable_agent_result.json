@@ -1,0 +1,153 @@
+{
+  "source": "durable_agent_module.bal",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "description": "Get Agent Result node template",
+  "codedata": {
+    "node": "DURABLE_AGENT_RESULT",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Get Agent Result",
+      "description": "Read a durable agent instance's final result"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_RESULT",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "waitForResult",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Durable Agentic Workflow",
+          "description": "The durable agent to read the result from"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "supportAgent",
+                "value": "supportAgent"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "agentId": {
+        "metadata": {
+          "label": "Instance Id",
+          "description": "The running agent's instance ID (returned by `run`)"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "waitForResult": {
+        "metadata": {
+          "label": "Wait for Result",
+          "description": "Wait until the instance finishes (blocking). Uncheck to read without waiting: while the instance is still working a workflow:AgentBusyError is returned - check back later."
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "ballerinaType": "boolean",
+            "selected": true
+          }
+        ],
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "The expected type of the agent's result"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "ballerinaType": "string",
+            "selected": true
+          }
+        ],
+        "value": "string",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "agentResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

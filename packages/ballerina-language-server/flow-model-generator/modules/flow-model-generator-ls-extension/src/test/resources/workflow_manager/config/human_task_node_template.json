@@ -206,12 +206,12 @@
         "types": [
           {
             "fieldType": "RECORD_MAP_EXPRESSION",
-            "ballerinaType": "time:Duration",
+            "ballerinaType": "workflow:Duration",
             "typeMembers": [
               {
                 "type": "Duration",
-                "packageInfo": "ballerina:time:2.8.1",
-                "packageName": "time",
+                "packageInfo": "ballerina:workflow:0.8.3",
+                "packageName": "workflow",
                 "kind": "RECORD_TYPE",
                 "selected": false
               }
@@ -220,7 +220,7 @@
           },
           {
             "fieldType": "EXPRESSION",
-            "ballerinaType": "time:Duration?",
+            "ballerinaType": "workflow:Duration?",
             "selected": false
           }
         ],
@@ -232,9 +232,6 @@
         "codedata": {
           "kind": "DEFAULTABLE",
           "originalName": "timeout"
-        },
-        "imports": {
-          "time": "ballerina/time"
         },
         "defaultValue": "()"
       },

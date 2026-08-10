@@ -1398,19 +1398,23 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
                 class="css-55"
               >
                 <div
-                  class="css-50"
-                  color="var(--vscode-terminal-ansiBlue)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-50"
+                    color="var(--vscode-terminal-ansiBlue)"
                   >
-                    <path
-                      d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -1482,19 +1486,23 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
                 class="css-55"
               >
                 <div
-                  class="css-61"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-61"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -6006,19 +6014,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-27"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-27"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -6140,19 +6152,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-37"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-37"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <path
-                      d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -6232,19 +6248,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-37"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-37"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <path
-                      d="M5.5 17q-.625 0-1.062-.437T4 15.5t.438-1.062T5.5 14h13q.625 0 1.063.438T20 15.5t-.437 1.063T18.5 17zm0-7q-.625 0-1.062-.437T4 8.5t.438-1.062T5.5 7h13q.625 0 1.063.438T20 8.5t-.437 1.063T18.5 10z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M5.5 17q-.625 0-1.062-.437T4 15.5t.438-1.062T5.5 14h13q.625 0 1.063.438T20 15.5t-.437 1.063T18.5 17zm0-7q-.625 0-1.062-.437T4 8.5t.438-1.062T5.5 7h13q.625 0 1.063.438T20 8.5t-.437 1.063T18.5 10z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -6316,15 +6336,19 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-27"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
                   <div
-                    class="css-38"
+                    class="css-27"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <i
-                      class="fw-dataMapper"
-                    />
+                    <div
+                      class="css-38"
+                    >
+                      <i
+                        class="fw-dataMapper"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6759,19 +6783,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-27"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-27"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -6964,19 +6992,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-27"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-27"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -7046,19 +7078,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-27"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-27"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -7886,15 +7922,19 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-37"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
                   <div
-                    class="css-78"
+                    class="css-37"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <i
-                      class="fw-bi-wait"
-                    />
+                    <div
+                      class="css-78"
+                    >
+                      <i
+                        class="fw-bi-wait"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -8168,19 +8208,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-45"
-                  color="var(--vscode-terminal-ansiBlue)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-45"
+                    color="var(--vscode-terminal-ansiBlue)"
                   >
-                    <path
-                      d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -8250,19 +8294,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-45"
-                  color="var(--vscode-terminal-ansiBlue)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-45"
+                    color="var(--vscode-terminal-ansiBlue)"
                   >
-                    <path
-                      d="M9 16h6q.425 0 .713-.288T16 15V9q0-.425-.288-.712T15 8H9q-.425 0-.712.288T8 9v6q0 .425.288.713T9 16m3 6q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12t-2.325-5.675T12 4T6.325 6.325T4 12t2.325 5.675T12 20m0-8"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M9 16h6q.425 0 .713-.288T16 15V9q0-.425-.288-.712T15 8H9q-.425 0-.712.288T8 9v6q0 .425.288.713T9 16m3 6q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12t-2.325-5.675T12 4T6.325 6.325T4 12t2.325 5.675T12 20m0-8"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -8431,19 +8479,23 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                 class="css-26"
               >
                 <div
-                  class="css-45"
-                  color="var(--vscode-terminal-ansiBlue)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-45"
+                    color="var(--vscode-terminal-ansiBlue)"
                   >
-                    <path
-                      d="M9.825 20.7q-2.575-.725-4.2-2.837T4 13q0-1.425.475-2.713t1.35-2.362q.275-.3.675-.313t.725.313q.275.275.288.675t-.263.75q-.6.775-.925 1.7T6 13q0 2.025 1.188 3.613t3.062 2.162q.325.1.538.375t.212.6q0 .5-.35.788t-.825.162m4.35 0q-.475.125-.825-.175t-.35-.8q0-.3.213-.575t.537-.375q1.875-.6 3.063-2.175T18 13q0-2.5-1.75-4.25T12 7h-.075l.4.4q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-2.1-2.1q-.15-.15-.212-.325T8.55 6t.063-.375t.212-.325l2.1-2.1q.275-.275.7-.275t.7.275t.275.7t-.275.7l-.4.4H12q3.35 0 5.675 2.325T20 13q0 2.725-1.625 4.85t-4.2 2.85"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M9.825 20.7q-2.575-.725-4.2-2.837T4 13q0-1.425.475-2.713t1.35-2.362q.275-.3.675-.313t.725.313q.275.275.288.675t-.263.75q-.6.775-.925 1.7T6 13q0 2.025 1.188 3.613t3.062 2.162q.325.1.538.375t.212.6q0 .5-.35.788t-.825.162m4.35 0q-.475.125-.825-.175t-.35-.8q0-.3.213-.575t.537-.375q1.875-.6 3.063-2.175T18 13q0-2.5-1.75-4.25T12 7h-.075l.4.4q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-2.1-2.1q-.15-.15-.212-.325T8.55 6t.063-.375t.212-.325l2.1-2.1q.275-.275.7-.275t.7.275t.275.7t-.275.7l-.4.4H12q3.35 0 5.675 2.325T20 13q0 2.725-1.625 4.85t-4.2 2.85"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -11079,19 +11131,23 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                 class="css-29"
               >
                 <div
-                  class="css-30"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-30"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <path
-                      d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -11410,19 +11466,23 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                 class="css-29"
               >
                 <div
-                  class="css-38"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-38"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -11832,19 +11892,23 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                 class="css-29"
               >
                 <div
-                  class="css-38"
-                  color="var(--vscode-terminal-ansiGreen)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-38"
+                    color="var(--vscode-terminal-ansiGreen)"
                   >
-                    <path
-                      d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15.6 5.29c-1.1-.1-2.07.71-2.17 1.82L13.18 10H16v2h-3l-.44 5.07a3.986 3.986 0 0 1-4.33 3.63a4 4 0 0 1-3.06-1.87l1.5-1.5c.24.74.9 1.31 1.73 1.38c1.1.1 2.07-.71 2.17-1.82L11 12H8v-2h3.17l.27-3.07c.19-2.2 2.13-3.83 4.33-3.63c1.31.11 2.41.84 3.06 1.87l-1.5 1.5c-.24-.74-.9-1.31-1.73-1.38"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -11916,19 +11980,23 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                 class="css-29"
               >
                 <div
-                  class="css-42"
-                  color="var(--vscode-terminal-ansiBlue)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-42"
+                    color="var(--vscode-terminal-ansiBlue)"
                   >
-                    <path
-                      d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="m7.825 16l2.875 2.875q.3.3.313.7t-.288.7t-.712.3t-.713-.3L4.7 15.7q-.15-.15-.213-.325T4.426 15t.063-.375t.212-.325l4.625-4.625q.3-.3.7-.287t.7.312q.275.3.287.7t-.287.7l-2.9 2.9H17V5q0-.425.288-.712T18 4t.713.288T19 5v9q0 .825-.587 1.413T17 16z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -12872,19 +12940,23 @@ exports[`BI Diagram - Snapshot Tests renders flow with diagnostics correctly: fl
                 class="css-25"
               >
                 <div
-                  class="css-26"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-26"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <path
-                      d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div
@@ -14106,19 +14178,23 @@ exports[`BI Diagram - Snapshot Tests renders flow with suggestions correctly: fl
                 class="css-28"
               >
                 <div
-                  class="css-29"
-                  color="var(--vscode-terminal-ansiMagenta)"
+                  style="position: relative; display: flex;"
                 >
-                  <svg
-                    height="24"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    xmlns="http://www.w3.org/2000/svg"
+                  <div
+                    class="css-29"
+                    color="var(--vscode-terminal-ansiMagenta)"
                   >
-                    <path
-                      d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
-                    />
-                  </svg>
+                    <svg
+                      height="24"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M3 6a3 3 0 0 1 3-3a1 1 0 0 1 0 2a1 1 0 0 0-1 1v3.938c0 .789-.307 1.519-.82 2.062c.513.543.82 1.273.82 2.062V18a1 1 0 0 0 1 1a1 1 0 1 1 0 2a3 3 0 0 1-3-3v-3.938a1 1 0 0 0-.757-.97l-.486-.122a1 1 0 0 1 0-1.94l.486-.121A1 1 0 0 0 3 9.939zm18 0a3 3 0 0 0-3-3a1 1 0 1 0 0 2a1 1 0 0 1 1 1v3.938c0 .789.307 1.519.82 2.062a3 3 0 0 0-.82 2.062V18a1 1 0 0 1-1 1a1 1 0 1 0 0 2a3 3 0 0 0 3-3v-3.938a1 1 0 0 1 .758-.97l.485-.122a1 1 0 0 0 0-1.94l-.485-.121a1 1 0 0 1-.758-.97zm-11.71.886a1 1 0 1 0-1.58 1.228L10.734 12l-3.022 3.886a1 1 0 1 0 1.578 1.228L12 13.629l2.71 3.485a1 1 0 0 0 1.58-1.228L13.266 12l3.022-3.886a1 1 0 0 0-1.578-1.228L12 10.371z"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div

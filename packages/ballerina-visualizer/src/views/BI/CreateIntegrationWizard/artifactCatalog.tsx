@@ -25,6 +25,7 @@ import {
     AUTOMATION_CARD,
     INTEGRATION_API_CARDS,
     WORKFLOW_CARD,
+    DURABLE_AGENT_CARD,
 } from "../components/artifactCards";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { getEntryNodeIcon } from "../ComponentListView/EventIntegrationPanel";
@@ -116,7 +117,7 @@ function category(key: ArtifactCategoryKey, cards: (ArtifactCard | DynamicCardSo
  */
 export const ARTIFACT_CATEGORIES: ArtifactCategory[] = [
     category("automation", [AUTOMATION_CARD]),
-    category("workflow", [WORKFLOW_CARD]),
+    category("workflow", [WORKFLOW_CARD, DURABLE_AGENT_CARD]),
     // TODO: Re-add `AI_CHAT_AGENT_CARD` (from ../components/artifactCards) as the
     // first card here once creating an AI chat agent from the pre-project wizard is
     // fully supported. It stays available on the in-project Add-Artifact screen

@@ -112,7 +112,7 @@ export default function createTests() {
                 }
             });
             await artifactWebView.getByRole('button', { name: 'Save' }).click();
-            await page.page.waitForTimeout(1000);
+            await page.page.waitForTimeout(3000);
 
             // 17. Add if condition to check if variables are equal
             await diagram.clickHoverAddButtonByIndex(2);
