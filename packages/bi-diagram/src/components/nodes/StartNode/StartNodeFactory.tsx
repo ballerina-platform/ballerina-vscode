@@ -23,6 +23,7 @@ import { StartNodeModel } from "./StartNodeModel";
 import { StartNodeWidget } from "./StartNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
 import { NodeKind } from "../../../utils/types";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class StartNodeFactory extends AbstractReactFactory<StartNodeModel, DiagramEngine> {
     constructor() {
@@ -34,6 +35,10 @@ export class StartNodeFactory extends AbstractReactFactory<StartNodeModel, Diagr
     }
 
     generateReactWidget(event: GenerateWidgetEvent<StartNodeModel>) {
-        return <StartNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <StartNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

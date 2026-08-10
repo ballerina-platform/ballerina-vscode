@@ -80,7 +80,12 @@
                 "org": "testorg",
                 "module": "package2",
                 "symbol": "formatMessage",
-                "version": "0.1.0"
+                "version": "0.1.0",
+                "isGenerated": false,
+                "data": {
+                  "moduleRelation": "CURRENT_MODULE",
+                  "moduleKind": "DEFAULT_MODULE"
+                }
               },
               "enabled": true
             }

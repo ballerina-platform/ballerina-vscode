@@ -14,7 +14,6 @@
       "module": "mssql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.13.1",
       "isNew": true,
       "lineRange": {
         "fileName": "test.bal",

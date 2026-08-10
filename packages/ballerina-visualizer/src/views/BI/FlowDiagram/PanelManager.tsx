@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
     FlowNode,
@@ -24,25 +25,21 @@ import {
     SubPanel,
     SubPanelView,
     FUNCTION_TYPE,
-    ToolData,
-    NodeMetadata,
-    EditorConfig
+    EditorConfig,
 } from "@wso2/ballerina-core";
 import { HelperView } from "../HelperView";
 import FlowNodeForm from "../Forms/FlowNodeForm";
 import { getContainerTitle, getSubPanelWidth } from "../../../utils/bi";
-import { ToolConfig } from "../AIChatAgent/ToolConfig";
-import { AddTool } from "../AIChatAgent/AddTool";
-import { AddMcpServer } from "../AIChatAgent/AddMcpServer";
-import { NewTool, NewToolSelectionMode } from "../AIChatAgent/NewTool";
 import styled from "@emotion/styled";
-import { MemoryManagerConfig } from "../AIChatAgent/MemoryManagerConfig";
 import { FormSubmitOptions } from ".";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList, ConnectionKind } from "../../../components/ConnectionSelector";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
+import { NewActivityFromConnection } from "./NewActivityFromConnection";
+import { AgentEditorPanelContent } from "../AIChatAgent/AgentEditorPanelContent";
+import { AgentEditorController } from "../AIChatAgent/useAgentEditorController";
 
 const Container = styled.div`
     display: flex;
@@ -50,12 +47,14 @@ const Container = styled.div`
     height: 100%;
 `;
 
+
 export enum SidePanelView {
     NODE_LIST = "NODE_LIST",
     FORM = "FORM",
     FUNCTION_LIST = "FUNCTION_LIST",
     WORKFLOW_LIST = "WORKFLOW_LIST",
     ACTIVITY_LIST = "ACTIVITY_LIST",
+    ACTIVITY_FROM_CONNECTION = "ACTIVITY_FROM_CONNECTION",
     DATA_MAPPER_LIST = "DATA_MAPPER_LIST",
     NP_FUNCTION_LIST = "NP_FUNCTION_LIST",
     MODEL_PROVIDERS = "MODEL_PROVIDERS",
@@ -72,13 +71,13 @@ export enum SidePanelView {
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
     NEW_AGENT = "NEW_AGENT",
     ADD_TOOL = "ADD_TOOL",
-    NEW_TOOL = "NEW_TOOL",
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
     NEW_TOOL_FROM_CONNECTION = "NEW_TOOL_FROM_CONNECTION",
     NEW_TOOL_FROM_FUNCTION = "NEW_TOOL_FROM_FUNCTION",
+    NEW_TOOL_FROM_AGENT = "NEW_TOOL_FROM_AGENT",
+    NEW_TOOL_FROM_AGENT_FORM = "NEW_TOOL_FROM_AGENT_FORM",
     ADD_MCP_SERVER = "ADD_MCP_SERVER",
     EDIT_MCP_SERVER = "EDIT_MCP_SERVER",
-    AGENT_TOOL = "AGENT_TOOL",
     CONNECTION_CONFIG = "CONNECTION_CONFIG",
     CONNECTION_SELECT = "CONNECTION_SELECT",
     CONNECTION_CREATE = "CONNECTION_CREATE",
@@ -96,10 +95,10 @@ interface PanelManagerProps {
     subPanel: SubPanel;
     categories: any[];
     selectedNode?: FlowNode;
-    parentNode?: FlowNode;
     nodeFormTemplate?: FlowNode;
     selectedClientName?: string;
     showEditForm?: boolean;
+    /** True when the call form open is step 3 of the create-activity-from-connection wizard. */
     targetLineRange?: LineRange;
     connections?: any[];
     fileName?: string;
@@ -108,22 +107,24 @@ interface PanelManagerProps {
     updatedExpressionField?: ExpressionFormField;
     showProgressIndicator?: boolean;
     canGoBack?: boolean;
-    selectedMcpToolkitName?: string;
     selectedConnectionKind?: ConnectionKind;
     showProgressSpinner?: boolean;
     progressMessage?: string;
     progressTitle?: string;
     errorMessage?: string;
+    agentEditor?: AgentEditorController;
 
     // Action handlers
     onClose: () => void;
-    onSaveAndRefresh?: () => void;
     onBack?: () => void;
     onSelectNode: (nodeId: string, metadata?: any) => void;
     onAddConnection?: () => void;
     onAddFunction?: () => void;
     onAddWorkflow?: () => void;
     onAddActivity?: () => void;
+    onAddActivityFromConnection?: () => void;
+    onActivityFromConnectionCreated?: (activityName: string) => void;
+    onActivityFromConnectionCreatedReturnToList?: (activityName: string) => void;
     onAddNPFunction?: () => void;
     onAddDataMapper?: () => void;
     onAddModelProvider?: () => void;
@@ -150,18 +151,14 @@ interface PanelManagerProps {
     onSearchChunker?: (searchText: string, functionType: FUNCTION_TYPE) => void;
     onSearchTextChange?: (searchText: string) => void;
     searchText?: string;
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
     onAddAgent?: () => void;
-    onEditAgent?: () => void;
     onNavigateToPanel?: (targetPanel: SidePanelView, connectionKind?: ConnectionKind) => void;
     setSidePanelView: (view: SidePanelView) => void;
     onChangeSelectedNode?: (node: FlowNode) => void;
 
     // AI Agent handlers
-    onSelectTool?: (tool: ToolData, node: FlowNode) => void;
-    onSelectMcpToolkit?: (tool: ToolData, node: FlowNode) => void;
-    onDeleteTool?: (tool: ToolData, node: FlowNode) => void;
-    onAddTool?: (node: FlowNode) => void;
-    onAddMcpServer?: (node: FlowNode) => void;
     onSelectNewConnection?: (nodeId: string, metadata?: any) => void;
     onSelectConnectorPopup?: (nodeId: string, metadata?: any) => void;
     onUpdateNodeWithConnection?: (selectedNode: FlowNode) => void;
@@ -179,7 +176,6 @@ export function PanelManager(props: PanelManagerProps) {
         subPanel,
         categories,
         selectedNode,
-        parentNode,
         nodeFormTemplate,
         selectedClientName,
         showEditForm,
@@ -191,20 +187,21 @@ export function PanelManager(props: PanelManagerProps) {
         updatedExpressionField,
         showProgressIndicator,
         canGoBack,
-        selectedMcpToolkitName,
         selectedConnectionKind,
         showProgressSpinner = false,
         progressMessage = "Loading...",
         progressTitle,
         setSidePanelView,
         onClose,
-        onSaveAndRefresh,
         onBack,
         onSelectNode,
         onAddConnection,
         onAddFunction,
         onAddWorkflow,
         onAddActivity,
+        onAddActivityFromConnection,
+        onActivityFromConnectionCreated,
+        onActivityFromConnectionCreatedReturnToList,
         onAddNPFunction,
         onAddDataMapper,
         onAddAgent,
@@ -225,6 +222,8 @@ export function PanelManager(props: PanelManagerProps) {
         onSearchNpFunction,
         onSearchTextChange,
         searchText,
+        expandedGroupId,
+        onExpandedGroupChange,
         onSearchAll,
         onSearchVectorStore,
         onSearchEmbeddingProvider,
@@ -234,42 +233,13 @@ export function PanelManager(props: PanelManagerProps) {
         onSelectNewConnection,
         onSelectConnectorPopup,
         onUpdateNodeWithConnection,
+        agentEditor,
         onNavigateToPanel,
         errorMessage,
         onImportDevantConn,
         onLinkDevantProject,
         onRefreshDevantConnections,
     } = props;
-
-    const backOverrideRef = useRef<(() => void) | null>(null);
-
-    useEffect(() => {
-        backOverrideRef.current = null;
-    }, [sidePanelView]);
-
-    const handleSetBackOverride = (handler: (() => void) | null) => {
-        backOverrideRef.current = handler;
-    };
-
-    const handleOnBackToAddTool = () => {
-        setSidePanelView(SidePanelView.ADD_TOOL);
-    };
-
-    const handleOnUseConnection = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_FROM_CONNECTION);
-    };
-
-    const handleOnUseFunction = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_FROM_FUNCTION);
-    };
-
-    const handleOnUseMcpServer = () => {
-        setSidePanelView(SidePanelView.ADD_MCP_SERVER);
-    };
-
-    const handleOnCreateCustomTool = () => {
-        setSidePanelView(SidePanelView.NEW_TOOL_CUSTOM);
-    };
 
     const findSubPanelComponent = (subPanel: SubPanel) => {
         switch (subPanel.view) {
@@ -306,91 +276,6 @@ export function PanelManager(props: PanelManagerProps) {
                     />
                 );
 
-            case SidePanelView.ADD_TOOL:
-                return (
-                    <AddTool
-                        agentCallNode={selectedNode}
-                        onCreateCustomTool={handleOnCreateCustomTool}
-                        onUseConnection={handleOnUseConnection}
-                        onUseFunction={handleOnUseFunction}
-                        onUseMcpServer={handleOnUseMcpServer}
-                        onSave={onClose}
-                    />
-                );
-
-            case SidePanelView.ADD_MCP_SERVER:
-                return (
-                    <AddMcpServer
-                        agentCallNode={selectedNode}
-                        name={selectedMcpToolkitName}
-                        onSave={onClose}
-                        onBack={handleOnBackToAddTool}
-                    />
-                );
-
-            case SidePanelView.EDIT_MCP_SERVER:
-                return (
-                    <AddMcpServer
-                        editMode={true}
-                        name={selectedClientName}
-                        agentCallNode={selectedNode}
-                        onSave={onClose}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.ALL}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_CUSTOM:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.CUSTOM_TOOL}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.CONNECTION}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-                return (
-                    <NewTool
-                        agentCallNode={selectedNode}
-                        mode={NewToolSelectionMode.FUNCTION}
-                        onSave={onSaveAndRefresh ?? onClose}
-                        onBack={handleOnBackToAddTool}
-                        onSetBackOverride={handleSetBackOverride}
-                    />
-                );
-
-            case SidePanelView.AGENT_TOOL:
-                const selectedTool = (selectedNode?.metadata.data as NodeMetadata).tools?.find(
-                    (tool) => tool.name === selectedClientName
-                );
-                return <ToolConfig agentCallNode={selectedNode} toolData={selectedTool} onSave={onClose} />;
-
-            case SidePanelView.AGENT_MEMORY_MANAGER:
-                return <MemoryManagerConfig agentNode={parentNode} memoryNode={selectedNode} onSave={onClose} />;
-
             case SidePanelView.FUNCTION_LIST:
                 return (
                     <NodeList
@@ -414,8 +299,8 @@ export function PanelManager(props: PanelManagerProps) {
                         onSearchTextChange={(searchText) => onSearchWorkflow?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddWorkflow}
                         onClose={onClose}
-                        title={"Workflows"}
-                        searchPlaceholder={"Search workflows"}
+                        title={"Durable Workflows"}
+                        searchPlaceholder={"Search durable workflows"}
                         onBack={canGoBack ? onBack : undefined}
                     />
                 );
@@ -427,10 +312,22 @@ export function PanelManager(props: PanelManagerProps) {
                         onSelect={onSelectNode}
                         onSearchTextChange={(searchText) => onSearchActivity?.(searchText, FUNCTION_TYPE.REGULAR)}
                         onAddFunction={onAddActivity}
+                        onAdd={onAddActivityFromConnection}
                         onClose={onClose}
                         title={"Activities"}
                         searchPlaceholder={"Search activities"}
                         onBack={canGoBack ? onBack : undefined}
+                    />
+                );
+
+            case SidePanelView.ACTIVITY_FROM_CONNECTION:
+                return (
+                    <NewActivityFromConnection
+                        fileName={fileName}
+                        onActivityCreated={onActivityFromConnectionCreated}
+                        onActivityCreatedReturnToList={onActivityFromConnectionCreatedReturnToList}
+                        onBack={canGoBack ? onBack : undefined}
+                        onClose={onClose}
                     />
                 );
 
@@ -503,6 +400,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Model Providers"}
                         searchPlaceholder={"Search model providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -531,6 +430,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Vector Stores"}
                         searchPlaceholder={"Search vector stores"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -561,6 +462,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Embedding Providers"}
                         searchPlaceholder={"Search embedding providers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -591,6 +494,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Knowledge Bases"}
                         searchPlaceholder={"Search knowledge bases"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -621,6 +526,8 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Data Loaders"}
                         searchPlaceholder={"Search data loaders"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
 
@@ -651,8 +558,21 @@ export function PanelManager(props: PanelManagerProps) {
                         title={"Chunkers"}
                         searchPlaceholder={"Search chunkers"}
                         onBack={canGoBack ? onBack : undefined}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
                     />
                 );
+
+            case SidePanelView.AGENT_MEMORY_MANAGER:
+            case SidePanelView.ADD_TOOL:
+            case SidePanelView.NEW_TOOL_CUSTOM:
+            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+            case SidePanelView.ADD_MCP_SERVER:
+            case SidePanelView.EDIT_MCP_SERVER:
+                return agentEditor ? <AgentEditorPanelContent controller={agentEditor} /> : null;
 
             case SidePanelView.CONNECTION_CONFIG:
                 return (
@@ -666,7 +586,14 @@ export function PanelManager(props: PanelManagerProps) {
                 );
 
             case SidePanelView.CONNECTION_SELECT:
-                return <ConnectionSelectionList connectionKind={selectedConnectionKind} onSelect={onSelectNewConnection} />;
+                return (
+                    <ConnectionSelectionList
+                        connectionKind={selectedConnectionKind}
+                        onSelect={onSelectNewConnection}
+                        expandedGroupId={expandedGroupId}
+                        onExpandedGroupChange={onExpandedGroupChange}
+                    />
+                );
 
             case SidePanelView.CONNECTION_CREATE:
                 return (
@@ -704,6 +631,7 @@ export function PanelManager(props: PanelManagerProps) {
 
             case SidePanelView.FORM:
                 return (
+                    <>
                     <FlowNodeForm
                         key={selectedNode?.id ?? 'no-node'}
                         fileName={fileName}
@@ -724,6 +652,7 @@ export function PanelManager(props: PanelManagerProps) {
                         handleOnFormSubmit={onSubmitForm}
                         navigateToPanel={onNavigateToPanel}
                     />
+                    </>
                 );
 
             case SidePanelView.ALL:
@@ -748,13 +677,14 @@ export function PanelManager(props: PanelManagerProps) {
 
     const onBackCallback = (() => {
         switch (sidePanelView) {
-            case SidePanelView.NEW_TOOL:
+            case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-                // Read ref at call time so registering an override never causes a re-render
-                return () => (backOverrideRef.current ?? handleOnBackToAddTool)();
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.ADD_MCP_SERVER:
-                return handleOnBackToAddTool;
+                return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.ADD_TOOL);
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+                return () => agentEditor ? agentEditor.back() : setSidePanelView(SidePanelView.NEW_TOOL_FROM_AGENT);
             case SidePanelView.CONNECTION_SELECT:
             case SidePanelView.CONNECTION_CREATE:
                 return onBack;
@@ -765,9 +695,33 @@ export function PanelManager(props: PanelManagerProps) {
         }
     })();
 
+    const agentPanelTitle = (() => {
+        switch (sidePanelView) {
+            case SidePanelView.AGENT_MEMORY_MANAGER:
+                return "Configure Memory";
+            case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
+                return "Use Agent";
+            case SidePanelView.ADD_MCP_SERVER:
+                return "Add MCP Server";
+            case SidePanelView.EDIT_MCP_SERVER:
+                return "Edit MCP Server";
+            case SidePanelView.ADD_TOOL:
+            case SidePanelView.NEW_TOOL_CUSTOM:
+            case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+            case SidePanelView.NEW_TOOL_FROM_FUNCTION:
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
+                return "Add Tool";
+            default:
+                return undefined;
+        }
+    })();
+
     return (
         <PanelContainer
-            title={showProgressSpinner && progressTitle ? progressTitle : getContainerTitle(sidePanelView, selectedNode, selectedClientName, selectedConnectionKind)}
+            title={showProgressSpinner && progressTitle
+                ? progressTitle
+                : agentPanelTitle ?? getContainerTitle(sidePanelView, selectedNode, selectedClientName,
+                    selectedConnectionKind)}
             show={showSidePanel}
             onClose={onClose}
             onBack={onBackCallback}

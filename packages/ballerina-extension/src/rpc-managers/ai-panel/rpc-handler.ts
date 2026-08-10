@@ -20,7 +20,6 @@
 import {
     abortAIGeneration,
     AbortAIGenerationRequest,
-    acceptChanges,
     addFilesToProject,
     AddFilesToProjectRequest,
     AIPanelPrompt,
@@ -36,7 +35,7 @@ import {
     ConnectorSpecCancelRequest,
     ConnectorSpecRequest,
     createTestDirecoryIfNotExists,
-    declineChanges,
+    revertGeneration,
     declinePlan,
     declineTask,
     DocGenerationRequest,
@@ -47,6 +46,8 @@ import {
     generateOpenAPI,
     GenerateOpenAPIRequest,
     getActiveTempDir,
+    getRunStatus,
+    getLatestFollowupSuggestions,
     getAIMachineSnapshot,
     getChatMessages,
     getCheckpoints,
@@ -74,10 +75,14 @@ import {
     promptForLogin,
     promptGithubAuthorize,
     provideConfiguration,
+    createManagedConnection,
+    cancelManagedConnection,
+    CreateManagedConnectionRequest,
     provideConnectorSpec,
     RequirementSpecification,
     restoreCheckpoint,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     showSignInAlert,
     submitFeedback,
@@ -89,7 +94,9 @@ import {
     approveWebTool,
     declineWebTool,
     WebToolApprovalRequest,
+    QuotaRequestParams,
     getUsage,
+    requestQuota,
     compactConversation,
     CompactConversationRequest,
     getShowContextUsage,
@@ -110,15 +117,12 @@ import {
     enableSkillFromChat,
     cancelSkillEnable,
     parseSkillFile,
-    getSkillsEnabled,
-    setSkillsEnabled,
     AddSkillRequest,
     ToggleSkillRequest,
     DeleteSkillRequest,
     SkillEnableRequest,
     SkillEnableCancelRequest,
     ParseSkillFileRequest,
-    SetSkillsEnabledRequest,
     listMcpServers,
     setMcpServerEnabled,
     SetMcpServerEnabledRequest,
@@ -137,6 +141,18 @@ import {
     OpenMcpConfigRequest,
     getAgentsMdFileInfo,
     openOrCreateAgentsMd,
+    listThreads,
+    switchThread,
+    SwitchThreadRequest,
+    deleteThread,
+    DeleteThreadRequest,
+    renameThread,
+    RenameThreadRequest,
+    // TODO(auto-memory): temporarily disabled for this release.
+    // clearMemory,
+    // ClearMemoryRequest,
+    // openMemoryFiles,
+    // OpenMemoryRequest,
 } from "@wso2/ballerina-core";
 import { workspace } from 'vscode';
 import { Messenger } from "vscode-messenger";
@@ -174,8 +190,7 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(openAIPanel, (args: AIPanelPrompt) => rpcManger.openAIPanel(args));
     messenger.onRequest(getSemanticDiff, (args: SemanticDiffRequest) => rpcManger.getSemanticDiff(args));
     messenger.onRequest(isWorkspaceProject, () => rpcManger.isWorkspaceProject());
-    messenger.onRequest(acceptChanges, () => rpcManger.acceptChanges());
-    messenger.onRequest(declineChanges, () => rpcManger.declineChanges());
+    messenger.onRequest(revertGeneration, (args: RevertGenerationRequest) => rpcManger.revertGeneration(args));
     messenger.onRequest(approvePlan, (args: PlanApprovalRequest) => rpcManger.approvePlan(args));
     messenger.onRequest(declinePlan, (args: PlanApprovalRequest) => rpcManger.declinePlan(args));
     messenger.onRequest(approveTask, (args: ApproveTaskRequest) => rpcManger.approveTask(args));
@@ -184,13 +199,18 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(cancelConnectorSpec, (args: ConnectorSpecCancelRequest) => rpcManger.cancelConnectorSpec(args));
     messenger.onRequest(provideConfiguration, (args: ConfigurationProvideRequest) => rpcManger.provideConfiguration(args));
     messenger.onRequest(cancelConfiguration, (args: ConfigurationCancelRequest) => rpcManger.cancelConfiguration(args));
+    messenger.onRequest(createManagedConnection, (args: CreateManagedConnectionRequest) => rpcManger.createManagedConnection(args));
+    messenger.onNotification(cancelManagedConnection, () => rpcManger.cancelManagedConnection());
     messenger.onRequest(getChatMessages, () => rpcManger.getChatMessages());
     messenger.onRequest(getCheckpoints, () => rpcManger.getCheckpoints());
     messenger.onRequest(restoreCheckpoint, (args: RestoreCheckpointRequest) => rpcManger.restoreCheckpoint(args));
     messenger.onRequest(clearChat, () => rpcManger.clearChat());
     messenger.onRequest(updateChatMessage, (args: UpdateChatMessageRequest) => rpcManger.updateChatMessage(args));
     messenger.onRequest(getActiveTempDir, () => rpcManger.getActiveTempDir());
+    messenger.onRequest(getRunStatus, (args) => rpcManger.getRunStatus(args));
+    messenger.onRequest(getLatestFollowupSuggestions, () => rpcManger.getLatestFollowupSuggestions());
     messenger.onRequest(getUsage, () => rpcManger.getUsage());
+    messenger.onRequest(requestQuota, (args: QuotaRequestParams) => rpcManger.requestQuota(args));
     messenger.onNotification(openFileDiff, (args: OpenFileDiffRequest) => rpcManger.openFileDiff(args));
     messenger.onRequest(approveWebTool, (args: WebToolApprovalRequest) => rpcManger.approveWebTool(args));
     messenger.onRequest(declineWebTool, (args: WebToolApprovalRequest) => rpcManger.declineWebTool(args));
@@ -199,8 +219,8 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
 
     // Notify webview immediately when the showContextUsage setting is toggled
     workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('ballerina.ai.showContextUsage')) {
-            const value = workspace.getConfiguration('ballerina').get<boolean>('ai.showContextUsage', false);
+        if (e.affectsConfiguration('ballerina.copilot.showContextUsage')) {
+            const value = workspace.getConfiguration('ballerina.copilot').get<boolean>('showContextUsage', false);
             sendConfigChangeNotification('showContextUsage', value);
         }
     });
@@ -219,8 +239,6 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(enableSkillFromChat, (args: SkillEnableRequest) => rpcManger.enableSkillFromChat(args));
     messenger.onRequest(cancelSkillEnable, (args: SkillEnableCancelRequest) => rpcManger.cancelSkillEnable(args));
     messenger.onRequest(parseSkillFile, (args: ParseSkillFileRequest) => rpcManger.parseSkillFile(args));
-    messenger.onRequest(getSkillsEnabled, () => rpcManger.getSkillsEnabled());
-    messenger.onRequest(setSkillsEnabled, (args: SetSkillsEnabledRequest) => rpcManger.setSkillsEnabled(args));
     messenger.onRequest(listMcpServers, () => rpcManger.listMcpServers());
     messenger.onRequest(setMcpServerEnabled, (args: SetMcpServerEnabledRequest) => rpcManger.setMcpServerEnabled(args));
     messenger.onRequest(openMcpConfig, (args: OpenMcpConfigRequest) => rpcManger.openMcpConfig(args));
@@ -233,6 +251,13 @@ export function registerAiPanelRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getMcpLoadErrors, () => rpcManger.getMcpLoadErrors());
     messenger.onRequest(getAgentsMdFileInfo, () => rpcManger.getAgentsMdFileInfo());
     messenger.onRequest(openOrCreateAgentsMd, () => rpcManger.openOrCreateAgentsMd());
+    messenger.onRequest(listThreads, () => rpcManger.listThreads());
+    messenger.onRequest(switchThread, (args: SwitchThreadRequest) => rpcManger.switchThread(args));
+    messenger.onRequest(deleteThread, (args: DeleteThreadRequest) => rpcManger.deleteThread(args));
+    messenger.onRequest(renameThread, (args: RenameThreadRequest) => rpcManger.renameThread(args));
+    // TODO(auto-memory): temporarily disabled for this release.
+    // messenger.onRequest(clearMemory, (args: ClearMemoryRequest) => rpcManger.clearMemory(args));
+    // messenger.onNotification(openMemoryFiles, (args: OpenMemoryRequest) => rpcManger.openMemoryFiles(args));
 
     // Push updates to the webview whenever the set of running services changes.
     runningServicesManager.onChange = (services) => {

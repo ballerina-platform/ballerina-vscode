@@ -16,7 +16,7 @@
 
 import { Command, ProjectSource } from "@wso2/ballerina-core";
 import { streamText, ModelMessage } from "ai";
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from "../utils/ai-client";
+import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../utils/ai-client";
 import {
     getDocumentationGenerationSystemPrompt,
     createDocumentationGenMessages
@@ -50,9 +50,9 @@ export async function generateDocumentationCore(
     ];
 
     const { fullStream } = streamText({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+        model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 16384,
-        temperature: 0,
+        providerOptions: await getProviderModelOptions(),
         messages: allMessages,
         abortSignal: abortController.signal,
     });

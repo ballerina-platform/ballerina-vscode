@@ -34,6 +34,11 @@ export interface AddProjectFormData extends BaseProjectFormData {
     // Kept for RPC payload compatibility; conceptually this is the project name.
     workspaceName?: string;
     projectHandle?: string;
+    /**
+     * On-disk folder for the new integration/library inside the project, derived
+     * from its display name and independent of `packageName`.
+     */
+    packageDirectoryName?: string;
 }
 
 /**

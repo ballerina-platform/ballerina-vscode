@@ -12,15 +12,14 @@
     "packageName": "mysql",
     "object": "Client",
     "symbol": "init",
-    "version": "1.15.0",
     "isNew": true
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "MySQL",
-      "description": "Represents a MySQL database client.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.15.0.png"
+      "description": "MySQL database client that enables interaction with MySQL servers and supports standard SQL operations.",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mysql_1.18.0.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -29,7 +28,7 @@
       "packageName": "mysql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.15.0",
+      "version": "1.18.0",
       "isNew": true
     },
     "returning": false,
@@ -37,7 +36,7 @@
       "host": {
         "metadata": {
           "label": "Host",
-          "description": "Hostname of the MySQL server"
+          "description": "MySQL server hostname"
         },
         "types": [
           {
@@ -65,7 +64,7 @@
       "user": {
         "metadata": {
           "label": "User",
-          "description": "If the MySQL server is secured, the username"
+          "description": "Database username"
         },
         "types": [
           {
@@ -93,7 +92,7 @@
       "password": {
         "metadata": {
           "label": "Password",
-          "description": "The password of the MySQL server for the provided username"
+          "description": "Database password (optional)"
         },
         "types": [
           {
@@ -121,7 +120,7 @@
       "database": {
         "metadata": {
           "label": "Database",
-          "description": "The name of the database"
+          "description": "Database name to connect to (optional)"
         },
         "types": [
           {
@@ -149,7 +148,7 @@
       "port": {
         "metadata": {
           "label": "Port",
-          "description": "Port number of the MySQL server"
+          "description": "MySQL server port"
         },
         "types": [
           {
@@ -177,7 +176,7 @@
       "options": {
         "metadata": {
           "label": "Options",
-          "description": "MySQL database options"
+          "description": "Advanced connection options (optional)"
         },
         "types": [
           {
@@ -186,7 +185,7 @@
             "typeMembers": [
               {
                 "type": "Options",
-                "packageInfo": "ballerinax:mysql:1.15.0",
+                "packageInfo": "ballerinax:mysql:1.18.0",
                 "packageName": "mysql",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -214,7 +213,7 @@
       "connectionPool": {
         "metadata": {
           "label": "Connection Pool",
-          "description": "The `sql:ConnectionPool` to be used for the connection. If there is no\n`connectionPool` provided, the global connection pool (shared by all clients) will be used"
+          "description": "Connection pool for connection reuse. If not provided, the global connection pool (shared by all clients) will be used"
         },
         "types": [
           {
@@ -223,7 +222,7 @@
             "typeMembers": [
               {
                 "type": "ConnectionPool",
-                "packageInfo": "ballerina:sql:1.16.0",
+                "packageInfo": "ballerina:sql:1.19.0",
                 "packageName": "sql",
                 "kind": "RECORD_TYPE",
                 "selected": false

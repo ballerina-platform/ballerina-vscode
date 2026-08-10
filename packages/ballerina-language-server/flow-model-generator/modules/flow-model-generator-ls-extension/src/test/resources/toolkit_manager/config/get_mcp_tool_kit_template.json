@@ -9,7 +9,7 @@
       "metadata": {
         "label": "ai",
         "description": "",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.5.4.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
       },
       "codedata": {
         "node": "MCP_TOOL_KIT",
@@ -17,7 +17,7 @@
         "module": "ai",
         "packageName": "ai",
         "object": "McpToolKit",
-        "version": "1.5.4",
+        "version": "1.13.0",
         "isNew": true
       },
       "returning": false,
@@ -70,7 +70,7 @@
               "typeMembers": [
                 {
                   "type": "Implementation",
-                  "packageInfo": "ballerina:mcp:1.0.0",
+                  "packageInfo": "ballerina:mcp:1.2.0",
                   "packageName": "mcp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -84,7 +84,7 @@
               "selected": false
             }
           ],
-          "placeholder": "{name: \"\", version: \"\"}",
+          "placeholder": "{version: \"\", name: \"\"}",
           "optional": true,
           "editable": true,
           "advanced": true,
@@ -98,7 +98,7 @@
         "httpVersion": {
           "metadata": {
             "label": "HTTP Version",
-            "description": "The HTTP version understood by the client"
+            "description": "HTTP protocol version supported by the client"
           },
           "types": [
             {
@@ -134,12 +134,12 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "httpVersion"
           },
-          "defaultValue": "\"2.0\""
+          "defaultValue": "http:HTTP_2_0"
         },
         "http1Settings": {
           "metadata": {
             "label": "HTTP1 Settings",
-            "description": "Configurations related to HTTP/1.x protocol"
+            "description": "HTTP/1.x specific settings"
           },
           "types": [
             {
@@ -148,7 +148,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -176,7 +176,7 @@
         "http2Settings": {
           "metadata": {
             "label": "HTTP2 Settings",
-            "description": "Configurations related to HTTP/2 protocol"
+            "description": "HTTP/2 specific settings"
           },
           "types": [
             {
@@ -185,7 +185,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -213,7 +213,7 @@
         "timeout": {
           "metadata": {
             "label": "Timeout",
-            "description": "The maximum time to wait (in seconds) for a response before closing the connection"
+            "description": "Maximum time(in seconds) to wait for a response before the request times out"
           },
           "types": [
             {
@@ -236,12 +236,12 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "timeout"
           },
-          "defaultValue": "0.0d"
+          "defaultValue": "30"
         },
         "forwarded": {
           "metadata": {
             "label": "Forwarded",
-            "description": "The choice of setting `forwarded`/`x-forwarded` header"
+            "description": "The choice of setting `Forwarded`/`X-Forwarded-For` header, when acting as a proxy"
           },
           "types": [
             {
@@ -264,12 +264,12 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "forwarded"
           },
-          "defaultValue": "\"\""
+          "defaultValue": "\"disable\""
         },
         "followRedirects": {
           "metadata": {
             "label": "Follow Redirects",
-            "description": "Configurations associated with Redirection"
+            "description": "HTTP redirect handling configurations (with 3xx status codes)"
           },
           "types": [
             {
@@ -278,7 +278,7 @@
               "typeMembers": [
                 {
                   "type": "FollowRedirects",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -306,7 +306,7 @@
         "poolConfig": {
           "metadata": {
             "label": "Pool Config",
-            "description": "Configurations associated with request pooling"
+            "description": "Configurations associated with the request connection pool"
           },
           "types": [
             {
@@ -315,7 +315,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -343,7 +343,7 @@
         "cache": {
           "metadata": {
             "label": "Cache",
-            "description": "HTTP caching related configurations"
+            "description": "HTTP response caching related configurations"
           },
           "types": [
             {
@@ -352,7 +352,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -380,7 +380,7 @@
         "compression": {
           "metadata": {
             "label": "Compression",
-            "description": "Specifies the way of handling compression (`accept-encoding`) header"
+            "description": "Enable request/response compression (using `accept-encoding` header)"
           },
           "types": [
             {
@@ -416,91 +416,12 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "compression"
           },
-          "defaultValue": "\"AUTO\""
-        },
-        "auth": {
-          "metadata": {
-            "label": "Auth",
-            "description": "Configurations related to client authentication"
-          },
-          "types": [
-            {
-              "fieldType": "RECORD_MAP_EXPRESSION",
-              "ballerinaType": "http:CredentialsConfig|http:BearerTokenConfig|http:JwtIssuerConfig|http:OAuth2ClientCredentialsGrantConfig|http:OAuth2PasswordGrantConfig|http:OAuth2RefreshTokenGrantConfig|http:OAuth2JwtBearerGrantConfig",
-              "typeMembers": [
-                {
-                  "type": "CredentialsConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "BearerTokenConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "JwtIssuerConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "OAuth2ClientCredentialsGrantConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "OAuth2PasswordGrantConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "OAuth2RefreshTokenGrantConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                },
-                {
-                  "type": "OAuth2JwtBearerGrantConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
-                  "packageName": "http",
-                  "kind": "RECORD_TYPE",
-                  "selected": false
-                }
-              ],
-              "selected": false
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "http:ClientAuthConfig?",
-              "selected": false
-            }
-          ],
-          "placeholder": "()",
-          "optional": true,
-          "editable": true,
-          "advanced": true,
-          "hidden": false,
-          "codedata": {
-            "kind": "INCLUDED_FIELD",
-            "originalName": "auth"
-          },
-          "defaultValue": "()"
+          "defaultValue": "AUTO"
         },
         "circuitBreaker": {
           "metadata": {
             "label": "Circuit Breaker",
-            "description": "Configurations associated with the behaviour of the Circuit Breaker"
+            "description": "Client authentication options (Basic, Bearer token, OAuth, etc.)\nCircuit breaker configurations to prevent cascading failures"
           },
           "types": [
             {
@@ -509,7 +430,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -537,7 +458,7 @@
         "retryConfig": {
           "metadata": {
             "label": "Retry Config",
-            "description": "Configurations associated with retrying"
+            "description": "Automatic retry settings for failed requests"
           },
           "types": [
             {
@@ -546,7 +467,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -574,7 +495,7 @@
         "cookieConfig": {
           "metadata": {
             "label": "Cookie Config",
-            "description": "Configurations associated with cookies"
+            "description": "Cookie handling settings for session management"
           },
           "types": [
             {
@@ -583,7 +504,7 @@
               "typeMembers": [
                 {
                   "type": "CookieConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -608,10 +529,96 @@
           },
           "defaultValue": "()"
         },
+        "auth": {
+          "metadata": {
+            "label": "Auth",
+            "description": "Configurations related to client authentication"
+          },
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "http:CredentialsConfig|http:BearerTokenConfig|http:JwtIssuerConfig|http:OAuth2ClientCredentialsGrantConfig|http:OAuth2PasswordGrantConfig|http:OAuth2RefreshTokenGrantConfig|http:OAuth2JwtBearerGrantConfig|ai:AgentIdAuthConfig",
+              "typeMembers": [
+                {
+                  "type": "CredentialsConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "BearerTokenConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "JwtIssuerConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "OAuth2ClientCredentialsGrantConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "OAuth2PasswordGrantConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "OAuth2RefreshTokenGrantConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "OAuth2JwtBearerGrantConfig",
+                  "packageInfo": "ballerina:http:2.16.6",
+                  "packageName": "http",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                },
+                {
+                  "type": "AgentIdAuthConfig",
+                  "packageInfo": "ballerina:ai:1.13.0",
+                  "packageName": "ai",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": false
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "http:ClientAuthConfig|ai:AgentIdAuthConfig?",
+              "selected": false
+            }
+          ],
+          "placeholder": "()",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false,
+          "codedata": {
+            "kind": "INCLUDED_FIELD",
+            "originalName": "auth"
+          },
+          "defaultValue": "()"
+        },
         "responseLimits": {
           "metadata": {
             "label": "Response Limits",
-            "description": "Configurations associated with inbound response size limits"
+            "description": "Limits for response size and headers (to prevent memory issues)"
           },
           "types": [
             {
@@ -620,7 +627,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -648,7 +655,7 @@
         "proxy": {
           "metadata": {
             "label": "Proxy",
-            "description": "Proxy server related options"
+            "description": "Proxy server settings if requests need to go through a proxy"
           },
           "types": [
             {
@@ -657,7 +664,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -685,7 +692,7 @@
         "validation": {
           "metadata": {
             "label": "Validation",
-            "description": "Enables the inbound payload validation functionalty which provided by the constraint package. Enabled by default"
+            "description": "Enable automatic payload validation for request/response data against constraints"
           },
           "types": [
             {
@@ -708,12 +715,12 @@
             "kind": "INCLUDED_FIELD",
             "originalName": "validation"
           },
-          "defaultValue": "false"
+          "defaultValue": "true"
         },
         "socketConfig": {
           "metadata": {
             "label": "Socket Config",
-            "description": "Provides settings related to client socket configuration"
+            "description": "Low-level socket settings (timeouts, buffer sizes, etc.)"
           },
           "types": [
             {
@@ -722,7 +729,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSocketConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -750,7 +757,7 @@
         "laxDataBinding": {
           "metadata": {
             "label": "Lax Data Binding",
-            "description": "Enables or disables relaxed data binding on the client side. Disabled by default.\nWhen enabled, the JSON data will be projected to the Ballerina record type and\nduring the projection, nil values will be considered as optional fields and\nabsent fields will be considered for nilable types"
+            "description": "Enable relaxed data binding on the client side.\nWhen enabled:\n- `null` values in JSON are allowed to be mapped to optional fields\n- missing fields in JSON are allowed to be mapped as `null` values"
           },
           "types": [
             {
@@ -787,7 +794,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -815,7 +822,7 @@
         "sessionId": {
           "metadata": {
             "label": "Session Id",
-            "description": "Optional session identifier for continued interactions."
+            "description": "Optional session identifier for continued interactions"
           },
           "types": [
             {
@@ -840,6 +847,24 @@
           },
           "defaultValue": "\"\""
         },
+        "toolKitName": {
+          "metadata": {
+            "label": "MCP Toolkit Name",
+            "description": "Name of the MCP toolkit"
+          },
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "scope": "Global",
+              "selected": false
+            }
+          ],
+          "value": "McpToolKit",
+          "optional": false,
+          "editable": true,
+          "advanced": false,
+          "hidden": false
+        },
         "type": {
           "metadata": {
             "label": "Result Type",
@@ -851,7 +876,7 @@
               "selected": true
             }
           ],
-          "value": "ai:McpToolKit",
+          "value": "ai:McpBaseToolKit",
           "placeholder": "var",
           "optional": false,
           "editable": false,
@@ -870,7 +895,7 @@
               "selected": true
             }
           ],
-          "value": "aiMcptoolkit",
+          "value": "aiMcpbasetoolkit",
           "optional": false,
           "editable": true,
           "advanced": false,

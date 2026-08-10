@@ -34,6 +34,7 @@ import org.ballerinalang.langserver.LSContextOperation;
 import org.ballerinalang.langserver.codeaction.providers.imports.PullModuleCodeAction;
 import org.ballerinalang.langserver.command.CommandUtil;
 import org.ballerinalang.langserver.common.constants.CommandConstants;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
@@ -188,7 +189,9 @@ public class PullModuleExecutor implements LSCommandExecutor {
                 })
                 .thenRunAsync(() -> {
                     CompilationOptions.CompilationOptionsBuilder optionsBuilder = CompilationOptions.builder();
-                    optionsBuilder.setOffline(false).setSticky(sticky);
+                    // Production resolves online so missing modules are pulled from Central; tests
+                    // (ls.test.offline) resolve only from the build-provisioned Ballerina home.
+                    optionsBuilder.setOffline(CommonUtil.TEST_OFFLINE).setSticky(sticky);
                     CompilationOptions options = optionsBuilder.build();
 
                     // For workspace projects, currentPackage() returns only the first member package.

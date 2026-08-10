@@ -51,6 +51,12 @@ const FormSection = styled.div`
     width: 100%;
 `;
 
+/** Marks the active choice on the label as well as the radio, so which option the
+ *  fields below belong to is never ambiguous. */
+const ChoiceLabel = styled.span<{ selected: boolean }>`
+    font-weight: ${(props: { selected: boolean }) => (props.selected ? 500 : 400)};
+`;
+
 export function ChoiceForm(props: ChoiceFormProps) {
     const { field, recordTypeFields } = props;
     const { form } = useFormContext();
@@ -151,6 +157,7 @@ export function ChoiceForm(props: ChoiceFormProps) {
                 types: expression.types,
                 editable: expression.editable,
                 enabled: expression?.enabled ?? true,
+                hidden: expression.hidden,
                 optional: expression.optional,
                 value,
                 advanced: expression.advanced,
@@ -173,13 +180,17 @@ export function ChoiceForm(props: ChoiceFormProps) {
                 <RadioButtonGroup
                     id="choice-options"
                     label={field.documentation}
-                    defaultValue={selectedOption}
+                    defaultValue={String(selectedOption)}
                     defaultChecked={true}
-                    value={selectedOption}
+                    value={String(selectedOption)}
                     options={field.choices.map((choice, index) => ({
                         id: index.toString(),
                         value: index + 1,
-                        content: choice.metadata.label,
+                        content: (
+                            <ChoiceLabel selected={selectedOption === index + 1}>
+                                {choice.metadata.label}
+                            </ChoiceLabel>
+                        ),
                         disabled: field.editable === false || !choice.editable
                     }))}
                     onChange={(e) => {
@@ -198,8 +209,9 @@ export function ChoiceForm(props: ChoiceFormProps) {
             </ChoiceSection>
 
             {(() => {
-                const nonAdvancedFields = dynamicFields.filter(dfield => !dfield.advanced);
-                const advancedFields = dynamicFields.filter(dfield => dfield.advanced);
+                const visibleFields = dynamicFields.filter(dfield => !dfield.hidden);
+                const nonAdvancedFields = visibleFields.filter(dfield => !dfield.advanced);
+                const advancedFields = visibleFields.filter(dfield => dfield.advanced);
 
                 if (nonAdvancedFields.length === 0 && advancedFields.length === 0) return null;
 

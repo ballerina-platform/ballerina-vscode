@@ -10,7 +10,7 @@
     "offset": 1
   },
   "response": {
-    "id": "4",
+    "id": "0",
     "name": "Local Files",
     "type": "file",
     "displayName": "Local Files",
@@ -20,25 +20,6 @@
     "packageName": "file",
     "listenerProtocol": "file",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_file_1.13.0.png",
-    "documentation": {
-      "metadata": {
-        "label": "Description",
-        "description": "The description of the class"
-      },
-      "codedata": {
-        "type": "DOCUMENTATION"
-      },
-      "types": [
-        {
-          "fieldType": "TEXT",
-          "selected": true
-        }
-      ],
-      "enabled": true,
-      "editable": true,
-      "optional": true,
-      "advanced": false
-    },
     "properties": {
       "listener": {
         "metadata": {
@@ -91,27 +72,14 @@
       },
       "serviceType": {
         "metadata": {
-          "label": "Service Type",
-          "description": ""
+          "label": "File Events",
+          "description": "Observes file create, modify, and delete events in the monitored directory."
         },
-        "codedata": {
-          "type": "SERVICE_TYPE"
-        },
-        "placeholder": "Service",
+        "placeholder": "file:Service",
         "value": "Service",
         "types": [
           {
-            "fieldType": "SINGLE_SELECT",
-            "options": [
-              {
-                "label": "",
-                "value": ""
-              },
-              {
-                "label": "Service",
-                "value": "Service"
-              }
-            ],
+            "fieldType": "TYPE",
             "selected": true
           }
         ],
@@ -126,7 +94,9 @@
         },
         "placeholder": "false",
         "value": {
-          "Path": []
+          "Directory Path": [
+            "/tmp"
+          ]
         },
         "types": [
           {
@@ -160,20 +130,20 @@
       {
         "metadata": {
           "label": "onCreate",
-          "description": "The `onCreate` remote method will be triggered when a file is created in the specified directory"
+          "description": "The `onCreate` remote method is invoked once a new file is created in the listening directory."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "onCreate",
-            "description": "The `onCreate` remote method will be triggered when a file is created in the specified directory"
+            "description": "The `onCreate` remote method is invoked once a new file is created in the listening directory."
           },
           "placeholder": "onCreate",
           "value": "onCreate",
           "types": [
             {
               "fieldType": "IDENTIFIER",
-              "selected": false
+              "selected": true
             }
           ],
           "enabled": true,
@@ -184,8 +154,8 @@
         "parameters": [
           {
             "metadata": {
-              "label": "event",
-              "description": "The File event"
+              "label": "File Event",
+              "description": "The event describing the file that was created."
             },
             "kind": "REQUIRED",
             "type": {
@@ -208,8 +178,8 @@
             },
             "name": {
               "metadata": {
-                "label": "event",
-                "description": "The File event"
+                "label": "File Event",
+                "description": "The event describing the file that was created."
               },
               "placeholder": "event",
               "value": "event",
@@ -220,30 +190,12 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
               "advanced": false
             },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
             "enabled": true,
-            "editable": true,
+            "editable": false,
             "optional": false,
             "advanced": false,
             "hidden": false,
@@ -255,7 +207,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
           "placeholder": "error?",
           "value": "error?",
@@ -272,7 +224,7 @@
         },
         "enabled": true,
         "optional": true,
-        "editable": false,
+        "editable": true,
         "canAddParameters": false,
         "codedata": {
           "lineRange": {
@@ -285,137 +237,29 @@
               "line": 14,
               "offset": 5
             }
-          }
-        }
-      },
-      {
-        "metadata": {
-          "label": "onDelete",
-          "description": "The `onDelete` remote method will be triggered when a file is deleted in the specified directory"
-        },
-        "kind": "REMOTE",
-        "name": {
-          "metadata": {
-            "label": "onDelete",
-            "description": "The `onDelete` remote method will be triggered when a file is deleted in the specified directory"
           },
-          "placeholder": "onDelete",
-          "value": "onDelete",
-          "types": [
-            {
-              "fieldType": "IDENTIFIER",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": false,
-          "optional": false,
-          "advanced": false
+          "orgName": "ballerina",
+          "packageName": "file",
+          "moduleName": "file",
+          "version": "1.13.0"
         },
-        "parameters": [
-          {
-            "metadata": {
-              "label": "event",
-              "description": "The File event"
-            },
-            "kind": "REQUIRED",
-            "type": {
-              "metadata": {
-                "label": "Parameter Type",
-                "description": "The type of the parameter"
-              },
-              "placeholder": "file:FileEvent",
-              "value": "file:FileEvent",
-              "types": [
-                {
-                  "fieldType": "TYPE",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": false,
-              "optional": true,
-              "advanced": false
-            },
-            "name": {
-              "metadata": {
-                "label": "event",
-                "description": "The File event"
-              },
-              "placeholder": "event",
-              "value": "event",
-              "types": [
-                {
-                  "fieldType": "IDENTIFIER",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": false,
-              "advanced": false
-            },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
-            "enabled": true,
-            "editable": true,
-            "optional": false,
-            "advanced": false,
-            "hidden": false,
-            "isGraphqlId": false
-          }
-        ],
-        "returnType": {
-          "hasError": true,
-          "isGraphqlId": false,
-          "metadata": {
-            "label": "Return Type",
-            "description": "The return type of the function"
-          },
-          "placeholder": "error?",
-          "value": "error?",
-          "types": [
-            {
-              "fieldType": "TYPE",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": false,
-          "optional": true,
-          "advanced": false
-        },
-        "enabled": false,
-        "optional": true,
-        "editable": false,
-        "canAddParameters": false
-      },
+        "properties": {},
+        "group": "onCreate",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      }
+    ],
+    "schemaFunctions": [
       {
         "metadata": {
           "label": "onModify",
-          "description": "The `onModify` remote method will be triggered when a file is modified in the specified directory"
+          "description": "The `onModify` remote method is invoked once an existing file is modified in the listening directory."
         },
         "kind": "REMOTE",
         "name": {
           "metadata": {
             "label": "onModify",
-            "description": "The `onModify` remote method will be triggered when a file is modified in the specified directory"
+            "description": "The `onModify` remote method is invoked once an existing file is modified in the listening directory."
           },
           "placeholder": "onModify",
           "value": "onModify",
@@ -433,8 +277,8 @@
         "parameters": [
           {
             "metadata": {
-              "label": "event",
-              "description": "The File event"
+              "label": "File Event",
+              "description": "The event describing the file that was modified."
             },
             "kind": "REQUIRED",
             "type": {
@@ -457,8 +301,8 @@
             },
             "name": {
               "metadata": {
-                "label": "event",
-                "description": "The File event"
+                "label": "File Event",
+                "description": "The event describing the file that was modified."
               },
               "placeholder": "event",
               "value": "event",
@@ -469,30 +313,12 @@
                 }
               ],
               "enabled": true,
-              "editable": true,
+              "editable": false,
               "optional": false,
               "advanced": false
             },
-            "defaultValue": {
-              "metadata": {
-                "label": "Default Value",
-                "description": "The default value of the parameter"
-              },
-              "placeholder": "",
-              "value": "",
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "selected": true
-                }
-              ],
-              "enabled": true,
-              "editable": true,
-              "optional": true,
-              "advanced": false
-            },
             "enabled": true,
-            "editable": true,
+            "editable": false,
             "optional": false,
             "advanced": false,
             "hidden": false,
@@ -504,7 +330,7 @@
           "isGraphqlId": false,
           "metadata": {
             "label": "Return Type",
-            "description": "The return type of the function"
+            "description": "The return type of the function."
           },
           "placeholder": "error?",
           "value": "error?",
@@ -521,8 +347,128 @@
         },
         "enabled": false,
         "optional": true,
-        "editable": false,
-        "canAddParameters": false
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "file",
+          "moduleName": "file",
+          "version": "1.13.0"
+        },
+        "properties": {},
+        "group": "onModify",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      },
+      {
+        "metadata": {
+          "label": "onDelete",
+          "description": "The `onDelete` remote method is invoked once an existing file is deleted from the listening directory."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "onDelete",
+            "description": "The `onDelete` remote method is invoked once an existing file is deleted from the listening directory."
+          },
+          "placeholder": "onDelete",
+          "value": "onDelete",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "File Event",
+              "description": "The event describing the file that was deleted."
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "file:FileEvent",
+              "value": "file:FileEvent",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "File Event",
+                "description": "The event describing the file that was deleted."
+              },
+              "placeholder": "event",
+              "value": "event",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "file",
+          "moduleName": "file",
+          "version": "1.13.0"
+        },
+        "properties": {},
+        "group": "onDelete",
+        "repeatable": "FALSE",
+        "nameEditable": false
       }
     ]
   }

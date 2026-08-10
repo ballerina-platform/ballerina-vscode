@@ -20,7 +20,18 @@
 import {
     addBreakpointToSource,
     addClassField,
+    createClassDependency,
+    listClassMembers,
+    saveClassMember,
+    deleteClassMember,
+    updateClassDependency,
+    removeClassDependency,
     AddFieldRequest,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     addFunction,
     AddFunctionRequest,
     addProjectToWorkspace,
@@ -37,6 +48,8 @@ import {
     BINodeTemplateRequest,
     BISearchNodesRequest,
     BISearchRequest,
+    GenActivityRequest,
+    AnalyzeActivityActionRequest,
     WorkflowDataRequest,
     BISourceCodeRequest,
     BreakpointRequest,
@@ -98,6 +111,8 @@ import {
     getExpressionTokens,
     getFlowModel,
     getFormDiagnostics,
+    genActivity,
+    analyzeActivityAction,
     getAllData,
     getFunctionNames,
     getFunctionNode,
@@ -196,7 +211,7 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onNotification(createProject, (args: ProjectRequest) => rpcManger.createProject(args));
     messenger.onRequest(validateProjectPath, (args: ValidateProjectFormRequest) => rpcManger.validateProjectPath(args));
     messenger.onNotification(deleteProject, (args: DeleteProjectRequest) => rpcManger.deleteProject(args));
-    messenger.onNotification(addProjectToWorkspace, (args: AddProjectToWorkspaceRequest) => rpcManger.addProjectToWorkspace(args));
+    messenger.onRequest(addProjectToWorkspace, (args: AddProjectToWorkspaceRequest) => rpcManger.addProjectToWorkspace(args));
     messenger.onRequest(getWorkspaces, () => rpcManger.getWorkspaces());
     messenger.onRequest(getProjectStructure, () => rpcManger.getProjectStructure());
     messenger.onRequest(getProjectComponents, () => rpcManger.getProjectComponents());
@@ -244,6 +259,12 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getServiceClassModel, (args: ModelFromCodeRequest) => rpcManger.getServiceClassModel(args));
     messenger.onRequest(updateClassField, (args: ClassFieldModifierRequest) => rpcManger.updateClassField(args));
     messenger.onRequest(addClassField, (args: AddFieldRequest) => rpcManger.addClassField(args));
+    messenger.onRequest(createClassDependency, (args: CreateClassDependencyRequest) => rpcManger.createClassDependency(args));
+    messenger.onRequest(listClassMembers, (args: ClassMemberRequest) => rpcManger.listClassMembers(args));
+    messenger.onRequest(saveClassMember, (args: SaveClassMemberRequest) => rpcManger.saveClassMember(args));
+    messenger.onRequest(deleteClassMember, (args: DeleteClassMemberRequest) => rpcManger.deleteClassMember(args));
+    messenger.onRequest(updateClassDependency, (args: ModifyClassDependencyRequest) => rpcManger.updateClassDependency(args));
+    messenger.onRequest(removeClassDependency, (args: ModifyClassDependencyRequest) => rpcManger.removeClassDependency(args));
     messenger.onRequest(updateServiceClass, (args: ServiceClassSourceRequest) => rpcManger.updateServiceClass(args));
     messenger.onRequest(createGraphqlClassType, (args: UpdateTypeRequest) => rpcManger.createGraphqlClassType(args));
     messenger.onRequest(getRecordConfig, (args: GetRecordConfigRequest) => rpcManger.getRecordConfig(args));
@@ -256,6 +277,8 @@ export function registerBiDiagramRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getEndOfFile, (args: EndOfFileRequest) => rpcManger.getEndOfFile(args));
     messenger.onRequest(search, (args: BISearchRequest) => rpcManger.search(args));
     messenger.onRequest(getAllData, (args: WorkflowDataRequest) => rpcManger.getAllData(args));
+    messenger.onRequest(genActivity, (args: GenActivityRequest) => rpcManger.genActivity(args));
+    messenger.onRequest(analyzeActivityAction, (args: AnalyzeActivityActionRequest) => rpcManger.analyzeActivityAction(args));
     messenger.onRequest(searchNodes, (args: BISearchNodesRequest) => rpcManger.searchNodes(args));
     messenger.onRequest(getRecordNames, () => rpcManger.getRecordNames());
     messenger.onRequest(getFunctionNames, () => rpcManger.getFunctionNames());

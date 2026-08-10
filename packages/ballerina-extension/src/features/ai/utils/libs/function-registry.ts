@@ -882,6 +882,8 @@ async function getExternalRecords(
                     typeDefs: [typeDef],
                     services: library.services ? library.services : null,
                     annotations: library.annotations ? library.annotations : null,
+                    instructions: library.instructions ? library.instructions : null,
+                    readme: library.readme ? library.readme : null,
                 };
                 newLibraries.push(newLibrary);
             } else {

@@ -26,7 +26,13 @@ import { MoreVertIcon } from "../../../resources";
 import { useDiagramContext } from "../../DiagramContext";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import {
+    getAgentDataEventName,
+    isReceiveEventNode,
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    nodeHasError,
+} from "../../../utils/node";
 import { WaitDataNodeModel } from "./WaitDataNodeModel";
 import {
     HIGHLIGHT_NODE_BORDER_COLOR,
@@ -38,7 +44,12 @@ import {
     NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
+    LABEL_HEIGHT,
+    NODE_GAP_X,
+    NODE_HEIGHT,
+    NODE_PADDING,
     NODE_TEXT_COLOR,
+    NODE_WIDTH,
     WAIT_DATA_ARROW_WIDTH,
     WAIT_DATA_CIRCLE_SIZE,
     WAIT_DATA_DETAILS_GAP,
@@ -46,6 +57,7 @@ import {
 } from "../../../resources/constants";
 
 const EXTERNAL_DOT_RADIUS = 4;
+const SOURCE_BOX_SIZE = 44;
 const EXTERNAL_DOT_STROKE = 2.5;
 
 export namespace NodeStyles {
@@ -84,10 +96,13 @@ export namespace NodeStyles {
     export const Circle = styled.div<NodeStyleProp>`
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: ${WAIT_DATA_CIRCLE_SIZE}px;
-        height: ${WAIT_DATA_CIRCLE_SIZE}px;
-        border-radius: 50%;
+        justify-content: flex-start;
+        gap: 8px;
+        width: ${NODE_WIDTH}px;
+        min-height: ${NODE_HEIGHT}px;
+        padding: 0 ${NODE_PADDING}px;
+        /* The body of a wait is a box like a send's: the two are halves of one exchange. */
+        border-radius: 10px;
         border: 2px solid
             ${(props: NodeStyleProp) =>
                 props.hasError
@@ -119,7 +134,8 @@ export namespace NodeStyles {
     export const TextGroup = styled.div`
         min-width: 0;
         flex: 1;
-        max-width: 140px;
+        align-self: center;
+        max-width: ${NODE_WIDTH - 110}px;
     `;
 
     export const Title = styled.div`
@@ -144,6 +160,9 @@ export namespace NodeStyles {
     export const ActionButtonGroup = styled.div`
         display: flex;
         flex-direction: row;
+        /* Pinned to the top-right of the box, as on every other node. */
+        align-self: flex-start;
+        margin-left: auto;
         align-items: center;
         gap: 2px;
         flex-shrink: 0;
@@ -169,6 +188,17 @@ function normalizeNodePropertyValue(value?: string): string {
 }
 
 function getWaitDataInfo(node: FlowNode): { title: string; subtitle: string } {
+    // A durable agent's wait names the channel it is waiting on. The call itself carries only the
+    // correlation token, so the channel comes from metadata — the language server recovers it from
+    // the sendData that issued the token.
+    const agentDataEvent = getAgentDataEventName(node);
+    if (agentDataEvent) {
+        return {
+            title: `Wait for ${agentDataEvent}`,
+            subtitle: normalizeNodePropertyValue((node.properties as any)?.variable?.value as string | undefined),
+        };
+    }
+
     // New format: dataWaits repeatable property
     const dataWaits = (node.properties as any)?.dataWaits?.value;
     if (dataWaits && typeof dataWaits === "object") {
@@ -251,14 +281,22 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
     const isActiveBreakpoint = model.isActiveBreakpoint();
     const hasError = nodeHasError(model.node);
     const { title: nodeTitle, subtitle: nodeSubtitle } = getWaitDataInfo(model.node);
+    // The counterpart of the send node's target: who the awaited event comes from.
+    const sourceName = (model.node.metadata?.data as { agentName?: string } | undefined)?.agentName;
 
     // Compute layout positions for the external arrow SVG
     const circleRadius = WAIT_DATA_CIRCLE_SIZE / 2;
-    const svgWidth = model.node.viewState?.lw ? model.node.viewState.lw - circleRadius : WAIT_DATA_ARROW_WIDTH;
-    const svgHeight = WAIT_DATA_CIRCLE_SIZE;
-    const svgMidY = svgHeight / 2;
-    const dotCx = EXTERNAL_DOT_RADIUS + EXTERNAL_DOT_STROKE;
-    const lineX1 = dotCx + EXTERNAL_DOT_RADIUS + 4;
+    // The body has to land on the node's centre line, so the space before it is exactly the left
+    // width minus half the body. Deriving it any other way leaves the body off-centre and the
+    // links bending to reach it.
+    const svgWidth = model.node.viewState?.lw
+        ? Math.max(model.node.viewState.lw - NODE_WIDTH / 2, SOURCE_BOX_SIZE + NODE_GAP_X)
+        : SOURCE_BOX_SIZE + NODE_GAP_X;
+    const svgHeight = NODE_HEIGHT + LABEL_HEIGHT;
+    const svgMidY = (NODE_HEIGHT + LABEL_HEIGHT) / 2;
+    // The source sits at the far left, and the arrow runs from it into the body.
+    const sourceBoxY = svgMidY - SOURCE_BOX_SIZE / 2;
+    const lineX1 = SOURCE_BOX_SIZE;
     const arrowColor = isHovered && !readOnly ? NODE_BORDER_SELECTED_COLOR : NODE_TEXT_COLOR;
 
     const selectNode = () => {
@@ -347,14 +385,41 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                 viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                 style={{ flexShrink: 0 }}
             >
-                <circle
-                    cx={dotCx}
-                    cy={svgMidY}
-                    r={EXTERNAL_DOT_RADIUS}
-                    fill="none"
+                <rect
+                    x={0}
+                    y={sourceBoxY}
+                    width={SOURCE_BOX_SIZE}
+                    height={SOURCE_BOX_SIZE}
+                    rx={12}
+                    fill={NODE_BG_COLOR}
                     stroke={arrowColor}
-                    strokeWidth={EXTERNAL_DOT_STROKE}
+                    strokeWidth={1.5}
                 />
+                <foreignObject x={0} y={sourceBoxY} width={SOURCE_BOX_SIZE} height={SOURCE_BOX_SIZE}>
+                    <div
+                        style={{
+                            width: `${SOURCE_BOX_SIZE}px`,
+                            height: `${SOURCE_BOX_SIZE}px`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Icon name={sourceName ? "bi-ai-agent" : "bi-import"} sx={{ width: 24, height: 24, fontSize: 24 }} />
+                    </div>
+                </foreignObject>
+                {sourceName && (
+                    <text
+                        x={0}
+                        y={svgHeight - 2}
+                        textAnchor="start"
+                        fill={NODE_TEXT_COLOR}
+                        fontSize="14px"
+                        fontFamily="GilmerRegular"
+                    >
+                        {sourceName}
+                    </text>
+                )}
                 <line
                     x1={lineX1}
                     y1={svgMidY}
@@ -403,32 +468,36 @@ export function WaitDataNodeWidget(props: WaitDataNodeWidgetProps) {
                         readOnly={readOnly}
                         isSelected={isSelected}
                         isActiveBreakpoint={isActiveBreakpoint}
+                        style={getDiffContainerStyles(model.node)}
                         onClick={handleOnClick}
                     >
-                        <Icon name="bi-wait" sx={{ fontSize: 32, width: 32, height: 32, color: NODE_TEXT_COLOR }} />
+                        <Icon
+                            // Receiving a declared event is the same act whether a workflow or an
+                            // agent does it, so it carries the agent box's receive-event icon. The
+                            // timer is kept for the waits that are only waits — a child workflow's
+                            // result, or an agent's answer to a turn.
+                            name={isReceiveEventNode(model.node) ? "bi-import" : "bi-wait"}
+                            sx={{ fontSize: 24, width: 24, height: 24, color: NODE_TEXT_COLOR }}
+                        />
+                        <NodeStyles.TextGroup>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Subtitle>{nodeSubtitle}</NodeStyles.Subtitle>
+                        </NodeStyles.TextGroup>
+                        <NodeStyles.ActionButtonGroup>
+                            {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
+                            <NodeStyles.MenuButton
+                                ref={setMenuButtonElement}
+                                buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
+                                appearance="icon"
+                                onClick={handleOnMenuClick}
+                            >
+                                <MoreVertIcon />
+                            </NodeStyles.MenuButton>
+                        </NodeStyles.ActionButtonGroup>
                     </NodeStyles.Circle>
                 </Tooltip>
                 <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
             </NodeStyles.CircleColumn>
-
-            {/* Right: Title, subtitle, and action buttons */}
-            <NodeStyles.Details onClick={handleOnClick}>
-                <NodeStyles.TextGroup>
-                    <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
-                    <NodeStyles.Subtitle>{nodeSubtitle}</NodeStyles.Subtitle>
-                </NodeStyles.TextGroup>
-                <NodeStyles.ActionButtonGroup>
-                    {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
-                    <NodeStyles.MenuButton
-                        ref={setMenuButtonElement}
-                        buttonSx={readOnly ? { cursor: "not-allowed" } : {}}
-                        appearance="icon"
-                        onClick={handleOnMenuClick}
-                    >
-                        <MoreVertIcon />
-                    </NodeStyles.MenuButton>
-                </NodeStyles.ActionButtonGroup>
-            </NodeStyles.Details>
 
             {/* Context menu */}
             {isMenuOpen && menuPos && createPortal(

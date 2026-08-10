@@ -37,16 +37,20 @@ import { StateMachine } from "../../stateMachine";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import { readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
-import { isInDevant } from "../../utils";
+import { isICPSupported, isInDevant } from "../../utils";
 import { isPositionEqual, isPositionWithinDeletedComponent } from "../../utils/history/util";
 import { startDebugging } from "../editor-support/activator";
 import {
+    adoptOrphanedPackageIntoProject,
     createBIProjectFromMigration,
     createBIProjectPure,
     createBIWorkspaceWithProject,
-    createEmptyBIWorkspace
+    createEmptyBIWorkspace,
+    getEnclosingProjectStatus,
+    openInVSCode
 } from "../../utils/bi";
 import { checkAndRunPendingEnhancement } from "../ai/migration/orchestrator";
+import { checkAndRunPendingArtifact } from "./pending-artifact";
 import { createVersionNumber, findBallerinaPackageRoot, isSupportedSLVersion } from ".././../utils";
 import { extension } from "../../BalExtensionContext";
 import { VisualizerWebview } from "../../views/visualizer/webview";
@@ -57,7 +61,6 @@ import { findWorkspaceTypeFromWorkspaceFolders } from "../../rpc-managers/common
 import { MESSAGES } from "../project";
 import { ensureICPServerRunning } from "../icp";
 import { TracerMachine } from "../tracing";
-import { DefaultServer } from "../../webview-communication/DefaultServer";
 
 const FOCUS_DEBUG_CONSOLE_COMMAND = 'workbench.debug.action.focusRepl';
 const TRACE_SERVER_OFF = "off";
@@ -75,8 +78,8 @@ export function activate(context: BallerinaExtension) {
         const isWebviewOpen = VisualizerWebview.currentPanel !== undefined;
         const hasActiveTextEditor = !!window.activeTextEditor;
 
-        // Check if ICP is enabled for this project (skip entirely in Devant)
-        if (!isInDevant() && projectPath && stateMachineContext.langClient) {
+        // Check if ICP is enabled for this project (skip in Devant and without the Integrator extension)
+        if (!isInDevant() && isICPSupported() && projectPath && stateMachineContext.langClient) {
             try {
                 const icpStatus = await stateMachineContext.langClient.isIcpEnabled({ projectPath });
                 if (icpStatus && 'enabled' in icpStatus && icpStatus.enabled) {
@@ -106,6 +109,15 @@ export function activate(context: BallerinaExtension) {
     commands.registerCommand(BI_COMMANDS.ADD_CONNECTIONS, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
     });
+
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddAgent);
+    });
+
+    commands.registerCommand(BI_COMMANDS.ADD_AGENT_DEFINITION, async (item?: TreeItem) => {
+        await handleCommandWithContext(item, MACHINE_VIEW.AddAgentDefinition);
+    });
+
 
     commands.registerCommand(BI_COMMANDS.ADD_CUSTOM_CONNECTOR, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.AddConnectionWizard);
@@ -176,6 +188,61 @@ export function activate(context: BallerinaExtension) {
         }
     });
 
+    // A "standalone" integration may already be nested inside an existing project on
+    // disk (opened in isolation rather than as part of that project) — converting it
+    // would otherwise create a project inside a project. `getEnclosingProjectStatus`
+    // is re-checked on every invocation (not cached from the menu's `when` clause) so
+    // this stays correct even if all three commands below end up wired to the same
+    // stale menu entry. The three menu items (Convert to Project / Open Project / Add
+    // to Project), gated by `BI.enclosingProjectStatus` in the tree-view contribution,
+    // exist only to show the right LABEL for what this will do — the handler is shared.
+    const handleConvertOrOpenProject = async () => {
+        if (!isWorkspaceSupported) {
+            window.showErrorMessage('This command requires Ballerina version 2201.13.0 or higher. ');
+            return;
+        }
+
+        const currentProjectPath = StateMachine.context().projectPath;
+        if (currentProjectPath) {
+            const enclosing = getEnclosingProjectStatus(currentProjectPath);
+            if (enclosing.status === 'member') {
+                window.showInformationMessage(
+                    `"${path.basename(currentProjectPath)}" is already part of the project "${enclosing.projectName}". Opening it.`
+                );
+                openInVSCode(enclosing.projectPath!);
+                return;
+            }
+            if (enclosing.status === 'orphaned') {
+                const choice = await window.showInformationMessage(
+                    `"${path.basename(currentProjectPath)}" is located inside the project "${enclosing.projectName}" but isn't part of it yet. Add it to that project instead of creating a new one?`,
+                    { modal: true },
+                    'Add to Project'
+                );
+                if (choice !== 'Add to Project') {
+                    return;
+                }
+                adoptOrphanedPackageIntoProject(currentProjectPath, enclosing.projectPath!);
+                openInVSCode(enclosing.projectPath!);
+                return;
+            }
+            if (enclosing.status === 'invalid') {
+                window.showErrorMessage(
+                    `This integration is located inside another project (${enclosing.projectPath}), which isn't a supported layout. Move it out before converting it into a project.`
+                );
+                return;
+            }
+        }
+
+        // Converting a standalone integration/library into a project. The form detects the
+        // standalone context and renders the "Convert to Project" flow (convert-only by
+        // default, with an opt-in to also add a new integration/library in the same pass).
+        openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.BIAddProjectForm });
+    };
+
+    commands.registerCommand(BI_COMMANDS.CONVERT_TO_PROJECT, handleConvertOrOpenProject);
+    commands.registerCommand(BI_COMMANDS.OPEN_ENCLOSING_PROJECT, handleConvertOrOpenProject);
+    commands.registerCommand(BI_COMMANDS.ADD_TO_ENCLOSING_PROJECT, handleConvertOrOpenProject);
+
     commands.registerCommand(BI_COMMANDS.ADD_DATA_MAPPER, async (item?: TreeItem) => {
         await handleCommandWithContext(item, MACHINE_VIEW.BIDataMapperForm);
     });
@@ -212,12 +279,9 @@ export function activate(context: BallerinaExtension) {
         return createBIProjectFromMigration(params);
     });
 
-    // Lazily starts the WS server that serves the BI project-creation RPCs to the
-    // embedded form (which is owned by this extension but hosted in the WSO2
-    // Integrator webview), and returns the connection coordinates.
-    commands.registerCommand(BI_COMMANDS.GET_BI_FORM_WS_BOOTSTRAP, () => {
-        return DefaultServer.getInstance().getWsBootstrap();
-    });
+    // NOTE: `GET_BI_FORM_WS_BOOTSTRAP` is deliberately NOT registered here. This activator
+    // runs only after the language server is up, and the embedded Create flow needs that
+    // bridge long before then — see the registration in `extension.ts#activate`.
 
     commands.registerCommand(BI_COMMANDS.DELETE_COMPONENT, async (item?: TreeItem & { info?: string, position?: NodePosition }) => {
         // Guard: DELETE requires a tree item context
@@ -228,7 +292,7 @@ export function activate(context: BallerinaExtension) {
 
         console.log(">>> delete component", item);
 
-        if (item.contextValue === DIRECTORY_MAP.CONNECTION) {
+        if (item.contextValue === DIRECTORY_MAP.CONNECTION || item.contextValue === DIRECTORY_MAP.AGENT) {
             await handleConnectionDeletion(item.label as string, item.info);
         } else if (item.contextValue === DIRECTORY_MAP.LOCAL_CONNECTORS) {
             await handleLocalModuleDeletion(item.label as string, item.info);
@@ -245,14 +309,16 @@ export function activate(context: BallerinaExtension) {
     openBallerinaTomlFile(context);
 
     // After the language server and project are fully ready, check whether a
-    // migration AI enhancement was scheduled before the last folder reload.
+    // Create Integration wizard artifact and/or a migration AI enhancement was
+    // scheduled before the last folder reload. The wizard artifact must run
+    // first so it wins the webview navigation race.
     const service = StateMachine.service();
     const subscription = service.subscribe((state) => {
         if (state.value === "extensionReady" && state.changed) {
             subscription.unsubscribe();
-            checkAndRunPendingEnhancement().catch((err) =>
-                console.error("[MigrationEnhancement] Unexpected error:", err)
-            );
+            checkAndRunPendingArtifact()
+                .then(() => checkAndRunPendingEnhancement())
+                .catch((err) => console.error("[MigrationEnhancement] Unexpected error:", err));
         }
     });
 }

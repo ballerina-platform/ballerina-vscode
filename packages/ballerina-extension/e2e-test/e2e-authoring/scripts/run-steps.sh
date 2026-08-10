@@ -26,7 +26,7 @@ if [ -z "$PORT" ]; then
   echo "starting Ballerina E2E writer daemon '$NAME'..." >&2
   # Clean up any orphaned Electron process from a previous failed daemon with
   # the same profile prefix before opening a new window.
-  pkill -f "bi-authoring-${NAME}-" 2>/dev/null || true
+  pkill -f "bi-a-${NAME}-" 2>/dev/null || true
   nohup node "$SCRIPT_DIR/daemon.mjs" "$NAME" >/dev/null 2>&1 &
   for _ in $(seq 1 120); do
     PORT="$(alive || true)"

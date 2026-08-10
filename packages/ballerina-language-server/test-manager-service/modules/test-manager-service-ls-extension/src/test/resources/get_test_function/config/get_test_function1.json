@@ -26,6 +26,19 @@
           "label": "Test Function",
           "description": "Test function"
         },
+        "codedata": {
+          "lineRange": {
+            "fileName": "tests/test1.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 9
+            },
+            "endLine": {
+              "line": 4,
+              "offset": 22
+            }
+          }
+        },
         "valueType": "IDENTIFIER",
         "value": "testFunction1",
         "optional": false,
@@ -151,12 +164,24 @@
             },
             {
               "metadata": {
-                "label": "EvalSet File",
-                "description": "Path to the evalSet data file"
+                "label": "Evalset File",
+                "description": "Path to the evalset data file"
               },
               "valueType": "EXPRESSION",
               "originalName": "evalSetFile",
               "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false
+            },
+            {
+              "metadata": {
+                "label": "Queries",
+                "description": "Queries used as the test input"
+              },
+              "valueType": "TEXT_SET",
+              "originalName": "queries",
+              "value": [],
               "optional": true,
               "editable": true,
               "advanced": false

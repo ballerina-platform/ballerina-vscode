@@ -41,6 +41,7 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
     SubmitFeedbackRequest,
@@ -49,6 +50,8 @@ import {
     UIChatMessage,
     UpdateChatMessageRequest,
     UsageResponse,
+    QuotaRequestParams,
+    QuotaRequestResult,
     WebToolApprovalRequest,
     ClarifyAnswerRequest,
     ClarifyCancelRequest,
@@ -57,7 +60,6 @@ import {
     submitClarifyAnswer,
     cancelClarify,
     abortAIGeneration,
-    acceptChanges,
     addFilesToProject,
     approvePlan,
     approveTask,
@@ -66,7 +68,7 @@ import {
     clearChat,
     clearInitialPrompt,
     createTestDirecoryIfNotExists,
-    declineChanges,
+    revertGeneration,
     declinePlan,
     declineTask,
     enhancePrompt,
@@ -76,6 +78,11 @@ import {
     getAIMachineSnapshot,
     getActiveTempDir,
     getChatMessages,
+    getRunStatus,
+    GetRunStatusRequest,
+    GetRunStatusResponse,
+    getLatestFollowupSuggestions,
+    FollowupSuggestion,
     getCheckpoints,
     getDefaultPrompt,
     isScaffoldEnvActive,
@@ -96,6 +103,10 @@ import {
     promptForLogin,
     promptGithubAuthorize,
     provideConfiguration,
+    createManagedConnection,
+    cancelManagedConnection,
+    CreateManagedConnectionRequest,
+    CreateManagedConnectionResponse,
     provideConnectorSpec,
     restoreCheckpoint,
     showSignInAlert,
@@ -103,6 +114,7 @@ import {
     updateChatMessage,
     updateRequirementSpecification,
     getUsage,
+    requestQuota,
     compactConversation,
     CompactConversationRequest,
     CompactConversationResponse,
@@ -121,8 +133,6 @@ import {
     enableSkillFromChat,
     cancelSkillEnable,
     parseSkillFile,
-    getSkillsEnabled,
-    setSkillsEnabled,
     GetSkillsResponse,
     AddSkillRequest,
     ToggleSkillRequest,
@@ -131,7 +141,6 @@ import {
     SkillEnableCancelRequest,
     ParseSkillFileRequest,
     ParseSkillFileResponse,
-    SetSkillsEnabledRequest,
     listMcpServers,
     setMcpServerEnabled,
     openMcpConfig,
@@ -155,6 +164,19 @@ import {
     SetMcpToolsEnabledRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
+    listThreads,
+    switchThread,
+    SwitchThreadRequest,
+    deleteThread,
+    DeleteThreadRequest,
+    renameThread,
+    RenameThreadRequest,
+    ThreadSummary,
+    // TODO(auto-memory): temporarily disabled for this release.
+    // clearMemory,
+    // ClearMemoryRequest,
+    // openMemoryFiles,
+    // OpenMemoryRequest,
 } from "@wso2/ballerina-core";
 import { HOST_EXTENSION } from "vscode-messenger-common";
 import { Messenger } from "vscode-messenger-webview";
@@ -275,12 +297,8 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(isWorkspaceProject, HOST_EXTENSION);
     }
 
-    acceptChanges(): Promise<void> {
-        return this._messenger.sendRequest(acceptChanges, HOST_EXTENSION);
-    }
-
-    declineChanges(): Promise<void> {
-        return this._messenger.sendRequest(declineChanges, HOST_EXTENSION);
+    revertGeneration(params: RevertGenerationRequest): Promise<void> {
+        return this._messenger.sendRequest(revertGeneration, HOST_EXTENSION, params);
     }
 
     approvePlan(params: PlanApprovalRequest): Promise<void> {
@@ -315,6 +333,14 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(cancelConfiguration, HOST_EXTENSION, params);
     }
 
+    createManagedConnection(params: CreateManagedConnectionRequest): Promise<CreateManagedConnectionResponse> {
+        return this._messenger.sendRequest(createManagedConnection, HOST_EXTENSION, params);
+    }
+
+    cancelManagedConnection(): void {
+        return this._messenger.sendNotification(cancelManagedConnection, HOST_EXTENSION);
+    }
+
     getChatMessages(): Promise<UIChatMessage[]> {
         return this._messenger.sendRequest(getChatMessages, HOST_EXTENSION);
     }
@@ -339,8 +365,20 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(getActiveTempDir, HOST_EXTENSION);
     }
 
+    getRunStatus(params: GetRunStatusRequest): Promise<GetRunStatusResponse> {
+        return this._messenger.sendRequest(getRunStatus, HOST_EXTENSION, params);
+    }
+
+    getLatestFollowupSuggestions(): Promise<FollowupSuggestion[]> {
+        return this._messenger.sendRequest(getLatestFollowupSuggestions, HOST_EXTENSION);
+    }
+
     getUsage(): Promise<UsageResponse | undefined> {
         return this._messenger.sendRequest(getUsage, HOST_EXTENSION);
+    }
+
+    requestQuota(params: QuotaRequestParams): Promise<QuotaRequestResult> {
+        return this._messenger.sendRequest(requestQuota, HOST_EXTENSION, params);
     }
 
     openFileDiff(params: OpenFileDiffRequest): void {
@@ -424,14 +462,6 @@ export class AiPanelRpcClient implements AIPanelAPI {
         return this._messenger.sendRequest(parseSkillFile, HOST_EXTENSION, params);
     }
 
-    getSkillsEnabled(): Promise<boolean> {
-        return this._messenger.sendRequest(getSkillsEnabled, HOST_EXTENSION);
-    }
-
-    setSkillsEnabled(params: SetSkillsEnabledRequest): Promise<void> {
-        return this._messenger.sendRequest(setSkillsEnabled, HOST_EXTENSION, params);
-    }
-
     listMcpServers(): Promise<McpServerStatusDTO[]> {
         return this._messenger.sendRequest(listMcpServers, HOST_EXTENSION);
     }
@@ -479,4 +509,29 @@ export class AiPanelRpcClient implements AIPanelAPI {
     openOrCreateAgentsMd(): Promise<void> {
         return this._messenger.sendRequest(openOrCreateAgentsMd, HOST_EXTENSION);
     }
+
+    listThreads(): Promise<ThreadSummary[]> {
+        return this._messenger.sendRequest(listThreads, HOST_EXTENSION);
+    }
+
+    switchThread(params: SwitchThreadRequest): Promise<void> {
+        return this._messenger.sendRequest(switchThread, HOST_EXTENSION, params);
+    }
+
+    deleteThread(params: DeleteThreadRequest): Promise<void> {
+        return this._messenger.sendRequest(deleteThread, HOST_EXTENSION, params);
+    }
+
+    renameThread(params: RenameThreadRequest): Promise<void> {
+        return this._messenger.sendRequest(renameThread, HOST_EXTENSION, params);
+    }
+
+    // TODO(auto-memory): temporarily disabled for this release.
+    // clearMemory(params: ClearMemoryRequest): Promise<void> {
+    //     return this._messenger.sendRequest(clearMemory, HOST_EXTENSION, params);
+    // }
+    //
+    // openMemoryFiles(params: OpenMemoryRequest): void {
+    //     this._messenger.sendNotification(openMemoryFiles, HOST_EXTENSION, params);
+    // }
 }

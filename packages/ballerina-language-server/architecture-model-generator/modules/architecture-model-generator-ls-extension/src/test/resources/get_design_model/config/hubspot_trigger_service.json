@@ -1,0 +1,159 @@
+{
+  "description": "Object-typed HubSpot trigger service keeps its declared module-qualified type (hubspot:CompanyService)",
+  "projectPath": "project_12",
+  "output": {
+    "designModel": {
+      "connections": [],
+      "listeners": [
+        {
+          "symbol": "hubspotListener",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 113
+            }
+          },
+          "attachedServices": [
+            "009a8f69-a564-7ae6-e40b-4aebf2bf8a39"
+          ],
+          "kind": "NAMED",
+          "type": "hubspot:Listener",
+          "args": [
+            {
+              "key": "listenerConfig",
+              "value": "{clientSecret: \"secret\", callbackURL: \"http://localhost:8090\"}"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.0.png",
+          "uuid": "f6b029f0-719f-f488-25e2-26c2725d0f11",
+          "enableFlowModel": true,
+          "sortText": "main.bal2"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 22,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "f6b029f0-719f-f488-25e2-26c2725d0f11"
+          ],
+          "connections": [],
+          "functions": [],
+          "remoteFunctions": [
+            {
+              "name": "onCompanyCreation",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 5,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 6,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            },
+            {
+              "name": "onCompanyDeletion",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 8,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 9,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            },
+            {
+              "name": "onCompanyPropertychange",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 11,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 12,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            },
+            {
+              "name": "onCompanyAssociationchange",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 14,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 15,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            },
+            {
+              "name": "onCompanyMerge",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 17,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 18,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            },
+            {
+              "name": "onCompanyRestore",
+              "location": {
+                "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_12/main.bal",
+                "startLine": {
+                  "line": 20,
+                  "offset": 4
+                },
+                "endLine": {
+                  "line": 21,
+                  "offset": 5
+                }
+              },
+              "connections": []
+            }
+          ],
+          "resourceFunctions": [],
+          "absolutePath": "",
+          "type": "hubspot:CompanyService",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.hubspot_0.12.0.png",
+          "uuid": "009a8f69-a564-7ae6-e40b-4aebf2bf8a39",
+          "enableFlowModel": true,
+          "sortText": "main.bal4"
+        }
+      ]
+    }
+  }
+}

@@ -110,6 +110,7 @@ export interface ShowQuickPickRequest {
 
 export interface TomlWorkspace {
     packages: string[];
+    title?: string;
 }
 
 export interface TomlPackage {

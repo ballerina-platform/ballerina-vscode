@@ -8,68 +8,248 @@
     "serviceInitModel": {
       "id": "13",
       "displayName": "GitHub Event Integration",
-      "description": "Create a service to handle events from GitHub",
+      "description": "Create a service to handle webhook events from GitHub",
       "orgName": "ballerinax",
       "packageName": "trigger.github",
       "moduleName": "trigger.github",
       "version": "0.10.0",
-      "type": "trigger.github",
+      "type": "github",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.10.0.png",
       "properties": {
-        "basePath": {
+        "listener": {
+          "metadata": {
+            "label": "Listener",
+            "description": "Attach the service to a new or existing GitHub webhook listener."
+          },
+          "codedata": {
+            "type": "LISTENER_CONFIG"
+          },
+          "value": "0",
+          "choices": [
+            {
+              "metadata": {
+                "label": "Create New Listener",
+                "description": "Define a new GitHub webhook listener in the project."
+              },
+              "properties": {
+                "listenerConfig": {
+                  "metadata": {
+                    "label": "Listener Configurations",
+                    "description": "Configure the GitHub webhook listener."
+                  },
+                  "properties": {
+                    "listenerVarName": {
+                      "metadata": {
+                        "label": "Listener Name",
+                        "description": "Provide a name for the listener being created"
+                      },
+                      "codedata": {
+                        "type": "LISTENER_VAR_NAME"
+                      },
+                      "value": "githubListener",
+                      "types": [
+                        {
+                          "fieldType": "IDENTIFIER",
+                          "ballerinaType": "github:Listener",
+                          "selected": true
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    "listenOn": {
+                      "metadata": {
+                        "label": "Webhook Listener Port",
+                        "description": "The port on which the webhook listener accepts incoming HTTP requests"
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_REQUIRED",
+                        "originalName": "listenOn",
+                        "position": 2
+                      },
+                      "placeholder": "8090",
+                      "value": "8090",
+                      "types": [
+                        {
+                          "fieldType": "NUMBER",
+                          "ballerinaType": "int",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "int|http:Listener",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": true,
+                      "advanced": false
+                    },
+                    "webhookSecret": {
+                      "metadata": {
+                        "label": "Webhook Secret",
+                        "description": "Secret used to validate incoming GitHub webhook requests"
+                      },
+                      "codedata": {
+                        "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                        "originalName": "webhookSecret",
+                        "position": 1,
+                        "path": "webhookSecret"
+                      },
+                      "placeholder": "",
+                      "value": "",
+                      "types": [
+                        {
+                          "fieldType": "TEXT",
+                          "ballerinaType": "string",
+                          "selected": true
+                        },
+                        {
+                          "fieldType": "EXPRESSION",
+                          "ballerinaType": "string",
+                          "selected": false
+                        }
+                      ],
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    }
+                  },
+                  "types": [
+                    {
+                      "fieldType": "GROUP_SECTION",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            {
+              "metadata": {
+                "label": "Use existing (none available)",
+                "description": "No compatible listener of this type is present in the project."
+              },
+              "properties": {
+                "existingListener": {
+                  "metadata": {
+                    "label": "Listener",
+                    "description": "Select an existing listener to attach the service to."
+                  },
+                  "codedata": {
+                    "type": "KEY_EXISTING_LISTENER"
+                  },
+                  "value": "githubListener",
+                  "items": [
+                    "githubListener"
+                  ],
+                  "types": [
+                    {
+                      "fieldType": "SINGLE_SELECT_LISTENER",
+                      "ballerinaType": "github:Listener",
+                      "selected": true
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              },
+              "types": [
+                {
+                  "fieldType": "FORM",
+                  "selected": true
+                }
+              ],
+              "enabled": false,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            }
+          ],
+          "types": [
+            {
+              "fieldType": "CHOICE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "serviceType": {
           "metadata": {
             "label": "Event Channel",
             "description": "The type of GitHub event to listen for"
           },
           "codedata": {
-            "argType": "SERVICE_TYPE_DESCRIPTOR"
+            "type": "SERVICE_TYPE_DESCRIPTOR",
+            "moduleName": "github"
           },
-          "placeholder": "IssuesService",
-          "value": "IssuesService",
+          "value": "github:IssuesService",
           "types": [
             {
               "fieldType": "SINGLE_SELECT",
               "ballerinaType": "github:GenericServiceType",
               "options": [
                 {
-                  "label": "IssuesService",
-                  "value": "IssuesService"
+                  "label": "Issues",
+                  "value": "github:IssuesService"
                 },
                 {
-                  "label": "IssueCommentService",
-                  "value": "IssueCommentService"
+                  "label": "Issue Comment",
+                  "value": "github:IssueCommentService"
                 },
                 {
-                  "label": "PullRequestService",
-                  "value": "PullRequestService"
+                  "label": "Pull Request",
+                  "value": "github:PullRequestService"
                 },
                 {
-                  "label": "PullRequestReviewService",
-                  "value": "PullRequestReviewService"
+                  "label": "Pull Request Review",
+                  "value": "github:PullRequestReviewService"
                 },
                 {
-                  "label": "PullRequestReviewCommentService",
-                  "value": "PullRequestReviewCommentService"
+                  "label": "Pull Request Review Comment",
+                  "value": "github:PullRequestReviewCommentService"
                 },
                 {
-                  "label": "ReleaseService",
-                  "value": "ReleaseService"
+                  "label": "Release",
+                  "value": "github:ReleaseService"
                 },
                 {
-                  "label": "LabelService",
-                  "value": "LabelService"
+                  "label": "Label",
+                  "value": "github:LabelService"
                 },
                 {
-                  "label": "MilestoneService",
-                  "value": "MilestoneService"
+                  "label": "Milestone",
+                  "value": "github:MilestoneService"
                 },
                 {
-                  "label": "PushService",
-                  "value": "PushService"
+                  "label": "Push",
+                  "value": "github:PushService"
                 },
                 {
-                  "label": "ProjectCardService",
-                  "value": "ProjectCardService"
+                  "label": "Project Card",
+                  "value": "github:ProjectCardService"
                 }
               ],
               "selected": true
@@ -79,74 +259,6 @@
           "editable": true,
           "optional": false,
           "advanced": false
-        },
-        "webhookSecret": {
-          "metadata": {
-            "label": "Webhook Secret",
-            "description": "Secret used to validate incoming GitHub webhook requests"
-          },
-          "placeholder": "",
-          "value": "",
-          "types": [
-            {
-              "fieldType": "TEXT",
-              "ballerinaType": "string",
-              "selected": true
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "string",
-              "selected": false
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
-        "listenOn": {
-          "metadata": {
-            "label": "Webhook Listener Port",
-            "description": "The port on which the webhook listener accepts incoming HTTP requests"
-          },
-          "placeholder": "8090",
-          "value": "8090",
-          "types": [
-            {
-              "fieldType": "NUMBER",
-              "ballerinaType": "int",
-              "selected": true
-            },
-            {
-              "fieldType": "EXPRESSION",
-              "ballerinaType": "int",
-              "selected": false
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": true,
-          "advanced": false
-        },
-        "listenerVarName": {
-          "metadata": {
-            "label": "Listener Name",
-            "description": "Provide a name for the listener being created"
-          },
-          "codedata": {
-            "type": "LISTENER_VAR_NAME"
-          },
-          "value": "githubListener",
-          "types": [
-            {
-              "fieldType": "IDENTIFIER",
-              "selected": true
-            }
-          ],
-          "enabled": true,
-          "editable": true,
-          "optional": false,
-          "advanced": true
         }
       }
     }

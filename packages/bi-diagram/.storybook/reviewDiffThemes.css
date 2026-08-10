@@ -1,0 +1,120 @@
+/*
+ * Focused VS Code theme fixtures for the review-diff Storybook POC. Production
+ * webviews receive these variables from VS Code itself; these classes let us
+ * exercise the same token paths without copying entire built-in theme files.
+ */
+body.review-diff-theme {
+    color: var(--vscode-editor-foreground);
+    background: var(--vscode-editor-background);
+    --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --vscode-contrastBorder: transparent;
+    --vscode-gitDecoration-addedResourceForeground: #2ea043;
+    --vscode-gitDecoration-deletedResourceForeground: #c74e39;
+}
+
+body.review-diff-theme.review-theme-light-2026,
+body.review-diff-theme.review-theme-light-vs,
+body.review-diff-theme.review-theme-light-modern,
+body.review-diff-theme.review-theme-hc-light {
+    --vscode-foreground: #202020;
+    --vscode-descriptionForeground: #606060;
+    --vscode-editor-background: #ffffff;
+    --vscode-editor-foreground: #202020;
+    --vscode-editorWidget-background: #f3f3f3;
+    --vscode-editorWidget-foreground: #202020;
+    --vscode-editorWidget-border: #c8c8c8;
+    --vscode-editorHoverWidget-background: #f3f3f3;
+    --vscode-editorHoverWidget-foreground: #202020;
+    --vscode-editorHoverWidget-border: #c8c8c8;
+    --vscode-editorInfo-foreground: #0063d3;
+    --vscode-gitDecoration-modifiedResourceForeground: #895503;
+    --vscode-diffEditor-insertedTextBackground: rgba(156, 204, 44, 0.25);
+    --vscode-diffEditor-removedTextBackground: rgba(255, 0, 0, 0.2);
+    --vscode-gitDecoration-addedResourceForeground: #2ea043;
+    --vscode-gitDecoration-deletedResourceForeground: #c74e39;
+}
+
+body.review-diff-theme.review-theme-dark-2026,
+body.review-diff-theme.review-theme-dark-vs,
+body.review-diff-theme.review-theme-dark-modern,
+body.review-diff-theme.review-theme-hc-dark {
+    --vscode-foreground: #cccccc;
+    --vscode-descriptionForeground: rgba(204, 204, 204, 0.72);
+    --vscode-editor-background: #1e1e1e;
+    --vscode-editor-foreground: #d4d4d4;
+    --vscode-editorWidget-background: #252526;
+    --vscode-editorWidget-foreground: #cccccc;
+    --vscode-editorWidget-border: #454545;
+    --vscode-editorHoverWidget-background: #252526;
+    --vscode-editorHoverWidget-foreground: #cccccc;
+    --vscode-editorHoverWidget-border: #454545;
+    --vscode-editorInfo-foreground: #59a4f9;
+    --vscode-gitDecoration-modifiedResourceForeground: #e2c08d;
+    --vscode-diffEditor-insertedTextBackground: rgba(156, 204, 44, 0.2);
+    --vscode-diffEditor-removedTextBackground: rgba(255, 0, 0, 0.2);
+    --vscode-gitDecoration-addedResourceForeground: #73c991;
+    --vscode-gitDecoration-deletedResourceForeground: #f48771;
+}
+
+body.review-diff-theme.review-theme-light-2026 {
+    --vscode-editor-foreground: #202020;
+    --vscode-editorWidget-background: #fafafd;
+    --vscode-gitDecoration-modifiedResourceForeground: #667309;
+}
+
+body.review-diff-theme.review-theme-dark-2026 {
+    --vscode-foreground: #bbbebf;
+    --vscode-editor-background: #121314;
+    --vscode-editor-foreground: #bbbebf;
+    --vscode-editorWidget-background: #202122;
+    --vscode-editorWidget-foreground: #bbbebf;
+    --vscode-editorWidget-border: #2a2b2c;
+    --vscode-editorHoverWidget-background: #202122;
+    --vscode-editorHoverWidget-foreground: #bbbebf;
+    --vscode-editorHoverWidget-border: #2a2b2c;
+    --vscode-gitDecoration-modifiedResourceForeground: #e5ba7d;
+    --vscode-diffEditor-insertedTextBackground: rgba(87, 171, 90, 0.3);
+    --vscode-diffEditor-removedTextBackground: rgba(244, 112, 103, 0.3);
+}
+
+body.review-diff-theme.review-theme-light-modern {
+    --vscode-editorWidget-background: #f8f8f8;
+}
+
+body.review-diff-theme.review-theme-dark-modern {
+    --vscode-editor-background: #181818;
+    --vscode-editorWidget-background: #1f1f1f;
+    --vscode-editorHoverWidget-background: #1f1f1f;
+}
+
+body.review-diff-theme.review-theme-hc-light {
+    --vscode-contrastBorder: #0f4a85;
+    --vscode-editor-background: #ffffff;
+    --vscode-editor-foreground: #292929;
+    --vscode-editorWidget-background: #ffffff;
+    --vscode-editorWidget-foreground: #292929;
+    --vscode-editorWidget-border: #0f4a85;
+    --vscode-editorHoverWidget-background: #ffffff;
+    --vscode-editorHoverWidget-foreground: #292929;
+    --vscode-editorHoverWidget-border: #0f4a85;
+    --vscode-diffEditor-insertedTextBackground: transparent;
+    --vscode-diffEditor-removedTextBackground: transparent;
+    --vscode-diffEditor-insertedTextBorder: #374e06;
+    --vscode-diffEditor-removedTextBorder: #ad0707;
+}
+
+body.review-diff-theme.review-theme-hc-dark {
+    --vscode-contrastBorder: #6fc3df;
+    --vscode-editor-background: #000000;
+    --vscode-editor-foreground: #ffffff;
+    --vscode-editorWidget-background: #0c141f;
+    --vscode-editorWidget-foreground: #ffffff;
+    --vscode-editorWidget-border: #6fc3df;
+    --vscode-editorHoverWidget-background: #0c141f;
+    --vscode-editorHoverWidget-foreground: #ffffff;
+    --vscode-editorHoverWidget-border: #6fc3df;
+    --vscode-diffEditor-insertedTextBackground: transparent;
+    --vscode-diffEditor-removedTextBackground: transparent;
+    --vscode-diffEditor-insertedTextBorder: #33ff2e;
+    --vscode-diffEditor-removedTextBorder: #ff008f;
+}

@@ -1,0 +1,515 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+    inputs:
+      sourceBranch:
+        description: >-
+          Branch to run the nightly pipeline against. Leave blank to auto-select:
+          the latest staging/* branch if one exists, otherwise main — the same
+          resolution the schedule always uses.
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: read
+
+# The builds/nightly branch is force-pushed by sync-nightly, so scheduled, manual, delayed,
+# or re-run builds must not interleave: one would move the branch out from under another.
+concurrency:
+  group: nightly-build
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # builds/nightly branch — selected source plus a single version commit
+  #
+  # Scheduled runs, and manual runs with sourceBranch left blank, reset the branch to the
+  # latest staging/* branch if one exists, otherwise main; an explicit sourceBranch always
+  # wins. It is then force-pushed, so it is never a merge target and never accumulates
+  # history. `git diff <selected-source> builds/nightly` is always exactly the version bump.
+  # Its purpose is to give every nightly VSIX an inspectable commit that pins both the source
+  # and the version it was built at.
+  #
+  # Note that .github/actions/* used by the downstream jobs resolve from the
+  # checked-out builds/nightly tree, so a change to them only takes effect once it is on main
+  # or when a manual run selects its source branch.
+  #
+  # The version is derived from the extension package.json — the single source of truth,
+  # which on main always reads 'major.minor.patch-SNAPSHOT' — as
+  # major.(minor-1).<minutes since 2020-01-01 UTC>, e.g.
+  # 5.14.0-SNAPSHOT -> 5.13.3458370. It is read directly by both vsce and the
+  # language-server Gradle build, so the extension and the bundled LS always
+  # report the same version. See
+  # common/scripts/nightly-version.js.
+  # ─────────────────────────────────────────────────────────────────────────
+  sync-nightly:
+    name: Sync builds/nightly branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.stamp.outputs.version }}
+      sha: ${{ steps.push.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Reset builds/nightly to the source branch
+        env:
+          INPUT_SOURCE_BRANCH: ${{ inputs.sourceBranch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "${INPUT_SOURCE_BRANCH}" ]; then
+            SOURCE_BRANCH="${INPUT_SOURCE_BRANCH}"
+          else
+            # No explicit source given (scheduled run, or manual run left blank): prefer the
+            # latest staging/* branch (e.g. staging/5.14.0) if one exists, so the nightly
+            # pipeline follows the active release staging branch without a workflow edit
+            # each time one is cut. Falls back to main once no staging/* branch remains.
+            latest_staging=$(git ls-remote --heads origin \
+              | awk -F'refs/heads/' '/refs\/heads\/staging\// { print $2 }' \
+              | sort -t/ -k2 -V | tail -n 1)
+            SOURCE_BRANCH="${latest_staging:-main}"
+          fi
+
+          # Checkout fetches only the triggering ref, so fetch the requested source
+          # explicitly even though the initial checkout uses fetch-depth 0.
+          SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"
+          git fetch origin \
+            "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
+          git checkout -B builds/nightly "origin/${SOURCE_BRANCH}"
+
+      - name: Stamp nightly version
+        id: stamp
+        uses: ./.github/actions/updateVersion
+        with:
+          version: 'N/A'
+          isPreRelease: 'false'
+          nightly: 'true'
+
+      - name: Commit and push nightly
+        id: push
+        run: |
+          set -euo pipefail
+          # The extension manifest is the authored version and Gradle reads it directly,
+          # so this single-file commit also pins the language-server version.
+          git add packages/ballerina-extension/package.json
+          # Tolerate a no-op stamp (a re-run within the same minute of a source branch
+          # that already carries this version) instead of failing on an empty commit.
+          git diff --staged --quiet || git commit -m "Nightly build ${{ steps.stamp.outputs.version }}"
+          # Force-push both creates the branch on the very first run and discards
+          # yesterday's version commit, so builds/nightly stays a single commit ahead of
+          # main. Pushes made with GITHUB_TOKEN do not trigger workflows, so this
+          # cannot re-enter the nightly build.
+          git push --force origin HEAD:refs/heads/builds/nightly
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Ballerina language server — multi-branch pack & test
+  # ─────────────────────────────────────────────────────────────────────────
+  ls-prepare-matrix:
+    name: LS prepare matrix
+    needs: sync-nightly
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ballerina-language-server
+    outputs:
+      targets: ${{ steps.resolve-targets.outputs.targets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve target branches
+        id: resolve-targets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Release lines are 'X.Y.x' with an even minor (5.14.x, 5.16.x); odd minors are the
+          # pre-release channel and never get a branch. The pattern was '1.[0-9]+.x' when the
+          # language server versioned itself independently — it now shares the extension's
+          # version, so its lines are the repo's lines.
+          latest_branch=$(git ls-remote --heads origin | awk -F'/' '/refs\/heads\/[0-9]+\.[0-9]+\.x$/ { print $NF }' | sort -V | tail -n 1)
+          if [ -z "${latest_branch}" ]; then
+            echo "No X.Y.x release branch found on origin; building from builds/nightly only." >&2
+          fi
+
+          timestamp=$(date '+%Y%m%d-%H%M%S')
+          targets='[]'
+
+          # 'builds/nightly' rather than the selected source branch: it includes the version
+          # commit, so the LS verified here is the same tree the extension build packages.
+          branches="builds/nightly"
+          if [ -n "${latest_branch}" ]; then
+            branches="builds/nightly ${latest_branch}"
+          fi
+
+          for branch in ${branches}; do
+            # Matrix inputs always mean branches, so keep the namespace explicit.
+            git fetch --depth=1 origin \
+              "refs/heads/${branch}:refs/remotes/origin/${branch}"
+
+            if [ "${branch}" = "builds/nightly" ]; then
+              # The nightly branch already carries the timestamped version in the extension
+              # manifest. Reusing it here
+              # means this verification build and the jar attached to the nightly release
+              # are one and the same version, instead of two competing nightly version
+              # schemes in one run.
+              build_version=$(git show "origin/${branch}:packages/ballerina-extension/package.json" | jq -r '.version')
+              if [ -z "${build_version}" ] || [ "${build_version}" = "null" ]; then
+                echo "Unable to resolve version from the extension manifest on ${branch}" >&2
+                exit 1
+              fi
+            else
+              # A release line carries a concrete version — only main uses '-SNAPSHOT'.
+              # Suffix it with a timestamp because this is a verification build, not a release.
+              branch_version=$(git show "origin/${branch}:packages/ballerina-extension/package.json" | jq -r '.version')
+              if [ -z "${branch_version}" ] || [ "${branch_version}" = "null" ]; then
+                echo "Unable to resolve version from the extension manifest for ${branch}" >&2
+                exit 1
+              fi
+              build_version="${branch_version}-${timestamp}"
+            fi
+
+            targets=$(jq -c \
+              --arg branch "${branch}" \
+              --arg version "${build_version}" \
+              '. + [{branch: $branch, version: $version}]' <<< "${targets}")
+          done
+
+          echo "targets=${targets}" >> "${GITHUB_OUTPUT}"
+
+  ls-ubuntu-pack:
+    name: LS Ubuntu pack (${{ matrix.branch }})
+    needs: ls-prepare-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ls-ubuntu-pack-${{ matrix.branch }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: packages/ballerina-language-server
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: 'temurin'
+          java-version: 21.0.3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Set Up Ballerina
+        uses: ./.github/actions/setup-ballerina
+
+      # No dependency cache here: this job runs `pack -x check` (no tests), so it never provisions
+      # build/ballerina_dependencies. Nothing to cache.
+
+      - name: Pack with Gradle
+        env:
+          packageUser: ${{ github.actor }}
+          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew -Pversion=${{ matrix.version }} pack -x check
+
+      - name: Upload nightly build jar
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          path: packages/ballerina-language-server/build/ballerina-language-server-${{ matrix.version }}.jar
+          if-no-files-found: error
+
+  ls-ubuntu-test:
+    name: LS Ubuntu test (${{ matrix.branch }})
+    needs:
+      - ls-prepare-matrix
+      - ls-ubuntu-pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ls-ubuntu-test-${{ matrix.branch }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+
+      # Resolved from the matrix.branch checkout — the action file must
+      # also exist on release branches in the matrix.
+      - name: Run LS tests
+        uses: ./.github/actions/ls-test
+        with:
+          cache-branch: ${{ matrix.branch }}
+          gradle-version: ${{ matrix.version }}
+          package-user: ${{ github.actor }}
+          package-pat: ${{ secrets.GITHUB_TOKEN }}
+
+  ls-windows-build:
+    name: LS Windows build (${{ matrix.branch }})
+    needs: ls-prepare-matrix
+    runs-on: windows-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ls-windows-build-${{ matrix.branch }}-${{ github.ref_name }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: packages/ballerina-language-server
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    steps:
+      - name: Enable long paths for Git
+        shell: bash
+        # Override the job default working-directory — it does not exist before checkout.
+        working-directory: ${{ github.workspace }}
+        run: git config --system core.longpaths true
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: 'temurin'
+          java-version: 21.0.3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Set Up Ballerina
+        uses: ./.github/actions/setup-ballerina
+
+      - name: Cache Ballerina dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: packages/ballerina-language-server/build/ballerina_dependencies
+          key: ${{ runner.os }}-ballerina-${{ matrix.branch }}-${{ hashFiles('packages/ballerina-language-server/build-config/ballerina_dependencies/**') }}
+
+      - name: Build with Gradle
+        shell: cmd
+        env:
+          packageUser: ${{ github.actor }}
+          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew.bat -Pversion=${{ matrix.version }} build
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Language server — Trivy vulnerability scan
+  # ─────────────────────────────────────────────────────────────────────────
+  ls-trivy:
+    name: LS Trivy scan (${{ matrix.branch }})
+    needs: ls-prepare-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.ls-prepare-matrix.outputs.targets) }}
+    defaults:
+      run:
+        working-directory: packages/ballerina-language-server
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: refs/heads/${{ matrix.branch }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: 'temurin'
+          java-version: 21.0.3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
+      - name: Generate SBOM
+        env:
+          packageUser: ${{ github.actor }}
+          packagePAT: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew cyclonedxBom
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          scan-type: 'sbom'
+          scan-ref: 'packages/ballerina-language-server/build/sbom.json'
+          format: 'table'
+          timeout: '10m0s'
+          exit-code: '1'
+          trivyignores: packages/ballerina-language-server/.trivyignore
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Ballerina VSCode extension — build VSIX + tests
+  # ─────────────────────────────────────────────────────────────────────────
+  Build:
+    name: Nightly development build
+    needs: sync-nightly
+    uses: ./.github/workflows/devBuild.yml
+    secrets:
+      COPILOT_ROOT_URL: ${{ secrets.COPILOT_ROOT_URL }}
+      COPILOT_DEV_ROOT_URL: ${{ secrets.COPILOT_DEV_ROOT_URL }}
+      APPINSIGHTS_INSTRUMENTATION_KEY: ${{ secrets.APPINSIGHTS_INSTRUMENTATION_KEY }}
+    with:
+      # Pin the nightly commit SHA rather than the branch name: the branch is
+      # force-pushed every run, so a name would let a concurrent run swap the tree
+      # out from under this build and produce a VSIX that matches no commit.
+      ref: ${{ needs.sync-nightly.outputs.sha }}
+      versionAlreadySet: true
+      # TODO: Re-enable tests once the tests are stable.
+      runFrontendTests: false
+      runBackendTests: false
+
+  # Keep a stable ref for the most recent nightly that passed every validation job. The
+  # 'nightly' tag and the 'nightly' release are both overwritten each run — no nightly
+  # history is kept. The release attaches the VSIX to that tag, so consumers reach it by
+  # tag rather than through the authenticated Actions artifact API.
+  Tag:
+    name: Update nightly tag and release
+    needs:
+      - sync-nightly
+      - ls-ubuntu-pack
+      - ls-ubuntu-test
+      - ls-windows-build
+      - ls-trivy
+      - Build
+    if: ${{ github.repository == 'ballerina-platform/ballerina-vscode' }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout successful nightly commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.sync-nightly.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Move nightly tag
+        env:
+          SHA: ${{ needs.sync-nightly.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git tag --force nightly "${SHA}"
+          git push --force origin refs/tags/nightly
+
+      - name: Download nightly VSIX
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: VSIX
+          path: ./nightly-vsix
+
+      - name: Overwrite nightly GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.sync-nightly.outputs.version }}
+          SHA: ${{ needs.sync-nightly.outputs.sha }}
+        run: |
+          set -euo pipefail
+          cd nightly-vsix
+          unzip -o VSIX.zip
+          vsix="ballerina-${VERSION}.vsix"
+          test -f "$vsix"
+
+          # Delete rather than edit: the tag has just been force-moved, and an existing
+          # release keeps pointing at the commit it was created from. Deleting the release
+          # leaves the tag alone (no --cleanup-tag), so recreating it re-targets today's
+          # commit. It also clears yesterday's asset: the filename carries the timestamped
+          # version, so uploading into a surviving release would accumulate one VSIX per
+          # night rather than replace. The release is found via the 'nightly' tag.
+          gh release delete nightly --yes || true
+          gh release create nightly "$vsix" \
+            --title "Nightly ${VERSION}" \
+            --notes "Nightly build ${VERSION} from ${SHA}. Overwritten on every successful nightly run." \
+            --prerelease \
+            --target "${SHA}"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notifications
+  # ─────────────────────────────────────────────────────────────────────────
+  NotifySuccess:
+    name: Notify (success)
+    needs:
+      - ls-ubuntu-pack
+      - ls-ubuntu-test
+      - ls-windows-build
+      - ls-trivy
+      - Build
+      - Tag
+    if: ${{ github.repository == 'ballerina-platform/ballerina-vscode' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ExtBuild
+          path: ./
+
+      - name: Set up workspace
+        run: |
+          unzip build.zip
+          rm build.zip
+
+      - name: Notification - Ballerina
+        uses: ./.github/actions/dailyBuildNotification
+        with:
+          title: Ballerina
+          fileName: ballerina
+          chatAPI: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+
+  NotifyFailure:
+    name: Notify (failure)
+    needs:
+      - sync-nightly
+      - ls-prepare-matrix
+      - ls-ubuntu-pack
+      - ls-ubuntu-test
+      - ls-windows-build
+      - ls-trivy
+      - Build
+      - Tag
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: "Failure Notification"
+        uses: ./.github/actions/failure-notification
+        with:
+          title: "Nightly Build Failed"
+          run_id: ${{ github.run_id }}
+          chat_api: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+          repository: ${{ github.repository }}

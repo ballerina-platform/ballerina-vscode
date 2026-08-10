@@ -35,7 +35,7 @@ const LibrarySearchToolSchema = jsonSchema<{
         keywords: {
             type: "array",
             items: { type: "string" },
-            description: `Array of search keywords to find relevant Ballerina libraries. Keywords are weighted by order - first keyword has highest weight, subsequent keywords have decreasing weight. Maximum ${MAX_SEARCH_KEYWORDS} keywords allowed. Examples: ["GitHub", "API", "integration"], ["Stripe", "payment", "gateway"], ["HTTP", "REST", "service"]`,
+            description: `Array of search keywords to find relevant Ballerina libraries. Keywords are combined with OR, so each additional keyword widens the search rather than narrowing it. Maximum ${MAX_SEARCH_KEYWORDS} keywords allowed. Examples: ["GitHub", "API", "integration"], ["Stripe", "payment", "gateway"], ["HTTP", "REST", "service"]`,
             minItems: 1,
             maxItems: MAX_SEARCH_KEYWORDS,
         },
@@ -132,23 +132,22 @@ export function getLibrarySearchTool(
     eventHandler: CopilotEventHandler
 ) {
     return tool({
-        description: `Searches for Ballerina libraries from Ballerina Central based on weighted keywords.
+        description: `Searches for Ballerina libraries from Ballerina Central based on keywords.
 
 **Purpose:**
-This tool discovers relevant Ballerina libraries using keyword-based search. It searches against library names, descriptions, and function names. Keywords are weighted by order - the first keyword has the highest weight, with decreasing weight for subsequent keywords.
+This tool discovers relevant Ballerina libraries using keyword-based search. It searches against library names, descriptions, package keywords, and documentation. All keywords are combined with OR and the matches are ranked by overall relevance, so each additional keyword widens the search rather than narrowing it.
 
-**Scope - ALL Ballerina Libraries:**
+**Scope:**
 - **ballerina/*** - Standard/core libraries maintained by the Ballerina team
 - **ballerinax/*** - Extended connector packages for third-party services
-- **xlibb/*** - Experimental yet practical Ballerina packages
-- Other organization packages available in Ballerina Central
 
 **Keyword Guidelines:**
-- Provide 1-${MAX_SEARCH_KEYWORDS} keywords ordered by importance
-- First keyword = most important (highest weight in search)
-- Subsequent keywords = less important (decreasing weight)
-- Use specific terms (the service or technology name) before generic ones (the capability or category)
-- Include 'trigger' keyword to indicate webhook related libraries.
+- Prefer FEWER, more distinctive keywords. 1-3 is usually best; the hard maximum is ${MAX_SEARCH_KEYWORDS}.
+- Lead with the service, product, or technology name ("Stripe", "Kafka", "Salesforce") - these are what actually identify a library.
+- Prefer single words over phrases - a multi-word keyword is split into separate words anyway
+- AVOID generic words such as "read", "write", "file", "data", "document", "message", "notification", "client", "service", "api", "integration". Because keywords are OR'd, every generic word drags in dozens of unrelated libraries that push the relevant ones out of the results.
+- Only include 'trigger' when the user wants to LISTEN for events or handle a webhook. Do NOT include it when the user wants to call an API - it matches every trigger.* package and crowds out the connector you actually need.
+- When a task spans several distinct services, run a SEPARATE search per service instead of combining every service into one keyword list.
 
 **When to use this tool:**
 - To discover which libraries are available for a specific use case or integration
@@ -157,14 +156,14 @@ This tool discovers relevant Ballerina libraries using keyword-based search. It 
 - Whenever you need to find relevant libraries but don't know the exact library names
 
 **Important - Two-Step Workflow:**
-1. First, call THIS tool (${LIBRARY_SEARCH_TOOL}) with weighted keywords to discover relevant libraries
+1. First, call THIS tool (${LIBRARY_SEARCH_TOOL}) with relevant keywords to discover relevant libraries
 2. Review the returned library names and descriptions
 3. Select the most appropriate libraries (typically 1-5 libraries)
 4. Then, call ${LIBRARY_GET_TOOL} with the selected library names to get detailed API documentation (functions, types, clients, services, etc.)
 
 **Example Workflow:**
-User query: <a request that may span one or more services, technologies, or capabilities>
-Keywords: [<service or technology name>, <another service name if the query needs more>, <supporting or capability terms>]  // lead with the distinct service names; earlier keywords carry more weight
+User query: <a request involving a service, technology, or capability>
+Keywords: [<service or technology name>, <at most one or two distinctive supporting terms>]  // one search per distinct service; skip generic words entirely
 Call ${LIBRARY_SEARCH_TOOL} with the keywords
 → Returns: [
     { name: "<organization>/<library>", description: "..." },

@@ -12,15 +12,14 @@
     "packageName": "postgresql",
     "object": "Client",
     "symbol": "init",
-    "version": "1.15.0",
     "isNew": true
   },
   "output": {
     "id": "31",
     "metadata": {
       "label": "PostgreSQL",
-      "description": "Represents a PostgreSQL database client.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.15.0.png"
+      "description": "PostgreSQL database client that enables interaction with PostgreSQL servers and supports standard SQL operations.",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_postgresql_1.17.0.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -29,7 +28,7 @@
       "packageName": "postgresql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.15.0",
+      "version": "1.17.0",
       "isNew": true
     },
     "returning": false,
@@ -37,7 +36,7 @@
       "host": {
         "metadata": {
           "label": "Host",
-          "description": "Hostname of the PostgreSQL server"
+          "description": "PostgreSQL server hostname"
         },
         "types": [
           {
@@ -92,7 +91,7 @@
       "password": {
         "metadata": {
           "label": "Password",
-          "description": "The password of the PostgreSQL server for the provided username"
+          "description": "Database password"
         },
         "types": [
           {
@@ -120,7 +119,7 @@
       "database": {
         "metadata": {
           "label": "Database",
-          "description": "The name of the database. The default is to connect to a database with the\nsame name as the username"
+          "description": "Database name to connect to. The default is to connect to a database with the\nsame name as the username"
         },
         "types": [
           {
@@ -148,7 +147,7 @@
       "port": {
         "metadata": {
           "label": "Port",
-          "description": "Port number of the PostgreSQL server"
+          "description": "PostgreSQL server port"
         },
         "types": [
           {
@@ -176,7 +175,7 @@
       "options": {
         "metadata": {
           "label": "Options",
-          "description": "The database specific PostgreSQL connection properties"
+          "description": "The advanced connection options specific to the PostgreSQL database."
         },
         "types": [
           {
@@ -185,7 +184,7 @@
             "typeMembers": [
               {
                 "type": "Options",
-                "packageInfo": "ballerinax:postgresql:1.15.0",
+                "packageInfo": "ballerinax:postgresql:1.17.0",
                 "packageName": "postgresql",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -213,7 +212,7 @@
       "connectionPool": {
         "metadata": {
           "label": "Connection Pool",
-          "description": "The `sql:ConnectionPool` object to be used within the client. If there is no\n`connectionPool` provided, the global connection pool will be used"
+          "description": "The `sql:ConnectionPool` object to be used within the client. If not provided, the global connection pool (shared by all clients) will be used"
         },
         "types": [
           {
@@ -222,7 +221,7 @@
             "typeMembers": [
               {
                 "type": "ConnectionPool",
-                "packageInfo": "ballerina:sql:1.16.0",
+                "packageInfo": "ballerina:sql:1.19.0",
                 "packageName": "sql",
                 "kind": "RECORD_TYPE",
                 "selected": false

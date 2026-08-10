@@ -199,5 +199,8 @@ export const StateMachinePopup = {
 };
 
 export function openPopupView(type: EVENT_TYPE, viewLocation?: PopupVisualizerLocation) {
+    if (type === EVENT_TYPE.OPEN_VIEW) {
+        VisualizerWebview.currentPanel?.getWebview()?.reveal();
+    }
     popupStateService.send({ type: type, viewLocation: viewLocation });
 }

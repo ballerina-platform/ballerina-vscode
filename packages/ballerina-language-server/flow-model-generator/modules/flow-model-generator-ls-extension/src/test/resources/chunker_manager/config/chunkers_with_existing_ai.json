@@ -9,43 +9,66 @@
         "items": [
           {
             "metadata": {
-              "label": "Generic Recursive Chunker",
-              "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
+              "label": "AI Chunkers",
+              "description": "Chunkers available in ballerina/ai",
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
             },
-            "codedata": {
-              "node": "CHUNKER",
-              "org": "ballerina",
-              "module": "ai",
-              "packageName": "ai",
-              "object": "GenericRecursiveChunker",
-              "symbol": "init",
-              "version": "1.3.0"
-            },
-            "enabled": true
-          },
-          {
-            "metadata": {
-              "label": "Markdown Chunker",
-              "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.3.0.png"
-            },
-            "codedata": {
-              "node": "CHUNKER",
-              "org": "ballerina",
-              "module": "ai",
-              "packageName": "ai",
-              "object": "MarkdownChunker",
-              "symbol": "init",
-              "version": "1.3.0"
-            },
-            "enabled": true
+            "items": [
+              {
+                "metadata": {
+                  "label": "Generic Recursive Chunker",
+                  "description": "Represents a Genereric document chunker.\nProvides functionality to recursively chunk a text document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+                },
+                "codedata": {
+                  "node": "CHUNKER",
+                  "org": "ballerina",
+                  "module": "ai",
+                  "packageName": "ai",
+                  "object": "GenericRecursiveChunker",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Markdown Chunker",
+                  "description": "Represents a Markdown document chunker.\nProvides functionality to recursively chunk a markdown document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+                },
+                "codedata": {
+                  "node": "CHUNKER",
+                  "org": "ballerina",
+                  "module": "ai",
+                  "packageName": "ai",
+                  "object": "MarkdownChunker",
+                  "symbol": "init"
+                },
+                "enabled": true
+              },
+              {
+                "metadata": {
+                  "label": "Html Chunker",
+                  "description": "Represents an HTML document chunker.\nProvides functionality to recursively chunk a HTML document using a configurable strategy.\n\nThe chunking process begins with the specified strategy and recursively falls back to\nfiner-grained strategies if the content exceeds the configured `maxChunkSize`. Overlapping content\nbetween chunks can be controlled using `maxOverlapSize`.",
+                  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
+                },
+                "codedata": {
+                  "node": "CHUNKER",
+                  "org": "ballerina",
+                  "module": "ai",
+                  "packageName": "ai",
+                  "object": "HtmlChunker",
+                  "symbol": "init"
+                },
+                "enabled": true
+              }
+            ]
           },
           {
             "metadata": {
               "label": "Devant Chunker",
               "description": "Splits documents loaded by the `devant:BinaryDataLoader` into smaller chunks \nusing the Devant AI service.",
-              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+              "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
             },
             "codedata": {
               "node": "CHUNKER",
@@ -53,8 +76,7 @@
               "module": "ai.devant",
               "packageName": "ai.devant",
               "object": "Chunker",
-              "symbol": "init",
-              "version": "1.0.0"
+              "symbol": "init"
             },
             "enabled": true
           }

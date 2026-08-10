@@ -18,6 +18,8 @@
 
 import { ChatNotify, DownloadProgress } from "../../state-machine-types";
 import { ProjectMigrationResult } from "../../interfaces/extended-lang-client";
+import { ServiceInitModel } from "../../interfaces/service";
+import { FlowNode } from "../../interfaces/bi";
 
 /**
  * Shared wire contract for the BI "migrated forms" webview-communication layer
@@ -41,12 +43,11 @@ export const WEBVIEW_WS_EVENTS = {
     CHAT_NOTIFY: "bi.chat.notify",
 } as const;
 
-/** Request envelope the form sends; the bridge unwraps it. The per-session
- *  `token` is required only in websocket (embedded) mode. */
+/** Request envelope the form sends; the bridge unwraps it. Authentication is
+ *  handled once during the websocket handshake, so requests carry no token. */
 export interface WebviewWsRequest {
     action: string;
     params?: unknown;
-    token?: string;
 }
 
 export interface WebviewWsResponseMessage {
@@ -113,4 +114,191 @@ export interface WebviewWsBootstrap {
 export interface SignInResult {
     success: boolean;
     error?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Create Integration wizard (3-step) wire contract — shared between the
+// `ballerina-visualizer` wizard (`BiWsClient`) and the extension server
+// (`DefaultServer` → `features/bi/integration-wizard.ts`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Artifact kinds the Create Integration wizard can pre-configure in the Configure step. */
+export type PendingIntegrationArtifactKind = "SERVICE" | "AUTOMATION" | "WORKFLOW" | "AI_CHAT_AGENT";
+
+/**
+ * Human-readable labels per artifact kind, shared so the wizard's "Creating …"
+ * screen and the post-reload startup screen word the same artifact identically —
+ * the two are meant to read as one continuous progress screen across the
+ * `vscode.openFolder` reload, which any wording drift would give away.
+ */
+export const INTEGRATION_ARTIFACT_LABELS: Record<PendingIntegrationArtifactKind, string> = {
+    SERVICE: "service",
+    AUTOMATION: "automation",
+    WORKFLOW: "workflow",
+    AI_CHAT_AGENT: "AI chat agent",
+};
+
+/** What the create is producing inside the project — an integration or a library. */
+export type IntegrationComponentLabel = "integration" | "library";
+
+/** Everything the creation progress screens need to name what is being created and where. */
+export interface IntegrationCreationCopyParams {
+    /** Name of the integration/library being created. */
+    integrationName: string;
+    /** e.g. "service"; absent for an integration created without a first artifact. */
+    artifactLabel?: string;
+    /** Display name of the project the package is created in; absent for a standalone package. */
+    projectName?: string;
+    /** True when this same submit also creates the project itself. */
+    isNewProject?: boolean;
+    /** Defaults to "integration". */
+    componentLabel?: IntegrationComponentLabel;
+}
+
+/**
+ * Wording for the create-in-progress screens. The three variants mirror the three
+ * things a submit can actually be doing, so the screen never claims a project is
+ * being created when the package is only being added to one that already exists.
+ */
+export function getIntegrationCreationCopy({
+    integrationName,
+    artifactLabel,
+    projectName,
+    isNewProject,
+    componentLabel = "integration",
+}: IntegrationCreationCopyParams): { title: string; subtitle: string } {
+    // What finally opens: the configured first artifact when there is one, else the
+    // integration/library itself (an empty integration is still something to open).
+    const opening = artifactLabel ?? componentLabel;
+
+    if (projectName && isNewProject) {
+        return {
+            title: `Creating project ${projectName} with ${componentLabel} ${integrationName}`,
+            subtitle: `Your new ${opening} will open once the project is ready.`,
+        };
+    }
+    if (projectName) {
+        return {
+            title: `Adding ${componentLabel} ${integrationName} to project ${projectName}`,
+            subtitle: `Your new ${opening} will open once it has been created.`,
+        };
+    }
+    // Standalone package — there is no project to name.
+    return {
+        title: `Creating ${integrationName}`,
+        subtitle: `Your new ${opening} will open once the project is ready.`,
+    };
+}
+
+/**
+ * The filled artifact model persisted by the wizard right before the terminal
+ * `vscode.openFolder` reload (at `<projectRoot>/target/.wizard-pending-artifact.json`)
+ * and consumed post-reload by `checkAndRunPendingArtifact`.
+ */
+export interface PendingIntegrationArtifactPayload {
+    version: 1;
+    kind: PendingIntegrationArtifactKind;
+    /** Filled service-init model — required when `kind` is `SERVICE`. */
+    serviceInitModel?: ServiceInitModel;
+    /** Filled function node template — required when `kind` is `AUTOMATION` or `WORKFLOW`. */
+    flowNode?: FlowNode;
+    /** Agent details — required when `kind` is `AI_CHAT_AGENT`. */
+    aiAgent?: { name: string };
+}
+
+/** The final integration package parameters (step 1). */
+export interface IntegrationProjectParams {
+    integrationName: string;
+    packageName: string;
+    /** Parent directory the integration folder is created under. */
+    projectPath: string;
+    /** Editable folder name (last path segment), decoupled from the package name. */
+    directoryName: string;
+    /**
+     * When true, `projectPath` is a brand-new Ballerina workspace root: the
+     * workspace is scaffolded there and the integration package created inside it
+     * (always-workspace model of the unified Create flow). When false/absent, the
+     * legacy standalone / add-into-existing-workspace routing applies.
+     */
+    newProject?: boolean;
+    /** Display name (title) for the new workspace when `newProject` is true. */
+    workspaceName?: string;
+    /**
+     * When true, the currently open standalone integration is converted into a new
+     * workspace at `projectPath` (the existing package is moved inside it) before
+     * the new integration package is created — used by the "Convert to Project &
+     * add a new integration" flow so it goes through the same wizard as the initial
+     * Create experience. Implies a new workspace, so `projectPath` must not already
+     * be a project.
+     */
+    convertToWorkspace?: boolean;
+}
+
+/**
+ * Response to the request for the throwaway staging package the Configure-step artifact
+ * form resolves its language-server model against. The staging package lives in
+ * the OS temp dir — NOT at the user's chosen path — so an abandoned wizard can
+ * never occupy (and later collide with) the final location. The real project is
+ * created only at finalize (`createIntegration`).
+ */
+export interface ScaffoldIntegrationProjectResponse {
+    /** Absolute path of the temp staging package (used only for model fetching). */
+    projectRoot: string;
+}
+
+/** Final-submit request of the Create Integration wizard. */
+export interface CreateIntegrationRequest {
+    /** Final name/path; the real project is created here, fresh, at finalize. */
+    project: IntegrationProjectParams;
+    /** Configured first artifact; absent for an empty integration. */
+    artifact?: PendingIntegrationArtifactPayload;
+}
+
+/**
+ * Final-submit request of the wizard when it runs against an ALREADY-created
+ * package (the "continue where you left off" flow for an empty integration).
+ *
+ * No package is created here — only the configured artifact is generated into
+ * the existing package, in the current session, so the user never leaves the
+ * package overview they started from.
+ */
+export interface AddIntegrationArtifactRequest {
+    /** Root of the existing package the artifact is generated into. */
+    packageRoot: string;
+    /** Configured artifact; unlike `CreateIntegrationRequest` this is required —
+     *  there is nothing to do without it, the package already exists. */
+    artifact: PendingIntegrationArtifactPayload;
+}
+
+/** Version-skew handshake: embedded hosts call this first and fall back to the
+ *  legacy single-step form when it fails or `threeStepWizard` is false. */
+export interface WizardCapabilitiesResponse {
+    threeStepWizard: boolean;
+    version: number;
+    /** Whether the connected Ballerina distribution supports projects/workspaces
+     *  (2201.13.0+). When false, the unified Create flow must fall back to
+     *  standalone integration/library creation instead of the project chooser.
+     *
+     *  `undefined` means NOT YET KNOWN — the probe is answered before the
+     *  extension has resolved the distribution version, so the flow can render
+     *  without waiting on it. Treating `undefined` as `false` silently degrades
+     *  the user to the standalone flow; await {@link WorkspaceSupportResponse}
+     *  (the `getWorkspaceSupport` RPC) for the settled answer instead. */
+    isWorkspaceSupported?: boolean;
+}
+
+/** Settled answer to "does this distribution support projects/workspaces?".
+ *  The `getWorkspaceSupport` RPC resolves only once the extension has determined
+ *  it, so callers never observe the pre-init default. */
+export interface WorkspaceSupportResponse {
+    isWorkspaceSupported: boolean;
+}
+
+/** Resolves the file the wizard's Configure-step artifact form should target. */
+export interface WizardFormTargetRequest {
+    projectRoot: string;
+}
+
+export interface WizardFormTargetResponse {
+    filePath: string;
 }

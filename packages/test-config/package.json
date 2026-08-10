@@ -1,0 +1,27 @@
+{
+    "name": "@wso2/test-config",
+    "version": "1.0.0",
+    "description": "Shared Jest configuration, jsdom/browser environment mocks and fixture helpers for the Ballerina VSCode webview packages.",
+    "private": true,
+    "license": "Apache-2.0",
+    "main": "jest-preset.js",
+    "files": [
+        "jest-preset.js",
+        "jest.env.js",
+        "matchMedia.js",
+        "identity-obj-proxy.js",
+        "fixtures.js",
+        "fixtures.d.ts",
+        "ls-harness.js",
+        "ls-harness.d.ts",
+        "jest-matchers.d.ts",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "echo \"@wso2/test-config: no build step\""
+    },
+    "dependencies": {
+        "@testing-library/jest-dom": "6.6.3",
+        "@types/node": "22.15.21"
+    }
+}

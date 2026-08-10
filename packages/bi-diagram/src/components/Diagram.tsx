@@ -44,7 +44,12 @@ import Controls from "./Controls";
 import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, JoinProjectPathResponse, traverseFlow, VisualizerLocation } from "@wso2/ballerina-core";
 import { BreakpointVisitor } from "../visitors/BreakpointVisitor";
 import { BaseNodeModel } from "./nodes/BaseNode";
+import { AgentCallNodeModel } from "./nodes/AgentCallNode/AgentCallNodeModel";
+import { AgentNodeModel } from "./nodes/AgentNode/AgentNodeModel";
 import { PopupOverlay } from "./PopupOverlay";
+import { AgentNodeActions } from "./AgentNodeActions";
+
+export type { AgentNodeActions } from "./AgentNodeActions";
 
 export interface DiagramProps {
     model: Flow;
@@ -59,20 +64,13 @@ export interface DiagramProps {
     onConnectionSelect?: (connectionName: string) => void;
     goToSource?: (node: FlowNode) => void;
     openView?: (location: VisualizerLocation) => void;
+    goToAgent?: (node: FlowNode) => void;
+    goToAgentDefinition?: (node: FlowNode) => void;
+    getAgentDefinitionLocation?: (node: FlowNode) => Promise<VisualizerLocation | undefined>;
     draftNode?: DraftNodeConfig;
     selectedNodeId?: string;
     // agent node callbacks
-    agentNode?: {
-        onModelSelect: (node: FlowNode) => void;
-        onAddTool: (node: FlowNode) => void;
-        onAddMcpServer: (node: FlowNode) => void;
-        onSelectTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMcpToolkit: (tool: ToolData, node: FlowNode) => void;
-        onDeleteTool: (tool: ToolData, node: FlowNode) => void;
-        goToTool: (tool: ToolData, node: FlowNode) => void;
-        onSelectMemoryManager: (node: FlowNode) => void;
-        onDeleteMemoryManager: (node: FlowNode) => void;
-    };
+    agentNode?: AgentNodeActions;
     // ai nodes callbacks
     aiNodes?: {
         onModelSelect: (node: FlowNode) => void;
@@ -101,6 +99,8 @@ export interface DiagramProps {
         serviceName?: string;
         functionName?: string;
     };
+    isAgentFocusView?: boolean;
+    embedded?: boolean;
 }
 
 export function Diagram(props: DiagramProps) {
@@ -115,6 +115,9 @@ export function Diagram(props: DiagramProps) {
         onConnectionSelect,
         goToSource,
         openView,
+        goToAgent,
+        goToAgentDefinition,
+        getAgentDefinitionLocation,
         draftNode,
         selectedNodeId,
         agentNode,
@@ -129,12 +132,15 @@ export function Diagram(props: DiagramProps) {
         isUserAuthenticated,
         expressionContext,
         entrypointContext,
+        isAgentFocusView,
+        embedded,
     } = props;
 
     const [showErrorFlow, setShowErrorFlow] = useState(false);
-    const [nodeComments, setNodeComments] = useState<Map<string, FlowNode>>(new Map());
+    const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
+    const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
 
@@ -286,10 +292,51 @@ export function Diagram(props: DiagramProps) {
             diagramEngine.getModel().removeLayer(overlayLayer);
         }
 
-        if (nodes.length < 3 || !hasDiagramZoomAndPosition(model.fileName)) {
+        const isSingleAgentNode =
+            isAgentFocusView && nodes.length === 1 &&
+            (nodes[0].getType() === NodeTypes.AGENT_CALL_NODE ||
+                nodes[0].getType() === NodeTypes.TYPED_AGENT_NODE ||
+                nodes[0].getType() === NodeTypes.AGENT_NODE);
+        if (isSingleAgentNode) {
+            const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
+            const { lw, y } = agentNode.node.viewState;
+            agentNode.setPosition(-lw, y);
+        }
+
+        // Fit only on first render per file; preserve zoom/pan on later updates.
+        if (!hasDiagramZoomAndPosition(model.fileName)) {
             resetDiagramZoomAndPosition(model.fileName);
         }
         loadDiagramZoomAndPosition(diagramEngine);
+
+        if (isSingleAgentNode) {
+            const centerSingleAgentNode = () => {
+                const canvas = diagramEngine.getCanvas();
+                if (!canvas) {
+                    return false;
+                }
+                const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
+                const diagramModel = diagramEngine.getModel();
+                const zoom = diagramModel.getZoomLevel() / 100;
+                const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
+                const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
+                const offsetX = canvasWidth / 2;
+                const offsetY = canvasHeight / 2 - 40 - (agentNode.getY() + cardHeight / 2) * zoom;
+                diagramModel.setOffset(offsetX, offsetY);
+                return true;
+            };
+
+            if (!centerSingleAgentNode()) {
+                requestAnimationFrame(() => {
+                    if (centerSingleAgentNode()) {
+                        diagramEngine.repaintCanvas();
+                    }
+                    setCanvasVisible(true);
+                });
+            } else {
+                setCanvasVisible(true);
+            }
+        }
 
         diagramEngine.repaintCanvas();
         // update the diagram model state
@@ -329,9 +376,12 @@ export function Diagram(props: DiagramProps) {
         onConnectionSelect: onConnectionSelect,
         goToSource: goToSource,
         openView: openView,
+        goToAgent: goToAgent,
+        goToAgentDefinition: goToAgentDefinition,
+        getAgentDefinitionLocation: getAgentDefinitionLocation,
         draftNode: draftNode,
         selectedNodeId: selectedNodeId,
-        agentNode: agentNode,
+        agentNode,
         aiNodes: aiNodes,
         suggestions: suggestions,
         project: project,
@@ -370,9 +420,9 @@ export function Diagram(props: DiagramProps) {
     const getFocusedNode = (nodes: NodeModel[]): NodeModel | undefined =>
         getActiveBreakpointNode(nodes) || getDraftNode(nodes);
 
-    return (
+    const diagramContent = (
         <>
-            <Controls engine={diagramEngine} />
+            <Controls engine={diagramEngine} embedded={embedded} />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
                     {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} />}
@@ -386,6 +436,21 @@ export function Diagram(props: DiagramProps) {
             )}
         </>
     );
+
+    if (isAgentFocusView && embedded) {
+        return (
+            <div style={{
+                opacity: canvasVisible ? 1 : 0,
+                transition: canvasVisible ? "opacity 0.15s ease" : "none",
+                height: "100%",
+                width: "100%",
+            }}>
+                {diagramContent}
+            </div>
+        );
+    }
+
+    return diagramContent;
 }
 
 export const MemoizedDiagram = memo(Diagram);

@@ -558,26 +558,22 @@ public final class HttpUtil {
 
             // Add HTTP annotation if applicable
             String httpParamType = param.getHttpParamType();
-            if (httpParamType != null) {
-                if (httpParamType.equals(HTTP_PARAM_TYPE_HEADER)) {
-                    paramDef.append("@http:").append(HTTP_HEADER_PARAM_ANNOTATION);
-                    Value headerName = param.getHeaderName();
-                    if (headerName != null && headerName.isEnabledWithValue()
-                            && !headerName.getValue().equals(param.getName().getValue())) {
-                        paramDef.append(" {name: ").append(headerName.getLiteralValue()).append("}");
-                    }
-                } else {
-                    Value queryAnnot = properties.get("annotQuery");
-                    Value payloadAnnot = properties.get("annotPayload");
-                    if (Objects.nonNull(queryAnnot) && Objects.nonNull(queryAnnot.getValue())) {
-                        paramDef.append("@http:").append(HTTP_QUERY_PARAM_ANNOTATION).append(queryAnnot.getValue());
-                    } else if (Objects.nonNull(payloadAnnot) && Objects.nonNull(payloadAnnot.getValue())) {
-                        paramDef.append("@http:").append(HTTP_PAYLOAD_PARAM_ANNOTATION).append(payloadAnnot.getValue());
-                    } else if (httpParamType.equals(HTTP_PARAM_TYPE_QUERY)) {
-                        paramDef.append("@http:").append(HTTP_QUERY_PARAM_ANNOTATION);
-                    } else if (httpParamType.equals(HTTP_PARAM_TYPE_PAYLOAD)) {
-                        paramDef.append("@http:").append(HTTP_PAYLOAD_PARAM_ANNOTATION);
-                    }
+            if (HTTP_PARAM_TYPE_HEADER.equals(httpParamType)) {
+                // Shared with the generic schema-driven emitter (Utils#generateFunctionParamListSource)
+                // so a header parameter renders identically whether it came from an HTTP resource or a
+                // schema-driven function's user-added header (see TriggerFunctionAdapter's parameterSchema).
+                paramDef.append(Utils.buildHttpHeaderAnnotationPrefix(param, imports));
+            } else if (httpParamType != null) {
+                Value queryAnnot = properties.get("annotQuery");
+                Value payloadAnnot = properties.get("annotPayload");
+                if (Objects.nonNull(queryAnnot) && Objects.nonNull(queryAnnot.getValue())) {
+                    paramDef.append("@http:").append(HTTP_QUERY_PARAM_ANNOTATION).append(queryAnnot.getValue());
+                } else if (Objects.nonNull(payloadAnnot) && Objects.nonNull(payloadAnnot.getValue())) {
+                    paramDef.append("@http:").append(HTTP_PAYLOAD_PARAM_ANNOTATION).append(payloadAnnot.getValue());
+                } else if (httpParamType.equals(HTTP_PARAM_TYPE_QUERY)) {
+                    paramDef.append("@http:").append(HTTP_QUERY_PARAM_ANNOTATION);
+                } else if (httpParamType.equals(HTTP_PARAM_TYPE_PAYLOAD)) {
+                    paramDef.append("@http:").append(HTTP_PAYLOAD_PARAM_ANNOTATION);
                 }
                 paramDef.append(SPACE);
             }

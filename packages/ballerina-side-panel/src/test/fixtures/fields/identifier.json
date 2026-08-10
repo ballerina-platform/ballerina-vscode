@@ -1,0 +1,16 @@
+{
+    "description": "IDENTIFIER (editable) -> IdentifierField",
+    "expectedEditor": "IdentifierField",
+    "fieldInputType": { "fieldType": "IDENTIFIER" },
+    "field": {
+        "key": "f_IDENTIFIER",
+        "label": "IDENTIFIER field",
+        "type": "IDENTIFIER",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "myVar",
+        "types": [{ "fieldType": "IDENTIFIER", "selected": false }],
+        "enabled": true
+    }
+}

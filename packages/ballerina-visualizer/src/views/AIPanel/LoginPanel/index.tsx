@@ -18,11 +18,10 @@
 
 import styled from "@emotion/styled";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import { AIMachineEventType } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Icon, Typography } from "@wso2/ui-toolkit";
-import React, { useEffect, useState } from "react";
+import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import React from "react";
 import { Banner } from "../../../components/Banner";
 
 const PanelWrapper = styled.div`
@@ -38,10 +37,6 @@ const TopSpacer = styled.div`
     min-height: 24px;
 `;
 
-const BottomSpacer = styled.div`
-    height: 32px;
-`;
-
 const EndSpacer = styled.div`
     flex-grow: 1;
 `;
@@ -51,63 +46,170 @@ const HeaderContent = styled.div`
     flex-direction: column;
     align-items: center;
     text-align: center;
-`;
-
-const FooterContent = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 18px;
-    width: 100%;
-    max-width: 360px;
-    align-self: center;
+    margin-bottom: 32px;
 `;
 
 const Title = styled.h2`
     display: inline-flex;
-    margin-top: 40px;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
 `;
 
-const StyledButton = styled(VSCodeButton)`
-    width: 100%;
-    height: 32px;
-    margin-top: 12px;
-`;
-
-const PostLoginSection = styled.div`
+const BodyContent = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
+    align-items: stretch;
+    width: 100%;
+    max-width: 380px;
+    align-self: center;
+    gap: 0;
 `;
 
-const Divider = styled.div`
+const WSO2LoginButton = styled.button`
     display: flex;
     align-items: center;
-    color: var(--vscode-widget-border);
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 20px;
+    background-color: ${ThemeColors.PRIMARY};
+    color: ${ThemeColors.ON_PRIMARY};
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    &:hover {
+        background-color: var(--vscode-button-hoverBackground);
+    }
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+`;
+
+const RecommendedBadge = styled.div`
+    margin-top: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: ${ThemeColors.ON_SURFACE_VARIANT};
+    text-align: center;
+`;
+
+const SectionDivider = styled.div`
+    display: flex;
+    align-items: center;
+    color: var(--vscode-descriptionForeground);
     font-size: 12px;
     width: 100%;
+    margin: 28px 0 16px;
     &::before,
     &::after {
         content: "";
         flex: 1;
         border-bottom: 1px solid var(--vscode-widget-border);
-        margin: 0 8px;
+        margin: 0 10px;
     }
 `;
 
-const TextButton = styled.button`
+const ProviderCard = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px;
     background: none;
-    border: none;
-    color: var(--vscode-textLink-foreground);
-    font-size: 13px;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 6px;
     cursor: pointer;
-    padding: 0;
-    margin-top: -6px;
+    text-align: left;
+    margin-bottom: 8px;
+    color: var(--vscode-foreground);
+    &:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+    &:last-child {
+        margin-bottom: 0;
+    }
+`;
+
+const ProviderLogoWrapper = styled.div`
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+`;
+
+const ProviderInfo = styled.div`
+    flex: 1;
+    min-width: 0;
+`;
+
+const ProviderName = styled.div`
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+`;
+
+const ProviderDesc = styled.div`
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 2px;
+`;
+
+const ChevronIcon = styled.span`
+    color: ${ThemeColors.PRIMARY};
+    font-size: 16px;
+    flex-shrink: 0;
+`;
+
+const Footer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    width: 100%;
+    max-width: 380px;
+    align-self: center;
+`;
+
+const FooterDisclaimer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.5;
+    text-align: center;
+`;
+
+const FooterLinks = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+`;
+
+const FooterLink = styled.a`
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
     &:hover {
         text-decoration: underline;
     }
+`;
+
+const FooterDivider = styled.span`
+    color: var(--vscode-widget-border);
 `;
 
 const InstallingContainer = styled.div`
@@ -115,28 +217,27 @@ const InstallingContainer = styled.div`
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    width: 100%;
 `;
 
-const LegalNotice: React.FC = () => {
-    return (
-        <PostLoginSection>
-            <div>
-                WSO2 Integrator Copilot uses AI to assist with integration. AI-generated content may contain mistakes. Always review changes.
-            </div>
-            <div>
-                By signing in, you agree to our{" "}
-                <a
-                    href="https://wso2.com/licenses/wso2-ai-services-terms-of-use/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    Terms of Use
-                </a>
-                .
-            </div>
-        </PostLoginSection>
-    );
-};
+const InstallButton = styled.button`
+    width: 100%;
+    padding: 10px 20px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    &:hover:not(:disabled) {
+        background-color: var(--vscode-button-secondaryHoverBackground);
+    }
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+`;
+
 
 const LoginPanel: React.FC = () => {
     const { rpcClient } = useRpcContext();
@@ -144,20 +245,20 @@ const LoginPanel: React.FC = () => {
     const { data: isPlatformAvailable, refetch: refetchPlatformAvailability } = useQuery({
         queryKey: ["platform-availability"],
         queryFn: () => rpcClient.getAiPanelRpcClient().isPlatformExtensionAvailable(),
-    })
+    });
 
-    const { 
-        mutate: installExtension, 
-        isPending: isInstallingExtension, 
-        error: installExtensionError 
+    const {
+        mutate: installExtension,
+        isPending: isInstallingExtension,
+        error: installExtensionError,
     } = useMutation({
-        mutationFn: async() => {
+        mutationFn: async () => {
             return rpcClient.getCommonRpcClient().executeCommand({
                 commands: ["workbench.extensions.installExtension", "wso2.wso2-integrator"],
-            })
+            });
         },
-        onSettled: (data, err) => refetchPlatformAvailability(),
-    })
+        onSettled: () => refetchPlatformAvailability(),
+    });
 
     const handleCopilotLogin = () => {
         rpcClient.sendAIStateEvent(AIMachineEventType.LOGIN);
@@ -167,8 +268,8 @@ const LoginPanel: React.FC = () => {
         rpcClient.sendAIStateEvent(AIMachineEventType.AUTH_WITH_API_KEY);
     };
 
-    const handleAwsBedrockClick = () => {
-        rpcClient.sendAIStateEvent(AIMachineEventType.AUTH_WITH_AWS_BEDROCK);
+    const handleAwsClick = () => {
+        rpcClient.sendAIStateEvent(AIMachineEventType.AUTH_WITH_AWS);
     };
 
     const handleVertexAiClick = () => {
@@ -194,37 +295,92 @@ const LoginPanel: React.FC = () => {
                         fontSize: 14,
                     }}
                 >
-                    Integrate better with your AI pair.
+                    Your AI pair programmer for integration development
                 </Typography>
             </HeaderContent>
-            <BottomSpacer />
-            <FooterContent>
-                <LegalNotice />
+
+            <BodyContent>
                 {isPlatformAvailable ? (
-                    <StyledButton onClick={handleCopilotLogin}>Login using WSO2 Integration Platform</StyledButton>
+                    <>
+                        <WSO2LoginButton onClick={handleCopilotLogin}>
+                            <Icon name="bi-wso2" sx={{ width: 22, height: 22 }} iconSx={{ fontSize: "22px", color: ThemeColors.ON_PRIMARY }} />
+                            Login using your WSO2 Cloud account
+                        </WSO2LoginButton>
+                        <RecommendedBadge>
+                            Recommended • Managed authentication • No API keys required
+                        </RecommendedBadge>
+                    </>
                 ) : (
-                    <InstallingContainer>  
-                        Install WSO2 Integrator to sign in and use BI Copilot.
-                        <StyledButton 
-                            disabled={isInstallingExtension || undefined} 
-                            onClick={installExtension}
-                            appearance="secondary"
+                    <InstallingContainer>
+                        <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
+                            Install the WSO2 Integrator extension to sign in and use WSO2 Integrator Copilot.
+                        </Typography>
+                        <InstallButton
+                            disabled={isInstallingExtension}
+                            onClick={() => installExtension()}
                         >
                             Install WSO2 Integrator
-                        </StyledButton>
-                        {installExtensionError && 
-                            <Banner 
-                                variant="error" 
+                        </InstallButton>
+                        {installExtensionError && (
+                            <Banner
+                                variant="error"
                                 message={installExtensionError?.message || "Failed to install WSO2 Integrator"}
                             />
-                        }
+                        )}
                     </InstallingContainer>
                 )}
-                <Divider>or</Divider>
-                <TextButton onClick={handleAnthropicKeyClick}>Enter your Anthropic API key</TextButton>
-                <TextButton onClick={handleAwsBedrockClick}>Enter your AWS Bedrock credentials</TextButton>
-                <TextButton onClick={handleVertexAiClick}>Enter your Google Vertex AI credentials</TextButton>
-            </FooterContent>
+
+                <SectionDivider>Use your own AI provider</SectionDivider>
+
+                <ProviderCard onClick={handleAnthropicKeyClick}>
+                    <ProviderLogoWrapper>
+                        <Icon name="bi-anthropic" sx={{ width: 24, height: 24 }} iconSx={{ fontSize: "24px" }} />
+                    </ProviderLogoWrapper>
+                    <ProviderInfo>
+                        <ProviderName>Anthropic API Key</ProviderName>
+                        <ProviderDesc>Use your Anthropic API key to power Copilot</ProviderDesc>
+                    </ProviderInfo>
+                    <ChevronIcon>›</ChevronIcon>
+                </ProviderCard>
+
+                <ProviderCard onClick={handleAwsClick}>
+                    <ProviderLogoWrapper>
+                        <Icon name="bi-aws" sx={{ width: 28, height: 28 }} iconSx={{ fontSize: "28px" }} />
+                    </ProviderLogoWrapper>
+                    <ProviderInfo>
+                        <ProviderName>AWS Bedrock</ProviderName>
+                        <ProviderDesc>Use your AWS Bedrock account</ProviderDesc>
+                    </ProviderInfo>
+                    <ChevronIcon>›</ChevronIcon>
+                </ProviderCard>
+
+                <ProviderCard onClick={handleVertexAiClick}>
+                    <ProviderLogoWrapper>
+                        <Icon name="bi-vertex-ai" sx={{ width: 28, height: 28 }} iconSx={{ fontSize: "28px" }} />
+                    </ProviderLogoWrapper>
+                    <ProviderInfo>
+                        <ProviderName>Google Vertex AI</ProviderName>
+                        <ProviderDesc>Use your Google Vertex AI account</ProviderDesc>
+                    </ProviderInfo>
+                    <ChevronIcon>›</ChevronIcon>
+                </ProviderCard>
+            </BodyContent>
+
+            <Footer>
+                <FooterDisclaimer>
+                    AI-generated content may contain mistakes. Always review generated changes.
+                </FooterDisclaimer>
+                <FooterLinks>
+                    <FooterLink href="https://wso2.com/licenses/wso2-ai-services-terms-of-use/" target="_blank" rel="noopener noreferrer">
+                        Terms of Use
+                    </FooterLink>
+                    <FooterDivider>|</FooterDivider>
+                    <FooterLink href="https://wso2.com/privacy-policy/" target="_blank" rel="noopener noreferrer">
+                        Data Handling &amp; Privacy
+                    </FooterLink>
+                </FooterLinks>
+            </Footer>
+
             <EndSpacer />
         </PanelWrapper>
     );

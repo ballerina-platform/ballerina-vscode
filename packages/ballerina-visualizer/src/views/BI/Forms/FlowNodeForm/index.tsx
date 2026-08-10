@@ -47,6 +47,8 @@ import {
     DiagnosticMessage,
     AvailableNode,
     ParentPopupData,
+    isAgentCallNode,
+    isAgentDeclarationNode,
 } from "@wso2/ballerina-core";
 import {
     FieldDerivation,
@@ -119,7 +121,7 @@ import DynamicModal from "../../../../components/Modal";
 import { EntryPointTypeCreator } from "../../../../components/EntryPointTypeCreator";
 import React from "react";
 import { SidePanelView } from "../../FlowDiagram/PanelManager";
-import { ConnectionKind } from "../../../../components/ConnectionSelector";
+import { ConnectionKind, useCreateNode } from "../../../../components/ConnectionSelector";
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
@@ -182,10 +184,13 @@ interface FlowNodeFormProps {
     fieldPriority?: Record<string, number>; // Map of field keys to priority numbers (lower = rendered first)
     fieldOverrides?: Record<string, Partial<FormField>>;
     footerActionButton?: boolean; // Render save button as footer action button
+    hideInfoBanner?: boolean; // Hide the auto-generated "no required parameters" info banner
     derivedFields?: FieldDerivation[]; // Configuration for auto-deriving field values from other fields
+    bottomFields?: string[];
     devantExpressionEditor?: ExpressionEditorDevantProps;
     customValidator?: (fieldKey: string, value: any, allValues: FormValues) => string | undefined; // Custom validation function for form fields
     defaultExpandAdvanced?: boolean;
+    onConnectionCreated?: () => void; // Notified when a connection (e.g. model provider) is created from a field
 }
 
 const EXPRESSION_FIELD_TYPES = new Set([
@@ -314,6 +319,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         injectedComponents,
         fieldPriority,
         footerActionButton,
+        hideInfoBanner,
         customValidator,
     } = props;
 
@@ -380,7 +386,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
 
     const skipFormValidation = useMemo(() => {
         const isAgentNode = node && (
-            (node.codedata.node === "AGENT_CALL" || node.codedata.node === "AGENT_RUN") &&
+            isAgentCallNode(node.codedata.node) &&
             node.codedata.org === "ballerina" &&
             node.codedata.module === "ai" &&
             node.codedata.packageName === "ai" &&
@@ -394,6 +400,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     }, [node]);
 
     const importsCodedataRef = useRef<any>(null); // To store codeData for getVisualizableFields
+    const formOpenedRef = useRef(false); // Tracks whether the expr:// form document has been opened (lazy)
     const typeResolutionId = useRef(0);
 
     //stack for recursive type creation
@@ -512,11 +519,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         if (node.codedata.node === "IF") {
             return;
         }
+        formOpenedRef.current = false;
         initForm(node);
-        handleFormOpen();
 
         return () => {
-            handleFormClose();
+            if (formOpenedRef.current) {
+                handleFormClose();
+            }
         };
     }, [node, showProgressIndicator]);
 
@@ -537,6 +546,13 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             .then(() => {
                 console.log(">>> Form closed");
             });
+    };
+
+    const ensureFormOpened = () => {
+        if (!formOpenedRef.current) {
+            formOpenedRef.current = true;
+            handleFormOpen();
+        }
     };
 
     // Sorts form fields based on the fieldPriority prop.
@@ -806,7 +822,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     );
 
     const formDiagnosticsFixTooltip = !isAiUserAuthenticated
-        ? "You need to be logged into BI Copilot to fix diagnostics"
+        ? "You need to be logged into WSO2 Integrator Copilot to fix diagnostics"
         : !diagnosticsTargetRange
             ? "No source location available for diagnostics"
             : formDiagnostics.length === 0
@@ -1527,6 +1543,8 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
         closePopup: closeModal
     }
 
+    const handleCreateNode = useCreateNode(fileName, targetLineRange, props.onConnectionCreated);
+
 
     // State to manage record config page modal
     const [recordConfigPageState, setRecordConfigPageState] = useState<{
@@ -1570,8 +1588,12 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
             retrieveVisibleTypes: handleGetVisibleTypes,
             getHelperPane: handleGetHelperPane,
             getTypeHelper: handleGetTypeHelper,
-            getExpressionFormDiagnostics: handleExpressionFormDiagnostics,
+            getExpressionFormDiagnostics: (...args: Parameters<typeof handleExpressionFormDiagnostics>) => {
+                ensureFormOpened();
+                return handleExpressionFormDiagnostics(...args);
+            },
             onCompletionItemSelect: handleCompletionItemSelect,
+            onFocus: ensureFormOpened,
             onBlur: handleExpressionEditorBlur,
             onCancel: handleExpressionEditorCancel,
             onOpenRecordConfigPage: openRecordConfigPage,
@@ -1594,6 +1616,9 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     ]);
 
     const fetchVisualizableFields = async (filePath: string, typeName?: string) => {
+        if (isAgentDeclarationNode(node.codedata.node)) {
+            return;
+        }
         const codedata = importsCodedataRef.current || { symbol: typeName };
         const res = await rpcClient
             .getDataMapperRpcClient()
@@ -2033,6 +2058,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     handleVisualizableFields={fetchVisualizableFields}
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
+                    hideInfoBanner={hideInfoBanner}
                     disableSaveButton={disableSaveButton}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
@@ -2187,6 +2213,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     openView={handleOpenView}
                     openSubPanel={openSubPanel}
                     subPanelView={subPanelView}
+                    onCreateNode={handleCreateNode}
                     expressionEditor={expressionEditor}
                     targetLineRange={targetLineRange}
                     fileName={fileName}
@@ -2199,6 +2226,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     handleVisualizableFields={fetchVisualizableFields}
                     visualizableField={visualizableField}
                     infoLabel={infoLabel}
+                    hideInfoBanner={hideInfoBanner}
                     disableSaveButton={disableSaveButton}
                     footerActionButton={footerActionButton}
                     actionButton={actionButton}
@@ -2217,6 +2245,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
                     onChange={handleFormChange}
                     injectedComponents={injectedComponents}
                     derivedFields={props.derivedFields}
+                    bottomFields={props.bottomFields}
                     updateImports={handleUpdateImports}
                     defaultExpandAdvanced={props.defaultExpandAdvanced}
                     onRequestCreateConnection={handleRequestCreateConnection}

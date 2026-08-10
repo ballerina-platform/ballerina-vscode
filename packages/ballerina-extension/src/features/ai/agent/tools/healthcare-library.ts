@@ -21,7 +21,7 @@ import { jsonSchema } from "ai";
 import { Library } from "../../utils/libs/library-types";
 import { selectRequiredFunctions, ModelUsage, mergeUsage } from "../../utils/libs/function-registry";
 import { MinifiedLibrary } from "@wso2/ballerina-core";
-import { ANTHROPIC_SONNET_4, getAnthropicClient, getProviderCacheControl } from "../../utils/ai-client";
+import { ANTHROPIC_SONNET, getAnthropicClient, getProviderCacheControl, getProviderModelOptions } from "../../utils/ai-client";
 import { z } from "zod";
 import { CopilotEventHandler, emitModelUsage, ToolModelUsage } from "../../utils/events";
 
@@ -170,7 +170,7 @@ export async function getRelevantLibrariesAndFunctions(
 export async function getSelectedLibraries(prompt: string, libraryType: GenerationType): Promise<{ libraries: string[], usage: ModelUsage }> {
     const allLibraries = await getAllLibraries(libraryType);
     if (allLibraries.length === 0) {
-        return { libraries: [], usage: { model: ANTHROPIC_SONNET_4, inputTokens: 0, outputTokens: 0 } };
+        return { libraries: [], usage: { model: ANTHROPIC_SONNET, inputTokens: 0, outputTokens: 0 } };
     }
     const cacheOptions = await getProviderCacheControl();
     const messages: ModelMessage[] = [
@@ -188,15 +188,15 @@ export async function getSelectedLibraries(prompt: string, libraryType: Generati
     //TODO: Add thinking and test with claude haiku
     const startTime = Date.now();
     const { object, usage } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+        model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 4096,
-        temperature: 0,
+        providerOptions: await getProviderModelOptions(),
         messages: messages,
         schema: LibraryListSchema,
         abortSignal: new AbortController().signal,
     });
     const endTime = Date.now();
-    const callUsage: ModelUsage = { model: ANTHROPIC_SONNET_4, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };
+    const callUsage: ModelUsage = { model: ANTHROPIC_SONNET, inputTokens: usage.inputTokens || 0, outputTokens: usage.outputTokens || 0 };
     console.log(`Library selection took ${endTime - startTime}ms, Usage:`, callUsage);
 
     console.log("Selected libraries:", object.libraries);

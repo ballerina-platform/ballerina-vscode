@@ -38,11 +38,18 @@ const EVENT_INTEGRATION_MODULES: ReadonlySet<string> = new Set([
     "trigger.shopify",
     "trigger.twilio",
     "trigger.hubspot",
-    "solace"
+    "solace",
+    "solace.jms",
+    "oracledb",
+    "sap.jco",
+    "aws.sqs",
+    "telegram",
+    "googleapis.chat",
+    "whatsapp.business"
 ]);
 
 /** Modules that map to the FILE_INTEGRATION scope. */
-const FILE_INTEGRATION_MODULES: ReadonlySet<string> = new Set(["ftp", "file"]);
+const FILE_INTEGRATION_MODULES: ReadonlySet<string> = new Set(["ftp", "file", "smb", "azure.storage.files"]);
 
 export function findScopeByModule(moduleName: string): SCOPE {
     if (moduleName === "ai") {
@@ -56,6 +63,45 @@ export function findScopeByModule(moduleName: string): SCOPE {
     } else if (FILE_INTEGRATION_MODULES.has(moduleName)) {
         return SCOPE.FILE_INTEGRATION;
     }
+}
+
+/**
+ * The connector-declared semantic `kind` values known to the designer (not to be confused with the
+ * unrelated LSP-completion `TriggerKind` in `extended-lang-client.ts`). Single source of truth for
+ * every `kind`-keyed lookup table (e.g. {@link KIND_TO_SCOPE} here, `KIND_TO_DEVANT_SCOPE` in
+ * `rpc-types/platform-ext/utils.ts`) so a new kind added here fails those tables to compile until
+ * they're updated too, instead of silently degrading at runtime.
+ */
+export const INTEGRATION_KINDS = ["event", "file", "http", "graphql", "ai", "mcp"] as const;
+export type IntegrationKind = typeof INTEGRATION_KINDS[number];
+
+export function isIntegrationKind(kind: string): kind is IntegrationKind {
+    return (INTEGRATION_KINDS as readonly string[]).includes(kind);
+}
+
+/**
+ * Maps a connector's declared semantic `kind` (from its trigger metadata) to a project {@link SCOPE}.
+ * This is the connector-agnostic classifier: any trigger that declares `kind: "event"` (GitHub, or a
+ * new webhook connector) is an Event Integration with no per-module entry and no release.
+ */
+const KIND_TO_SCOPE: Record<IntegrationKind, SCOPE> = {
+    event: SCOPE.EVENT_INTEGRATION,
+    file: SCOPE.FILE_INTEGRATION,
+    http: SCOPE.INTEGRATION_AS_API,
+    graphql: SCOPE.INTEGRATION_AS_API,
+    ai: SCOPE.AI_AGENT,
+    mcp: SCOPE.MCP,
+};
+
+/**
+ * Resolves a project scope, preferring the connector-declared `kind` and falling back to the (legacy)
+ * module allow-lists in {@link findScopeByModule} for connectors that ship no kind.
+ */
+export function findScope(kind: string | undefined, moduleName: string | undefined): SCOPE | undefined {
+    if (kind && isIntegrationKind(kind)) {
+        return KIND_TO_SCOPE[kind];
+    }
+    return moduleName ? findScopeByModule(moduleName) : undefined;
 }
 
 export function getAllVariablesForAiFrmProjectComponents(projectComponents: BallerinaProjectComponents): { [key: string]: any } {

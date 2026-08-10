@@ -1,52 +1,129 @@
 name: Update package version
+description: >-
+  Resolves the version for this build from the extension package.json — the single
+  source of truth, which always carries the next release as
+  'major.minor.patch-SNAPSHOT'. The language-server Gradle build reads this
+  manifest directly.
 inputs:
-  path:
-    description: 'Path to package'
-    required: true
   version:
-    description: 'Version to update'
-    required: true    
+    description: >-
+      Explicit version override. Leave empty (or 'N/A') to derive the version from
+      the extension package.json. Bump kinds are no longer meaningful: from a
+      '-SNAPSHOT' base, 'npm version patch' and 'npm version minor' both just drop
+      the prerelease id, so they would silently produce the same version.
+    required: false
+    default: ''
   isPreRelease:
-    default: true
-    type: boolean      
+    description: >-
+      Marketplace pre-release. Uses the same timestamped version as a nightly (see
+      'nightly'), and separately drives 'vsce package --pre-release' in
+      actions/build.
+    default: 'true'
+  nightly:
+    description: >-
+      Nightly build. Uses the same derivation as a pre-release —
+      major.(minor-1).<YYMMDDHH, UTC> from the extension '-SNAPSHOT' version, see
+      common/scripts/nightly-version.js — but is a separate input because it selects
+      only the version. Packaging is isPreRelease's job. Build callers must pass
+      both for a nightly; version-only callers such as schedule.yml may stamp with
+      nightly alone.
+    default: 'false'
+outputs:
+  version:
+    description: 'The resolved version, as written to package.json'
+    value: ${{ steps.resolve.outputs.version }}
 runs:
   using: "composite"
   steps:
-    - name: Remove timestamp
+    # Applied before the derivation steps, so an override can also serve as the
+    # base a timestamped version is derived from.
+    - name: Apply version override
+      if: ${{ inputs.version != '' && inputs.version != 'N/A' }}
       shell: bash
-      run: |
-        cd packages/${{ inputs.path }}
-        currentVersion=$(node -p "require('./package.json').version")
-        if [[ ${#currentVersion} -ge 8 ]]; then
-          currentVersionWOPreId=${currentVersion%-*}
-          currentVersionNo=${currentVersionWOPreId:0:-8}
-          if [[ $currentVersionNo != *?[0-9] ]]; then
-            currentVersionNo=${currentVersionNo}0
-          fi
-          npm version $currentVersionNo --preid beta --no-git-tag-version
-        fi  
-
-    - name: Update extension versions
-      if: ${{ inputs.version != 'N/A' }}
-      shell: bash
-      run: |
-        cd packages/${{ inputs.path }}
-        npm version ${{ inputs.version }} --preid beta --no-git-tag-version
+      # Passed through the environment and quoted rather than interpolated into the
+      # command: this is a workflow_dispatch string on the release path, so a direct
+      # '${{ inputs.version }}' would let anyone who can dispatch a release run
+      # arbitrary shell here.
+      env:
+        VERSION: ${{ inputs.version }}
+      run: npm version "${VERSION}" --no-git-tag-version --prefix packages/ballerina-extension
 
     - name: Get timestamp
       shell: bash
       id: timestamp
       run: |
-        timestamp=$(date '+%y%m%d%H')
+        set -euo pipefail
+        # YYMMDDHH, UTC. Must match nightly-version.js's timestamp() exactly — it is
+        # the fallback when no stamp is passed, and the two disagreeing would give
+        # the same build two different versions.
+        #
+        # Hour-granular rather than minute-granular: a full 'yymmddHHmm' is 10 digits
+        # and exceeds the Marketplace's int32 component limit (2147483647) from 2022
+        # onward, so every pre-release would be rejected at publish time. Dropping
+        # minutes keeps it to 8 digits, safely under the limit. Two builds cut in the
+        # same UTC hour do collide, which is accepted since nightlies only run once a
+        # day in practice. See nightly-version.js for the decode one-liner.
+        timestamp=$(date -u +'%y%m%d%H')
         echo "timestamp=$timestamp" >> $GITHUB_OUTPUT
 
-    - name: Set prerelase version
+    # Nightlies and pre-releases share one derivation: the extension version names the
+    # NEXT release as a snapshot, and both of these are unreleased work heading
+    # toward it, so they are published as major.(minor-1).<YYMMDDHH, UTC> — above every
+    # release of the previous line, below the release main is heading for. See
+    # common/scripts/nightly-version.js for the full rationale.
+    #
+    # Only a '-SNAPSHOT' extension version is derived from, and only main carries one. Release
+    # lines ('5.14.x') and staging branches ('alpha') carry a concrete version that
+    # is authored by hand, so a pre-release cut from one of those ships exactly what
+    # the file says — nightly-version.js would (correctly) refuse to derive from it.
+    - name: Set timestamped version
       shell: bash
-      if: ${{ inputs.isPreRelease == 'true' }}
+      if: ${{ inputs.nightly == 'true' || inputs.isPreRelease == 'true' }}
       run: |
-        cd packages/${{ inputs.path }}
-        currentVersion=$(node -p "require('./package.json').version")
-        newVersion=${currentVersion}${{ steps.timestamp.outputs.timestamp }}
-        echo $newVersion
-        npm version $newVersion --preid beta --no-git-tag-version
-        
+        set -euo pipefail
+        currentVersion=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        case "${currentVersion}" in
+          *-SNAPSHOT) ;;
+          *)
+            echo "Extension version ${currentVersion} is not a snapshot; publishing it as authored."
+            exit 0
+            ;;
+        esac
+        newVersion=$(node common/scripts/nightly-version.js --timestamp "${{ steps.timestamp.outputs.timestamp }}")
+        echo "Timestamped version: $newVersion"
+        npm version "$newVersion" --no-git-tag-version --prefix packages/ballerina-extension
+
+    # A real release ships exactly what the snapshot named: 5.14.0-SNAPSHOT -> 5.14.0.
+    - name: Set release version
+      shell: bash
+      if: ${{ inputs.nightly != 'true' && inputs.isPreRelease != 'true' }}
+      run: |
+        set -euo pipefail
+        currentVersion=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        newVersion="${currentVersion%-SNAPSHOT}"
+        if [ "$newVersion" != "$currentVersion" ]; then
+          echo "Release version: $newVersion"
+          npm version "$newVersion" --no-git-tag-version --prefix packages/ballerina-extension
+        fi
+
+    - name: Resolve and propagate version
+      shell: bash
+      id: resolve
+      run: |
+        set -euo pipefail
+        # Read the version back rather than reusing a composed string: npm's loose
+        # parse normalizes on write, so only the value actually in the extension
+        # package.json is authoritative.
+        version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        echo "Resolved version: $version"
+        # The extension version is a '-SNAPSHOT' placeholder for the next release, never
+        # something to ship. Reaching here with it intact means no derivation ran,
+        # so the build would package 'ballerina-5.14.0-SNAPSHOT.vsix'. Fail instead.
+        case "$version" in
+          *-SNAPSHOT)
+            echo "::error::Refusing to build at the snapshot version '${version}'." \
+                 "Pass an explicit 'version', or isPreRelease/nightly to derive one."
+            exit 1
+            ;;
+        esac
+        echo "version=$version" >> $GITHUB_OUTPUT

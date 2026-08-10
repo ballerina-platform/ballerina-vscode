@@ -17,7 +17,7 @@
  */
 
 import { generateObject } from "ai";
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from "../../ai/utils/ai-client";
+import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from "../../ai/utils/ai-client";
 import { getCodeAndApiDocsSyncPrompt, getCodeAndDocumentationSyncPrompt } from "./prompts";
 import {
     ApiDocsDriftResponseSchema,
@@ -47,9 +47,9 @@ export async function validateDriftWithApiDocs(ballerinaSources: string): Promis
     const prompt = getCodeAndApiDocsSyncPrompt(ballerinaSources);
 
     const { object } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+        model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 8192,
-        temperature: 0,
+        providerOptions: await getProviderModelOptions(),
         schema: ApiDocsDriftResponseSchema,
         messages: [
             {
@@ -76,9 +76,9 @@ export async function validateDriftWithDocumentation(params: DocumentationDriftC
     );
 
     const { object } = await generateObject({
-        model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+        model: await getAnthropicClient(ANTHROPIC_SONNET),
         maxOutputTokens: 8192,
-        temperature: 0,
+        providerOptions: await getProviderModelOptions(),
         schema: DocumentationDriftResponseSchema,
         messages: [
             {

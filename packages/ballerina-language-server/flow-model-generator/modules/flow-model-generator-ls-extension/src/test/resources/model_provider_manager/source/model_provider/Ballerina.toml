@@ -11,34 +11,34 @@ sticky = true
 [[dependency]]
 org="ballerina"
 name="ai"
-version="1.5.0"
+version="1.11.2"
 
 [[dependency]]
 org="ballerinax"
 name="ai.anthropic"
-version="1.0.1"
+version="1.1.2"
 
 [[dependency]]
 org="ballerinax"
 name="ai.azure"
-version="1.0.1"
+version="1.1.2"
 
 [[dependency]]
 org="ballerinax"
 name="ai.deepseek"
-version="1.0.1"
+version="1.0.4"
 
 [[dependency]]
 org="ballerinax"
 name="ai.mistral"
-version="1.0.1"
+version="1.2.3"
 
 [[dependency]]
 org="ballerinax"
 name="ai.ollama"
-version="1.0.1"
+version="1.1.2"
 
 [[dependency]]
 org="ballerinax"
 name="ai.openai"
-version="1.1.0"
+version="1.2.3"

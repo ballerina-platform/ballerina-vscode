@@ -35,6 +35,10 @@ const Card = styled.div<{ active?: boolean; appearance?: ButtonCardAppearance, d
         background-color: ${ThemeColors.PRIMARY_CONTAINER};
         border: 1px solid ${ThemeColors.HIGHLIGHT};
     };
+    &:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+        outline-offset: 1px;
+    };
 `;
 
 const CardContainer = styled.div<{ active?: boolean }>`
@@ -137,15 +141,29 @@ export function ButtonCard(props: ButtonCardProps) {
     // Apply truncation by default for small appearance if not explicitly set
     const truncate = explicitTruncate !== undefined ? explicitTruncate : appearance === "small";
 
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (disabled) {
+            return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onClick();
+        }
+    };
+
     return (
         <Tooltip content={tooltip}>
             <Card
                 id={props.id}
                 data-testid={`function-card-${title}`}
                 onClick={disabled ? undefined : onClick}
+                onKeyDown={handleKeyDown}
                 active={active ?? false}
                 appearance={appearance}
                 disabled={disabled}
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+                aria-pressed={active ?? false}
             >
                 <CardContainer>
                     {icon && <IconContainer>{icon}</IconContainer>}

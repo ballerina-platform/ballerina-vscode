@@ -18,7 +18,8 @@
         "watch": "tsc --pretty --watch",
         "build-storybook": "build-storybook",
         "copy:assets": "copyfiles -u 1 \"src/**/*.svg\"  \"src/**/*.css\" \"src/resources/assets/font/*.*\" lib/",
-        "postbuild": "copyfiles -u 1 -V build/*.js build/fonts/* build/images/* -e build/*.txt ../bi-extension/resources/jslibs"
+        "postbuild": "copyfiles -u 1 -V build/*.js build/fonts/* build/images/* -e build/*.txt ../bi-extension/resources/jslibs",
+        "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "keywords": [],
     "author": "",
@@ -51,6 +52,7 @@
         "@testing-library/dom": "10.4.0",
         "@testing-library/jest-dom": "6.6.3",
         "@testing-library/react": "16.3.0",
+        "@wso2/test-config": "workspace:*",
         "@types/dagre": "0.7.52",
         "@types/jest": "29.5.14",
         "@types/lodash": "4.17.16",

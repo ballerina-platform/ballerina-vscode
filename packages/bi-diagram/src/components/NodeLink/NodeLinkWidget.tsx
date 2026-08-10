@@ -27,6 +27,8 @@ import {
     ADD_BUTTON_DISABLED_COLOR,
     ADD_BUTTON_HOVERED_COLOR,
     CANVAS_BG_COLOR,
+    DIFF_ADDED_COLOR,
+    DIFF_REMOVED_COLOR,
     LINK_COLOR,
     LINK_DISABLED_COLOR,
     LINK_HOVERED_COLOR,
@@ -69,7 +71,11 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
     const showAddButton = link.showAddButton && !link.disabled;
     const shouldHighlight =
         showAddButton && (isHovered || link.showButtonAlways || isCommentBoxOpen);
-    const linkColor = link.disabled
+    const linkColor = link.diffState
+        ? link.diffState === "removed"
+            ? DIFF_REMOVED_COLOR
+            : DIFF_ADDED_COLOR
+        : link.disabled
         ? LINK_DISABLED_COLOR
         : isHovered && !readOnly
         ? LINK_HOVERED_COLOR
@@ -144,7 +150,7 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                 fill={"none"}
                 stroke={linkColor}
                 strokeWidth={1.5}
-                strokeDasharray={link.brokenLine ? "5,5" : "0"}
+                strokeDasharray={link.brokenLine || link.diffState === "removed" ? "5,5" : "0"}
                 markerEnd={link.showArrowToNode() ? `url(#${link.getID()}-arrow-head)` : ""}
                 style={{
                     filter: isHovered && !readOnly ? `drop-shadow(0 0 3px ${LINK_HOVERED_COLOR})` : 'none',

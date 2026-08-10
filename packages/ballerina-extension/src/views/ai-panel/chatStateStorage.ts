@@ -26,6 +26,7 @@ import {
     Checkpoint,
 } from '@wso2/ballerina-core/lib/state-machine-types';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
+import { cleanupTempProject } from '../../features/ai/utils/project/temp-project';
 import { generateId } from './idGenerators';
 import {
     CopilotPersistenceStore,
@@ -37,6 +38,15 @@ import {
     PersistedCodeContext,
 } from '@wso2/copilot-utilities/chat-persistence';
 
+const THREAD_NAME_MAX_LENGTH = 60;
+const UNNAMED_THREAD_NAME = 'New Chat';
+
+/** The label auto-naming would give this thread — its first prompt, or the unnamed sentinel. */
+function deriveThreadName(thread: ChatThread): string {
+    const firstPrompt = thread.generations[0]?.userPrompt?.slice(0, THREAD_NAME_MAX_LENGTH).trim();
+    return firstPrompt || UNNAMED_THREAD_NAME;
+}
+
 /**
  * Resolve a stable workspace identity for persistence hashing.
  *
@@ -46,7 +56,7 @@ import {
  * `CLOUD_INITIAL_PROJECT_ID`, use it directly as the identity. Otherwise fall
  * back to the resolved path (local dev and any non-cloud environment).
  */
-function resolveWorkspaceIdentity(projectRootPath: string): string {
+export function resolveWorkspaceIdentity(projectRootPath: string): string {
     return process.env.CLOUD_INITIAL_PROJECT_ID ?? path.resolve(projectRootPath);
 }
 
@@ -58,6 +68,11 @@ export interface ActiveExecution {
     generationId: string;              // For logging and correlation with generation
     abortController: AbortController;  // For actual abort operation
 }
+
+export type GenerationStatusObserver = (
+    generationId: string,
+    status: GenerationReviewState['status']
+) => void;
 
 // ============================================
 // Conversion Helpers
@@ -117,6 +132,7 @@ function toPersistedGeneration(gen: Generation): PersistedGeneration {
             status: gen.reviewState.status,
             modifiedFiles: gen.reviewState.modifiedFiles,
             errorMessage: gen.reviewState.errorMessage,
+            reviewView: gen.reviewState.reviewView,
         },
         metadata: {
             isPlanMode: gen.metadata.isPlanMode,
@@ -135,6 +151,15 @@ function toPersistedGeneration(gen: Generation): PersistedGeneration {
     };
 }
 
+/**
+ * A 'done' status on its own does not mean the review can still be acted on. Settling clears
+ * `reviewView`, so its absence marks a generation whose window has closed — including one written
+ * before reviews were persisted, which comes back claiming to be revertible with nothing behind it.
+ */
+export function isRevertible(generation: Generation | undefined): boolean {
+    return generation?.reviewState.status === 'done' && !!generation.reviewState.reviewView;
+}
+
 function fromPersistedGeneration(pg: PersistedGeneration): Generation {
     return {
         id: pg.id,
@@ -147,7 +172,9 @@ function fromPersistedGeneration(pg: PersistedGeneration): Generation {
             status: pg.reviewState.status,
             modifiedFiles: pg.reviewState.modifiedFiles,
             errorMessage: pg.reviewState.errorMessage,
-            // tempProjectPath and affectedPackagePaths are runtime-only
+            reviewView: pg.reviewState.reviewView,
+            // tempProjectPath and affectedPackagePaths are re-derived, never restored: both are
+            // absolute paths a moved workspace would silently invalidate.
         },
         metadata: {
             isPlanMode: pg.metadata.isPlanMode,
@@ -251,8 +278,13 @@ export class ChatStateStorage {
     // Track active executions per workspace/thread for abort functionality (runtime-only)
     private activeExecutions: Map<string, Map<string, ActiveExecution>> = new Map();
 
+    // In-flight checkpoint captures keyed by generation ID (runtime-only)
+    private pendingCheckpointCaptures: Map<string, Promise<void>> = new Map();
+
     // File-based persistence store
     private readonly persistenceStore: CopilotPersistenceStore;
+
+    private generationStatusObservers: Set<GenerationStatusObserver> = new Set();
 
     constructor() {
         this.persistenceStore = new CopilotPersistenceStore({
@@ -268,19 +300,21 @@ export class ChatStateStorage {
      * Flush a thread to disk after mutation.
      * Called after every state change to keep files as the source of truth.
      */
-    private flushThread(projectRootPath: string, threadId: string): void {
+    private flushThread(projectRootPath: string, threadId: string): boolean {
         const workspace = this.storage.get(projectRootPath);
         if (!workspace) {
-            return;
+            return false;
         }
         const thread = workspace.threads.get(threadId);
         if (!thread) {
-            return;
+            return false;
         }
         try {
             this.persistenceStore.saveThread(projectRootPath, threadId, toPersistedThread(thread));
+            return true;
         } catch (err) {
             console.error(`[ChatStateStorage] Failed to persist thread ${threadId}:`, err);
+            return false;
         }
     }
 
@@ -415,31 +449,9 @@ export class ChatStateStorage {
 
     /**
      * Clear workspace state
-     * Cleans up any pending review temp projects before clearing.
      * @param projectRootPath Workspace identifier
      */
     async clearWorkspace(projectRootPath: string): Promise<void> {
-        // Cleanup pending review temp projects before clearing
-        const workspace = this.storage.get(projectRootPath);
-        if (workspace) {
-            for (const [threadId, thread] of workspace.threads) {
-                const pendingReview = this.getPendingReviewGeneration(projectRootPath, threadId);
-                if (pendingReview?.reviewState.tempProjectPath) {
-                    console.log(`[ChatStateStorage] Cleaning up pending review temp project: ${pendingReview.reviewState.tempProjectPath}`);
-
-                    // Cleanup temp directory
-                    if (!process.env.AI_TEST_ENV) {
-                        const { cleanupTempProject } = require('../../features/ai/utils/project/temp-project');
-                        try {
-                            await cleanupTempProject(pendingReview.reviewState.tempProjectPath);
-                        } catch (error) {
-                            console.error(`[ChatStateStorage] Error cleaning up temp project:`, error);
-                        }
-                    }
-                }
-            }
-        }
-
         this.storage.delete(projectRootPath);
         // Also remove persisted data
         this.persistenceStore.deleteWorkspace(projectRootPath);
@@ -491,16 +503,154 @@ export class ChatStateStorage {
     }
 
     /**
-     * Get active thread
+     * Get active thread.
+     *
+     * Initializes the workspace rather than reading the in-memory cache directly.
+     * A cold cache used to resolve to 'default' even when the persisted active
+     * thread was something else, and the caller would then go on to *create* that
+     * 'default' thread through getOrCreateThread — repointing activeThreadId and
+     * flushing it to disk, so the user landed in an empty chat with their real
+     * thread still on disk but no longer active. Nothing warms this cache eagerly
+     * (initializeWorkspace has no external callers), so ordering between the
+     * panel's mount RPCs was the only thing preventing it.
+     *
      * @param projectRootPath Workspace identifier
-     * @returns Active thread or undefined
+     * @returns Active thread, or undefined only if its file failed to load
      */
     getActiveThread(projectRootPath: string): ChatThread | undefined {
-        const workspace = this.storage.get(projectRootPath);
-        if (!workspace) {
-            return undefined;
-        }
+        const workspace = this.initializeWorkspace(projectRootPath);
         return workspace.threads.get(workspace.activeThreadId);
+    }
+
+    /**
+     * Id of the active thread. Resolves against the workspace on disk, so it is
+     * correct even on the first call after an extension-host restart; the
+     * 'default' fallback now only covers a thread whose file failed to load.
+     *
+     * Prefer this over inlining `getActiveThread(p)?.id ?? 'default'` at call sites:
+     * threads are dynamic (`thread-<ts>-<rand>`), so every place that reaches for a
+     * thread by name has to resolve the active one, and a hardcoded 'default' is a
+     * silent bug — it reads (and, via getOrCreateThread, can create) a thread the
+     * user isn't looking at. Several such bugs have already been fixed.
+     */
+    getActiveThreadId(projectRootPath: string): string {
+        return this.getActiveThread(projectRootPath)?.id ?? 'default';
+    }
+
+    // ============================================
+    // Thread Lifecycle Management
+    // ============================================
+
+    /**
+     * Creates a brand-new thread and makes it the active thread.
+     * The old thread is preserved — nothing is deleted.
+     * Used by "New Chat" so history is never lost.
+     */
+    createNewThread(projectRootPath: string): string {
+        const workspace = this.initializeWorkspace(projectRootPath);
+        const newThreadId = `thread-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const newThread: ChatThread = {
+            id: newThreadId,
+            name: UNNAMED_THREAD_NAME,
+            generations: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+        workspace.threads.set(newThreadId, newThread);
+        workspace.activeThreadId = newThreadId;
+        this.flushThread(projectRootPath, newThreadId);
+        this.flushWorkspaceMetadata(projectRootPath);
+        console.log(`[ChatStateStorage] Created new thread: ${newThreadId} in workspace: ${projectRootPath}`);
+        return newThreadId;
+    }
+
+    /**
+     * Returns a summary of all threads for the session history dropdown.
+     */
+    listThreadsSummary(projectRootPath: string): Array<{
+        id: string; name: string; isActive: boolean;
+        createdAt: number; updatedAt: number; turnCount: number;
+    }> {
+        const workspace = this.initializeWorkspace(projectRootPath);
+        const summaries = [];
+        for (const [id, thread] of workspace.threads) {
+            summaries.push({
+                id,
+                name: thread.name,
+                isActive: id === workspace.activeThreadId,
+                createdAt: thread.createdAt,
+                updatedAt: thread.updatedAt,
+                turnCount: thread.generations.length,
+            });
+        }
+        // Newest first
+        summaries.sort((a, b) => b.updatedAt - a.updatedAt);
+        return summaries;
+    }
+
+    /**
+     * Switches the active thread. The switch persists to disk immediately
+     * so that getChatMessages() will return the new thread's messages.
+     */
+    switchToThread(projectRootPath: string, threadId: string): void {
+        const workspace = this.initializeWorkspace(projectRootPath);
+        if (!workspace.threads.has(threadId)) {
+            console.warn(`[ChatStateStorage] Thread not found for switch: ${threadId}`);
+            return;
+        }
+        workspace.activeThreadId = threadId;
+        this.flushWorkspaceMetadata(projectRootPath);
+        console.log(`[ChatStateStorage] Switched to thread: ${threadId} in workspace: ${projectRootPath}`);
+    }
+
+    /**
+     * Renames a thread. A blank name falls back to what auto-naming would have produced,
+     * so a cleared field never persists as an empty label. Does not touch updatedAt —
+     * renaming is not activity and would otherwise reshuffle the date grouping.
+     */
+    renameThread(projectRootPath: string, threadId: string, name: string): void {
+        const workspace = this.initializeWorkspace(projectRootPath);
+        const thread = workspace.threads.get(threadId);
+        if (!thread) {
+            console.warn(`[ChatStateStorage] Thread not found for rename: ${threadId}`);
+            return;
+        }
+        const trimmed = name.trim().slice(0, THREAD_NAME_MAX_LENGTH);
+        thread.name = trimmed || deriveThreadName(thread);
+        this.flushThread(projectRootPath, threadId);
+    }
+
+    /**
+     * Deletes a single thread. If it was the active thread, switches to the
+     * most-recently-updated remaining thread (or creates a fresh one).
+     */
+    async deleteThread(projectRootPath: string, threadId: string): Promise<void> {
+        const workspace = this.storage.get(projectRootPath);
+        if (!workspace || !workspace.threads.has(threadId)) { return; }
+
+        // Cleanup temp project if needed
+        const doneGeneration = this.getDoneGeneration(projectRootPath, threadId);
+        if (doneGeneration?.reviewState.tempProjectPath && !process.env.AI_TEST_ENV) {
+            try { await cleanupTempProject(doneGeneration.reviewState.tempProjectPath); } catch { /* ignore */ }
+        }
+
+        workspace.threads.delete(threadId);
+        this.persistenceStore.deleteThread(projectRootPath, threadId);
+
+        if (workspace.activeThreadId === threadId) {
+            // Pick the newest remaining thread, or create a fresh one
+            let newActiveId: string;
+            if (workspace.threads.size > 0) {
+                const sorted = [...workspace.threads.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+                newActiveId = sorted[0].id;
+            } else {
+                newActiveId = this.createNewThread(projectRootPath);
+                return; // createNewThread already flushes metadata
+            }
+            workspace.activeThreadId = newActiveId;
+        }
+        this.flushWorkspaceMetadata(projectRootPath);
+        console.log(`[ChatStateStorage] Deleted thread: ${threadId} from workspace: ${projectRootPath}`);
     }
 
     // ============================================
@@ -526,6 +676,9 @@ export class ChatStateStorage {
     ): Generation {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
 
+        // Keeps "at most one 'done' generation per thread" true by construction.
+        this.finalizeLastGenerationIfDone(projectRootPath, threadId);
+
         const generation: Generation = {
             id: id || generateId(),
             userPrompt,
@@ -533,7 +686,7 @@ export class ChatStateStorage {
             uiResponse: '',
             timestamp: Date.now(),
             reviewState: {
-                status: 'pending',
+                status: 'generating',
                 modifiedFiles: [],
             },
             currentTaskIndex: -1,
@@ -546,6 +699,12 @@ export class ChatStateStorage {
             },
         };
 
+        // Auto-name thread from first user message
+        if (thread.name === UNNAMED_THREAD_NAME && thread.generations.length === 0) {
+            const trimmedName = userPrompt.slice(0, THREAD_NAME_MAX_LENGTH).trim();
+            if (trimmedName) { thread.name = trimmedName; }
+        }
+
         thread.generations.push(generation);
         thread.updatedAt = Date.now();
 
@@ -553,13 +712,31 @@ export class ChatStateStorage {
         this.flushThread(projectRootPath, threadId);
         console.log(`[ChatStateStorage] Added generation: ${generation.id} to thread: ${threadId}`);
 
-        // Capture checkpoint for this generation asynchronously (skip for synthetic compacted generations)
+        // Capture checkpoint asynchronously (skip for synthetic compacted generations); track
+        // the promise so waitForCheckpointCapture() can await it before the first live edit.
         if (!skipCheckpoint) {
-            this.captureCheckpointForGeneration(projectRootPath, threadId, generation.id).catch(error => {
+            const capturePromise = this.captureCheckpointForGeneration(projectRootPath, threadId, generation.id).catch(error => {
                 console.error('[ChatStateStorage] Failed to capture checkpoint:', error);
+            });
+            this.pendingCheckpointCaptures.set(generation.id, capturePromise);
+            capturePromise.finally(() => {
+                if (this.pendingCheckpointCaptures.get(generation.id) === capturePromise) {
+                    this.pendingCheckpointCaptures.delete(generation.id);
+                }
             });
         }
         return generation;
+    }
+
+    /**
+     * Await the in-flight checkpoint capture for a generation, if any. No-op if none is pending.
+     * @param generationId Generation identifier
+     */
+    async waitForCheckpointCapture(generationId: string): Promise<void> {
+        const pending = this.pendingCheckpointCaptures.get(generationId);
+        if (pending) {
+            await pending;
+        }
     }
 
     /**
@@ -605,13 +782,13 @@ export class ChatStateStorage {
         threadId: string,
         generationId: string,
         updates: Partial<Generation>
-    ): void {
+    ): boolean {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
         const generation = thread.generations.find(g => g.id === generationId);
 
         if (!generation) {
             console.error(`[ChatStateStorage] Generation not found: ${generationId}`);
-            return;
+            return false;
         }
 
         // Apply updates
@@ -619,8 +796,9 @@ export class ChatStateStorage {
         thread.updatedAt = Date.now();
 
         // Persist immediately
-        this.flushThread(projectRootPath, threadId);
+        const persisted = this.flushThread(projectRootPath, threadId);
         console.log(`[ChatStateStorage] Updated generation: ${generationId}`);
+        return persisted;
     }
 
     /**
@@ -660,6 +838,24 @@ export class ChatStateStorage {
     }
 
     /**
+     * Locate a generation without relying on the mutable active-thread pointer.
+     * Generation IDs are unique within a workspace.
+     */
+    findGenerationScope(
+        projectRootPath: string,
+        generationId: string
+    ): { threadId: string; generation: Generation } | undefined {
+        const workspace = this.initializeWorkspace(projectRootPath);
+        for (const [threadId, thread] of workspace.threads) {
+            const generation = thread.generations.find(candidate => candidate.id === generationId);
+            if (generation) {
+                return { threadId, generation };
+            }
+        }
+        return undefined;
+    }
+
+    /**
      * Get all generations for a thread
      * @param projectRootPath Workspace identifier
      * @param threadId Thread identifier
@@ -676,7 +872,7 @@ export class ChatStateStorage {
 
     /**
      * Get chat history for LLM (model messages only)
-     * Includes ALL generations (pending, under_review, accepted)
+     * Includes generations in every status, reverted ones as well
      * @param projectRootPath Workspace identifier
      * @param threadId Thread identifier
      * @returns Array of model messages for LLM context
@@ -730,28 +926,53 @@ export class ChatStateStorage {
     // ============================================
 
     /**
-     * Get pending review generation (latest with 'under_review' status)
+     * Subscribe to review-status transitions. Storage only announces — it never imports
+     * the notification layer.
+     * @returns Disposer that removes the observer
+     */
+    onGenerationStatusChanged(cb: GenerationStatusObserver): () => void {
+        this.generationStatusObservers.add(cb);
+        return () => { this.generationStatusObservers.delete(cb); };
+    }
+
+    private setStatus(generation: Generation, status: GenerationReviewState['status']): void {
+        if (generation.reviewState.status === status) {
+            return;
+        }
+        generation.reviewState.status = status;
+        for (const observer of this.generationStatusObservers) {
+            try {
+                observer(generation.id, status);
+            } catch (error) {
+                console.error('[ChatStateStorage] Generation status observer failed:', error);
+            }
+        }
+    }
+
+    /**
+     * Get the generation currently in the revertible 'done' window, if any.
+     * By construction there is at most one at a time: starting a new generation always
+     * finalizes ('accepted') whichever generation was previously 'done' first.
      * @param projectRootPath Workspace identifier
      * @param threadId Thread identifier
      * @returns Generation or undefined
      */
-    getPendingReviewGeneration(
+    getDoneGeneration(
         projectRootPath: string,
         threadId: string
     ): Generation | undefined {
         const thread = this.getOrCreateThread(projectRootPath, threadId);
 
-        // Find the LATEST generation with 'under_review' status
-        // Iterate in reverse to get the most recent one
+        // Iterate in reverse defensively — the invariant guarantees at most one match.
         for (let i = thread.generations.length - 1; i >= 0; i--) {
             const generation = thread.generations[i];
-            if (generation.reviewState.status === 'under_review') {
-                console.log(`[ChatStateStorage] Found pending review generation: ${generation.id}`);
+            if (isRevertible(generation)) {
+                console.log(`[ChatStateStorage] Found done generation: ${generation.id}`);
                 return generation;
             }
         }
 
-        console.log(`[ChatStateStorage] No pending review generation in thread: ${threadId}`);
+        console.log(`[ChatStateStorage] No done generation in thread: ${threadId}`);
         return undefined;
     }
 
@@ -776,7 +997,11 @@ export class ChatStateStorage {
             return;
         }
 
-        Object.assign(generation.reviewState, state);
+        const { status, ...rest } = state;
+        Object.assign(generation.reviewState, rest);
+        if (status !== undefined) {
+            this.setStatus(generation, status);
+        }
         thread.updatedAt = Date.now();
 
         // Persist immediately
@@ -785,56 +1010,53 @@ export class ChatStateStorage {
     }
 
     /**
-     * Accept all reviews in a thread
-     * Marks ALL 'under_review' generations as 'accepted' and clears runtime-only
-     * review fields (affectedPackagePaths) in a single operation.
+     * Internal: finalize whichever generation is 'done' into 'accepted', with no workspace
+     * change. Called automatically when the user moves on to a new generation without
+     * explicitly reverting — never invoked directly by a user action.
      * @param projectRootPath Workspace identifier
      * @param threadId Thread identifier
+     * @returns The finalized generation, or undefined if none was 'done'
      */
-    acceptAllReviews(projectRootPath: string, threadId: string): void {
+    finalizeLastGenerationIfDone(projectRootPath: string, threadId: string): Generation | undefined {
+        const generation = this.getDoneGeneration(projectRootPath, threadId);
+        if (!generation) {
+            return undefined;
+        }
+
+        this.setStatus(generation, 'accepted');
+        generation.reviewState.affectedPackagePaths = [];
+        generation.reviewState.reviewView = undefined;
+
         const thread = this.getOrCreateThread(projectRootPath, threadId);
-        let count = 0;
-
-        for (const generation of thread.generations) {
-            if (generation.reviewState.status === 'under_review') {
-                generation.reviewState.status = 'accepted';
-                generation.reviewState.affectedPackagePaths = [];
-                count++;
-            }
-        }
-
-        if (count > 0) {
-            thread.updatedAt = Date.now();
-            this.flushThread(projectRootPath, threadId);
-        }
-        console.log(`[ChatStateStorage] Accepted ${count} review(s) in thread: ${threadId}`);
+        thread.updatedAt = Date.now();
+        this.flushThread(projectRootPath, threadId);
+        console.log(`[ChatStateStorage] Implicitly accepted generation: ${generation.id}`);
+        return generation;
     }
 
     /**
-     * Decline all reviews in a thread
-     * Marks ALL 'under_review' generations as 'error' and clears runtime-only
-     * review fields (affectedPackagePaths) in a single operation.
+     * The sole explicit user action on a generation's review state: revert whichever
+     * generation is 'done'. The caller is responsible for restoring the workspace from
+     * its checkpoint — this only updates status/bookkeeping.
      * @param projectRootPath Workspace identifier
      * @param threadId Thread identifier
+     * @returns The reverted generation, or undefined if none was 'done'
      */
-    declineAllReviews(projectRootPath: string, threadId: string): void {
+    revertLastGeneration(projectRootPath: string, threadId: string): Generation | undefined {
+        const generation = this.getDoneGeneration(projectRootPath, threadId);
+        if (!generation) {
+            return undefined;
+        }
+
+        this.setStatus(generation, 'reverted');
+        generation.reviewState.affectedPackagePaths = [];
+        generation.reviewState.reviewView = undefined;
+
         const thread = this.getOrCreateThread(projectRootPath, threadId);
-        let count = 0;
-
-        for (const generation of thread.generations) {
-            if (generation.reviewState.status === 'under_review') {
-                generation.reviewState.status = 'error';
-                generation.reviewState.errorMessage = 'Declined by user';
-                generation.reviewState.affectedPackagePaths = [];
-                count++;
-            }
-        }
-
-        if (count > 0) {
-            thread.updatedAt = Date.now();
-            this.flushThread(projectRootPath, threadId);
-        }
-        console.log(`[ChatStateStorage] Declined ${count} review(s) in thread: ${threadId}`);
+        thread.updatedAt = Date.now();
+        this.flushThread(projectRootPath, threadId);
+        console.log(`[ChatStateStorage] Reverted generation: ${generation.id}`);
+        return generation;
     }
 
     // ============================================
@@ -1077,6 +1299,14 @@ export class ChatStateStorage {
         threadId: string,
         execution: ActiveExecution
     ): void {
+        const existing = this.activeExecutions.get(projectRootPath)?.get(threadId);
+        if (
+            existing?.generationId === execution.generationId
+            && existing.abortController === execution.abortController
+        ) {
+            return;
+        }
+
         // Abort any existing execution for this thread first
         this.abortActiveExecution(projectRootPath, threadId);
 
@@ -1152,6 +1382,15 @@ export class ChatStateStorage {
      */
     getActiveExecution(projectRootPath: string, threadId: string): ActiveExecution | undefined {
         return this.activeExecutions.get(projectRootPath)?.get(threadId);
+    }
+
+    hasAnyActiveExecution(): boolean {
+        for (const threadMap of this.activeExecutions.values()) {
+            if (threadMap.size > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 }
 

@@ -92,6 +92,30 @@
             "advanced": false,
             "hidden": true
           },
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The `typedesc` of the record to which the result should be mapped.\nIt can be a basic type if the query result contains only one column"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "anydata",
+                "selected": false
+              }
+            ],
+            "value": "Row",
+            "placeholder": "anydata",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "returnType"
+            },
+            "defaultValue": "anydata"
+          },
           "sqlQuery": {
             "metadata": {
               "label": "SQL Query",
@@ -139,30 +163,6 @@
             "editable": true,
             "advanced": true,
             "hidden": true
-          },
-          "returnType": {
-            "metadata": {
-              "label": "Return Type",
-              "description": "The `typedesc` of the record to which the result should be mapped.\nIt can be a basic type if the query result contains only one column"
-            },
-            "types": [
-              {
-                "fieldType": "TYPE",
-                "ballerinaType": "anydata",
-                "selected": false
-              }
-            ],
-            "value": "Row",
-            "placeholder": "anydata",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "PARAM_FOR_TYPE_INFER",
-              "originalName": "returnType"
-            },
-            "defaultValue": "anydata"
           },
           "variable": {
             "metadata": {
@@ -272,7 +272,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "host"
             },
-            "defaultValue": "\"localhost\""
+            "defaultValue": "\"\""
           },
           "user": {
             "metadata": {
@@ -300,7 +300,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "user"
             },
-            "defaultValue": "\"root\""
+            "defaultValue": "()"
           },
           "password": {
             "metadata": {
@@ -384,7 +384,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "port"
             },
-            "defaultValue": "3306"
+            "defaultValue": "0"
           },
           "options": {
             "metadata": {

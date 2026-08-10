@@ -35,11 +35,13 @@ import {
     getNodeByIndex,
     getNodeByName,
     getNodeByUid,
-    getView
+    getView,
+    resolveSingleIntegrationOverride
 } from './utils/state-machine-utils';
 import * as path from 'path';
 import { extension } from './BalExtensionContext';
 import { AIStateMachine, openAIPanelWithPrompt } from './views/ai-panel/aiMachine';
+import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { StateMachinePopup } from './stateMachinePopup';
 import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant } from './utils';
 import { activateDevantFeatures } from './features/devant/activator';
@@ -47,6 +49,7 @@ import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
 import { buildOutputChannel } from './utils/logger';
 import { closeOrphanWebviewTabs } from './views/closeOrphanWebviewTabs';
+import { getEnclosingProjectStatus } from './utils/bi';
 
 export interface ProjectMetadata {
     readonly isBI: boolean;
@@ -70,6 +73,10 @@ export let history: History;
 export let undoRedoManager: IUndoRedoManager;
 let pendingProjectRootUpdateResolvers: Array<() => void> = [];
 let scaffoldPromptTriggered = false;
+// Single-flight: concurrent REFRESH_PROJECT_INFO triggers (e.g. addProjectToWorkspace and a
+// pending-artifact resolution firing close together) would otherwise each fetch project info
+// independently. Share one in-flight fetch instead of one per trigger.
+let projectInfoRefreshInFlight: Promise<void> | null = null;
 
 const stateMachine = createMachine<MachineContext>(
     {
@@ -124,26 +131,49 @@ const stateMachine = createMachine<MachineContext>(
             REFRESH_PROJECT_INFO: {
                 actions: [
                     async (context, event) => {
-                        try {
-                            const projectPath = context.workspacePath || context.projectPath;
-                            if (!projectPath) {
-                                console.warn("No project path available for refreshing project info");
-                                return;
-                            }
-
-                            // Fetch updated project info from language server
-                            const projectInfo = await context.langClient.getProjectInfo({ projectPath });
-
-                            // Update context with new project info
-                            stateService.send({
-                                type: 'UPDATE_PROJECT_INFO',
-                                projectInfo
-                            });
-                        } catch (error) {
-                            console.error("Error refreshing project info:", error);
+                        // Single-flight: a burst of REFRESH_PROJECT_INFO triggers piling up
+                        // while a fetch is already in progress share that fetch's result
+                        // instead of each firing their own `getProjectInfo` request.
+                        if (projectInfoRefreshInFlight) {
+                            await projectInfoRefreshInFlight;
+                            return;
                         }
+                        projectInfoRefreshInFlight = (async () => {
+                            try {
+                                const projectPath = context.workspacePath || context.projectPath;
+                                if (!projectPath) {
+                                    console.warn("No project path available for refreshing project info");
+                                    return;
+                                }
+
+                                // Fetch updated project info from language server
+                                const projectInfo = await context.langClient.getProjectInfo({ projectPath });
+
+                                // Update context with new project info. `silent` is carried
+                                // through so a caller that has already navigated somewhere
+                                // deliberate isn't bounced to the workspace overview below.
+                                stateService.send({
+                                    type: 'UPDATE_PROJECT_INFO',
+                                    projectInfo,
+                                    silent: event.silent
+                                });
+                            } catch (error) {
+                                console.error("Error refreshing project info:", error);
+                            } finally {
+                                projectInfoRefreshInFlight = null;
+                            }
+                        })();
+                        await projectInfoRefreshInFlight;
                     }
                 ]
+            },
+            // Stores `projectInfo` without rebuilding the project structure. Used by
+            // `updateProjectInfoAndRebuild`, which drives the rebuild itself so it can
+            // be awaited — the rebuild of `UPDATE_PROJECT_INFO` below cannot be.
+            SET_PROJECT_INFO: {
+                actions: assign({
+                    projectInfo: (context, event) => event.projectInfo
+                })
             },
             UPDATE_PROJECT_INFO: {
                 actions: [
@@ -165,6 +195,7 @@ const stateMachine = createMachine<MachineContext>(
                         documentUri: (context, event) => event.viewLocation.documentUri ? event.viewLocation.documentUri : context.documentUri,
                         position: (context, event) => event.viewLocation.position ? event.viewLocation.position : context.position,
                         identifier: (context, event) => event.viewLocation.identifier ? event.viewLocation.identifier : context.identifier,
+                        artifactType: (context, event) => event.viewLocation.artifactType ? event.viewLocation.artifactType : context.artifactType,
                         addType: (context, event) => event.viewLocation?.addType !== undefined ? event.viewLocation.addType : context?.addType,
                     }),
                     (context, event) => notifyTreeView(
@@ -233,7 +264,7 @@ const stateMachine = createMachine<MachineContext>(
             },
             renderInitialView: {
                 invoke: {
-                    src: 'openWebView',
+                    src: 'openInitialWebView',
                     onDone: {
                         target: "activateLS"
                     },
@@ -316,6 +347,7 @@ const stateMachine = createMachine<MachineContext>(
                                 position: (context, event) => event.viewLocation.position,
                                 projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                 identifier: (context, event) => event.viewLocation.identifier,
+                                artifactType: (context, event) => event.viewLocation.artifactType,
                                 serviceType: (context, event) => event.viewLocation.serviceType,
                                 type: (context, event) => event.viewLocation?.type,
                                 isGraphql: (context, event) => event.viewLocation?.isGraphql,
@@ -422,6 +454,8 @@ const stateMachine = createMachine<MachineContext>(
                                         documentUri: (context, event) => event.viewLocation.documentUri,
                                         position: (context, event) => event.viewLocation.position,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
+                                        focusFlowDiagramView: (context, event) => event.viewLocation.focusFlowDiagramView,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         projectPath: (context, event) => event.viewLocation?.projectPath || context?.projectPath,
                                         org: (context, event) => event.viewLocation?.org || context?.org,
@@ -454,6 +488,7 @@ const stateMachine = createMachine<MachineContext>(
                                         position: (context, event) => event.viewLocation.position,
                                         view: (context, event) => event.viewLocation.view,
                                         identifier: (context, event) => event.viewLocation.identifier,
+                                        artifactType: (context, event) => event.viewLocation.artifactType,
                                         serviceType: (context, event) => event.viewLocation.serviceType,
                                         type: (context, event) => event.viewLocation?.type,
                                         agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
@@ -552,36 +587,13 @@ const stateMachine = createMachine<MachineContext>(
                 }
             });
         },
-        openWebView: (context, event) => {
-            // Get context values from the project storage so that we can restore the earlier state when user reopens vscode
-            return new Promise(async (resolve, reject) => {
-                try {
-                    if (!VisualizerWebview.currentPanel) {
-                        await closeOrphanWebviewTabs([VisualizerWebview.viewType]);
-                        extension.ballerinaExtInstance.setContext(extension.context);
-                        VisualizerWebview.currentPanel = new VisualizerWebview();
-                        RPCLayer._messenger.onNotification(webviewReady, () => {
-                            history = new History();
-                            undoRedoManager = new UndoRedoManager();
-                            const webview = VisualizerWebview.currentPanel?.getWebview();
-                            if (webview && (context.isBI || context.view === MACHINE_VIEW.BIWelcome)) {
-                                const biExtension = isInWI() || extensions.getExtension('wso2.ballerina-integrator');
-                                webview.iconPath = {
-                                    light: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-dark.svg' : 'ballerina.svg')),
-                                    dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-light.svg' : 'ballerina-inverse.svg'))
-                                };
-                            }
-                            resolve(true);
-                        });
-                    } else {
-                        VisualizerWebview.currentPanel!.getWebview()?.reveal();
-                        resolve(true);
-                    }
-                } catch (e) {
-                    reject(e);
-                }
-            });
-        },
+        // Opens the panel for a view activation: blocks until the webview is ready,
+        // because the states that follow push a view and rely on `stateChanged`
+        // notifications, which are dropped while the webview script is still loading.
+        openWebView: (context, event) => openVisualizerPanel(context, true),
+        // Startup render: must NOT block on the webview — gating LS activation on the
+        // bundle would delay startup and stall the machine if it never loads.
+        openInitialWebView: (context, event) => openVisualizerPanel(context, false),
         resolveMissingDependencies: (context, event) => {
             return new Promise(async (resolve, reject) => {
                 if (context?.projectPath) {
@@ -695,6 +707,7 @@ const stateMachine = createMachine<MachineContext>(
                             identifier: context.identifier,
                             parentIdentifier: context.parentIdentifier,
                             artifactType: context.artifactType,
+                            focusFlowDiagramView: context?.focusFlowDiagramView,
                             org: orgName || context.org,
                             package: packageName || context.package,
                             type: context?.type,
@@ -723,6 +736,10 @@ const stateMachine = createMachine<MachineContext>(
                         );
                     }
                     return resolve({ ...selectedEntry.location, view: selectedEntry.location.view ? selectedEntry.location.view : MACHINE_VIEW.PackageOverview });
+                }
+
+                if (selectedEntry?.location.view === MACHINE_VIEW.AgentDefinitionDesigner) {
+                    return resolve(selectedEntry.location);
                 }
 
                 if (selectedEntry && (selectedEntry.location.view === MACHINE_VIEW.ERDiagram || selectedEntry.location.view === MACHINE_VIEW.ServiceDesigner || selectedEntry.location.view === MACHINE_VIEW.BIDiagram || selectedEntry.location.view === MACHINE_VIEW.ReviewMode)) {
@@ -767,7 +784,7 @@ const stateMachine = createMachine<MachineContext>(
                     if (!uid && position) {
                         const generatedUid = generateUid(position, fullST);
                         selectedST = getNodeByUid(generatedUid, fullST);
-                        if (generatedUid) {
+                        if (generatedUid && selectedST) {
                             history.updateCurrentEntry({
                                 ...selectedEntry,
                                 location: {
@@ -777,8 +794,6 @@ const stateMachine = createMachine<MachineContext>(
                                 },
                                 uid: generatedUid
                             });
-                        } else {
-                            // show identification failure message
                         }
                     }
 
@@ -837,6 +852,98 @@ const stateMachine = createMachine<MachineContext>(
     }
 });
 
+/** Resolves when the visualizer panel on screen has reported `webviewReady`; reassigned per panel. */
+let visualizerWebviewReady: Promise<void> = Promise.resolve();
+
+/**
+ * How long `openVisualizerPanel` waits for `webviewReady` before giving up and proceeding
+ * anyway. Bounds every call (not just the one that creates the panel) so a missing
+ * notification can never wedge the `viewActive` sub-machine — which has no `onError` for
+ * `openWebView` — permanently: without this, every later view-activation would keep
+ * awaiting the same never-resolving `visualizerWebviewReady`.
+ */
+const VISUALIZER_WEBVIEW_READY_TIMEOUT_MS = 15000;
+
+/**
+ * In-flight panel creation, so overlapping calls join it instead of each creating a panel.
+ * Set before the first `await` inside {@link createVisualizerPanel} and cleared once it settles.
+ */
+let visualizerPanelCreation: Promise<void> | undefined;
+
+/** Creates the panel and wires its `webviewReady` handler. Only ever run one at a time — see {@link visualizerPanelCreation}. */
+async function createVisualizerPanel(context: MachineContext): Promise<void> {
+    await closeOrphanWebviewTabs([VisualizerWebview.viewType]);
+    let markReady: () => void = () => { };
+    visualizerWebviewReady = new Promise<void>((ready) => { markReady = ready; });
+    VisualizerWebview.currentPanel = new VisualizerWebview();
+    const webviewPanel = VisualizerWebview.currentPanel.getWebview();
+    // `_messenger` is a single instance shared across every panel this extension ever
+    // creates, so this handler must be disposed with its own panel — otherwise closing
+    // and reopening the visualizer keeps piling up handlers that all re-run (and all
+    // fire) on every future `webviewReady`.
+    const webviewReadyDisposable = RPCLayer._messenger.onNotification(webviewReady, () => {
+        history = new History();
+        undoRedoManager = new UndoRedoManager();
+        const webview = VisualizerWebview.currentPanel?.getWebview();
+        if (webview && (context.isBI || context.view === MACHINE_VIEW.BIWelcome)) {
+            const biExtension = isInWI() || extensions.getExtension('wso2.ballerina-integrator');
+            webview.iconPath = {
+                light: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-dark.svg' : 'ballerina.svg')),
+                dark: Uri.file(path.join(extension.context.extensionPath, 'resources', 'icons', biExtension ? 'wso2-light.svg' : 'ballerina-inverse.svg'))
+            };
+        }
+        markReady();
+    });
+    webviewPanel?.onDidDispose(() => webviewReadyDisposable.dispose());
+}
+
+/**
+ * Ensures the visualizer panel exists, revealing an open one. `waitForReady` blocks until
+ * the webview reports `webviewReady` (or the timeout above elapses); awaiting the shared
+ * `visualizerWebviewReady` (not just this call's panel) is what keeps view activation safe
+ * now that the panel is usually created during startup.
+ */
+async function openVisualizerPanel(context: MachineContext, waitForReady: boolean): Promise<boolean> {
+    try {
+        if (VisualizerWebview.currentPanel) {
+            VisualizerWebview.currentPanel.getWebview()?.reveal();
+        } else {
+            // Creation is not atomic — it awaits `closeOrphanWebviewTabs` before assigning
+            // `currentPanel`, so two calls landing in that window (e.g. startup's
+            // `renderInitialView` invoke still pending when an `OPEN_VIEW` drives
+            // `viewActive`) would each build a panel: the later assignment orphans the
+            // earlier one (leaking its never-disposed `webviewReady` handler) and swaps
+            // `visualizerWebviewReady` out from under the first caller. Share one creation.
+            if (!visualizerPanelCreation) {
+                visualizerPanelCreation = createVisualizerPanel(context).finally(() => {
+                    visualizerPanelCreation = undefined;
+                });
+            }
+            await visualizerPanelCreation;
+        }
+        if (waitForReady) {
+            let timer: ReturnType<typeof setTimeout>;
+            const timedOut = await Promise.race([
+                visualizerWebviewReady.then(() => false),
+                new Promise<boolean>((r) => { timer = setTimeout(() => r(true), VISUALIZER_WEBVIEW_READY_TIMEOUT_MS); }),
+            ]);
+            clearTimeout(timer);
+            if (timedOut) {
+                // Proceed rather than stall — same principle `openInitialWebView` already
+                // applies to startup. A genuinely-late notification, if it ever arrives, is
+                // a harmless no-op via `markReady()` above.
+                console.warn(`Timed out after ${VISUALIZER_WEBVIEW_READY_TIMEOUT_MS}ms waiting for the visualizer webview to report ready; continuing.`);
+            }
+        }
+        return true;
+    } catch (e) {
+        // Never silently: a failure here means no webview appears at all, which
+        // is exactly how the startup panel regressed unnoticed before.
+        console.error("Failed to open the visualizer webview panel.", e);
+        throw e;
+    }
+}
+
 // Create a service to interpret the machine
 const stateService = interpret(stateMachine);
 
@@ -873,29 +980,70 @@ export const StateMachine = {
             stateService.send({ type: "UPDATE_PROJECT_ROOT_AND_INFO", projectPath, projectInfo });
         });
     },
-    refreshProjectInfo: () => {
-        stateService.send({ type: 'REFRESH_PROJECT_INFO' });
+    refreshProjectInfo: (options?: { silent?: boolean }) => {
+        stateService.send({ type: 'REFRESH_PROJECT_INFO', silent: options?.silent });
     },
     updateProjectInfo: (projectInfo: ProjectInfo, options?: { silent?: boolean }) => {
         stateService.send({ type: 'UPDATE_PROJECT_INFO', projectInfo, silent: options?.silent });
+    },
+    /**
+     * Awaitable counterpart of {@link updateProjectInfo}: stores `projectInfo` and rebuilds
+     * the structure, resolving once it is in the context (`REFRESH_PROJECT_INFO` rebuilds
+     * fire-and-forget). Never navigates.
+     */
+    updateProjectInfoAndRebuild: async (projectInfo: ProjectInfo): Promise<ProjectStructureResponse> => {
+        stateService.send({ type: 'SET_PROJECT_INFO', projectInfo });
+        await buildProjectsStructure(projectInfo, StateMachine.langClient(), true);
+        return stateService.getSnapshot().context.projectStructure;
+    },
+    setProjectInfo: (projectInfo: ProjectInfo) => {
+        stateService.send({ type: 'SET_PROJECT_INFO', projectInfo });
     },
     resetToExtensionReady: () => {
         stateService.send({ type: 'RESET_TO_EXTENSION_READY' });
     },
 };
 
-export function openView(type: EVENT_TYPE, viewLocation: VisualizerLocation, resetHistory = false) {
+export interface OpenViewOptions {
+    /**
+     * Take `viewLocation.view` literally, skipping the single-integration redirect in
+     * {@link openView}. For callers whose whole purpose is to reach the workspace overview —
+     * Home being the one — since redirecting them to the integration overview would land on
+     * the page the user is already looking at and make the control appear dead.
+     */
+    exactView?: boolean;
+}
+
+export function openView(
+    type: EVENT_TYPE,
+    viewLocation: VisualizerLocation,
+    resetHistory = false,
+    options?: OpenViewOptions
+) {
     if (resetHistory) {
         StateMachine.setReadyMode();
         history?.clear();
     }
     extension.hasPullModuleResolved = false;
     extension.hasPullModuleNotification = false;
-    const projectPath = viewLocation.projectPath || StateMachine.context().projectPath;
+    // A workspace holding a single integration opens on that integration rather than a one-item
+    // workspace overview. Applied to every navigation, not just the first: the project explorer
+    // re-navigates once its tree finishes loading, seconds after startup, and a first-navigation
+    // gate would let that second one land back on the workspace overview.
+    //
+    // The override REPLACES the location rather than merging into it. The fields a redirected
+    // navigation carried describe a target that no longer applies, and `identifier` with
+    // `artifactType` would survive onto the overview's history entry and send `updateView`
+    // hunting for an artifact that this view does not have.
+    const singleIntegrationOverride = options?.exactView
+        ? undefined
+        : resolveSingleIntegrationOverride(viewLocation, StateMachine.context());
+    const location = singleIntegrationOverride ?? viewLocation;
+    const projectPath = location.projectPath || StateMachine.context().projectPath;
     const { orgName, packageName } = getOrgAndPackageName(StateMachine.context().projectInfo, projectPath);
-    viewLocation.org = orgName;
-    viewLocation.package = packageName;
-    stateService.send({ type: type, viewLocation: viewLocation });
+    location.org = orgName;
+    location.package = packageName;
+    stateService.send({ type: type, viewLocation: location });
 }
 
 export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string) {
@@ -983,7 +1131,11 @@ export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string
     }
 
 
-    stateService.send({ type: "VIEW_UPDATE", viewLocation: lastView ? newLocation : { view: "Overview" } });
+    // Skip the disruptive remount while a Copilot generation is active; notifyCurrentWebview()
+    // below still fires so the diagram's own content refresh keeps flowing.
+    if (!chatStateStorage.hasAnyActiveExecution()) {
+        stateService.send({ type: "VIEW_UPDATE", viewLocation: lastView ? newLocation : { view: "Overview" } });
+    }
     if (refreshTreeView) {
         buildProjectsStructure(StateMachine.context().projectInfo, StateMachine.langClient(), true);
     }
@@ -1063,7 +1215,7 @@ async function handleMultipleWorkspaceFolders(workspaceFolders: readonly Workspa
         const scope = isBI && fetchScope(balProjects[0].uri);
         const { orgName, packageName } = getOrgPackageName(balProjects[0].uri.fsPath);
         const projectPath = normalizeProjectPath(balProjects[0].uri.fsPath);
-        setContextValues(isBI, projectPath);
+        setContextValues(isBI, projectPath, undefined, getEnclosingProjectStatus(projectPath).status);
         return { isBI, projectPath, scope, orgName, packageName };
     }
 
@@ -1086,7 +1238,11 @@ async function handleSingleWorkspaceFolder(workspaceURI: Uri): Promise<ProjectMe
         const projectPath = isBallerinaPackage ? normalizedFsPath : "";
         const { orgName, packageName } = getOrgPackageName(projectPath);
 
-        setContextValues(isBI, projectPath);
+        // A standalone package may already be nested inside an existing project on
+        // disk (opened in isolation rather than as part of that project). Surface
+        // that as a context key so the tree-view menus (Convert/Open/Add) can react.
+        const enclosingProjectStatus = isBallerinaPackage ? getEnclosingProjectStatus(projectPath).status : undefined;
+        setContextValues(isBI, projectPath, undefined, enclosingProjectStatus);
         if (!isBI) {
             console.error("No BI enabled workspace found");
         }
@@ -1101,7 +1257,7 @@ function refreshProjectExplorer() {
         if (integratorExtension && !integratorExtension.isActive) {
             return;
         }
-    
+
         commands.executeCommand(BI_COMMANDS.PROJECT_EXPLORER_REFRESH);
     } catch (error) {
         console.error('Error refreshing project explorer:', error);
@@ -1131,7 +1287,11 @@ function notifyTreeView(
     }
 }
 
-function setContextValues(isBI: boolean, projectPath?: string, workspacePath?: string) {
+function setContextValues(isBI: boolean, projectPath?: string, workspacePath?: string, enclosingProjectStatus?: string) {
     commands.executeCommand('setContext', 'isBIProject', isBI);
     commands.executeCommand('setContext', 'isSupportedProject', projectPath || workspacePath);
+    // 'none' | 'member' | 'orphaned' | 'invalid' — see getEnclosingProjectStatus.
+    // Consumed by the project-explorer tree-view menus to gate the Convert/Open/Add
+    // action shown for a standalone package (only 'none' is genuinely standalone).
+    commands.executeCommand('setContext', 'BI.enclosingProjectStatus', enclosingProjectStatus ?? 'none');
 }

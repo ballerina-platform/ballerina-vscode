@@ -1,0 +1,162 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { useEffect, useState } from "react";
+import { CodeData, FlowNode, LineRange } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { cloneDeep } from "lodash";
+import { FlowNodeForm } from "../../Forms/FlowNodeForm";
+import { getAiModuleOrg, getEndOfFileLineRange, getNodeTemplate } from "../utils";
+import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { LoaderWrapper } from "./styles";
+import { Button } from "@wso2/ui-toolkit";
+
+const MEMORY_FILE_NAME = "agents.bal";
+const SHORT_TERM_MEMORY = "ShortTermMemory";
+
+interface CreateMemoryFormProps {
+    onCreated: (variableName: string) => void;
+}
+
+export default function CreateMemoryForm({ onCreated }: CreateMemoryFormProps) {
+    const { rpcClient } = useRpcContext();
+    const [template, setTemplate] = useState<FlowNode>();
+    const [targetLineRange, setTargetLineRange] = useState<LineRange>();
+    const [filePath, setFilePath] = useState<string>("");
+    const [submitting, setSubmitting] = useState<boolean>(false);
+    const [loadError, setLoadError] = useState<string>();
+    const [loadAttempt, setLoadAttempt] = useState(0);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoadError(undefined);
+                const endOfFile = await getEndOfFileLineRange(MEMORY_FILE_NAME, rpcClient);
+                const orgName = await getAiModuleOrg(rpcClient);
+                const searchResponse = await rpcClient.getBIDiagramRpcClient().search({
+                    filePath: endOfFile.fileName,
+                    queryMap: { orgName },
+                    searchKind: "MEMORY",
+                });
+                const items = (searchResponse?.categories?.[0]?.items ?? []) as { codedata?: CodeData }[];
+                const shortTerm = items.find((item) => item.codedata?.object === SHORT_TERM_MEMORY) ?? items[0];
+                if (!shortTerm?.codedata) {
+                    if (!cancelled) {
+                        setLoadError("Unable to load a memory template.");
+                    }
+                    return;
+                }
+                const nodeTemplate = await getNodeTemplate(
+                    rpcClient,
+                    shortTerm.codedata,
+                    endOfFile.fileName,
+                    endOfFile.startLine
+                );
+                if (cancelled) {
+                    return;
+                }
+                if (!nodeTemplate) {
+                    setLoadError("Unable to load a memory template.");
+                    return;
+                }
+                nodeTemplate.codedata.lineRange = endOfFile;
+                setFilePath(endOfFile.fileName);
+                setTargetLineRange(endOfFile);
+                setTemplate(nodeTemplate);
+            } catch (error) {
+                console.error("Error loading memory template:", error);
+                if (!cancelled) {
+                    setLoadError("Unable to load a memory template.");
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [rpcClient, loadAttempt]);
+
+    const handleSubmit = async (updatedNode?: FlowNode) => {
+        if (!updatedNode) {
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const node = cloneDeep(updatedNode);
+            const endOfFile = await getEndOfFileLineRange(MEMORY_FILE_NAME, rpcClient);
+            node.codedata.lineRange = endOfFile;
+            const response = await rpcClient
+                .getBIDiagramRpcClient()
+                .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
+            const createdName =
+                (node.properties?.variable?.value as string) ||
+                response?.artifacts?.find((artifact) => artifact.isNew)?.name;
+            if (createdName) {
+                onCreated(createdName);
+            }
+        } catch { } finally {
+            setSubmitting(false);
+        }
+    };
+
+    if (loadError) {
+        return (
+            <LoaderWrapper>
+                <div role="alert">
+                    <p>{loadError}</p>
+                    <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                        Retry
+                    </Button>
+                </div>
+            </LoaderWrapper>
+        );
+    }
+
+    if (!template || !targetLineRange) {
+        return (
+            <LoaderWrapper>
+                <RelativeLoader />
+            </LoaderWrapper>
+        );
+    }
+
+    return (
+        <FlowNodeForm
+            fileName={filePath}
+            node={template}
+            nodeFormTemplate={template}
+            targetLineRange={targetLineRange}
+            onSubmit={handleSubmit}
+            submitText={submitting ? "Creating..." : "Create Memory"}
+            showProgressIndicator={submitting}
+            disableSaveButton={submitting}
+            footerActionButton
+            fieldOverrides={{
+                store: {
+                    type: "ACTION_EXPRESSION",
+                    types: [
+                        { fieldType: "ACTION_EXPRESSION", selected: true },
+                        { fieldType: "EXPRESSION", selected: false },
+                    ],
+                    codedata: { searchNodesKind: "SHORT_TERM_MEMORY_STORE" },
+                },
+                type: { hidden: true },
+            }}
+        />
+    );
+}

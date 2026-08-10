@@ -27,7 +27,12 @@ import { MoreVertIcon } from "../../../resources";
 import NodeIcon from "../../NodeIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import {
+    getAgentDataEventName,
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    nodeHasError,
+} from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
     DRAFT_NODE_BORDER_WIDTH,
@@ -235,9 +240,13 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
     const processFunctionProperty = (model.node.properties as any)?.processFunction;
     const connectionValue = connectionProperty?.value as string | undefined;
     const fallbackWorkflowValue = processFunctionProperty?.value as string | undefined;
-    const dataName = normalizeNodePropertyValue(dataNameProperty?.value as string | undefined);
+    // A durable agent's send carries the channel and the agent it drives as metadata rather than
+    // as form properties, so the same node reads "Send to <event>" with the agent as its target.
+    const agentDataEvent = getAgentDataEventName(model.node);
+    const agentName = (model.node.metadata?.data as { agentName?: string } | undefined)?.agentName;
+    const dataName = normalizeNodePropertyValue(dataNameProperty?.value as string | undefined) || agentDataEvent;
     const workflowName = getWorkflowName(
-        (workflowProperty?.value as string | undefined) ?? connectionValue ?? fallbackWorkflowValue
+        (workflowProperty?.value as string | undefined) ?? connectionValue ?? fallbackWorkflowValue ?? agentName
     );
     const nodeTitle = dataName ? `Send to ${dataName}` : "Send Data";
     const canViewWorkflow = Boolean(workflowName);
@@ -376,6 +385,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -399,7 +409,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                     </NodeStyles.NodeIconWrapper>
                     <NodeStyles.Row>
                         <NodeStyles.Header onClick={handleOnClick}>
-                            <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                         </NodeStyles.Header>
                         <NodeStyles.ActionButtonGroup>
                             {hasError && <DiagnosticsPopUp node={model.node} engine={engine} />}
@@ -451,6 +461,20 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                 onClick={onConnectionClick}
                 style={{ cursor: readOnly ? "default" : "pointer" }}
             >
+                <defs>
+                    <marker
+                        id={`${model.node.id}-send-arrow`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <path d="M0,0 L4,2 L0,4 Z" fill={arrowColor} />
+                    </marker>
+                </defs>
+                {/* An arrow, not just a dashed line: the data travels towards the target. */}
                 <line
                     x1="0"
                     y1={boxCenterY}
@@ -459,6 +483,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                     stroke={arrowColor}
                     strokeWidth={1.5}
                     strokeDasharray="5 3"
+                    markerEnd={`url(#${model.node.id}-send-arrow)`}
                 />
                 <rect
                     x={boxX}
@@ -498,7 +523,9 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
                         }}
                     >
                         <Icon
-                            name="bi-flowchart"
+                            // The target of an agent send is the agentic workflow itself, so it is
+                            // marked as one rather than as a plain workflow.
+                            name={agentName ? "bi-ai-agent" : "bi-flowchart"}
                             sx={{
                                 width: 24,
                                 height: 24,

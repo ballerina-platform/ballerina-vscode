@@ -16,71 +16,10 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from 'react';
-import { ServiceModel, NodePosition, LineRange, ListenerModel, EVENT_TYPE } from '@wso2/ballerina-core';
-import { Typography, ProgressRing, View, ViewContent } from '@wso2/ui-toolkit';
-import styled from '@emotion/styled';
+import { useEffect, useRef, useState } from 'react';
+import { ServiceModel, NodePosition, LineRange, EVENT_TYPE, ValidationResult, hasBlockingValidationErrors } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import ServiceConfigForm from './Forms/ServiceConfigForm';
-import { LoadingContainer } from '../../styles';
-import { TitleBar } from '../../../components/TitleBar';
-import { TopNavigationBar } from '../../../components/TopNavigationBar';
-import ListenerConfigForm from './Forms/ListenerConfigForm';
-
-const FORM_WIDTH = 600;
-
-const FormContainer = styled.div`
-    padding-top: 15px;
-    padding-bottom: 15px;
-`;
-
-
-const ContainerX = styled.div`
-    padding: 0 20px 20px;
-    max-width: 600px;
-    > div:last-child {
-        padding: 20px 0;
-        > div:last-child {
-            justify-content: flex-start;
-        }
-    }
-`;
-
-const Container = styled.div`
-    display: "flex";
-    flex-direction: "column";
-    gap: 10;
-    margin: 0 20px 20px 0;
-`;
-
-const BottomMarginTextWrapper = styled.div`
-    margin-top: 20px;
-    margin-left: 20px;
-    font-size: 15px;
-    margin-bottom: 10px;
-`;
-
-const HorizontalCardContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-`;
-
-const IconWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-`;
-
-const ButtonWrapper = styled.div`
-    max-width: 600px;
-    display: flex;
-    gap: 10px;
-    justify-content: right;
-`;
-
-
 export interface ServiceEditViewProps {
     filePath: string;
     position: NodePosition;
@@ -95,24 +34,45 @@ export function ServiceEditView(props: ServiceEditViewProps) {
     const [serviceModel, setServiceModel] = useState<ServiceModel>(undefined);
 
     const [saving, setSaving] = useState<boolean>(false);
-    const [step, setStep] = useState<number>(1);
+    const [serverValidationErrors, setServerValidationErrors] = useState<ValidationResult[]>([]);
+
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
+        isMountedRef.current = true;
         const lineRange: LineRange = { startLine: { line: position.startLine, offset: position.startColumn }, endLine: { line: position.endLine, offset: position.endColumn } };
         rpcClient.getServiceDesignerRpcClient().getServiceModelFromCode({ filePath, codedata: { lineRange } }).then(res => {
-            setServiceModel(res.service);
+            if (isMountedRef.current) {
+                setServiceModel(res.service);
+            }
         })
+        return () => {
+            isMountedRef.current = false;
+        };
     }, [props.filePath, props.position]);
 
     const onSubmit = async (value: ServiceModel) => {
         setSaving(true);
         const res = await rpcClient.getServiceDesignerRpcClient().updateServiceSourceCode({ filePath, service: value });
+        if (!isMountedRef.current) {
+            return;
+        }
+        // Refused by the language server's save-time gate — nothing was written, so keep the form
+        // open with the failures on their fields instead of hanging on "Saving". A WARNING is not a
+        // rejection and must not trap the form.
+        if (hasBlockingValidationErrors(res.validationErrors)) {
+            setServerValidationErrors(res.validationErrors);
+            setSaving(false);
+            return;
+        }
+        setServerValidationErrors([]);
         const updatedArtifact = res.artifacts.at(0);
         if (updatedArtifact) {
             rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: { documentUri: updatedArtifact.path, position: updatedArtifact.position } });
             setSaving(false);
             return;
         }
+        setSaving(false);
     }
 
     const handleServiceChange = async (data: ServiceModel) => {
@@ -125,33 +85,9 @@ export function ServiceEditView(props: ServiceEditViewProps) {
         onDirtyChange?.(isDirty, filePath, position);
     }
 
-    const handleListenerSubmit = async (value?: ListenerModel) => {
-        setSaving(true);
-        let listenerName;
-        if (value) {
-            await rpcClient.getServiceDesignerRpcClient().addListenerSourceCode({ filePath: "", listener: value });
-            if (value.properties['name'].value) {
-                listenerName = value.properties['name'].value;
-                serviceModel.properties['listener'].value = listenerName;
-                serviceModel.properties['listener'].items.push(listenerName);
-                setServiceModel({ ...serviceModel, properties: { ...serviceModel.properties } });
-                setSaving(false);
-                setStep(1);
-            }
-        }
-    };
-
-    const onBack = () => {
-        setStep(1);
-    }
-
-    const openListenerForm = () => {
-        setStep(0);
-    }
-
     return (
         <>
-            {serviceModel && <ServiceConfigForm serviceModel={serviceModel} onSubmit={onSubmit} formSubmitText={saving ? "Saving..." : "Save"} isSaving={saving} onChange={handleServiceChange} onDirtyChange={handleServiceDirtyChange} onValidityChange={onValidityChange} />}
+            {serviceModel && <ServiceConfigForm serviceModel={serviceModel} onSubmit={onSubmit} formSubmitText={saving ? "Saving..." : "Save"} isSaving={saving} onChange={handleServiceChange} onDirtyChange={handleServiceDirtyChange} onValidityChange={onValidityChange} serverValidationErrors={serverValidationErrors} />}
         </>
     );
 };

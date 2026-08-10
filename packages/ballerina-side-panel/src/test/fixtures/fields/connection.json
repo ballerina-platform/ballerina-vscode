@@ -1,0 +1,16 @@
+{
+    "description": "CONNECTION (editable) -> ConnectionEditor",
+    "expectedEditor": "ConnectionEditor",
+    "fieldInputType": { "fieldType": "CONNECTION" },
+    "field": {
+        "key": "f_CONNECTION",
+        "label": "CONNECTION field",
+        "type": "CONNECTION",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "CONNECTION", "selected": false }],
+        "enabled": true
+    }
+}

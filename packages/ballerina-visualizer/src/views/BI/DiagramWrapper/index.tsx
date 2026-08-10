@@ -45,6 +45,7 @@ const ActionButton = styled(Button)`
 
 const TRACING_LABEL_BREAKPOINT = 600;
 
+
 const SubTitleWrapper = styled.div`
     display: flex;
     align-items: center;
@@ -113,13 +114,14 @@ function servicePositionWithinArtifact(artifactPos: NodePosition | undefined, sv
 export interface DiagramWrapperProps {
     projectPath: string;
     filePath?: string;
+    artifactType?: DIRECTORY_MAP;
     view?: FocusFlowDiagramView;
     breakpointState?: number;
     syntaxTree?: STNode;
 }
 
 export function DiagramWrapper(param: DiagramWrapperProps) {
-    const { projectPath, filePath, view, breakpointState, syntaxTree } = param;
+    const { projectPath, filePath, artifactType, view, breakpointState, syntaxTree } = param;
     const { rpcClient } = useRpcContext();
 
     const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
@@ -129,6 +131,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [fileName, setFileName] = useState("");
     const [serviceType, setServiceType] = useState("");
     const [serviceName, setServiceName] = useState("");
+    const [agentName, setAgentName] = useState("");
     const [basePath, setBasePath] = useState("");
     const [listener, setListener] = useState("");
     const [parentMetadata, setParentMetadata] = useState<ParentMetadata>();
@@ -167,6 +170,9 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         rpcClient.getVisualizerLocation().then((location) => {
             if (location.metadata?.enableSequenceDiagram) {
                 setEnableSequenceDiagram(true);
+            }
+            if (location.identifier) {
+                setAgentName(location.identifier);
             }
 
             rpcClient
@@ -392,6 +398,19 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             return;
         }
 
+        if (isDurableAgent) {
+            rpcClient.getVisualizerRpcClient().openView({
+                type: EVENT_TYPE.OPEN_VIEW,
+                location: {
+                    view: MACHINE_VIEW.BIDurableAgentForm,
+                    identifier: parentMetadata?.label || "",
+                    documentUri: fileUri,
+                    position: position || currentPosition,
+                }
+            });
+            return;
+        }
+
         if (isActivity) {
             rpcClient.getVisualizerRpcClient().openView({
                 type: EVENT_TYPE.OPEN_VIEW,
@@ -405,15 +424,19 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             return;
         }
 
+        const isAgentTool = parentCodedata?.sourceCode?.includes("@ai:AgentTool");
         const context: VisualizerLocation = {
             view:
                 view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION
                     ? MACHINE_VIEW.BINPFunctionForm
-                    : parentMetadata?.isServiceFunction ?
-                        MACHINE_VIEW.ServiceFunctionForm : MACHINE_VIEW.BIFunctionForm,
+                    : isAgentTool
+                        ? MACHINE_VIEW.AIAgentToolForm
+                        : parentMetadata?.isServiceFunction ?
+                            MACHINE_VIEW.ServiceFunctionForm : MACHINE_VIEW.BIFunctionForm,
             identifier: parentMetadata?.label || "",
             documentUri: fileUri,
-            position: position || currentPosition
+            position: position || currentPosition,
+            artifactType,
         };
         rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
     };
@@ -421,11 +444,13 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     let isAutomation = parentMetadata?.kind === "Function" && parentMetadata?.label === "main";
     let isResource = parentMetadata?.kind === "Resource";
     let isRemote = parentMetadata?.kind === "Remote Function";
-    let isAgent = parentMetadata?.kind === "AI Chat Agent" && parentMetadata?.label === "chat";
+    let isAgent = parentMetadata?.kind === "Chat Agent Service" && parentMetadata?.label === "chat";
     let isInitFunction = parentMetadata?.kind === "Function" && parentMetadata?.label === "init";
     let isWorkflow = parentMetadata?.kind === "Workflow";
+    let isDurableAgent = parentMetadata?.kind === "Durable Agentic Workflow";
     let isActivity = parentMetadata?.kind === "Activity";
     let isNPFunction = view === FOCUS_FLOW_DIAGRAM_VIEW.NP_FUNCTION;
+    let isAgentFocus = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT || view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
 
     const handleResourceTryIt = async (methodValue: string, pathValue: string) => {
         if (serviceType !== "http") { return; }
@@ -556,6 +581,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
 
     // Calculate title based on conditions
     const getTitle = () => {
+        if (isAgentFocus) return agentName || "AI Agent";
         if (isNPFunction) return "Natural Function";
         if (isAutomation) return "Automation";
         const workflowTitle = getWorkflowTitleFromSource();
@@ -615,6 +641,10 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
+        if (isAgentFocus) {
+            return null;
+        }
+
         if (isResource && serviceType === "http") {
             return (
                 <>
@@ -644,7 +674,10 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             );
         }
 
-        if (parentMetadata && !isResource && !isRemote && !isInitFunction) {
+        // Durable agents hide the header Configure button — the gear on the agent box
+        // opens the agent identifier side panel instead.
+        if (parentMetadata && !isResource && !isRemote && !isDurableAgent &&
+            (!isInitFunction || artifactType === DIRECTORY_MAP.AGENT_DEFINITION)) {
             return (
                 <ActionButton id="bi-edit" appearance="secondary" onClick={() => handleEdit(fileName, currentPosition)}>
                     <Icon
@@ -670,11 +703,13 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
             ) : (
                 <TitleBar
                     title={getTitle()}
-                    subtitleElement={getSubtitleElement}
+                    {...(isAgentFocus
+                        ? { subtitle: "AI Agent" }
+                        : { subtitleElement: getSubtitleElement })}
                     actions={loadingDiagram ? null : getActions()}
                 />
             )}
-            {enableSequenceDiagram && !isAgent &&
+            {enableSequenceDiagram && !isAgent && !isAgentFocus &&
                 (
                     !loadingDiagram ? (
                         <Switch
@@ -718,6 +753,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                     <BIFocusFlowDiagram
                         projectPath={projectPath}
                         filePath={filePath}
+                        view={view}
                         onUpdate={handleUpdateDiagram}
                         onReady={handleReadyDiagram}
                     />
@@ -728,6 +764,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
                         projectPath={projectPath}
                         onUpdate={handleUpdateDiagram}
                         onReady={handleReadyDiagram}
+                        hideAgentConfiguration={isDurableAgent}
                     />
                 )
             }

@@ -23,6 +23,7 @@ import { NodeTypes } from "../../../resources/constants";
 import { NodeKind } from "../../../utils/types";
 import { WhileNodeModel } from "./WhileNodeModel";
 import { WhileNodeWidget } from "./WhileNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class WhileNodeFactory extends AbstractReactFactory<WhileNodeModel, DiagramEngine> {
     constructor() {
@@ -37,7 +38,9 @@ export class WhileNodeFactory extends AbstractReactFactory<WhileNodeModel, Diagr
         switch (event.model.node.codedata.node as NodeKind) {
             default:
                 return (
-                    <WhileNodeWidget engine={this.engine} model={event.model} />
+                    <DiffTooltip node={event.model.node}>
+                        <WhileNodeWidget engine={this.engine} model={event.model} />
+                    </DiffTooltip>
                 );
         }
     }

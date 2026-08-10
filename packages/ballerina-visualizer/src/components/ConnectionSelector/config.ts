@@ -17,7 +17,8 @@
  */
 
 import { ConnectionKind, ConnectionKindConfig, ConnectionSpecialConfig, ConnectionSearchConfig } from "./types";
-import { GET_DEFAULT_MODEL_PROVIDER, BALLERINAX } from "../../constants";
+import { GET_DEFAULT_MODEL_PROVIDER } from "@wso2/ballerina-core";
+import { BALLERINAX } from "../../constants";
 import {
     convertChunkerCategoriesToSidePanelCategories,
     convertEmbeddingProviderCategoriesToSidePanelCategories,
@@ -30,7 +31,7 @@ export const CONNECTION_TYPE_CONFIGS: Record<ConnectionKind, ConnectionKindConfi
     MODEL_PROVIDER: {
         displayName: "Model Provider",
         types: [{ fieldType: "ACTION_EXPRESSION", ballerinaType: "ai:ModelProvider", selected: true }, { fieldType: "EXPRESSION", selected: false }],
-        nodePropertyKey: ["model", "modelProvider"],
+        nodePropertyKey: ["model", "modelProvider", "judgeModel"],
         categoryConverter: convertModelProviderCategoriesToSidePanelCategories,
         searchConfig: (aiModuleOrg?: string): ConnectionSearchConfig => ({
             query: "",
@@ -85,3 +86,6 @@ export const getConnectionKindConfig = (connectionType: ConnectionKind): Connect
 export const getConnectionSpecialConfig = (symbol: string): ConnectionSpecialConfig | undefined => {
     return CONNECTION_SPECIAL_CONFIGS[symbol];
 };
+
+export const getConnectionKindDisplayName = (connectionKind?: ConnectionKind): string =>
+    (connectionKind ? getConnectionKindConfig(connectionKind)?.displayName : undefined) ?? "Connection";

@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
@@ -30,136 +30,86 @@ export default function createTests() {
         test('Create Twillio Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('Twillio Integration', 'trigger-trigger-twilio');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
 
+            const artifactWebView = await createArtifactAndGetWebview('Twillio Integration', 'trigger-trigger-twilio');
             listenerName = `twilioListener`;
 
+            // Event Channel already defaults to "Call Status" (twilio:CallStatusService),
+            // matching this test's intent, and no other field is required — submit directly.
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
-
-            await form.fill({
-                values: {
-                    'Event Channel': {
-                        type: 'dropdown',
-                        value: 'CallStatusService',
-                    }
-                }
-            });
-
             await form.submit('Create');
 
-            const onQueued = artifactWebView.locator(`text="onQueued"`);
-            await onQueued.waitFor();
-
-            const onRinging = artifactWebView.locator(`text="onRinging"`);
-            await onRinging.waitFor();
-
-            const onInProgress = artifactWebView.locator(`text="onInProgress"`);
-            await onInProgress.waitFor();
-
-            const onBusy = artifactWebView.locator(`text="onBusy"`);
-            await onBusy.waitFor();
-
-            const onFailed = artifactWebView.locator(`text="onFailed"`);
-            await onFailed.waitFor();
-
-            const onNoAnswer = artifactWebView.locator(`text="onNoAnswer"`);
-            await onNoAnswer.waitFor();
-
-            const onCanceled = artifactWebView.locator(`text="onCanceled"`);
-            await onCanceled.waitFor();
+            await artifactWebView.locator(`text="onQueued"`).waitFor();
+            await artifactWebView.locator(`text="onRinging"`).waitFor();
+            // The remaining handlers are collapsed behind "Show More Resources" on the
+            // integration overview card; the dedicated service page shows them directly.
+            const showMoreResources = artifactWebView.getByText('Show More Resources');
+            if (await showMoreResources.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await domClick(showMoreResources);
+            }
+            await artifactWebView.locator(`text="onInProgress"`).waitFor();
+            await artifactWebView.locator(`text="onBusy"`).waitFor();
+            await artifactWebView.locator(`text="onFailed"`).waitFor();
+            await artifactWebView.locator(`text="onNoAnswer"`).waitFor();
+            await artifactWebView.locator(`text="onCanceled"`).waitFor();
 
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `twilio:CallStatusService`]);
 
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
 
         test('Editing Twillio Service', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a service in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
-            const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
-            await editBtn.waitFor();
-            await editBtn.click({ force: true });
+            // The Create test can leave the webview either on the integration overview
+            // (service shown as a diagram node — click it to reach the dedicated service
+            // page) or already on that dedicated page (Configure visible directly).
+            const entryNode = artifactWebView.locator('[data-testid="entry-node-service"]');
+            if (await entryNode.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await domClick(entryNode);
+            }
+            const configureBtn = artifactWebView.getByRole('button', { name: 'Configure' });
+            await configureBtn.waitFor();
+            await domClick(configureBtn);
 
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
-
             await form.fill({
                 values: {
                     'listenOn': {
                         type: 'cmEditor',
                         value: `9090`,
-                        additionalProps: { clickLabel: true, switchMode: 'primary-mode', window: global.window }
+                        additionalProps: { switchMode: 'primary-mode' }
                     }
                 }
             });
-
+            await page.page.keyboard.press('Escape');
             await form.submit('Save Changes');
+            await confirmSaveChangesAndGoBack(artifactWebView);
 
-            const saveChangesBtn = artifactWebView.locator('#save-changes-btn vscode-button[appearance="primary"]');
-            await saveChangesBtn.waitFor({ state: 'visible' });
-            await expect(saveChangesBtn).toHaveClass('disabled', { timeout: 5000 });
-            await expect(saveChangesBtn).toHaveText('Save Changes');
+            await configureBtn.waitFor();
 
-            const backBtn = artifactWebView.locator('[data-testid="back-button"]');
-            await backBtn.waitFor();
-            await backBtn.click();
+            await artifactWebView.locator(`text="onQueued"`).waitFor();
+            await artifactWebView.locator(`text="onRinging"`).waitFor();
+            await artifactWebView.locator(`text="onInProgress"`).waitFor();
+            await artifactWebView.locator(`text="onBusy"`).waitFor();
+            await artifactWebView.locator(`text="onFailed"`).waitFor();
+            await artifactWebView.locator(`text="onNoAnswer"`).waitFor();
+            await artifactWebView.locator(`text="onCanceled"`).waitFor();
 
-            await editBtn.waitFor();
-
-            const onQueued = artifactWebView.locator(`text="onQueued"`);
-            await onQueued.waitFor();
-
-            const onRinging = artifactWebView.locator(`text="onRinging"`);
-            await onRinging.waitFor();
-
-            const onInProgress = artifactWebView.locator(`text="onInProgress"`);
-            await onInProgress.waitFor();
-
-            const onBusy = artifactWebView.locator(`text="onBusy"`);
-            await onBusy.waitFor();
-
-            const onFailed = artifactWebView.locator(`text="onFailed"`);
-            await onFailed.waitFor();
-
-            const onNoAnswer = artifactWebView.locator(`text="onNoAnswer"`);
-            await onNoAnswer.waitFor();
-
-            const onCanceled = artifactWebView.locator(`text="onCanceled"`);
-            await onCanceled.waitFor();
-
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
 
         test('Delete Twillio Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Deleting Twillio integration in test attempt: ', testAttempt);
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            const projectExplorer = new ProjectExplorer(page.page);
-            const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `twilio:CallStatusService`]);
-            await serviceTreeItem.click({ button: 'right' });
-            const deleteButton = page.page.getByRole('button', { name: 'Delete' }).first();
-            await deleteButton.waitFor({ timeout: 5000 });
-            await deleteButton.click();
-            await page.page.waitForTimeout(500);
-            await expect(serviceTreeItem).not.toBeVisible({ timeout: 10000 });
+            await getWebview(BI_INTEGRATOR_LABEL, page);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `twilio:CallStatusService`]);
         });
     });
 }

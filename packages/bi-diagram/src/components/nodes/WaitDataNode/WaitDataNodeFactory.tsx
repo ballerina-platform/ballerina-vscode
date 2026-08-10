@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { NodeTypes } from "../../../resources/constants";
 import { WaitDataNodeModel } from "./WaitDataNodeModel";
 import { WaitDataNodeWidget } from "./WaitDataNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class WaitDataNodeFactory extends AbstractReactFactory<WaitDataNodeModel, DiagramEngine> {
     constructor() {
@@ -33,6 +34,10 @@ export class WaitDataNodeFactory extends AbstractReactFactory<WaitDataNodeModel,
     }
 
     generateReactWidget(event: GenerateWidgetEvent<WaitDataNodeModel>) {
-        return <WaitDataNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <WaitDataNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

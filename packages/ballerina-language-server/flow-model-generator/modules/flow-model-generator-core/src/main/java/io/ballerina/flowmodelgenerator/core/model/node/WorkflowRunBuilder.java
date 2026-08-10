@@ -20,7 +20,6 @@ package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
-import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
@@ -33,6 +32,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
+import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.eclipse.lsp4j.TextEdit;
 
 import java.nio.file.Path;
@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.DURABLE_AGENT_OBJECT_CLASS_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 
@@ -73,6 +74,8 @@ public class WorkflowRunBuilder extends NodeBuilder {
         Codedata codedata = context.codedata();
 
         // Set metadata from codedata if available (from search result)
+        boolean durableAgent = codedata != null
+                && DURABLE_AGENT_OBJECT_CLASS_NAME.equals(codedata.object());
         if (codedata != null && codedata.symbol() != null) {
             metadata().label(codedata.symbol()).description(DESCRIPTION);
             codedata()
@@ -80,11 +83,28 @@ public class WorkflowRunBuilder extends NodeBuilder {
                     .org(codedata.org())
                     .module(codedata.module())
                     .symbol(codedata.symbol())
+                    .object(codedata.object())
                     .version(codedata.version());
         }
 
+        if (durableAgent) {
+            // A durable agentic workflow starts with agent.run(query): its input defaults to
+            // the query text (the agent's declared inputType, string unless overridden).
+            properties().custom()
+                    .metadata()
+                    .label(INPUT_LABEL)
+                    .description("The input the agent is started with (the query text by default)")
+                    .stepOut()
+                    .type(Property.ValueType.EXPRESSION)
+                    .placeholder("\"\"")
+                    .value("")
+                    .editable(true)
+                    .stepOut()
+                    .addProperty(INPUT_KEY);
+        }
+
         // Get the input parameter type from the workflow function's second parameter
-        TypeSymbol inputType = getWorkflowInputType(context, codedata);
+        TypeSymbol inputType = durableAgent ? null : getWorkflowInputType(context, codedata);
 
         if  (inputType != null) {
             properties().custom()
@@ -100,14 +120,16 @@ public class WorkflowRunBuilder extends NodeBuilder {
                     .addProperty(INPUT_KEY);
         }
 
-        // Variable property for result
+        // Variable property for result. Generate a unique default name so that adding
+        // multiple Run Workflow nodes does not produce duplicate variable declarations.
+        String workflowIdVarName = NameUtil.generateTypeName("workflowId", context.getAllVisibleSymbolNames());
         properties().custom()
                 .metadata()
                     .label("Workflow ID Variable Name")
                     .description("Variable name to receive the started workflow ID.")
                     .stepOut()
                 .type(Property.ValueType.IDENTIFIER)
-                .value("workflowId")
+                .value(workflowIdVarName)
                 .editable(true)
                 .stepOut()
                 .addProperty(Property.VARIABLE_KEY);
@@ -143,6 +165,23 @@ public class WorkflowRunBuilder extends NodeBuilder {
         Optional<String> input = inputProp
                 .map(p -> p.value().toString())
                 .filter(value -> !value.isBlank());
+
+        if (DURABLE_AGENT_OBJECT_CLASS_NAME.equals(flowNode.codedata().object())) {
+            // Durable agentic workflow: agent.run(<input>) — the same unified start as the
+            // management API; run always takes the query/input argument.
+            sourceBuilder.token()
+                    .name(workflowFunction)
+                    .keyword(SyntaxKind.DOT_TOKEN)
+                    .name(RUN_METHOD)
+                    .keyword(SyntaxKind.OPEN_PAREN_TOKEN)
+                    .name(input.orElse("\"\""))
+                    .keyword(SyntaxKind.CLOSE_PAREN_TOKEN)
+                    .endOfStatement();
+            return sourceBuilder
+                    .textEdit()
+                    .acceptImport(WORKFLOW_ORG, WORKFLOW_MODULE)
+                    .build();
+        }
 
         // Build: workflow:run(workflowFunction, input)
         sourceBuilder.token()
@@ -191,19 +230,29 @@ public class WorkflowRunBuilder extends NodeBuilder {
 
         Symbol sym = targetSymbol.get();
         if (sym.kind() == SymbolKind.FUNCTION) {
-            FunctionTypeSymbol functionType = ((FunctionSymbol) sym).typeDescriptor();
-            Optional<List<ParameterSymbol>> params = functionType.params();
-
-            if (params.isPresent()) {
-                // Find the parameter whose type is a subtype of anydata
-                for (ParameterSymbol param : params.get()) {
-                    if (param.typeDescriptor().subtypeOf(semanticModel.types().ANYDATA)) {
-                        return param.typeDescriptor();
-                    }
-                }
-            }
+            return findWorkflowInputType((FunctionSymbol) sym, semanticModel);
         }
 
+        return null;
+    }
+
+    /**
+     * Returns the type of a workflow function's input parameter: the first parameter whose type is
+     * a subtype of {@code anydata} (the {@code workflow:Context} and events-record parameters are
+     * not subtypes of {@code anydata}, so they are skipped). Returns {@code null} when the function
+     * declares no input parameter.
+     *
+     * @param functionSymbol the workflow function symbol
+     * @param semanticModel  the semantic model
+     * @return the input parameter type, or {@code null} if the function takes no input
+     */
+    public static TypeSymbol findWorkflowInputType(FunctionSymbol functionSymbol, SemanticModel semanticModel) {
+        List<ParameterSymbol> params = functionSymbol.typeDescriptor().params().orElse(List.of());
+        for (ParameterSymbol param : params) {
+            if (param.typeDescriptor().subtypeOf(semanticModel.types().ANYDATA)) {
+                return param.typeDescriptor();
+            }
+        }
         return null;
     }
 }

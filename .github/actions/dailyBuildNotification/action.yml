@@ -18,9 +18,11 @@ runs:
       id: vsix
       run: |
         file=$(ls ${{ inputs.fileName }}-[0-9]*.[0-9]*.[0-9]*.vsix)
-        fileName=${file##*-}
-        version=${fileName%.*}
         extension=${{ inputs.fileName }}
+        # Prefix/suffix strip, not a trailing-dash cut — the name itself contains a
+        # '-', and a version may carry a prerelease id.
+        version=${file#${extension}-}
+        version=${version%.vsix}
         extensionName="$(echo "$extension" | sed 's/.*/\u&/')"
         echo "vsixName=$file" >> $GITHUB_OUTPUT
         echo "version=$version" >> $GITHUB_OUTPUT
@@ -41,7 +43,7 @@ runs:
           "cards": [
               { 
               "header": {
-                  "title": "Daily Build",
+                  "title": "Nightly Build",
               },
               "sections": [
                   {

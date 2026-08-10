@@ -25,6 +25,7 @@ export type CDModel = {
     listeners: CDListener[];
     services: CDService[];
     workflows?: CDWorkflow[];
+    activities?: CDActivity[];
 };
 
 export type CDAutomation = {
@@ -38,8 +39,40 @@ export type CDAutomation = {
 export type CDWorkflow = {
     symbol: string;
     location: CDLocation;
+    // "WORKFLOW" for @workflow:Workflow functions; "DURABLE_AGENT" for module-level
+    // workflow:DurableAgent declarations, which join the same overview column.
+    kind?: string;
     attachedServices: string[];
     attachedFunctions: string[];
+    events?: CDWorkflowEvent[];
+    humanTasks?: CDWorkflowHumanTask[];
+    activities?: string[];
+    // Connections used directly by the entity (e.g. a durable agent's model provider).
+    connections?: string[];
+    invalidSendDataServices?: string[];
+    invalidSendDataFunctions?: string[];
+    uuid: string;
+    enableFlowModel: boolean;
+    sortText: string;
+};
+
+export type CDWorkflowEvent = {
+    name: string;
+    type?: string;
+    attachedServices: string[];
+    attachedFunctions: string[];
+};
+
+export type CDWorkflowHumanTask = {
+    name: string;
+    location: CDLocation;
+};
+
+export type CDActivity = {
+    symbol: string;
+    location: CDLocation;
+    connections: string[];
+    attachedWorkflows: string[];
     uuid: string;
     enableFlowModel: boolean;
     sortText: string;
@@ -98,6 +131,9 @@ export type CDFunction = {
     name: string;
     location: CDLocation;
     connections?: string[];
+    workflows?: string[];
+    workflowSendData?: Record<string, string[]>;
+    invalidWorkflowSendData?: string[];
 };
 
 export type CDResourceFunction = {
@@ -105,4 +141,7 @@ export type CDResourceFunction = {
     path: string;
     location: CDLocation;
     connections?: string[];
+    workflows?: string[];
+    workflowSendData?: Record<string, string[]>;
+    invalidWorkflowSendData?: string[];
 };

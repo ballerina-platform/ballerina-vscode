@@ -1,17 +1,8 @@
-import ballerinax/solace;
+import ballerinax/solace.jms;
 
-listener solace:Listener solaceListener = new ("smf://localhost:55554", messageVpn = "default", auth = {username: "asdf"});
+listener jms:Listener solaceJmsListener = new ("smf://localhost:55555", messageVpn = "default");
 
-@solace:ServiceConfig {
-    queueName: "test-queue",
-    sessionAckMode: "AUTO_ACKNOWLEDGE"
-}
-service solace:Service on solaceListener {
-    remote function onMessage(solace:Message message) returns error? {
-        do {
-        } on fail error err {
-            // handle error
-            return error("unhandled error", err);
-        }
+service jms:Service on solaceJmsListener {
+    remote function onMessage(jms:Message message) returns error? {
     }
 }

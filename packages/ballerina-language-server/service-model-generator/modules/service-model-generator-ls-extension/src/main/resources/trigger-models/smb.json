@@ -1,0 +1,3543 @@
+{
+  "schemaVersion": "1.0",
+  "id": "smb",
+  "displayName": "SMB Integration",
+  "description": "Create a service to listen for file actions on an SMB network share",
+  "orgName": "ballerina",
+  "packageName": "smb",
+  "moduleName": "smb",
+  "version": "2.0.1",
+  "type": "smb",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_2.0.1.png",
+  "kind": "file",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure SMB Listener",
+        "description": "Select an existing SMB listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new SMB listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configuration",
+                "description": "Configure the SMB listener"
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Unique name for this SMB listener"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "smb:Listener"
+                    }
+                  ],
+                  "value": "smbListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name",
+                      "message": "A listener with this name already exists in the project"
+                    }
+                  ]
+                },
+                "host": {
+                  "metadata": {
+                    "label": "Host",
+                    "description": "Hostname or IP address of the SMB server (e.g., fileserver.example.com)."
+                  },
+                  "placeholder": "localhost",
+                  "value": "\"localhost\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "path": "host"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                },
+                "port": {
+                  "metadata": {
+                    "label": "Port",
+                    "description": "TCP port of the SMB service (default 445)."
+                  },
+                  "placeholder": "445",
+                  "value": "445",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "path": "port"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "int",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": false
+                    }
+                  ]
+                },
+                "share": {
+                  "metadata": {
+                    "label": "Share",
+                    "description": "Name of the SMB share to connect to."
+                  },
+                  "placeholder": "shared",
+                  "value": "\"\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                    "path": "share"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true,
+                      "validations": [
+                        {
+                          "rule": "common.validate.non.empty"
+                        }
+                      ]
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ]
+                },
+                "auth": {
+                  "metadata": {
+                    "label": "Authentication",
+                    "description": "Select how to authenticate with the SMB server"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "No Authentication",
+                        "description": "Connect without providing authentication credentials."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "true",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false
+                    },
+                    {
+                      "metadata": {
+                        "label": "Username / Password",
+                        "description": "Authenticate with an SMB username, password and (optionally) a domain."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "true",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "username": {
+                          "metadata": {
+                            "label": "Username",
+                            "description": "SMB account username."
+                          },
+                          "placeholder": "user",
+                          "value": "\"user\"",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "auth.credentials.username"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true,
+                              "validations": [
+                                {
+                                  "rule": "common.validate.non.empty"
+                                }
+                              ]
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "password": {
+                          "metadata": {
+                            "label": "Password",
+                            "description": "SMB account password."
+                          },
+                          "placeholder": "password",
+                          "value": "\"password\"",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "auth.credentials.password"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true,
+                              "validations": [
+                                {
+                                  "rule": "common.validate.non.empty"
+                                }
+                              ]
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "domain": {
+                          "metadata": {
+                            "label": "Domain",
+                            "description": "Windows/Active-Directory domain the account belongs to (optional)."
+                          },
+                          "placeholder": "WORKGROUP",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "path": "auth.credentials.domain"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Kerberos",
+                        "description": "Authenticate using a Kerberos principal and (optionally) a keytab / krb5 config file."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "true",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "principal": {
+                          "metadata": {
+                            "label": "Principal",
+                            "description": "Kerberos principal, e.g. user@REALM."
+                          },
+                          "placeholder": "user@REALM",
+                          "value": "\"user@REALM\"",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "path": "auth.kerberosConfig.principal"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true,
+                              "validations": [
+                                {
+                                  "rule": "common.validate.non.empty"
+                                }
+                              ]
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "keytab": {
+                          "metadata": {
+                            "label": "Keytab Path",
+                            "description": "Path to the keytab file for the principal (optional)."
+                          },
+                          "placeholder": "/etc/security/keytabs/smb.keytab",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "path": "auth.kerberosConfig.keytab"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        },
+                        "configFile": {
+                          "metadata": {
+                            "label": "Krb5 Config File",
+                            "description": "Path to the krb5.conf configuration file (optional)."
+                          },
+                          "placeholder": "/etc/krb5.conf",
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
+                            "path": "auth.kerberosConfig.configFile"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Attach the service to SMB listener(s) already declared in the project"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing listeners to attach the service to (no new(...) is generated)."
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "smb:Listener"
+                }
+              ],
+              "items": [],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "path": {
+      "metadata": {
+        "label": "Monitored Path",
+        "description": "Directory within the SMB share to monitor for file events. Defaults to the service name when left unset."
+      },
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "value": "\"/\"",
+      "placeholder": "/",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "path",
+        "moduleName": "smb",
+        "originalName": "ServiceConfig"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "SMB Service",
+        "description": "Handles file events from a monitored directory on an SMB network share."
+      },
+      "name": "Service",
+      "description": "SMB service that reacts to file create/delete events on an SMB share.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "smb",
+        "originalName": "Service"
+      },
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Invoked when a file is created in the monitored directory. Delivers the file content as a plain string.",
+            "addLabel": "Add On Create Handler (Text)",
+            "badge": "onCreate"
+          },
+          "name": "onFileText",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "Text",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a newly created file, binding its content using the Text format.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileText",
+            "moduleName": "smb",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Delivers the file content as a plain string."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Text Content",
+                  "description": "Delivers the file content as a plain string."
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content",
+                      "description": "The text file content as a plain string."
+                    },
+                    "value": "string",
+                    "enabled": false,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "TYPE",
+                        "selected": true,
+                        "ballerinaType": "string",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": false,
+                      "defaultType": "string"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "The format the created file's content is bound to. Selecting a format changes the content type and the emitted handler function name."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "Metadata for the file such as name, path, size and timestamps."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the File Metadata (fileInfo) parameter in the handler signature."
+                },
+                "placeholder": "smb:FileInfo",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:FileInfo"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "Metadata for the file such as name, path, size and timestamps."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "fileHandling": {
+              "metadata": {
+                "label": "File Handling Options",
+                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "smb"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the processed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/processed",
+                              "placeholder": "/home/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the processed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler returns an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the failed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/failed",
+                              "placeholder": "/home/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the failed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Invoked when a file is created in the monitored directory. Binds the file content to json or a custom record type.",
+            "addLabel": "Add On Create Handler (JSON)",
+            "badge": "onCreate"
+          },
+          "name": "onFileJson",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "JSON",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a newly created file, binding its content using the JSON format.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileJson",
+            "moduleName": "smb",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Binds the file content to json or a custom record type."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "JSON Content",
+                  "description": "Binds the file content to json or a custom record type."
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content Schema",
+                      "description": "Bound content type (defaults to json)."
+                    },
+                    "value": "json",
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "json",
+                        "formats": [
+                          {
+                            "supported": [
+                              "json",
+                              "schema",
+                              "browse"
+                            ],
+                            "defaultFormat": "json"
+                          }
+                        ],
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "json",
+                      "template": "{{type}}"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "The format the created file's content is bound to. Selecting a format changes the content type and the emitted handler function name."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "Metadata for the file such as name, path, size and timestamps."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the File Metadata (fileInfo) parameter in the handler signature."
+                },
+                "placeholder": "smb:FileInfo",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:FileInfo"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "Metadata for the file such as name, path, size and timestamps."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "fileHandling": {
+              "metadata": {
+                "label": "File Handling Options",
+                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "smb"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the processed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/processed",
+                              "placeholder": "/home/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the processed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler returns an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the failed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/failed",
+                              "placeholder": "/home/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the failed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Invoked when a file is created in the monitored directory. Binds the file content to xml or a custom record type.",
+            "addLabel": "Add On Create Handler (XML)",
+            "badge": "onCreate"
+          },
+          "name": "onFileXml",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "XML",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a newly created file, binding its content using the XML format.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileXml",
+            "moduleName": "smb",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Binds the file content to xml or a custom record type."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "XML Content",
+                  "description": "Binds the file content to xml or a custom record type."
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content Schema",
+                      "description": "Bound content type (defaults to xml)."
+                    },
+                    "value": "xml",
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "xml",
+                        "formats": [
+                          {
+                            "supported": [
+                              "xml",
+                              "schema",
+                              "browse"
+                            ],
+                            "defaultFormat": "xml"
+                          }
+                        ],
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "xml",
+                      "template": "{{type}}"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "The format the created file's content is bound to. Selecting a format changes the content type and the emitted handler function name."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "Metadata for the file such as name, path, size and timestamps."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the File Metadata (fileInfo) parameter in the handler signature."
+                },
+                "placeholder": "smb:FileInfo",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:FileInfo"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "Metadata for the file such as name, path, size and timestamps."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "fileHandling": {
+              "metadata": {
+                "label": "File Handling Options",
+                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "smb"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the processed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/processed",
+                              "placeholder": "/home/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the processed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler returns an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the failed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/failed",
+                              "placeholder": "/home/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the failed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Invoked when a file is created in the monitored directory. Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files).",
+            "addLabel": "Add On Create Handler (CSV)",
+            "badge": "onCreate"
+          },
+          "name": "onFileCsv",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "CSV",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a newly created file, binding its content using the CSV format.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileCsv",
+            "moduleName": "smb",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "CSV Content",
+                  "description": "Comma-separated rows \u2014 binds each row to T, emits T[] (or stream<T, error?> for large files)."
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "rows": {
+                    "metadata": {
+                      "label": "Rows",
+                      "description": "Content Schema contains a row of CSV Row type"
+                    },
+                    "value": true,
+                    "types": [
+                      {
+                        "fieldType": "METADATA_FLAG",
+                        "selected": true
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "METADATA_FLAG"
+                    }
+                  },
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Process the file content in chunks"
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
+                  "payload": {
+                    "metadata": {
+                      "label": "Row Schema",
+                      "description": "Define or select the bound row type (T). Content is delivered as T[], or stream<T, error?> when streaming is enabled."
+                    },
+                    "value": "string[][]",
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "formats": [
+                          {
+                            "supported": [
+                              "schema",
+                              "browse",
+                              "json",
+                              "xml"
+                            ],
+                            "defaultFormat": "schema"
+                          }
+                        ],
+                        "ballerinaType": "string[][]",
+                        "template": "{{type}}[]"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "string[]",
+                      "template": "{{type}}[]"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "The format the created file's content is bound to. Selecting a format changes the content type and the emitted handler function name."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "Metadata for the file such as name, path, size and timestamps."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the File Metadata (fileInfo) parameter in the handler signature."
+                },
+                "placeholder": "smb:FileInfo",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:FileInfo"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "Metadata for the file such as name, path, size and timestamps."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "fileHandling": {
+              "metadata": {
+                "label": "File Handling Options",
+                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "smb"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the processed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/processed",
+                              "placeholder": "/home/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the processed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler returns an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the failed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/failed",
+                              "placeholder": "/home/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the failed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Invoked when a file is created in the monitored directory. Delivers the raw file content as byte[] (or stream<byte[], error?> for large files).",
+            "addLabel": "Add On Create Handler (Raw Bytes)",
+            "badge": "onCreate"
+          },
+          "name": "onFile",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "Raw Bytes",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a newly created file, binding its content using the Raw Bytes format.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFile",
+            "moduleName": "smb",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Raw Bytes Content",
+                  "description": "Delivers the raw file content as byte[] (or stream<byte[], error?> for large files)."
+                },
+                "value": "",
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "stream": {
+                    "metadata": {
+                      "label": "Stream (Large Files)",
+                      "description": "Deliver the content as stream<byte[], error?> to process large binary files in chunks."
+                    },
+                    "value": false,
+                    "types": [
+                      {
+                        "fieldType": "FLAG",
+                        "selected": true,
+                        "template": "stream<{{type}}, error?>"
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "codedata": {
+                      "type": "PAYLOAD_MODIFIER",
+                      "modifier": "stream",
+                      "template": "stream<{{type}}, error?>",
+                      "supersedes": [
+                        "base"
+                      ],
+                      "targetParam": "payload"
+                    }
+                  },
+                  "payload": {
+                    "metadata": {
+                      "label": "Content",
+                      "description": "Raw file content as byte[], or stream<byte[], error?> when streaming is enabled."
+                    },
+                    "value": "byte[]",
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "byte[]",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": false,
+                      "defaultType": "byte[]",
+                      "template": "{{type}}"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "The format the created file's content is bound to. Selecting a format changes the content type and the emitted handler function name."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "Metadata for the file such as name, path, size and timestamps."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the File Metadata (fileInfo) parameter in the handler signature."
+                },
+                "placeholder": "smb:FileInfo",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:FileInfo"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "Metadata for the file such as name, path, size and timestamps."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations (put, move, delete) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "fileHandling": {
+              "metadata": {
+                "label": "File Handling Options",
+                "description": "@smb:FunctionConfig \u2014 per-handler file-name filter and the action taken on the source file after the handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "smb"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the processed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/processed",
+                              "placeholder": "/home/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the processed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler returns an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "ballerinaType": "smb:MOVE|smb:DELETE",
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the failed file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "subLabel": "Destination path",
+                                "description": "Directory to move the file to."
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/home/failed",
+                              "placeholder": "/home/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the failed file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true,
+                              "ballerinaType": "smb:DELETE"
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "smb"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Delete",
+            "description": "Invoked when a file is deleted from the monitored directory.",
+            "addLabel": "Add On Delete Handler",
+            "badge": "onDelete"
+          },
+          "name": "onFileDelete",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileDelete",
+            "moduleName": "smb"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Deleted File Path",
+                "description": "Path of the file that was deleted."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "string",
+                "value": "string",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "deletedFile",
+                  "description": "Path of the file that was deleted."
+                },
+                "placeholder": "deletedFile",
+                "value": "deletedFile",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": true,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "SMB Connection (caller)",
+                "description": "SMB connection handle for performing additional file operations within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include SMB Connection (caller)",
+                  "description": "Tick to include the SMB Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "smb:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "smb:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "SMB connection handle for performing additional file operations within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when an error occurs during file processing.",
+            "addLabel": "Add On Error Handler",
+            "badge": "onError"
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "advanced": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "smb"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "SMB Error",
+                "description": "The error that occurred during file processing."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "error",
+                "value": "error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "err",
+                  "description": "The error that occurred during file processing."
+                },
+                "placeholder": "err",
+                "value": "err",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": true,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "path",
+      "displayName": "Monitored Path",
+      "kind": "SERVICE_ANNOTATION",
+      "path": "ServiceConfig.path"
+    }
+  ],
+  "importStatements": []
+}

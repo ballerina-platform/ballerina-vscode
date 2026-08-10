@@ -18,11 +18,6 @@
         },
         "placeholder": "",
         "value": "1",
-        "types": [
-          {
-            "fieldType": "CHOICE"
-          }
-        ],
         "choices": [
           {
             "metadata": {
@@ -31,30 +26,12 @@
             },
             "placeholder": "true",
             "value": "true",
-            "types": [
-              {
-                "fieldType": "FORM"
-              }
-            ],
-            "enabled": false,
-            "editable": true,
-            "optional": false,
-            "advanced": false,
             "properties": {
               "listenerConfig": {
                 "metadata": {
                   "label": "Listener Configurations",
                   "description": "Configure the RabbitMQ listener"
                 },
-                "types": [
-                  {
-                    "fieldType": "GROUP_SECTION",
-                    "selected": true
-                  }
-                ],
-                "enabled": true,
-                "editable": true,
-                "advanced": false,
                 "properties": {
                   "host": {
                     "metadata": {
@@ -115,15 +92,6 @@
                       "label": "Advanced Configurations",
                       "description": ""
                     },
-                    "types": [
-                      {
-                        "fieldType": "GROUP_SECTION",
-                        "selected": false
-                      }
-                    ],
-                    "enabled": true,
-                    "editable": false,
-                    "advanced": false,
                     "properties": {
                       "listenerVarName": {
                         "metadata": {
@@ -138,7 +106,8 @@
                         "types": [
                           {
                             "fieldType": "IDENTIFIER",
-                            "ballerinaType": "Listener"
+                            "ballerinaType": "Listener",
+                            "selected": false
                           }
                         ],
                         "enabled": true,
@@ -146,11 +115,41 @@
                         "optional": true,
                         "advanced": false
                       }
-                    }
+                    },
+                    "types": [
+                      {
+                        "fieldType": "GROUP_SECTION",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false
                   }
-                }
+                },
+                "types": [
+                  {
+                    "fieldType": "GROUP_SECTION",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
               }
-            }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": false
+              }
+            ],
+            "enabled": false,
+            "editable": true,
+            "optional": false,
+            "advanced": false
           },
           {
             "metadata": {
@@ -159,20 +158,34 @@
             },
             "placeholder": "true",
             "value": "true",
-            "types": [
-              {
-                "fieldType": "FORM"
-              }
-            ],
-            "enabled": true,
-            "editable": true,
-            "optional": false,
-            "advanced": false,
             "properties": {
               "listenerConfig": {
                 "metadata": {
                   "label": "Listener Configurations",
                   "description": "Configure the RabbitMQ listener"
+                },
+                "properties": {
+                  "existingListener": {
+                    "metadata": {
+                      "label": "Listener Name",
+                      "description": "Select an existing RabbitMQ listener"
+                    },
+                    "value": "orderListener",
+                    "items": [
+                      "orderListener",
+                      "deliveryListener"
+                    ],
+                    "types": [
+                      {
+                        "fieldType": "SINGLE_SELECT",
+                        "selected": false
+                      }
+                    ],
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false
+                  }
                 },
                 "types": [
                   {
@@ -182,29 +195,26 @@
                 ],
                 "enabled": true,
                 "editable": false,
-                "advanced": false,
-                "properties": {
-                  "existingListener": {
-                    "metadata": {
-                      "label": "Listener Name",
-                      "description": "Select an existing RabbitMQ listener"
-                    },
-                    "value": "orderListener",
-                    "types": [
-                      {
-                        "fieldType": "SINGLE_SELECT"
-                      }
-                    ],
-                    "items": [
-                      "orderListener",
-                      "deliveryListener"
-                    ],
-                    "enabled": true,
-                    "editable": true
-                  }
-                }
+                "optional": false,
+                "advanced": false
               }
-            }
+            },
+            "types": [
+              {
+                "fieldType": "FORM",
+                "selected": false
+              }
+            ],
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false
+          }
+        ],
+        "types": [
+          {
+            "fieldType": "CHOICE",
+            "selected": false
           }
         ],
         "enabled": true,
@@ -267,7 +277,7 @@
             "character": 3
           }
         },
-        "newText": "\n\nservice rabbitmq:Service on orderListener {\n\n}\n"
+        "newText": "\nservice rabbitmq:Service on orderListener {\n\n}\n"
       }
     ]
   }

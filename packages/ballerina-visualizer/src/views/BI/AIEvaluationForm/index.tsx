@@ -16,12 +16,12 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
-import { Icon, View, ViewContent } from "@wso2/ui-toolkit";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Codicon, Icon, RadioButtonGroup, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
-import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem } from "@wso2/ballerina-core";
+import { LineRange, FunctionParameter, TestFunction, ValueProperty, Annotation, getPrimaryInputType, EvalsetItem, AvailableNode, FlowNode, Property as FlowProperty, AddOrUpdateTestFunctionRequest, isEvalTemplateCall } from "@wso2/ballerina-core";
 import { EVENT_TYPE } from "@wso2/ballerina-core";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
@@ -29,6 +29,22 @@ import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { getImportsForProperty } from "../../../utils/bi";
 import { CardSelector } from "./CardSelector";
+import { LoadingView } from "../../../components/LoadingView";
+import { RelativeLoader } from "../../../components/RelativeLoader";
+import { TemplateModal } from "./TemplateModal";
+import { TemplateConfigCard } from "./TemplateConfigCard";
+import { EvalsetFileControl } from "./EvalsetFileControl";
+import { resolveEvalsetPath } from "./evalsetUtils";
+import { suggestEvaluationName } from "./evaluationName";
+import {
+    FormSection, GrowingContent, HintText, MonospaceHint, SectionLabel,
+    StatusRow, TemplateIconTile, TitleRow, cardBox
+} from "./styles";
+import {
+    DataSourceMode, DataSourceParam, EVALSET_FIELD_KEY, QUERIES_FIELD_KEY, TEMPLATE_FIELD_PREFIX,
+    buildQueriesField, carryOverArguments, findAgentArgument, findDataSourceParam,
+    generateTemplateFields, isDataSourceSatisfied, isTemplateField, templateNeedsEvalset
+} from "./templateUtils";
 
 const FormContainer = styled.div`
     display: flex;
@@ -51,9 +67,7 @@ const FormContainer = styled.div`
 `;
 
 const Container = styled.div`
-    display: "flex";
-    flex-direction: "column";
-    gap: 10px;
+    padding-bottom: 48px;
 `;
 
 const FullHeightView = styled(View)`
@@ -67,7 +81,7 @@ const FullHeightViewContent = styled(ViewContent)`
     flex: 1;
 `;
 
-const UpgradeMessageContainer = styled.div`
+const CenteredMessage = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -78,47 +92,97 @@ const UpgradeMessageContainer = styled.div`
     text-align: center;
 `;
 
-const UpgradeTitle = styled.h2`
-    color: var(--vscode-foreground);
-    font-size: 18px;
-    font-weight: 500;
-    margin: 0 0 12px 0;
-    line-height: 1.4;
+const TemplatePicker = styled.div`
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 8px 0;
 `;
 
-const UpgradeMessage = styled.p`
-    color: var(--vscode-descriptionForeground);
-    font-size: 13px;
-    margin: 0;
-    max-width: 500px;
-    line-height: 1.6;
-`;
-
-const EmptyEvalsetContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 12px 14px;
-    margin-top: 12px;
-    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-    border-radius: 4px;
-    background-color: var(--vscode-editorWidget-background);
-`;
-
-const EmptyEvalsetTitle = styled.div`
+const FormLoadingSlot = styled.div`
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--vscode-foreground);
+    justify-content: center;
+    min-height: 60vh;
+`;
+
+const LoadingSlot = styled.div`
+    display: grid;
+    width: 100%;
+    min-height: 148px;
+    box-sizing: border-box;
+    place-items: center;
+    padding: 16px;
+    border: 1px dashed var(--vscode-panel-border);
+    border-radius: 8px;
+`;
+
+const EmptyTemplateSlot = styled.button`
+    ${cardBox}
+    align-items: center;
+    justify-content: space-between;
+    min-height: 112px;
+    border: 1px solid var(--vscode-button-background);
+    background-color: color-mix(in srgb, var(--vscode-button-background) 5%, transparent);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+
+    &:hover {
+        background-color: color-mix(in srgb, var(--vscode-button-background) 10%, transparent);
+    }
+
+    &:focus-visible {
+        outline: 1px solid var(--vscode-contrastActiveBorder);
+        outline-offset: 2px;
+    }
+`;
+
+const CustomEvalsetControls = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    padding-bottom: 16px;
+
+    > * {
+        margin-top: 0;
+    }
+`;
+
+const ChooseTemplateAction = styled.span`
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    color: var(--vscode-button-foreground);
+    border-radius: 4px;
+    background-color: var(--vscode-button-background);
     font-size: 13px;
     font-weight: 500;
 `;
 
-const EmptyEvalsetMessage = styled.div`
-    color: var(--vscode-descriptionForeground);
-    font-size: 12px;
-    line-height: 1.5;
-`;
+
+const NAME_FIELD_KEY = 'functionName';
+
+type EvalTemplatePayload = NonNullable<AddOrUpdateTestFunctionRequest['evalTemplate']>;
+
+type EditShape = 'template' | 'template-with-custom' | 'custom' | 'ambiguous' | 'unresolvable';
+
+const flattenFlowNodes = (nodes: FlowNode[] = []): FlowNode[] =>
+    nodes.flatMap(node => [node, ...(node.branches || []).flatMap(branch => flattenFlowNodes(branch.children))]);
+
+const isBaseField = (field: FormField): boolean =>
+    !isTemplateField(field) && field.key !== QUERIES_FIELD_KEY;
+
+const readConfigField = (testFunction: TestFunction | undefined, originalName: string): any =>
+    testFunction?.annotations?.find(annotation => annotation.name === 'Config')?.fields
+        ?.find(field => field.originalName === originalName)?.value;
+
+const resolveEditMode = (testFunction?: TestFunction): string =>
+    String(readConfigField(testFunction, 'dataProviderMode') || '') === 'evalSet' ? 'evalSet' : 'function';
 
 interface TestFunctionDefProps {
     projectPath: string;
@@ -133,49 +197,119 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
     const { rpcClient } = useRpcContext();
     const [formFields, setFormFields] = useState<FormField[]>([]);
     const [testFunction, setTestFunction] = useState<TestFunction>();
-    const [formTitle, setFormTitle] = useState<string>('Create New AI Evaluation');
-    const [formSubtitle, setFormSubtitle] = useState<string>('Create a new AI evaluation for your integration');
     const [targetLineRange, setTargetLineRange] = useState<LineRange>();
-    const [dataProviderMode, setDataProviderMode] = useState<string>('evalSet');
+    const [dataProviderMode, setDataProviderMode] = useState<string>('template');
     const [evalsetOptions, setEvalsetOptions] = useState<Array<{ value: string; content: string }>>([]);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [selectedEvalsetFile, setSelectedEvalsetFile] = useState<string>('');
-    const [evalsetsLoaded, setEvalsetsLoaded] = useState<boolean>(false);
     const [evalsetsLoadError, setEvalsetsLoadError] = useState<boolean>(false);
+    const [evalTemplates, setEvalTemplates] = useState<AvailableNode[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState<AvailableNode>();
+    const [templateNode, setTemplateNode] = useState<FlowNode>();
+    const [showTemplateCatalog, setShowTemplateCatalog] = useState(false);
+    const [isSelectingTemplate, setIsSelectingTemplate] = useState(false);
+    const [templateLoadError, setTemplateLoadError] = useState<string>();
+    const [dataSourceMode, setDataSourceMode] = useState<DataSourceMode>('evalset');
+    const [evalQueries, setEvalQueries] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const bootstrapRunRef = useRef(0);
+    const [editShape, setEditShape] = useState<EditShape>();
+    const [detectedSymbol, setDetectedSymbol] = useState<string>();
+    const [takenNames, setTakenNames] = useState<string[]>([]);
+    const [agentValue, setAgentValue] = useState<string>('');
+    const [customName, setCustomName] = useState<string>();
+    const isEditing = serviceType === 'UPDATE_TEST';
+    const formTitle = isEditing ? 'Update AI Evaluation' : 'Create New AI Evaluation';
+    const formSubtitle = isEditing
+        ? 'Update an existing AI evaluation'
+        : 'Create a new AI evaluation for your integration';
+    const customUsesEvalset = dataProviderMode === 'evalSet';
+    const dataSourceParam = useMemo(
+        () => (templateNode ? findDataSourceParam(templateNode) : undefined),
+        [templateNode]);
+    const isTemplateMode = dataProviderMode === 'template';
+    const agentArgument = useMemo(() => findAgentArgument(templateNode), [templateNode]);
+    const agentFieldKey = agentArgument && `${TEMPLATE_FIELD_PREFIX}${agentArgument.key}`;
 
-    // Helper function to apply field visibility rules based on data provider mode
-    const applyFieldVisibility = (fields: FormField[], mode: string): FormField[] => {
+    const suggestedName = useMemo(() => isEditing ? undefined : suggestEvaluationName({
+        template: isTemplateMode ? selectedTemplate : undefined,
+        hasAgent: Boolean(agentArgument),
+        agentValue,
+        takenNames
+    }), [isEditing, isTemplateMode, selectedTemplate, agentArgument, agentValue, takenNames]);
+
+    const evalsetField = useMemo(
+        () => formFields.find(field => field.key === EVALSET_FIELD_KEY),
+        [formFields]);
+
+    const handleNameChange = useCallback((next: string | boolean) => {
+        const name = String(next ?? '');
+        setCustomName(name.trim() === '' ? undefined : name);
+    }, []);
+
+    const derivedName = isEditing ? undefined : customName ?? suggestedName;
+    const fields = useMemo(() => formFields.map(field => field.key === NAME_FIELD_KEY
+        ? { ...field, value: derivedName ?? field.value, onValueChange: handleNameChange }
+        : field), [formFields, derivedName, handleNameChange]);
+
+    const isSaveDisabled = useMemo(() => {
+        if (dataProviderMode === 'evalSet') {
+            return !selectedEvalsetFile;
+        }
+        if (dataProviderMode !== 'template') {
+            return false;
+        }
+        if (!selectedTemplate) {
+            return serviceType !== 'UPDATE_TEST';
+        }
+        return !isDataSourceSatisfied({
+            dataSourceParam, dataSourceMode, evalSetFile: selectedEvalsetFile, queries: evalQueries
+        });
+    }, [dataProviderMode, selectedEvalsetFile, selectedTemplate, dataSourceParam, dataSourceMode,
+        evalQueries, serviceType]);
+
+    const applyFieldVisibility = (fields: FormField[], mode: string,
+        hasTemplate = Boolean(selectedTemplate)): FormField[] => {
+        const isChoosingTemplate = !isEditing && mode === 'template' && !hasTemplate;
         return fields.map(field => {
+            if (isChoosingTemplate) {
+                return { ...field, hidden: true };
+            }
+            if (isTemplateField(field) || field.key === QUERIES_FIELD_KEY
+                || field.key === EVALSET_FIELD_KEY) {
+                return { ...field, hidden: true };
+            }
+            if (field.key === NAME_FIELD_KEY) {
+                return { ...field, hidden: !isEditing && mode === 'template' && !hasTemplate };
+            }
             if (field.key === 'dataProvider') {
                 return { ...field, hidden: mode !== 'function' };
             }
-            if (field.key === 'evalSetFile') {
-                const hasValue = !!field.value;
-                const hidden = mode !== 'evalSet' || (evalsetOptions.length === 0 && !hasValue);
-                return { ...field, hidden };
-            }
-            if (field.key === 'runs') {
-                return { ...field };
-            }
-            return field;
+            return { ...field, hidden: field.key === 'params' };
         });
     };
 
     const handleFieldChange = (fieldKey: string, value: any) => {
-        if (fieldKey === 'dataProviderMode') {
-            setDataProviderMode(value);
-            updateFieldVisibility(value);
-        }
-        if (fieldKey === 'evalSetFile') {
+        if (fieldKey === EVALSET_FIELD_KEY) {
             setSelectedEvalsetFile(value || '');
         }
+        if (fieldKey === QUERIES_FIELD_KEY) {
+            setEvalQueries(Array.isArray(value) ? value : []);
+        }
+        if (fieldKey === agentFieldKey) {
+            setAgentValue(String(value ?? ''));
+        }
+    };
+
+    const handleDataSourceModeChange = (mode: DataSourceMode) => {
+        setDataSourceMode(mode);
     };
 
     const updateFieldVisibility = (mode: string) => {
         setFormFields(prevFields => applyFieldVisibility(prevFields, mode));
     };
 
-    const updateTargetLineRange = () => {
+    const updateTargetLineRange = () =>
         rpcClient
             .getBIDiagramRpcClient()
             .getEndOfFile({ filePath })
@@ -185,50 +319,95 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                     endLine: linePosition
                 });
             });
-    }
 
     useEffect(() => {
-        loadEvalsets();
-    }, []);
-
-    useEffect(() => {
-        if (serviceType === 'UPDATE_TEST') {
-            setFormTitle('Update AI Evaluation');
-            setFormSubtitle('Update an existing AI evaluation');
-            loadFunction();
-        } else {
-            setFormTitle('Create New AI Evaluation');
-            setFormSubtitle('Create a new AI evaluation for your integration');
-            loadEmptyForm();
-        }
-
-        updateTargetLineRange();
+        bootstrap();
     }, [functionName]);
 
-    // Regenerate form fields when evalsetOptions changes
-    useEffect(() => {
-        if (testFunction && evalsetOptions.length > 0) {
-            let formFields = generateFormFields(testFunction);
+    const loadEvalTemplates = async (): Promise<AvailableNode[]> => {
+        try {
+            const res = await rpcClient.getBIDiagramRpcClient().search({ filePath, searchKind: 'EVAL_TEMPLATE' });
+            const templates = res.categories.flatMap(category => category.items)
+                .filter((item): item is AvailableNode => 'codedata' in item);
+            setEvalTemplates(templates);
+            setTemplateLoadError(undefined);
+            return templates;
+        } catch (error) {
+            console.error('Failed to load evaluation templates:', error);
+            setEvalTemplates([]);
+            setTemplateLoadError('Unable to load evaluation templates. Please check whether the ballerina/ai.eval package is available.');
+            return [];
+        }
+    };
 
-            // Get the dataProviderMode value to initialize field visibility
-            const modeField = formFields.find(f => f.key === 'dataProviderMode');
-            const mode = String(modeField?.value || 'evalSet');
-            setDataProviderMode(mode);
+    const selectEvalTemplate = async (template: AvailableNode) => {
+        setIsSelectingTemplate(true);
+        setTemplateLoadError(undefined);
+        try {
+            const res = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                filePath,
+                position: { line: 0, offset: 0 },
+                id: template.codedata
+            });
+            const node = carryOverArguments(res.flowNode, templateNode);
+            const dsParam = findDataSourceParam(node);
+            const keepMode = dsParam?.kind === 'union' && dataSourceMode === 'queries';
+            const mode: 'evalset' | 'queries' = dsParam?.kind === 'union'
+                ? (keepMode || evalsetOptions.length === 0 ? 'queries' : 'evalset')
+                : 'evalset';
+            setSelectedTemplate(template);
+            setTemplateNode(node);
+            setAgentValue(findAgentArgument(node)?.value || '');
+            setDataSourceMode(mode);
+            if (mode !== 'queries') {
+                setEvalQueries([]);
+            }
+            setEditShape(isEditing ? 'template' : undefined);
+            setTemplateLoadError(undefined);
+            setDataProviderMode('template');
+            setFormFields(current => applyFieldVisibility(
+                assembleTemplateFields(current, node, dsParam, mode === 'queries' ? evalQueries : []),
+                'template', true));
+        } catch (error) {
+            console.error('Failed to load evaluation template form:', error);
+            setTemplateLoadError('Unable to load the selected template. Please try again.');
+        } finally {
+            setIsSelectingTemplate(false);
+        }
+    };
 
-            // Set field visibility based on mode
-            formFields = applyFieldVisibility(formFields, mode);
-
-            setFormFields(formFields);
-
-            const evalSetFileField = formFields.find(f => f.key === 'evalSetFile');
-            const fieldValue = String(evalSetFileField?.value || '');
-            if (fieldValue) {
-                setSelectedEvalsetFile(prev => prev || fieldValue);
+    const bootstrap = async () => {
+        const run = ++bootstrapRunRef.current;
+        setIsLoading(true);
+        try {
+            const [options, templates] = await Promise.all([
+                loadEvalsets(), loadEvalTemplates(), loadTakenNames(), updateTargetLineRange()]);
+            if (bootstrapRunRef.current !== run) {
+                return;
+            }
+            if (isEditing) {
+                await loadFunction(options, templates);
+            } else {
+                loadEmptyForm(options);
+            }
+        } finally {
+            if (bootstrapRunRef.current === run) {
+                setIsLoading(false);
             }
         }
-    }, [evalsetOptions]);
+    };
 
-    const loadEvalsets = async () => {
+    const loadTakenNames = async () => {
+        try {
+            const res = await rpcClient.getTestManagerRpcClient().getTestFunctionNames({ projectPath });
+            setTakenNames(res.names.filter(name => name !== functionName));
+        } catch (error) {
+            console.error('Failed to load existing test function names:', error);
+            setTakenNames([]);
+        }
+    };
+
+    const loadEvalsets = async (): Promise<Array<{ value: string; content: string }>> => {
         try {
             const res = await rpcClient.getTestManagerRpcClient().getEvalsets({ projectPath });
             const options = res.evalsets.map((evalset: EvalsetItem) => ({
@@ -237,51 +416,151 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             }));
             setEvalsetOptions(options);
             setEvalsetsLoadError(false);
+            return options;
         } catch (error) {
             console.error('Failed to load evalsets:', error);
             setEvalsetOptions([]);
             setEvalsetsLoadError(true);
-        } finally {
-            setEvalsetsLoaded(true);
+            return [];
         }
     };
 
-    const loadFunction = async () => {
+    const openEvalset = useCallback(async (evalsetFile: string) => {
+        if (!evalsetFile) {
+            return;
+        }
+        const fsPath = resolveEvalsetPath(projectPath, evalsetFile);
+        await rpcClient.getCommonRpcClient().executeCommand({
+            commands: ['ballerina.openEvalsetViewer', { fsPath }]
+        });
+    }, [projectPath, rpcClient]);
+
+    const createEvalset = async () => {
+        await rpcClient.getCommonRpcClient().executeCommand({
+            commands: ['ballerina.createNewEvalset']
+        });
+        await loadEvalsets();
+    };
+
+    const detectTemplateFromSource = async (fn: TestFunction, templates: AvailableNode[]): Promise<{
+        shape: EditShape;
+        node?: FlowNode;
+        template?: AvailableNode;
+        symbol?: string;
+    }> => {
+        const lineRange = fn?.codedata?.lineRange;
+        if (!lineRange) {
+            return { shape: 'custom' };
+        }
+        try {
+            const res = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+                filePath,
+                startLine: lineRange.startLine,
+                endLine: lineRange.endLine,
+                forceAssign: true
+            });
+            const nodes = flattenFlowNodes(res.flowModel?.nodes);
+            const calls = nodes.filter(isEvalTemplateCall);
+            if (calls.length === 0) {
+                return { shape: 'custom' };
+            }
+            if (calls.length > 1) {
+                return { shape: 'ambiguous' };
+            }
+            const call = calls[0];
+            const symbol = call.codedata?.symbol;
+            const template = templates.find(item => item.codedata.symbol === symbol);
+            if (!template || Object.keys(call.properties || {}).length === 0) {
+                return { shape: 'unresolvable', symbol, node: call };
+            }
+            const statements = nodes.filter(node => node.codedata?.node !== 'EVENT_START');
+            return {
+                shape: statements.length > 1 ? 'template-with-custom' : 'template',
+                node: call,
+                template,
+                symbol
+            };
+        } catch (error) {
+            console.error('Failed to read the evaluation body:', error);
+            return { shape: 'custom' };
+        }
+    };
+
+    const loadFunction = async (options = evalsetOptions, templates = evalTemplates) => {
         const res = await rpcClient.getTestManagerRpcClient().getTestFunction({ functionName, filePath });
         setTestFunction(res.function);
-        let formFields = generateFormFields(res.function);
 
-        // Get the dataProviderMode value to initialize field visibility
-        const modeField = formFields.find(f => f.key === 'dataProviderMode');
-        const mode = String(modeField?.value || 'evalSet');
+        const detected = await detectTemplateFromSource(res.function, templates);
+        setEditShape(detected.shape);
+        setDetectedSymbol(detected.symbol);
+
+        const isTemplate = detected.shape === 'template' || detected.shape === 'template-with-custom';
+        const mode = isTemplate || detected.shape === 'unresolvable' ? 'template' : resolveEditMode(res.function);
+        const dsParam = isTemplate && detected.node ? findDataSourceParam(detected.node) : undefined;
+        const dsMode: 'evalset' | 'queries' =
+            String(readConfigField(res.function, 'dataProviderMode')) === 'queries' ? 'queries' : 'evalset';
+        const queries = (readConfigField(res.function, 'queries') as string[]) || [];
+
         setDataProviderMode(mode);
+        setDataSourceMode(dsMode);
+        setEvalQueries(queries);
+        if (isTemplate) {
+            setSelectedTemplate(detected.template);
+            setTemplateNode(detected.node);
+            setAgentValue(findAgentArgument(detected.node)?.value || '');
+        }
 
-        // Initialize evalset file selection from loaded data
-        const evalSetFileField = formFields.find(f => f.key === 'evalSetFile');
-        setSelectedEvalsetFile(String(evalSetFileField?.value || ''));
+        let formFields = generateFormFields(res.function, options);
+        setSelectedEvalsetFile(String(formFields.find(f => f.key === EVALSET_FIELD_KEY)?.value || ''));
 
-        // Set initial field visibility
-        formFields = applyFieldVisibility(formFields, mode);
+        if (isTemplate && detected.node) {
+            formFields = assembleTemplateFields(formFields, detected.node, dsParam, queries);
+        }
 
-        setFormFields(formFields);
+        setFormFields(applyFieldVisibility(formFields, mode));
     }
 
-    const loadEmptyForm = async () => {
-        setSelectedEvalsetFile('');
+    const loadEmptyForm = (options = evalsetOptions) => {
         const emptyTestFunction = getEmptyTestFunctionModel();
         setTestFunction(emptyTestFunction);
-        let formFields = generateFormFields(emptyTestFunction);
+        let formFields = generateFormFields(emptyTestFunction, options);
+        setSelectedEvalsetFile(String(formFields.find(f => f.key === EVALSET_FIELD_KEY)?.value || ''));
 
-        // Get the dataProviderMode value to initialize field visibility
-        const modeField = formFields.find(f => f.key === 'dataProviderMode');
-        const mode = String(modeField?.value || 'evalSet');
+        const mode = 'template';
         setDataProviderMode(mode);
 
-        // Set initial field visibility (default is 'evalSet' mode)
         formFields = applyFieldVisibility(formFields, mode);
-
         setFormFields(formFields);
     }
+
+    const isTemplateRecognised = editShape === 'template' || editShape === 'template-with-custom';
+
+    const buildEvalTemplatePayload = (data: FormValues): EvalTemplatePayload | undefined => {
+        if (dataProviderMode !== 'template' || !selectedTemplate || !templateNode) {
+            return undefined;
+        }
+        const parameters: Record<string, string> = {};
+        Object.entries(templateNode.properties || {}).forEach(([key, property]) => {
+            const templateProperty = property as FlowProperty;
+            if (templateProperty.hidden || dataSourceParam?.paramName === (templateProperty.codedata?.originalName || key)) {
+                return;
+            }
+            const originalName = templateProperty.codedata?.originalName || key;
+            parameters[originalName] = String(data[`${TEMPLATE_FIELD_PREFIX}${key}`] ?? templateProperty.value ?? '');
+        });
+        const dataSource = dataSourceParam ? {
+            paramName: dataSourceParam.paramName,
+            mode: dataSourceMode,
+            ...(dataSourceMode === 'evalset'
+                ? { evalSetFile: selectedEvalsetFile }
+                : { queries: (Array.isArray(data[QUERIES_FIELD_KEY]) ? data[QUERIES_FIELD_KEY] : evalQueries) as string[] })
+        } : undefined;
+        return {
+            symbol: selectedTemplate.codedata.symbol || '',
+            parameters,
+            ...(dataSource && { dataSource })
+        };
+    };
 
     const onFormSubmit = async (data: FormValues, formImports: FormImports) => {
         setIsSaving(true);
@@ -290,10 +569,19 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             dataProviderMode: dataProviderMode
         };
         const updatedTestFunction = fillFunctionModel(formData, formImports);
+        const evalTemplate = buildEvalTemplatePayload(data);
         if (serviceType === 'UPDATE_TEST') {
-            await rpcClient.getTestManagerRpcClient().updateTestFunction({ function: updatedTestFunction, filePath });
+            await rpcClient.getTestManagerRpcClient().updateTestFunction({
+                function: updatedTestFunction,
+                filePath,
+                ...(evalTemplate && isTemplateRecognised && { evalTemplate })
+            });
         } else {
-            await rpcClient.getTestManagerRpcClient().addTestFunction({ function: updatedTestFunction, filePath });
+            await rpcClient.getTestManagerRpcClient().addTestFunction({
+                function: updatedTestFunction,
+                filePath,
+                ...(evalTemplate && { evalTemplate })
+            });
         }
         try {
             const res = await rpcClient.getTestManagerRpcClient().getTestFunction(
@@ -329,10 +617,14 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
         }
     };
 
-    const generateFormFields = (testFunction: TestFunction): FormField[] => {
+    const generateFormFields = (testFunction: TestFunction, options = evalsetOptions): FormField[] => {
         const fields: FormField[] = [];
         if (testFunction.functionName) {
-            fields.push(generateFieldFromProperty('functionName', testFunction.functionName));
+            fields.push({
+                ...generateFieldFromProperty('functionName', testFunction.functionName),
+                type: 'IDENTIFIER',
+                types: [{ fieldType: 'IDENTIFIER', scope: 'Global', selected: true }]
+            });
         }
         if (testFunction.parameters) {
             fields.push({
@@ -379,21 +671,21 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                 const evalSetFileField = configAnnotation.fields.find(f => f.originalName === 'evalSetFile');
                 if (evalSetFileField) {
                     const generatedField = generateFieldFromProperty('evalSetFile', evalSetFileField);
-                    const defaultValue = generatedField.value || (evalsetOptions.length > 0 ? evalsetOptions[0].value : '');
+                    const defaultValue = generatedField.value || (options.length > 0 ? options[0].value : '');
                     fields.push({
                         ...generatedField,
                         value: defaultValue,
                         type: 'SINGLE_SELECT',
                         types: [{ fieldType: 'SINGLE_SELECT', selected: false }],
-                        itemOptions: evalsetOptions
+                        itemOptions: options
                     });
                 }
 
                 for (const field of configAnnotation.fields) {
-                    // Skip fields already processed
                     if (field.originalName === 'dataProviderMode' ||
                         field.originalName === 'minPassRate' ||
-                        field.originalName === 'evalSetFile') {
+                        field.originalName === 'evalSetFile' ||
+                        field.originalName === 'queries') {
                         continue;
                     }
 
@@ -494,6 +786,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
             enabled: true,
             documentation: property.metadata.description,
             value: displayValue,
+            codedata: property.codedata,
             types: [{ fieldType: fieldType, selected: false }]
         };
 
@@ -511,6 +804,20 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
 
         return baseField;
     }
+
+    const assembleTemplateFields = (base: FormField[], node: FlowNode,
+        dsParam?: DataSourceParam, queries: string[] = []): FormField[] => {
+        const baseFields = base.filter(isBaseField);
+        let fields = baseFields;
+        if (dsParam) {
+            const index = baseFields.findIndex(field => field.key === EVALSET_FIELD_KEY);
+            const queriesField = buildQueriesField(queries);
+            fields = index >= 0
+                ? [...baseFields.slice(0, index + 1), queriesField, ...baseFields.slice(index + 1)]
+                : [...baseFields, queriesField];
+        }
+        return [...fields, ...generateTemplateFields(node, dsParam?.paramName)];
+    };
 
     const fillFunctionModel = (formValues: FormValues, formImports: FormImports): TestFunction => {
         let tmpTestFunction = testFunction;
@@ -586,8 +893,9 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                         // (backend creates it from evalSetFile)
                     }
                     if (field.originalName == 'evalSetFile') {
-                        if (formValues['dataProviderMode'] === 'evalSet') {
-                            field.value = formValues['evalSetFile'] || "";
+                        if (formValues['dataProviderMode'] === 'evalSet' ||
+                            (formValues['dataProviderMode'] === 'template' && templateNeedsEvalset(selectedTemplate))) {
+                            field.value = String(formValues[EVALSET_FIELD_KEY] || selectedEvalsetFile || "");
                         }
                         // Preserve existing evalSetFile value when in function mode
                     }
@@ -753,7 +1061,7 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                             },
                             types: [{ fieldType: "STRING", selected: false }],
                             originalName: "dataProviderMode",
-                            value: "function",
+                            value: "template",
                             optional: true,
                             editable: true,
                             advanced: true
@@ -828,23 +1136,45 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
 
     const cardOptions = [
         {
-            value: 'evalSet',
-            title: 'From Evalset',
-            description: 'Use conversation traces from an existing dataset to evaluate your agent.',
+            value: 'template',
+            title: 'From Template',
+            description: 'Use a prebuilt evaluator for a common AI evaluation pattern.',
             icon: <Icon name="bi-data-table" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
         },
         {
-            value: 'function',
-            title: 'Standalone/Custom',
-            description: 'Implement a fully custom logic to evaluate specific behaviors from scratch.',
+            value: 'custom',
+            title: 'Custom',
+            description: 'Implement custom evaluation logic, with or without evalset data.',
             icon: <Icon name="bi-config" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
         }
     ];
 
     const handleCardSelectorChange = (value: string) => {
-        setDataProviderMode(value);
-        updateFieldVisibility(value);
+        if (value !== 'template') {
+            clearTemplateSelection();
+        }
+        const mode = value === 'template' ? 'template' : 'function';
+        setDataProviderMode(mode);
+        updateFieldVisibility(mode);
     };
+
+    const handleCustomEvalsetChange = (usesEvalset: boolean) => {
+        const mode = usesEvalset ? 'evalSet' : 'function';
+        setDataProviderMode(mode);
+        updateFieldVisibility(mode);
+    };
+
+    const clearTemplateSelection = () => {
+        setSelectedTemplate(undefined);
+        setTemplateNode(undefined);
+        setAgentValue('');
+        setShowTemplateCatalog(false);
+        setFormFields(fields => fields.filter(isBaseField));
+    };
+
+    const templateFields = useMemo(
+        () => formFields.filter(isTemplateField).map(field => ({ ...field, hidden: false })),
+        [formFields]);
 
     // Show upgrade message if version is not supported
     if (isVersionSupported === false) {
@@ -853,13 +1183,15 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                 <TopNavigationBar projectPath={projectPath} />
                 <TitleBar title="AI Evaluation" subtitle="Version upgrade required" />
                 <FullHeightViewContent padding>
-                    <UpgradeMessageContainer>
-                        <UpgradeTitle>Please upgrade your Ballerina version</UpgradeTitle>
-                        <UpgradeMessage>
+                    <CenteredMessage>
+                        <Typography variant="h3" sx={{ margin: '0 0 12px' }}>
+                            Please upgrade your Ballerina version
+                        </Typography>
+                        <HintText style={{ maxWidth: '500px' }}>
                             AI Evaluation features require Ballerina version 2201.13.2 or higher.
                             Please upgrade your Ballerina installation to use this feature.
-                        </UpgradeMessage>
-                    </UpgradeMessageContainer>
+                        </HintText>
+                    </CenteredMessage>
                 </FullHeightViewContent>
             </FullHeightView>
         );
@@ -873,46 +1205,184 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
                 <Container>
                     <FormHeader title={formTitle} />
                     <FormContainer>
-
-                        {targetLineRange && (
+                        {(isLoading || !targetLineRange) && (
+                            <FormLoadingSlot>
+                                <LoadingView message="Loading form data..." />
+                            </FormLoadingSlot>
+                        )}
+                        {!isLoading && targetLineRange && (
                             <ArtifactForm
                                 fileName={filePath}
-                                fields={formFields}
+                                fields={fields}
                                 targetLineRange={targetLineRange}
                                 onSubmit={onFormSubmit}
-                                preserveFieldOrder={true}
+                                preserveFieldOrder={false}
+                                bottomFields={[NAME_FIELD_KEY]}
+                                hideInfoBanner
                                 onChange={handleFieldChange}
                                 isSaving={isSaving}
-                                disableSaveButton={dataProviderMode === 'evalSet' && !selectedEvalsetFile}
+                                disableSaveButton={isSaveDisabled}
                                 injectedComponents={[
                                     {
-                                        component: <CardSelector
-                                            title="How would you like to build this evaluation?"
-                                            options={cardOptions}
-                                            value={dataProviderMode}
-                                            onChange={handleCardSelectorChange}
-                                        />,
-                                        index: 2
-                                    },
-                                    ...(dataProviderMode === 'evalSet' && evalsetsLoaded && evalsetOptions.length === 0 && !selectedEvalsetFile ? [{
-                                        component: (
-                                            <EmptyEvalsetContainer>
-                                                <EmptyEvalsetTitle>
-                                                    <Icon name={evalsetsLoadError ? "bi-error" : "bi-data-table"} sx={{ fontSize: "16px", width: "16px", height: "16px" }} />
-                                                    {evalsetsLoadError ? "Failed to load evalsets" : "No evalset files found"}
-                                                </EmptyEvalsetTitle>
-                                                <EmptyEvalsetMessage>
-                                                    {evalsetsLoadError ? (
-                                                        <>Could not load evalsets for this project. Try reopening this view, or switch to <strong>Standalone/Custom</strong> mode to define your evaluation logic from scratch.</>
-                                                    ) : (
-                                                        <>Evalsets are created by exporting traces from conversations with your agents.
-                                                        Have a conversation with an agent and export the traces, or switch to <strong>Standalone/Custom</strong> mode to define your evaluation logic from scratch.</>
+                                        component: <>
+                                            {!isEditing && (
+                                                <CardSelector
+                                                    title="How would you like to build this evaluation?"
+                                                    options={cardOptions}
+                                                    value={dataProviderMode === 'template' ? 'template' : 'custom'}
+                                                    onChange={handleCardSelectorChange}
+                                                />
+                                            )}
+                                            {!isEditing && !isTemplateMode && (
+                                                <CustomEvalsetControls>
+                                                    <FormSection>
+                                                        <RadioButtonGroup
+                                                            label="Use an evalset?"
+                                                            orientation="horizontal"
+                                                            value={customUsesEvalset ? 'evalSet' : 'none'}
+                                                            options={[
+                                                                { id: 'evalset-none', value: 'none', content: 'No evalset' },
+                                                                { id: 'evalset-use', value: 'evalSet', content: 'Use evalset' }
+                                                            ]}
+                                                            onChange={(e) => handleCustomEvalsetChange(e.target.value === 'evalSet')}
+                                                        />
+                                                    </FormSection>
+                                                    {/* Rendered here rather than as a plain field so the select stays
+                                                        with the question that asks for it. */}
+                                                    {customUsesEvalset && evalsetField && (
+                                                        <FormSection>
+                                                            <EvalsetFileControl
+                                                                field={evalsetField}
+                                                                hasEvalsets={evalsetOptions.length > 0}
+                                                                selectedEvalsetFile={selectedEvalsetFile}
+                                                                emptyState={{
+                                                                    icon: <Icon name={evalsetsLoadError ? "bi-error" : "bi-data-table"}
+                                                                        sx={{ fontSize: "16px", width: "16px", height: "16px" }} />,
+                                                                    title: evalsetsLoadError ? 'Failed to load evalsets' : 'No evalset files found',
+                                                                    description: evalsetsLoadError ? (
+                                                                        <>Could not load evalsets for this project. Try reopening this view, then select an evalset.</>
+                                                                    ) : (
+                                                                        <>Export traces from a conversation with an agent to create an evalset.
+                                                                            You can also create an empty evalset below, then add test threads in the evalset editor.</>
+                                                                    ),
+                                                                    canCreate: !evalsetsLoadError,
+                                                                }}
+                                                                onCreateEvalset={createEvalset}
+                                                                onOpenEvalset={openEvalset}
+                                                            />
+                                                        </FormSection>
                                                     )}
-                                                </EmptyEvalsetMessage>
-                                            </EmptyEvalsetContainer>
-                                        ),
-                                        index: 3
-                                    }] : [])
+                                                </CustomEvalsetControls>
+                                            )}
+                                            {isEditing && editShape === 'unresolvable' && (
+                                                <StatusRow>
+                                                    <TemplateIconTile>
+                                                        <Icon name="bi-error" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
+                                                    </TemplateIconTile>
+                                                    <GrowingContent>
+                                                        <TitleRow>
+                                                            Built from template <code>{detectedSymbol}</code>
+                                                        </TitleRow>
+                                                        <HintText>
+                                                            Template details are unavailable, so its settings can't be edited here.
+                                                            Check that the ballerina/ai.eval package is available and declared in Ballerina.toml.
+                                                        </HintText>
+                                                        {templateNode && (
+                                                            <MonospaceHint>{templateNode.codedata?.sourceCode}</MonospaceHint>
+                                                        )}
+                                                    </GrowingContent>
+                                                </StatusRow>
+                                            )}
+                                            {isEditing && (editShape === 'custom' || editShape === 'ambiguous') && (
+                                                <StatusRow>
+                                                    <TemplateIconTile>
+                                                        <Icon name="bi-config" sx={{ fontSize: "20px", width: "20px", height: "20px" }} />
+                                                    </TemplateIconTile>
+                                                    <GrowingContent>
+                                                        <TitleRow>Custom evaluation</TitleRow>
+                                                        <HintText>
+                                                            {editShape === 'ambiguous'
+                                                                ? 'This evaluation calls more than one ai.eval function, so it can\'t be edited as a template.'
+                                                                : 'The logic for this evaluation is written by hand.'}
+                                                        </HintText>
+                                                    </GrowingContent>
+                                                </StatusRow>
+                                            )}
+                                            {isTemplateMode && editShape !== 'unresolvable' && (
+                                                <TemplatePicker>
+                                                    <SectionLabel style={{ marginBottom: '8px' }}>
+                                                        {selectedTemplate ? 'Evaluation template' : 'Choose an evaluation template'}
+                                                    </SectionLabel>
+                                                    {isSelectingTemplate ? (
+                                                        <LoadingSlot>
+                                                            <RelativeLoader message="Loading template..." />
+                                                        </LoadingSlot>
+                                                    ) : selectedTemplate && templateNode ? (
+                                                        <TemplateConfigCard
+                                                            template={selectedTemplate}
+                                                            templateFields={templateFields}
+                                                            dataSourceParam={dataSourceParam}
+                                                            dataSourceMode={dataSourceMode}
+                                                            onDataSourceModeChange={handleDataSourceModeChange}
+                                                            agentFieldKey={agentFieldKey}
+                                                            evalsetField={evalsetField}
+                                                            queriesField={formFields.find(field => field.key === QUERIES_FIELD_KEY)}
+                                                            hasEvalsets={evalsetOptions.length > 0}
+                                                            selectedEvalsetFile={selectedEvalsetFile}
+                                                            onCreateEvalset={createEvalset}
+                                                            onOpenEvalset={openEvalset}
+                                                            onChangeTemplate={() => setShowTemplateCatalog(true)}
+                                                        />
+                                                    ) : (
+                                                        <EmptyTemplateSlot type="button"
+                                                            onClick={() => setShowTemplateCatalog(true)}
+                                                            aria-haspopup="dialog"
+                                                            aria-label="Choose an evaluation template">
+                                                            <GrowingContent>
+                                                                <TitleRow>Choose a template to continue</TitleRow>
+                                                                <HintText>
+                                                                    {templateLoadError
+                                                                        || (evalTemplates.length > 0
+                                                                            ? `Start with one of ${evalTemplates.length} rule-based and LLM-as-judge checks`
+                                                                            : 'Start with a rule-based or LLM-as-judge check')}
+                                                                </HintText>
+                                                            </GrowingContent>
+                                                            <ChooseTemplateAction>
+                                                                <Codicon name="search" iconSx={{ fontSize: 14 }}
+                                                                    sx={{ height: 14, marginRight: 6 }} />
+                                                                Choose Template
+                                                            </ChooseTemplateAction>
+                                                        </EmptyTemplateSlot>
+                                                    )}
+                                                    {/* The dialog is already gone by the time a fetch can
+                                                        fail, so its error surfaces here. The empty slot
+                                                        shows it inline, so only report it alongside a
+                                                        card that survived the failed change. */}
+                                                    {templateLoadError && selectedTemplate && !isSelectingTemplate && (
+                                                        <HintText style={{ color: ThemeColors.ERROR }}>
+                                                            {templateLoadError}
+                                                        </HintText>
+                                                    )}
+                                                    {editShape === 'template-with-custom' && (
+                                                        <HintText>
+                                                            This evaluation also contains custom code. Saving updates only the{' '}
+                                                            <code>eval:{detectedSymbol}(…)</code> call.
+                                                        </HintText>
+                                                    )}
+                                                </TemplatePicker>
+                                            )}
+                                            {showTemplateCatalog && (
+                                                <TemplateModal
+                                                    templates={evalTemplates}
+                                                    templateLoadError={templateLoadError}
+                                                    selectedTemplate={selectedTemplate}
+                                                    onSelectTemplate={selectEvalTemplate}
+                                                    onClose={() => setShowTemplateCatalog(false)}
+                                                />
+                                            )}
+                                        </>,
+                                        index: 0
+                                    }
                                 ]}
                             />
                         )}
@@ -922,4 +1392,3 @@ export function AIEvaluationForm(props: TestFunctionDefProps) {
         </View>
     );
 }
-

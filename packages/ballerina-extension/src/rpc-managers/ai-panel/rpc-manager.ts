@@ -26,6 +26,8 @@ import {
     AddFilesToProjectRequest,
     CheckpointInfo,
     Command,
+    GetRunStatusRequest,
+    GetRunStatusResponse,
     DocGenerationRequest,
     GenerateAgentCodeRequest,
     GenerateOpenAPIRequest,
@@ -38,6 +40,7 @@ import {
     PromptEnhancementResponse,
     RequirementSpecification,
     RestoreCheckpointRequest,
+    RevertGenerationRequest,
     SemanticDiffRequest,
     SemanticDiffResponse,
     SubmitFeedbackRequest,
@@ -45,6 +48,9 @@ import {
     UIChatMessage,
     UpdateChatMessageRequest,
     UsageResponse,
+    QuotaRequestParams,
+    QuotaRequestResult,
+    FollowupSuggestion,
     WebToolApprovalRequest,
     CompactConversationRequest,
     CompactConversationResponse,
@@ -60,7 +66,6 @@ import {
     SkillEnableRequest,
     SkillEnableCancelRequest,
     SkillEnableStage,
-    SetSkillsEnabledRequest,
     SkillEntry,
     SkillTier,
     ParseSkillFileRequest,
@@ -76,13 +81,22 @@ import {
     SetMcpToolsEnabledRequest,
     McpLoadErrorsDTO,
     AgentsMdFileInfoDTO,
+    ThreadSummary,
+    SwitchThreadRequest,
+    DeleteThreadRequest,
+    RenameThreadRequest,
+    CreateManagedConnectionRequest,
+    CreateManagedConnectionResponse,
+    // TODO(auto-memory): temporarily disabled for this release.
+    // ClearMemoryRequest,
+    // OpenMemoryRequest,
 } from "@wso2/ballerina-core";
 import {
     getAgentsMdFileInfo as getAgentsMdFileInfoImpl,
     openOrCreateAgentsMd as openOrCreateAgentsMdImpl,
 } from "../../features/ai/agent/agents-md";
 import { ConfigurationTarget } from "vscode";
-import { getMcpClientManager, ensureMcpConfigFileExists, writeMcpServer, updateMcpServer, deleteMcpServer } from "../../features/ai/agent/mcp";
+import { getMcpClientManager, ensureMcpConfigFileExists, writeMcpServer, updateMcpServer, deleteMcpServer, isMcpToolsEnabled, MCP_ENABLE_SETTING } from "../../features/ai/agent/mcp";
 import { notifyMcpServersChanged, notifyMcpLoadErrorsChanged } from "../../RPCLayer";
 import * as os from "os";
 import * as fs from 'fs';
@@ -90,6 +104,13 @@ import path from "path";
 import * as vscode from 'vscode';
 import { window, workspace } from 'vscode';
 import { LOGIN_REQUIRED_WARNING, SIGN_IN_BI_COPILOT } from '../../features/ai/constants';
+// TODO(auto-memory): temporarily disabled for this release.
+// import {
+//     getGlobalMemoryDir,
+//     getMemoryDir,
+//     invalidateMemoryPromptCache,
+// } from '@wso2/copilot-utilities/auto-memory';
+// import { computeWorkspaceHash } from '@wso2/copilot-utilities/chat-persistence';
 
 import { isNumber } from "lodash";
 import { getServiceDeclarationNames } from "../../../src/features/ai/documentation/utils";
@@ -101,15 +122,18 @@ import { generateDocumentationForService } from "../../features/ai/documentation
 import { generateOpenAPISpec } from "../../features/ai/openapi/index";
 import { BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
-import { sendChatComponentNotification, sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
+import { sendSaveChatNotification, sendSkillEnableNotification } from "../../features/ai/utils/ai-utils";
 import { submitFeedback as submitFeedbackUtil } from "../../features/ai/utils/feedback";
-import { sendGenerationDiscardTelemetry, sendGenerationKeptTelemetry } from "../../features/ai/utils/generation-response";
+import { sendGenerationDiscardTelemetry } from "../../features/ai/utils/generation-response";
 import { getLLMDiagnosticArrayAsString } from "../../features/natural-programming/utils";
 import { enhancePrompt as enhancePromptService } from "../../features/ai/service/prompt-enhancement/promptEnhancement";
 import { StateMachine, updateView } from "../../stateMachine";
 import { isInDevant, isInWI } from "../../utils";
 import { getLoginMethod, isPlatformExtensionAvailable, loginGithubCopilot } from "../../utils/ai/auth";
+import { cancelConnectionCallback, ConnectionSettleReason, createConnectionState, waitForConnectionCallback } from "../../utils/uri-handlers";
+import { exchangeManagedConnection, initiateManagedConnection } from "../platform-ext/managed-connections";
 import { normalizeCodeContext } from "../../views/ai-panel/codeContextUtils";
+import { resolveActiveFilePath } from "../../views/ai-panel/activeFileContext";
 import { refreshDataMapper } from "../data-mapper/utils";
 import {
     TEST_DIR_NAME
@@ -118,7 +142,6 @@ import { addToIntegration, searchDocumentation } from "./utils";
 
 import { createExecutorConfig, generateAgent, resolveProjectRootPath } from '../../features/ai/agent/index';
 import { REGISTERED_SKILLS } from '../../features/ai/agent/skills/index';
-import { buildProjectSkillsConfigPath } from '../../features/ai/agent/skills/context';
 import { scanProjectSkills, scanUserSkills, readUserSkillContent, readProjectSkillContent, parseSkillMd } from '../../features/ai/agent/tools/skill-tool/skill-reader';
 import * as unzipper from 'unzipper';
 import {
@@ -128,17 +151,18 @@ import {
     writeProjectSkill,
     deleteUserSkill,
     deleteProjectSkill,
-    GLOBAL_SKILLS_CONFIG_PATH,
 } from '../../features/ai/agent/tools/skill-tool/skill-writer';
 import { clearCompactionDisabledWarning } from '../../features/ai/agent/AgentExecutor';
 import { LLM_API_BASE_PATH, WI_EXTENSION_ID } from "../../features/ai/constants";
 import { ContextTypesExecutor } from '../../features/ai/executors/datamapper/ContextTypesExecutor';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
-import { cleanupTempProject } from "../../features/ai/utils/project/temp-project";
-import { chatStateStorage } from '../../views/ai-panel/chatStateStorage';
+import { approvalViewManager } from '../../features/ai/state/ApprovalViewManager';
+import { chatStateStorage, isRevertible } from '../../views/ai-panel/chatStateStorage';
+import { runEventStore } from '../../features/ai/utils/run-event-store';
 import { restoreWorkspaceSnapshot } from '../../views/ai-panel/checkpoint/checkpointUtils';
 import { runningServicesManager } from '../../features/ai/agent/tools/running-service-manager';
 import { executeRun } from "../../features/ai/agent/tools/ballerina-run";
+import { platformExtStore } from "../platform-ext/platform-store";
 
 /** Validate an MCP server config DTO. Returns an error message or null on success. */
 function validateMcpServerConfig(cfg: any): string | null {
@@ -157,6 +181,35 @@ function validateMcpServerConfig(cfg: any): string | null {
         }
     }
     return null;
+}
+
+function getActiveThreadId(projectRootPath?: string): string {
+    return chatStateStorage.getActiveThreadId(projectRootPath ?? resolveProjectRootPath());
+}
+
+const OAUTH_CALLBACK_TIMEOUT_MS = 3 * 60 * 1_000;
+
+// Shown when a flow ends without a connection id. "cancelled" and "superseded" are dropped by the
+// webview's run-id guard, so those only reach the log.
+const CONNECTION_FAILURE_MESSAGE: Record<ConnectionSettleReason, string> = {
+    callback: "Managed connection failed.",
+    timeout: "Timed out waiting for the connection to be authorized. Please try again.",
+    denied: "The connection was not authorized. Please try again and approve access.",
+    cancelled: "Connection cancelled.",
+    superseded: "Connection cancelled — a newer connection attempt was started.",
+};
+
+/**
+ * A run owns the active thread until it ends, so reparenting it mid-turn would strand the
+ * run's writes. The panel already disables these actions; this backstops a webview reload
+ * or a click that races the turn starting.
+ */
+function refuseWhileRunning(projectRootPath: string, action: string): boolean {
+    if (!runEventStore.hasActiveRun(projectRootPath)) {
+        return false;
+    }
+    console.warn(`[RPC] Refused ${action} — a response is still running for: ${projectRootPath}`);
+    return true;
 }
 
 export class AiPanelRpcManager implements AIPanelAPI {
@@ -336,7 +389,9 @@ export class AiPanelRpcManager implements AIPanelAPI {
 
     async abortAIGeneration(params: AbortAIGenerationRequest): Promise<void> {
         const projectRootPath = params?.projectRootPath || resolveProjectRootPath();
-        const threadId = params?.threadId || 'default';
+        // Callers pass `{}` (see AIChat's stop button), so falling back to a
+        // hardcoded 'default' aborted a thread that holds no execution.
+        const threadId = params?.threadId || getActiveThreadId(projectRootPath);
 
         const aborted = chatStateStorage.abortActiveExecution(projectRootPath, threadId);
 
@@ -390,11 +445,12 @@ export class AiPanelRpcManager implements AIPanelAPI {
 
     async generateContextTypes(params: ProcessContextTypeCreationRequest): Promise<void> {
         try {
-            // Create config using factory function
+            // existingTempPath: operate on the real workspace directly, no temp copy.
             const config = createExecutorConfig(params, {
                 command: Command.TypeCreator,
                 chatStorageEnabled: true,  // Enable chat storage for checkpoint support
-                cleanupStrategy: 'immediate'  // DataMapper uses immediate cleanup
+                cleanupStrategy: 'immediate',
+                existingTempPath: resolveProjectRootPath(),
             });
 
             await new ContextTypesExecutor(config).run();
@@ -430,6 +486,29 @@ export class AiPanelRpcManager implements AIPanelAPI {
     }
 
     async generateAgent(params: GenerateAgentCodeRequest): Promise<boolean> {
+        const smCtx = StateMachine.context();
+        const workspaceRoot = smCtx.workspacePath || smCtx.projectPath;
+
+        // Contextual mini-chat launches bypass getDefaultPrompt(), where panel
+        // launches normally convert the diagram's absolute file path to the
+        // workspace-relative path expected by the agent.
+        if (params.codeContext && path.isAbsolute(params.codeContext.filePath)) {
+            params = {
+                ...params,
+                codeContext: normalizeCodeContext(params.codeContext, workspaceRoot, smCtx.projectPath),
+            };
+        }
+
+        params = {
+            ...params,
+            // Always overwrite client input with a host-validated path.
+            activeFilePath: resolveActiveFilePath(
+                params.promptSource,
+                smCtx.documentUri,
+                workspaceRoot,
+                smCtx.projectPath,
+            ),
+        };
         return await generateAgent(params);
     }
 
@@ -457,93 +536,32 @@ export class AiPanelRpcManager implements AIPanelAPI {
         return isWorkspace;
     }
 
-    async acceptChanges(): Promise<void> {
+    async revertGeneration(params: RevertGenerationRequest): Promise<void> {
         try {
-            // Get project root path and thread ID
             const projectRootPath = resolveProjectRootPath();
-            const threadId = 'default';
-
-            // Get ALL under_review generations
-            const thread = chatStateStorage.getOrCreateThread(projectRootPath, threadId);
-            const underReviewGenerations = thread.generations.filter(
-                g => g.reviewState.status === 'under_review'
-            );
-
-            if (underReviewGenerations.length === 0) {
-                console.warn("[Review Actions] No pending review generation found for accept");
+            // Resolve the thread from the generation the bar names, not the active-thread pointer:
+            // another thread can hold its own revertible generation.
+            const located = chatStateStorage.findGenerationScope(projectRootPath, params.generationId);
+            const doneGeneration = located?.generation;
+            if (!located || !isRevertible(doneGeneration)) {
+                console.warn(`[Review Actions] Not a revertible generation: ${params.generationId}`);
                 return;
             }
+            const threadId = located.threadId;
 
-            // Get LATEST generation for integration
-            const latestReview = underReviewGenerations[underReviewGenerations.length - 1];
-            console.log(`[Review Actions] Accepting generation ${latestReview.id} with ${latestReview.reviewState.modifiedFiles.length} modified file(s)`);
+            console.log(`[Review Actions] Reverting generation ${doneGeneration.id}`);
 
-            // Cleanup ALL under_review temp projects (prevents memory leak)
-            if (!process.env.AI_TEST_ENV) {
-                for (const generation of underReviewGenerations) {
-                    if (generation.reviewState.tempProjectPath) {
-                        await cleanupTempProject(generation.reviewState.tempProjectPath);
-                    }
-                }
-            }
-
-            // Mark ALL under_review generations as accepted (also clears affectedPackagePaths)
-            chatStateStorage.acceptAllReviews(projectRootPath, threadId);
-            console.log("[Review Actions] Marked all under_review generations as accepted");
-
-            // Send telemetry for generation kept
-            sendGenerationKeptTelemetry(latestReview.id);
-
-            // Notify webview to update review component status and persist
-            sendChatComponentNotification("review", { status: "accepted" });
-            const latestGeneration = underReviewGenerations[underReviewGenerations.length - 1];
-            sendSaveChatNotification(Command.Agent, latestGeneration.id);
-        } catch (error) {
-            console.error("[Review Actions] Error accepting changes:", error);
-            throw error;
-        }
-    }
-
-    async declineChanges(): Promise<void> {
-        try {
-            // Get project root path and thread ID
-            const projectRootPath = resolveProjectRootPath();
-            const threadId = 'default';
-
-            // Get ALL under_review generations
-            const thread = chatStateStorage.getOrCreateThread(projectRootPath, threadId);
-            const underReviewGenerations = thread.generations.filter(
-                g => g.reviewState.status === 'under_review'
-            );
-
-            if (underReviewGenerations.length === 0) {
-                console.warn("[Review Actions] No pending review generation found for decline");
-                return;
-            }
-
-            console.log(`[Review Actions] Declining ${underReviewGenerations.length} generation(s)`);
-
-            // Restore workspace to state before the latest generation ran
-            const latestReview = underReviewGenerations[underReviewGenerations.length - 1];
-            const checkpoint = latestReview.checkpoint;
+            // Restore workspace to state before this generation ran
+            const checkpoint = doneGeneration.checkpoint;
             if (checkpoint) {
                 await restoreWorkspaceSnapshot(checkpoint, true);
             } else {
                 console.warn("[Review Actions] No checkpoint found for generation — workspace changes will not be reverted");
             }
 
-            // Cleanup ALL under_review temp projects (prevents memory leak)
-            if (!process.env.AI_TEST_ENV) {
-                for (const generation of underReviewGenerations) {
-                    if (generation.reviewState.tempProjectPath) {
-                        await cleanupTempProject(generation.reviewState.tempProjectPath);
-                    }
-                }
-            }
-
             // Append revert notification to model messages so the LLM knows changes were reverted
-            const existingMessages = latestReview.modelMessages || [];
-            chatStateStorage.updateGeneration(projectRootPath, threadId, latestReview.id, {
+            const existingMessages = doneGeneration.modelMessages || [];
+            chatStateStorage.updateGeneration(projectRootPath, threadId, doneGeneration.id, {
                 modelMessages: [
                     ...existingMessages,
                     {
@@ -555,19 +573,14 @@ User reverted the last made changes. The files have been restored to the state b
                 ],
             });
 
-            // Mark ALL under_review generations as error/declined
-            chatStateStorage.declineAllReviews(projectRootPath, threadId);
-            console.log("[Review Actions] Marked all under_review generations as declined");
+            chatStateStorage.revertLastGeneration(projectRootPath, threadId);
+            console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
 
-            // Send telemetry for generation discard
-            sendGenerationDiscardTelemetry(latestReview.id);
+            sendGenerationDiscardTelemetry(doneGeneration.id);
 
-            // Notify webview to update review component status and persist
-            sendChatComponentNotification("review", { status: "discarded" });
-            const latestGeneration = underReviewGenerations[underReviewGenerations.length - 1];
-            sendSaveChatNotification(Command.Agent, latestGeneration.id);
+            sendSaveChatNotification(Command.Agent, doneGeneration.id);
         } catch (error) {
-            console.error("[Review Actions] Error declining changes:", error);
+            console.error("[Review Actions] Error reverting generation:", error);
             throw error;
         }
     }
@@ -604,6 +617,131 @@ User reverted the last made changes. The files have been restored to the state b
         approvalManager.resolveConfiguration(params.requestId, false, undefined, params.comment);
     }
 
+    async createManagedConnection(params: CreateManagedConnectionRequest): Promise<CreateManagedConnectionResponse> {
+        console.log(`[ManagedConnection] start — vendor='${params.vendor}'`);
+
+        // Unreachable in practice — no managed group means no button — but guard anyway.
+        if (!extension.ballerinaExtInstance.enabledExperimentalFeatures()) {
+            console.log("[ManagedConnection] experimental features are off — managed connections are unavailable. Aborting.");
+            return { success: false, error: "Managed connections are an experimental feature." };
+        }
+
+        try {
+            // 1. Ask the service which URL to open. `params.vendor` is already the backend
+            //    provider key, resolved from the managed registry.
+            //
+            // The redirect URI carries a per-flow nonce (see uri-handlers). NOTE: this makes it
+            // carry a query string, so the service's allow-listed redirect check must tolerate
+            // the extra `state` param and append its own id with '&'.
+            const connectionState = createConnectionState();
+            const redirectUri = `${vscode.env.uriScheme}://wso2.ballerina/oauth-callback?state=${connectionState}`;
+            console.log(`[ManagedConnection] step 1 — initiate: provider='${params.vendor}', redirectUri='${redirectUri}'`);
+            const initiate = await initiateManagedConnection({ provider: params.vendor, redirectUri });
+            console.log(`[ManagedConnection] step 1 done — next='${initiate?.next}'`);
+
+            // `next` decides which URL to open. "select" means the org already has a connection
+            // for this provider, so the service offers the selection page to reuse it rather than
+            // authorizing a duplicate; that page delivers a connection id to the same redirect,
+            // so from here both branches are identical.
+            const nextUrl = initiate?.next === "select" ? initiate.selectionUrl : initiate?.authorizeUrl;
+            if (!nextUrl) {
+                console.log(`[ManagedConnection] initiate returned next='${initiate?.next}' with no matching URL. Aborting.`);
+                return { success: false, error: `Could not start a managed connection for '${params.vendor}'.` };
+            }
+
+            // 2. Open the browser and wait for the redirect callback carrying the connection id.
+            //    The service 302s back to redirectUri with the id appended.
+            //
+            //    The waiter is registered before the browser opens: a callback that arrives with
+            //    no flow pending is dropped, and the service can redirect straight back.
+            console.log(`[ManagedConnection] step 2 — opening ${initiate.next === "select" ? "connection selection" : "vendor consent"} and waiting for oauth-callback...`);
+            const callback = waitForConnectionCallback(connectionState, OAUTH_CALLBACK_TIMEOUT_MS);
+            let browserOpened = false;
+            try {
+                browserOpened = await vscode.env.openExternal(vscode.Uri.parse(nextUrl));
+            } catch (err) {
+                console.error("[ManagedConnection] step 2 — openExternal threw:", (err as Error)?.message ?? err);
+            }
+            if (!browserOpened) {
+                // Release the waiter, otherwise the user sits out the full timeout and is told the
+                // OAuth flow timed out when it never started.
+                cancelConnectionCallback();
+                return { success: false, error: "Could not open a browser to complete the connection." };
+            }
+
+            const { connectionId, reason } = await callback;
+            if (!connectionId) {
+                console.log(`[ManagedConnection] step 2 — no connection id (reason='${reason}'). Aborting.`);
+                return { success: false, error: CONNECTION_FAILURE_MESSAGE[reason] };
+            }
+            console.log(`[ManagedConnection] step 2 done — received connectionId='${connectionId}'.`);
+
+            // 3. Exchange the connection id for the credentials.
+            console.log("[ManagedConnection] step 3 — exchange...");
+            const credentials = await exchangeManagedConnection(connectionId);
+            console.log(`[ManagedConnection] step 3 done — kind='${credentials?.kind}'.`);
+
+            // Never write bot-token creds into a refresh config (or vice-versa) if the group was
+            // mislabeled upstream.
+            const expectedKind = params.authType === "staticToken" ? "bearer" : "oauth2_refresh";
+            if (credentials.kind !== expectedKind) {
+                console.log(`[ManagedConnection] kind mismatch — expected '${expectedKind}', got '${credentials.kind}'. Aborting.`);
+                return { success: false, error: `Expected ${expectedKind} credentials but the service returned '${credentials.kind}'.` };
+            }
+
+            if (credentials.kind === "oauth2_refresh") {
+                if (!credentials.clientId || !credentials.clientSecret || !credentials.refreshToken || !credentials.tokenEndpoint) {
+                    console.log("[ManagedConnection] incomplete refresh credentials in exchange response. Aborting.");
+                    return { success: false, error: "Managed token service returned incomplete OAuth credentials." };
+                }
+                console.log("[ManagedConnection] success — returning refresh credentials to the config collector.");
+                return {
+                    success: true,
+                    credentials: {
+                        clientId: credentials.clientId,
+                        clientSecret: credentials.clientSecret,
+                        refreshToken: credentials.refreshToken,
+                        // The proxy /token endpoint the connector uses to refresh — returned by
+                        // the service per connection rather than hardcoded.
+                        refreshUrl: credentials.tokenEndpoint,
+                    },
+                };
+            }
+
+            if (credentials.kind === "bearer") {
+                if (!credentials.accessToken) {
+                    console.log("[ManagedConnection] empty bearer token in exchange response. Aborting.");
+                    return { success: false, error: "Managed token service returned an empty static token." };
+                }
+                console.log("[ManagedConnection] success — returning static token to the config collector.");
+                return {
+                    success: true,
+                    credentials: {
+                        // Auto-fills the connector's single token configurable (bot/bearer/static).
+                        token: credentials.accessToken,
+                    },
+                };
+            }
+
+            console.log(`[ManagedConnection] unsupported credential kind '${credentials.kind}'. Aborting.`);
+            return { success: false, error: `Unsupported credential kind '${credentials.kind}'.` };
+        } catch (err) {
+            // managed-connections.ts has already logged the URL, HTTP status and response body — the
+            // detail the bare message drops. What surfaces here is the user-facing summary.
+            const message = (err as Error)?.message ?? String(err);
+            console.error("[ManagedConnection] flow failed:", message);
+            return { success: false, error: message || "Failed to create a managed connection." };
+        }
+    }
+
+    cancelManagedConnection(): void {
+        // The user closed the consent tab (or gave up). Release the waiting
+        // createManagedConnection immediately instead of holding them for the full callback
+        // timeout; it returns a failure the webview discards as a user-initiated cancel.
+        console.log("[ManagedConnection] cancelled by user — abandoning the pending callback wait.");
+        cancelConnectionCallback();
+    }
+
     async approveWebTool(params: WebToolApprovalRequest): Promise<void> {
         approvalManager.resolveWebToolApproval(params.requestId, true);
     }
@@ -623,7 +761,7 @@ User reverted the last made changes. The files have been restored to the state b
     async restoreCheckpoint(params: RestoreCheckpointRequest): Promise<void> {
         // Get project root path and thread identifiers
         const projectRootPath = resolveProjectRootPath();
-        const threadId = 'default';
+        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
 
         // Find the checkpoint
         const found = chatStateStorage.findCheckpoint(projectRootPath, threadId, params.checkpointId);
@@ -656,40 +794,121 @@ User reverted the last made changes. The files have been restored to the state b
     }
 
     async clearChat(): Promise<void> {
-        // Get project root path
         const projectRootPath = resolveProjectRootPath();
-
-        // Clear the workspace (all threads)
-        await chatStateStorage.clearWorkspace(projectRootPath);
-        clearCompactionDisabledWarning(projectRootPath, 'default');
-
-        console.log(`[RPC] Cleared chat for projectRootPath: ${projectRootPath}`);
+        if (refuseWhileRunning(projectRootPath, 'clearChat')) { return; }
+        // Create a new thread — preserves all existing history
+        const newThreadId = chatStateStorage.createNewThread(projectRootPath);
+        clearCompactionDisabledWarning(projectRootPath, newThreadId);
+        console.log(`[RPC] New chat started (thread: ${newThreadId}) for: ${projectRootPath}`);
     }
 
-    async updateChatMessage(params: UpdateChatMessageRequest): Promise<void> {
+    async listThreads(): Promise<ThreadSummary[]> {
         const projectRootPath = resolveProjectRootPath();
-        const threadId = 'default';
+        return chatStateStorage.listThreadsSummary(projectRootPath);
+    }
 
-        // The messageId is actually a generation ID
-        // This is called when streaming completes to save the final UI-formatted response
-        const generation = chatStateStorage.getGeneration(projectRootPath, threadId, params.messageId);
+    async switchThread(params: SwitchThreadRequest): Promise<void> {
+        const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileRunning(projectRootPath, 'switchThread')) { return; }
+        chatStateStorage.switchToThread(projectRootPath, params.threadId);
+    }
 
-        if (!generation) {
-            console.warn(`[RPC] Generation ${params.messageId} not found in thread ${threadId}`);
-            return;
+    async deleteThread(params: DeleteThreadRequest): Promise<void> {
+        const projectRootPath = resolveProjectRootPath();
+        if (refuseWhileRunning(projectRootPath, 'deleteThread')) { return; }
+        await chatStateStorage.deleteThread(projectRootPath, params.threadId);
+    }
+
+    async renameThread(params: RenameThreadRequest): Promise<void> {
+        chatStateStorage.renameThread(resolveProjectRootPath(), params.threadId, params.name);
+    }
+
+    // TODO(auto-memory): memory management temporarily disabled for this release — restore once the memory feature is refined.
+    // async clearMemory(params: ClearMemoryRequest): Promise<void> {
+    //     const projectRootPath = resolveProjectRootPath();
+    //     const workspaceHash = computeWorkspaceHash(resolveWorkspaceIdentity(projectRootPath));
+    //     const wipeDir = (dir: string) => {
+    //         try {
+    //             for (const f of fs.readdirSync(dir)) {
+    //                 if (f.endsWith('.md') || f === '.consolidate-lock') {
+    //                     try { fs.unlinkSync(path.join(dir, f)); } catch { /* best-effort */ }
+    //                 }
+    //             }
+    //         } catch { /* dir may not exist yet */ }
+    //     };
+    //     if (params.scope === 'all') { wipeDir(getGlobalMemoryDir()); }
+    //     wipeDir(getMemoryDir(workspaceHash));
+    //     invalidateMemoryPromptCache(workspaceHash);
+    // }
+    //
+    // async openMemoryFiles(params: OpenMemoryRequest): Promise<void> {
+    //     const projectRootPath = resolveProjectRootPath();
+    //     const workspaceHash = computeWorkspaceHash(resolveWorkspaceIdentity(projectRootPath));
+    //     const dir = params.scope === 'global'
+    //         ? getGlobalMemoryDir()
+    //         : getMemoryDir(workspaceHash);
+    //     const indexPath = path.join(dir, 'MEMORY.md');
+    //     if (fs.existsSync(indexPath)) {
+    //         await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(indexPath));
+    //         return;
+    //     }
+    //     // MEMORY.md is missing — fall back to opening any topic file so the user
+    //     let firstTopicFile: string | undefined;
+    //     try {
+    //         firstTopicFile = fs.readdirSync(dir)
+    //             .find(f => f.endsWith('.md') && f !== 'MEMORY.md' && !f.startsWith('.'));
+    //     } catch { /* dir may not exist yet */ }
+    //     if (firstTopicFile) {
+    //         await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(path.join(dir, firstTopicFile)));
+    //         return;
+    //     }
+    //     vscode.window.showInformationMessage('No memories saved yet for this scope.');
+    // }
+
+    async updateChatMessage(params: UpdateChatMessageRequest): Promise<void> {
+        const projectRootPath = params.projectRootPath || resolveProjectRootPath();
+        let threadId = params.threadId
+            || chatStateStorage.getActiveThreadId(projectRootPath);
+
+        // The messageId is actually a generation ID. Legacy callers do not send
+        // a thread, so locate the generation by its stable ID rather than trusting
+        // the mutable active-thread pointer.
+        let generation = chatStateStorage.getGeneration(projectRootPath, threadId, params.messageId);
+        if (!generation && !params.threadId) {
+            const located = chatStateStorage.findGenerationScope(projectRootPath, params.messageId);
+            if (located) {
+                threadId = located.threadId;
+                generation = located.generation;
+            }
         }
 
-        // Update the UI response with the final formatted content
-        chatStateStorage.updateGeneration(projectRootPath, threadId, params.messageId, {
+        if (!generation) {
+            throw new Error(`[RPC] Generation ${params.messageId} not found in thread ${threadId}`);
+        }
+
+        // Persist first. ChatStateStorage reports disk failures so the replay
+        // buffer remains available for another reconnect attempt.
+        const persisted = chatStateStorage.updateGeneration(projectRootPath, threadId, params.messageId, {
             uiResponse: params.content
         });
+        if (!persisted) {
+            throw new Error(`[RPC] Failed to persist generation ${params.messageId}`);
+        }
+
+        // Intermediate save_chat events encountered during a finished-run replay
+        // must not clear the only recovery source. The reconnect's final write
+        // explicitly clears it after the fully rebuilt transcript is durable.
+        const active = chatStateStorage.getActiveExecution(projectRootPath, threadId);
+        if (params.clearRunBuffer !== false && active?.generationId !== params.messageId) {
+            runEventStore.clearBuffer(projectRootPath, threadId, params.messageId);
+        }
 
         console.log(`[RPC] Updated generation ${params.messageId} UI response`);
     }
 
     async getChatMessages(): Promise<UIChatMessage[]> {
         const projectRootPath = resolveProjectRootPath();
-        const threadId = 'default';
+        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
 
         // Get all generations from chat storage
         const generations = chatStateStorage.getGenerations(projectRootPath, threadId);
@@ -710,7 +929,12 @@ User reverted the last made changes. The files have been restored to the state b
                 uiMessages.push({
                     role: 'assistant',
                     content: generation.uiResponse,
-                    messageId: generation.id
+                    messageId: generation.id,
+                    // Never hand the panel a 'done' it cannot act on, or the bar renders live
+                    // with dead buttons.
+                    generationStatus: generation.reviewState.status === 'done' && !isRevertible(generation)
+                        ? 'accepted'
+                        : generation.reviewState.status
                 });
             }
         }
@@ -720,7 +944,7 @@ User reverted the last made changes. The files have been restored to the state b
 
     async getCheckpoints(): Promise<CheckpointInfo[]> {
         const projectRootPath = resolveProjectRootPath();
-        const threadId = 'default';
+        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
 
         // Get checkpoints from ChatStateStorage
         const checkpoints = chatStateStorage.getCheckpoints(projectRootPath, threadId);
@@ -736,18 +960,51 @@ User reverted the last made changes. The files have been restored to the state b
 
     async getActiveTempDir(): Promise<string> {
         const projectRootPath = resolveProjectRootPath();
-        const threadId = 'default';
+        const threadId = chatStateStorage.getActiveThreadId(resolveProjectRootPath());
 
-        // Always get tempProjectPath from active generation in chatStateStorage
-        const pendingReview = chatStateStorage.getPendingReviewGeneration(projectRootPath, threadId);
-        if (!pendingReview || !pendingReview.reviewState.tempProjectPath) {
-            console.log(">>> no pending review or temp project path found for semantic diff");
+        // Always get tempProjectPath from the currently open ('done') generation
+        const doneGeneration = chatStateStorage.getDoneGeneration(projectRootPath, threadId);
+        if (!doneGeneration || !doneGeneration.reviewState.tempProjectPath) {
+            console.log(">>> no open generation or temp project path found for semantic diff");
             return undefined;
         }
 
-        const projectPath = pendingReview.reviewState.tempProjectPath;
+        const projectPath = doneGeneration.reviewState.tempProjectPath;
         console.log(">>> active temp project path", projectPath);
         return projectPath;
+    }
+
+    async getRunStatus(params: GetRunStatusRequest): Promise<GetRunStatusResponse> {
+        const projectRootPath = params?.projectRootPath || resolveProjectRootPath();
+        // Runs execute (and buffer their events) under the active thread — resolve
+        // it the same way generateAgent does, or a reconnect on a non-default
+        // thread would look up an empty buffer.
+        const threadId = params?.threadId
+            || chatStateStorage.getActiveThreadId(projectRootPath);
+        const status = runEventStore.getRunStatus(projectRootPath, threadId, params?.sinceSeq);
+        // Generation storage is materialized before beginRun, so the prompt and
+        // mode are authoritative even when reconnect happens before the first event.
+        const generation = status.generationId
+            ? chatStateStorage.getGeneration(projectRootPath, threadId, status.generationId)
+            : undefined;
+        return {
+            ...status,
+            projectRootPath,
+            threadId,
+            isPlanMode: generation?.metadata?.isPlanMode,
+            userPrompt: generation?.userPrompt,
+            // Interactive prompts still awaiting an answer — lets the reopened panel
+            // re-surface only still-pending prompts during replay and skip resolved ones.
+            pendingRequestIds: approvalManager.getPendingRequestIds(),
+        };
+    }
+
+    async getLatestFollowupSuggestions(): Promise<FollowupSuggestion[]> {
+        const projectRootPath = resolveProjectRootPath();
+        // Read the thread directly: getGenerations() would create and persist an empty thread if
+        // this one is no longer in memory.
+        const thread = chatStateStorage.getWorkspaceState(projectRootPath)?.threads.get(getActiveThreadId(projectRootPath));
+        return thread?.generations[thread.generations.length - 1]?.followupSuggestions ?? [];
     }
 
     async compactConversation(_params: CompactConversationRequest): Promise<CompactConversationResponse> {
@@ -760,7 +1017,7 @@ User reverted the last made changes. The files have been restored to the state b
     }
 
     async getShowContextUsage(): Promise<boolean> {
-        return workspace.getConfiguration('ballerina').get<boolean>('ai.showContextUsage', false);
+        return workspace.getConfiguration('ballerina.copilot').get<boolean>('showContextUsage', false);
     }
 
     async getUsage(): Promise<UsageResponse | undefined> {
@@ -772,14 +1029,50 @@ User reverted the last made changes. The files have been restored to the state b
             const url = BACKEND_URL + LLM_API_BASE_PATH + "/usage";
             const response = await fetchWithAuth(url, { method: "GET" });
             if (response && response.ok) {
-                const data = await response.json();
-                return data as UsageResponse;
+                const data = await response.json() as UsageResponse;
+                const orgId = platformExtStore.getState().state?.selectedContext?.org?.uuid;
+                return { ...data, orgId };
             }
             console.error("Failed to fetch usage: ", response?.status, response?.statusText);
             return undefined;
         } catch (error) {
             console.error("Failed to fetch usage:", error);
             return undefined;
+        }
+    }
+
+    async requestQuota(params: QuotaRequestParams): Promise<QuotaRequestResult> {
+        const loginMethod = await getLoginMethod();
+        if (loginMethod !== LoginMethod.BI_INTEL) {
+            return { status: "failed" };
+        }
+        const email = platformExtStore.getState().state?.userInfo?.userEmail;
+        if (!email) {
+            console.error("Failed to submit quota request: no account email available");
+            return { status: "failed" };
+        }
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+            const url = BACKEND_URL + LLM_API_BASE_PATH + "/quota-requests";
+            const response = await fetchWithAuth(url, {
+                method: "POST",
+                body: JSON.stringify({ note: params.note, email }),
+                signal: controller.signal,
+            });
+            if (response?.status === 201) {
+                return { status: "submitted" };
+            }
+            if (response?.status === 409) {
+                return { status: "already_requested" };
+            }
+            console.error("Failed to submit quota request: ", response?.status, response?.statusText);
+            return { status: "failed" };
+        } catch (error) {
+            console.error("Failed to submit quota request:", error);
+            return { status: "failed" };
+        } finally {
+            clearTimeout(timeout);
         }
     }
 
@@ -802,14 +1095,14 @@ User reverted the last made changes. The files have been restored to the state b
     async openFileDiff(params: OpenFileDiffRequest): Promise<void> {
         AiPanelRpcManager.registerDiffContentProvider();
 
-        const context = StateMachine.context();
-        const workspaceId = context.workspacePath || context.projectPath;
-        const threadId = 'default';
-        const generation = chatStateStorage.getGeneration(workspaceId, threadId, params.generationId);
-        const tempProjectPath = generation?.reviewState.tempProjectPath;
+        const projectRootPath = resolveProjectRootPath();
+        const generation = chatStateStorage.findGenerationScope(projectRootPath, params.generationId)?.generation;
+        // Direct-edit mode edits the workspace in place, so the review root is the workspace root —
+        // re-derived rather than restored, since a persisted absolute path can outlive its workspace.
+        const tempProjectPath = generation?.reviewState.tempProjectPath ?? projectRootPath;
 
-        if (!tempProjectPath) {
-            console.error("[openFileDiff] No generation or temp project path for generationId:", params.generationId);
+        if (!generation) {
+            console.error("[openFileDiff] No generation for generationId:", params.generationId);
             return;
         }
 
@@ -896,14 +1189,6 @@ User reverted the last made changes. The files have been restored to the state b
 
     // ── Skills helpers ────────────────────────────────────────────────────────
 
-    /** Returns the config file path for the given skill tier. */
-    private resolveSkillsConfigPath(tier: SkillTier, projectRootPath: string | null): string {
-        if (tier === SkillTier.PROJECT && projectRootPath) {
-            return buildProjectSkillsConfigPath(projectRootPath);
-        }
-        return GLOBAL_SKILLS_CONFIG_PATH;
-    }
-
     /** Extracts the bare skill name from a prefixed id such as "user/foo" → "foo". */
     private extractBareSkillName(skillId: string): string {
         const slash = skillId.indexOf('/');
@@ -963,11 +1248,9 @@ User reverted the last made changes. The files have been restored to the state b
 
     async getSkills(): Promise<GetSkillsResponse> {
         const projectRootPath = resolveProjectRootPath();
-        const globalConfig = getSkillsConfig(GLOBAL_SKILLS_CONFIG_PATH);
-        const projectConfigPath = projectRootPath ? buildProjectSkillsConfigPath(projectRootPath) : null;
-        const projectConfig = projectConfigPath ? getSkillsConfig(projectConfigPath) : { disabledSkills: [], enabledSkills: [] };
-        const allDisabled = new Set([...globalConfig.disabledSkills, ...projectConfig.disabledSkills]);
-        const allEnabled = new Set([...globalConfig.enabledSkills, ...projectConfig.enabledSkills]);
+        const config = getSkillsConfig(projectRootPath);
+        const allDisabled = new Set(config.disabledSkills);
+        const allEnabled  = new Set(config.enabledSkills);
 
         return {
             skills: [
@@ -996,11 +1279,15 @@ User reverted the last made changes. The files have been restored to the state b
 
     async toggleSkill(params: ToggleSkillRequest): Promise<boolean> {
         try {
-            const configPath = this.resolveSkillsConfigPath(params.tier, resolveProjectRootPath());
             const builtinSkill = params.tier === SkillTier.BUILTIN
                 ? REGISTERED_SKILLS.find(s => s.name === params.skillId)
                 : undefined;
-            setSkillEnabled(configPath, params.skillId, params.enabled, builtinSkill?.default === false);
+            const projectRootPath = resolveProjectRootPath();
+            // USER skills always go to global user settings.
+            // BUILTIN and PROJECT skills use workspace settings when in a project context.
+            const scope: 'user' | 'workspace' =
+                params.tier !== SkillTier.USER && !!projectRootPath ? 'workspace' : 'user';
+            await setSkillEnabled(params.skillId, params.enabled, builtinSkill?.default === false, scope);
             return true;
         } catch (error) {
             console.error('[Skills] toggleSkill failed:', error);
@@ -1029,15 +1316,12 @@ User reverted the last made changes. The files have been restored to the state b
         try {
             const projectRootPath = resolveProjectRootPath();
             const builtinSkill = REGISTERED_SKILLS.find(s => s.name === params.skillId);
+            const isUserSkill = !builtinSkill && scanUserSkills().some(s => s.name === params.skillId);
+            const resolvedScope = !isUserSkill && !!projectRootPath ? 'workspace' : 'user';
             if (builtinSkill?.default === false) {
-                if (projectRootPath) {
-                    setSkillEnabled(buildProjectSkillsConfigPath(projectRootPath), params.skillId, true, true);
-                }
+                await setSkillEnabled(params.skillId, true, true, resolvedScope);
             } else {
-                setSkillEnabled(GLOBAL_SKILLS_CONFIG_PATH, params.skillId, true);
-                if (projectRootPath) {
-                    setSkillEnabled(buildProjectSkillsConfigPath(projectRootPath), params.skillId, true);
-                }
+                await setSkillEnabled(params.skillId, true, false, resolvedScope);
             }
             sendSkillEnableNotification({ type: "skill_enable_event", requestId: params.requestId, stage: SkillEnableStage.ENABLED, skillName: params.skillId, skillId: params.skillId } as any);
             approvalManager.resolveSkillEnable(params.requestId, true);
@@ -1131,16 +1415,9 @@ User reverted the last made changes. The files have been restored to the state b
     }
 
     async getMcpToolsEnabled(): Promise<boolean> {
-        return workspace.getConfiguration('ballerina').get<boolean>('copilot.enableMcpTools', false);
+        return isMcpToolsEnabled(resolveProjectRootPath() || undefined);
     }
 
-    async getSkillsEnabled(): Promise<boolean> {
-        return workspace.getConfiguration('ballerina').get<boolean>('copilot.enableSkills', true);
-    }
-
-    async setSkillsEnabled(params: SetSkillsEnabledRequest): Promise<void> {
-        await workspace.getConfiguration('ballerina').update('copilot.enableSkills', !!params?.enabled, ConfigurationTarget.Global);
-    }
 
     async getMcpWorkspaceContext(): Promise<McpWorkspaceContextResponse> {
         return { hasWorkspace: !!resolveProjectRootPath() && vscode.workspace.isTrusted };
@@ -1246,9 +1523,8 @@ User reverted the last made changes. The files have been restored to the state b
     }
 
     async setMcpToolsEnabled(params: SetMcpToolsEnabledRequest): Promise<void> {
-        await workspace.getConfiguration('ballerina').update('copilot.enableMcpTools', !!params?.enabled, ConfigurationTarget.Global);
-        // The existing onDidChangeConfiguration listener in activator.ts handles
-        // setup/teardown of the manager and pushes config_change + mcpServersChanged.
+        await workspace.getConfiguration('ballerina')
+            .update(MCP_ENABLE_SETTING, !!params?.enabled, ConfigurationTarget.Global);
     }
 
     async getAgentsMdFileInfo(): Promise<AgentsMdFileInfoDTO> {

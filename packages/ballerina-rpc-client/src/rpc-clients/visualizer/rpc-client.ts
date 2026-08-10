@@ -25,6 +25,7 @@ import {
     JoinProjectPathRequest,
     JoinProjectPathResponse,
     OpenViewRequest,
+    NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     ProjectStructureArtifactResponse,
     SaveEvalThreadRequest,
@@ -49,7 +50,6 @@ import {
     undo,
     undoRedoState,
     updateCurrentArtifactLocation,
-    reviewAccepted,
     navigateReviewMode,
     GoBackRequest,
     GoHomeRequest
@@ -120,12 +120,8 @@ export class VisualizerRpcClient implements VisualizerAPI {
         return this._messenger.sendRequest(updateCurrentArtifactLocation, HOST_EXTENSION, params);
     }
 
-    reviewAccepted(): void {
-        return this._messenger.sendNotification(reviewAccepted, HOST_EXTENSION);
-    }
-
-    navigateReviewMode(index: number): void {
-        return this._messenger.sendNotification(navigateReviewMode, HOST_EXTENSION, index);
+    navigateReviewMode(params: NavigateReviewModeRequest): void {
+        return this._messenger.sendNotification(navigateReviewMode, HOST_EXTENSION, params);
     }
 
     handleApprovalPopupClose(params: HandleApprovalPopupCloseRequest): void {

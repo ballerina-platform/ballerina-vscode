@@ -200,7 +200,9 @@ export function activateSubscriptions() {
             if (isWorkspaceSupported) {
                 openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.BIAddProjectForm });
             } else {
-                vscode.window.showErrorMessage(MESSAGES.PROJECTS_NOT_SUPPORTED);
+                // Projects/workspaces need 2201.13.0+; fall back to the standalone
+                // integration wizard instead of blocking the user entirely.
+                openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.BIProjectForm });
             }
         })
     );

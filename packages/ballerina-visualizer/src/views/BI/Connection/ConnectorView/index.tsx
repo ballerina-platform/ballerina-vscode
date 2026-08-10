@@ -459,6 +459,7 @@ export function ConnectorView(props: ConnectorViewProps) {
                                                     <Typography variant="h3">{label}</Typography>
                                                     {isLocalConnectorCategory && (
                                                         <Button
+                                                            data-testid="add-connector-from-openapi"
                                                             appearance="icon"
                                                             tooltip={"Add a Connector from OpenAPI"}
                                                             onClick={onAddGeneratedConnector}
@@ -478,6 +479,7 @@ export function ConnectorView(props: ConnectorViewProps) {
                                                         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: '40px' }}>
 
                                                             <Button
+                                                                data-testid="generate-connector-button"
                                                                 sx={{ display: 'flex', justifySelf: 'flex-end' }}
                                                                 appearance="primary"
                                                                 onClick={onAddGeneratedConnector}

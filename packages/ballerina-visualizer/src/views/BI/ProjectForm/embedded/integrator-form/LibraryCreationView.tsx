@@ -18,26 +18,22 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import debounce from "lodash/debounce";
-import { Button, Icon, TextField, CheckBox } from "@wso2/ui-toolkit";
+import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useVisualizerContext } from "./context/WsClientContext";
-import { useCloudContext, useCloudProjects, useProjectModeSupported, useWorkspaceRoot } from "./providers";
+import { useCloudContext, useWorkspaceRoot } from "./providers";
 import {
     sanitizePackageName,
     validateComponentName,
     validatePackageName,
     validateOrgName,
     joinPath,
-    sanitizeProjectHandle,
+    splitPath,
+    extractBase,
     sanitizeOrgHandle,
-    validateProjectHandle,
-    validateProjectName,
-    suggestAvailableProjectName
 } from "./utils";
-import { WICommandIds } from "./shims/platform-core";
-import { DirectorySelector } from "./components/DirectorySelector/DirectorySelector";
 import { AdvancedConfigurationSection } from "./components";
-import { SectionDivider, Description, ResolvedPathText, ProjectSectionContainer, ProjectSectionLabel, ProjectFieldCollapse, SkipOptionRow, CloudErrorActionRow, ActionLink } from "./styles";
+import { SectionDivider } from "./styles";
 import { ValidateProjectFormErrorField } from "./shims/wi-core";
 import {
     PageBackdrop,
@@ -53,11 +49,49 @@ import {
     FormContent,
     FormFooter,
 } from "./shared/FormPageLayout";
-import { DEFAULT_LIBRARY_NAME, DEFAULT_PACKAGE_NAME, DEFAULT_PROJECT_NAME } from "./types";
+import { DEFAULT_LIBRARY_NAME, DEFAULT_PACKAGE_NAME } from "./types";
+import { CreatingIntegrationView } from "../../../CreateIntegrationWizard/components/CreatingIntegrationView";
 import { useRealtimeProjectPathValidation } from "./useRealtimeProjectPathValidation";
+import { useDirectoryNameCoupling } from "../../hooks/useDirectoryNameCoupling";
+import {
+    checkNameCollision as resolveNameCollisionMessage,
+    resolveDefaultNameAndDirectory,
+    toTakenNames,
+    emptyTakenNames,
+    TakenNames,
+} from "../../hooks/resolveAvailableDirectoryName";
 
 const FieldGroup = styled.div`
     margin-bottom: 20px;
+`;
+
+const InfoNote = styled.div`
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-descriptionForeground);
+`;
+
+/** Form-level failure (path validation or the create call itself). The path field
+ *  used to be the only home for these, and it is hidden in the embedded flow. */
+const FormError = styled.div`
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-errorForeground);
+`;
+
+
+/** Gives the create-in-progress screen room to centre itself inside the scrolling form body. */
+const CreatingSlot = styled.div`
+    display: flex;
+    min-height: 320px;
 `;
 
 interface LibraryFormData {
@@ -68,33 +102,51 @@ interface LibraryFormData {
     version: string;
 }
 
-export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?: () => void; ballerinaUnavailable?: boolean }) {
+/**
+ * The project the library is created into, resolved by the unified Create chooser.
+ * In the always-workspace model the library is always a package inside a
+ * workspace: `workspacePath` is that workspace's folder, and `isNewProject`
+ * decides whether it is scaffolded fresh or the package added into an existing one.
+ */
+interface LibraryProjectContext {
+    isNewProject: boolean;
+    workspacePath: string;
+    workspaceName?: string;
+}
+
+export function LibraryCreationView({ onBack, ballerinaUnavailable, projectContext, embedded }: { onBack?: () => void; ballerinaUnavailable?: boolean; projectContext?: LibraryProjectContext; embedded?: boolean }) {
     const { wsClient } = useVisualizerContext();
     const { authState } = useCloudContext();
     const organizations = (authState?.userInfo?.organizations as Array<{ id?: any; handle: string; name: string }> | undefined);
-    const isProjectModeSupported = useProjectModeSupported();
-    const { path: workspacePath, isReady: workspaceReady } = useWorkspaceRoot();
+    const { path: openWorkspacePath, isReady: openWorkspaceReady } = useWorkspaceRoot();
+    // When the chooser resolved a project, seed the path from that workspace folder
+    // (ready immediately); otherwise fall back to the currently open workspace.
+    const workspacePath = projectContext?.workspacePath ?? openWorkspacePath;
+    const workspaceReady = projectContext ? true : openWorkspaceReady;
     const firstFieldRef = useRef<HTMLInputElement>(null);
-    const handleTouched = useRef(false);
-    const withinProjectNameTouchedRef = useRef(false);
     const orgNameInitialized = useRef(false);
     const defaultPathInitialized = useRef(false);
+    const libraryNameTouchedRef = useRef(false);
+    // The location `takenNames` currently describes, so the refresh effect below can skip
+    // the path the seed already fetched (and re-fetch whenever the user retargets).
+    const takenNamesPathRef = useRef<string | null>(null);
     const [packageNameTouched, setPackageNameTouched] = useState(false);
-    const [withinProjectNameTouched, setWithinProjectNameTouched] = useState(false);
+    const dirCoupling = useDirectoryNameCoupling(() => sanitizePackageName(DEFAULT_LIBRARY_NAME), sanitizePackageName);
+    const { directoryName, dirTouched } = dirCoupling;
     const [isPackageInfoExpanded, setIsPackageInfoExpanded] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
-    const [createWithinProject, setCreateWithinProject] = useState(false);
-    const [withinProjectName, setWithinProjectName] = useState(DEFAULT_PROJECT_NAME);
-    const [withinProjectHandle, setWithinProjectHandle] = useState(() => sanitizeProjectHandle(DEFAULT_PROJECT_NAME));
+    // Distinct from `isValidating`: set once the create is actually in flight, at which
+    // point the window is about to reload and the form is replaced by a progress screen.
+    const [isCreating, setIsCreating] = useState(false);
     const [libraryNameError, setLibraryNameError] = useState<string | null>(null);
     const [pathError, setPathError] = useState<string | null>(null);
+    const [existingWorkspace, setExistingWorkspace] = useState(false);
+    // Folder names and component titles already used in the target project, so a
+    // library name the user types can be flagged live if it collides.
+    const [takenNames, setTakenNames] = useState<TakenNames>(emptyTakenNames());
     const [packageNameError, setPackageNameError] = useState<string | null>(null);
     const [orgNameError, setOrgNameError] = useState<string | null>(null);
-    const [withinProjectNameError, setWithinProjectNameError] = useState<string | null>(null);
-    const [projectHandleError, setProjectHandleError] = useState<string | null>(null);
-    const [cloudProjectNameError, setCloudProjectNameError] = useState<string | null>(null);
-    const [cloudProjectHandleError, setCloudProjectHandleError] = useState<string | null>(null);
-    const [matchedCloudProject, setMatchedCloudProject] = useState<{ project: any; org: any } | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
     const [defaultPath, setDefaultPath] = useState("");
     const [pathTouched, setPathTouched] = useState(false);
     const [editablePath, setEditablePath] = useState("");
@@ -110,47 +162,52 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         () => debounce((error: string) => setLibraryNameError(error), 300),
         []
     );
-    const debouncedSetWithinProjectNameError = useMemo(
-        () => debounce((error: string) => setWithinProjectNameError(error), 300),
-        []
-    );
 
-    const resolvedOrg = useMemo(() => {
-        if (!organizations || organizations.length === 0) return undefined;
-        return formData.orgName
-            ? (organizations.find(o => o.handle === formData.orgName) ?? organizations[0])
-            : organizations[0];
-    }, [organizations, formData.orgName]);
-
-    const { data: cloudProjectsData } = useCloudProjects(
-        resolvedOrg?.id?.toString(),
-        resolvedOrg?.handle
-    );
+    /** Returns a diagnostic when the name collides with an existing integration or
+     *  library in the target project (by folder or by title), else null. */
+    const checkNameCollision = (value: string): string | null =>
+        resolveNameCollisionMessage(value, takenNames, sanitizePackageName);
 
     useEffect(() => {
         if (!workspaceReady) return;
         let mounted = true;
+
         (async () => {
-            // Seed the default path only once — this effect re-runs on workspacePath /
-            // project-mode changes, and without the guard it would clobber a path the
-            // user has since chosen via Browse or by typing.
+            // Seed the default path only once — this effect re-runs on workspacePath
+            // changes, and without the guard it would clobber a path the user has since
+            // chosen via Browse or by typing.
             if (!defaultPathInitialized.current) {
                 const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
                 if (!mounted) return;
+                // Fetch the project's existing folders + titles once: used to pick a
+                // collision-free default AND to flag name collisions live.
+                let taken = emptyTakenNames();
+                try {
+                    taken = toTakenNames(await wsClient.getProjectComponentNames({ projectPath: dp }));
+                    if (!mounted) return;
+                } catch {
+                    // Best effort — fall back to the un-indexed default on failure.
+                }
+                takenNamesPathRef.current = dp;
+                setTakenNames(taken);
+                // Resolve the indexed default name/folder BEFORE committing the path so
+                // the fields show the final values immediately (like the wizard).
+                const { name, directoryName: dirName } = resolveDefaultNameAndDirectory(DEFAULT_LIBRARY_NAME, taken, sanitizePackageName);
                 defaultPathInitialized.current = true;
+                // Don't clobber a name the user typed while the seed was resolving.
+                if (!libraryNameTouchedRef.current) {
+                    dirCoupling.setDirectoryName(dirName);
+                    setFormData(prev => ({ ...prev, libraryName: name, packageName: sanitizePackageName(name), path: dp }));
+                } else {
+                    setFormData(prev => ({ ...prev, path: dp }));
+                }
                 setDefaultPath(dp);
-                setFormData(prev => ({ ...prev, path: dp }));
-            }
-
-            if (isProjectModeSupported) {
-                if (!mounted) return;
-                setCreateWithinProject(true);
             }
         })();
         return () => {
             mounted = false;
         };
-    }, [workspaceReady, wsClient, workspacePath, isProjectModeSupported]);
+    }, [workspaceReady, wsClient, workspacePath]);
 
     // Initialize org name independently of workspace readiness.
     useEffect(() => {
@@ -175,9 +232,10 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
     }, [formData.orgName]);
 
     // Real-time library name validation — clear immediately when valid, debounce new errors
-    // to avoid flashing "required" on every keystroke.
+    // to avoid flashing "required" on every keystroke. Also flags a name that collides
+    // with an existing integration/library (by folder or title) in the target project.
     useEffect(() => {
-        const error = validateComponentName(formData.libraryName);
+        const error = validateComponentName(formData.libraryName) || checkNameCollision(formData.libraryName);
         if (!error) {
             debouncedSetLibraryNameError.cancel();
             setLibraryNameError(null);
@@ -185,94 +243,7 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
         debouncedSetLibraryNameError(error);
         return () => debouncedSetLibraryNameError.cancel();
-    }, [formData.libraryName]);
-
-    // Auto-derive handle from withinProjectName unless manually edited
-    useEffect(() => {
-        if (handleTouched.current) return;
-        if (createWithinProject && withinProjectName) {
-            const derived = sanitizeProjectHandle(withinProjectName);
-            setWithinProjectHandle(derived);
-        }
-    }, [withinProjectName, createWithinProject]);
-
-    useEffect(() => {
-        if (createWithinProject) {
-            setProjectHandleError(validateProjectHandle(withinProjectHandle));
-        } else {
-            setProjectHandleError(null);
-        }
-    }, [withinProjectHandle, createWithinProject]);
-
-    // Real-time project name validation — clear immediately when valid, debounce new errors.
-    useEffect(() => {
-        if (!createWithinProject) {
-            debouncedSetWithinProjectNameError.cancel();
-            setWithinProjectNameError(null);
-            return;
-        }
-        const error = validateProjectName(withinProjectName.trim());
-        if (!error) {
-            debouncedSetWithinProjectNameError.cancel();
-            setWithinProjectNameError(null);
-            return;
-        }
-        debouncedSetWithinProjectNameError(error);
-        return () => debouncedSetWithinProjectNameError.cancel();
-    }, [withinProjectName, createWithinProject]);
-
-    // Validate project name against cached cloud projects — synchronous, no debounce needed.
-    useEffect(() => {
-        if (!cloudProjectsData?.projects || !createWithinProject || !withinProjectName?.trim()) {
-            setCloudProjectNameError(null);
-            setMatchedCloudProject(null);
-            return;
-        }
-        const nameToCheck = withinProjectName.trim().toLowerCase();
-        const matched = cloudProjectsData.projects.find((p: any) => p.name.toLowerCase() === nameToCheck);
-        if (matched) {
-            const suggested = suggestAvailableProjectName(
-                withinProjectName.trim(),
-                cloudProjectsData.projects.map((p: any) => p.name)
-            );
-            if (!withinProjectNameTouchedRef.current) {
-                // Default name conflicts — silently auto-rename
-                setWithinProjectName(suggested);
-                setCloudProjectNameError(null);
-                setMatchedCloudProject(null);
-            } else {
-                setCloudProjectNameError("A project with this name already exists in cloud");
-                setMatchedCloudProject({ project: matched, org: resolvedOrg });
-            }
-        } else {
-            setCloudProjectNameError(null);
-            setMatchedCloudProject(null);
-        }
-    }, [cloudProjectsData, withinProjectName, createWithinProject]);
-
-    // Validate project handle against cached cloud project handles
-    useEffect(() => {
-        if (!cloudProjectsData?.projects || !createWithinProject || !withinProjectHandle?.trim()) {
-            setCloudProjectHandleError(null);
-            return;
-        }
-        const handleToCheck = withinProjectHandle.trim().toLowerCase();
-        const matched = cloudProjectsData.projects.find((p: any) => p.handler.toLowerCase() === handleToCheck);
-        if (matched) {
-            const suggested = suggestAvailableProjectName(
-                withinProjectHandle.trim(),
-                cloudProjectsData.projects.map((p: any) => p.handler)
-            );
-            if (!handleTouched.current) {
-                setWithinProjectHandle(suggested);
-                setCloudProjectHandleError(null);
-            } else {
-                setCloudProjectHandleError("A project with this id already exists in cloud");
-            }
-        } else {
-            setCloudProjectHandleError(null);
-        }
-    }, [cloudProjectsData, withinProjectHandle, createWithinProject]);
+    }, [formData.libraryName, takenNames]);
 
     // Focus and select the first field on mount — VSCodeTextField is a web component,
     // so the real <input> is inside its shadow DOM and needs to be targeted directly.
@@ -291,40 +262,77 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
     }, [formData.path, defaultPath, pathTouched]);
 
+    // The collision list describes one location, but Browse / editing the path can retarget
+    // it (standalone variant only — the embedded flow hides the path field). Without this the
+    // snapshot stays pinned to the seeded folder, so a name that is free in the newly chosen
+    // project keeps being rejected. Keyed on `editablePath` (the base dir the path validation
+    // hook also watches) and debounced to match it; the name-validation effect above already
+    // depends on `takenNames`, so the diagnostic self-corrects once this lands.
+    useEffect(() => {
+        const targetPath = editablePath.trim();
+        if (!targetPath || targetPath === takenNamesPathRef.current) {
+            return;
+        }
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            let taken = emptyTakenNames();
+            try {
+                taken = toTakenNames(await wsClient.getProjectComponentNames({ projectPath: targetPath }));
+            } catch {
+                // Fail open: an empty list only defers collision reporting to submit-time
+                // validation, whereas keeping the previous location's list would block
+                // names that are actually free here.
+            }
+            if (cancelled) {
+                return;
+            }
+            takenNamesPathRef.current = targetPath;
+            setTakenNames(taken);
+        }, 300);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [wsClient, editablePath]);
+
     useRealtimeProjectPathValidation({
         wsClient,
         projectPath: editablePath,
-        projectName: createWithinProject ? withinProjectHandle : formData.packageName,
-        createAsWorkspace: createWithinProject,
+        projectName: formData.packageName,
+        directoryName,
+        createAsWorkspace: false,
+        allowExistingDirectory: true,
         pathTouched,
         requiredPathMessage: "Please select a path for your library",
         invalidPathMessage: "Invalid library path",
         onPathErrorChange: setPathError,
+        onExistingWorkspaceChange: setExistingWorkspace,
     });
 
-    const computeDisplayedPath = (): string => {
-        const base = editablePath;
-        if (createWithinProject) {
-            const projectPath = withinProjectHandle
-                ? joinPath(base, withinProjectHandle)
-                : base;
-            return formData.packageName ? joinPath(projectPath, formData.packageName) : projectPath;
-        }
-        return joinPath(base, formData.packageName);
-    };
+    const resolvedPath = joinPath(editablePath, directoryName);
 
-    const resolvedPath = computeDisplayedPath();
+    /**
+     * The unified Create flow picks the project — and therefore the location — on its
+     * chooser screen, so the library form asks only for a name and creates the package
+     * inside `projectContext.workspacePath`. This mirrors the integration wizard, which
+     * hides its own path field when embedded. The standalone `library` variant has no
+     * chooser in front of it, so it keeps owning its location.
+     */
+    const hidePath = !!embedded;
 
     const handleLibraryName = (value: string) => {
+        libraryNameTouchedRef.current = true;
         const sanitized = sanitizePackageName(value);
         setFormData(prev => ({
             ...prev,
             libraryName: value,
             packageName: packageNameTouched ? prev.packageName : sanitized,
         }));
-        if (!packageNameTouched && !withinProjectNameTouched && !withinProjectName) {
-            setWithinProjectName(DEFAULT_PROJECT_NAME);
-        }
+        // Reflect the derived folder immediately for a responsive path field. Only the
+        // default name is auto-indexed (at seed time); a name the user types is used
+        // verbatim, matching the integration wizard. Unlike the other Create-flow
+        // forms, a blank name is sanitized as-is rather than clearing the folder.
+        dirCoupling.handleDisplayNameChange(value, { guardBlank: false });
     };
 
     const handlePathSelection = async () => {
@@ -335,25 +343,9 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         setFormData(prev => ({ ...prev, path: result.path }));
     };
 
-    const handleCreateWithinProjectToggle = (checked: boolean) => {
-        if (checked) {
-            setCreateWithinProject(true);
-            if (!withinProjectName) {
-                setWithinProjectName(DEFAULT_PROJECT_NAME);
-                if (!handleTouched.current) {
-                    setWithinProjectHandle(sanitizeProjectHandle(DEFAULT_PROJECT_NAME));
-                }
-            }
-        } else {
-            handleTouched.current = false;
-            setCreateWithinProject(false);
-            setWithinProjectName("");
-            setWithinProjectHandle("");
-        }
-    };
-
     const handleCreate = async () => {
         setIsValidating(true);
+        setFormError(null);
 
         // Commit any un-blurred path before submitting
         const currentPath = editablePath || formData.path;
@@ -363,7 +355,7 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
 
         let hasError = false;
 
-        const libraryNameErr = validateComponentName(formData.libraryName);
+        const libraryNameErr = validateComponentName(formData.libraryName) || checkNameCollision(formData.libraryName);
         if (libraryNameErr) {
             setLibraryNameError(libraryNameErr);
             hasError = true;
@@ -383,32 +375,13 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
 
         if (!currentPath || currentPath.trim().length < 2) {
-            setPathError("Please select a path for your library");
-            hasError = true;
-        }
-
-        if (createWithinProject) {
-            const projectNameErr = validateProjectName(withinProjectName.trim());
-            if (projectNameErr) {
-                setWithinProjectNameError(projectNameErr);
-                hasError = true;
+            // With the path field hidden the location comes from the chooser, so an
+            // unusable one is a flow-level problem rather than a field the user can fix.
+            if (hidePath) {
+                setFormError("The project location could not be resolved. Go back and select the project again.");
+            } else {
+                setPathError("Please select a path for your library");
             }
-        }
-
-        if (createWithinProject) {
-            const hErr = validateProjectHandle(withinProjectHandle);
-            if (hErr) {
-                setProjectHandleError(hErr);
-                setIsPackageInfoExpanded(true);
-                hasError = true;
-            }
-        }
-
-        if (cloudProjectNameError) {
-            hasError = true;
-        }
-
-        if (cloudProjectHandleError) {
             hasError = true;
         }
 
@@ -423,56 +396,175 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
         }
 
         try {
-            const validationResult = await wsClient.validateProjectPath({
-                projectPath: currentPath,
-                projectName: createWithinProject ? withinProjectHandle : formData.packageName,
-                createDirectory: true,
-                createAsWorkspace: createWithinProject,
-            });
+            // The chooser already resolved and validated the project location in the
+            // unified Create flow (as the integration wizard also trusts), so only the
+            // standalone form re-validates the path it collected here.
+            if (!hidePath) {
+                const validationResult = await wsClient.validateProjectPath({
+                    projectPath: currentPath,
+                    projectName: formData.packageName,
+                    directoryName,
+                    createDirectory: true,
+                    createAsWorkspace: false,
+                    allowExistingDirectory: true,
+                });
 
-            if (!validationResult.isValid) {
-                if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
-                    setPathError(validationResult.errorMessage || "Invalid library path");
-                } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
-                    if (createWithinProject) {
-                        setProjectHandleError(validationResult.errorMessage || "Invalid project ID");
-                        setIsPackageInfoExpanded(true);
-                    } else {
+                if (!validationResult.isValid) {
+                    if (validationResult.errorField === ValidateProjectFormErrorField.PATH) {
+                        setPathError(validationResult.errorMessage || "Invalid library path");
+                    } else if (validationResult.errorField === ValidateProjectFormErrorField.NAME) {
                         setPackageNameError(validationResult.errorMessage || "Invalid package name");
                         setIsPackageInfoExpanded(true);
                     }
+                    setIsValidating(false);
+                    return;
                 }
-                setIsValidating(false);
-                return;
             }
 
             const orgHandle = organizations?.find(o => o.handle === formData.orgName)?.handle ||
                 sanitizeOrgHandle(formData.orgName)
 
+            // The extension reloads the window from here on, so the form is replaced by
+            // the progress screen the reloaded window then continues.
+            setIsCreating(true);
             await wsClient.createBIProject({
                 projectName: formData.libraryName.trim(),
                 packageName: formData.packageName,
                 projectPath: currentPath,
+                directoryName,
                 createDirectory: true,
-                createAsWorkspace: createWithinProject,
-                workspaceName: createWithinProject ? withinProjectName : undefined,
+                createAsWorkspace: false,
                 orgName: formData.orgName || undefined,
                 orgHandle: orgHandle,
                 version: formData.version || undefined,
                 isLibrary: true,
-                projectHandle: createWithinProject ? withinProjectHandle : undefined,
+                newProject: projectContext?.isNewProject,
+                workspaceName: projectContext?.workspaceName,
             });
         } catch (error) {
-            setPathError("An error occurred during validation");
+            console.error("Failed to create the library:", error);
+            setIsCreating(false);
+            setFormError(error instanceof Error ? error.message : "Failed to create the library");
         } finally {
             setIsValidating(false);
         }
     };
 
+    const content = isCreating ? (
+        <CreatingSlot>
+            <CreatingIntegrationView
+                variant="create"
+                componentLabel="library"
+                integrationName={formData.libraryName.trim() || DEFAULT_LIBRARY_NAME}
+                projectName={projectContext?.workspaceName}
+                isNewProject={projectContext?.isNewProject}
+            />
+        </CreatingSlot>
+    ) : (
+        <>
+            <FieldGroup>
+                                <TextField
+                                    ref={firstFieldRef}
+                                    onTextChange={handleLibraryName}
+                                    value={formData.libraryName}
+                                    label="Library Name"
+                                    placeholder="Enter a library name"
+                                    required={true}
+                                    errorMsg={libraryNameError || ""}
+                                />
+                            </FieldGroup>
+
+                            {!hidePath && (
+                            <FieldGroup>
+                                <DirectorySelector
+                                    id="library-folder-selector"
+                                    label="Select Path"
+                                    placeholder="Browse to select a folder..."
+                                    selectedPath={resolvedPath}
+                                    required={true}
+                                    onSelect={handlePathSelection}
+                                    onChange={(value) => {
+                                        // The field shows the full target path; its last
+                                        // segment is the on-disk folder name (editable and
+                                        // decoupled from the package name). Editing it takes
+                                        // manual control of the folder so auto-indexing stops.
+                                        const { name } = splitPath(value);
+                                        const base = extractBase(value, name);
+                                        setPathTouched(true);
+                                        setEditablePath(base);
+                                        dirCoupling.setDirectoryName(name);
+                                        dirCoupling.setDirTouched(true);
+                                    }}
+                                    onBlur={() => {
+                                        if (pathTouched && editablePath !== formData.path) {
+                                            setFormData(prev => ({ ...prev, path: editablePath }));
+                                        }
+                                    }}
+                                    errorMsg={pathError || undefined}
+                                />
+                                {existingWorkspace && !pathError && (
+                                    <InfoNote>
+                                        <Icon name="info" isCodicon sx={{ marginTop: "1px" }} />
+                                        <span>This is an integrator project. Your new library will be added to it.</span>
+                                    </InfoNote>
+                                )}
+                            </FieldGroup>
+                            )}
+
+                            <SectionDivider />
+
+                            <AdvancedConfigurationSection
+                                isExpanded={isPackageInfoExpanded}
+                                onToggle={() => setIsPackageInfoExpanded(!isPackageInfoExpanded)}
+                                data={{
+                                    packageName: formData.packageName,
+                                    orgName: formData.orgName,
+                                    version: formData.version,
+                                }}
+                                onChange={(data) => {
+                                    if (data.packageName !== undefined) {
+                                        setPackageNameTouched(data.packageName.length > 0);
+                                        if (packageNameError) setPackageNameError(null);
+                                    }
+                                    setFormData(prev => ({ ...prev, ...data }));
+                                }}
+                                isLibrary={true}
+                                packageNameError={packageNameError}
+                                orgNameError={orgNameError}
+                                organizations={organizations}
+                                hasError={!!(packageNameError || orgNameError)}
+                            />
+
+                            {formError && (
+                                <FormError>
+                                    <Icon name="error" isCodicon sx={{ marginTop: "1px" }} />
+                                    <span>{formError}</span>
+                                </FormError>
+                            )}
+
+                            <FormFooter>
+                                <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>
+                                    <Button
+                                        disabled={isValidating || ballerinaUnavailable || !!libraryNameError || !!packageNameError || !!orgNameError || (!hidePath && !!pathError)}
+                                        onClick={handleCreate}
+                                        appearance="primary"
+                                    >
+                                        {isValidating ? "Validating..." : "Create Library"}
+                                    </Button>
+                                </span>
+                            </FormFooter>
+        </>
+    );
+
+    // Embedded in the unified Create shell: render content only; the shell owns the
+    // backdrop, panel, header, and scrolling body.
+    if (embedded) {
+        return content;
+    }
+
     return (
         <PageBackdrop>
             <PageContainer>
-
                 <FormPanel>
                     <FormPanelHeader>
                         <HeaderRow>
@@ -493,136 +585,7 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable }: { onBack?:
                         </HeaderRow>
                     </FormPanelHeader>
                     <FormBody>
-                        <FormContent>
-                            <FieldGroup>
-                                <TextField
-                                    ref={firstFieldRef}
-                                    onTextChange={handleLibraryName}
-                                    value={formData.libraryName}
-                                    label="Library Name"
-                                    placeholder="Enter a library name"
-                                    required={true}
-                                    errorMsg={libraryNameError || ""}
-                                />
-                            </FieldGroup>
-
-                            {/* Project Name - shown by default when project mode is supported */}
-                            {isProjectModeSupported && (
-                                <ProjectSectionContainer>
-                                    <ProjectSectionLabel>Project</ProjectSectionLabel>
-                                    <ProjectFieldCollapse isVisible={createWithinProject}>
-                                        <TextField
-                                            onTextChange={(value) => {
-                                                setWithinProjectNameTouched(true);
-                                                withinProjectNameTouchedRef.current = true;
-                                                setWithinProjectName(value);
-                                                if (withinProjectNameError) setWithinProjectNameError(null);
-                                            }}
-                                            value={withinProjectName}
-                                            label="Project Name"
-                                            placeholder="Enter project name"
-                                            required={true}
-                                            errorMsg={withinProjectNameError || cloudProjectNameError || ""}
-                                        />
-                                        {cloudProjectNameError && (
-                                            <CloudErrorActionRow>
-                                                {matchedCloudProject && (
-                                                    <ActionLink type="button" onClick={() =>
-                                                        wsClient.runCommand({
-                                                            command: WICommandIds.CloneProject,
-                                                            args: [{ organization: matchedCloudProject.org, project: matchedCloudProject.project, integrationOnly: true }],
-                                                        })
-                                                    }>
-                                                        Open existing project
-                                                    </ActionLink>
-                                                )}
-                                            </CloudErrorActionRow>
-                                        )}
-                                    </ProjectFieldCollapse>
-                                    <SkipOptionRow>
-                                        <CheckBox
-                                            label="Create within a project"
-                                            checked={createWithinProject}
-                                            onChange={handleCreateWithinProjectToggle}
-                                        />
-                                        <Description style={{ marginTop: "6px" }}>
-                                            Enable project mode to manage multiple integrations and libraries within a single repository.
-                                        </Description>
-                                    </SkipOptionRow>
-                                </ProjectSectionContainer>
-                            )}
-
-                            <FieldGroup>
-                                <DirectorySelector
-                                    id="library-folder-selector"
-                                    label="Select Path"
-                                    placeholder="Browse to select a folder..."
-                                    selectedPath={editablePath}
-                                    required={true}
-                                    onSelect={handlePathSelection}
-                                    onChange={(value) => {
-                                        setPathTouched(true);
-                                        setEditablePath(value);
-                                    }}
-                                    onBlur={() => {
-                                        if (pathTouched && editablePath !== formData.path) {
-                                            setFormData(prev => ({ ...prev, path: editablePath }));
-                                        }
-                                    }}
-                                    errorMsg={pathError || undefined}
-                                />
-                                {resolvedPath && resolvedPath !== editablePath && (
-                                    <ResolvedPathText>Will be created at: {resolvedPath}</ResolvedPathText>
-                                )}
-                            </FieldGroup>
-
-                            <SectionDivider />
-
-                            <AdvancedConfigurationSection
-                                isExpanded={isPackageInfoExpanded}
-                                onToggle={() => setIsPackageInfoExpanded(!isPackageInfoExpanded)}
-                                data={{
-                                    packageName: formData.packageName,
-                                    orgName: formData.orgName,
-                                    version: formData.version,
-                                    projectHandle: createWithinProject ? withinProjectHandle : undefined,
-                                }}
-                                onChange={(data) => {
-                                    if (data.projectHandle !== undefined) {
-                                        handleTouched.current = true;
-                                        if (projectHandleError) setProjectHandleError(null);
-                                        setWithinProjectHandle(data.projectHandle);
-                                        return;
-                                    }
-                                    if (data.packageName !== undefined) {
-                                        setPackageNameTouched(data.packageName.length > 0);
-                                        if (packageNameError) setPackageNameError(null);
-                                        if (!withinProjectNameTouched && !withinProjectName) {
-                                            setWithinProjectName(DEFAULT_PROJECT_NAME);
-                                        }
-                                    }
-                                    setFormData(prev => ({ ...prev, ...data }));
-                                }}
-                                isLibrary={true}
-                                packageNameError={packageNameError}
-                                orgNameError={orgNameError}
-                                projectHandleError={projectHandleError || cloudProjectHandleError}
-                                organizations={organizations}
-                                hasError={!!(packageNameError || orgNameError || projectHandleError || cloudProjectHandleError)}
-                            />
-
-                            <FormFooter>
-                                <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>
-                                    <Button
-                                        disabled={isValidating || ballerinaUnavailable || !!libraryNameError || !!withinProjectNameError || !!cloudProjectNameError || !!cloudProjectHandleError || !!packageNameError || !!orgNameError || !!projectHandleError || !!pathError}
-                                        onClick={handleCreate}
-                                        appearance="primary"
-                                    >
-                                        {isValidating ? "Validating..." : "Create Library"}
-                                    </Button>
-                                </span>
-                            </FormFooter>
-                        </FormContent>
+                        <FormContent>{content}</FormContent>
                     </FormBody>
                 </FormPanel>
             </PageContainer>

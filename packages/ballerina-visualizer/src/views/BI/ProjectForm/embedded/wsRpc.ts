@@ -35,6 +35,8 @@ export interface WsCoords {
 const PROJECT_ACTIONS = new Set([
     "createBIProject",
     "validateProjectPath",
+    "getExistingProjectInfo",
+    "getProjectComponentNames",
     "selectFileOrDirPath",
     "getWorkspaceRoot",
     "getDefaultOrgName",
@@ -44,24 +46,26 @@ const PROJECT_ACTIONS = new Set([
 
 /**
  * Thin client over the shared giga-bridge webview transport (websocket mode)
- * that talks directly to the Ballerina extension's BI form WS server. Each
- * request carries the per-session token; the result envelope is unwrapped.
+ * that talks directly to the Ballerina extension's BI form WS server. The
+ * per-session token is presented once during the handshake; the result envelope
+ * is unwrapped.
  */
 export class EmbeddedWsRpc {
     private readonly adapter: ReturnType<typeof createWebviewTransportAdapter<any, WebviewWsResponseMessage>>;
-    private readonly token: string;
 
     constructor(coords: WsCoords) {
-        this.token = coords.token;
         this.adapter = createWebviewTransportAdapter<any, WebviewWsResponseMessage>({
             mode: "websocket",
             server: coords.host,
             port: coords.port,
+            // The host authenticates the handshake, so the connection is refused
+            // without this token.
+            token: coords.token,
         });
     }
 
     async request(action: string, params?: unknown): Promise<unknown> {
-        const response = await this.adapter.request({ action, params, token: this.token });
+        const response = await this.adapter.request({ action, params });
         if (!response || response.type !== WEBVIEW_WS_EVENTS.WS_RESPONSE || response.success === false) {
             throw new Error(response?.error ?? "Project request failed.");
         }

@@ -71,13 +71,16 @@ import io.ballerina.flowmodelgenerator.extension.response.ConfigVariableUpdateRe
 import io.ballerina.flowmodelgenerator.extension.response.ConfigVariablesGetResponse;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
+import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleDependency;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
+import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.PlatformLibraryScope;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectKind;
@@ -747,10 +750,21 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      */
     private static Optional<SemanticModel> getSemanticModel(Module module) {
         try {
-            if (module.packageInstance() != null && module.packageInstance().getCompilation() != null) {
-                SemanticModel semanticModel = module.packageInstance().getCompilation()
-                        .getSemanticModel(module.moduleId());
-                return Optional.ofNullable(semanticModel);
+            Package packageInstance = module.packageInstance();
+            if (packageInstance != null) {
+                // Resolve the dependency package offline ONLY during tests (ls.test.offline) so compiling it to read
+                // its config variables never pulls transitive dependencies from Central; compilation then reuses this
+                // cached resolution. In production we leave the package's own (inherited) resolution untouched, which
+                // matches the original behaviour exactly.
+                if (PackageUtil.isOffline()) {
+                    packageInstance.getResolution(
+                            CompilationOptions.builder().setOffline(true).build());
+                }
+                if (packageInstance.getCompilation() != null) {
+                    SemanticModel semanticModel = packageInstance.getCompilation()
+                            .getSemanticModel(module.moduleId());
+                    return Optional.ofNullable(semanticModel);
+                }
             }
         } catch (RuntimeException e) {
             // getSemanticModel() can throw an Error if the module is an imported module without a semantic model.
@@ -788,10 +802,16 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             Package currentPkg, Collection<ModuleDependency> moduleDependencies,
             Toml configTomlValues) {
         Map<String, Map<String, List<FlowNode>>> pkgConfigs = new HashMap<>();
-        if (currentPkg.getResolution() == null || currentPkg.getResolution().dependencyGraph() == null) {
+        // Resolve the dependency graph offline ONLY during tests (ls.test.offline) so config extraction never pulls
+        // from Central; in production use the package's default (no-arg) resolution to match the original behaviour.
+        // Resolve once and reuse.
+        PackageResolution resolution = PackageUtil.isOffline()
+                ? currentPkg.getResolution(CompilationOptions.builder().setOffline(true).build())
+                : currentPkg.getResolution();
+        if (resolution == null || resolution.dependencyGraph() == null) {
             return pkgConfigs;
         }
-        Collection<ResolvedPackageDependency> dependencies = currentPkg.getResolution().dependencyGraph().getNodes();
+        Collection<ResolvedPackageDependency> dependencies = resolution.dependencyGraph().getNodes();
         for (ResolvedPackageDependency dependency : dependencies) {
             if (dependency.packageInstance() == null || !isDirectDependency(dependency, moduleDependencies)) {
                 continue;

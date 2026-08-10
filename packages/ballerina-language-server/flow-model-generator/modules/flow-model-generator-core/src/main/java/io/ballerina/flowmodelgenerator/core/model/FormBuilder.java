@@ -933,12 +933,16 @@ public class FormBuilder<T> extends FacetedBuilder<T> {
     }
 
     public FormBuilder<T> functionName(IdentifierToken identifierToken) {
+        return functionName(identifierToken, FunctionDefinitionBuilder.FUNCTION_NAME_DOC);
+    }
+
+    public FormBuilder<T> functionName(IdentifierToken identifierToken, String description) {
         String functionName = identifierToken.text() == null ? "" : identifierToken.text();
 
         propertyBuilder
                 .metadata()
                     .label(FunctionDefinitionBuilder.FUNCTION_NAME_LABEL)
-                    .description(FunctionDefinitionBuilder.FUNCTION_NAME_DOC)
+                    .description(description)
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.IDENTIFIER)

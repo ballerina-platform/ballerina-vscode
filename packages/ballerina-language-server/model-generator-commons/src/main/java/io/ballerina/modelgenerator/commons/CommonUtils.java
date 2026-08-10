@@ -95,6 +95,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -125,12 +126,16 @@ public class CommonUtils {
     private static final String MEMORY_TYPE_NAME = "Memory";
     private static final String ST_MEMORY_STORE_TYPE_NAME = "ShortTermMemoryStore";
     private static final String MCP_BASE_TOOL_KIT_TYPE_NAME = "McpBaseToolKit";
+    private static final String BASE_AGENT_TYPE_NAME = "BaseAgent";
+    private static final String FIXED_TYPED_AGENT_TYPE_NAME = "FixedTypedAgent";
+    private static final String DEPENDENTLY_TYPED_AGENT_TYPE_NAME = "DependentlyTypedAgent";
     public static final String BALLERINA_ORG_NAME = "ballerina";
     public static final String BALLERINAX_ORG_NAME = "ballerinax";
     public static final String LANG_LIB_PREFIX = "lang.";
     private static final String UNKNOWN_TYPE = "Unknown Type";
     private static final String AI = "ai";
     private static final String AGENT = "Agent";
+    private static final String AGENT_TOOL = "AgentTool";
     public static final String CONNECTOR_TYPE = "connectorType";
     public static final String PERSIST = "persist";
     public static final String PERSIST_MODEL_FILE = "persistModelFile";
@@ -472,10 +477,40 @@ public class CommonUtils {
             DocumentId documentId = project.documentId(
                     project.kind() == ProjectKind.SINGLE_FILE_PROJECT ? project.sourceRoot() :
                             project.sourceRoot().resolve(location.lineRange().fileName()));
-            return project.currentPackage().getDefaultModule().document(documentId);
+            return project.currentPackage().module(documentId.moduleId()).document(documentId);
         } catch (ProjectException ex) {
-            return null;
+            return findDocument(project, location, null).orElse(null);
         }
+    }
+
+    private static Optional<Document> findDocument(Project project, Location location, String moduleName) {
+        String locationFileName = location.lineRange().fileName().replace('\\', '/');
+        List<Document> exactMatches = new ArrayList<>();
+        List<Document> suffixMatches = new ArrayList<>();
+        for (Module module : project.currentPackage().modules()) {
+            if (moduleName != null && !module.moduleName().toString().equals(moduleName)) {
+                continue;
+            }
+            for (DocumentId documentId : module.documentIds()) {
+                Document document = module.document(documentId);
+                String documentPath = project.documentPath(documentId)
+                        .map(Path::toString)
+                        .orElse(document.name())
+                        .replace('\\', '/');
+                if (document.name().equals(locationFileName) || documentPath.equals(locationFileName)) {
+                    exactMatches.add(document);
+                } else if (documentPath.endsWith("/" + locationFileName)) {
+                    suffixMatches.add(document);
+                }
+            }
+        }
+        if (exactMatches.size() == 1) {
+            return Optional.of(exactMatches.getFirst());
+        }
+        if (!exactMatches.isEmpty() || suffixMatches.size() != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(suffixMatches.getFirst());
     }
 
     /***
@@ -1091,6 +1126,23 @@ public class CommonUtils {
         return symbol.getName().isPresent() && symbol.getName().get().equals(AGENT);
     }
 
+    public static boolean isAiFixedTypedAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, FIXED_TYPED_AGENT_TYPE_NAME);
+    }
+
+    public static boolean isAiDependentlyTypedAgent(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && hasAiTypeInclusion(classSymbol, DEPENDENTLY_TYPED_AGENT_TYPE_NAME);
+    }
+
+    public static boolean isAiAgentType(Symbol symbol) {
+        ClassSymbol classSymbol = getClassSymbol(symbol);
+        return classSymbol != null && (hasAiAgentTypeInclusion(classSymbol, BASE_AGENT_TYPE_NAME)
+                || hasAiAgentTypeInclusion(classSymbol, FIXED_TYPED_AGENT_TYPE_NAME)
+                || hasAiAgentTypeInclusion(classSymbol, DEPENDENTLY_TYPED_AGENT_TYPE_NAME));
+    }
+
     public static boolean isAiKnowledgeBase(Symbol symbol) {
         ClassSymbol classSymbol = getClassSymbol(symbol);
         return classSymbol != null && hasAiTypeInclusion(classSymbol, KNOWLEDGE_BASE_TYPE_NAME);
@@ -1285,18 +1337,22 @@ public class CommonUtils {
     }
 
     private static ClassSymbol getClassSymbol(Symbol symbol) {
-        if (symbol instanceof ClassSymbol) {
-            return (ClassSymbol) symbol;
+        if (symbol instanceof ClassSymbol classSymbol) {
+            return classSymbol;
         }
-        TypeReferenceTypeSymbol typeDescriptorSymbol;
+        TypeSymbol typeDescriptor;
         if (symbol instanceof VariableSymbol variableSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) variableSymbol.typeDescriptor();
+            typeDescriptor = variableSymbol.typeDescriptor();
         } else if (symbol instanceof ParameterSymbol parameterSymbol) {
-            typeDescriptorSymbol = (TypeReferenceTypeSymbol) parameterSymbol.typeDescriptor();
+            typeDescriptor = parameterSymbol.typeDescriptor();
         } else {
             return null;
         }
-        return (ClassSymbol) typeDescriptorSymbol.typeDescriptor();
+        if (typeDescriptor instanceof TypeReferenceTypeSymbol typeRef
+                && typeRef.typeDescriptor() instanceof ClassSymbol classSymbol) {
+            return classSymbol;
+        }
+        return null;
     }
 
     private static boolean hasAiTypeInclusion(ClassSymbol classSymbol, String includedTypeName) {
@@ -1309,6 +1365,17 @@ public class CommonUtils {
                 .map(Optional::get)
                 .anyMatch(moduleId -> (BALLERINA_ORG_NAME.equals(moduleId.id().orgName())) &&
                         AI.equals(moduleId.id().moduleName()));
+    }
+
+    private static boolean hasAiAgentTypeInclusion(ClassSymbol classSymbol, String includedTypeName) {
+        return classSymbol.typeInclusions().stream()
+                .filter(typeSymbol -> typeSymbol instanceof TypeReferenceTypeSymbol)
+                .map(typeSymbol -> (TypeReferenceTypeSymbol) typeSymbol)
+                .filter(typeRef -> typeRef.definition().nameEquals(includedTypeName))
+                .map(TypeSymbol::getModule)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .anyMatch(moduleSymbol -> isAiModule(moduleSymbol.id().orgName(), moduleSymbol.id().moduleName()));
     }
 
     private static boolean hasBallerinaxAiTypeInclusion(ClassSymbol classSymbol, String includedTypeName) {
@@ -1353,7 +1420,8 @@ public class CommonUtils {
     }
 
     /**
-     * Gets the view line range for a symbol if it belongs to the current package or a workspace project.
+     * Gets the view line range for a symbol in a default module if it belongs to the current package or a workspace
+     * project.
      *
      * <p>
      * TODO: The API currently relies on the syntax tree to determine the corresponding line range. The communication
@@ -1376,8 +1444,13 @@ public class CommonUtils {
             return Optional.empty();
         }
 
-        String symbolOrg = moduleId.get().orgName();
-        String symbolPackage = moduleId.get().packageName();
+        ModuleID symbolModule = moduleId.get();
+        String symbolOrg = symbolModule.orgName();
+        String symbolPackage = symbolModule.packageName();
+        // Integrator cannot open flow models for non-default modules.
+        if (!symbolModule.moduleName().equals(symbolPackage)) {
+            return Optional.empty();
+        }
         Location location = symbolLocation.get();
 
         // Only check if the organization matches
@@ -1385,9 +1458,10 @@ public class CommonUtils {
             return Optional.empty();
         }
 
-        // Check if it's the default package
+        // Check if the symbol belongs to any module in the current package.
         if (symbolPackage.equals(moduleInfo.packageName())) {
-            return CommonUtil.findNode(symbol, CommonUtils.getDocument(project, location).syntaxTree())
+            return findDocument(project, location, symbolModule.moduleName())
+                    .flatMap(document -> CommonUtil.findNode(symbol, document.syntaxTree()))
                     .map(Node::lineRange);
         }
 
@@ -1403,8 +1477,9 @@ public class CommonUtils {
         for (Project wsProject : workspaceProjects) {
             String wsPackageName = wsProject.currentPackage().packageName().value();
             if (wsPackageName.equals(symbolPackage)) {
-                // Use the sibling project to get the document
-                return CommonUtil.findNode(symbol, CommonUtils.getDocument(wsProject, location).syntaxTree())
+                // Use the sibling project and the symbol's owner module to get the document.
+                return findDocument(wsProject, location, symbolModule.moduleName())
+                        .flatMap(document -> CommonUtil.findNode(symbol, document.syntaxTree()))
                         .map(Node::lineRange);
             }
         }
@@ -1540,7 +1615,7 @@ public class CommonUtils {
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
-                                                    SemanticModel semanticModel, Package resolvedPackage) {
+                                             SemanticModel semanticModel, Package resolvedPackage) {
         return resolveDefaultValue(paramSymbol, typeSymbol, semanticModel, resolvedPackage, null);
     }
 
@@ -1556,7 +1631,7 @@ public class CommonUtils {
      * @return the extracted default value as a string
      */
     public static String resolveDefaultValue(Symbol paramSymbol, TypeSymbol typeSymbol,
-                                                    SemanticModel semanticModel, Package resolvedPackage,
+                                             SemanticModel semanticModel, Package resolvedPackage,
                                              Document document) {
         String defaultValue = DefaultValueGeneratorUtil.getDefaultValueForType(typeSymbol);
 
@@ -1594,7 +1669,7 @@ public class CommonUtils {
                     semanticModel, document);
             return enumValue != null ? enumValue :
                     qualifiedNameReferenceNode.modulePrefix().text() + ":" + qualifiedNameReferenceNode.identifier()
-                    .text();
+                            .text();
         } else {
             return expression.toSourceCode();
         }
@@ -1687,4 +1762,3 @@ public class CommonUtils {
     }
 
 }
-

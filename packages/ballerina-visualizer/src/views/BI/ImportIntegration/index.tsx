@@ -87,6 +87,11 @@ export function ImportIntegration() {
     const isMultiProjectFromConfig = boolParamKey ? importParams?.parameters?.[boolParamKey] === true : false;
     // isMultiProject for MigrationProgressView is derived from actual migration results
     const isMultiProject = migratedProjects.length > 0;
+    // Recorded in the enhancement toml so the AI migration prompts can target the source platform
+    const sourcePlatform: MigrateRequest["sourcePlatform"] =
+        selectedIntegration?.commandName === 'migrate-mule' ? 'mule'
+            : selectedIntegration?.commandName === 'migrate-tibco' ? 'tibco'
+                : undefined;
 
     const pullIntegrationTool = (commandName: string, version: string) => {
         setPullingTool(true);
@@ -204,6 +209,7 @@ export function ImportIntegration() {
             aiFeatureUsed: true,
             sourcePath: importParams.importSourcePath,
             keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            sourcePlatform: sourcePlatform,
         };
         // Await the project write before advancing: the enhancement step calls
         // wizardEnhancementReady, which needs the project root migrateProject sets.
@@ -228,6 +234,7 @@ export function ImportIntegration() {
             aiFeatureUsed: false,
             sourcePath: importParams.importSourcePath,
             keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            sourcePlatform: sourcePlatform,
         };
         // Fire-and-forget: the extension opens the folder (VS Code reloads). Guard the
         // promise and surface any failure to the user rather than only logging it.
@@ -248,6 +255,7 @@ export function ImportIntegration() {
             aiFeatureUsed: true,
             sourcePath: importParams.importSourcePath,
             keepStructure: importParams?.parameters?.["keepStructure"] as boolean | undefined,
+            sourcePlatform: sourcePlatform,
         };
         // Await the project write before navigating away, so a failure keeps the user
         // on the wizard with a visible error instead of silently returning to welcome.

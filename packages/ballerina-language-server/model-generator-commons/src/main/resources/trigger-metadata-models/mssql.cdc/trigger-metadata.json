@@ -1,0 +1,117 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "CdcListener" },
+      "requiredImports": [
+        {
+          "importType": "driver",
+          "packageInfo": { "org": "ballerinax", "packageName": "mssql.cdc.driver", "moduleName": "mssql.cdc.driver", "version": "1.0.2" }
+        }
+      ],
+      "services": ["service"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": {
+        "name": "Service",
+        "packageInfo": { "org": "ballerinax", "packageName": "cdc", "moduleName": "cdc", "version": "1.3.2" }
+      },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onRead",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "name": "afterEntry", "type": { "name": "record {}" }, "presence": "required", "dataBinding": "rowState" },
+              { "name": "tableName", "type": { "name": "string" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onCreate",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "name": "afterEntry", "type": { "name": "record {}" }, "presence": "required", "dataBinding": "rowState" },
+              { "name": "tableName", "type": { "name": "string" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onUpdate",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "name": "beforeEntry", "type": { "name": "record {}" }, "presence": "required", "dataBinding": "rowState" },
+              { "name": "afterEntry", "type": { "name": "record {}" }, "presence": "required", "dataBinding": "rowState" },
+              { "name": "tableName", "type": { "name": "string" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onDelete",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "name": "beforeEntry", "type": { "name": "record {}" }, "presence": "required", "dataBinding": "rowState" },
+              { "name": "tableName", "type": { "name": "string" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onError",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              {
+                "name": "cdcError",
+                "type": {
+                  "name": "Error",
+                  "packageInfo": { "org": "ballerinax", "packageName": "cdc", "moduleName": "cdc", "version": "1.3.2" }
+                },
+                "presence": "required"
+              }
+            ],
+            "returns": { "name": "()" }
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [
+    {
+      "id": "serviceConfig",
+      "type": {
+        "name": "ServiceConfig",
+        "packageInfo": { "org": "ballerinax", "packageName": "cdc", "moduleName": "cdc", "version": "1.3.2" }
+      },
+      "attachPoint": "service",
+      "appliesTo": ["service"],
+      "presence": "required"
+    }
+  ],
+
+  "dataBindingRules": [
+    {
+      "id": "rowState",
+      "envelopeType": { "name": "record {}" },
+      "supportedModes": [
+        {
+          "mode": "direct",
+          "typeConstraint": [{ "name": "record {}" }]
+        }
+      ]
+    }
+  ]
+}

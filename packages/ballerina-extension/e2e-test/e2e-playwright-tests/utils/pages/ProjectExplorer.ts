@@ -48,12 +48,12 @@ export class ProjectExplorer {
         }
     }
 
-    public async findItem(path: string[]) {
+    public async findItem(path: string[], timeout: number = 5000) {
         let currentItem;
         for (let i = 0; i < path.length; i++) {
 
             currentItem = this.explorer.locator(ProjectExplorer.treeItemSelector(path[i]));
-            await currentItem.waitFor({ timeout: 5000 });
+            await currentItem.waitFor({ timeout });
         }
         return currentItem;
     }

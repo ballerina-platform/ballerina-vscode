@@ -32,7 +32,7 @@ import { Typography, Codicon, ProgressRing, Button, Icon, Divider } from "@wso2/
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
-import ReactMarkdown from "react-markdown";
+import { Markdown } from "../../../components/Markdown";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { PackageListView } from "./PackageListView";
 import { getWorkspaceProjectScopes } from "../PackageOverview/utils";
@@ -719,9 +719,10 @@ function IntegrationControlPlane({
 
 interface WorkspaceOverviewProps {
     isInDevant: boolean;
+    isICPSupported?: boolean;
 }
 
-export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
+export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverviewProps) {
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
     const [projectCollection, setProjectCollection] = React.useState<ProjectStructureResponse>();
@@ -745,7 +746,7 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
     };
 
     const syncProjectICPStatus = async (projectPaths: string[]) => {
-        if (projectPaths.length === 0) {
+        if (!isICPSupported || projectPaths.length === 0) {
             setIcpStatusByProjectPath({});
             return;
         }
@@ -776,13 +777,6 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                 rpcClient
                     .getBIDiagramRpcClient()
                     .handleReadmeContent({ projectPath: res.workspacePath, read: true })
-                    .then((res) => {
-                        setReadmeContent(res.content);
-                    });
-        
-                rpcClient
-                    .getBIDiagramRpcClient()
-                    .getReadmeContent({ projectPath: res.workspacePath })
                     .then((res) => {
                         setReadmeContent(res.content);
                     });
@@ -934,13 +928,6 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
         );
     }
 
-    const handleGenerate = () => {
-        rpcClient.getBIDiagramRpcClient().openAIChat({
-            planMode: true,
-            readme: false,
-        });
-    };
-
     const handleGenerateWithReadme = () => {
         rpcClient.getBIDiagramRpcClient().openAIChat({
             planMode: true,
@@ -1089,9 +1076,6 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                                 <SectionTitle>Integrations & Libraries</SectionTitle>
                                 {!isEmptyProject && (
                                     <SectionActions>
-                                        <Button appearance="secondary" onClick={handleGenerate}>
-                                            <Icon name="bi-ai-chat" sx={{ marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} /> Generate with AI
-                                        </Button>
                                         <Button appearance="primary" onClick={handleAddResource}>
                                             <Codicon name="add" sx={{ marginRight: 8 }} /> Add
                                         </Button>
@@ -1113,16 +1097,13 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                                         <Button appearance="primary" onClick={handleAddResource}>
                                             <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration or Library
                                         </Button>
-                                        <Button appearance="secondary" onClick={handleGenerate}>
-                                            <Icon name="bi-ai-chat" sx={{ marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} /> Generate with AI
-                                        </Button>
                                     </ButtonContainer>
                                 </EmptyStateContainer>
                             ) : (
                                 <PackageListView
                                     projectCollection={projectCollection}
                                     icpStatusByProjectPath={icpStatusByProjectPath}
-                                    showICPBadge={icpState !== "none"}
+                                    showICPBadge={isICPSupported && icpState !== "none"}
                                 />
                             )}
                         </ContentPanel>
@@ -1146,7 +1127,7 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                             </SectionHeader>
                             {readmeContent ? (
                                 <ReadmeContent>
-                                    <ReactMarkdown>{readmeContent}</ReactMarkdown>
+                                    <Markdown>{readmeContent}</Markdown>
                                 </ReadmeContent>
                             ) : (
                                 <EmptyReadmeContainer>
@@ -1175,16 +1156,20 @@ export function WorkspaceOverview({ isInDevant }: WorkspaceOverviewProps) {
                                     deployableProjectPaths={deployableProjectPaths}
                                     libraryProjectPaths={libraryProjectPaths}
                                 />
-                                <Divider sx={{ margin: "16px 0" }} />
-                                <IntegrationControlPlane
-                                    icpState={icpState}
-                                    enabledCount={icpEnabledCount}
-                                    totalCount={icpProjectPaths.length}
-                                    onEnableAll={handleEnableAllICP}
-                                    onDisableAll={handleDisableAllICP}
-                                    onEnableRemaining={handleEnableRemainingICP}
-                                    icpActionLoading={icpActionLoading}
-                                />
+                                {isICPSupported && (
+                                    <>
+                                        <Divider sx={{ margin: "16px 0" }} />
+                                        <IntegrationControlPlane
+                                            icpState={icpState}
+                                            enabledCount={icpEnabledCount}
+                                            totalCount={icpProjectPaths.length}
+                                            onEnableAll={handleEnableAllICP}
+                                            onDisableAll={handleDisableAllICP}
+                                            onEnableRemaining={handleEnableRemainingICP}
+                                            icpActionLoading={icpActionLoading}
+                                        />
+                                    </>
+                                )}
                             </>
                         )}
                         {isInDevant && (

@@ -216,7 +216,7 @@ public class ConnectionActionProviderTest {
     public void testPolymorphicSerializationRoundTrip() {
         String key = "ballerina:http:http:Client:polymorphic";
         List<Item> expected = List.of(new Category(
-                new Metadata("Connections", "Connector actions", null, null, null, null, null),
+                new Metadata("Connections", "Connector actions", null, null, null, null, null, null),
                 List.of(availableNode("query", null, null), availableNode("close", null, null))));
 
         provider.getOrBuild(key, () -> expected);
@@ -238,8 +238,9 @@ public class ConnectionActionProviderTest {
         String key = "ballerina:http:http:Client:binding";
         List<Item> templates = provider.getOrBuild(key, () -> List.of(availableNode("invoke", null, null)));
 
-        List<Item> firstBound = provider.bindForParentSymbol(templates, "clientA", Map.of("invoke", true));
-        List<Item> secondBound = provider.bindForParentSymbol(templates, "clientB", Map.of());
+        List<Item> firstBound = provider.bindForParentSymbol(templates, "clientA", Map.of("invoke", true),
+                Map.of(), Map.of());
+        List<Item> secondBound = provider.bindForParentSymbol(templates, "clientB", Map.of(), Map.of(), Map.of());
 
         AvailableNode original = (AvailableNode) templates.get(0);
         AvailableNode first = (AvailableNode) firstBound.get(0);
@@ -314,7 +315,7 @@ public class ConnectionActionProviderTest {
 
     private static AvailableNode availableNode(String symbol, String parentSymbol, Map<String, Object> data) {
         return new AvailableNode(
-                new Metadata(symbol, symbol + " description", null, "icon-" + symbol, null, null, null),
+                new Metadata(symbol, symbol + " description", null, "icon-" + symbol, null, null, null, null),
                 new Codedata(NodeKind.METHOD_CALL, "ballerina", "http", "http", "Client", symbol, "1.0.0",
                         null, null, parentSymbol, null, null, false, false, null, data),
                 true);

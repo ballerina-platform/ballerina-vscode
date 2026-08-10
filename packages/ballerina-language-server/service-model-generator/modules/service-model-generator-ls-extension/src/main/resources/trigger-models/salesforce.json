@@ -1,0 +1,930 @@
+{
+  "schemaVersion": "1.0",
+  "displayName": "Salesforce Events",
+  "description": "Listen for Salesforce Change Data Capture and Platform Events over the Streaming API (CometD)",
+  "orgName": "ballerinax",
+  "packageName": "salesforce",
+  "moduleName": "salesforce",
+  "version": "8.7.0",
+  "type": "salesforce",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce_8.7.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Listener",
+        "description": "Attach the service to a new or existing Salesforce listener."
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create New Listener",
+            "description": "Define a new Salesforce listener in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the Salesforce Streaming API (CometD) listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "salesforce:Listener"
+                    }
+                  ],
+                  "value": "salesforceListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "authMode": {
+                  "metadata": {
+                    "label": "Authentication Mode",
+                    "description": "The authentication mode to use for the Salesforce listener."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true,
+                      "ballerinaType": "salesforce:ListenerConfig",
+                      "options": [
+                        {
+                          "label": "OAuth2 (REST API)",
+                          "value": "REST"
+                        },
+                        {
+                          "label": "Username & Password (SOAP API)",
+                          "value": "SOAP"
+                        }
+                      ]
+                    }
+                  ],
+                  "value": "REST",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "OAuth2 (REST API)",
+                        "description": "Authenticate against the Salesforce REST-based Streaming API using OAuth2."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "REST",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "baseUrl": {
+                          "metadata": {
+                            "label": "Base URL",
+                            "description": "The base URL of the Salesforce instance."
+                          },
+                          "placeholder": "https://mydomain.my.salesforce.com",
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "baseUrl"
+                          }
+                        },
+                        "auth": {
+                          "metadata": {
+                            "label": "OAuth2 Configuration",
+                            "description": "OAuth2 credentials used to authenticate with Salesforce (bearer token, password grant, refresh-token grant, or client-credentials grant)."
+                          },
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "RECORD_MAP_EXPRESSION",
+                              "selected": true,
+                              "ballerinaType": "http:BearerTokenConfig|oauth2:PasswordGrantConfig|oauth2:RefreshTokenGrantConfig|oauth2:ClientCredentialsGrantConfig",
+                              "typeMembers": [
+                                {
+                                  "type": "BearerTokenConfig",
+                                  "packageInfo": "ballerina:http:2.14.11",
+                                  "packageName": "http",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": false
+                                },
+                                {
+                                  "type": "PasswordGrantConfig",
+                                  "packageInfo": "ballerina:oauth2:2.14.1",
+                                  "packageName": "oauth2",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": false
+                                },
+                                {
+                                  "type": "RefreshTokenGrantConfig",
+                                  "packageInfo": "ballerina:oauth2:2.14.1",
+                                  "packageName": "oauth2",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": true
+                                },
+                                {
+                                  "type": "ClientCredentialsGrantConfig",
+                                  "packageInfo": "ballerina:oauth2:2.14.1",
+                                  "packageName": "oauth2",
+                                  "kind": "RECORD_TYPE",
+                                  "selected": false
+                                }
+                              ]
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Username & Password (SOAP API)",
+                        "description": "Authenticate against the legacy Salesforce SOAP API with a username and password."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "SOAP",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "username": {
+                          "metadata": {
+                            "label": "Username",
+                            "description": "Salesforce login username."
+                          },
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.username"
+                          }
+                        },
+                        "password": {
+                          "metadata": {
+                            "label": "Password",
+                            "description": "Salesforce login password appended with the security token (<password><security token>)."
+                          },
+                          "value": "",
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.password"
+                          }
+                        },
+                        "isSandBox": {
+                          "metadata": {
+                            "label": "Sandbox Environment",
+                            "description": "Whether the target Salesforce environment is a sandbox."
+                          },
+                          "value": false,
+                          "types": [
+                            {
+                              "fieldType": "FLAG",
+                              "ballerinaType": "boolean",
+                              "selected": true
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "isSandBox"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+                    }
+                  }
+                },
+        {
+          "metadata": {
+            "label": "Use Existing Listener",
+            "description": "Attach to one or more Salesforce listeners already declared in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener(s)",
+                "description": "Select one or more existing listeners to attach the service to (no new(...) is generated)."
+              },
+              "types": [
+                {
+                  "fieldType": "MULTI_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "salesforce:Listener"
+                }
+              ],
+              "items": [
+                "salesforceListener"
+              ],
+              "value": [
+                "salesforceListener"
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceType": {
+      "metadata": {
+        "label": "Event Type",
+        "description": "The type of Salesforce event to listen for: Change Data Capture or Platform Events."
+      },
+      "types": [
+        {
+          "fieldType": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "salesforce:GenericServiceType",
+          "options": [
+            {
+              "label": "Change Data Capture",
+              "value": "salesforce:CdcService"
+            },
+            {
+              "label": "Platform Events",
+              "value": "salesforce:PlatformEventsService"
+            }
+          ]
+        }
+      ],
+      "value": "salesforce:CdcService",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "salesforce"
+      }
+    },
+    "basePath": {
+      "metadata": {
+        "label": "EventChannel",
+        "description": "The Salesforce channel path to subscribe to."
+      },
+      "types": [
+        {
+          "fieldType": "SERVICE_PATH",
+          "selected": true,
+          "ballerinaType": "string"
+        }
+      ],
+      "value": "/data/ChangeEvents",
+      "placeholder": "/data/ChangeEvents",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_BASE_PATH"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Change Data Capture",
+        "description": "Triggers when a new Change Data Capture event is received from Salesforce channels. Available actions: onCreate, onUpdate, onDelete, and onRestore."
+      },
+      "name": "salesforce:CdcService",
+      "description": "Triggers when a new Change Data Capture event is received from Salesforce channels.\nAvailable actions: onCreate, onUpdate, onDelete, and onRestore",
+      "enabled": true,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "salesforce",
+        "originalName": "CdcService"
+      },
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Triggers on a new record create event."
+          },
+          "name": "onCreate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": ["remote"],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggers on a new record create event.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreate",
+            "moduleName": "salesforce"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The Change Data Capture event data."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "salesforce:EventData",
+                "value": "salesforce:EventData",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The Change Data Capture event data."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Update",
+            "description": "Triggers on a record update event."
+          },
+          "name": "onUpdate",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": ["remote"],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggers on a record update event.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUpdate",
+            "moduleName": "salesforce"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The Change Data Capture event data."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "salesforce:EventData",
+                "value": "salesforce:EventData",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The Change Data Capture event data."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Delete",
+            "description": "Triggers on a record delete event."
+          },
+          "name": "onDelete",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": ["remote"],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggers on a record delete event.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDelete",
+            "moduleName": "salesforce"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The Change Data Capture event data."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "salesforce:EventData",
+                "value": "salesforce:EventData",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The Change Data Capture event data."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Restore",
+            "description": "Triggers on a record restore event."
+          },
+          "name": "onRestore",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": ["remote"],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggers on a record restore event.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onRestore",
+            "moduleName": "salesforce"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The Change Data Capture event data."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "salesforce:EventData",
+                "value": "salesforce:EventData",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The Change Data Capture event data."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Platform Events",
+        "description": "Triggers when a new Platform Event is received from Salesforce channels. Available action: onMessage."
+      },
+      "name": "salesforce:PlatformEventsService",
+      "description": "Triggers when a new Platform Event is received from Salesforce channels.\nAvailable action: onMessage",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "salesforce",
+        "originalName": "PlatformEventsService"
+      },
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Message",
+            "description": "Triggers when a Platform Event is published on the subscribed channel."
+          },
+          "name": "onMessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": ["remote"],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggers when a Platform Event is published on the subscribed channel.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessage",
+            "moduleName": "salesforce"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Message",
+                "description": "The published Platform Event message."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "salesforce:PlatformEventsMessage",
+                "value": "salesforce:PlatformEventsMessage",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "message",
+                  "description": "The published Platform Event message."
+                },
+                "placeholder": "message",
+                "value": "message",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "serviceType",
+      "displayName": "Event Type",
+      "kind": "SERVICE_DESCRIPTION"
+    },
+    {
+      "key": "basePath",
+      "displayName": "Event Channel",
+      "kind": "SERVICE_BASE_PATH"
+    }
+  ]
+}

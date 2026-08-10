@@ -67,8 +67,7 @@
         "editable": false,
         "advanced": false,
         "hidden": false,
-        "codedata": {},
-        "imports": {}
+        "codedata": {}
       },
       "variable": {
         "metadata": {

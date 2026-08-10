@@ -18,6 +18,7 @@
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
 import {
+    AgentRunStatus,
     BallerinaDiagnosticsRequest,
     BallerinaDiagnosticsResponse,
     CommandsRequest,
@@ -42,6 +43,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
     getDefaultOrgName,
@@ -53,6 +55,7 @@ import {
     goToSource,
     hasCentralPATConfigured,
     isNPSupported,
+    additionalTriggerSearchEnabled,
     openExternalUrl,
     publishToCentral,
     runBackgroundTerminalCommand,
@@ -100,6 +103,10 @@ export class CommonRpcClient implements CommonRPCAPI {
         return this._messenger.sendRequest(executeCommand, HOST_EXTENSION, params);
     }
 
+    getAgentRunStatus(): Promise<AgentRunStatus> {
+        return this._messenger.sendRequest(getAgentRunStatus, HOST_EXTENSION);
+    }
+
     runBackgroundTerminalCommand(params: RunExternalCommandRequest): Promise<RunExternalCommandResponse> {
         return this._messenger.sendRequest(runBackgroundTerminalCommand, HOST_EXTENSION, params);
     }
@@ -118,6 +125,10 @@ export class CommonRpcClient implements CommonRPCAPI {
 
     experimentalEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(experimentalEnabled, HOST_EXTENSION);
+    }
+
+    additionalTriggerSearchEnabled(): Promise<boolean> {
+        return this._messenger.sendRequest(additionalTriggerSearchEnabled, HOST_EXTENSION);
     }
 
     isNPSupported(): Promise<boolean> {

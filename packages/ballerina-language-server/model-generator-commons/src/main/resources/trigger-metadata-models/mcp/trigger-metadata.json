@@ -1,0 +1,193 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "StreamableHttpListener" },
+      "services": ["service", "advancedService", "streamableHttpService", "streamableHttpAdvancedService"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": { "name": "Service" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["basePath"]
+      },
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "many",
+        "options": [
+          {
+            "name": "*",
+            "kind": "remote",
+            "annotations": ["tool"],
+            "params": [
+              { "name": "session", "type": { "name": "Session" }, "presence": "optional" },
+              { "type": { "name": "anydata" }, "presence": "optional", "addMode": "many" }
+            ],
+            "returns": [{ "name": "anydata" }, { "name": "error" }]
+          }
+        ]
+      }
+    },
+    {
+      "id": "advancedService",
+      "type": { "name": "AdvancedService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["basePath"]
+      },
+
+      "handlers": { "backedByConcreteType": true, "options": [] }
+    },
+    {
+      "id": "streamableHttpService",
+      "type": { "name": "StreamableHttpService" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["basePath"]
+      },
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "many",
+        "options": [
+          {
+            "name": "*",
+            "kind": "remote",
+            "annotations": ["tool"],
+            "params": [
+              { "name": "session", "type": { "name": "Session" }, "presence": "optional" },
+              { "type": { "name": "anydata" }, "presence": "optional", "addMode": "many" },
+              {
+                "type": [{ "name": "string" }, { "name": "int" }, { "name": "boolean" }, { "name": "decimal" }, { "name": "float" }],
+                "presence": "optional",
+                "addMode": "many",
+                "annotations": ["httpHeader"]
+              },
+              {
+                "type": { "name": "Headers", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              },
+              {
+                "type": { "name": "Request", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              }
+            ],
+            "returns": [{ "name": "anydata" }, { "name": "error" }]
+          }
+        ]
+      }
+    },
+    {
+      "id": "streamableHttpAdvancedService",
+      "type": { "name": "StreamableHttpAdvancedService" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["basePath"]
+      },
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onListTools",
+            "kind": "remote",
+            "presence": "required",
+            "params": [
+              {
+                "type": [{ "name": "string" }, { "name": "int" }, { "name": "boolean" }, { "name": "decimal" }, { "name": "float" }],
+                "presence": "optional",
+                "addMode": "many",
+                "annotations": ["httpHeader"]
+              },
+              {
+                "type": { "name": "Headers", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              },
+              {
+                "type": { "name": "Request", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              }
+            ],
+            "returns": [{ "name": "ListToolsResult" }, { "name": "ServerError" }]
+          },
+          {
+            "name": "onCallTool",
+            "kind": "remote",
+            "presence": "required",
+            "params": [
+              { "name": "params", "type": { "name": "CallToolParams" }, "presence": "required" },
+              { "name": "session", "type": { "name": "Session" }, "presence": "optional" },
+              {
+                "type": [{ "name": "string" }, { "name": "int" }, { "name": "boolean" }, { "name": "decimal" }, { "name": "float" }],
+                "presence": "optional",
+                "addMode": "many",
+                "annotations": ["httpHeader"]
+              },
+              {
+                "type": { "name": "Headers", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              },
+              {
+                "type": { "name": "Request", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+                "presence": "optional"
+              }
+            ],
+            "returns": [{ "name": "CallToolResult" }, { "name": "ServerError" }]
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [
+    {
+      "id": "serviceConfig",
+      "type": { "name": "ServiceConfig" },
+      "attachPoint": "service",
+      "appliesTo": ["service", "advancedService"],
+      "presence": "optional"
+    },
+    {
+      "id": "streamableHttpServiceConfig",
+      "type": { "name": "StreamableHttpServiceConfig" },
+      "attachPoint": "service",
+      "appliesTo": ["streamableHttpService", "streamableHttpAdvancedService"],
+      "presence": "optional"
+    },
+    {
+      "id": "tool",
+      "type": { "name": "Tool" },
+      "attachPoint": "function",
+      "presence": "optional"
+    },
+    {
+      "id": "httpHeader",
+      "type": { "name": "Header", "packageInfo": { "org": "ballerina", "packageName": "http", "moduleName": "http", "version": "2.16.5" } },
+      "attachPoint": "parameter",
+      "presence": "optional"
+    }
+  ],
+
+  "dataBindingRules": []
+}

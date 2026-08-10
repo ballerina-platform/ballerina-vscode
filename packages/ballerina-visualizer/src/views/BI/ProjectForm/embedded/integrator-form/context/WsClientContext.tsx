@@ -20,6 +20,8 @@ import React, { createContext, useContext, ReactNode } from "react";
 // Loose interface — the host injects its real wsClient which satisfies this structurally.
 export interface WiBridgeClient {
     validateProjectPath: (params: any) => Promise<any>;
+    getExistingProjectInfo: (params: any) => Promise<any>;
+    getProjectComponentNames: (params: any) => Promise<any>;
     selectFileOrDirPath: (params: any) => Promise<any>;
     getWorkspaceRoot: () => Promise<any>;
     getDefaultCreationPath: () => Promise<any>;

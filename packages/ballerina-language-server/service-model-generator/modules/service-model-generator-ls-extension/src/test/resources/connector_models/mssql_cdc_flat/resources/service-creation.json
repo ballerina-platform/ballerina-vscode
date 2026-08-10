@@ -1,0 +1,255 @@
+{
+  "id": "17",
+  "displayName": "Microsoft SQL Server CDC Integration",
+  "description": "Create a service to capture data changes from a Microsoft SQL Server database using CDC",
+  "orgName": "ballerinax",
+  "packageName": "mssql",
+  "moduleName": "mssql",
+  "version": "1.17.0",
+  "type": "event",
+  "properties": {
+    "table": {
+      "metadata": {
+        "label": "Table",
+        "description": "The fully-qualified table name to capture events from. Format: `<database>.<schema>.<table>`"
+      },
+      "codedata": {
+        "argType": "annotationParam",
+        "originalName": "tables"
+      },
+      "placeholder": "",
+      "value": "",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "listenerVarName": {
+      "metadata": {
+        "label": "Listener Name",
+        "description": "Provide a name for the listener being created"
+      },
+      "codedata": {
+        "argType": "LISTENER_VAR_NAME"
+      },
+      "placeholder": "mssqlCdcListener",
+      "value": "mssqlCdcListener",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "ballerinaType": "CdcListener",
+          "selected": false
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "host": {
+      "metadata": {
+        "label": "Host",
+        "description": "The hostname of the Microsoft SQL Server"
+      },
+      "codedata": {
+        "argType": "databaseConfig",
+        "originalName": "hostname"
+      },
+      "placeholder": "localhost",
+      "value": "\"localhost\"",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "port": {
+      "metadata": {
+        "label": "Port",
+        "description": "The port number of the Microsoft SQL Server"
+      },
+      "codedata": {
+        "argType": "databaseConfig",
+        "originalName": "port"
+      },
+      "placeholder": "1433",
+      "value": "1433",
+      "types": [
+        {
+          "fieldType": "NUMBER",
+          "ballerinaType": "int",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "username": {
+      "metadata": {
+        "label": "Username",
+        "description": "The username for the Microsoft SQL Server connection"
+      },
+      "codedata": {
+        "argType": "databaseConfig",
+        "originalName": "username"
+      },
+      "placeholder": "",
+      "value": "\"sa\"",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "password": {
+      "metadata": {
+        "label": "Password",
+        "description": "The password for the Microsoft SQL Server connection"
+      },
+      "codedata": {
+        "argType": "databaseConfig",
+        "originalName": "password"
+      },
+      "placeholder": "",
+      "value": "\"Test@1234\"",
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "databases": {
+      "metadata": {
+        "label": "Databases",
+        "description": "List of databases to capture changes from"
+      },
+      "codedata": {
+        "argType": "databaseConfig",
+        "originalName": "databaseNames"
+      },
+      "placeholder": "",
+      "values": [
+        "\"testdb\""
+      ],
+      "types": [
+        {
+          "fieldType": "TEXT_SET",
+          "ballerinaType": "string",
+          "selected": false,
+          "minItems": 1,
+          "defaultItems": 1
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enableCreate": {
+      "metadata": {
+        "label": "Insert events",
+        "description": "When enabled, the CDC listener will capture INSERT events"
+      },
+      "codedata": {
+        "argType": "CDC_OPERATION_ENABLE",
+        "originalName": "c"
+      },
+      "value": "true",
+      "types": [
+        {
+          "fieldType": "FLAG",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enableUpdate": {
+      "metadata": {
+        "label": "Update events",
+        "description": "When enabled, the CDC listener will capture UPDATE events"
+      },
+      "codedata": {
+        "argType": "CDC_OPERATION_ENABLE",
+        "originalName": "u"
+      },
+      "value": "false",
+      "types": [
+        {
+          "fieldType": "FLAG",
+          "selected": false
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "enableDelete": {
+      "metadata": {
+        "label": "Delete events",
+        "description": "When enabled, the CDC listener will capture DELETE events"
+      },
+      "codedata": {
+        "argType": "CDC_OPERATION_ENABLE",
+        "originalName": "d"
+      },
+      "value": "true",
+      "types": [
+        {
+          "fieldType": "FLAG",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "database": {
+      "codedata": {
+        "argType": "LISTENER_PARAM_INCLUDED_FIELD"
+      },
+      "value": "{hostname : \"localhost\", port : 1433, username : \"sa\", password : \"Test@1234\", databaseNames : [\"testdb\"]}",
+      "types": [
+        {
+          "fieldType": "EXPRESSION",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    }
+  }
+}

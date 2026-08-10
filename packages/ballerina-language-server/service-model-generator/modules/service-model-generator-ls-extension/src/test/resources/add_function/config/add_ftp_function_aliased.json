@@ -1,0 +1,163 @@
+{
+  "filePath": "add_ftp_function_aliased.bal",
+  "description": "Add an FTP handler to a file where ballerina/ftp is imported as ftp2 (ballerina/file already holds the natural `ftp` prefix): the annotation and its enum literals must be emitted under ftp2, not ftp",
+  "codedata": {
+    "lineRange": {
+      "startLine": {
+        "line": 5,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 6,
+        "offset": 1
+      }
+    }
+  },
+  "function": {
+    "metadata": {
+      "label": "On Create",
+      "description": "Invoked when a file is created in the monitored directory. Comma-separated rows — binds each row to T, emits T[] (or stream<T, error?> for large files).",
+      "badge": "onCreate"
+    },
+    "kind": "REMOTE",
+    "name": {
+      "value": "onFileCsv",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    },
+    "documentation": {
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "parameters": [
+      {
+        "metadata": {
+          "label": "Content",
+          "description": "Comma-separated rows — binds each row to T, emits T[] (or stream<T, error?> for large files)."
+        },
+        "kind": "DATA_BINDING",
+        "type": {
+          "value": "string[][]",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "name": {
+          "value": "content",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": false,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      }
+    ],
+    "returnType": {
+      "hasError": true,
+      "isGraphqlId": false,
+      "value": "error?",
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": false,
+      "optional": true,
+      "advanced": false
+    },
+    "enabled": true,
+    "optional": false,
+    "editable": true,
+    "canAddParameters": false,
+    "codedata": {
+      "type": "FUNCTION",
+      "originalName": "onFileCsv",
+      "orgName": "ballerina",
+      "packageName": "ftp",
+      "moduleName": "ftp"
+    },
+    "properties": {
+      "afterFileProcessing": {
+        "metadata": {
+          "label": "After File Processing",
+          "description": "@ftp:FunctionConfig — actions performed on the source file after a handler runs."
+        },
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "FunctionConfig",
+          "moduleName": "ftp"
+        },
+        "value": "{afterProcess: ftp2:DELETE, afterError: ftp2:DELETE}",
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      }
+    }
+  },
+  "output": {
+    "add_ftp_function_aliased.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 37
+          },
+          "end": {
+            "line": 5,
+            "character": 37
+          }
+        },
+        "newText": "\n\t@ftp2:FunctionConfig{afterProcess: ftp2:DELETE, afterError: ftp2:DELETE}\n\tremote function onFileCsv(string[][] content) returns error? {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}"
+      }
+    ]
+  }
+}

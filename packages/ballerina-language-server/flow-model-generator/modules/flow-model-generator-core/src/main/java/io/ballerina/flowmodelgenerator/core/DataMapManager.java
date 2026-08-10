@@ -2718,7 +2718,8 @@ public class DataMapManager {
         } else {
             ModuleInfo moduleInfo = new ModuleInfo(org, codedata.packageName(), codedata.module(), codedata.version());
             Optional<SemanticModel> semanticModelOpt = PackageUtil.getSemanticModelFromWorkspace(
-                    project, org, codedata.packageName(), codedata.module());
+                            project, org, codedata.packageName(), codedata.module(), codedata.version())
+                    .map(PackageUtil.WorkspacePackageResolution::semanticModel);
             if (semanticModelOpt.isEmpty()) {
                 semanticModelOpt = PackageUtil.getSemanticModel(moduleInfo);
             }

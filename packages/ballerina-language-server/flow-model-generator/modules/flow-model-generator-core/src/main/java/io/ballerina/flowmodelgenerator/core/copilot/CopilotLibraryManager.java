@@ -25,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.flowmodelgenerator.core.InstructionLoader;
+import io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessor;
 import io.ballerina.flowmodelgenerator.core.copilot.database.LibraryDatabaseAccessor;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Annotation;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Client;
@@ -48,12 +49,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Core orchestrator for Copilot library operations.
@@ -63,20 +68,31 @@ import java.util.stream.Collectors;
  */
 public class CopilotLibraryManager {
 
+    private static final Logger LOGGER = Logger.getLogger(CopilotLibraryManager.class.getName());
     private static final Gson GSON = new Gson();
     private static final String EXCLUSION_JSON_PATH = "/copilot/exclusion.json";
     private static final String TYPE_GENERIC = "generic";
 
-    // Libraries for which README content should be included in the filtered response.
-    private static final Set<String> README_WHITELIST = Set.of(
-            "ballerinax/salesforce",
-            "ballerina/ai",
-            "ballerinax/cdc",
-            "ballerinax/mysql",
-            "ballerinax/postgresql",
-            "ballerina/ftp",
-            "ballerina/file"
-    );
+    // Maximum number of libraries a keyword search hands back, applied after exclusions.
+    private static final int MAX_SEARCH_RESULTS = 10;
+
+    // When set to "true", keyword search skips Ballerina Central and queries the bundled index only.
+    private static final String USE_LOCAL_INDEX_PROPERTY = "ballerina.copilot.librarySearch.useLocalIndex";
+
+    // Organizations whose packages have their documentation included in the filtered response.
+    // Documentation is trusted for these orgs, so it is whitelisted at the organization level
+    // rather than per package.
+    private static final Set<String> DOC_WHITELIST_ORGS = Set.of("ballerina", "ballerinax");
+
+    private static final String DOCS_DIR = "docs";
+    private static final String MODULES_DIR = "modules";
+
+    // Package-level documentation file names, in order of preference. Newer packages ship
+    // README.md; older ones ship Package.md.
+    private static final List<String> PACKAGE_DOC_NAMES = List.of("README.md", "Package.md");
+
+    // Module-level documentation file names, in order of preference.
+    private static final List<String> MODULE_DOC_NAMES = List.of("README.md", "Module.md");
 
     /**
      * Loads all libraries from the database.
@@ -106,7 +122,8 @@ public class CopilotLibraryManager {
      * Loads filtered libraries using the semantic model.
      * Returns libraries with full details including clients, functions, typedefs, and services.
      * Applies exclusions and augments with instructions before returning.
-     * README content is included only for libraries in {@link #README_WHITELIST}.
+     * Documentation is included only for packages of the organizations listed in
+     * {@link #DOC_WHITELIST_ORGS}.
      *
      * @param libraryNames Array of library names in "org/package_name" format to filter
      * @return List of Library objects with complete information
@@ -174,8 +191,8 @@ public class CopilotLibraryManager {
             }
             library.setAnnotations(annotations);
 
-            if (README_WHITELIST.contains(libraryName)) {
-                readPackageReadme(pkg).ifPresent(library::setReadme);
+            if (DOC_WHITELIST_ORGS.contains(org)) {
+                readPackageDocumentation(pkg).ifPresent(library::setReadme);
             }
 
             libraries.add(library);
@@ -188,42 +205,144 @@ public class CopilotLibraryManager {
     }
 
     /**
-     * Searches libraries by keywords across packages, types, connectors, and functions.
+     * Searches libraries by keywords against the Ballerina Central registry, falling back to the
+     * bundled search index when Central cannot be reached.
      *
      * @param keywords Array of search keywords
-     * @return List of Library objects containing name and description (up to 20 results)
+     * @return List of Library objects containing name and description (up to
+     *         {@value #MAX_SEARCH_RESULTS} results)
      */
     public List<Library> getLibrariesBySearch(String[] keywords) {
-        List<Library> libraries = new ArrayList<>();
+        List<Library> libraries = toLibraries(searchPackageDescriptions(keywords));
+
+        // Exclusions run before truncation so that an excluded library does not consume a result slot.
+        applyLibraryExclusions(libraries);
+        return libraries.size() > MAX_SEARCH_RESULTS
+                ? new ArrayList<>(libraries.subList(0, MAX_SEARCH_RESULTS))
+                : libraries;
+    }
+
+    /**
+     * Resolves keyword matches to a package name to description map, preferring Ballerina Central and
+     * degrading to the bundled search index when the Central lookup fails.
+     *
+     * @param keywords Array of search keywords
+     * @return map of package names to descriptions, in relevance order
+     */
+    private Map<String, String> searchPackageDescriptions(String[] keywords) {
+        if (Boolean.parseBoolean(System.getProperty(USE_LOCAL_INDEX_PROPERTY))) {
+            return searchLocalIndex(keywords);
+        }
 
         try {
-            Map<String, String> packageToDescriptionMap = LibraryDatabaseAccessor.searchLibrariesByKeywords(keywords);
+            return new CentralLibrarySearchAccessor().searchLibrariesByKeywords(keywords);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING,
+                    "Ballerina Central library search failed; falling back to the bundled search index", e);
+            return searchLocalIndex(keywords);
+        }
+    }
 
-            for (Map.Entry<String, String> entry : packageToDescriptionMap.entrySet()) {
-                Library library = new Library(entry.getKey(), entry.getValue());
-                libraries.add(library);
-            }
+    private Map<String, String> searchLocalIndex(String[] keywords) {
+        try {
+            return LibraryDatabaseAccessor.searchLibrariesByKeywords(keywords);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to search libraries by keywords: " + e.getMessage(), e);
         }
+    }
 
-        applyLibraryExclusions(libraries);
+    private static List<Library> toLibraries(Map<String, String> packageToDescriptionMap) {
+        List<Library> libraries = new ArrayList<>();
+        for (Map.Entry<String, String> entry : packageToDescriptionMap.entrySet()) {
+            libraries.add(new Library(entry.getKey(), entry.getValue()));
+        }
         return libraries;
     }
 
     /**
-     * Reads the README.md content from the docs directory of a resolved .bala package.
+     * Reads the documentation of a resolved .bala package from its docs directory.
+     * <p>
+     * The package-level document is taken from the first available of
+     * {@link #PACKAGE_DOC_NAMES}, so packages that ship {@code Package.md} instead of
+     * {@code README.md} are still covered. Documentation of any submodules is appended
+     * after it, each under its own heading.
      *
      * @param pkg the resolved package
-     * @return an Optional containing the README content if present
+     * @return an Optional containing the documentation if any was found
      */
-    private Optional<String> readPackageReadme(Package pkg) {
-        Path readmePath = pkg.project().sourceRoot().resolve("docs").resolve("README.md");
-        try {
-            return Optional.of(Files.readString(readmePath, StandardCharsets.UTF_8));
+    private Optional<String> readPackageDocumentation(Package pkg) {
+        Path docsDir = pkg.project().sourceRoot().resolve(DOCS_DIR);
+        StringBuilder content = new StringBuilder();
+        readFirstAvailableDoc(docsDir, PACKAGE_DOC_NAMES).ifPresent(content::append);
+        appendModuleDocumentation(docsDir, content);
+        return content.isEmpty() ? Optional.empty() : Optional.of(content.toString());
+    }
+
+    /**
+     * Reads the first readable, non-blank file among the given candidate names.
+     *
+     * @param dir            the directory to look in
+     * @param candidateNames candidate file names, in order of preference
+     * @return an Optional containing the content of the first available candidate
+     */
+    private Optional<String> readFirstAvailableDoc(Path dir, List<String> candidateNames) {
+        for (String candidateName : candidateNames) {
+            Path docPath = dir.resolve(candidateName);
+            if (!Files.isRegularFile(docPath)) {
+                continue;
+            }
+            try {
+                String content = Files.readString(docPath, StandardCharsets.UTF_8);
+                if (!content.isBlank()) {
+                    return Optional.of(content);
+                }
+            } catch (IOException e) {
+                // Unreadable document — fall through to the next candidate.
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Appends the documentation of each submodule to the given content, if present.
+     * Modules are processed in a stable order so the result does not vary between runs.
+     *
+     * @param docsDir the docs directory of the package
+     * @param content the content to append to
+     */
+    private void appendModuleDocumentation(Path docsDir, StringBuilder content) {
+        Path modulesDir = docsDir.resolve(MODULES_DIR);
+        if (!Files.isDirectory(modulesDir)) {
+            return;
+        }
+
+        List<Path> moduleDirs;
+        try (Stream<Path> paths = Files.list(modulesDir)) {
+            // Sorted by the full path, which orders by module directory name since they
+            // all share the same parent.
+            moduleDirs = paths.filter(Files::isDirectory)
+                    .sorted(Comparator.comparing(Path::toString))
+                    .toList();
         } catch (IOException e) {
-            // README is optional — absent or unreadable yields an empty result.
-            return Optional.empty();
+            // Module documentation is optional — an unreadable directory is not an error.
+            return;
+        }
+
+        for (Path moduleDir : moduleDirs) {
+            Path moduleName = moduleDir.getFileName();
+            if (moduleName == null) {
+                continue;
+            }
+            Optional<String> moduleDoc = readFirstAvailableDoc(moduleDir, MODULE_DOC_NAMES);
+            if (moduleDoc.isEmpty()) {
+                continue;
+            }
+            if (!content.isEmpty()) {
+                content.append(System.lineSeparator()).append(System.lineSeparator());
+            }
+            content.append("## Module: ").append(moduleName)
+                    .append(System.lineSeparator()).append(System.lineSeparator())
+                    .append(moduleDoc.get());
         }
     }
 

@@ -19,11 +19,12 @@
 
 import path from "path";
 import { StateMachine } from "../../stateMachine";
-import { TestsDiscoveryRequest, TestsDiscoveryResponse, FunctionTreeNode, ProjectInfo, PROJECT_KIND, isPathInside } from "@wso2/ballerina-core";
+import { TestsDiscoveryRequest, TestsDiscoveryResponse, ProjectInfo, PROJECT_KIND, isPathInside } from "@wso2/ballerina-core";
 import { BallerinaExtension } from "../../core";
 import { Position, Range, TestController, Uri, TestItem, commands } from "vscode";
 import { getWorkspaceRoot, getCurrentProjectRoot } from "../../utils/project-utils";
 import { URI } from "vscode-uri";
+import { getTestFunctionGroups } from "../../utils/test-discovery";
 
 let groups: string[] = [];
 
@@ -97,13 +98,7 @@ function createTests(response: TestsDiscoveryResponse, testController: TestContr
         return;
     }
 
-    // Check if the result is a Map or a plain object
-    const isMap = response.result instanceof Map;
-
-    // Convert the result to an iterable format
-    const entries = isMap
-        ? Array.from(response.result.entries()) // If it's a Map, convert to an array of entries
-        : Object.entries(response.result); // If it's a plain object, use Object.entries
+    const entries = getTestFunctionGroups(response);
 
     // Determine if we're in a workspace context (multiple projects)
     const isWorkspaceContext = projectPath !== undefined;
@@ -151,14 +146,8 @@ function createTests(response: TestsDiscoveryResponse, testController: TestContr
             }
         }
 
-        // Ensure testFunctions is iterable (convert to an array if necessary)
-        const testFunctionsArray = Array.isArray(testFunctions)
-            ? testFunctions // If it's already an array, use it directly
-            : Object.values(testFunctions); // If it's an object, convert to an array
-
-        // Iterate over the test functions in the group
-        for (const tf of testFunctionsArray) {
-            const testFunc: FunctionTreeNode = tf as FunctionTreeNode;
+        // Iterate over the test functions in the group.
+        for (const testFunc of testFunctions) {
             // Generate a unique ID for the test item using the function name
             const fileName: string = testFunc.lineRange.fileName;
             const resolvedProjectPath = projectPath || StateMachine.context().projectPath;

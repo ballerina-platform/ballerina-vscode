@@ -7,9 +7,10 @@
  * You may not alter or remove any copyright or other notice from copies of this content.
  */
 
-import { FlowNode, LineRange } from "@wso2/ballerina-core";
+import { FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { debounce } from "lodash";
+import styled from "@emotion/styled";
+import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import FlowNodeForm from "../Forms/FlowNodeForm";
@@ -19,7 +20,7 @@ import { RequiresAuthCheckbox } from "./Mcp/RequiresAuthCheckbox";
 import { attemptValueResolution, createMockTools, extractOriginalValues, generateToolKitName } from "./Mcp/utils";
 import { cleanServerUrl } from "./formUtils";
 import { Container, LoaderContainer } from "./styles";
-import { extractAccessToken, findAgentNodeFromAgentCallNode, getEndOfFileLineRange, removeQuotes, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
+import { extractAccessToken, getEndOfFileLineRange, refreshAgentNodeLineRange, removeQuotes, resolveAgentNodePosition, resolveVariableValue, resolveAuthConfig, checkAiPackageVersionSupport } from "./utils";
 
 interface Tool {
     name: string;
@@ -29,8 +30,14 @@ interface Tool {
 interface AddMcpServerProps {
     editMode?: boolean;
     name?: string;
-    agentCallNode: FlowNode;
-    onSave?: () => void;
+    agentNode: FlowNode;
+    existingNode?: FlowNode;
+    agentDefinition?: {
+        filePath: string;
+        classLineRange: LineRange;
+        reservedNames?: string[];
+    };
+    onSave?: (agentPosition?: NodePosition) => void;
     onBack?: () => void;
 }
 
@@ -38,13 +45,37 @@ const SERVER_URL_FIELD_KEY = "serverUrl";
 const AUTH_FIELD_KEY = "auth";
 const RESULT_FIELD_KEY = "variable";
 const TOOLKIT_NAME_FIELD_KEY = "toolKitName";
+const INCLUDE_CONTEXT_PROPERTY = "includeContext";
+
+const ContextOption = styled.label`
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+`;
+
+const ContextHint = styled.div`
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 2px;
+    line-height: 1.4;
+`;
 
 // Delegates to the shared removeQuotes so `"url"` and string `url` compare equal.
 const normalizeExpressionValue = (value: unknown): string =>
     typeof value === "string" ? removeQuotes(value) : "";
 
+const uniqueName = (base: string, reserved: Set<string>): string => {
+    if (!reserved.has(base)) return base;
+    let i = 1;
+    while (reserved.has(`${base}${i}`)) i++;
+    return `${base}${i}`;
+};
+
 export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
-    const { agentCallNode, onSave, editMode = false } = props;
+    const { agentNode, agentDefinition, onSave, editMode = false } = props;
     const { rpcClient } = useRpcContext();
 
     const [serverUrl, setServerUrl] = useState("");
@@ -57,6 +88,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const [loadingMcpTools, setLoadingMcpTools] = useState<boolean>(false);
     const [mcpToolsError, setMcpToolsError] = useState<string>("");
     const [toolScopes, setToolScopes] = useState<ToolScopes>({});
+    const [includeContext, setIncludeContext] = useState(false);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -71,16 +103,11 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
 
     const mcpToolKitNodeTemplateRef = useRef<FlowNode>(null);
     const mcpToolKitNodeRef = useRef<FlowNode>(null);
-    const agentNodeRef = useRef<FlowNode>(null);
 
     const agentFilePathRef = useRef<string>("");
     const agentFileEndLineRangeRef = useRef<LineRange | null>(null);
     const formRef = useRef<any>(null);
     const projectPathUriRef = useRef<string>("");
-
-    const fetchAgentNode = async () => {
-        agentNodeRef.current = await findAgentNodeFromAgentCallNode(agentCallNode, rpcClient);
-    };
 
     const fetchMcpToolKitTemplate = async () => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
@@ -98,8 +125,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         return moduleNodes;
     };
 
-    const setupEditMode = async (variables: FlowNode[]) => {
-        const mcpToolKitVariable = variables?.find(
+    const setupEditMode = async (variables: FlowNode[] = []) => {
+        const mcpToolKitVariable = props.existingNode ?? variables?.find(
             (v) => v.codedata?.node === "MCP_TOOL_KIT" && v.properties.variable?.value === props.name
         );
         if (!mcpToolKitVariable) return;
@@ -113,6 +140,8 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         }
 
         mcpToolKitNodeRef.current = mcpToolKitVariable;
+        setIncludeContext((mcpToolKitVariable.properties as Record<string, { value?: unknown }> | undefined)
+            ?.[INCLUDE_CONTEXT_PROPERTY]?.value === true);
         initializeEditMode();
     };
 
@@ -123,11 +152,10 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         const visualizerLocation = await rpcClient.getVisualizerLocation();
         projectPathUriRef.current = visualizerLocation.projectPath;
 
-        const moduleNodes = await fetchModuleNodes();
+        const moduleNodes = editMode && !props.existingNode ? await fetchModuleNodes() : undefined;
 
-        await fetchAgentNode();
-        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNodeRef.current?.codedata?.lineRange?.fileName] })).filePath;
-        const endLineRange = await getEndOfFileLineRange(agentNodeRef.current?.codedata?.lineRange?.fileName, rpcClient);
+        agentFilePathRef.current = (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: [agentNode?.codedata?.lineRange?.fileName] })).filePath;
+        const endLineRange = await getEndOfFileLineRange(agentNode?.codedata?.lineRange?.fileName, rpcClient);
         agentFileEndLineRangeRef.current = endLineRange;
 
         const template = await fetchMcpToolKitTemplate();
@@ -137,13 +165,18 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         mcpToolKitNodeTemplateRef.current = template;
 
         if (editMode) {
-            await setupEditMode(moduleNodes.flowModel.variables);
+            await setupEditMode(moduleNodes?.flowModel?.variables);
         } else {
+            const reserved = agentDefinition?.reservedNames;
+            const variableProp = (template.properties as any)?.[RESULT_FIELD_KEY];
+            if (reserved?.length && variableProp && typeof variableProp.value === "string") {
+                variableProp.value = uniqueName(variableProp.value, new Set(reserved));
+            }
             mcpToolKitNodeRef.current = template;
         }
 
         setIsLoading(false);
-    }, [editMode, rpcClient]);
+    }, [agentDefinition, agentNode, editMode, props.existingNode, rpcClient]);
 
     const fetchToolsFromServer = useCallback(async (
         url: string,
@@ -414,20 +447,82 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
     const handleSave = async (node?: FlowNode) => {
         setIsSaving(true);
         try {
-            await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
-                agentFlowNode: agentNodeRef.current,
-                selectedTools: Array.from(selectedMcpTools),
-                updatedNode: node,
-                toolScopes: showScopes && Object.keys(toolScopes).length > 0 ? toolScopes : undefined,
-            });
-            
-            try {
-                await rpcClient.getAIAgentRpcClient().fixMissingImports();
-            } catch (importFixError) {
-                console.warn("fixMissingImports failed after MCP save", importFixError);
+            if (!node) {
+                return;
             }
 
-            onSave?.();
+            if (selectedMcpTools.size === 0) {
+                node.properties["permittedTools"].value = `()`;
+            } else if ("permittedTools" in node.properties) {
+                node.properties["permittedTools"].value = `[${Array.from(selectedMcpTools).map(tool => `"${tool}"`).join(", ")}]`;
+            }
+
+            const filteredScopes: Record<string, string[]> = {};
+            if (showScopes && Object.keys(toolScopes).length > 0 && selectedMcpTools.size > 0) {
+                for (const tool of selectedMcpTools) {
+                    const scopes = toolScopes[tool];
+                    if (scopes && scopes.length > 0) {
+                        filteredScopes[tool] = scopes;
+                    }
+                }
+            }
+
+            if (Object.keys(filteredScopes).length > 0) {
+                (node.properties as any)["toolScopes"] = {
+                    metadata: { label: "Tool Scopes" },
+                    valueType: "EXPRESSION",
+                    value: JSON.stringify(filteredScopes),
+                    optional: true,
+                    editable: true,
+                    advanced: true,
+                    hidden: true,
+                    codedata: {
+                        kind: "INCLUDED_FIELD",
+                        originalName: "toolScopes"
+                    }
+                };
+            } else {
+                delete (node.properties as any)["toolScopes"];
+            }
+
+            if (includeContext) {
+                (node.properties as any)[INCLUDE_CONTEXT_PROPERTY] = {
+                    metadata: { label: "Pass agent context" },
+                    value: true,
+                    optional: true,
+                    editable: true,
+                    advanced: true,
+                    hidden: true,
+                    codedata: {
+                        kind: "INCLUDED_FIELD",
+                        originalName: INCLUDE_CONTEXT_PROPERTY,
+                    },
+                };
+            } else {
+                delete (node.properties as any)[INCLUDE_CONTEXT_PROPERTY];
+            }
+
+            let targetAgentNode: FlowNode | undefined;
+            if (agentDefinition) {
+                await rpcClient.getBIDiagramRpcClient().saveClassMember({
+                    filePath: agentDefinition.filePath,
+                    flowNode: node,
+                    classLineRange: agentDefinition.classLineRange,
+                });
+            } else {
+                targetAgentNode = cloneDeep(agentNode);
+                await refreshAgentNodeLineRange(targetAgentNode, rpcClient);
+                await rpcClient.getAIAgentRpcClient().updateMCPToolKit({
+                    agentFlowNode: targetAgentNode,
+                    selectedTools: Array.from(selectedMcpTools),
+                    updatedNode: node,
+                    toolScopes: Object.keys(filteredScopes).length > 0 ? filteredScopes : undefined,
+                });
+            }
+
+            await rpcClient.getAIAgentRpcClient().fixMissingImports().catch((): undefined => undefined);
+
+            onSave?.(targetAgentNode ? await resolveAgentNodePosition(targetAgentNode, rpcClient) : undefined);
         } catch (error) {
             console.error("Error saving MCP server:", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
@@ -480,8 +575,28 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                     />
                 ),
                 index: 2
+            },
+            {
+                component: (
+                    <ContextOption>
+                        <input
+                            type="checkbox"
+                            checked={includeContext}
+                            onChange={(event) => setIncludeContext(event.target.checked)}
+                        />
+                        <div>
+                            Pass agent context
+                            <ContextHint>
+                                Adds ai:Context ctx as the first parameter so this tool can access the invoking
+                                agent's context.
+                            </ContextHint>
+                        </div>
+                    </ContextOption>
+                ),
+                index: 0,
+                advanced: true,
             }];
-    }, [availableMcpTools, selectedMcpTools, loadingMcpTools, mcpToolsError, serverUrl, handleToolSelectionChange, handleSelectAllTools, isSaveDisabled, requiresAuth, toolsInclude, editMode, toolSource, resolutionError, handleRetryFetch, toolScopes, handleToolScopesChange, showScopes]);
+    }, [availableMcpTools, selectedMcpTools, loadingMcpTools, mcpToolsError, serverUrl, handleToolSelectionChange, handleSelectAllTools, isSaveDisabled, requiresAuth, toolsInclude, editMode, toolSource, resolutionError, handleRetryFetch, toolScopes, handleToolScopesChange, showScopes, includeContext]);
 
     const fieldOverrides = useMemo(() => ({
         auth: {
@@ -490,8 +605,12 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
         },
         toolKitName: {
             advanced: true,
+            editable: !editMode,
+        },
+        variable: {
+            editable: !editMode,
         }
-    }), [requiresAuth]);
+    }), [requiresAuth, editMode]);
 
     return (
         <Container>

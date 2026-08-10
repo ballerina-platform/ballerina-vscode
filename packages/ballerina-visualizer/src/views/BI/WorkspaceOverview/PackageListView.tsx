@@ -19,7 +19,7 @@
 import React, { useMemo } from 'react';
 import styled from '@emotion/styled';
 import { Codicon, Icon, Tooltip, Typography } from '@wso2/ui-toolkit';
-import { EVENT_TYPE, MACHINE_VIEW, ProjectStructureResponse, SCOPE } from '@wso2/ballerina-core';
+import { DIRECTORY_MAP, EVENT_TYPE, MACHINE_VIEW, ProjectStructureResponse, SCOPE } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { getIntegrationTypes } from '../PackageOverview/utils';
 
@@ -277,7 +277,10 @@ export function PackageListView(props: PackageListViewProps) {
                 name: project.projectTitle,
                 projectPath: project.projectPath,
                 isLibrary: project.isLibrary ?? false,
-                types: getIntegrationTypes(project)
+                types: getIntegrationTypes(project),
+                hasAgentDefinitions: Boolean(
+                    project.isLibrary && project.directoryMap[DIRECTORY_MAP.AGENT_DEFINITION]?.length
+                )
             }
         });
     }, [projectCollection]);
@@ -335,6 +338,11 @@ export function PackageListView(props: PackageListViewProps) {
                                         {type !== SCOPE.ANY ? getTypeLabel(type) : ''}
                                     </Chip>
                                 ))}
+                                {item.hasAgentDefinitions && (
+                                    <Chip color="var(--vscode-terminal-ansiBlue)">
+                                        Agent Definition
+                                    </Chip>
+                                )}
                             </ChipContainer>
                             {showICPBadge && !item.isLibrary && icpStatusByProjectPath[item.projectPath] && (
                                 <Tooltip content="Integration Control Plane is enabled for this integration">

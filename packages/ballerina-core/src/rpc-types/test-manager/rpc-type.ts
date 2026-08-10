@@ -27,6 +27,17 @@ export const addTestFunction: RequestType<AddOrUpdateTestFunctionRequest, Source
 export const updateTestFunction: RequestType<AddOrUpdateTestFunctionRequest, SourceUpdateResponse> =
     { method: `${_preFix}/updateTestFunction` };
 
+export interface GetTestFunctionNamesRequest {
+    projectPath: string;
+}
+
+export interface GetTestFunctionNamesResponse {
+    names: string[];
+}
+
+export const getTestFunctionNames: RequestType<GetTestFunctionNamesRequest, GetTestFunctionNamesResponse> =
+    { method: `${_preFix}/getTestFunctionNames` };
+
 export interface EvalsetItem {
     id: string;
     name: string;
@@ -188,4 +199,3 @@ export const restoreGitSnapshot: RequestType<RestoreGitSnapshotRequest, RestoreG
 // Evaluation History panels can re-fetch instead of requiring a reopen.
 export const evaluationHistoryUpdated: NotificationType<void> =
     { method: `${_preFix}/evaluationHistoryUpdated` };
-

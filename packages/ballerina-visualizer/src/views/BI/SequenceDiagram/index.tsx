@@ -16,13 +16,15 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { SqFlow, ParentMetadata, NodePosition } from "@wso2/ballerina-core";
 import { Diagram } from "@wso2/sequence-diagram";
 import styled from "@emotion/styled";
 import { ThemeColors } from "@wso2/ui-toolkit";
 import { STNode } from "@wso2/syntax-tree";
+import { debounce } from "lodash";
+import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../diagramRefreshDebounce";
 const Container = styled.div`
     width: 100%;
     height: calc(100vh - 50px);
@@ -64,10 +66,20 @@ export function BISequenceDiagram(props: BISequenceDiagramProps) {
         getSequenceModel();
     }, []);
 
+    const debouncedGetSequenceModel = useCallback(
+        debounce(() => {
+            getSequenceModel();
+        }, DIAGRAM_REFRESH_DEBOUNCE_MS),
+        []
+    );
+
     useEffect(() => {
         rpcClient.onProjectContentUpdated((content) => {
-            getSequenceModel();
+            debouncedGetSequenceModel();
         });
+        return () => {
+            debouncedGetSequenceModel.cancel();
+        };
     }, []);
 
     const getSequenceModel = () => {

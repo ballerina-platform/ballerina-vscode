@@ -12,6 +12,7 @@
     "build": "webpack --config webpack.config.js --mode=production && pnpm run postbuild && pnpm run build:federation",
     "build:federation": "webpack --config webpack.federation.config.js --mode=production && pnpm run postbuild:federation",
     "test": "jest --coverage",
+    "test:typecheck": "tsc --noEmit -p tsconfig.spec.json",
     "test:watch": "jest --watch",
     "copy:assets": "copyfiles -u 1 \"src/**/*.scss\"  \"src/**/*.svg\"  \"src/**/*.css\" \"src/resources/assets/font/*.*\" lib/",
     "deploy": "npm publish",
@@ -75,6 +76,7 @@
     "katex": "0.16.27"
   },
   "devDependencies": {
+    "@wso2/test-config": "workspace:*",
     "jest": "29.7.0",
     "ts-jest": "29.3.4",
     "@types/jest": "29.5.14",
@@ -110,7 +112,7 @@
     "@types/react-lottie": "1.2.5",
     "@types/lodash.debounce": "4.0.6",
     "webpack-cli": "5.1.4",
-    "webpack-dev-server": "5.2.5",
+    "webpack-dev-server": "5.2.6",
     "@types/jest": "29.5.14",
     "jest": "29.7.0",
     "ts-jest": "29.3.4"

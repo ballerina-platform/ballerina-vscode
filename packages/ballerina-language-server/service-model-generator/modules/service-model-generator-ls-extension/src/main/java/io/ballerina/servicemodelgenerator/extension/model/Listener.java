@@ -42,7 +42,7 @@ public class Listener {
     private final String orgName;
     private final String version;
     private final String packageName;
-    private final String listenerProtocol;
+    private String listenerProtocol;
     private final String icon;
     private Map<String, Value> properties;
     private Codedata codedata;
@@ -178,6 +178,16 @@ public class Listener {
 
     public String getListenerProtocol() {
         return listenerProtocol;
+    }
+
+    /**
+     * Overrides the module prefix the listener type is emitted under. The protocol is normally derived
+     * from the package name (its natural prefix), which is wrong when the file imports that module under
+     * an alias — regenerating the declaration would otherwise rewrite a working
+     * {@code triggerTwilio:Listener} back to an out-of-scope {@code twilio:Listener}.
+     */
+    public void setListenerProtocol(String listenerProtocol) {
+        this.listenerProtocol = listenerProtocol;
     }
 
     public String getIcon() {

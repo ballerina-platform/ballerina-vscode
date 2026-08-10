@@ -23,6 +23,7 @@ import { NodeTypes } from "../../../resources/constants";
 import { IfNodeModel } from "./IfNodeModel";
 import { IfNodeWidget } from "./IfNodeWidget";
 import { MatchNodeWidget } from "./MatchNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class IfNodeFactory extends AbstractReactFactory<IfNodeModel, DiagramEngine> {
     constructor() {
@@ -35,8 +36,16 @@ export class IfNodeFactory extends AbstractReactFactory<IfNodeModel, DiagramEngi
 
     generateReactWidget(event: GenerateWidgetEvent<IfNodeModel>) {
         if (event.model.node.codedata.node === "MATCH") {
-            return <MatchNodeWidget engine={this.engine} model={event.model} />;
+            return (
+                <DiffTooltip node={event.model.node}>
+                    <MatchNodeWidget engine={this.engine} model={event.model} />
+                </DiffTooltip>
+            );
         }
-        return <IfNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <IfNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

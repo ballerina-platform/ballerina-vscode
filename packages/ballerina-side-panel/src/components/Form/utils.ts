@@ -50,6 +50,11 @@ export function updateFormFieldWithImports(formField: FormField, fieldImports: F
     return formField;
 }
 
+// A connection selector seeds its value with this sentinel (the LS "new connection" marker). It is a
+// placeholder for the "add a new connection" affordance, not a real selection, so a required
+// connection field must still count as incomplete until the user picks or creates a connection.
+const NEW_CONNECTION_SENTINEL = "NEW_CONNECTION";
+
 export function hasIncompleteRequiredFormFields(
     formFields: FormField[] = [],
     values: Record<string, unknown> = {}
@@ -62,7 +67,11 @@ export function hasIncompleteRequiredFormFields(
         const value = values[field.key];
         const isEmptyString = typeof value === "string" && value.trim() === "";
         const isEmptyArray = Array.isArray(value) && value.length === 0;
-        const hasValue = value !== undefined && value !== null && !isEmptyString && !isEmptyArray;
+        // An unselected connection selector still holds the sentinel; treat it as no value.
+        const isUnselectedConnection =
+            getPrimaryInputType(field.types)?.fieldType === "CONNECTION" && value === NEW_CONNECTION_SENTINEL;
+        const hasValue =
+            value !== undefined && value !== null && !isEmptyString && !isEmptyArray && !isUnselectedConnection;
 
         if (field.optional && !hasValue) {
             return false;
@@ -133,4 +142,43 @@ export function isDefaultModelProvider(formFields: FormField[]): boolean {
         field.value === "ai:Wso2ModelProvider" &&
         field.enabled === false
     );
+}
+
+/**
+ * Every field key reachable in the form, including the nested groups (`advanceProps`) and the
+ * per-option branches (`dynamicFormFields`) that render their leaves with the leaf's own key.
+ */
+export function collectFieldKeys(fields: FormField[]): Set<string> {
+    const keys = new Set<string>();
+    const visit = (candidates: FormField[]) => {
+        candidates?.forEach((field) => {
+            if (!field) {
+                return;
+            }
+            keys.add(field.key);
+            visit(field.advanceProps);
+            Object.values(field.dynamicFormFields ?? {}).forEach(visit);
+        });
+    };
+    visit(fields);
+    return keys;
+}
+
+/**
+ * Resolves a language-server `propertyPath` onto a form field key.
+ *
+ * The server addresses nodes by their full dot path (`auth.choices.0.privateKey`), while the form
+ * registers nested leaves under their own key — so the full path is tried first, then the leaf
+ * segment. An unresolvable path returns undefined and is shown at form level instead of being
+ * silently dropped.
+ */
+export function resolveValidationFieldKey(propertyPath: string, fieldKeys: Set<string>): string | undefined {
+    if (!propertyPath) {
+        return undefined;
+    }
+    if (fieldKeys.has(propertyPath)) {
+        return propertyPath;
+    }
+    const leaf = propertyPath.split(".").pop();
+    return leaf && fieldKeys.has(leaf) ? leaf : undefined;
 }

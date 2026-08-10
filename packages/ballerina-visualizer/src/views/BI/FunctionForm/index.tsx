@@ -17,20 +17,34 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, Property, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
+import { CodeData, FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
+import { FormField, FormImports, FormValues, Parameter } from "@wso2/ballerina-side-panel";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
-import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
-import { fetchOAuthConfigProperties } from "../AIChatAgent/utils";
+import { convertConfig, getImportsForProperty } from "../../../utils/bi";
+import { getNodeTemplate } from "../AIChatAgent/utils";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
 
+
+// Durable agents run their LLM calls through a module-level `ai:ModelProvider`. Creating a
+// durable agent ensures the shared WSO2 default provider exists (mirrors AIChatAgentWizard).
+const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
+    node: "MODEL_PROVIDER",
+    org: "ballerina",
+    module: "ai",
+    packageName: "ai",
+    symbol: "getDefaultModelProvider",
+};
+const WSO2_MODEL_PROVIDER_VAR = "wso2ModelProvider";
+
+// Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
+const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
 
 const FormContainer = styled.div`
     display: flex;
@@ -45,140 +59,6 @@ const Container = styled.div`
     gap: 10;
 `;
 
-const SectionHeader = styled.div`
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-top: 20px;
-    margin-top: -4px;
-    border-top: 1px solid var(--vscode-editorWidget-border);
-`;
-
-const SectionDescription = styled.span`
-    color: var(--vscode-list-deemphasizedForeground);
-`;
-
-/**
- * Parse auth values from a Ballerina @ai:AgentTool annotation string.
- * Expected format within the annotation:
- *   auth: { baseAuthUrl: string `val`, scopes: [string `a`, string `b`], isPkceEnabled: true,
- *           secureSocket: { enable: false } }
- */
-interface ParsedConfigValue {
-    value: string;
-    isExpression: boolean;
-}
-
-// Match `re` (which must end with `{`) and extend to its balanced `}`.
-// Returns the full span and the inner body (without outer braces), or null.
-function matchBraced(str: string, re: RegExp): { start: number; end: number; body: string } | null {
-    const m = re.exec(str);
-    if (!m) return null;
-    const open = m.index + m[0].length - 1;
-    let depth = 0;
-    for (let i = open; i < str.length; i++) {
-        if (str[i] === "{") depth++;
-        else if (str[i] === "}" && --depth === 0) {
-            return { start: m.index, end: i + 1, body: str.substring(open + 1, i) };
-        }
-    }
-    return null;
-}
-
-function parseAuth(annotationValue: string, oauthKeys: string[]): Record<string, ParsedConfigValue> {
-    const result: Record<string, ParsedConfigValue> = {};
-    const auth = matchBraced(annotationValue, /auth\s*:\s*\{/);
-    if (!auth) return result;
-    const configBlock = auth.body;
-
-    for (const key of oauthKeys) {
-        if (key === "scopes") {
-            const scopesMatch = configBlock.match(/scopes\s*:\s*\[([^\]]*)\]/);
-            if (scopesMatch) {
-                const items = scopesMatch[1].split(",").map((s) => s.trim()).filter(Boolean);
-                const unwrapped = items.map((item) => {
-                    const strTemplate = item.match(/^string\s*`([^`]*)`$/);
-                    if (strTemplate) return { val: strTemplate[1], isLiteral: true };
-                    const quoted = item.match(/^"([^"]*)"$/);
-                    if (quoted) return { val: quoted[1], isLiteral: true };
-                    return { val: item, isLiteral: false };
-                });
-                const allLiteral = unwrapped.every((u) => u.isLiteral);
-                result.scopes = {
-                    value: JSON.stringify(unwrapped.map((u) => u.val)),
-                    isExpression: !allLiteral,
-                };
-            }
-            continue;
-        }
-        if (key === "isPkceEnabled") {
-            const boolMatch = configBlock.match(/isPkceEnabled\s*:\s*(true|false)/);
-            if (boolMatch) {
-                result.isPkceEnabled = { value: boolMatch[1], isExpression: false };
-            }
-            continue;
-        }
-        // Record value: key: { ... } with balanced-brace matching
-        const rec = matchBraced(configBlock, new RegExp(`(?:^|,)\\s*${key}\\s*:\\s*\\{`));
-        if (rec) {
-            result[key] = { value: `{${rec.body}}`, isExpression: false };
-            continue;
-        }
-        const valueMatch = configBlock.match(new RegExp(`${key}\\s*:\\s*(.+?)\\s*(?:,|$)`, "m"));
-        if (!valueMatch) continue;
-        const raw = valueMatch[1].trim();
-        const strTemplate = raw.match(/^string\s*`([^`]*)`$/);
-        if (strTemplate) {
-            result[key] = { value: strTemplate[1], isExpression: false };
-            continue;
-        }
-        const quoted = raw.match(/^"([^"]*)"$/);
-        if (quoted) {
-            result[key] = { value: quoted[1], isExpression: false };
-            continue;
-        }
-        result[key] = { value: raw, isExpression: true };
-    }
-    return result;
-}
-
-/**
- * Build the auth annotation fragment from OAuth config values.
- * Returns empty string if no config values are present.
- */
-function buildAuthAnnotation(config: Record<string, string>, expressionKeys: Set<string>): string {
-    const entries = Object.entries(config);
-    if (entries.length === 0) {
-        return "";
-    }
-    const parts = entries.map(([key, value]) => {
-        if (key === "isPkceEnabled") {
-            return `${key}: ${value}`;
-        }
-        if (key === "scopes") {
-            try {
-                const arr = JSON.parse(value) as string[];
-                return `scopes: [${arr.join(", ")}]`;
-            } catch {
-                return `scopes: [${value}]`;
-            }
-        }
-        if (expressionKeys.has(key)) {
-            return `${key}: ${value}`;
-        }
-        // Don't double-wrap if already quoted, a string template, or a record literal
-        if (
-            /^".*"$/.test(value) ||
-            /^string\s*`.*`$/.test(value) ||
-            /^\{[\s\S]*\}$/.test(value)
-        ) {
-            return `${key}: ${value}`;
-        }
-        return `${key}: "${value}"`;
-    });
-    return `auth: {\n        ${parts.join(",\n        ")}\n    }`;
-}
 
 interface FunctionFormProps {
     filePath: string;
@@ -187,15 +67,15 @@ interface FunctionFormProps {
     isDataMapper?: boolean;
     isNpFunction?: boolean;
     isWorkflow?: boolean;
+    isDurableAgent?: boolean;
     isActivity?: boolean;
     isAutomation?: boolean;
-    isAgentTool?: boolean;
     isPopup?: boolean;
 }
 
 export function FunctionForm(props: FunctionFormProps) {
     const { rpcClient } = useRpcContext();
-    const { projectPath, functionName, filePath, isDataMapper, isNpFunction, isWorkflow, isActivity, isAutomation, isAgentTool, isPopup } = props;
+    const { projectPath, functionName, filePath, isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, isPopup } = props;
 
     const [functionFields, setFunctionFields] = useState<FormField[]>([]);
     const [functionNode, setFunctionNode] = useState<FunctionNode>(undefined);
@@ -204,14 +84,12 @@ export function FunctionForm(props: FunctionFormProps) {
     const [formSubtitle, setFormSubtitle] = useState<string>("");
     const [saving, setSaving] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [showOAuthConfig, setShowOAuthConfig] = useState<boolean>(false);
-    const [recordTypeFields, setRecordTypeFields] = useState<RecordTypeField[]>([]);
+    const [recordTypeFields] = useState<RecordTypeField[]>([]);
 
     const fileName = filePath.split(/[\\/]/).pop();
     const formType = useRef("Function");
     const isMountedRef = useRef(true);
     const functionNodeRef = useRef<FunctionNode>();
-    const oauthConfigPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -248,16 +126,16 @@ export function FunctionForm(props: FunctionFormProps) {
             formType.current = 'Natural Function';
             setTitleSubtitle('Build a flow using a natural language description');
             setFormSubtitle('Describe what you need in a prompt and let AI handle the implementation');
-        } else if (isAgentTool) {
-            nodeKind = 'FUNCTION_DEFINITION';
-            formType.current = 'Agent Tool';
-            setTitleSubtitle('Build a tool that can be invoked by AI agents');
-            setFormSubtitle('Define the inputs and outputs the agent will use to call this tool');
         } else if (isWorkflow) {
             nodeKind = 'WORKFLOW';
-            formType.current = 'Workflow';
-            setTitleSubtitle('Build reusable workflow processes');
-            setFormSubtitle('Define a workflow process with a strongly typed input payload');
+            formType.current = 'Durable Workflow';
+            setTitleSubtitle('Build durable, long-running workflow processes');
+            setFormSubtitle('Define a static workflow logic');
+        } else if (isDurableAgent) {
+            nodeKind = 'DURABLE_AGENT';
+            formType.current = 'Durable Agentic Workflow';
+            setTitleSubtitle('Build a workflow driven by an agentic model');
+            setFormSubtitle('Define an agentic workflow logic');
         } else if (isActivity) {
             nodeKind = 'ACTIVITY';
             formType.current = 'Workflow Activity';
@@ -274,125 +152,72 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             getFunctionNode(nodeKind);
         }
-    }, [isDataMapper, isNpFunction, isWorkflow, isActivity, isAutomation, isAgentTool, functionName]);
+    }, [isDataMapper, isNpFunction, isWorkflow, isDurableAgent, isActivity, isAutomation, functionName]);
 
     useEffect(() => {
-        let cancelled = false;
-        const updateFields = async () => {
-            let fields = functionNode ? convertConfig(functionNode.properties) : [];
+        let fields = functionNode ? convertConfig(functionNode.properties) : [];
 
-            // TODO: Remove this once the hidden flag is implemented
-            if (isAutomation || functionName === "main") {
-                formType.current = "Automation";
-                const automationFields = fields.filter(field => field.key !== "functionName" && field.key !== "type");
-                fields = automationFields;
+        if (isAutomation || functionName === "main") {
+            formType.current = "Automation";
+            fields = fields.filter(field => field.key !== "functionName" && field.key !== "type");
+        }
+
+        fields.forEach((field) => {
+            const primaryInputType = getPrimaryInputType(field.types);
+            if (field.key === "functionNameDescription" || field.key === "typeDescription") {
+                field.type = "DOC_TEXT";
             }
 
-            const annotations = functionNode?.properties?.annotations?.value;
-            const isExistingAgentTool = typeof annotations === "string" && annotations.includes("@ai:AgentTool");
-            if (isExistingAgentTool) {
-                formType.current = "Agent Tool";
-                setTitleSubtitle('Build a tool that can be used by AI agents');
-                setFormSubtitle('Define the inputs and outputs of the tool');
+            // The workflow creation form only asks for the name and input type; the description is
+            // extra information that is not needed to define the workflow, so drop that field.
+            if (isWorkflow && !functionName) {
+                fields = fields.filter(field => field.key !== "functionNameDescription");
             }
 
-            // Apply agent tool field overrides in edit mode (isAgentTool is not passed when editing)
-            if (isExistingAgentTool) {
-                fields.forEach((field) => {
-                    if (field.key === "isIsolated" || field.key === "annotations" || field.key === "isPublic") {
-                        field.hidden = true;
-                        field.editable = false;
-                    }
-                    if (field.key === "functionName") {
-                        field.documentation = "Name of the agent tool.";
-                    }
-                    if (field.key === "functionNameDescription") {
-                        field.documentation = "Description of the agent tool. This will help AI agents understand when to use this tool and how to use it.";
-                    }
-                    if (field.key === "parameters") {
-                        field.documentation = "Define the inputs for the agent tool. These are the parameters that AI agents will use when calling this tool.";
-                    }
-                });
-            }
-
-            // update description fields as "TEXTAREA"
-            fields.forEach((field) => {
-                const primaryInputType = getPrimaryInputType(field.types)
-                if (field.key === "functionNameDescription" || field.key === "typeDescription") {
-                    field.type = "DOC_TEXT";
+            if (field.key === "parameters" && primaryInputType && isTemplateType(primaryInputType)) {
+                if ((primaryInputType.template as any).value.parameterDescription) {
+                    (primaryInputType.template as any).value.parameterDescription.type = "TEXTAREA";
                 }
-                if (field.key === "parameters" && primaryInputType && isTemplateType(primaryInputType)) {
-                    if ((primaryInputType.template as any).value.parameterDescription) {
-                        (primaryInputType.template as any).value.parameterDescription.type = "TEXTAREA";
+            }
+        });
+
+        // Durable Agentic Workflow form. Create mode is name-only: the function template
+        // supplies the context/input parameters, and the model, instructions and
+        // capabilities are configured on the agent diagram afterwards. Edit mode
+        // additionally shows the input parameter (type + name) but still hides the Public
+        // checkbox, the return type fields, the workflow:AgenticWorkflowContext context
+        // parameter row and the Add Parameter action.
+        if (isDurableAgent) {
+            const isCreateMode = !functionName;
+            const isContextParam = (param: Parameter) =>
+                typeof param?.formValues?.type === "string" &&
+                param.formValues.type.replace(/\s/g, "").endsWith("WorkflowContext");
+            fields.forEach((field) => {
+                if (field.key === "isPublic" || field.key === "type" || field.key === "typeDescription") {
+                    field.hidden = true;
+                }
+                if (isCreateMode && (field.key === "functionNameDescription" || field.key === "parameters")) {
+                    field.hidden = true;
+                }
+                if (field.key === "parameters") {
+                    field.addNewButton = false;
+                    field.paramManagerProps?.paramValues?.forEach((param) => {
+                        if (isContextParam(param)) {
+                            param.hidden = true;
+                        }
+                    });
+                    if (Array.isArray(field.value)) {
+                        (field.value as Parameter[]).forEach((param) => {
+                            if (isContextParam(param)) {
+                                param.hidden = true;
+                            }
+                        });
                     }
                 }
             });
+        }
 
-            // Add OAuth client configuration fields for agent tools
-            let oauthSupported = false;
-            if (isAgentTool || isExistingAgentTool) {
-                let oauthProperties: Awaited<ReturnType<typeof fetchOAuthConfigProperties>> = [];
-                setIsLoading(true);
-                try {
-                    oauthProperties = await fetchOAuthConfigProperties(rpcClient, filePath);
-                } catch (error) {
-                    console.error("Failed to fetch OAuth config properties:", error);
-                } finally {
-                    if (!cancelled) setIsLoading(false);
-                }
-                if (cancelled) return;
-                oauthConfigPropertiesRef.current = oauthProperties;
-                const oauthKeys = oauthProperties.map(({ key }) => key);
-                const existingConfig = isExistingAgentTool
-                    ? parseAuth(annotations as string, oauthKeys)
-                    : {};
-                const oauthFields = oauthProperties.map(({ key, property }) => {
-                    const field = convertNodePropertyToFormField(key, property);
-                    const parsed = existingConfig[key];
-                    if (parsed !== undefined) {
-                        field.value = parsed.value;
-                        // Toggle selected type based on whether value is an expression
-                        if (field.types) {
-                            field.types = field.types.map((t) => ({
-                                ...t,
-                                selected: parsed.isExpression
-                                    ? t.fieldType === "EXPRESSION"
-                                    : t.fieldType !== "EXPRESSION",
-                            }));
-                        }
-                        if (parsed.isExpression) {
-                            field.type = "EXPRESSION";
-                        }
-                    }
-                    return field;
-                });
-                fields.push(...oauthFields);
-                oauthSupported = oauthFields.length > 0;
-            } else if (!cancelled) {
-                setIsLoading(false);
-            }
-
-            if (!cancelled) {
-                // Extract record type fields from OAuth properties for record editor modal support
-                const oauthRecordTypeFields = oauthConfigPropertiesRef.current
-                    .filter(({ property }) => {
-                        const primaryInputType = getPrimaryInputType(property?.types);
-                        return primaryInputType?.typeMembers &&
-                            primaryInputType?.typeMembers.some(member => member.kind === "RECORD_TYPE");
-                    })
-                    .map(({ key, property }) => ({
-                        key,
-                        property,
-                        recordTypeMembers: getPrimaryInputType(property?.types)?.typeMembers.filter(member => member.kind === "RECORD_TYPE")
-                    }));
-                setRecordTypeFields(oauthRecordTypeFields);
-
-                setFunctionFields(fields);
-                setShowOAuthConfig(oauthSupported);
-            }
-        };
-        updateFields();
-        return () => { cancelled = true; };
+        setFunctionFields(fields);
     }, [functionNode]);
 
     useEffect(() => {
@@ -467,39 +292,11 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         }
 
-        // Set properties needed for new agent tools
-        if (isAgentTool) {
-            flowNode.properties.isIsolated = {
-                value: "true",
-                optional: true,
-                metadata: undefined,
-                editable: false,
-                hidden: true,
-            };
-
-            flowNode.properties.annotations = {
-                "metadata": undefined,
-                "value": "@ai:AgentTool\n",
-                "optional": false,
-                "editable": false,
-                "hidden": true
-            };
-
-            if (flowNode.properties?.isPublic) {
-                flowNode.properties.isPublic.hidden = true;
-            }
-
-            flowNode.properties.functionName.value = "";
-            flowNode.properties.functionName.metadata.description = "Name of the agent tool.";
-            flowNode.properties.functionNameDescription.metadata.description = "Description of the agent tool. This will help AI agents understand when to use this tool and how to use it.";
-            flowNode.properties.parameters.metadata.description = "Define the inputs for the agent tool. These are the parameters that AI agents will use when calling this tool.";
-        }
-
         // Workflow creation form: keep it minimal and capture only what the user needs up front
         // (Name, Description, Input Type). Hide Public (shareable workflows are not encouraged yet),
         // Return Type and Return Type Description. The return type defaults to `error?` (set by the
         // LS WorkflowBuilder) and can be edited later from the workflow function definition.
-        if (isWorkflow) {
+        if (isWorkflow || isDurableAgent) {
             if (flowNode.properties?.isPublic) {
                 flowNode.properties.isPublic.hidden = true;
             }
@@ -508,6 +305,21 @@ export function FunctionForm(props: FunctionFormProps) {
             }
             if (flowNode.properties?.typeDescription) {
                 flowNode.properties.typeDescription.hidden = true;
+            }
+        }
+
+        // Durable Agentic Workflow creation: prefill the name with a workspace-unique
+        // default (durableAgenticWorkflow, durableAgenticWorkflow2, ...).
+        if (isDurableAgent && flowNode.properties?.functionName) {
+            try {
+                const taken = new Set((await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions);
+                let defaultName = DURABLE_AGENT_DEFAULT_NAME;
+                for (let suffix = 2; taken.has(defaultName); suffix++) {
+                    defaultName = `${DURABLE_AGENT_DEFAULT_NAME}${suffix}`;
+                }
+                flowNode.properties.functionName.value = defaultName;
+            } catch (error) {
+                console.error("Failed to compute a default durable agentic workflow name:", error);
             }
         }
 
@@ -556,6 +368,8 @@ export function FunctionForm(props: FunctionFormProps) {
         // resulting in a 10-second timeout and incorrect source generation (e.g. adds `public`).
         if (isWorkflow) {
             flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'WORKFLOW' as NodeKind } };
+        } else if (isDurableAgent) {
+            flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'DURABLE_AGENT' as NodeKind } };
         } else if (isActivity) {
             flowNode = { ...flowNode, codedata: { ...flowNode.codedata, node: 'ACTIVITY' as NodeKind } };
         }
@@ -564,6 +378,40 @@ export function FunctionForm(props: FunctionFormProps) {
         setIsLoading(false);
         console.log("Existing Function Node: ", flowNode);
     }
+
+    // Ensure the project has a model provider for the new durable agent. If ANY provider
+    // already exists, reuse it and create nothing (the generated run call references the
+    // existing provider). Only when the project has no provider at all do we create the
+    // shared WSO2 default provider and write its Config.toml entry. Failures are non-fatal:
+    // the agent function is already created and a provider can be configured from the model
+    // circle. */
+    const ensureWso2ModelProvider = async () => {
+        try {
+            const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
+                filePath: projectPath,
+                query: { kind: "MODEL_PROVIDER" as NodeKind }
+            });
+            const hasAnyProvider = (existingModelProviders?.output?.length ?? 0) > 0;
+            if (hasAnyProvider) {
+                // A provider already exists — the agent's run call references it; nothing to create.
+                return;
+            }
+            const modelNodeTemplate = await getNodeTemplate(rpcClient, WSO2_MODEL_PROVIDER_CODEDATA, projectPath);
+            modelNodeTemplate.properties.variable.value = WSO2_MODEL_PROVIDER_VAR;
+            const response = await rpcClient
+                .getBIDiagramRpcClient()
+                .getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
+            if (response?.error) {
+                // `getSourceCode` reports LS failures as `{ artifacts: [], error }` rather than
+                // rejecting; the provider was never written, so don't configure it.
+                console.error("Failed to create the default model provider:", response.error);
+                return;
+            }
+            await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
+        } catch (error) {
+            console.error("Failed to ensure a default model provider:", error);
+        }
+    };
 
     const onSubmit = async (data: FormValues, formImports?: FormImports) => {
         console.log("Function Form Data: ", data);
@@ -669,72 +517,6 @@ export function FunctionForm(props: FunctionFormProps) {
             }
         }
 
-        // Inject OAuth client config into codedata.data.auth
-        const oauthConfig: Record<string, string> = {};
-        const expressionKeys = new Set<string>();
-        if (showOAuthConfig) {
-            for (const { key } of oauthConfigPropertiesRef.current) {
-                if (key in data && data[key] !== undefined && data[key] !== "") {
-                    oauthConfig[key] = String(data[key]);
-                    // Check if the field is in expression mode
-                    const field = functionFields.find(f => f.key === key);
-                    const selectedType = field?.types?.find(t => t.selected);
-                    if (selectedType?.fieldType === "EXPRESSION") {
-                        expressionKeys.add(key);
-                    }
-                }
-            }
-        }
-        if (Object.keys(oauthConfig).length > 0) {
-            functionNodeCopy.codedata.data = {
-                ...functionNodeCopy.codedata.data,
-                auth: JSON.stringify(oauthConfig),
-            };
-        } else if (showOAuthConfig && functionNodeCopy.codedata?.data) {
-            delete functionNodeCopy.codedata.data.auth;
-        }
-
-        // Update annotations.value with the auth block (only if OAuth fields were loaded)
-        if (showOAuthConfig && functionNodeCopy.properties?.annotations) {
-            let annotationStr = functionNodeCopy.properties.annotations.value as string;
-            if (annotationStr.includes("@ai:AgentTool")) {
-                const configBlock = buildAuthAnnotation(oauthConfig, expressionKeys);
-                const auth = matchBraced(annotationStr, /auth\s*:\s*\{/);
-                if (auth) {
-                    let { start: s, end: e } = auth;
-                    if (configBlock) {
-                        annotationStr = annotationStr.slice(0, s) + configBlock + annotationStr.slice(e);
-                    } else {
-                        // Also consume a leading or trailing comma so siblings don't dangle
-                        const lead = annotationStr.slice(0, s).match(/,\s*$/);
-                        const trail = annotationStr.slice(e).match(/^\s*,/);
-                        if (lead) s -= lead[0].length;
-                        else if (trail) e += trail[0].length;
-                        annotationStr = annotationStr.slice(0, s) + annotationStr.slice(e);
-                        annotationStr = annotationStr.replace(/@ai:AgentTool\s*\{\s*\}/, "@ai:AgentTool");
-                    }
-                    functionNodeCopy.properties.annotations.value = annotationStr;
-                } else if (configBlock) {
-                    // Insert auth into existing @ai:AgentTool { ... }
-                    if (annotationStr.match(/@ai:AgentTool\s*\{/)) {
-                        functionNodeCopy.properties.annotations.value = annotationStr.replace(
-                            /@ai:AgentTool\s*\{/,
-                            `@ai:AgentTool {\n    ${configBlock},`
-                        );
-                    } else {
-                        functionNodeCopy.properties.annotations.value = annotationStr.replace(
-                            /@ai:AgentTool/,
-                            `@ai:AgentTool {\n    ${configBlock}\n}`
-                        );
-                    }
-                }
-                // Trim trailing whitespace to avoid gaps between annotation and function
-                functionNodeCopy.properties.annotations.value =
-                    (functionNodeCopy.properties.annotations.value as string).replace(/\s+$/, "\n");
-            }
-        }
-
-
         console.log("Updated function node: ", functionNodeCopy);
         const sourceCode = await rpcClient
             .getBIDiagramRpcClient()
@@ -746,6 +528,9 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             const newArtifact = sourceCode.artifacts.find(res => res.isNew);
             if (newArtifact) {
+                if (isDurableAgent) {
+                    await ensureWso2ModelProvider();
+                }
                 if (isPopup) {
                     handleClosePopup(functionNodeCopy.properties.functionName.value as string);
                     return;
@@ -761,8 +546,37 @@ export function FunctionForm(props: FunctionFormProps) {
         }
     };
 
+    // Workspace-unique name guard for new durable agentic workflows: surface a field
+    // diagnostic instead of failing later at source generation.
+    const isDuplicateFunctionName = async (name: string): Promise<boolean> => {
+        try {
+            const taken = (await rpcClient.getBIDiagramRpcClient().getFunctionNames()).mentions;
+            return taken.includes(name);
+        } catch (error) {
+            console.error("Failed to check function name availability:", error);
+            return false;
+        }
+    };
+
     const handleFormSubmit = async (data: FormValues, formImports?: FormImports) => {
         setSaving(true);
+        if (isDurableAgent && !functionName && await isDuplicateFunctionName(data.functionName)) {
+            setFunctionFields((fields) =>
+                fields.map((field) =>
+                    field.key === "functionName"
+                        ? {
+                            ...field,
+                            diagnostics: [{
+                                message: `A function named '${data.functionName}' already exists in this workspace`,
+                                severity: "ERROR" as const,
+                            }],
+                        }
+                        : field
+                )
+            );
+            setSaving(false);
+            return;
+        }
         // HACK: Remove new lines from function description fields
         const descriptionFields = ["functionNameDescription", "typeDescription"];
         for (const field of descriptionFields) {
@@ -784,6 +598,12 @@ export function FunctionForm(props: FunctionFormProps) {
         } catch (error) {
             console.error("Error submitting form: ", error);
             showErrorNotification();
+        } finally {
+            // A create replaces the form with a full-screen loader, so leaving `saving` set
+            // strands the user on "Creating the ..." — both when onSubmit throws and when it
+            // returns without matching an artifact to navigate to. On success the view has
+            // already been swapped out, so resetting here is a no-op.
+            setSaving(false);
         }
     };
 
@@ -802,7 +622,9 @@ export function FunctionForm(props: FunctionFormProps) {
         } else if (isNpFunction) {
             return "Natural Function";
         } else if (isWorkflow) {
-            return "Workflow";
+            return "Durable Workflow";
+        } else if (isDurableAgent) {
+            return "Durable Agentic Workflow";
         } else if (isActivity) {
             return "Workflow Activity";
         } else if (isAutomation || functionName === "main") {
@@ -819,7 +641,7 @@ export function FunctionForm(props: FunctionFormProps) {
                 location: {
                     view: null,
                     recentIdentifier: functionName,
-                    artifactType: isAgentTool ? DIRECTORY_MAP.AGENT_TOOL : isWorkflow ? DIRECTORY_MAP.WORKFLOW : isActivity ? DIRECTORY_MAP.ACTIVITY : DIRECTORY_MAP.FUNCTION
+                    artifactType: isDurableAgent ? DIRECTORY_MAP.DURABLE_AGENT : isWorkflow ? DIRECTORY_MAP.WORKFLOW : isActivity ? DIRECTORY_MAP.ACTIVITY : DIRECTORY_MAP.FUNCTION
                 },
                 isPopup: true
             });
@@ -868,8 +690,8 @@ export function FunctionForm(props: FunctionFormProps) {
                                 </Button>
                             </TopBar>
                             <BodyText>
-                                {isAgentTool
-                                    ? "Create a new agent tool that can be invoked by AI agents."
+                                {isDurableAgent
+                                    ? "Create a new durable workflow driven by an agentic model."
                                     : (isWorkflow
                                     ? "Create a new workflow process with a configurable input type."
                                     : "Create a new function to define reusable logic.")}
@@ -880,13 +702,17 @@ export function FunctionForm(props: FunctionFormProps) {
                         title={`${functionName ? 'Edit' : 'Create New'} ${formType.current}`}
                         subtitle={formSubtitle}
                     />
-                    {isLoading && (
+                    {(isLoading || (saving && !functionName)) && (
                         <LoadingContainer>
-                            <LoadingRing />
+                            <LoadingRing message={saving ? `Creating the ${formType.current.toLowerCase()}...` : undefined} />
                         </LoadingContainer>
                     )}
+                    {/* While a new artifact is being created the form is replaced by the loader:
+                        the source is already written, so keeping the form mounted lets the name
+                        field re-validate against the freshly created function and flash a
+                        misleading "name already used" error. */}
                     <FormContainer>
-                        {filePath && targetLineRange && functionFields.length > 0 &&
+                        {filePath && targetLineRange && functionFields.length > 0 && !(saving && !functionName) &&
                             <ArtifactForm
                                 fileName={filePath}
                                 nestedForm={true}
@@ -895,25 +721,13 @@ export function FunctionForm(props: FunctionFormProps) {
                                 recordTypeFields={recordTypeFields}
                                 isSaving={saving}
                                 onSubmit={handleFormSubmit}
-                                submitText={saving ? (functionName ? "Saving..." : "Creating...") : (functionName ? "Save" : "Create")}
+                                submitText={saving
+                                    ? (functionName ? "Saving..." : "Creating...")
+                                    : (functionName
+                                        ? "Save"
+                                        : (isDurableAgent ? "Create Agent" : "Create"))}
                                 selectedNode={functionNode?.codedata?.node}
                                 preserveFieldOrder={true}
-                                injectedComponents={
-                                    showOAuthConfig && oauthConfigPropertiesRef.current.length > 0
-                                        ? [
-                                            {
-                                                component: (
-                                                    <SectionHeader>
-                                                        <p style={{ margin: "0px", fontWeight: "bold" }}>OAuth Client Configuration</p>
-                                                        <SectionDescription>Represents the OAuth 2.0 client configuration required to interact with an external Authorization Server and validate issued access tokens.</SectionDescription>
-                                                    </SectionHeader>
-                                                ),
-                                                index: functionFields.filter((f) => f.advanced && !f.hidden).length - oauthConfigPropertiesRef.current.length,
-                                                advanced: true,
-                                            },
-                                        ]
-                                        : undefined
-                                }
                             />
                         }
                     </FormContainer>

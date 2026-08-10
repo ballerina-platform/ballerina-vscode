@@ -91,9 +91,8 @@ export const validateProjectName = (name: string): string | null => {
     if (!/^[a-zA-Z0-9 _-]+$/.test(name)) {
         return "Project name cannot contain special characters";
     }
-    const letterCount = (name.match(/[a-zA-Z]/g) || []).length;
-    if (letterCount < 3) {
-        return "Project name must contain at least three letters";
+    if (name.length < 3) {
+        return "Project name must be at least 3 characters";
     }
     return null;
 };
@@ -156,6 +155,17 @@ export const extractBase = (value: string, name: string): string => {
     return value.slice(0, lastSep);
 };
 
+
+/**
+ * Splits a full path into its parent directory and last segment, handling both
+ * POSIX and Windows separators. A trailing separator yields an empty `name`.
+ */
+export const splitPath = (fullPath: string): { base: string; name: string } => {
+    const lastSep = Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'));
+    if (lastSep < 0) return { base: '', name: fullPath };
+    const base = lastSep === 0 ? fullPath.slice(0, 1) : fullPath.slice(0, lastSep);
+    return { base, name: fullPath.slice(lastSep + 1) };
+};
 
 export const sanitizePackageName = (name: string): string => {
     // Allow dots/underscores but sanitize other characters, then convert consecutive dots/underscores to single ones

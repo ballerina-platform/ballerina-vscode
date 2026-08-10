@@ -29,7 +29,6 @@ import io.ballerina.tools.text.LineRange;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Handles the search command for data loaders.
@@ -38,8 +37,6 @@ import java.util.stream.Collectors;
  */
 public class DataLoaderSearchCommand extends SearchCommand {
 
-    private static final String DATA_LOADER_LABEL = "Data Loaders";
-
     public DataLoaderSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
     }
@@ -47,21 +44,15 @@ public class DataLoaderSearchCommand extends SearchCommand {
     @Override
     protected List<Item> defaultView() {
         List<AvailableNode> modelProviders = AiUtils.getDataLoaders(project);
-        Category category = new Category.Builder(null).metadata().label(DATA_LOADER_LABEL)
-                .stepOut().items(List.copyOf(modelProviders)).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.DATA_LOADER.label(), modelProviders,
+                null));
     }
 
     @Override
     protected List<Item> search() {
         List<AvailableNode> modelProviders = AiUtils.getDataLoaders(project);
-        List<Item> matchingProviders = modelProviders.stream()
-                .filter(node -> AiUtils.matchesQuery(node, query))
-                .collect(Collectors.toList());
-
-        Category category = new Category.Builder(null).metadata().label(DATA_LOADER_LABEL)
-                .stepOut().items(matchingProviders).build();
-        return List.of(category);
+        return List.of(AiUtils.buildAdaptiveAiComponentCategory(Category.Name.DATA_LOADER.label(), modelProviders,
+                query));
     }
 
     @Override
@@ -69,4 +60,3 @@ public class DataLoaderSearchCommand extends SearchCommand {
         return Collections.emptyMap();
     }
 }
-

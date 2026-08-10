@@ -3,49 +3,49 @@
   "typeMembers": [
     {
       "type": "CredentialsConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "BearerTokenConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "JwtIssuerConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "OAuth2ClientCredentialsGrantConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "OAuth2PasswordGrantConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "OAuth2RefreshTokenGrantConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
     },
     {
       "type": "OAuth2JwtBearerGrantConfig",
-      "packageInfo": "ballerina:http:2.13.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
@@ -227,7 +227,7 @@
                     "name": "CredentialBearer",
                     "orgName": "ballerina",
                     "moduleName": "oauth2",
-                    "version": "2.13.0"
+                    "version": "2.15.0"
                   },
                   "defaultable": true,
                   "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -241,7 +241,7 @@
                     "name": "ClientConfiguration",
                     "orgName": "ballerina",
                     "moduleName": "oauth2",
-                    "version": "2.13.0"
+                    "version": "2.15.0"
                   },
                   "defaultable": true,
                   "documentation": "HTTP client configurations, which are used to call the token endpoint",
@@ -257,7 +257,7 @@
                 "name": "RefreshConfig",
                 "orgName": "ballerina",
                 "moduleName": "oauth2",
-                "version": "2.13.0"
+                "version": "2.15.0"
               },
               "defaultable": false,
               "isRestType": false,
@@ -337,7 +337,7 @@
             "name": "CredentialBearer",
             "orgName": "ballerina",
             "moduleName": "oauth2",
-            "version": "2.13.0"
+            "version": "2.15.0"
           },
           "defaultable": true,
           "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -370,7 +370,7 @@
                 "name": "HttpVersion",
                 "orgName": "ballerina",
                 "moduleName": "oauth2",
-                "version": "2.13.0"
+                "version": "2.15.0"
               },
               "defaultable": true,
               "documentation": "",
@@ -526,7 +526,7 @@
                         "name": "CredentialBearer",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -540,7 +540,7 @@
                         "name": "ClientConfiguration",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "HTTP client configurations, which are used to call the token endpoint",
@@ -556,7 +556,7 @@
                     "name": "ClientCredentialsGrantConfig",
                     "orgName": "ballerina",
                     "moduleName": "oauth2",
-                    "version": "2.13.0"
+                    "version": "2.15.0"
                   },
                   "defaultable": false,
                   "isRestType": false,
@@ -726,7 +726,7 @@
                                 "name": "CredentialBearer",
                                 "orgName": "ballerina",
                                 "moduleName": "oauth2",
-                                "version": "2.13.0"
+                                "version": "2.15.0"
                               },
                               "defaultable": true,
                               "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -740,7 +740,7 @@
                                 "name": "ClientConfiguration",
                                 "orgName": "ballerina",
                                 "moduleName": "oauth2",
-                                "version": "2.13.0"
+                                "version": "2.15.0"
                               },
                               "defaultable": true,
                               "documentation": "HTTP client configurations, which are used to call the token endpoint",
@@ -756,7 +756,7 @@
                             "name": "RefreshConfig",
                             "orgName": "ballerina",
                             "moduleName": "oauth2",
-                            "version": "2.13.0"
+                            "version": "2.15.0"
                           },
                           "defaultable": false,
                           "isRestType": false,
@@ -836,7 +836,7 @@
                         "name": "CredentialBearer",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -850,7 +850,7 @@
                         "name": "ClientConfiguration",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "HTTP client configurations, which are used to call the token endpoint",
@@ -866,7 +866,7 @@
                     "name": "PasswordGrantConfig",
                     "orgName": "ballerina",
                     "moduleName": "oauth2",
-                    "version": "2.13.0"
+                    "version": "2.15.0"
                   },
                   "defaultable": false,
                   "isRestType": false,
@@ -1000,7 +1000,7 @@
                         "name": "CredentialBearer",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "Bearer of the authentication credentials, which is sent to the token endpoint",
@@ -1014,7 +1014,7 @@
                         "name": "ClientConfiguration",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": true,
                       "documentation": "HTTP client configurations, which are used to call the token endpoint",
@@ -1030,7 +1030,7 @@
                     "name": "RefreshTokenGrantConfig",
                     "orgName": "ballerina",
                     "moduleName": "oauth2",
-                    "version": "2.13.0"
+                    "version": "2.15.0"
                   },
                   "defaultable": false,
                   "isRestType": false,
@@ -1044,7 +1044,7 @@
                 "name": "ClientAuth",
                 "orgName": "ballerina",
                 "moduleName": "oauth2",
-                "version": "2.13.0"
+                "version": "2.15.0"
               },
               "defaultable": false,
               "documentation": "",
@@ -1095,7 +1095,7 @@
                         "name": "TrustStore",
                         "orgName": "ballerina",
                         "moduleName": "crypto",
-                        "version": "2.8.0"
+                        "version": "2.12.1"
                       },
                       "defaultable": false,
                       "isRestType": false,
@@ -1149,7 +1149,7 @@
                         "name": "KeyStore",
                         "orgName": "ballerina",
                         "moduleName": "crypto",
-                        "version": "2.8.0"
+                        "version": "2.12.1"
                       },
                       "defaultable": false,
                       "documentation": "",
@@ -1194,7 +1194,7 @@
                         "name": "CertKey",
                         "orgName": "ballerina",
                         "moduleName": "oauth2",
-                        "version": "2.13.0"
+                        "version": "2.15.0"
                       },
                       "defaultable": false,
                       "isRestType": false,
@@ -1219,8 +1219,28 @@
                 "name": "SecureSocket",
                 "orgName": "ballerina",
                 "moduleName": "oauth2",
-                "version": "2.13.0"
+                "version": "2.15.0"
               },
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "value": "",
+              "selected": false
+            },
+            {
+              "name": "connectTimeout",
+              "typeName": "decimal",
+              "optional": true,
+              "defaultable": false,
+              "documentation": "",
+              "isRestType": false,
+              "value": "",
+              "selected": false
+            },
+            {
+              "name": "reqTimeout",
+              "typeName": "decimal",
+              "optional": true,
               "defaultable": false,
               "documentation": "",
               "isRestType": false,
@@ -1236,7 +1256,7 @@
             "name": "ClientConfiguration",
             "orgName": "ballerina",
             "moduleName": "oauth2",
-            "version": "2.13.0"
+            "version": "2.15.0"
           },
           "defaultable": true,
           "documentation": "HTTP client configurations, which are used to call the token endpoint",

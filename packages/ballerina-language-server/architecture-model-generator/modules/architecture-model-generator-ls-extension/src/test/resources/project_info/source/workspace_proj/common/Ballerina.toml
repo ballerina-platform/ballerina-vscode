@@ -6,4 +6,4 @@ version = "0.1.0"
 [[dependency]]
 org = "ballerina"
 name = "http"
-version = "2.15.0"
+version = "2.16.6"

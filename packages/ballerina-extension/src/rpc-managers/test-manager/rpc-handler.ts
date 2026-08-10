@@ -17,6 +17,7 @@
  */
 import {
     addTestFunction, getTestFunction, GetTestFunctionRequest,
+    getTestFunctionNames, GetTestFunctionNamesRequest,
     AddOrUpdateTestFunctionRequest, updateTestFunction, getEvalsets, GetEvalsetsRequest,
     getEvaluationHistory, GetEvaluationHistoryRequest,
     openEvaluationReport, OpenEvaluationReportRequest,
@@ -32,6 +33,7 @@ export function registerTestManagerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getTestFunction, (args: GetTestFunctionRequest) => rpcManger.getTestFunction(args));
     messenger.onRequest(addTestFunction, (args: AddOrUpdateTestFunctionRequest) => rpcManger.addTestFunction(args));
     messenger.onRequest(updateTestFunction, (args: AddOrUpdateTestFunctionRequest) => rpcManger.updateTestFunction(args));
+    messenger.onRequest(getTestFunctionNames, (args: GetTestFunctionNamesRequest) => rpcManger.getTestFunctionNames(args));
     messenger.onRequest(getEvalsets, (args: GetEvalsetsRequest) => rpcManger.getEvalsets(args));
     messenger.onRequest(getEvaluationHistory, (args: GetEvaluationHistoryRequest) => rpcManger.getEvaluationHistory(args));
     messenger.onRequest(openEvaluationReport, (args: OpenEvaluationReportRequest) => rpcManger.openEvaluationReport(args));

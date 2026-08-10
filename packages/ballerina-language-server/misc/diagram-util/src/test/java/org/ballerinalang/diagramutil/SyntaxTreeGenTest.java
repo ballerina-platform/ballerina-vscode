@@ -19,6 +19,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
@@ -52,7 +53,7 @@ public class SyntaxTreeGenTest {
     @Test(description = "Generate ST for empty bal file.")
     public void testEmptyBalST() throws IOException {
         Path inputFile = TestUtil.createTempFile(emptyFile);
-        SingleFileProject project = SingleFileProject.load(inputFile);
+        SingleFileProject project = SingleFileProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -78,7 +79,7 @@ public class SyntaxTreeGenTest {
     @Test(description = "Generate ST for client invocation in a main bal file.")
     public void testHttpMainBalST() throws IOException {
         Path inputFile = TestUtil.createTempProject(documentLevelClientInit);
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -198,7 +199,7 @@ public class SyntaxTreeGenTest {
     @Test(description = "Generate ST for client outside a main bal file.")
     public void testExternalClient() throws IOException {
         Path inputFile = TestUtil.createTempProject(externalClientInit);
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -245,7 +246,7 @@ public class SyntaxTreeGenTest {
     @Test(description = "Generate ST for client in the document level of a main bal file.")
     public void testDocumentLevelClientOnly() throws IOException {
         Path inputFile = TestUtil.createTempProject(documentLevelClientOnly);
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -298,7 +299,7 @@ public class SyntaxTreeGenTest {
     @Test(description = "Generate ST for client outside a main bal file.")
     public void testExternalClientOnly() throws IOException {
         Path inputFile = TestUtil.createTempProject(externalClientInitOnly);
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -347,7 +348,7 @@ public class SyntaxTreeGenTest {
     public void testVisibleEndpoints() throws IOException {
         Path inputFile = TestUtil.createTempProject(multiLevelEndpoints);
 
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -615,7 +616,7 @@ public class SyntaxTreeGenTest {
     public void testVisibleEndpointOrder() throws IOException {
         Path inputFile = TestUtil.createTempProject(endpointOrder);
 
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -696,7 +697,7 @@ public class SyntaxTreeGenTest {
     public void testRegexSyntax() throws IOException {
         Path inputFile = TestUtil.createTempFile(regexTestFile);
 
-        SingleFileProject project = SingleFileProject.load(inputFile);
+        SingleFileProject project = SingleFileProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -730,7 +731,7 @@ public class SyntaxTreeGenTest {
     public void testClassLevelVisibleEndpoint() throws IOException {
         Path inputFile = TestUtil.createTempProject(classEndpoint);
 
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");
@@ -766,7 +767,7 @@ public class SyntaxTreeGenTest {
     public void testAnnotatedVisibleEndpoint() throws IOException {
         Path inputFile = TestUtil.createTempProject(annotatedEndpoint);
 
-        BuildProject project = BuildProject.load(inputFile);
+        BuildProject project = BuildProject.load(inputFile, BuildOptions.builder().setOffline(true).build());
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");

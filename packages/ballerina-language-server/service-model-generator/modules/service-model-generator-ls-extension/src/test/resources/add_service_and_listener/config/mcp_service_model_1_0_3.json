@@ -1,0 +1,160 @@
+{
+  "filePath": "sample1/main.bal",
+  "description": "Test adding an MCP service against mcp 1.0.3, which only has mcp:Service",
+  "serviceInitModel": {
+    "id": "8",
+    "displayName": "MCP Service",
+    "description": "Create MCP service",
+    "orgName": "ballerina",
+    "packageName": "mcp",
+    "moduleName": "mcp",
+    "version": "1.0.3",
+    "type": "mcp",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.3.png",
+    "properties": {
+      "serviceName": {
+        "metadata": {
+          "label": "Service Name",
+          "description": "The name of the mcp service"
+        },
+        "codedata": {
+          "argType": "SOURCE_ANNOTATION"
+        },
+        "placeholder": "MCP Service",
+        "value": "\"Health Care MCP\"",
+        "items": [],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "version": {
+        "metadata": {
+          "label": "Version",
+          "description": "The version of the mcp service"
+        },
+        "codedata": {
+          "argType": "SOURCE_ANNOTATION"
+        },
+        "placeholder": "\"1.0.0\"",
+        "value": "\"1.0.0\"",
+        "items": [],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "serviceType": {
+        "metadata": {
+          "label": "Service Type",
+          "description": "The MCP service type."
+        },
+        "codedata": {
+          "type": "SERVICE_TYPE_DESCRIPTOR"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true,
+            "ballerinaType": "mcp:Service",
+            "options": [
+              {
+                "label": "MCP Service",
+                "value": "Service"
+              }
+            ]
+          }
+        ],
+        "value": "Service",
+        "enabled": true,
+        "editable": false,
+        "optional": false,
+        "advanced": false,
+        "hidden": true
+      },
+      "port": {
+        "metadata": {
+          "label": "Port",
+          "description": "The port on which the MCP service listens"
+        },
+        "codedata": {
+          "argType": "LISTENER_PARAM_REQUIRED"
+        },
+        "placeholder": "8080",
+        "value": "8080",
+        "items": [],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "basePath": {
+        "metadata": {
+          "label": "Base Path",
+          "description": "The base path of the MCP service"
+        },
+        "codedata": {
+          "argType": "SERVICE_BASE_PATH"
+        },
+        "placeholder": "/mcp",
+        "value": "/mcp",
+        "items": [],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "listenerVarName": {
+        "metadata": {
+          "label": "Listener Name",
+          "description": "Provide a name for the listener being created"
+        },
+        "codedata": {
+          "type": "LISTENER_VAR_NAME"
+        },
+        "value": "mcpListener",
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": true,
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true,
+            "ballerinaType": "mcp:Listener"
+          }
+        ]
+      }
+    }
+  },
+  "output": {
+    "sample1/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "\nimport ballerina/mcp;\n"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 57,
+            "character": 3
+          },
+          "end": {
+            "line": 57,
+            "character": 3
+          }
+        },
+        "newText": "\nlistener mcp:Listener mcpListener = new (8080);\nservice mcp:Service /mcp on mcpListener {\n\n}\n"
+      }
+    ]
+  }
+}

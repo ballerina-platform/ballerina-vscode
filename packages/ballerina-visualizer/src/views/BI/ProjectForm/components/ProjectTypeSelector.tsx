@@ -17,12 +17,14 @@
  */
 
 import { ReactNode } from "react";
+import { Icon } from "@wso2/ui-toolkit";
 import {
     ProjectTypeContainer,
     ProjectTypeLabel,
     RadioGroup,
     RadioOption,
     RadioInput,
+    RadioIcon,
     RadioContent,
     RadioTitle,
     RadioDescription,
@@ -33,6 +35,8 @@ export interface ProjectTypeOption {
     value: string;
     title: string;
     description: string;
+    /** Codicon name shown in the option's icon badge. */
+    icon: string;
 }
 
 export interface ProjectTypeSelectorProps {
@@ -42,18 +46,22 @@ export interface ProjectTypeSelectorProps {
     onChange: (isLibrary: boolean) => void;
     /** Optional note to display below the options */
     note?: ReactNode;
+    /** Section label above the options. Defaults to "Type". */
+    label?: string;
 }
 
 const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
     {
         value: "integration",
-        title: "Integration (Default)",
-        description: "A deployable unit that can be built, tested, and deployed.",
+        title: "Create an integration",
+        description: "Build APIs, automations, event-driven flows, AI integrations, and more.",
+        icon: "circuit-board",
     },
     {
         value: "library",
-        title: "Library",
-        description: "Shared logic and utilities that can be reused across multiple integrations.",
+        title: "Create a library",
+        description: "Build reusable components and utilities that can be shared across integrations.",
+        icon: "library",
     },
 ];
 
@@ -61,15 +69,16 @@ export function ProjectTypeSelector({
     value,
     onChange,
     note,
+    label = "Type",
 }: ProjectTypeSelectorProps) {
     return (
         <ProjectTypeContainer>
-            <ProjectTypeLabel>Type</ProjectTypeLabel>
+            <ProjectTypeLabel>{label}</ProjectTypeLabel>
             <RadioGroup>
                 {PROJECT_TYPE_OPTIONS.map((option) => {
                     const isLibrary = option.value === "library";
                     const isSelected = value === isLibrary;
-                    
+
                     return (
                         <RadioOption key={option.value} isSelected={isSelected}>
                             <RadioInput
@@ -79,6 +88,14 @@ export function ProjectTypeSelector({
                                 checked={isSelected}
                                 onChange={() => onChange(isLibrary)}
                             />
+                            <RadioIcon>
+                                <Icon
+                                    name={option.icon}
+                                    isCodicon
+                                    sx={{ width: "24px", height: "24px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                                    iconSx={{ fontSize: "24px", lineHeight: 1 }}
+                                />
+                            </RadioIcon>
                             <RadioContent>
                                 <RadioTitle>{option.title}</RadioTitle>
                                 <RadioDescription>{option.description}</RadioDescription>

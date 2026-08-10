@@ -23,6 +23,7 @@ import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
+import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
@@ -36,6 +37,7 @@ import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
+import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.BlockStatementNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
@@ -79,6 +81,7 @@ import io.ballerina.compiler.syntax.tree.RollbackStatementNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.StartActionNode;
 import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
@@ -86,6 +89,7 @@ import io.ballerina.compiler.syntax.tree.TemplateExpressionNode;
 import io.ballerina.compiler.syntax.tree.TransactionStatementNode;
 import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
 import io.ballerina.compiler.syntax.tree.WhileStatementNode;
+import io.ballerina.designmodelgenerator.core.model.Activity;
 import io.ballerina.designmodelgenerator.core.model.Connection;
 import io.ballerina.designmodelgenerator.core.model.Listener;
 import io.ballerina.designmodelgenerator.core.model.Location;
@@ -116,6 +120,24 @@ public class CodeAnalyzer extends NodeVisitor {
     private final ConnectionFinder connectionFinder;
     private IntermediateModel.ServiceClassModel currentServiceClass;
     private String serviceClassName;
+    private Workflow currentWorkflow;
+
+    private static final String RUN_WORKFLOW_FN_ARG = "processFunction";
+    private static final String SEND_DATA_WORKFLOW_FN_ARG = "workflow";
+    private static final String SEND_DATA_NAME_ARG = "dataName";
+    private static final String HUMAN_TASK_NAME_ARG = "taskName";
+    private static final String CALL_ACTIVITY_FN_ARG = "activityFunction";
+    private static final String CALL_ACTIVITY_ARGS_ARG = "args";
+    // A durable agent is driven by methods on the agent object rather than by module functions,
+    // so its method and argument names are named here alongside the workflow ones.
+    private static final String AGENT_SEND_DATA_METHOD = "sendData";
+    private static final String AGENT_SEND_DATA_NAME_ARG = "eventName";
+    private static final String AGENT_RUN_METHOD = "run";
+    private static final int SEND_DATA_NAME_ARG_INDEX = 2;
+    private static final Map<String, String> BUILTIN_ACTIVITY_LABELS = Map.of(
+            Constants.Workflow.BUILTIN_REST_FUNCTION, Constants.Workflow.BUILTIN_REST_LABEL,
+            Constants.Workflow.BUILTIN_SOAP_FUNCTION, Constants.Workflow.BUILTIN_SOAP_LABEL,
+            Constants.Workflow.BUILTIN_EMAIL_FUNCTION, Constants.Workflow.BUILTIN_EMAIL_LABEL);
 
     public CodeAnalyzer(SemanticModel semanticModel, IntermediateModel intermediateModel, Path rootPath,
                         ConnectionFinder connectionFinder) {
@@ -158,10 +180,11 @@ public class CodeAnalyzer extends NodeVisitor {
             displayName = getDisplayName(serviceDeclarationSymbol.annotAttachments());
             Optional<TypeSymbol> typeDescriptor = serviceDeclarationSymbol.typeDescriptor();
             if (serviceDeclarationNode.typeDescriptor().isPresent()
-                    && typeDescriptor.isPresent() && typeDescriptor.get().getModule().isPresent()) {
+                    && typeDescriptor.isPresent() && typeDescriptor.get().getModule().isPresent()
+                    && serviceDeclarationSymbol.getModule().isPresent()) {
                 TypeSymbol typeSymbol = typeDescriptor.get();
                 serviceType = CommonUtils.getTypeSignature(typeSymbol,
-                        CommonUtils.ModuleInfo.from(typeSymbol.getModule().get().id()));
+                        CommonUtils.ModuleInfo.from(serviceDeclarationSymbol.getModule().get().id()));
             }
         }
         String absoluteResourcePath = String.join("", serviceDeclarationNode.absoluteResourcePath()
@@ -241,6 +264,7 @@ public class CodeAnalyzer extends NodeVisitor {
         } else {
             intermediateModel.functionModelMap.put(functionDefinitionNode.functionName().text(),
                     this.currentFunctionModel);
+            this.currentWorkflow = intermediateModel.workflowMap.get(functionName);
         }
         this.currentFunctionModel.location = getLocation(functionDefinitionNode.lineRange());
         if (functionName.equals(DesignModelGenerator.MAIN_FUNCTION_NAME)) {
@@ -255,6 +279,7 @@ public class CodeAnalyzer extends NodeVisitor {
             currentServiceClass.functionModels.add(this.currentFunctionModel);
         }
         this.currentFunctionModel = null;
+        this.currentWorkflow = null;
     }
 
     @Override
@@ -279,7 +304,7 @@ public class CodeAnalyzer extends NodeVisitor {
     @Override
     public void visit(FunctionCallExpressionNode functionCallExpressionNode) {
         if (functionCallExpressionNode.functionName() instanceof QualifiedNameReferenceNode qualifiedName) {
-            handleWorkflowRunCall(qualifiedName, functionCallExpressionNode);
+            handleWorkflowCall(qualifiedName, functionCallExpressionNode);
             functionCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
             return;
         }
@@ -290,12 +315,15 @@ public class CodeAnalyzer extends NodeVisitor {
         functionCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
     }
 
-    private void handleWorkflowRunCall(QualifiedNameReferenceNode qualifiedName,
-                                       FunctionCallExpressionNode functionCallExpressionNode) {
+    private void handleWorkflowCall(QualifiedNameReferenceNode qualifiedName,
+                                    FunctionCallExpressionNode functionCallExpressionNode) {
         if (this.currentFunctionModel == null) {
             return;
         }
-        if (!Constants.Workflow.RUN_METHOD_NAME.equals(qualifiedName.identifier().text())) {
+        String methodName = qualifiedName.identifier().text();
+        boolean isRun = Constants.Workflow.RUN_METHOD_NAME.equals(methodName);
+        boolean isSendData = Constants.Workflow.SEND_DATA_METHOD_NAME.equals(methodName);
+        if (!isRun && !isSendData) {
             return;
         }
         Optional<Symbol> calleeSymbol = semanticModel.symbol(qualifiedName);
@@ -306,13 +334,9 @@ public class CodeAnalyzer extends NodeVisitor {
         if (arguments.isEmpty()) {
             return;
         }
-        FunctionArgumentNode firstArg = arguments.get(0);
-        ExpressionNode workflowArg;
-        if (firstArg instanceof PositionalArgumentNode positionalArgumentNode) {
-            workflowArg = positionalArgumentNode.expression();
-        } else if (firstArg instanceof NamedArgumentNode namedArgumentNode) {
-            workflowArg = namedArgumentNode.expression();
-        } else {
+        ExpressionNode workflowArg = getArgExpression(arguments, 0,
+                isRun ? RUN_WORKFLOW_FN_ARG : SEND_DATA_WORKFLOW_FN_ARG);
+        if (workflowArg == null) {
             return;
         }
         Optional<Symbol> workflowFnSymbol = semanticModel.symbol(workflowArg);
@@ -321,9 +345,65 @@ public class CodeAnalyzer extends NodeVisitor {
         }
         String workflowName = workflowFnSymbol.get().getName().get();
         Workflow workflow = intermediateModel.workflowMap.get(workflowName);
-        if (workflow != null) {
-            this.currentFunctionModel.workflows.add(workflow.getUuid());
+        if (workflow == null) {
+            return;
         }
+        if (isRun) {
+            this.currentFunctionModel.workflows.add(workflow.getUuid());
+            return;
+        }
+        // workflow:sendData(workflowFn, workflowId, dataName, data): correlate the data name with the
+        // matching event declared on the workflow function's events record parameter.
+        String eventName = getStringArgValue(arguments, SEND_DATA_NAME_ARG_INDEX, SEND_DATA_NAME_ARG);
+        if (eventName != null && workflow.getEvent(eventName).isPresent()) {
+            this.currentFunctionModel.addSentEvent(workflow.getUuid(), eventName);
+        } else {
+            // The data name is either not statically resolvable or does not match any event declared
+            // by the workflow function (e.g. the event was renamed); track it as an invalid send
+            this.currentFunctionModel.invalidWorkflowSendData.add(workflow.getUuid());
+        }
+    }
+
+    private ExpressionNode getArgExpression(SeparatedNodeList<FunctionArgumentNode> arguments, int positionalIndex,
+                                            String argName) {
+        int position = 0;
+        for (FunctionArgumentNode argument : arguments) {
+            if (argument instanceof PositionalArgumentNode positionalArgumentNode) {
+                if (position == positionalIndex) {
+                    return positionalArgumentNode.expression();
+                }
+                position++;
+            } else if (argument instanceof NamedArgumentNode namedArgumentNode
+                    && namedArgumentNode.argumentName().name().text().equals(argName)) {
+                return namedArgumentNode.expression();
+            }
+        }
+        return null;
+    }
+
+    private String getStringArgValue(SeparatedNodeList<FunctionArgumentNode> arguments, int positionalIndex,
+                                     String argName) {
+        ExpressionNode argExpr = getArgExpression(arguments, positionalIndex, argName);
+        if (argExpr == null) {
+            return null;
+        }
+        if (argExpr instanceof BasicLiteralNode basicLiteralNode
+                && basicLiteralNode.kind() == SyntaxKind.STRING_LITERAL) {
+            String literal = basicLiteralNode.literalToken().text();
+            return literal.substring(1, literal.length() - 1);
+        }
+        // Support string constants as event/task names
+        Optional<Symbol> symbol = semanticModel.symbol(argExpr);
+        if (symbol.isPresent() && symbol.get() instanceof ConstantSymbol constant) {
+            Object constValue = constant.constValue();
+            if (constValue instanceof ConstantValue constantValue) {
+                constValue = constantValue.value();
+            }
+            if (constValue instanceof String value) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -331,6 +411,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (this.currentFunctionModel != null) {
             String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
             this.currentFunctionModel.dependentObjFuncs.add(methodName);
+            handleDurableAgentCall(methodCallExpressionNode);
         }
 
         if (isAiMethodCall(methodCallExpressionNode.expression())) {
@@ -340,10 +421,138 @@ public class CodeAnalyzer extends NodeVisitor {
         methodCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
     }
 
+    /**
+     * Draws the trigger edge for durable agent driver calls: any method call on a module-level
+     * {@code workflow:DurableAgent} variable ({@code agent.run(...)}, {@code agent.sendData(...)},
+     * {@code agent.waitForResult(...)}, ...) connects the caller to the agent's overview node,
+     * exactly like {@code workflow:run} does for workflow functions.
+     *
+     * @param methodCallExpressionNode the method call to inspect
+     */
+    private void handleDurableAgentCall(MethodCallExpressionNode methodCallExpressionNode) {
+        Optional<Symbol> targetSymbol = semanticModel.symbol(methodCallExpressionNode.expression());
+        if (targetSymbol.isEmpty() || targetSymbol.get().getName().isEmpty()) {
+            return;
+        }
+        Workflow agent = intermediateModel.workflowMap.get(targetSymbol.get().getName().get());
+        if (agent == null || !Workflow.KIND_DURABLE_AGENT.equals(agent.getKind())) {
+            return;
+        }
+        // The lookup above is keyed by name alone, so a local variable shadowing a module-level
+        // agent hits the same entry. Confirm the call target itself is the agent object, otherwise
+        // an unrelated `<name>.run(...)` would draw a trigger edge into the agent.
+        if (!WorkflowUtil.isDurableAgentVariable(targetSymbol.get())) {
+            return;
+        }
+        // agent.sendData(id, "channel", data): correlate with the declared event channel so the
+        // overview draws the edge into the channel's in-port, like workflow:sendData does.
+        String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
+        if (AGENT_SEND_DATA_METHOD.equals(methodName)) {
+            String eventName = getStringArgValue(methodCallExpressionNode.arguments(), 1, AGENT_SEND_DATA_NAME_ARG);
+            if (eventName != null && agent.getEvent(eventName).isPresent()) {
+                this.currentFunctionModel.addSentEvent(agent.getUuid(), eventName);
+            } else {
+                this.currentFunctionModel.invalidWorkflowSendData.add(agent.getUuid());
+            }
+            return;
+        }
+        if (!AGENT_RUN_METHOD.equals(methodName)) {
+            // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
+            // edge: like regular workflows, only run and data-event sends connect on the overview.
+            return;
+        }
+        this.currentFunctionModel.workflows.add(agent.getUuid());
+    }
+
     @Override
     public void visit(RemoteMethodCallActionNode remoteMethodCallActionNode) {
+        handleWorkflowContextCall(remoteMethodCallActionNode);
         handleConnectionExpr(remoteMethodCallActionNode.expression());
         remoteMethodCallActionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    private void handleWorkflowContextCall(RemoteMethodCallActionNode remoteMethodCallActionNode) {
+        if (this.currentWorkflow == null) {
+            return;
+        }
+        String methodName = remoteMethodCallActionNode.methodName().name().text();
+        boolean isCallActivity = Constants.Workflow.CALL_ACTIVITY_METHOD_NAME.equals(methodName);
+        boolean isHumanTask = Constants.Workflow.CALL_HUMAN_TASK_METHOD_NAME.equals(methodName);
+        if (!isCallActivity && !isHumanTask) {
+            return;
+        }
+        Optional<Symbol> methodSymbol = semanticModel.symbol(remoteMethodCallActionNode);
+        if (methodSymbol.isEmpty() || !WorkflowUtil.isWorkflowModule(methodSymbol.get().getModule())) {
+            return;
+        }
+        SeparatedNodeList<FunctionArgumentNode> arguments = remoteMethodCallActionNode.arguments();
+        if (isHumanTask) {
+            String taskName = getStringArgValue(arguments, 0, HUMAN_TASK_NAME_ARG);
+            this.currentWorkflow.addHumanTask(new Workflow.HumanTask(
+                    taskName != null ? taskName : Constants.Workflow.HUMAN_TASK_LABEL,
+                    getLocation(remoteMethodCallActionNode.lineRange())));
+            return;
+        }
+        // ctx->callActivity(activityFn, ...): resolve the activity function referenced by the first argument
+        ExpressionNode activityArg = getArgExpression(arguments, 0, CALL_ACTIVITY_FN_ARG);
+        if (activityArg == null) {
+            return;
+        }
+        Optional<Symbol> activityFnSymbol = semanticModel.symbol(activityArg);
+        if (activityFnSymbol.isEmpty() || activityFnSymbol.get().getName().isEmpty()) {
+            return;
+        }
+        String activityName = activityFnSymbol.get().getName().get();
+        // Builtin activities are keyed by their qualified name so that a user-defined activity
+        // sharing the same function name gets its own Activity entry
+        boolean isBuiltin = isBuiltinActivityModule(activityFnSymbol.get());
+        String activityKey = isBuiltin
+                ? Constants.Workflow.ACTIVITY_MODULE + ":" + activityName : activityName;
+        Activity activity = intermediateModel.activityMap.get(activityKey);
+        if (activity == null && isBuiltin) {
+            LineRange lineRange = remoteMethodCallActionNode.lineRange();
+            activity = new Activity(BUILTIN_ACTIVITY_LABELS.getOrDefault(activityName, activityName),
+                    lineRange.fileName() + lineRange.startLine().line(), getLocation(lineRange));
+            intermediateModel.activityMap.put(activityKey, activity);
+            intermediateModel.uuidToActivityMap.put(activity.getUuid(), activity);
+        }
+        if (activity != null) {
+            this.currentWorkflow.addActivity(activity.getUuid());
+            activity.addAttachedWorkflow(this.currentWorkflow.getUuid());
+            // Connections can be passed to the activity as arguments,
+            // e.g. ctx->callActivity(fetchStatus, {"apiClient": httpClient}) or {httpClient}
+            Activity resolvedActivity = activity;
+            ExpressionNode argsExpr = getArgExpression(arguments, 1, CALL_ACTIVITY_ARGS_ARG);
+            if (argsExpr instanceof MappingConstructorExpressionNode mappingConstructor) {
+                for (Node field : mappingConstructor.fields()) {
+                    if (field instanceof SpecificFieldNode specificFieldNode) {
+                        // Shorthand fields ({httpClient}) carry the reference in the field name
+                        Node valueNode = specificFieldNode.valueExpr().map(expr -> (Node) expr)
+                                .orElse(specificFieldNode.fieldName());
+                        resolveConnection(valueNode)
+                                .ifPresent(connection -> resolvedActivity.addConnection(connection.getUuid()));
+                    }
+                }
+            }
+        }
+    }
+
+    private Optional<Connection> resolveConnection(Node node) {
+        Optional<Symbol> symbol = semanticModel.symbol(node);
+        if (symbol.isEmpty() || symbol.get().getLocation().isEmpty()) {
+            return Optional.empty();
+        }
+        String hashCode = String.valueOf(symbol.get().getLocation().get().hashCode());
+        if (!intermediateModel.connectionMap.containsKey(hashCode)) {
+            connectionFinder.findConnection(symbol.get(), new ArrayList<>());
+        }
+        return Optional.ofNullable(intermediateModel.connectionMap.get(hashCode));
+    }
+
+    private boolean isBuiltinActivityModule(Symbol symbol) {
+        return symbol.getModule().isPresent()
+                && Constants.Workflow.WORKFLOW_ORG.equals(symbol.getModule().get().id().orgName())
+                && Constants.Workflow.ACTIVITY_MODULE.equals(symbol.getModule().get().id().moduleName());
     }
 
     @Override

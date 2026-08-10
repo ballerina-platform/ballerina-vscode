@@ -3,7 +3,7 @@
   "typeMembers": [
     {
       "type": "ListenerSecureSocket",
-      "packageInfo": "ballerina:http:2.12.2",
+      "packageInfo": "ballerina:http:2.16.6",
       "packageName": "http",
       "kind": "RECORD_TYPE",
       "selected": false
@@ -46,7 +46,7 @@
                 "name": "KeyStore",
                 "orgName": "ballerina",
                 "moduleName": "crypto",
-                "version": "2.7.2"
+                "version": "2.12.1"
               },
               "defaultable": false,
               "isRestType": false,
@@ -93,7 +93,7 @@
                 "name": "CertKey",
                 "orgName": "ballerina",
                 "moduleName": "http",
-                "version": "2.12.2"
+                "version": "2.16.6"
               },
               "defaultable": false,
               "isRestType": false,
@@ -134,7 +134,7 @@
                 "name": "VerifyClient",
                 "orgName": "ballerina",
                 "moduleName": "http",
-                "version": "2.12.2"
+                "version": "2.16.6"
               },
               "defaultable": true,
               "documentation": "",
@@ -172,7 +172,7 @@
                     "name": "TrustStore",
                     "orgName": "ballerina",
                     "moduleName": "crypto",
-                    "version": "2.7.2"
+                    "version": "2.12.1"
                   },
                   "defaultable": false,
                   "isRestType": false,
@@ -237,7 +237,7 @@
                 "name": "Protocol",
                 "orgName": "ballerina",
                 "moduleName": "http",
-                "version": "2.12.2"
+                "version": "2.16.6"
               },
               "defaultable": false,
               "documentation": "",
@@ -296,7 +296,7 @@
                 "name": "CertValidationType",
                 "orgName": "ballerina",
                 "moduleName": "http",
-                "version": "2.12.2"
+                "version": "2.16.6"
               },
               "defaultable": true,
               "documentation": "",

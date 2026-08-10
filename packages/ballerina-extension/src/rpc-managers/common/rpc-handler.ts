@@ -34,6 +34,7 @@ import {
     downloadSelectedSampleFromGithub,
     executeCommand,
     experimentalEnabled,
+    getAgentRunStatus,
     getBallerinaDiagnostics,
     getCurrentProjectTomlValues,
     getDefaultOrgName,
@@ -45,6 +46,7 @@ import {
     goToSource,
     hasCentralPATConfigured,
     isNPSupported,
+    additionalTriggerSearchEnabled,
     openExternalUrl,
     publishToCentral,
     runBackgroundTerminalCommand,
@@ -67,11 +69,13 @@ export function registerCommonRpcHandlers(messenger: Messenger) {
     messenger.onRequest(getWorkspaceFiles, (args: WorkspaceFileRequest) => rpcManger.getWorkspaceFiles(args));
     messenger.onRequest(getBallerinaDiagnostics, (args: BallerinaDiagnosticsRequest) => rpcManger.getBallerinaDiagnostics(args));
     messenger.onRequest(executeCommand, (args: CommandsRequest) => rpcManger.executeCommand(args));
+    messenger.onRequest(getAgentRunStatus, () => rpcManger.getAgentRunStatus());
     messenger.onRequest(runBackgroundTerminalCommand, (args: RunExternalCommandRequest) => rpcManger.runBackgroundTerminalCommand(args));
     messenger.onNotification(openExternalUrl, (args: OpenExternalUrlRequest) => rpcManger.openExternalUrl(args));
     messenger.onRequest(selectFileOrDirPath, (args: FileOrDirRequest) => rpcManger.selectFileOrDirPath(args));
     messenger.onRequest(selectFileOrFolderPath, () => rpcManger.selectFileOrFolderPath());
     messenger.onRequest(experimentalEnabled, () => rpcManger.experimentalEnabled());
+    messenger.onRequest(additionalTriggerSearchEnabled, () => rpcManger.additionalTriggerSearchEnabled());
     messenger.onRequest(isNPSupported, () => rpcManger.isNPSupported());
     messenger.onRequest(getWorkspaceRoot, () => rpcManger.getWorkspaceRoot());
     messenger.onNotification(showErrorMessage, (args: ShowErrorMessageRequest) => rpcManger.showErrorMessage(args));

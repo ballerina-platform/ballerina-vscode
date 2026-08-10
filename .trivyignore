@@ -6,6 +6,16 @@
 # must instead be bumped via globalOverrides in
 # common/config/rush/pnpm-config.json. Keep entries in sync with the
 # submodule's submodules/wso2-vscode-extensions/.trivyignore.
+#
+# A fix that exists but is unusable for the affected version (e.g. the only
+# fixed release is an incompatible major) counts as "no fix" for the purposes
+# of this file, but say so explicitly in the comment and note what would let
+# the entry be removed.
+#
+# This file must stay in the plain one-ID-per-line format. Trivy's richer
+# YAML ignore format supports per-package scoping and expiry dates, but
+# aquasecurity/trivy-action refuses to mix YAML and plain ignore files in one
+# run, and the submodule's ignore file (also passed to the scanner) is plain.
 
 # cors-anywhere@0.4.4 — direct devDependency (local CORS proxy used in dev
 # only, never built or shipped). SSRF is inherent to the tool and no fix has

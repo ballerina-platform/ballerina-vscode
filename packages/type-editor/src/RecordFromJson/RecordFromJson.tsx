@@ -113,12 +113,14 @@ export const RecordFromJson = (props: RecordFromJsonProps) => {
             if (record) {
                 onImport([record.type]);
             } else {
-                setIsSaving(false);
                 setError("Could not import JSON as type.");
             }
         } catch (err) {
             setError("Could not import JSON as type.");
             console.error("Error importing JSON as type:", err);
+        } finally {
+            // The success path used to rely on the caller unmounting this form; when it does not
+            // the spinner never stopped.
             setIsSaving(false);
         }
     }

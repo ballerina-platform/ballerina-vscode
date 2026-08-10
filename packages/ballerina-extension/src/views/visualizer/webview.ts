@@ -26,13 +26,34 @@ import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } f
 import { extension } from "../../BalExtensionContext";
 import { StateMachine, undoRedoManager, updateView } from "../../stateMachine";
 import { LANGUAGE } from "../../core";
-import { MACHINE_VIEW, isPathInside } from "@wso2/ballerina-core";
+import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy } from "@wso2/ballerina-core";
 import { refreshDataMapper } from "../../rpc-managers/data-mapper/utils";
 import { AiPanelWebview } from "../ai-panel/webview";
 import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager";
 import { StateMachinePopup } from "../../stateMachinePopup";
 import { clearFormState } from "../../rpc-managers/bi-diagram/form-state";
 import { isInWI } from "../../utils/config";
+import { chatStateStorage } from "../ai-panel/chatStateStorage";
+import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
+import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
+import { getStartupIntegrationProgress } from "../../features/bi/startup-progress";
+
+/** Escapes text interpolated into the startup screen's HTML (integration names are user input). */
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+/**
+ * Serializes a value for embedding in an inline `<script>`. `JSON.stringify` alone
+ * would let a `</script>` sequence inside a user-supplied string close the block.
+ */
+function toInlineJson(value: unknown): string {
+    return JSON.stringify(value ?? null).replace(/</g, "\\u003c");
+}
 
 export class VisualizerWebview {
     public static currentPanel: VisualizerWebview | undefined;
@@ -60,8 +81,13 @@ export class VisualizerWebview {
             }
         }, 500);
 
+        // Silent: this fires whenever the workspace's Ballerina.toml changes and the panel
+        // regains focus — including changes the extension's OWN create/add flows just made
+        // to register a new package. A non-silent refresh force-navigates to the workspace
+        // overview, which would yank the user away from a view they were just, deliberately,
+        // navigated to (e.g. the new package's own overview right after creating it).
         const debouncedRefreshWorkspaceProjectInfo = debounce(() => {
-            StateMachine.refreshProjectInfo();
+            StateMachine.refreshProjectInfo({ silent: true });
         }, 500);
 
         const debouncedRefreshDataMapper = debounce(async () => {
@@ -71,9 +97,16 @@ export class VisualizerWebview {
         }, 500);
 
         vscode.workspace.onDidChangeTextDocument(async (document) => {
+            // A Copilot generation's own live edits already save themselves (persistLiveEdit ->
+            // addToIntegration does workspace.applyEdit + saveAll) and shouldn't reset the
+            // diagram's undo/redo history on every edit — only genuine, concurrent user edits
+            // to other files should. Files the current generation hasn't touched are unaffected.
+            const isCopilotLiveEdit = chatStateStorage.hasAnyActiveExecution()
+                && isAiTouchedFile(document.document.uri.fsPath);
+
             // Save the document only if it is not already opened in a visible editor or the webview is active
             const isOpened = vscode.window.visibleTextEditors.some(editor => editor.document.uri.toString() === document.document.uri.toString());
-            if (!isOpened || this._panel?.active) {
+            if (!isCopilotLiveEdit && (!isOpened || this._panel?.active)) {
                 await document.document.save();
             }
 
@@ -81,7 +114,7 @@ export class VisualizerWebview {
             const projectPath = StateMachine.context().projectPath;
             const isDocumentUnderProject = isPathInside(projectPath, document.document.uri.fsPath);
             // Reset visualizer the undo-redo stack if user did changes in the editor
-            if (isOpened && isDocumentUnderProject && !this._panel?.active && !undoRedoManager?.isBatchInProgress()) {
+            if (!isCopilotLiveEdit && isOpened && isDocumentUnderProject && !this._panel?.active && !undoRedoManager?.isBatchInProgress()) {
                 undoRedoManager.reset();
             }
 
@@ -137,6 +170,9 @@ export class VisualizerWebview {
 
         this._panel.onDidChangeViewState(() => {
             vscode.commands.executeCommand('setContext', 'isBalVisualizerActive', this._panel?.active);
+            if (this._panel?.active) {
+                setCompanionVisualizer();
+            }
             // Refresh the webview when becomes active
             const state = StateMachine.state();
             const popupState = StateMachinePopup.state();
@@ -196,19 +232,27 @@ export class VisualizerWebview {
     private getWebviewContent(webView: Webview) {
         // Check if devant.editor extension is active
         const isDevantEditor = vscode.commands.executeCommand('getContext', 'devant.editor') !== undefined;
-        
+
         const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
+        // After a wizard submit this HTML is the first frame post-reload, so it continues
+        // the wizard's "Creating <name>" screen (also handed to the React app below).
+        const startupProgress = getStartupIntegrationProgress(
+            StateMachine.context().workspacePath || StateMachine.context().projectPath
+        );
+        const productTitle = biExtension ? VisualizerWebview.biTitle : VisualizerWebview.ballerinaTitle;
+        const creationCopy = startupProgress && getIntegrationCreationCopy(startupProgress);
+        const title = creationCopy ? escapeHtml(creationCopy.title) : productTitle;
+        const subtitle = creationCopy
+            ? escapeHtml(creationCopy.subtitle)
+            : "Your project is being prepared. This may take a few moments.";
         const body = `<div class="container" id="webview-container">
                 <div class="loader-wrapper">
                     <div class="welcome-content">
                         <div class="logo-container">
                             <div class="loader"></div>
                         </div>
-                        <h1 class="welcome-title">${biExtension ? VisualizerWebview.biTitle : VisualizerWebview.ballerinaTitle}</h1>
-                        <p class="welcome-subtitle">Setting up your workspace and tools</p>
-                        <div class="loading-text">
-                            <span class="loading-dots">Loading</span>
-                        </div>
+                        <h1 class="welcome-title">${title}</h1>
+                        <p class="welcome-subtitle">${subtitle}</p>
                     </div>
                 </div>
             </div>`;
@@ -270,41 +314,35 @@ export class VisualizerWebview {
                 font-size: 1.5em;
                 font-weight: 400;
                 line-height: normal;
+                /* Project and integration names are user input and both appear here. */
+                overflow-wrap: anywhere;
             }
             .welcome-subtitle {
                 color: var(--vscode-descriptionForeground);
                 font-size: 13px;
-                margin: 0 0 2rem 0;
+                margin: 0;
                 opacity: 0.8;
             }
-            .loading-text {
-                color: var(--vscode-button-background);
-                font-size: 13px;
-                font-weight: 500;
-            }
-            .loading-dots::after {
-                content: '';
-                animation: dots 1.5s infinite;
-            }
             @keyframes fadeIn {
-                0% { 
+                0% {
                     opacity: 0;
                 }
-                100% { 
+                100% {
                     opacity: 1;
                 }
-            }
-            @keyframes dots {
-                0%, 20% { content: ''; }
-                40% { content: '.'; }
-                60% { content: '..'; }
-                80%, 100% { content: '...'; }
             }
         `;
         const scripts = `
             // Flag to check if devant.editor is active
             window.isDevantEditor = ${isDevantEditor};
-            
+            // Create-in-progress, if any — read synchronously so the React startup screen
+            // keeps the same copy.
+            window.startupIntegration = ${toInlineJson(startupProgress)};
+            // Heading for an ordinary open, so the React startup screen keeps the
+            // product name this HTML already put on screen instead of replacing it
+            // with a different loading message mid-wait.
+            window.startupTitle = ${toInlineJson(productTitle)};
+
             function loadedScript() {
                 function renderDiagrams() {
                     visualizerWebview.renderWebview("visualizer", document.getElementById("webview-container"));

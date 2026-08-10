@@ -6,8 +6,7 @@
     "module": "ai",
     "packageName": "ai",
     "object": "Wso2ModelProvider",
-    "symbol": "init",
-    "version": "1.1.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Model Provider",
         "description": "Initializes a new `WSO2ModelProvider` instance.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
       },
       "codedata": {
         "node": "MODEL_PROVIDER",
@@ -24,7 +23,7 @@
         "packageName": "ai",
         "object": "Wso2ModelProvider",
         "symbol": "init",
-        "version": "1.1.0",
+        "version": "1.13.0",
         "isNew": true
       },
       "returning": false,
@@ -125,7 +124,7 @@
         "temperature": {
           "metadata": {
             "label": "Temperature",
-            "description": "The temperature for controlling randomness in the model's output  "
+            "description": "The temperature for controlling randomness in the model's output"
           },
           "types": [
             {
@@ -149,6 +148,29 @@
             "originalName": "temperature"
           },
           "defaultValue": "0.7"
+        },
+        "generatorConfig": {
+          "metadata": {
+            "label": "Generator Configuration",
+            "description": "Configuration for the `ModelProvider.generate()` method."
+          },
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ai:GeneratorConfig & readonly",
+              "selected": false
+            }
+          ],
+          "placeholder": "{}",
+          "optional": true,
+          "editable": true,
+          "advanced": true,
+          "hidden": false,
+          "codedata": {
+            "kind": "DEFAULTABLE",
+            "originalName": "generatorConfig"
+          },
+          "defaultValue": "{}"
         },
         "httpVersion": {
           "metadata": {
@@ -203,7 +225,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -240,7 +262,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -333,7 +355,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -370,7 +392,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -448,7 +470,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -485,7 +507,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -522,7 +544,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -559,7 +581,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -596,7 +618,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false

@@ -284,3 +284,39 @@ export function prepareToolInputFields(fields: FormField[]): FormField[] {
     });
     return fields.filter(field => includedKeys.includes(field.key));
 }
+
+const CODE_FENCE_REGEX = /```[\s\S]*?```/g;
+
+// LS descriptions can embed fenced code samples that are noise in a form field.
+export const stripCodeFences = (text: string): string => text.replace(CODE_FENCE_REGEX, "").trim();
+
+// Same, for fields that must stay on a single line (tool descriptions are written into source).
+export const stripCodeFencesInline = (text: string): string =>
+    text.replace(CODE_FENCE_REGEX, "").replace(/\n/g, " ").trim();
+
+export function buildAgentToolFields(nameValue: string, descriptionValue: string): FormField[] {
+    return [
+        {
+            key: "name",
+            label: "Tool Name",
+            type: "IDENTIFIER",
+            optional: false,
+            editable: true,
+            documentation: "Enter a unique name for the tool.",
+            value: nameValue,
+            types: [{ fieldType: "IDENTIFIER", scope: "Global", selected: false }],
+            enabled: true,
+        },
+        {
+            key: "description",
+            label: "Description",
+            type: "TEXTAREA",
+            optional: true,
+            editable: true,
+            documentation: "Describe what this tool does. The agent uses this to decide when to invoke the tool.",
+            value: descriptionValue,
+            types: [{ fieldType: "STRING", selected: false }],
+            enabled: true,
+        },
+    ];
+}

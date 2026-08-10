@@ -78,12 +78,20 @@ export class PositionVisitor implements BaseVisitor {
             return;
         }
 
+        this.positionBranchLanes(node, centerX);
+    }
+
+    // Places a container's branches side by side under it, NODE_GAP_X apart,
+    // all starting at the current lastNodeY. A single branch is centered.
+    private positionBranchLanes(node: FlowNode, centerX: number): void {
         node.branches.forEach((branch, index) => {
             if (!branch?.viewState) {
                 console.error("Branch view state is not defined", branch);
                 return;
             }
-            if (index === 0) {
+            if (node.branches.length === 1) {
+                branch.viewState.x = centerX - branch.viewState.clw;
+            } else if (index === 0) {
                 branch.viewState.x = centerX - node.viewState.clw;
             } else {
                 const previousBranch = node.branches.at(index - 1);
@@ -111,6 +119,22 @@ export class PositionVisitor implements BaseVisitor {
     }
 
     endVisitMatch(node: FlowNode, parent?: FlowNode): void {
+        this.endVisitIf(node, parent);
+    }
+
+    // Synthetic review-diff container: headless fork — lanes start right below the previous node.
+    beginVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        node.viewState.y = this.lastNodeY;
+        this.lastNodeY += NODE_GAP_Y;
+
+        const centerX = getTopNodeCenter(node, parent, this.diagramCenterX);
+        node.viewState.x = centerX - node.viewState.lw;
+
+        this.positionBranchLanes(node, centerX);
+    }
+
+    endVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
         this.endVisitIf(node, parent);
     }
 
@@ -145,6 +169,25 @@ export class PositionVisitor implements BaseVisitor {
 
         if (!node.viewState.x) {
             const centerX = getTopNodeCenter(node, parent, this.diagramCenterX);
+            node.viewState.x = centerX - node.viewState.lw;
+        }
+    }
+
+    beginVisitDurableAgentRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (!node.viewState.y) {
+            node.viewState.y = this.lastNodeY;
+        }
+        this.lastNodeY += node.viewState.h + NODE_GAP_Y;
+
+        if (!node.viewState.x) {
+            // The synthetic agent-box node is the first node in the flow, so it has no
+            // previous top node to derive a center from; fall back to the diagram center.
+            // lw already accounts for the left circle column, so subtracting it puts the
+            // agent box itself — not the composite widget — on the chain axis.
+            const centerX = parent?.viewState
+                ? getTopNodeCenter(node, parent, this.diagramCenterX)
+                : this.diagramCenterX;
             node.viewState.x = centerX - node.viewState.lw;
         }
     }

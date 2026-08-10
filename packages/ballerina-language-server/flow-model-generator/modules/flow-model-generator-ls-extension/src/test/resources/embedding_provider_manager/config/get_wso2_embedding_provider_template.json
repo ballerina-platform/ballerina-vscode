@@ -6,8 +6,7 @@
     "module": "ai",
     "packageName": "ai",
     "object": "Wso2EmbeddingProvider",
-    "symbol": "init",
-    "version": "1.1.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Embedding Provider",
         "description": "Initializes a new `Wso2EmbeddingProvider` instance.\n The embedding vectors have a dimension of 1536.",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.1.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
       },
       "codedata": {
         "node": "EMBEDDING_PROVIDER",
@@ -24,7 +23,7 @@
         "packageName": "ai",
         "object": "Wso2EmbeddingProvider",
         "symbol": "init",
-        "version": "1.1.0",
+        "version": "1.13.0",
         "isNew": true
       },
       "returning": false,
@@ -178,7 +177,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -218,7 +217,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -314,7 +313,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -354,7 +353,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -438,7 +437,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -478,7 +477,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -518,7 +517,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -558,7 +557,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -598,7 +597,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.14.1",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false

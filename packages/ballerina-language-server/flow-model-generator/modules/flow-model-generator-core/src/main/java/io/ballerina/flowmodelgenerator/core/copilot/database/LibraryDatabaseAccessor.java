@@ -145,8 +145,10 @@ public class LibraryDatabaseAccessor {
         return Optional.empty();
     }
 
-    // Maximum number of libraries returned by keyword search.
-    private static final int MAX_SEARCH_RESULTS = 9;
+    // Number of libraries fetched by keyword search. This is an over-fetch: the caller applies
+    // exclusions and then truncates to the number of results it actually surfaces, so fetching more
+    // here keeps an excluded library from consuming a result slot.
+    private static final int SEARCH_FETCH_LIMIT = 30;
 
     private static final String SEARCH_SQL =
             "SELECT p.org, p.package_name, p.description, " +
@@ -259,7 +261,7 @@ public class LibraryDatabaseAccessor {
             stmt.setString(11, primaryNameDescQuery);
             stmt.setString(12, allNameDescQuery);
 
-            stmt.setInt(13, MAX_SEARCH_RESULTS);
+            stmt.setInt(13, SEARCH_FETCH_LIMIT);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 populatePackageMap(packageToDescriptionMap, rs);

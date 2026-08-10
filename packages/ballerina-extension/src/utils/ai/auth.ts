@@ -20,7 +20,7 @@ import * as vscode from 'vscode';
 import { extension } from "../../BalExtensionContext";
 import { DEVANT_TOKEN_EXCHANGE_URL } from '../../features/ai/utils';
 import axios from 'axios';
-import { AuthCredentials, BIIntelSecrets, LoginMethod } from '@wso2/ballerina-core';
+import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 import { WI_EXTENSION_ID } from '../config';
@@ -314,6 +314,10 @@ export const getAccessToken = async (): Promise<AuthCredentials | undefined> => 
                         resolve(credentials);
                         return;
 
+                    case LoginMethod.ANTHROPIC_AWS:
+                        resolve(credentials);
+                        return;
+
                     default:
                         const { loginMethod }: AuthCredentials = credentials;
                         reject(new Error(`Unsupported login method: ${loginMethod}`));
@@ -371,6 +375,14 @@ export const getVertexAiCredentials = async (): Promise<{
         return undefined;
     }
     return credentials.secrets;
+};
+
+export const getAnthropicAwsCredentials = async (): Promise<AnthropicAwsSecrets | undefined> => {
+    const credentials = await getAuthCredentials();
+    if (!credentials || credentials.loginMethod !== LoginMethod.ANTHROPIC_AWS) {
+        return undefined;
+    }
+    return credentials.secrets as AnthropicAwsSecrets;
 };
 
 export const getRefreshedAccessToken = async (): Promise<string> => {

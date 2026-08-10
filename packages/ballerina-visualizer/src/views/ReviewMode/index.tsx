@@ -17,11 +17,11 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { SemanticDiffResponse, SemanticDiff, ChangeTypeEnum } from "@wso2/ballerina-core";
+import { SemanticDiffResponse, SemanticDiff, ChangeTypeEnum, NodePosition } from "@wso2/ballerina-core";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ReadonlyComponentDiagram } from "./ReadonlyComponentDiagram";
-import { ReadonlyFlowDiagram } from "./ReadonlyFlowDiagram";
+import { ExpectedFlowMetadata, ReadonlyFlowDiagram, ReviewViewMode, getVersionsForChangeType } from "./ReadonlyFlowDiagram";
 import { ReadonlyTypeDiagram } from "./ReadonlyTypeDiagram";
 import { ReviewNavigation } from "./ReviewNavigation";
 import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
@@ -125,15 +125,12 @@ enum DiagramType {
 interface ReviewView {
     type: DiagramType;
     filePath: string;
-    position: {
-        startLine: number;
-        endLine: number;
-        startColumn: number;
-        endColumn: number;
-    };
+    position: NodePosition;
+    oldPosition?: NodePosition;
     projectPath: string;
     label?: string;
     changeType: number;
+    expectedMetadata?: ExpectedFlowMetadata;
 }
 
 enum NodeKindEnum {
@@ -197,9 +194,21 @@ function convertToReviewView(diff: SemanticDiff, projectPath: string, packageNam
             startColumn: diff.lineRange.startLine.offset,
             endColumn: diff.lineRange.endLine.offset,
         },
+        oldPosition: diff.previousLineRange
+            ? {
+                  startLine: diff.previousLineRange.startLine.line,
+                  endLine: diff.previousLineRange.endLine.line,
+                  startColumn: diff.previousLineRange.startLine.offset,
+                  endColumn: diff.previousLineRange.endLine.offset,
+              }
+            : undefined,
         projectPath,
         label: changeLabel,
         changeType: diff.changeType,
+        expectedMetadata: {
+            nodeKind: diff.nodeKind,
+            metadata: diff.metadata,
+        },
     };
 }
 
@@ -234,7 +243,9 @@ export function ReviewMode(): JSX.Element {
     const [isLoading, setIsLoading] = useState(true);
     const [currentItemMetadata, setCurrentItemMetadata] = useState<ItemMetadata | null>(null);
     const [isWorkspace, setIsWorkspace] = useState(false);
-    const [showOldVersion, setShowOldVersion] = useState(false);
+    const [viewMode, setViewMode] = useState<ReviewViewMode>("diff");
+    // View indices where the unified diff could not be built (old version missing/mismatched)
+    const [diffUnavailableViews, setDiffUnavailableViews] = useState<Set<number>>(new Set());
     const pendingIndexRef = useRef<number | null>(null);
     const viewsLengthRef = useRef<number>(0);
 
@@ -343,7 +354,8 @@ export function ReviewMode(): JSX.Element {
                 pendingIndexRef.current = index;
             } else {
                 setCurrentIndex(index >= 0 && index < viewsLengthRef.current ? index : 0);
-                setShowOldVersion(false);
+                setCurrentItemMetadata(null);
+                setViewMode("diff");
             }
         });
     }, [rpcClient]);
@@ -363,7 +375,7 @@ export function ReviewMode(): JSX.Element {
             const newIndex = currentIndex - 1;
             setCurrentIndex(newIndex);
             setCurrentItemMetadata(null); // Clear metadata when navigating
-            setShowOldVersion(false); // Reset toggle when navigating
+            setViewMode("diff"); // Reset toggle when navigating
         } else {
             console.log("[Reviewing Changes] Already at first view");
         }
@@ -374,11 +386,22 @@ export function ReviewMode(): JSX.Element {
             const newIndex = currentIndex + 1;
             setCurrentIndex(newIndex);
             setCurrentItemMetadata(null); // Clear metadata when navigating
-            setShowOldVersion(false); // Reset toggle when navigating
+            setViewMode("diff"); // Reset toggle when navigating
         } else {
             console.log("[Reviewing Changes] Already at last view");
         }
     };
+
+    const handleDiffUnavailable = useCallback(() => {
+        setDiffUnavailableViews((prev) => {
+            if (prev.has(currentIndex)) {
+                return prev;
+            }
+            const next = new Set(prev);
+            next.add(currentIndex);
+            return next;
+        });
+    }, [currentIndex]);
 
     const handleClose = () => {
         rpcClient.getVisualizerRpcClient().goBack();
@@ -388,25 +411,26 @@ export function ReviewMode(): JSX.Element {
         setCurrentItemMetadata(metadata);
     };
 
-    const handleAccept = async () => {
-        try {
-            await rpcClient.getAiPanelRpcClient().acceptChanges();
-            rpcClient.getVisualizerRpcClient().reviewAccepted();
-        } catch (error) {
-            console.error("[Reviewing Changes] Error accepting changes:", error);
-            rpcClient.getVisualizerRpcClient().reviewAccepted();
+    // Which toggle segments are available for the current view.
+    // Only flow diagrams support the unified diff; type/design diagrams keep old/new behavior.
+    const getAvailableModes = (): Record<ReviewViewMode, boolean> => {
+        if (!currentView) {
+            return { diff: false, new: true, old: false };
         }
+        const versions = getVersionsForChangeType(currentView.changeType);
+        const diff = currentView.type === DiagramType.FLOW && !diffUnavailableViews.has(currentIndex);
+        return { diff, new: versions.new, old: versions.old };
     };
 
-    const handleReject = async () => {
-        try {
-            await rpcClient.getAiPanelRpcClient().declineChanges();
-            rpcClient.getVisualizerRpcClient().goBack();
-        } catch (error) {
-            console.error("[Reviewing Changes] Error declining changes:", error);
-            rpcClient.getVisualizerRpcClient().goBack();
-        }
-    };
+    const availableModes = getAvailableModes();
+    // Clamp the selected mode to what the current view supports (diff → new → old)
+    const effectiveViewMode: ReviewViewMode = availableModes[viewMode]
+        ? viewMode
+        : availableModes.diff
+        ? "diff"
+        : availableModes.new
+        ? "new"
+        : "old";
 
     const renderDiagram = () => {
         if (!currentView) {
@@ -415,8 +439,6 @@ export function ReviewMode(): JSX.Element {
 
         // Create a unique key for each diagram to force re-mount when switching views
         const diagramKey = `${currentView.type}-${currentIndex}-${currentView.filePath}`;
-
-        const effectiveShowOld = currentView.changeType === ChangeTypeEnum.DELETION ? true : showOldVersion;
 
         switch (currentView.type) {
             case "component":
@@ -427,7 +449,7 @@ export function ReviewMode(): JSX.Element {
                         projectPath={currentView.projectPath || projectPath}
                         filePath={currentView.filePath}
                         position={currentView.position}
-                        useFileSchema={effectiveShowOld}
+                        useFileSchema={effectiveViewMode === "old"}
                     />
                 );
             case "flow":
@@ -437,8 +459,12 @@ export function ReviewMode(): JSX.Element {
                         projectPath={currentView.projectPath || projectPath}
                         filePath={currentView.filePath}
                         position={currentView.position}
+                        oldPosition={currentView.oldPosition}
                         onModelLoaded={handleModelLoaded}
-                        useFileSchema={effectiveShowOld}
+                        viewMode={effectiveViewMode}
+                        changeType={currentView.changeType}
+                        expectedMetadata={currentView.expectedMetadata}
+                        onDiffUnavailable={handleDiffUnavailable}
                     />
                 );
             case "type":
@@ -448,7 +474,7 @@ export function ReviewMode(): JSX.Element {
                         projectPath={currentView.projectPath || projectPath}
                         filePath={currentView.filePath}
                         onModelLoaded={handleModelLoaded}
-                        useFileSchema={effectiveShowOld}
+                        useFileSchema={effectiveViewMode === "old"}
                     />
                 );
             default:
@@ -497,7 +523,6 @@ export function ReviewMode(): JSX.Element {
 
     const canGoPrevious = currentIndex > 0;
     const canGoNext = currentIndex < views.length - 1;
-    const canToggleVersion = currentView?.changeType === ChangeTypeEnum.MODIFICATION;
     const isAutomation = currentItemMetadata?.type === "Function" && currentItemMetadata?.name === "main";
     const isResource = currentItemMetadata?.type === "Resource";
     const isType = currentItemMetadata?.type === "Type";
@@ -570,13 +595,11 @@ export function ReviewMode(): JSX.Element {
                 currentLabel={currentView?.label}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onAccept={handleAccept}
-                onReject={handleReject}
                 canGoPrevious={canGoPrevious}
                 canGoNext={canGoNext}
-                showOldVersion={currentView?.changeType === ChangeTypeEnum.DELETION ? true : showOldVersion}
-                onToggleVersion={() => setShowOldVersion((prev) => !prev)}
-                canToggleVersion={canToggleVersion}
+                viewMode={effectiveViewMode}
+                onViewModeChange={setViewMode}
+                availableModes={availableModes}
             />
         </ReviewContainer>
     );

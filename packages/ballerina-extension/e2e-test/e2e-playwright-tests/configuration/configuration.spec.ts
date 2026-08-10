@@ -16,7 +16,7 @@
  * under the License.
  */
 import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, enableICP, initTest, page } from '../utils/helpers';
+import { addArtifact, BI_INTEGRATOR_LABEL, domClick, enableICP, initTest, page } from '../utils/helpers';
 import { Form } from '@wso2/playwright-vscode-tester';
 import { ConfigEditor } from '../utils/pages';
 
@@ -64,7 +64,17 @@ export default function createTests() {
                 }
             });
 
-            await configurationWebView.getByRole('button', { name: 'Save' }).click();
+            // domClick — coordinate clicks (even `force`) can land on the floating
+            // Copilot orb/invite box or the expression editor's still-open helper
+            // pane instead of Save. Dispatch through the DOM node to bypass hit-testing.
+            const saveButton = configurationWebView.getByRole('button', { name: 'Save' });
+            // Fail fast and clearly if a required field's value never made it into
+            // react-hook-form (e.g. a field fill that updates the DOM but doesn't
+            // fire the component's real onChange) — a disabled Save button ignores
+            // even a raw DOM click, which otherwise surfaces as a confusing timeout
+            // on the variable never appearing.
+            await expect(saveButton).toBeEnabled({ timeout: 10000 });
+            await domClick(saveButton);
             await configEditor.verifyConfigurableVariable('time', '100', '');
         });
 
@@ -87,7 +97,17 @@ export default function createTests() {
                 }
             });
 
-            await configurationWebView.getByRole('button', { name: 'Save' }).click();
+            // domClick — coordinate clicks (even `force`) can land on the floating
+            // Copilot orb/invite box or the expression editor's still-open helper
+            // pane instead of Save. Dispatch through the DOM node to bypass hit-testing.
+            const saveButton = configurationWebView.getByRole('button', { name: 'Save' });
+            // Fail fast and clearly if a required field's value never made it into
+            // react-hook-form (e.g. a field fill that updates the DOM but doesn't
+            // fire the component's real onChange) — a disabled Save button ignores
+            // even a raw DOM click, which otherwise surfaces as a confusing timeout
+            // on the variable never appearing.
+            await expect(saveButton).toBeEnabled({ timeout: 10000 });
+            await domClick(saveButton);
             await configEditor.verifyConfigurableVariable('time', '200', '');
         });
 
@@ -123,7 +143,17 @@ export default function createTests() {
                     }
                 }
             });
-            await configurationWebView.getByRole('button', { name: 'Save' }).click();
+            // domClick — coordinate clicks (even `force`) can land on the floating
+            // Copilot orb/invite box or the expression editor's still-open helper
+            // pane instead of Save. Dispatch through the DOM node to bypass hit-testing.
+            const saveButton = configurationWebView.getByRole('button', { name: 'Save' });
+            // Fail fast and clearly if a required field's value never made it into
+            // react-hook-form (e.g. a field fill that updates the DOM but doesn't
+            // fire the component's real onChange) — a disabled Save button ignores
+            // even a raw DOM click, which otherwise surfaces as a confusing timeout
+            // on the variable never appearing.
+            await expect(saveButton).toBeEnabled({ timeout: 10000 });
+            await domClick(saveButton);
             await configEditor.verifyConfigurableVariable('place', '', '');
             await configEditor.verifyWarning('place');
         });
@@ -154,7 +184,17 @@ export default function createTests() {
                     }
                 }
             });
-            await configurationWebView.getByRole('button', { name: 'Save' }).click();
+            // domClick — coordinate clicks (even `force`) can land on the floating
+            // Copilot orb/invite box or the expression editor's still-open helper
+            // pane instead of Save. Dispatch through the DOM node to bypass hit-testing.
+            const saveButton = configurationWebView.getByRole('button', { name: 'Save' });
+            // Fail fast and clearly if a required field's value never made it into
+            // react-hook-form (e.g. a field fill that updates the DOM but doesn't
+            // fire the component's real onChange) — a disabled Save button ignores
+            // even a raw DOM click, which otherwise surfaces as a confusing timeout
+            // on the variable never appearing.
+            await expect(saveButton).toBeEnabled({ timeout: 10000 });
+            await domClick(saveButton);
             await configEditor.verifyConfigurableVariable('destination', '', '');
             await configEditor.verifyWarning('destination');
 
@@ -208,16 +248,6 @@ export default function createTests() {
             await page.page.waitForTimeout(1000); // Wait for the form to be loaded.
             await configEditor.verifyConfigurableVariable('destination', '', 'new-destination-value');
         });
-
-        // test('Package Selection and Configuration', async () => {
-        //     const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);
-        //     await configEditor.init();
-
-        //     // Add value to library config variable
-        //     await configEditor.selectPackage('ballerinax/wso2.controlplane');
-        //     await configEditor.addConfigTomlValue('dashboard', 'example-dashboard');
-        //     await configEditor.verifyConfigurableVariable('dashboard', '', 'example-dashboard');
-        // });
 
         test('Run Integration Successfully', async () => {
             const configEditor = new ConfigEditor(page.page, BI_INTEGRATOR_LABEL);

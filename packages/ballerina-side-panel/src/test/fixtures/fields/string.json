@@ -1,0 +1,16 @@
+{
+    "description": "STRING field type must render the TextAreaEditor",
+    "expectedEditor": "TextAreaEditor",
+    "fieldInputType": { "fieldType": "STRING" },
+    "field": {
+        "key": "description",
+        "label": "Description",
+        "type": "STRING",
+        "optional": true,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "STRING", "selected": false }],
+        "enabled": true
+    }
+}

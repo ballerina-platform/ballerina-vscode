@@ -1,0 +1,423 @@
+{
+  "filePath": "sample13/main.bal",
+  "description": "Test getting solace.jms service model from source",
+  "start": {
+    "line": 4,
+    "offset": 0
+  },
+  "end": {
+    "line": 7,
+    "offset": 0
+  },
+  "response": {
+    "id": "0",
+    "name": "Solace (JMS) Event Integration",
+    "type": "solace.jms",
+    "displayName": "Solace (JMS) Event Integration",
+    "moduleName": "solace.jms",
+    "orgName": "ballerinax",
+    "version": "0.1.0",
+    "packageName": "solace.jms",
+    "listenerProtocol": "jms",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_0.1.0.png",
+    "properties": {
+      "listener": {
+        "metadata": {
+          "label": "Listeners",
+          "description": "The Listeners to be bound with the service"
+        },
+        "codedata": {
+          "type": "LISTENER"
+        },
+        "placeholder": "",
+        "value": "solaceJmsListener",
+        "values": [],
+        "properties": {
+          "solaceJmsListener": {
+            "codedata": {
+              "lineRange": {
+                "fileName": "main.bal",
+                "startLine": {
+                  "line": 4,
+                  "offset": 23
+                },
+                "endLine": {
+                  "line": 4,
+                  "offset": 40
+                }
+              }
+            },
+            "enabled": false,
+            "editable": false,
+            "optional": false,
+            "advanced": false
+          }
+        },
+        "types": [
+          {
+            "fieldType": "MULTIPLE_SELECT_LISTENER",
+            "options": [
+              {
+                "label": "solaceJmsListener",
+                "value": "solaceJmsListener"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "serviceType": {
+        "metadata": {
+          "label": "Service",
+          "description": "The Solace JMS service type attached to a `jms:Listener` for asynchronous (push-based) consumption.\n\nAn attached service must declare a remote `onMessage` method and may optionally declare an\n`onError` method. The accepted signatures are:\n```ballerina\nremote function onMessage(record {|*jms:Message; T payload;|} message) returns jms:Error?;\nremote function onMessage(record {|*jms:Message; T payload;|} message, jms:Caller caller) returns jms:Error?;\nremote function onMessage(jms:Message message) returns jms:Error?;\nremote function onError(jms:Error err) returns jms:Error?;\n```\nDeclaring a narrowed `payload` type (`T`) causes the message payload to be data-bound into that\ntype; declaring the base `jms:Message` type yields the raw payload as `anydata`.\nThe subscription (queue or topic) and flow options are supplied via the\n`@jms:ServiceConfig` annotation on the service."
+        },
+        "placeholder": "jms:Service",
+        "value": "Service",
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "readOnlyMetadata": {
+        "codedata": {
+          "type": "READONLY"
+        },
+        "placeholder": "false",
+        "value": {
+          "Topic Name": [],
+          "Queue Name": []
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      }
+    },
+    "codedata": {
+      "lineRange": {
+        "fileName": "main.bal",
+        "startLine": {
+          "line": 4,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 7,
+          "offset": 1
+        }
+      },
+      "orgName": "ballerinax",
+      "packageName": "solace.jms",
+      "moduleName": "solace.jms"
+    },
+    "functions": [
+      {
+        "metadata": {
+          "label": "onMessage",
+          "description": "The `onMessage` remote method is triggered when a message is received from the subscribed Solace queue or topic."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "onMessage",
+            "description": "The `onMessage` remote method is triggered when a message is received from the subscribed Solace queue or topic."
+          },
+          "placeholder": "onMessage",
+          "value": "onMessage",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Message Configuration",
+              "description": "Define the shape of the Solace message payload."
+            },
+            "kind": "DATA_BINDING",
+            "type": {
+              "imports": {
+                "jms": "ballerinax/solace.jms"
+              },
+              "metadata": {
+                "label": "Message Configuration",
+                "description": "Define the shape of the Solace message payload."
+              },
+              "codedata": {
+                "type": "PAYLOAD_TYPE_INCLUDED_RECORD",
+                "template": "{{type}}",
+                "defaultType": "jms:Message",
+                "bindable": true,
+                "field": "payload"
+              },
+              "placeholder": "jms:Message",
+              "value": "jms:Message",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Message Configuration",
+                "description": "Define the shape of the Solace message payload."
+              },
+              "placeholder": "message",
+              "value": "message",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          },
+          {
+            "metadata": {
+              "label": "Caller",
+              "description": "The Solace caller object used for manual acknowledgement and transaction control."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "jms:Caller",
+              "value": "jms:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Caller",
+                "description": "The Solace caller object used for manual acknowledgement and transaction control."
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "jms:Error?|error?",
+          "value": "error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "optional": false,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "lineRange": {
+            "fileName": "main.bal",
+            "startLine": {
+              "line": 5,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 6,
+              "offset": 5
+            }
+          },
+          "orgName": "ballerinax",
+          "packageName": "solace.jms",
+          "moduleName": "solace.jms",
+          "version": "0.1.0"
+        },
+        "properties": {},
+        "group": "onMessage",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      }
+    ],
+    "schemaFunctions": [
+      {
+        "metadata": {
+          "label": "onError",
+          "description": "The `onError` remote method is triggered when an error occurs during message processing or delivery."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "onError",
+            "description": "The `onError` remote method is triggered when an error occurs during message processing or delivery."
+          },
+          "placeholder": "onError",
+          "value": "onError",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Solace Error",
+              "description": "The error that occurred during message processing or delivery."
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "jms:Error",
+              "value": "jms:Error",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Solace Error",
+                "description": "The error that occurred during message processing or delivery."
+              },
+              "placeholder": "solaceError",
+              "value": "solaceError",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": false,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "jms:Error?|error?",
+          "value": "jms:Error?|error?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerinax",
+          "packageName": "solace.jms",
+          "moduleName": "solace.jms",
+          "version": "0.1.0"
+        },
+        "properties": {},
+        "group": "onError",
+        "repeatable": "FALSE",
+        "nameEditable": false
+      }
+    ]
+  }
+}

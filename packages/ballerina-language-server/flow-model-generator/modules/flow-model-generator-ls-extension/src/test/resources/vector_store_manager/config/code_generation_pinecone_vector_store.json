@@ -1,244 +1,243 @@
 {
   "source": "generated_vector_store",
   "flowNode": {
-      "id": "31",
-      "metadata": {
-        "label": "Vector Store",
-        "description": "Initializes the PineconeVectorStore with the given configuration.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.0.png"
-      },
-      "codedata": {
-        "node": "VECTOR_STORE",
-        "org": "ballerinax",
-        "module": "ai.pinecone",
-        "packageName": "ai.pinecone",
-        "object": "VectorStore",
-        "version": "1.1.0",
-        "isNew": true
-      },
-      "returning": false,
-      "properties": {
-        "type": {
-          "metadata": {
-            "label": "Result Type",
-            "description": "Type of the variable"
-          },
-          "valueType": "TYPE",
-          "value": "pinecone:VectorStore",
-          "placeholder": "var",
-          "optional": false,
-          "editable": false,
-          "advanced": false,
-          "hidden": false,
-          "codedata": {},
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
+    "id": "31",
+    "metadata": {
+      "label": "Vector Store",
+      "description": "Initializes the PineconeVectorStore with the given configuration.\n",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.pinecone_1.1.0.png"
+    },
+    "codedata": {
+      "node": "VECTOR_STORE",
+      "org": "ballerinax",
+      "module": "ai.pinecone",
+      "packageName": "ai.pinecone",
+      "object": "VectorStore",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
         },
-        "variable": {
-          "metadata": {
-            "label": "Vector Store Name",
-            "description": "Vector store instance name"
-          },
-          "valueType": "IDENTIFIER",
-          "value": "pineconeVectorstore",
-          "optional": false,
-          "editable": true,
-          "advanced": false,
-          "hidden": false,
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
-        },
-        "serviceUrl": {
-          "metadata": {
-            "label": "Service URL",
-            "description": "URL of the Pinecone API service"
-          },
-          "valueType": "EXPRESSION",
-          "valueTypeConstraint": "string",
-          "placeholder": "\"\"",
-          "optional": false,
-          "editable": true,
-          "advanced": false,
-          "hidden": false,
-          "codedata": {
-            "kind": "REQUIRED",
-            "originalName": "serviceUrl"
-          },
-          "typeMembers": [
-            {
-              "type": "string",
-              "packageInfo": "",
-              "packageName": "",
-              "kind": "BASIC_TYPE",
-              "selected": false
-            }
-          ],
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
-        },
-        "apiKey": {
-          "metadata": {
-            "label": "API Key",
-            "description": "Pinecone API key for authentication"
-          },
-          "valueType": "EXPRESSION",
-          "valueTypeConstraint": "string",
-          "placeholder": "\"\"",
-          "optional": false,
-          "editable": true,
-          "advanced": false,
-          "hidden": false,
-          "codedata": {
-            "kind": "REQUIRED",
-            "originalName": "apiKey"
-          },
-          "typeMembers": [
-            {
-              "type": "string",
-              "packageInfo": "",
-              "packageName": "",
-              "kind": "BASIC_TYPE",
-              "selected": false
-            }
-          ],
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
-        },
-        "queryMode": {
-          "metadata": {
-            "label": "Query Mode",
-            "description": "Vector query mode (defaults to ai:DENSE)"
-          },
-          "valueType": "EXPRESSION",
-          "valueTypeConstraint": "ai:VectorStoreQueryMode",
-          "placeholder": "\"HYBRID\"",
-          "optional": true,
-          "editable": true,
-          "advanced": true,
-          "hidden": false,
-          "codedata": {
-            "kind": "DEFAULTABLE",
-            "originalName": "queryMode"
-          },
-          "typeMembers": [
-            {
-              "type": "VectorStoreQueryMode",
-              "packageInfo": "ballerina:ai:1.5.0",
-              "packageName": "ai",
-              "kind": "BASIC_TYPE",
-              "selected": false
-            }
-          ],
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          },
-          "defaultValue": "\"HYBRID\""
-        },
-        "config": {
-          "metadata": {
-            "label": "Pinecone Configuration"
-          },
-          "valueType": "EXPRESSION",
-          "valueTypeConstraint": "pinecone:Configuration",
-          "placeholder": "{}",
-          "optional": true,
-          "editable": true,
-          "advanced": true,
-          "hidden": false,
-          "codedata": {
-            "kind": "DEFAULTABLE",
-            "originalName": "config"
-          },
-          "typeMembers": [
-            {
-              "type": "Configuration",
-              "packageInfo": "ballerinax:ai.pinecone:1.1.0",
-              "packageName": "ai.pinecone",
-              "kind": "RECORD_TYPE",
-              "selected": false
-            }
-          ],
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          },
-          "defaultValue": "{}"
-        },
-        "httpConfig": {
-          "metadata": {
-            "label": "HTTP Configuration",
-            "description": "HTTP client configuration for the Pinecone connection\n"
-          },
-          "valueType": "EXPRESSION",
-          "valueTypeConstraint": "vector:ConnectionConfig",
-          "placeholder": "{}",
-          "optional": true,
-          "editable": true,
-          "advanced": true,
-          "hidden": false,
-          "codedata": {
-            "kind": "DEFAULTABLE",
-            "originalName": "httpConfig"
-          },
-          "typeMembers": [
-            {
-              "type": "ConnectionConfig",
-              "packageInfo": "ballerinax:pinecone.vector:1.0.2",
-              "packageName": "pinecone.vector",
-              "kind": "RECORD_TYPE",
-              "selected": false
-            }
-          ],
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          },
-          "defaultValue": "{}"
-        },
-        "scope": {
-          "metadata": {
-            "label": "Connection Scope",
-            "description": "Scope of the connection, Global or Local"
-          },
-          "valueType": "ENUM",
-          "value": "Global",
-          "optional": false,
-          "editable": true,
-          "advanced": true,
-          "hidden": true,
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
-        },
-        "checkError": {
-          "metadata": {
-            "label": "Check Error",
-            "description": "Terminate on error"
-          },
-          "valueType": "FLAG",
-          "value": true,
-          "optional": false,
-          "editable": false,
-          "advanced": true,
-          "hidden": true,
-          "imports": {
-            "ai": "ballerina/ai",
-            "vector": "ballerinax/pinecone.vector"
-          }
+        "valueType": "TYPE",
+        "value": "pinecone:VectorStore",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {},
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
         }
       },
-      "flags": 0
+      "variable": {
+        "metadata": {
+          "label": "Vector Store Name",
+          "description": "Vector store instance name"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "pineconeVectorstore",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        }
+      },
+      "serviceUrl": {
+        "metadata": {
+          "label": "Service URL",
+          "description": "URL of the Pinecone API service"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "serviceUrl"
+        },
+        "typeMembers": [
+          {
+            "type": "string",
+            "packageInfo": "",
+            "packageName": "",
+            "kind": "BASIC_TYPE",
+            "selected": false
+          }
+        ],
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        }
+      },
+      "apiKey": {
+        "metadata": {
+          "label": "API Key",
+          "description": "Pinecone API key for authentication"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "string",
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "apiKey"
+        },
+        "typeMembers": [
+          {
+            "type": "string",
+            "packageInfo": "",
+            "packageName": "",
+            "kind": "BASIC_TYPE",
+            "selected": false
+          }
+        ],
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        }
+      },
+      "queryMode": {
+        "metadata": {
+          "label": "Query Mode",
+          "description": "Vector query mode (defaults to ai:DENSE)"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "ai:VectorStoreQueryMode",
+        "placeholder": "\"HYBRID\"",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "queryMode"
+        },
+        "typeMembers": [
+          {
+            "type": "VectorStoreQueryMode",
+            "packageInfo": "ballerina:ai:1.5.0",
+            "packageName": "ai",
+            "kind": "BASIC_TYPE",
+            "selected": false
+          }
+        ],
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        },
+        "defaultValue": "\"HYBRID\""
+      },
+      "config": {
+        "metadata": {
+          "label": "Pinecone Configuration"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "pinecone:Configuration",
+        "placeholder": "{}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "config"
+        },
+        "typeMembers": [
+          {
+            "type": "Configuration",
+            "packageInfo": "ballerinax:ai.pinecone:1.1.0",
+            "packageName": "ai.pinecone",
+            "kind": "RECORD_TYPE",
+            "selected": false
+          }
+        ],
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        },
+        "defaultValue": "{}"
+      },
+      "httpConfig": {
+        "metadata": {
+          "label": "HTTP Configuration",
+          "description": "HTTP client configuration for the Pinecone connection\n"
+        },
+        "valueType": "EXPRESSION",
+        "valueTypeConstraint": "vector:ConnectionConfig",
+        "placeholder": "{}",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "DEFAULTABLE",
+          "originalName": "httpConfig"
+        },
+        "typeMembers": [
+          {
+            "type": "ConnectionConfig",
+            "packageInfo": "ballerinax:pinecone.vector:1.0.2",
+            "packageName": "pinecone.vector",
+            "kind": "RECORD_TYPE",
+            "selected": false
+          }
+        ],
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        },
+        "defaultValue": "{}"
+      },
+      "scope": {
+        "metadata": {
+          "label": "Connection Scope",
+          "description": "Scope of the connection, Global or Local"
+        },
+        "valueType": "ENUM",
+        "value": "Global",
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true,
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        }
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Terminate on error"
+        },
+        "valueType": "FLAG",
+        "value": true,
+        "optional": false,
+        "editable": false,
+        "advanced": true,
+        "hidden": true,
+        "imports": {
+          "ai": "ballerina/ai",
+          "vector": "ballerinax/pinecone.vector"
+        }
+      }
     },
+    "flags": 0
+  },
   "expectedResponse": {
     "textEdits": {
       "connections.bal": [

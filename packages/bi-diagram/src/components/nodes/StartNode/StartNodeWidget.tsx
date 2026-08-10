@@ -31,6 +31,9 @@ import {
 } from "../../../resources/constants";
 import { FlowNode } from "../../../utils/types";
 import { Tooltip } from "@wso2/ui-toolkit";
+import { getDiffContainerStyles, getDiffTitleStyles } from "../../../utils/node";
+import { useDiagramContext } from "../../DiagramContext";
+import { NodeNoteChip } from "../../NodeNoteChip";
 
 export namespace NodeStyles {
     export type NodeStyleProp = {
@@ -50,6 +53,7 @@ export namespace NodeStyles {
         background-color: ${NODE_BG_COLOR};
         color: ${NODE_TEXT_COLOR};
         cursor: default;
+        position: relative;
     `;
 
     export const TopPortWidget = styled(PortWidget)`
@@ -71,6 +75,14 @@ export namespace NodeStyles {
         text-overflow: ellipsis;
         font-family: "GilmerMedium";
     `;
+
+    export const NoteChipWrapper = styled.div`
+        position: absolute;
+        top: -16px;
+        right: -48px;
+        display: flex;
+        gap: 2px;
+    `;
 }
 
 interface StartNodeWidgetProps {
@@ -84,18 +96,30 @@ export interface NodeWidgetProps extends Omit<StartNodeWidgetProps, "children"> 
 export function StartNodeWidget(props: StartNodeWidgetProps) {
     const { model, engine, onClick } = props;
     const [isHovered, setIsHovered] = React.useState(false);
+    const { nodeComments } = useDiagramContext();
+    const noteComments = nodeComments?.get(model.node.id) ?? [];
 
     return (
         <NodeStyles.Node
             selected={model.isSelected()}
             hovered={isHovered}
+            style={getDiffContainerStyles(model.node)}
         // onMouseEnter={() => setIsHovered(true)}
         // onMouseLeave={() => setIsHovered(false)}
         >
             <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
             <Tooltip content={model.node.metadata.label || "Start"} containerSx={{ cursor: "default" }}>
-                <NodeStyles.Title data-testid="start-node">{model.node.metadata.label || "Start"}</NodeStyles.Title>
+                <NodeStyles.Title data-testid="start-node" style={getDiffTitleStyles(model.node)}>
+                    {model.node.metadata.label || "Start"}
+                </NodeStyles.Title>
             </Tooltip>
+            {noteComments.length > 0 && (
+                <NodeStyles.NoteChipWrapper>
+                    {noteComments.map((comment) => (
+                        <NodeNoteChip key={comment.id} commentNode={comment} engine={engine} />
+                    ))}
+                </NodeStyles.NoteChipWrapper>
+            )}
             <NodeStyles.BottomPortWidget port={model.getPort("out")!} engine={engine} />
         </NodeStyles.Node>
     );

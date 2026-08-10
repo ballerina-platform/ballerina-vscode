@@ -2,7 +2,7 @@
     "name": "ballerina",
     "displayName": "Ballerina",
     "description": "Ballerina Language support, debugging, graphical visualization, AI-based data-mapping and many more.",
-    "version": "5.12.0",
+    "version": "5.14.0-SNAPSHOT",
     "publisher": "wso2",
     "icon": "resources/images/ballerina.png",
     "homepage": "https://wso2.com/ballerina/vscode/docs",
@@ -221,6 +221,14 @@
                         "experimental"
                     ]
                 },
+                "ballerina.enableAdditionalTriggerSearch": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "For trigger developer testing purposes only: also searches the local Ballerina repository (~/.ballerina/repositories/local) and Ballerina Central for trigger/connector packages.",
+                    "tags": [
+                        "experimental"
+                    ]
+                },
                 "ballerina.samplesDownloadDirectory": {
                     "type": "string",
                     "default": "",
@@ -269,14 +277,40 @@
                         "Trace request/response messages with parameters and content"
                     ]
                 },
+                "ballerina.copilot.enableMcpTools": {
+                    "type": "boolean",
+                    "default": false,
+                    "scope": "window",
+                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integrator Copilot."
+                },
+                "ballerina.copilot.skills": {
+                    "type": "object",
+                    "scope": "resource",
+                    "default": {
+                        "disabled": [],
+                        "enabled": []
+                    },
+                    "description": "Copilot skill enable/disable state. 'disabled' lists skill IDs that are turned off; 'enabled' lists opt-in skill IDs that are explicitly turned on."
+                },
+                "ballerina.copilot.mcp": {
+                    "type": "object",
+                    "scope": "window",
+                    "default": {
+                        "disabledServers": [],
+                        "enabledServers": []
+                    },
+                    "description": "MCP server enable/disable overrides. Keys are 'scope:name' identifiers (e.g. 'user:myServer'). Managed automatically by the Copilot UI."
+                },
                 "ballerina.copilot.checkpoints.enabled": {
                     "type": "boolean",
                     "default": true,
+                    "scope": "resource",
                     "description": "Enable checkpoint mechanism for copilot chat to restore previous states."
                 },
                 "ballerina.copilot.checkpoints.maxCount": {
                     "type": "number",
                     "default": 3,
+                    "scope": "resource",
                     "description": "Maximum number of checkpoints to keep."
                 },
                 "ballerina.copilot.checkpoints.ignorePatterns": {
@@ -299,22 +333,26 @@
                         "**/*.tar",
                         "**/*.gz"
                     ],
+                    "scope": "resource",
                     "description": "File patterns to ignore when creating checkpoints."
                 },
                 "ballerina.copilot.checkpoints.maxSnapshotSize": {
                     "type": "number",
                     "default": 52428800,
+                    "scope": "resource",
                     "description": "Maximum snapshot size in bytes (default: 50MB)."
                 },
-                "ballerina.ai.showContextUsage": {
+                "ballerina.copilot.showContextUsage": {
                     "type": "boolean",
                     "default": false,
+                    "scope": "resource",
                     "description": "Show context usage indicator in the AI chat input footer."
                 },
-                "ballerina.copilot.enableMcpTools": {
+                "ballerina.copilot.followupSuggestions": {
                     "type": "boolean",
-                    "default": false,
-                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integrator Copilot."
+                    "default": true,
+                    "scope": "resource",
+                    "description": "Suggest follow-up actions after Copilot responds in the AI chat."
                 }
             }
         },
@@ -745,6 +783,30 @@
                 "when": "ballerina.bi.workspaceSupported"
             },
             {
+                "command": "BI.project-explorer.convert",
+                "title": "Convert to Project",
+                "icon": "$(project)",
+                "group": "navigation",
+                "category": "WSO2 Integrator",
+                "when": "ballerina.bi.workspaceSupported"
+            },
+            {
+                "command": "BI.project-explorer.open-project",
+                "title": "Open Project",
+                "icon": "$(folder-opened)",
+                "group": "navigation",
+                "category": "WSO2 Integrator",
+                "when": "ballerina.bi.workspaceSupported"
+            },
+            {
+                "command": "BI.project-explorer.add-to-project",
+                "title": "Add to Project",
+                "icon": "$(add)",
+                "group": "navigation",
+                "category": "WSO2 Integrator",
+                "when": "ballerina.bi.workspaceSupported"
+            },
+            {
                 "command": "BI.project-explorer.overview",
                 "title": "Show Overview",
                 "icon": "$(ballerina-design-view)",
@@ -783,13 +845,13 @@
                 "command": "ballerina.icp.start",
                 "title": "Start ICP",
                 "category": "Ballerina",
-                "enablement": "isSupportedProject && !ballerina.icpRunning && !devant.editor"
+                "enablement": "isSupportedProject && ballerina.icpSupported && !ballerina.icpRunning && !devant.editor"
             },
             {
                 "command": "ballerina.icp.stop",
                 "title": "Stop ICP",
                 "category": "Ballerina",
-                "enablement": "isSupportedProject && ballerina.icpRunning && !devant.editor"
+                "enablement": "isSupportedProject && ballerina.icpSupported && ballerina.icpRunning && !devant.editor"
             },
             {
                 "command": "ballerina.showTraceWindow",
@@ -1153,6 +1215,14 @@
                     "when": "false"
                 },
                 {
+                    "command": "BI.project-explorer.open-project",
+                    "when": "false"
+                },
+                {
+                    "command": "BI.project-explorer.add-to-project",
+                    "when": "false"
+                },
+                {
                     "command": "BI.project-explorer.delete",
                     "when": "false"
                 },
@@ -1209,6 +1279,13 @@
                     "fontCharacter": "\\f112"
                 }
             },
+            "bi-ai-chat": {
+                "description": "ai-chat",
+                "default": {
+                    "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
+                    "fontCharacter": "\\f113"
+                }
+            },
             "ballerina-new-module": {
                 "description": "new-module",
                 "default": {
@@ -1255,14 +1332,14 @@
                 "description": "start",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f249"
+                    "fontCharacter": "\\f24a"
                 }
             },
             "ballerina-debug": {
                 "description": "debug",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c0"
+                    "fontCharacter": "\\f1c1"
                 }
             },
             "ballerina-source-view": {
@@ -1276,7 +1353,7 @@
                 "description": "persist-diagram",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f21f"
+                    "fontCharacter": "\\f220"
                 }
             },
             "ballerina-cached-rounded": {
@@ -1374,7 +1451,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c5"
+                    "fontCharacter": "\\f1c6"
                 }
             },
             "distro-file-submodule": {
@@ -1430,13 +1507,19 @@
     },
     "main": "./dist/extension",
     "scripts": {
-        "clean": "del-cli ./dist ./out ./ballerina-*.vsix ./coverage ./.nyc_output",
+        "clean": "del-cli ./dist ./out ./ballerina-*.vsix ./vsix ./ls ./coverage ./.nyc_output",
         "compile": "webpack --mode production",
         "watch-ballerina": "webpack --mode none --watch",
-        "test-compile": "tsc -p ./",
+        "test-compile": "tsc -p ./ && copyfiles -u 1 \"src/**/*.md\" out/src",
+        "copySkillAssets": "copyfiles \"src/features/ai/agent/skills/**/*.md\" out",
         "test": "pnpm run test-compile && node ./out/test/runTest.js",
         "test:ai": "pnpm run test-compile && node ./out/test/runAiTest.js",
         "test:libs-integration": "pnpm run test-compile && node ./out/test/runLibsIntegrationTest.js",
+        "test:unit": "jest --config jest.config.js",
+        "test:ls-integration": "jest --config jest.ls-integration.config.js",
+        "test:perf": "jest --config jest.perf.config.js",
+        "capture-fixtures": "node scripts/capture-fixtures.js",
+        "test:checkpoint": "pnpm run test-compile && node ./out/test/runCheckpointTest.js",
         "e2e-test-setup": "npx extest get-vscode -c 1.100.0 && npx extest get-chromedriver -c 1.100.0 && npx extest install-vsix -f $(ls vsix/*.vsix)",
         "preui-test": "node -e \"const fs = require('fs'); if (fs.existsSync('test-resou')) { fs.unlinkSync('test-resou'); }\"",
         "e2e-test": "pnpm exec playwright test -c e2e-test/playwright.config.js",
@@ -1445,22 +1528,23 @@
         "build-tm-grammar": "js-yaml grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.yaml > grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.json",
         "lint": "tslint --fix 'src/**/*{.ts,.tsx}'",
         "package": "node ../../submodules/wso2-vscode-extensions/workspaces/common-libs/scripts/package-vsix.js",
+        "clearVsix": "del-cli \"./ballerina-[0-9]*.vsix\" \"./vsix/ballerina-[0-9]*.vsix\"",
         "copyFonts": "copyfiles -f ./node_modules/@wso2/font-wso2-vscode/dist/* ./resources/font-wso2-vscode/dist/",
         "copyVSIX": "copyfiles *.vsix ./vsix",
         "copyVSIXToRoot": "copyfiles -f ./vsix/*.vsix ../../..",
-        "download-ls": "node scripts/download-ls.js",
-        "download-ls:prerelease": "node scripts/download-ls.js --tag prerelease --replace",
-        "copyLS": "node scripts/copy-ls.js",
-        "provisionLS": "node scripts/copy-ls.js --fallback-download",
+        "copyLS": "del-cli ./ls && node -e \"const fs=require('fs'),path=require('path'),version=require('./package.json').version,source=path.join('..','ballerina-language-server','build','ballerina-language-server-'+version+'.jar'),destination=path.join('ls',path.basename(source));fs.mkdirSync('ls',{recursive:true});fs.copyFileSync(source,destination);console.log('Copied '+source+' -> '+destination)\"",
         "copyGrammar": "del-cli ./grammar/ballerina-grammar && copyfiles -u 3 \"../ballerina-grammar/syntaxes/*\" ./grammar/ballerina-grammar/syntaxes/",
         "build": "pnpm run compile && pnpm run lint && pnpm run postbuild",
         "rebuild": "pnpm run clean && pnpm run compile && pnpm run postbuild",
-        "postbuild": "pnpm run provisionLS && pnpm run copyFonts && pnpm run copyJSLibs && pnpm run package && pnpm run copyVSIX",
-        "copyJSLibs": "copyfiles -f ../ballerina-visualizer/build/*.js resources/jslibs && copyfiles -f ../ballerina-visualizer/build/images/* resources/jslibs/images && copyfiles -f ../trace-visualizer/build/*.js resources/jslibs && copyfiles -f ../graphql/build/*.js resources/jslibs"
+        "postbuild": "pnpm run copyLS && pnpm run copyFonts && pnpm run copyJSLibs && pnpm run clearVsix && pnpm run package && pnpm run copyVSIX",
+        "copyJSLibs": "copyfiles -f ../ballerina-visualizer/build/*.js resources/jslibs && copyfiles -f ../ballerina-visualizer/build/images/* resources/jslibs/images && copyfiles -f ../trace-visualizer/build/*.js resources/jslibs && copyfiles -f ../graphql/build/*.js resources/jslibs && pnpm run copyFederation",
+        "copyFederation": "node ./scripts/copy-federation.js",
+        "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
         "@ai-sdk/amazon-bedrock": "4.0.83",
-        "@ai-sdk/anthropic": "3.0.64",
+        "@ai-sdk/anthropic-aws": "1.0.3",
+        "@ai-sdk/anthropic": "3.0.104",
         "@ai-sdk/google-vertex": "4.0.94",
         "@iarna/toml": "2.2.5",
         "@modelcontextprotocol/sdk": "1.29.0",
@@ -1492,7 +1576,7 @@
         "node-fetch": "3.3.2",
         "node-schedule": "2.1.1",
         "portfinder": "1.0.32",
-        "protobufjs": "7.6.3",
+        "protobufjs": "7.6.5",
         "source-map-support": "0.5.21",
         "unzipper": "0.12.3",
         "uuid": "14.0.0",
@@ -1520,7 +1604,7 @@
         "@types/vscode": "1.100.0",
         "@types/vscode-notebook-renderer": "1.72.2",
         "adm-zip": "0.5.16",
-        "axios": "1.16.0",
+        "axios": "1.18.0",
         "chai": "4.3.10",
         "copyfiles": "2.4.1",
         "cross-env": "7.0.3",
@@ -1537,6 +1621,9 @@
         "rimraf": "3.0.2",
         "tcp-port-used": "1.0.2",
         "ts-loader": "9.5.0",
+        "ts-jest": "29.3.4",
+        "jest": "29.7.0",
+        "@types/jest": "29.5.14",
         "tslint": "6.1.3",
         "typescript": "5.8.3",
         "@types/js-yaml": "4.0.9",
@@ -1546,7 +1633,8 @@
         "webpack-cli": "6.0.1",
         "yarn": "1.22.19",
         "@playwright/test": "1.55.1",
-        "@wso2/playwright-vscode-tester": "workspace:*"
+        "@wso2/playwright-vscode-tester": "workspace:*",
+        "@wso2/test-config": "workspace:*"
     },
     "extensionPack": [
         "be5invis.toml"

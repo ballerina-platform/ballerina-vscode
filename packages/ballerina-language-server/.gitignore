@@ -41,6 +41,7 @@ replay_pid*
 # Build directories
 .gradle/
 build/
+target/
 **/bin/
 .cache/
 

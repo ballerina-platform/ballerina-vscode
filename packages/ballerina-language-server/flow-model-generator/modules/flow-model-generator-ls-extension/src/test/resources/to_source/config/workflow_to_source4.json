@@ -90,7 +90,7 @@
     "flags": 0
   },
   "output": {
-    "workflow_function_empty/functions.bal": [
+    "workflow_function_empty/workflow.bal": [
       {
         "range": {
           "start": {
@@ -115,7 +115,7 @@
             "character": 0
           }
         },
-        "newText": "@workflow:Workflow\nfunction orderProcess(Order input) returns error? {\n}"
+        "newText": "@workflow:Workflow\nfunction orderProcess(workflow:Context ctx, Order input) returns error? {\n}"
       }
     ]
   }

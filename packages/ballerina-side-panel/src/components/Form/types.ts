@@ -43,6 +43,9 @@ export type FormField = {
     advanced?: boolean;
     editable: boolean;
     hidden?: boolean;
+    /** Render this field indented under the preceding field, to show it belongs to it (e.g. a
+     * fixed-value input that belongs to the checkbox above it). */
+    indent?: boolean;
     placeholder?: string;
     defaultValue?: string;
     documentation: string;

@@ -21,6 +21,7 @@ package io.ballerina.flowmodelgenerator.core;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -29,13 +30,18 @@ import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.compiler.api.symbols.TypeDefinitionSymbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
 import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ClassDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
 import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
 import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.ModuleVariableDeclarationNode;
@@ -50,6 +56,7 @@ import io.ballerina.flowmodelgenerator.core.model.ExtendedDiagram;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
@@ -81,6 +88,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAgentClass;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiFixedTypedAgent;
+import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDependentlyTypedAgent;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiKnowledgeBase;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiMemoryStore;
 import static io.ballerina.modelgenerator.commons.CommonUtils.isAiDataLoader;
@@ -104,8 +113,7 @@ public class ModelGenerator {
                     .map(property -> property.value().toString())
                     .orElse("")
     );
-    private static final String NODE_KIND_FILTER = "kind";
-    private static final String EXACT_MATCH_FILTER = "exactMatch";
+    private static final String TYPE_MATCH_SUBTYPE = "subtype";
 
     public ModelGenerator(Project project, SemanticModel model, Path filePath, WorkspaceManager workspaceManager) {
         this.semanticModel = model;
@@ -113,6 +121,23 @@ public class ModelGenerator {
         this.project = project;
         this.gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
         this.workspaceManager = workspaceManager;
+    }
+
+    // Converts a line position to a text offset, clamping the line to the document and the
+    // offset to that line's length so stale client positions cannot fail the request.
+    private static int clampedTextPosition(TextDocument textDocument, io.ballerina.tools.text.LinePosition position) {
+        try {
+            return textDocument.textPositionFrom(position);
+        } catch (RuntimeException e) {
+            int lineCount = textDocument.toCharArray().length == 0 ? 1 : textDocument.textLines().size();
+            int line = Math.min(Math.max(position.line(), 0), lineCount - 1);
+            try {
+                return textDocument.textPositionFrom(io.ballerina.tools.text.LinePosition.from(line,
+                        Math.min(position.offset(), textDocument.line(line).length())));
+            } catch (RuntimeException inner) {
+                return textDocument.textPositionFrom(io.ballerina.tools.text.LinePosition.from(line, 0));
+            }
+        }
     }
 
     /**
@@ -126,9 +151,26 @@ public class ModelGenerator {
         SyntaxTree syntaxTree = document.syntaxTree();
         ModulePartNode modulePartNode = syntaxTree.rootNode();
         TextDocument textDocument = syntaxTree.textDocument();
-        int start = textDocument.textPositionFrom(lineRange.startLine());
-        int end = textDocument.textPositionFrom(lineRange.endLine());
+        // The requested range comes from the client's last-known artifact location, which can
+        // be stale right after a source edit reshapes the target (e.g. a capability write
+        // expanding a single-line agent declaration). Clamp both positions to the current
+        // document instead of failing the whole canvas.
+        int start = clampedTextPosition(textDocument, lineRange.startLine());
+        int end = clampedTextPosition(textDocument, lineRange.endLine());
         NonTerminalNode canvasNode = modulePartNode.findNode(TextRange.from(start, end - start), true);
+
+        // A module-level declaration fragment (e.g. a durable agent opened by its name range)
+        // resolves to the whole declaration so the declaration canvas can render.
+        NonTerminalNode declarationAncestor = canvasNode;
+        while (declarationAncestor != null && declarationAncestor.kind() != SyntaxKind.MODULE_VAR_DECL) {
+            declarationAncestor = declarationAncestor.parent();
+        }
+        if (declarationAncestor != null) {
+            canvasNode = declarationAncestor;
+        }
+        if (canvasNode instanceof ClassDefinitionNode classDefinitionNode) {
+            canvasNode = narrowToInnerAgent(classDefinitionNode, canvasNode);
+        }
 
         // Obtain the connections visible at the module-level
         List<FlowNode> moduleConnections =
@@ -177,6 +219,52 @@ public class ModelGenerator {
         // Generate the flow model
         Diagram diagram = new Diagram(filePath.toString(), codeAnalyzer.getFlowNodes(), moduleConnections);
         return gson.toJsonTree(diagram);
+    }
+
+    private NonTerminalNode narrowToInnerAgent(ClassDefinitionNode classDefinitionNode, NonTerminalNode fallback) {
+        Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)
+                || !(isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol))) {
+            return fallback;
+        }
+        for (Node member : classDefinitionNode.members()) {
+            if (!(member instanceof FunctionDefinitionNode function)
+                    || !function.functionName().text().equals("init")
+                    || !(function.functionBody() instanceof FunctionBodyBlockNode body)) {
+                continue;
+            }
+            for (StatementNode statement : body.statements()) {
+                if (statement instanceof AssignmentStatementNode assignment) {
+                    if (!isInnerAgentAssignment(assignment, classSymbol)) {
+                        continue;
+                    }
+                    ExpressionNode expr = assignment.expression();
+                    if (expr instanceof CheckExpressionNode check) {
+                        expr = check.expression();
+                    }
+                    if (expr instanceof ImplicitNewExpressionNode) {
+                        return assignment;
+                    }
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private boolean isInnerAgentAssignment(AssignmentStatementNode assignment, ClassSymbol classSymbol) {
+        String variableReference = assignment.varRef().toSourceCode().replaceAll("\\s", "");
+        if (!"self.agent".equals(variableReference)) {
+            return false;
+        }
+        ClassFieldSymbol fieldSymbol = classSymbol.fieldDescriptors().get("agent");
+        if (fieldSymbol == null) {
+            return false;
+        }
+        TypeSymbol fieldType = fieldSymbol.typeDescriptor();
+        if (fieldType instanceof TypeReferenceTypeSymbol typeReference) {
+            fieldType = typeReference.typeDescriptor();
+        }
+        return fieldType instanceof ClassSymbol resolvedClassSymbol && isAgentClass(resolvedClassSymbol);
     }
 
     public JsonElement getModuleNodes() {
@@ -238,6 +326,37 @@ public class ModelGenerator {
         variablesList.sort(FLOW_NODE_COMPARATOR);
 
         ExtendedDiagram diagram = new ExtendedDiagram(filePath.toString(), List.of(), connectionsList, variablesList);
+        return gson.toJsonTree(diagram);
+    }
+
+    public JsonElement getClassMembers(LineRange classLineRange) {
+        Document document = FileSystemUtils.getDocument(workspaceManager, filePath);
+        SyntaxTree syntaxTree = document.syntaxTree();
+        ModuleInfo moduleInfo = ModuleInfo.from(document.module().descriptor());
+        ModulePartNode modulePartNode = syntaxTree.rootNode();
+        TextDocument textDocument = syntaxTree.textDocument();
+        int start = textDocument.textPositionFrom(classLineRange.startLine());
+        int end = textDocument.textPositionFrom(classLineRange.endLine());
+        NonTerminalNode node = modulePartNode.findNode(TextRange.from(start, Math.max(0, end - start)), true);
+        if (!(node instanceof ClassDefinitionNode classDefinitionNode)) {
+            return gson.toJsonTree(new ExtendedDiagram(filePath.toString(), List.of(), List.of(), List.of()));
+        }
+
+        Optional<Symbol> symbol = semanticModel.symbol(classDefinitionNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof ClassSymbol classSymbol)
+                || !(isAiFixedTypedAgent(classSymbol) || isAiDependentlyTypedAgent(classSymbol))) {
+            return gson.toJsonTree(new ExtendedDiagram(filePath.toString(), List.of(), List.of(), List.of()));
+        }
+
+        List<FlowNode> nodes = classSymbol.fieldDescriptors().entrySet().stream()
+                .flatMap(entry -> buildFlowNode(entry.getValue()).stream()
+                        .map(flowNode -> normalizeClassOwnedNode(flowNode, entry.getKey(), entry.getValue(),
+                                moduleInfo)))
+                .filter(flowNode -> flowNode.codedata().node() == NodeKind.MCP_TOOL_KIT
+                        || flowNode.codedata().node() == NodeKind.NEW_CONNECTION)
+                .sorted(FLOW_NODE_COMPARATOR)
+                .toList();
+        ExtendedDiagram diagram = new ExtendedDiagram(filePath.toString(), List.of(), List.of(), nodes);
         return gson.toJsonTree(diagram);
     }
 
@@ -305,23 +424,54 @@ public class ModelGenerator {
         return null;
     }
 
+    private FlowNode normalizeClassOwnedNode(FlowNode flowNode, String fieldName, ClassFieldSymbol fieldSymbol,
+                                             ModuleInfo moduleInfo) {
+        Map<String, Property> properties = new HashMap<>(flowNode.properties());
+        Property variable = properties.get(Property.VARIABLE_KEY);
+        if (variable != null && variable.value() instanceof String value && value.startsWith("self.")) {
+            properties.put(Property.VARIABLE_KEY, Property.Builder.copyFrom(variable)
+                    .value(value.substring("self.".length()))
+                    .build());
+        } else if (variable == null) {
+            properties.put(Property.VARIABLE_KEY, new Property.Builder<>(null)
+                    .metadata().label(Property.VARIABLE_NAME).description(Property.VARIABLE_DOC).stepOut()
+                    .type(Property.ValueType.IDENTIFIER)
+                    .value(fieldName)
+                    .editable()
+                    .codedata().kind(Property.ValueType.IDENTIFIER.name()).stepOut()
+                    .build());
+        }
+        if (flowNode.codedata().node() == NodeKind.NEW_CONNECTION && properties.get(Property.TYPE_KEY) == null
+                && fieldSymbol != null) {
+            properties.put(Property.TYPE_KEY, new Property.Builder<>(null)
+                    .metadata().label(Property.TYPE_LABEL).description(Property.TYPE_LABEL).stepOut()
+                    .type(Property.ValueType.TYPE)
+                    .value(CommonUtils.getTypeSignature(fieldSymbol.typeDescriptor(), moduleInfo))
+                    .editable()
+                    .hidden()
+                    .codedata().kind(Property.ValueType.TYPE.name()).stepOut()
+                    .build());
+        }
+        return new FlowNode(flowNode.id(), flowNode.metadata(), flowNode.codedata(), flowNode.returning(),
+                flowNode.branches(), properties, flowNode.diagnostics(), flowNode.flags());
+    }
+
     /**
      * Search semantic model symbols with given configurations and convert them to FlowNodes.
      *
      * @param document the document to search in
      * @param position the line position (nullable - if null, uses moduleSymbols, else visibleSymbols)
-     * @param queryMap the map containing query parameters (kind, exactMatch)
+     * @param kindFilter optional node-kind filter
+     * @param exactMatchFilter optional symbol-name filter
+     * @param targetType optional type constraint for candidate symbols
      * @return List of FlowNodes that match the search criteria
      */
-    public List<FlowNode> searchNodes(Document document, LinePosition position, Map<String, String> queryMap) {
+    public List<FlowNode> searchNodes(Document document, LinePosition position, String kindFilter,
+                                      String exactMatchFilter, TypeConstraint targetType) {
         // Get symbols based on position
         List<Symbol> symbols = position != null
                 ? semanticModel.visibleSymbols(document, position)
                 : semanticModel.moduleSymbols();
-
-        // Extract filter parameters
-        String kindFilter = queryMap != null ? queryMap.get(NODE_KIND_FILTER) : null;
-        String exactMatchFilter = queryMap != null ? queryMap.get(EXACT_MATCH_FILTER) : null;
 
         // Apply symbol-level filters first (exactMatch)
         Stream<Symbol> stream = symbols.stream()
@@ -333,6 +483,9 @@ public class ModelGenerator {
                     ? exactMatchFilter.substring(5)
                     : exactMatchFilter;
             stream = stream.filter(symbol -> symbol.nameEquals(fieldName));
+        }
+        if (targetType != null && targetType.isDefined()) {
+            stream = stream.filter(symbol -> matchesTypeConstraint(symbol, targetType));
         }
         List<Symbol> filteredSymbols = stream.toList();
 
@@ -370,6 +523,77 @@ public class ModelGenerator {
             }
         }
         return flowNodesList;
+    }
+
+    private boolean matchesTypeConstraint(Symbol symbol, TypeConstraint constraint) {
+        Optional<TypeSymbol> optType = getSymbolType(symbol);
+        if (optType.isEmpty()) {
+            return false;
+        }
+        TypeSymbol candidateType = optType.get();
+        if (TYPE_MATCH_SUBTYPE.equals(constraint.relation())) {
+            return resolveTypeConstraint(constraint)
+                    .map(target -> CommonUtils.subTypeOf(candidateType, target))
+                    .orElseGet(() -> matchesExactType(candidateType, constraint));
+        }
+        return matchesExactType(candidateType, constraint);
+    }
+
+    private Optional<TypeSymbol> getSymbolType(Symbol symbol) {
+        return switch (symbol.kind()) {
+            case VARIABLE -> Optional.of(((VariableSymbol) symbol).typeDescriptor());
+            case CLASS_FIELD -> Optional.of(((ClassFieldSymbol) symbol).typeDescriptor());
+            default -> Optional.empty();
+        };
+    }
+
+    private boolean matchesExactType(TypeSymbol typeSymbol, TypeConstraint constraint) {
+        TypeSymbol rawType = CommonUtils.getRawType(typeSymbol);
+        Optional<ModuleID> moduleId = rawType.getModule().map(module -> module.id());
+        Optional<String> typeName = rawType.getName();
+        if (moduleId.isEmpty() || typeName.isEmpty() || !typeName.get().equals(constraint.name())) {
+            return false;
+        }
+        ModuleID id = moduleId.get();
+        if (constraint.org() != null && !constraint.org().equals(id.orgName())) {
+            return false;
+        }
+        if (constraint.packageName() != null && !constraint.packageName().equals(id.packageName())) {
+            return false;
+        }
+        if (constraint.module() != null && !constraint.module().equals(id.moduleName())) {
+            return false;
+        }
+        return constraint.version() == null
+                || constraint.version().isBlank()
+                || constraint.version().equals(id.version());
+    }
+
+    private Optional<TypeSymbol> resolveTypeConstraint(TypeConstraint constraint) {
+        if (constraint.org() == null || constraint.module() == null) {
+            return Optional.empty();
+        }
+        return semanticModel.types()
+                .typesInModule(constraint.org(), constraint.module(),
+                        constraint.version() == null ? "" : constraint.version())
+                .flatMap(types -> Optional.ofNullable(types.get(constraint.name())))
+                .flatMap(symbol -> {
+                    if (symbol instanceof TypeDefinitionSymbol typeDefinitionSymbol) {
+                        return Optional.of(typeDefinitionSymbol.typeDescriptor());
+                    }
+                    if (symbol instanceof TypeSymbol typeSymbol) {
+                        return Optional.of(typeSymbol);
+                    }
+                    return Optional.empty();
+                });
+    }
+
+    public record TypeConstraint(String org, String packageName, String module, String name, String version,
+                                 String relation) {
+
+        public boolean isDefined() {
+            return name != null && !name.isBlank();
+        }
     }
 
     /**
@@ -669,6 +893,7 @@ public class ModelGenerator {
     private boolean isClassOrObject(TypeSymbol typeSymbol) {
         if (typeSymbol.kind() == SymbolKind.CLASS) {
             if (((ClassSymbol) typeSymbol).qualifiers().contains(Qualifier.CLIENT) || isAgentClass(typeSymbol) ||
+                    isAiFixedTypedAgent(typeSymbol) || isAiDependentlyTypedAgent(typeSymbol) ||
                     isAiVectorStore(typeSymbol) || isAiKnowledgeBase(typeSymbol) || isAiMemoryStore(typeSymbol) ||
                     isAiDataLoader(typeSymbol)) {
                 return true;

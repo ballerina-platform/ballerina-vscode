@@ -26,31 +26,60 @@ import io.ballerina.centralconnector.response.DependentPackage;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationAttachmentSymbol;
+import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ClassFieldSymbol;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
+import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
+import io.ballerina.compiler.api.symbols.MethodSymbol;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Qualifier;
 import io.ballerina.compiler.api.symbols.StreamTypeSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
+import io.ballerina.compiler.api.symbols.VariableSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
+import io.ballerina.compiler.syntax.tree.AssignmentStatementNode;
+import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
+import io.ballerina.compiler.syntax.tree.ExpressionNode;
+import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
+import io.ballerina.compiler.syntax.tree.FunctionBodyBlockNode;
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
+import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
+import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
+import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
+import io.ballerina.compiler.syntax.tree.StatementNode;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
+import io.ballerina.flowmodelgenerator.core.model.Category;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
+import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependenciesToml;
+import io.ballerina.projects.Document;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
@@ -61,6 +90,9 @@ import io.ballerina.projects.environment.PackageResolver;
 import io.ballerina.projects.environment.ResolutionOptions;
 import io.ballerina.projects.environment.ResolutionRequest;
 import io.ballerina.projects.environment.ResolutionResponse;
+import io.ballerina.tools.diagnostics.Location;
+import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
+import org.wso2.ballerinalang.compiler.tree.BLangConstantValue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,12 +105,17 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -151,10 +188,28 @@ public class AiUtils {
     private static final String NAME = "name";
     private static final String VERSION = "version";
     private static final String INIT_METHOD = "init";
+    private static final String EVAL_PACKAGE = "ai.eval";
+    private static final String EVAL_TEMPLATE_ANNOTATION = "EvalTemplate";
     private static final AiComponentDiskCache diskCache = new AiComponentDiskCache();
 
     public static final String MEMORY_DEFAULT_VALUE = "10";
     public static final String AI_PROMPT_TYPE = "ai:Prompt";
+
+    private static final String AGENT_INFO_KEY = "agentInfo";
+    private static final String CONNECTION_DATA_KEY = "connection";
+    private static final String AGENT_PARAM_DATA_KEY = "agent";
+    private static final String AGENT_DESCRIPTION_KEY = "description";
+    static final String AGENT_SYSTEM_PROMPT_KEY = "systemPrompt";
+    static final String AGENT_TOOLS_KEY = "tools";
+    static final String MODEL_PROVIDER_METADATA_KEY = "modelProvider";
+    static final String MEMORY_METADATA_KEY = "memory";
+    private static final String PROPERTY_KEY = "propertyKey";
+    private static final String PRESENTATION_KEY = "presentation";
+    private static final String MEMORY_INTERFACE_NAME = "Memory";
+    private static final String AGENT_TOOL_ANNOT = "AgentTool";
+    private static final String DISPLAY_ANNOT = "display";
+    private static final String SYSTEM_PROMPT_ROLE = "role";
+    private static final String SYSTEM_PROMPT_INSTRUCTIONS = "instructions";
 
     static {
         versionToFeatures.put("1.0.0",
@@ -162,6 +217,24 @@ public class AiUtils {
         versionToFeatures.put("1.3.0", Set.of(CHUNKERS, DATA_LOADERS));
         versionToFeatures.put("1.6.0", Set.of(SHORT_TERM_MEMORY_STORE));
         initFallbackDependentModules();
+    }
+
+    public static boolean isEvalTemplateFunction(FunctionSymbol function) {
+        if (function == null || function.getModule().filter(AiUtils::isEvalModule).isEmpty()) {
+            return false;
+        }
+        for (AnnotationAttachmentSymbol attachment : function.annotAttachments()) {
+            AnnotationSymbol annotation = attachment.typeDescriptor();
+            if (EVAL_TEMPLATE_ANNOTATION.equals(annotation.getName().orElse(null))
+                    && annotation.getModule().filter(AiUtils::isEvalModule).isPresent()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isEvalModule(ModuleSymbol module) {
+        return Ai.BALLERINA_ORG.equals(module.id().orgName()) && EVAL_PACKAGE.equals(module.id().moduleName());
     }
 
     private static void initFallbackDependentModules() {
@@ -303,7 +376,8 @@ public class AiUtils {
                 original.metadata().functionKind(),
                 original.metadata().data(),
                 original.metadata().connectors()
-        );
+        ,
+                null);
 
         return new Property(
                 updatedMetadata,
@@ -385,12 +459,8 @@ public class AiUtils {
         Object valueToUse = customValue != null ? customValue : property.value();
         boolean hidden = isHidden || property.hidden();
 
-        // When a property from a template is flagged as hidden it is an internal default
-        // that should not be user-visible.  If the node builder has already set this key
-        // from its own authoritative data (e.g. AGENT_CALL sets type/variable from the
-        // function's return type), do not replace those correct values with the template
-        // defaults (e.g. ai:Agent / aiAgent from the AGENT template).
-        if (hidden && nodeBuilder.properties().build().containsKey(key)) {
+        Property existingProperty = nodeBuilder.properties().build().get(key);
+        if (hidden && existingProperty != null && existingProperty != property) {
             return;
         }
 
@@ -427,9 +497,11 @@ public class AiUtils {
      * @param placeholder  the placeholder text
      * @param value        the property value
      * @param selectedType the selected field type (PROMPT or EXPRESSION)
+     * @param optional     whether the property is optional
      */
     public static void addStringProperty(NodeBuilder nodeBuilder, String key, String label, String description,
-                                         String placeholder, String value, Property.ValueType selectedType) {
+                                         String placeholder, String value, Property.ValueType selectedType,
+                                         boolean optional) {
         if (nodeBuilder == null || key == null) {
             throw new IllegalArgumentException("NodeBuilder and key cannot be null");
         }
@@ -454,10 +526,10 @@ public class AiUtils {
                     .selected(!isPromptSelected)
                     .stepOut()
                 .placeholder(placeholder != null ? placeholder : "")
-                .optional(true)
+                .optional(optional)
                 .editable()
                 .codedata()
-                    .kind("REQUIRED")
+                    .kind(optional ? "DEFAULTABLE" : "REQUIRED")
                     .stepOut()
                 .stepOut()
                 .addProperty(key);
@@ -718,11 +790,96 @@ public class AiUtils {
      * label (case-insensitive).
      */
     public static boolean matchesQuery(AvailableNode node, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
         String lowerQuery = query.toLowerCase(Locale.ROOT);
-        String module = node.codedata().module();
+        Codedata codedata = node.codedata();
+        String module = codedata.module();
+        String packageName = codedata.packageName();
+        String org = codedata.org();
+        String object = codedata.object();
         String label = node.metadata() != null ? node.metadata().label() : null;
+        String description = node.metadata() != null ? node.metadata().description() : null;
         return (module != null && module.toLowerCase(Locale.ROOT).contains(lowerQuery))
-                || (label != null && label.toLowerCase(Locale.ROOT).contains(lowerQuery));
+                || (packageName != null && packageName.toLowerCase(Locale.ROOT).contains(lowerQuery))
+                || (org != null && org.toLowerCase(Locale.ROOT).contains(lowerQuery))
+                || (object != null && object.toLowerCase(Locale.ROOT).contains(lowerQuery))
+                || (label != null && label.toLowerCase(Locale.ROOT).contains(lowerQuery))
+                || (description != null && description.toLowerCase(Locale.ROOT).contains(lowerQuery));
+    }
+
+    /**
+     * Builds an AI component category that keeps single-component packages as direct leaves and groups packages
+     * exposing multiple implementations of the requested component type. Grouping happens after component discovery,
+     * so every leaf retains the original codedata needed for template generation.
+     *
+     * @param categoryLabel the label of the outer AI component category
+     * @param components the discovered component implementations
+     * @param query the optional search query
+     * @return the category containing direct leaves and package groups
+     */
+    public static Category buildAdaptiveAiComponentCategory(String categoryLabel, List<AvailableNode> components,
+                                                            String query) {
+        Map<String, List<AvailableNode>> componentsByPackage = components.stream()
+                .collect(Collectors.groupingBy(node -> node.codedata().org() + ":" + node.codedata().packageName(),
+                        LinkedHashMap::new, Collectors.toList()));
+
+        List<Item> items = componentsByPackage.entrySet().stream()
+                .map(entry -> buildAdaptiveAiComponentItem(categoryLabel, entry.getValue(), query))
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new Category.Builder(null).metadata().label(categoryLabel).stepOut().items(items).build();
+    }
+
+    private static Item buildAdaptiveAiComponentItem(String categoryLabel, List<AvailableNode> components,
+                                                     String query) {
+        AvailableNode firstComponent = components.getFirst();
+
+        if (components.size() == 1) {
+            return matchesQuery(firstComponent, query) ? firstComponent : null;
+        }
+
+        String packageName = firstComponent.codedata().packageName();
+        String groupLabel = getPackageDisplayLabel(packageName) + " " + categoryLabel;
+        boolean packageMatches = matchesQuery(groupLabel, packageName, firstComponent.codedata().org(), query);
+        List<AvailableNode> matchingComponents = packageMatches ? components : components.stream()
+                .filter(node -> matchesQuery(node, query))
+                .toList();
+        if (matchingComponents.isEmpty()) {
+            return null;
+        }
+
+        // The group icon is the package icon when the selected version is available. For latest-version
+        // components, codedata deliberately omits the version, so retain the discovered icon instead of
+        // constructing an invalid "null" package-icon URL.
+        String packageIcon = firstComponent.codedata().version() == null
+                ? firstComponent.metadata().icon()
+                : CommonUtils.generateIcon(firstComponent.codedata().org(), packageName,
+                        firstComponent.codedata().version());
+        Metadata metadata = new Metadata.Builder<Category.Builder>(null)
+                .label(groupLabel)
+                .description(categoryLabel + " available in " + firstComponent.codedata().org() + "/" + packageName)
+                .icon(packageIcon)
+                .build();
+        return new Category(metadata, new ArrayList<>(matchingComponents));
+    }
+
+    private static boolean matchesQuery(String groupLabel, String packageName, String org, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        String lowerQuery = query.toLowerCase(Locale.ROOT);
+        return groupLabel.toLowerCase(Locale.ROOT).contains(lowerQuery)
+                || packageName.toLowerCase(Locale.ROOT).contains(lowerQuery)
+                || org.toLowerCase(Locale.ROOT).contains(lowerQuery);
+    }
+
+    private static String getPackageDisplayLabel(String packageName) {
+        int lastDot = packageName.lastIndexOf('.');
+        String rawPackageName = lastDot >= 0 ? packageName.substring(lastDot + 1) : packageName;
+        return formatProviderName(rawPackageName);
     }
 
     private static List<Module> pinUserDeclaredVersions(Project project, List<Module> modules) {
@@ -972,7 +1129,10 @@ public class AiUtils {
                 .flatMap(Documentation::description)
                 .orElse(getDefaultNodeLabel(kind, label.split(" ")[0]));
 
-        String icon = CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
+        // Prefer the class-specific icon from the @display annotation; fall back to the package icon.
+        String icon = getDisplayIcon(classSymbol)
+                .orElseGet(() -> CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(),
+                        moduleInfo.version()));
         Metadata metadata = new Metadata.Builder<>(null).label(label).description(description).icon(icon).build();
         Codedata.Builder<Object> codedataBuilder = new Codedata.Builder<>(null).version(codedataVersion)
                 .packageName(moduleInfo.packageName()).module(moduleInfo.moduleName()).org(moduleInfo.org())
@@ -988,7 +1148,8 @@ public class AiUtils {
 
     private static AvailableNode reconstructFromCache(AiComponentDiskCache.CachedComponent comp,
                                                       ModuleInfo moduleInfo, String codedataVersion) {
-        String icon = CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
+        String icon = (comp.icon() != null && !comp.icon().isEmpty()) ? comp.icon()
+                : CommonUtils.generateIcon(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.version());
         Metadata metadata = new Metadata.Builder<>(null).label(comp.label()).description(comp.description())
                 .icon(icon).build();
         NodeKind kind = NodeKind.valueOf(comp.category());
@@ -1007,19 +1168,27 @@ public class AiUtils {
                                                                           AvailableNode node, NodeKind category) {
         String className = classSymbol.getName().orElse("");
         return new AiComponentDiskCache.CachedComponent(className, node.metadata().label(),
-                node.metadata().description(), category.name(), node.codedata().symbol());
+                node.metadata().description(), category.name(), node.codedata().symbol(), node.metadata().icon());
     }
 
     private static Optional<String> getDisplayLabel(ClassSymbol classSymbol) {
+        return getDisplayField(classSymbol, "label");
+    }
+
+    private static Optional<String> getDisplayIcon(ClassSymbol classSymbol) {
+        return getDisplayField(classSymbol, "iconPath");
+    }
+
+    private static Optional<String> getDisplayField(ClassSymbol classSymbol, String field) {
         return classSymbol.annotAttachments().stream()
                 .filter(a -> a.typeDescriptor().getName().map("display"::equals).orElse(false))
                 .findFirst()
                 .flatMap(AnnotationAttachmentSymbol::attachmentValue)
                 .filter(v -> v.value() instanceof Map)
-                .map(v -> ((Map<?, ?>) v.value()).get("label"))
+                .map(v -> ((Map<?, ?>) v.value()).get(field))
                 .filter(ConstantValue.class::isInstance)
                 .map(v -> ((ConstantValue) v).value().toString())
-                .filter(label -> !label.isEmpty());
+                .filter(value -> !value.isEmpty());
     }
 
     private static String buildLabel(String moduleName, String className) {
@@ -1032,16 +1201,24 @@ public class AiUtils {
 
         int lastDot = moduleName.lastIndexOf('.');
         String rawProviderName = lastDot >= 0 ? moduleName.substring(lastDot + 1) : moduleName.replaceAll("^ai", "");
-        String providerName = splitPascalCase(capitalizeFirstChar(rawProviderName));
+        String providerName = formatProviderName(rawProviderName);
         String splitClassName = splitPascalCase(className);
-        String label = (providerName + " " + splitClassName)
+        String label = normalizeProviderCasing(providerName + " " + splitClassName)
+                .trim().replaceAll("\\s+", " ");
+        return label;
+    }
+
+    private static String formatProviderName(String providerName) {
+        return normalizeProviderCasing(splitPascalCase(capitalizeFirstChar(providerName)));
+    }
+
+    private static String normalizeProviderCasing(String providerName) {
+        return providerName
                 .replaceAll("(?i)openai", "OpenAI")
                 .replaceAll("(?i)mssql", "MSSQL")
                 .replaceAll("(?i)\\bai\\b", "AI")
                 .replace("Open AI", "OpenAI")
-                .replace("Openrouter", "OpenRouter")
-                .trim().replaceAll("\\s+", " ");
-        return label;
+                .replace("Openrouter", "OpenRouter");
     }
 
     private static String splitPascalCase(String input) {
@@ -1185,6 +1362,93 @@ public class AiUtils {
         return new AgentToolCompatibility(true, null);
     }
 
+    /**
+     * Categorizes a connector action's return type for the "create activity from connection" form.
+     *
+     * @param kind {@code "dependent"} (the return type depends on a typedesc parameter, so the user
+     *             picks it — like a databinding type), {@code "anydata"} (a concrete data type usable
+     *             as-is and shown read-only), or {@code "undeterminable"} (contains object/stream/etc.,
+     *             so the user must pick the type and may need to fix the generated return statement)
+     * @param type the resolved success (non-error) return type signature; empty for {@code "dependent"}
+     */
+    public record ReturnTypeInfo(String kind, String type) {
+    }
+
+    /**
+     * Analyzes a function's return type to drive the activity-from-connection return-type field.
+     * Mirrors the return-type rules of {@link #checkAgentToolCompatibility}.
+     */
+    public static ReturnTypeInfo analyzeReturnType(FunctionTypeSymbol functionTypeSymbol,
+                                                   SemanticModel semanticModel) {
+        Optional<List<ParameterSymbol>> optParams = functionTypeSymbol.params();
+        boolean dependent = optParams.isPresent() && optParams.get().stream()
+                .anyMatch(p -> CommonUtils.getRawType(p.typeDescriptor()).typeKind() == TypeDescKind.TYPEDESC);
+        if (dependent) {
+            return new ReturnTypeInfo("dependent", "");
+        }
+        Optional<TypeSymbol> optReturnType = functionTypeSymbol.returnTypeDescriptor();
+        if (optReturnType.isEmpty()) {
+            return new ReturnTypeInfo("anydata", "");
+        }
+        TypeSymbol successType = nonErrorReturnType(optReturnType.get());
+        if (successType == null) {
+            return new ReturnTypeInfo("anydata", "");
+        }
+        TypeSymbol anydata = semanticModel.types().ANYDATA;
+        // Use the module-qualified signature (e.g. "http:Response") rather than TypeSymbol.signature(),
+        // which embeds the module version ("ballerina:http:2.16.5:Response") and makes goldens break on
+        // every central patch bump.
+        String signature = CommonUtils.getTypeSignature(semanticModel, successType, false);
+        if (CommonUtils.subTypeOf(successType, anydata)) {
+            return new ReturnTypeInfo("anydata", signature);
+        }
+        return new ReturnTypeInfo("undeterminable", signature);
+    }
+
+    /**
+     * Returns the names of the function's parameters whose type is not a subtype of {@code anydata}
+     * (skipping the typedesc type-infer parameter). The create-activity-from-connection form surfaces
+     * these as {@code anydata} with a warning, since a workflow activity parameter must be serializable.
+     */
+    public static List<String> getNonAnydataParams(FunctionTypeSymbol functionTypeSymbol,
+                                                   SemanticModel semanticModel) {
+        List<String> nonDataParams = new ArrayList<>();
+        Optional<List<ParameterSymbol>> optParams = functionTypeSymbol.params();
+        if (optParams.isEmpty()) {
+            return nonDataParams;
+        }
+        TypeSymbol anydata = semanticModel.types().ANYDATA;
+        for (ParameterSymbol param : optParams.get()) {
+            if (CommonUtils.getRawType(param.typeDescriptor()).typeKind() == TypeDescKind.TYPEDESC) {
+                continue;
+            }
+            if (!CommonUtils.subTypeOf(param.typeDescriptor(), anydata)) {
+                param.getName().ifPresent(nonDataParams::add);
+            }
+        }
+        return nonDataParams;
+    }
+
+    // Returns the non-error/non-nil part of a (possibly union) return type, or null when it carries
+    // no data (e.g. error?).
+    private static TypeSymbol nonErrorReturnType(TypeSymbol returnType) {
+        TypeSymbol rawType = CommonUtils.getRawType(returnType);
+        if (rawType.typeKind() != TypeDescKind.UNION) {
+            TypeDescKind kind = rawType.typeKind();
+            return (kind == TypeDescKind.ERROR || kind == TypeDescKind.NIL) ? null : returnType;
+        }
+        List<TypeSymbol> members = ((UnionTypeSymbol) rawType).memberTypeDescriptors().stream()
+                .filter(m -> {
+                    TypeDescKind kind = CommonUtils.getRawType(m).typeKind();
+                    return kind != TypeDescKind.ERROR && kind != TypeDescKind.NIL;
+                })
+                .toList();
+        if (members.isEmpty()) {
+            return null;
+        }
+        return members.size() == 1 ? members.get(0) : returnType;
+    }
+
     private static boolean isValidAgentToolReturnType(TypeSymbol returnType, TypeSymbol anydata) {
         TypeSymbol rawType = CommonUtils.getRawType(returnType);
 
@@ -1224,4 +1488,600 @@ public class AiUtils {
         }
         return false;
     }
+
+    private record AgentToolData(String name, String path, String description, String type) {
+    }
+
+    private record WiredParam(String name, int index) {
+    }
+
+    public static void applyAgentTypeMetadata(NodeBuilder nodeBuilder, ClassSymbol classSymbol,
+                                              SeparatedNodeList<FunctionArgumentNode> argumentNodes, Project project,
+                                              Function<ExpressionNode, Object> modelIconResolver,
+                                              Function<ExpressionNode, Object> memoryDataResolver) {
+        markClientConnectionParams(nodeBuilder, classSymbol);
+
+        markAgentParams(nodeBuilder, classSymbol);
+
+        AgentInfo info = resolveAgentInfo(classSymbol, project);
+        Map<String, Object> agentInfo = baseAgentMetadata(classSymbol, info);
+        if (info.modelParam() != null) {
+            applyWiredParam(nodeBuilder, argumentNodes, info.modelParam(), agentInfo, MODEL_PROVIDER_METADATA_KEY,
+                    modelIconResolver);
+        }
+        if (info.memoryParam() != null) {
+            applyWiredParam(nodeBuilder, argumentNodes, info.memoryParam(), agentInfo, MEMORY_METADATA_KEY,
+                    memoryDataResolver);
+        }
+        addAgentMetadata(nodeBuilder, agentInfo);
+    }
+
+    public static void applyAgentRunMetadata(NodeBuilder nodeBuilder, ClassSymbol classSymbol,
+                                             SeparatedNodeList<FunctionArgumentNode> argumentNodes, Project project,
+                                             Function<ExpressionNode, Object> modelResolver) {
+        AgentInfo info = resolveAgentInfo(classSymbol, project);
+        Map<String, Object> agentInfo = baseAgentMetadata(classSymbol, info);
+        if (info.modelParam() != null && modelResolver != null) {
+            ExpressionNode arg = getArgumentForParam(argumentNodes, info.modelParam());
+            if (arg != null) {
+                Object resolved = modelResolver.apply(arg);
+                addPresentationMetadata(agentInfo, MODEL_PROVIDER_METADATA_KEY, resolved);
+            }
+        }
+        addAgentMetadata(nodeBuilder, agentInfo);
+    }
+
+    private static Map<String, Object> baseAgentMetadata(ClassSymbol classSymbol, AgentInfo info) {
+        Map<String, Object> agentInfo = new HashMap<>();
+        getCustomAgentDescription(classSymbol)
+                .ifPresent(description -> agentInfo.put(AGENT_DESCRIPTION_KEY, description));
+        addSystemPromptMetadata(agentInfo, info.systemPrompt());
+        if (!info.tools().isEmpty()) {
+            agentInfo.put(AGENT_TOOLS_KEY, info.tools());
+        }
+        return agentInfo;
+    }
+
+    private static void addSystemPromptMetadata(Map<String, Object> agentInfo, SystemPromptData systemPrompt) {
+        if (systemPrompt == null) {
+            return;
+        }
+        Map<String, String> agentData = new HashMap<>();
+        if (systemPrompt.role() != null) {
+            agentData.put(SYSTEM_PROMPT_ROLE, systemPrompt.role());
+        }
+        if (systemPrompt.instructions() != null) {
+            agentData.put(SYSTEM_PROMPT_INSTRUCTIONS, systemPrompt.instructions());
+        }
+        if (!agentData.isEmpty()) {
+            agentInfo.put(AGENT_SYSTEM_PROMPT_KEY, agentData);
+        }
+    }
+
+    static void addAgentMetadata(NodeBuilder nodeBuilder, Map<String, Object> agentInfo) {
+        if (!agentInfo.isEmpty()) {
+            nodeBuilder.metadata().addData(AGENT_INFO_KEY, agentInfo);
+        }
+    }
+
+    private record AgentInfo(SystemPromptData systemPrompt, List<AgentToolData> tools, WiredParam modelParam,
+                             WiredParam memoryParam) {
+        private static final AgentInfo EMPTY = new AgentInfo(null, List.of(), null, null);
+    }
+
+    private record SystemPromptData(String role, String instructions) {
+    }
+
+    private static AgentInfo resolveAgentInfo(ClassSymbol classSymbol, Project project) {
+        Optional<AgentInfo> fromAnnotation = readAgentMetadata(classSymbol);
+        if (fromAnnotation.isPresent()) {
+            return fromAnnotation.get();
+        }
+        if (!isWorkspaceClass(classSymbol, project)) {
+            return AgentInfo.EMPTY;
+        }
+        return new AgentInfo(workspaceSystemPrompt(classSymbol, project), toolMethodsOf(classSymbol),
+                initParamOfType(classSymbol, Ai.MODEL_PROVIDER_TYPE_NAME).orElse(null),
+                initParamOfType(classSymbol, MEMORY_INTERFACE_NAME).orElse(null));
+    }
+
+    private static SystemPromptData workspaceSystemPrompt(ClassSymbol classSymbol, Project project) {
+        Optional<Location> location = classSymbol.initMethod().flatMap(MethodSymbol::getLocation);
+        Optional<ModuleID> module = classSymbol.getModule().map(ModuleSymbol::id);
+        if (location.isEmpty() || module.isEmpty()) {
+            return null;
+        }
+        for (Project owner : getProjectsForModule(module.get().orgName(), module.get().packageName(), project)) {
+            Document document = CommonUtils.getDocument(owner, location.get());
+            if (document == null) {
+                continue;
+            }
+            NonTerminalNode node = ((ModulePartNode) document.syntaxTree().rootNode())
+                    .findNode(location.get().textRange());
+            MappingConstructorExpressionNode mapping = findSystemPromptMapping(node);
+            if (mapping != null) {
+                return toSystemPrompt(mapping);
+            }
+        }
+        return null;
+    }
+
+    private static MappingConstructorExpressionNode findSystemPromptMapping(NonTerminalNode node) {
+        while (node != null && !(node instanceof FunctionDefinitionNode)) {
+            node = node.parent();
+        }
+        if (node == null || !(((FunctionDefinitionNode) node).functionBody() instanceof FunctionBodyBlockNode body)) {
+            return null;
+        }
+        for (StatementNode stmt : body.statements()) {
+            if (!(stmt instanceof AssignmentStatementNode assign)
+                    || !assign.varRef().toSourceCode().strip().equals("self.agent")) {
+                continue;
+            }
+            ExpressionNode expr = assign.expression();
+            if (expr instanceof CheckExpressionNode check) {
+                expr = check.expression();
+            }
+            if (!(expr instanceof ImplicitNewExpressionNode newExpr) || newExpr.parenthesizedArgList().isEmpty()) {
+                continue;
+            }
+            for (FunctionArgumentNode arg : newExpr.parenthesizedArgList().get().arguments()) {
+                if (arg instanceof NamedArgumentNode named
+                        && named.argumentName().name().text().equals(AGENT_SYSTEM_PROMPT_KEY)
+                        && named.expression() instanceof MappingConstructorExpressionNode mapping) {
+                    return mapping;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static SystemPromptData toSystemPrompt(MappingConstructorExpressionNode mapping) {
+        String role = null;
+        String instructions = null;
+        for (MappingFieldNode field : mapping.fields()) {
+            if (!(field instanceof SpecificFieldNode f) || f.valueExpr().isEmpty()) {
+                continue;
+            }
+            String src = f.valueExpr().get().toSourceCode().strip();
+            int firstBacktick = src.indexOf('`');
+            int lastBacktick = src.lastIndexOf('`');
+            String value = firstBacktick >= 0 && lastBacktick > firstBacktick
+                    ? src.substring(firstBacktick + 1, lastBacktick)
+                    : src.replaceAll("^\"|\"$", "");
+            switch (f.fieldName().toSourceCode().trim()) {
+                case SYSTEM_PROMPT_ROLE -> role = value;
+                case SYSTEM_PROMPT_INSTRUCTIONS -> instructions = value;
+                default -> {
+                }
+            }
+        }
+        return role != null || instructions != null ? new SystemPromptData(role, instructions) : null;
+    }
+
+    private static boolean isWorkspaceClass(ClassSymbol classSymbol, Project project) {
+        Optional<ModuleID> moduleId = classSymbol.getModule().map(ModuleSymbol::id);
+        if (moduleId.isEmpty()) {
+            return false;
+        }
+        String org = moduleId.get().orgName();
+        String packageName = moduleId.get().packageName();
+        return getProjectsForModule(org, packageName, project).stream()
+                .anyMatch(p -> org.equals(p.currentPackage().packageOrg().value())
+                        && packageName.equals(p.currentPackage().packageName().value()));
+    }
+
+    private static List<Project> getProjectsForModule(String org, String packageName, Project project) {
+        List<Project> projects = new ArrayList<>();
+        projects.add(project);
+        if (org == null || packageName == null) {
+            return projects;
+        }
+        try {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+            if (workspaceProject.isPresent()) {
+                for (Project child : compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get())) {
+                    if (org.equals(child.currentPackage().packageOrg().value())
+                            && packageName.equals(child.currentPackage().packageName().value())) {
+                        projects.add(child);
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Failed to resolve workspace projects", e);
+        }
+        return projects;
+    }
+
+    private static Optional<WiredParam> initParamOfType(ClassSymbol classSymbol, String interfaceName) {
+        return findInitParam(classSymbol, param -> isAiInterfaceType(param.typeDescriptor(), interfaceName));
+    }
+
+    private static List<AgentToolData> toolMethodsOf(ClassSymbol classSymbol) {
+        List<AgentToolData> tools = new ArrayList<>();
+        for (MethodSymbol method : classSymbol.methods().values()) {
+            Optional<String> name = method.getName();
+            if (name.isEmpty() || !hasAiAnnotation(method.annotAttachments(), AGENT_TOOL_ANNOT)) {
+                continue;
+            }
+            tools.add(new AgentToolData(name.get(), readDisplayIcon(method), null, null));
+        }
+        return tools;
+    }
+
+    public static boolean isAgentToolFunction(Symbol symbol) {
+        return symbol instanceof FunctionSymbol functionSymbol
+                && hasAiAnnotation(functionSymbol.annotAttachments(), AGENT_TOOL_ANNOT);
+    }
+
+    private static boolean hasAiAnnotation(List<AnnotationAttachmentSymbol> annotations, String annotName) {
+        return annotations.stream().anyMatch(annot -> annot.typeDescriptor().nameEquals(annotName)
+                && annot.typeDescriptor().getModule().map(ModuleSymbol::id)
+                .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName())).isPresent());
+    }
+
+    public static String getToolDisplayIcon(MethodSymbol method) {
+        String icon = readDisplayIcon(method);
+        return icon == null ? "" : icon;
+    }
+
+    private static String readDisplayIcon(MethodSymbol method) {
+        for (AnnotationAttachmentSymbol annot : method.annotAttachments()) {
+            if (annot.typeDescriptor() != null && annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
+                    && annot.attachmentValue().isPresent()
+                    && unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> map) {
+                return constantString(map.get("iconPath"));
+            }
+        }
+        return null;
+    }
+
+    public static boolean isMcpToolKitSymbol(Symbol symbol) {
+        TypeSymbol typeSymbol;
+        if (symbol instanceof VariableSymbol variableSymbol) {
+            typeSymbol = variableSymbol.typeDescriptor();
+        } else if (symbol instanceof ClassFieldSymbol classFieldSymbol) {
+            typeSymbol = classFieldSymbol.typeDescriptor();
+        } else {
+            return false;
+        }
+        return isMcpToolKitType(typeSymbol);
+    }
+
+    public static boolean isMcpToolKitType(TypeSymbol typeSymbol) {
+        if (typeSymbol.nameEquals("McpToolKit") && typeSymbol.getModule()
+                .map(module -> CommonUtils.isAiModule(module.id().orgName(), module.id().packageName()))
+                .orElse(false)) {
+            return true;
+        }
+        return CommonUtils.getRawType(typeSymbol) instanceof ClassSymbol classSymbol
+                && CommonUtils.isAiMcpBaseToolKit(classSymbol);
+    }
+
+    private static Optional<AgentInfo> readAgentMetadata(ClassSymbol classSymbol) {
+        for (AnnotationAttachmentSymbol annot : classSymbol.annotAttachments()) {
+            if (!annot.typeDescriptor().nameEquals(DISPLAY_ANNOT)
+                    || annot.attachmentValue().isEmpty()
+                    || !(unwrapConstant(annot.attachmentValue().get()) instanceof Map<?, ?> displayMap)) {
+                continue;
+            }
+            if (unwrapConstant(displayMap.get("agentMetadata")) instanceof Map<?, ?> root) {
+                return Optional.of(buildAgentInfo(classSymbol, root));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static AgentInfo buildAgentInfo(ClassSymbol classSymbol, Map<?, ?> root) {
+        List<AgentToolData> tools = new ArrayList<>();
+        if (unwrapConstant(root.get(AGENT_TOOLS_KEY)) instanceof List<?> toolList) {
+            for (Object elem : toolList) {
+                if (unwrapConstant(elem) instanceof Map<?, ?> toolMap) {
+                    AgentToolData tool = parseToolMetadata(toolMap);
+                    if (tool != null) {
+                        tools.add(tool);
+                    }
+                }
+            }
+        }
+        WiredParam model = resolveInitParamByName(classSymbol,
+                parseParameterName(root.get(MODEL_PROVIDER_METADATA_KEY))).orElse(null);
+        WiredParam memory = resolveInitParamByName(classSymbol,
+                parseParameterName(root.get(MEMORY_METADATA_KEY))).orElse(null);
+        return new AgentInfo(parseSystemPrompt(root.get(AGENT_SYSTEM_PROMPT_KEY)), tools, model, memory);
+    }
+
+    private static SystemPromptData parseSystemPrompt(Object value) {
+        if (unwrapConstant(value) instanceof Map<?, ?> map) {
+            String role = constantString(map.get(SYSTEM_PROMPT_ROLE));
+            String instructions = constantString(map.get(SYSTEM_PROMPT_INSTRUCTIONS));
+            if (role != null || instructions != null) {
+                return new SystemPromptData(role, instructions);
+            }
+        }
+        return null;
+    }
+
+    private static String constantString(Object value) {
+        Object unwrapped = unwrapConstant(value);
+        return unwrapped != null && !unwrapped.toString().isBlank() ? unwrapped.toString() : null;
+    }
+
+    private static String parseParameterName(Object value) {
+        String name = unwrapConstant(value) instanceof Map<?, ?> map
+                ? constantString(map.get("parameterName")) : null;
+        return name == null ? null : name.strip();
+    }
+
+    private static AgentToolData parseToolMetadata(Map<?, ?> toolMap) {
+        String name = constantString(toolMap.get("name"));
+        if (name == null) {
+            return null;
+        }
+        boolean isMcp = "MCP_TOOLKIT".equals(constantString(toolMap.get("kind")));
+        return new AgentToolData(name, constantString(toolMap.get("icon")), null, isMcp ? "MCP Server" : null);
+    }
+
+    private static Object unwrapConstant(Object value) {
+        if (value instanceof ConstantValue constant) {
+            return constant.value();
+        }
+        if (value instanceof BLangConstantValue bLangConstant) {
+            return bLangConstant.value;
+        }
+        return value;
+    }
+
+    private static Optional<WiredParam> resolveInitParamByName(ClassSymbol classSymbol, String paramName) {
+        return paramName == null ? Optional.empty()
+                : findInitParam(classSymbol, param -> param.getName().filter(paramName::equals).isPresent());
+    }
+
+    private static Optional<WiredParam> findInitParam(ClassSymbol classSymbol, Predicate<ParameterSymbol> matcher) {
+        List<ParameterSymbol> params = classSymbol.initMethod()
+                .flatMap(method -> method.typeDescriptor().params()).orElse(List.of());
+        for (int i = 0; i < params.size(); i++) {
+            ParameterSymbol param = params.get(i);
+            Optional<String> name = param.getName();
+            if (name.isPresent() && matcher.test(param)) {
+                return Optional.of(new WiredParam(name.get(), i));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static void applyWiredParam(NodeBuilder nodeBuilder, SeparatedNodeList<FunctionArgumentNode> argumentNodes,
+                                        WiredParam wired, Map<String, Object> agentInfo, String dependencyMetadataKey,
+                                        Function<ExpressionNode, Object> valueResolver) {
+        String paramKey = ParamUtils.removeLeadingSingleQuote(wired.name());
+        Map<String, Object> dependency = new HashMap<>();
+        dependency.put(PROPERTY_KEY, paramKey);
+
+        ExpressionNode arg = getArgumentForParam(argumentNodes, wired);
+        if (arg != null && valueResolver != null) {
+            Object resolved = valueResolver.apply(arg);
+            if (resolved != null) {
+                dependency.put(PRESENTATION_KEY, resolved);
+            }
+        }
+        agentInfo.put(dependencyMetadataKey, dependency);
+
+        Property property = nodeBuilder.properties().build().get(paramKey);
+        if (property != null) {
+            nodeBuilder.properties().build().put(paramKey, Property.Builder.copyFrom(property).hidden(true).build());
+        }
+    }
+
+    static void addPresentationMetadata(Map<String, Object> agentInfo, String dependencyMetadataKey,
+                                        Object presentation) {
+        if (presentation == null) {
+            return;
+        }
+        agentInfo.put(dependencyMetadataKey, Map.of(PRESENTATION_KEY, presentation));
+    }
+
+    public static void markClientConnectionParams(NodeBuilder nodeBuilder, Codedata codedata, Project project) {
+        markClassParams(nodeBuilder, codedata, project, AiUtils::markClientConnectionParams);
+    }
+
+    private static void markClientConnectionParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol) {
+        markInitParams(nodeBuilder, classSymbol,
+                clientClass -> clientClass.qualifiers().contains(Qualifier.CLIENT),
+                (clientClass, existing) -> buildParamCodedata(clientClass, existing, NodeKind.NEW_CONNECTION,
+                        CONNECTION_DATA_KEY, false));
+    }
+
+    public static void markAgentParams(NodeBuilder nodeBuilder, Codedata codedata, Project project) {
+        markClassParams(nodeBuilder, codedata, project, AiUtils::markAgentParams);
+    }
+
+    private static void markClassParams(NodeBuilder nodeBuilder, Codedata codedata, Project project,
+                                        BiConsumer<NodeBuilder, ClassSymbol> paramMarker) {
+        if (codedata == null || codedata.object() == null) {
+            return;
+        }
+        resolveClass(codedata, project).ifPresent(classSymbol -> paramMarker.accept(nodeBuilder, classSymbol));
+    }
+
+    private static void markAgentParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol) {
+        markInitParams(nodeBuilder, classSymbol,
+                agentClass -> CommonUtils.isAgentClass(agentClass)
+                        || CommonUtils.isAiFixedTypedAgent(agentClass)
+                        || CommonUtils.isAiDependentlyTypedAgent(agentClass),
+                (agentClass, existing) -> buildParamCodedata(agentClass, existing,
+                        CommonUtils.isAgentClass(agentClass) ? NodeKind.AGENT : NodeKind.TYPED_AGENT,
+                        AGENT_PARAM_DATA_KEY, null));
+    }
+
+    private static void markInitParams(NodeBuilder nodeBuilder, ClassSymbol classSymbol,
+                                       Predicate<ClassSymbol> paramClassMatcher,
+                                       BiFunction<ClassSymbol, PropertyCodedata, PropertyCodedata> codedataBuilder) {
+        Optional<MethodSymbol> initMethodOpt = classSymbol.initMethod();
+        if (initMethodOpt.isEmpty()) {
+            return;
+        }
+        Map<String, Property> properties = nodeBuilder.properties().build();
+        for (ParameterSymbol param : initMethodOpt.get().typeDescriptor().params().orElse(List.of())) {
+            Optional<String> paramName = param.getName();
+            TypeSymbol rawType = CommonUtils.getRawType(param.typeDescriptor());
+            if (paramName.isEmpty() || !(rawType instanceof ClassSymbol paramClass)
+                    || !paramClassMatcher.test(paramClass)) {
+                continue;
+            }
+            String propertyKey = ParamUtils.removeLeadingSingleQuote(paramName.get());
+            Property property = properties.get(propertyKey);
+            if (property == null) {
+                continue;
+            }
+            PropertyCodedata codedata = codedataBuilder.apply(paramClass, property.codedata());
+            if (codedata != null) {
+                properties.put(propertyKey, copyPropertyWithCodedata(property, codedata));
+            }
+        }
+    }
+
+    private static PropertyCodedata buildParamCodedata(ClassSymbol parameterClass, PropertyCodedata existing,
+                                                        NodeKind nodeKind, String dataKey, Boolean isGenerated) {
+        Optional<ModuleSymbol> module = parameterClass.getModule();
+        Optional<String> className = parameterClass.getName();
+        if (module.isEmpty() || className.isEmpty()) {
+            return null;
+        }
+        ModuleInfo moduleInfo = ModuleInfo.from(module.get().id());
+        Codedata.Builder<Object> builder = new Codedata.Builder<>(null)
+                .node(nodeKind)
+                .org(moduleInfo.org())
+                .module(moduleInfo.moduleName())
+                .packageName(moduleInfo.packageName())
+                .object(className.get())
+                .symbol(Ai.AGENT_SYMBOL_NAME)
+                .version(moduleInfo.version());
+        if (isGenerated != null) {
+            builder.isGenerated(isGenerated);
+        }
+        PropertyCodedata.Builder<Object> propertyCodedata = new PropertyCodedata.Builder<>(null);
+        if (existing != null) {
+            propertyCodedata.kind(existing.kind())
+                    .originalName(existing.originalName())
+                    .dependentProperty(existing.dependentProperty())
+                    .lineRange(existing.lineRange());
+            if (existing.data() != null) {
+                existing.data().forEach(propertyCodedata::addData);
+            }
+        }
+        return propertyCodedata.addData(dataKey, builder.build()).build();
+    }
+
+    private static Property copyPropertyWithCodedata(Property property, PropertyCodedata codedata) {
+        return new Property(
+                property.metadata(),
+                property.types(),
+                property.value(),
+                property.oldValue(),
+                property.placeholder(),
+                property.optional(),
+                property.editable(),
+                property.advanced(),
+                property.hidden(),
+                property.modified(),
+                property.diagnostics(),
+                codedata,
+                property.advancedValue(),
+                property.imports(),
+                property.defaultValue(),
+                property.comment(),
+                property.dynamicFormFields(),
+                property.itemOptions()
+        );
+    }
+
+    private static Optional<ClassSymbol> resolveClass(Codedata codedata, Project project) {
+        String className = codedata.object();
+        if (className == null) {
+            return Optional.empty();
+        }
+        for (Project candidate : getProjectsForModule(codedata.org(), codedata.packageName(), project)) {
+            try {
+                Package pkg = candidate.currentPackage();
+                for (io.ballerina.projects.Module module : pkg.modules()) {
+                    if (codedata.module() != null && !codedata.module().equals(module.moduleName().toString())) {
+                        continue;
+                    }
+                    SemanticModel semanticModel = PackageUtil.getCompilation(pkg).getSemanticModel(module.moduleId());
+                    for (Symbol symbol : semanticModel.moduleSymbols()) {
+                        if (symbol instanceof ClassSymbol classSymbol
+                                && classSymbol.getName().filter(className::equals).isPresent()) {
+                            return Optional.of(classSymbol);
+                        }
+                    }
+                }
+            } catch (RuntimeException e) {
+                LOGGER.log(Level.FINE, "Failed to resolve workspace class", e);
+            }
+        }
+        try {
+            Optional<SemanticModel> centralModel =
+                    PackageUtil.getSemanticModel(codedata.org(), codedata.packageName());
+            if (centralModel.isPresent()) {
+                for (Symbol symbol : centralModel.get().moduleSymbols()) {
+                    if (symbol instanceof ClassSymbol classSymbol
+                            && classSymbol.getName().filter(className::equals).isPresent()) {
+                        return Optional.of(classSymbol);
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            LOGGER.log(Level.FINE, "Failed to resolve central class", e);
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> getCustomAgentDescription(ClassSymbol classSymbol) {
+        return classSymbol.documentation()
+                .flatMap(Documentation::description)
+                .map(String::strip)
+                .filter(description -> !description.isEmpty());
+    }
+
+    private static boolean isAiInterfaceType(TypeSymbol typeSymbol, String interfaceName) {
+        if (typeSymbol instanceof TypeReferenceTypeSymbol typeRef
+                && typeRef.definition().nameEquals(interfaceName)) {
+            return typeRef.getModule()
+                    .map(ModuleSymbol::id)
+                    .filter(id -> CommonUtils.isAiModule(id.orgName(), id.packageName()))
+                    .isPresent();
+        }
+        return false;
+    }
+
+    public static boolean isTypedAgent(TypeSymbol typeSymbol) {
+        return CommonUtils.isAiFixedTypedAgent(typeSymbol) || CommonUtils.isAiDependentlyTypedAgent(typeSymbol);
+    }
+
+    public static boolean isTypedAgent(Symbol symbol) {
+        return CommonUtils.isAiFixedTypedAgent(symbol) || CommonUtils.isAiDependentlyTypedAgent(symbol);
+    }
+
+    private static ExpressionNode getArgumentForParam(SeparatedNodeList<FunctionArgumentNode> argumentNodes,
+                                                      WiredParam param) {
+        if (argumentNodes == null) {
+            return null;
+        }
+        int positional = 0;
+        for (FunctionArgumentNode arg : argumentNodes) {
+            if (arg instanceof NamedArgumentNode named) {
+                if (named.argumentName().name().text().equals(param.name())) {
+                    return named.expression();
+                }
+            } else if (arg instanceof PositionalArgumentNode pos) {
+                if (positional == param.index()) {
+                    return pos.expression();
+                }
+                positional++;
+            }
+        }
+        return null;
+    }
+
 }

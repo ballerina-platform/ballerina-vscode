@@ -18,6 +18,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { Checkpoint } from '@wso2/ballerina-core/lib/state-machine-types';
 import { getCheckpointConfig } from './checkpointConfig';
 import { ArtifactNotificationHandler, ArtifactsUpdated } from '../../../utils/project-artifacts-handler';
@@ -64,11 +65,13 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
                 totalSize += content.length;
 
                 if (totalSize > config.maxSnapshotSize) {
-                    console.warn(`[Checkpoint] Snapshot size exceeded max limit: ${totalSize} bytes`);
+                    // Fail closed rather than save a partial checkpoint that silently leaves
+                    // later-scanned files unrevertible on restore.
+                    console.warn(`[Checkpoint] Snapshot size exceeded max limit (${totalSize} bytes) — aborting capture, no partial checkpoint will be saved`);
                     vscode.window.showWarningMessage(
-                        `Checkpoint snapshot size (${Math.round(totalSize / 1024 / 1024)}MB) exceeds limit. Some files may not be included.`
+                        `Workspace is too large to checkpoint (exceeds ${Math.round(config.maxSnapshotSize / 1024 / 1024)}MB). This generation will not be revertible.`
                     );
-                    break;
+                    return null;
                 }
             } catch (error) {
                 console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
@@ -125,18 +128,10 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
             isBalFileRestored = filesToDelete.some(filePath => filePath.endsWith('.bal')) ||
                 checkpoint.fileList.some(filePath => filePath.endsWith('.bal'));
 
-            // Create a WorkspaceEdit for batch operations
-            const workspaceEdit = new vscode.WorkspaceEdit();
-
             progress.report({ message: `Preparing ${filesToDelete.length} deletions and ${checkpoint.fileList.length} file restorations...` });
 
-            // Queue all file deletions
-            for (const filePath of filesToDelete) {
-                const fileUri = vscode.Uri.file(path.join(workspaceRoot.fsPath, filePath));
-                workspaceEdit.deleteFile(fileUri, { ignoreIfNotExists: true });
-            }
-
-            // Queue all file creations/updates with content
+            const balFilesToRestore: Array<{ fileUri: vscode.Uri; content: string }> = [];
+            const nonBalFilesToRestore: Array<{ fileUri: vscode.Uri; content: string }> = [];
             for (const [filePath, content] of Object.entries(checkpoint.workspaceSnapshot)) {
                 const fileUri = vscode.Uri.file(path.join(workspaceRoot.fsPath, filePath));
 
@@ -154,27 +149,57 @@ export async function restoreWorkspaceSnapshot(checkpoint: Checkpoint, skipArtif
                     }
                 }
 
-                // Create file first (empty or existing)
-                workspaceEdit.createFile(fileUri, { ignoreIfExists: true, overwrite: true });
+                (filePath.endsWith('.bal') ? balFilesToRestore : nonBalFilesToRestore).push({ fileUri, content });
+            }
 
-                // Then replace content to trigger proper LS notifications
-                workspaceEdit.replace(
-                    fileUri,
-                    new vscode.Range(
-                        new vscode.Position(0, 0),
-                        new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
-                    ),
-                    content
-                );
+            const balFilesToDelete: vscode.Uri[] = [];
+            const nonBalFilesToDelete: vscode.Uri[] = [];
+            for (const filePath of filesToDelete) {
+                const fileUri = vscode.Uri.file(path.join(workspaceRoot.fsPath, filePath));
+                (filePath.endsWith('.bal') ? balFilesToDelete : nonBalFilesToDelete).push(fileUri);
             }
 
             progress.report({ message: 'Applying workspace changes...' });
 
-            // Apply all changes atomically
             const resumeNotifications = suppressWebviewNotifications();
-            let success = false;
+            let success = true;
             try {
-                success = await vscode.workspace.applyEdit(workspaceEdit);
+                // Non-.bal files go through fs directly (mirrors addToIntegration's split):
+                // WorkspaceEdit.replace() silently no-ops on a file with no open TextDocument,
+                // which is never true for .bal files but always true for the rest.
+                for (const fileUri of nonBalFilesToDelete) {
+                    if (fs.existsSync(fileUri.fsPath)) {
+                        fs.unlinkSync(fileUri.fsPath);
+                    }
+                }
+                for (const { fileUri, content } of nonBalFilesToRestore) {
+                    const directory = path.dirname(fileUri.fsPath);
+                    if (!fs.existsSync(directory)) {
+                        fs.mkdirSync(directory, { recursive: true });
+                    }
+                    fs.writeFileSync(fileUri.fsPath, content, 'utf8');
+                }
+
+                if (balFilesToDelete.length > 0 || balFilesToRestore.length > 0) {
+                    const balEdit = new vscode.WorkspaceEdit();
+                    for (const fileUri of balFilesToDelete) {
+                        balEdit.deleteFile(fileUri, { ignoreIfNotExists: true });
+                    }
+                    for (const { fileUri } of balFilesToRestore) {
+                        balEdit.createFile(fileUri, { ignoreIfExists: true });
+                    }
+                    for (const { fileUri, content } of balFilesToRestore) {
+                        balEdit.replace(
+                            fileUri,
+                            new vscode.Range(
+                                new vscode.Position(0, 0),
+                                new vscode.Position(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+                            ),
+                            content
+                        );
+                    }
+                    success = await vscode.workspace.applyEdit(balEdit);
+                }
                 await vscode.workspace.saveAll();
             } finally {
                 resumeNotifications();

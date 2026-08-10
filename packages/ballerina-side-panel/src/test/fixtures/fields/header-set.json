@@ -1,0 +1,16 @@
+{
+    "description": "HEADER_SET -> HeaderSetEditor",
+    "expectedEditor": "HeaderSetEditor",
+    "fieldInputType": { "fieldType": "HEADER_SET" },
+    "field": {
+        "key": "f_HEADER_SET",
+        "label": "HEADER_SET field",
+        "type": "HEADER_SET",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "HEADER_SET", "selected": false }],
+        "enabled": true
+    }
+}

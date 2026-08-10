@@ -1,0 +1,4 @@
+[package]
+org = "testorg"
+name = "submodule_function_call"
+version = "0.1.0"

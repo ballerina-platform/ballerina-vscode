@@ -14,7 +14,6 @@
       "module": "ai",
       "packageName": "ai",
       "symbol": "getDefaultModelProvider",
-      "version": "1.0.0",
       "isNew": true
     },
     "returning": false,
@@ -35,8 +34,8 @@
       },
       "variable": {
         "metadata": {
-          "label": "Result",
-          "description": "Name of the result variable"
+          "label": "Agent Name",
+          "description": "Name of the agent"
         },
         "valueType": "IDENTIFIER",
         "value": "aiWso2modelprovider",

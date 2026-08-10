@@ -21,7 +21,7 @@
       "detail": "ConfigRecord",
       "sortText": "R",
       "filterText": "fill",
-      "insertText": "httpClient: new (${1:\"\"}, ${2:{}}),\nconfigStr: ${3:\"\"},\nnestedRecord: {id: ${4:0}, name: ${5:\"\"}}",
+      "insertText": "httpClient: new (${1:\"\"}),\nconfigStr: ${2:\"\"},\nnestedRecord: {id: ${3:0}, name: ${4:\"\"}}",
       "insertTextFormat": "Snippet"
     },
     {
@@ -42,7 +42,7 @@
       "kind": "Field",
       "detail": "ConfigRecord.httpClient",
       "sortText": "K",
-      "insertText": "httpClient: new (${1:\"\"}, ${2:{}})",
+      "insertText": "httpClient: new (${1:\"\"})",
       "insertTextFormat": "Snippet"
     },
     {

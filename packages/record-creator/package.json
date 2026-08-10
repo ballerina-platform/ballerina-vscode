@@ -11,7 +11,9 @@
         "watch": "tsc --pretty --watch",
         "build": "tsc --pretty && pnpm run copy:assets",
         "copy:assets": "copyfiles -u 1 \"src/**/*.scss\" \"src/**/*.svg\"  \"src/**/*.css\" \"src/**/*.png\" \"src/**/*.txt\" \"src/**/*.json\" lib/",
-        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+        "test:headless-view": "jest --config jest.headless-view.config.js",
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "test:typecheck": "tsc --noEmit -p tsconfig.spec.json"
     },
     "dependencies": {
         "react": "18.2.0",
@@ -41,7 +43,19 @@
         "@types/react-dom": "18.2.0",
         "typescript": "5.8.3",
         "copyfiles": "2.4.1",
-        "eslint": "9.27.0"
+        "eslint": "9.27.0",
+        "@wso2/test-config": "workspace:*",
+        "jest": "29.7.0",
+        "ts-jest": "29.3.4",
+        "babel-jest": "29.7.0",
+        "@babel/core": "7.29.6",
+        "@babel/preset-env": "7.27.2",
+        "@babel/preset-react": "7.27.1",
+        "@babel/preset-typescript": "7.27.1",
+        "jest-environment-jsdom": "29.7.0",
+        "@testing-library/react": "16.3.0",
+        "@testing-library/dom": "10.4.0",
+        "@types/jest": "29.5.14"
     },
     "author": "wso2",
     "license": "UNLICENSED",

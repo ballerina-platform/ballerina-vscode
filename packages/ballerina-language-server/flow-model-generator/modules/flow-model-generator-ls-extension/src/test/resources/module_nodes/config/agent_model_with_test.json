@@ -10,7 +10,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",
@@ -123,7 +123,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",
@@ -227,7 +227,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -264,7 +264,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -357,7 +357,7 @@
                 "typeMembers": [
                   {
                     "type": "FollowRedirects",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -394,7 +394,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -431,7 +431,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -509,49 +509,49 @@
                 "typeMembers": [
                   {
                     "type": "CredentialsConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "BearerTokenConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "JwtIssuerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2ClientCredentialsGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2PasswordGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2RefreshTokenGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2JwtBearerGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -588,7 +588,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -625,7 +625,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -662,7 +662,7 @@
                 "typeMembers": [
                   {
                     "type": "CookieConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -699,7 +699,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -736,7 +736,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -801,7 +801,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSocketConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -866,7 +866,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -982,14 +982,31 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "You are a helpful assistant",
+                "role": "Customer Support Assistant"
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "customerSupportModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
+                  "type": "Wso2ModelProvider"
+                }
+              }
+            }
+          }
         },
         "codedata": {
           "node": "AGENT",
           "org": "ballerina",
           "module": "ai",
+          "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
+          "version": "1.13.0",
           "lineRange": {
             "fileName": "main.bal",
             "startLine": {
@@ -1017,7 +1034,7 @@
                 "typeMembers": [
                   {
                     "type": "SystemPrompt",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": true
@@ -1036,7 +1053,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -1084,7 +1101,7 @@
                       "typeMembers": [
                         {
                           "type": "ToolConfig",
-                          "packageInfo": "ballerina:ai:1.11.2",
+                          "packageInfo": "ballerina:ai:1.13.0",
                           "packageName": "ai",
                           "kind": "RECORD_TYPE",
                           "selected": false
@@ -1115,7 +1132,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -1125,7 +1142,7 @@
           "maxIter": {
             "metadata": {
               "label": "Maximum Iterations",
-              "description": "The maximum number of iterations the agent performs to complete the task.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
+              "description": "The maximum number of reasoning-action cycles the agent performs to complete the task.\nA single cycle is one LLM call plus the execution of every tool call returned in\nthat response, so multiple tool calls from one response count as one iteration.\nDefaults to `max(number of tools, 10)` — i.e., at least 10, or more if the\nagent has more tools available."
             },
             "types": [
               {
@@ -1148,7 +1165,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "INFER_TOOL_COUNT"
+            "defaultValue": "\"INFER_TOOL_COUNT\""
           },
           "verbose": {
             "metadata": {
@@ -1194,7 +1211,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
@@ -1204,7 +1221,7 @@
           "toolLoadingStrategy": {
             "metadata": {
               "label": "Tool Loading Strategy",
-              "description": "Defines the strategies for loading tool schemas into an Agent. \nBy default, all tools are loaded without any filtering."
+              "description": "Defines the strategies for loading tool schemas into an Agent.\nBy default, all tools are loaded without any filtering."
             },
             "types": [
               {
@@ -1236,7 +1253,35 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "toolLoadingStrategy"
             },
-            "defaultValue": "NO_FILTER"
+            "defaultValue": "\"LLM_FILTER\""
+          },
+          "executeToolCallsInParallel": {
+            "metadata": {
+              "label": "Execute Tool Calls In Parallel",
+              "description": "Specifies whether multiple tool calls returned in a single LLM response are executed in parallel.\nIf `true`, all tool calls from one LLM response are executed concurrently;\notherwise, they are executed sequentially, one after another."
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "ballerinaType": "boolean",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "boolean",
+                "selected": false
+              }
+            ],
+            "placeholder": "false",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "INCLUDED_FIELD",
+              "originalName": "executeToolCallsInParallel"
+            },
+            "defaultValue": "false"
           },
           "credential": {
             "metadata": {
@@ -1250,7 +1295,7 @@
                 "typeMembers": [
                   {
                     "type": "Credential",
-                    "packageInfo": "ballerina:ai:1.11.2",
+                    "packageInfo": "ballerina:ai:1.13.0",
                     "packageName": "ai",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1309,6 +1354,62 @@
             "advanced": true,
             "hidden": true
           },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "Customer Support Assistant",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "You are a helpful assistant",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
           "variable": {
             "metadata": {
               "label": "Variable Name",
@@ -1366,7 +1467,7 @@
         "metadata": {
           "label": "Model Provider",
           "description": "Creates a default model provider based on the provided `wso2ProviderConfig`.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.11.2.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png"
         },
         "codedata": {
           "node": "MODEL_PROVIDER",

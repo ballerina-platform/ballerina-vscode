@@ -51,6 +51,9 @@ import {
     currentThemeChanged,
     ChatNotify,
     onChatNotify,
+    onCopilotChatNotify,
+    AgentRunStatus,
+    agentRunStatusChanged,
     checkpointCaptured,
     CheckpointCapturedPayload,
     promptUpdated,
@@ -319,6 +322,15 @@ export class BallerinaRpcClient {
 
     onChatNotify(callback: (state: ChatNotify) => void) {
         this.messenger.onNotification(onChatNotify, callback);
+    }
+
+    /** Copilot chat stream mirrored to the visualizer webview (mini-chat overlay) while the AI panel is closed. */
+    onCopilotChatNotify(callback: (state: ChatNotify) => void) {
+        this.messenger.onNotification(onCopilotChatNotify, callback);
+    }
+
+    onAgentRunStatusChanged(callback: (status: AgentRunStatus) => void) {
+        this.messenger.onNotification(agentRunStatusChanged, callback);
     }
 
     onMigrationToolLogs(callback: (message: string) => void) {

@@ -14,7 +14,6 @@
       "module": "rabbitmq",
       "object": "Client",
       "symbol": "init",
-      "version": "3.1.0",
       "isNew": true,
       "lineRange": {
         "fileName": "test.bal",

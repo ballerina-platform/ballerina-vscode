@@ -24,7 +24,9 @@ packages/ballerina-extension/grammar/ballerina-grammar/
 coverage/
 .vscode-test/
 test-resources/
+packages/ballerina-extension/test-results/
 extractedDistribution/
+packages/ballerina-extension/test-results/
 .npmrc
 .env
 .hintrc

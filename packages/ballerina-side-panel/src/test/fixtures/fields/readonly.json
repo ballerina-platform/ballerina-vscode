@@ -1,0 +1,16 @@
+{
+    "description": "non-editable non-identifier field -> ReadonlyField",
+    "expectedEditor": "ReadonlyField",
+    "fieldInputType": { "fieldType": "OUTPUT" },
+    "field": {
+        "key": "f_OUTPUT",
+        "label": "OUTPUT field",
+        "type": "OUTPUT",
+        "optional": false,
+        "editable": false,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "OUTPUT", "selected": false }],
+        "enabled": true
+    }
+}

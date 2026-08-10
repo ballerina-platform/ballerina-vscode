@@ -18,7 +18,7 @@
  */
 
 import { FunctionDefinition } from "@wso2/syntax-tree";
-import { AIMachineContext, AIMachineStateValue } from "../../state-machine-types";
+import { AIMachineContext, AIMachineStateValue, ChatNotify, GenerationReviewState } from "../../state-machine-types";
 import { Command, SkillCommand, TemplateId } from "../../interfaces/ai-panel";
 import { AllDataMapperSourceRequest, ExtendedDataMapperMetadata } from "../../interfaces/extended-lang-client";
 import { ComponentInfo, Diagnostics, DMModel, ImportStatements, LinePosition, LineRange, OperationType } from "../..";
@@ -30,7 +30,7 @@ import { DataMapperMetadata } from "../../interfaces/shared-types";
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
     | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; }
-    | { type: 'skill'; skillId: string; skillName: string; args?: string; autoSubmit?: boolean; hiddenContext?: string }
+    | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     | undefined;
 
 export interface AIMachineSnapshot {
@@ -81,6 +81,7 @@ export interface AddFilesToProjectRequest {
 export interface FileChanges {
     filePath: string;
     content: string;
+    deleted?: boolean;
 }
 
 export interface ProjectImports {
@@ -301,6 +302,8 @@ export type CodeContext =
     | { type: 'selection'; startPosition: LinePosition; endPosition: LinePosition, filePath: string };
 
 export interface GenerateAgentCodeRequest {
+    /** Client-created run identity used to reject late events from older runs. */
+    generationId?: string;
     usecase: string;
     hiddenContext?: string;
     operationType?: OperationType;
@@ -309,6 +312,10 @@ export interface GenerateAgentCodeRequest {
     isPlanMode: boolean;
     codeContext?: CodeContext;
     webSearchEnabled?: boolean;
+    /** Identifies the UI surface so the host can resolve the correct ambient file context. */
+    promptSource?: 'ai-panel' | 'mini-chat';
+    /** Host-validated workspace-relative Ballerina file currently associated with the prompt surface. */
+    activeFilePath?: string;
 }
 
 export type LibraryMode = "CORE" | "HEALTHCARE" | "ALL";
@@ -411,12 +418,17 @@ export interface SemanticDiff {
     nodeKind: number;   // API returns numeric value
     uri: string;
     lineRange: LineRange;
+    previousLineRange?: LineRange;
     metadata?: ResourceMetadata | IdentifierMetadata;
 }
 
 export interface SemanticDiffResponse {
     loadDesignDiagrams: boolean;
     semanticDiffs: SemanticDiff[];
+}
+
+export interface RevertGenerationRequest {
+    generationId: string;
 }
 
 export interface RestoreCheckpointRequest {
@@ -426,6 +438,14 @@ export interface RestoreCheckpointRequest {
 export interface UpdateChatMessageRequest {
     messageId: string;
     content: string;
+    /** Exact workspace/thread owning the generation. Omitted only by legacy callers. */
+    projectRootPath?: string;
+    threadId?: string;
+    /**
+     * Set false for intermediate recovery writes. The reconnect buffer is only
+     * cleared by the final, fully rebuilt transcript write.
+     */
+    clearRunBuffer?: boolean;
 }
 
 export interface PlanApprovalRequest {
@@ -463,6 +483,26 @@ export interface ConfigurationCancelRequest {
     comment?: string;
 }
 
+export interface CreateManagedConnectionRequest {
+    vendor: string;
+    // Expected grant shape, used to verify the service returned a matching credential kind.
+    authType: "oauth2RefreshToken" | "staticToken";
+}
+
+export interface CreateManagedConnectionResponse {
+    success: boolean;
+    // Populated per grant shape: refresh fills clientId/clientSecret/refreshToken/refreshUrl,
+    // static fills token.
+    credentials?: {
+        clientId?: string;
+        clientSecret?: string;
+        refreshToken?: string;
+        refreshUrl?: string;
+        token?: string;
+    };
+    error?: string;
+}
+
 export interface WebToolApprovalRequest {
     requestId: string;
 }
@@ -493,6 +533,7 @@ export interface UIChatMessage {
     content: string;
     checkpointId?: string;
     messageId?: string;
+    generationStatus?: GenerationReviewState["status"];
 }
 
 /**
@@ -506,6 +547,41 @@ export interface CheckpointInfo {
 }
 
 /**
+ * Summary of a chat thread for session history display
+ */
+export interface ThreadSummary {
+    id: string;
+    /** Display name — auto-set from first user message */
+    name: string;
+    isActive: boolean;
+    createdAt: number;
+    updatedAt: number;
+    turnCount: number;
+}
+
+export interface SwitchThreadRequest {
+    threadId: string;
+}
+
+export interface DeleteThreadRequest {
+    threadId: string;
+}
+
+export interface RenameThreadRequest {
+    threadId: string;
+    name: string;
+}
+
+// TODO(auto-memory): temporarily disabled for this release — restore once the memory feature is refined.
+// export interface ClearMemoryRequest {
+//     scope: 'workspace' | 'all';
+// }
+//
+// export interface OpenMemoryRequest {
+//     scope: 'global' | 'workspace';
+// }
+
+/**
  * Request to abort AI generation
  * Optional params default to current workspace and 'default' thread
  */
@@ -516,9 +592,60 @@ export interface AbortAIGenerationRequest {
     threadId?: string;
 }
 
+/**
+ * Request for the current run status of a thread (panel reconnection).
+ * Optional params default to current workspace and 'default' thread.
+ */
+export interface GetRunStatusRequest {
+    /** Project root path (defaults to current workspace/project root) */
+    projectRootPath?: string;
+    /** Thread identifier (defaults to 'default') */
+    threadId?: string;
+    /** When set, only return buffered events with `seq > sinceSeq` (polling dedup) */
+    sinceSeq?: number;
+}
+
+/**
+ * Response describing whether a run is in flight and the buffered events a
+ * reconnecting panel should replay.
+ */
+export interface GetRunStatusResponse {
+    isRunning: boolean;
+    events: ChatNotify[];
+    /** Resolved identity of the buffer that was queried. */
+    projectRootPath: string;
+    threadId: string;
+    isPlanMode?: boolean;
+    /** Id of the buffered (active or finished-but-unrecorded) generation, if any. */
+    generationId?: string;
+    /** Persisted prompt for the buffered generation, when available. */
+    userPrompt?: string;
+    /**
+     * True when the buffer overflowed and its earliest events were evicted, so a
+     * replay cannot rebuild the turn from the beginning.
+     */
+    truncated?: boolean;
+    /**
+     * Request ids of interactive prompts (clarify/approval/etc.) still awaiting a user
+     * response. On reopen the panel re-surfaces the buffered prompt for these (so the
+     * question can be answered) and skips prompts already resolved earlier in the run.
+     */
+    pendingRequestIds?: string[];
+}
+
 export interface UsageResponse {
     remainingUsagePercentage: number;
     resetsIn: number; // in seconds
+    orgId?: string;  // org UUID for the quota request portal link
+    alreadyRequested?: boolean;  // an open quota top-up request already exists for this cap-hit
+}
+
+export interface QuotaRequestParams {
+    note?: string;  // optional message from the user to the reviewer
+}
+
+export interface QuotaRequestResult {
+    status: "submitted" | "already_requested" | "failed";
 }
 
 export interface OpenFileDiffRequest {
@@ -740,9 +867,6 @@ export interface DeleteMcpServerRequest {
 export interface SetMcpToolsEnabledRequest {
     enabled: boolean;
 }
-export interface SetSkillsEnabledRequest {
-    enabled: boolean;
-}
 /** Per-scope parse / read errors for `mcp.json` files. Both fields are optional — missing means OK. */
 export interface McpLoadErrorsDTO {
     user?: string;
@@ -758,4 +882,3 @@ export interface AgentsMdFileInfoDTO {
     isEmpty?: boolean;
     hasWorkspace: boolean;
 }
-

@@ -151,7 +151,7 @@
             "character": 0
           }
         },
-        "newText": "\ncheck workflow:sendData(workflow1, workflowIde3, y, 2);"
+        "newText": "\ncheck workflow:sendData(workflow1, workflowIde3, \"y\", 2);"
       }
     ]
   }

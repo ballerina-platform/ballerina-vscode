@@ -14,7 +14,6 @@
       "module": "log",
       "object": "log",
       "symbol": "printInfo",
-      "version": "2.10.0",
       "lineRange": {
         "fileName": "function_call.bal",
         "startLine": {

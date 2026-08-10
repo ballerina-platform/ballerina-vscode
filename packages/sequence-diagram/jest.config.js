@@ -16,33 +16,9 @@
  * under the License.
  */
 
+const base = require('@wso2/test-config/jest-preset');
+
 module.exports = {
-    preset: 'ts-jest/presets/js-with-ts',
-    testEnvironment: 'jsdom',
-    transform: {
-        '^.+\\.(js|jsx)$': 'babel-jest',
-        '^.+\\.(ts|tsx)$': ['ts-jest', { isolatedModules: true, tsconfig: { jsx: 'react', esModuleInterop: true, allowSyntheticDefaultImports: true } }],
-    },
-    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-    testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
-    moduleNameMapper: {
-        '^@vscode/codicons/dist/codicon.css$': 'identity-obj-proxy',
-        '\\.(css|less|sass|scss)$': 'identity-obj-proxy',
-        '\\.(svg|png|jpg|jpeg|gif)$': 'identity-obj-proxy',
-        '^react$': '<rootDir>/node_modules/react/index.js',
-        '^react-dom$': '<rootDir>/node_modules/react-dom/index.js',
-    },
-    setupFilesAfterEnv: [
-        '<rootDir>/src/test/jest.env.ts',
-    ],
-    setupFiles: ['<rootDir>/src/test/matchMedia.ts'],
-    transformIgnorePatterns: [
-        '<rootDir>/node_modules/(?!(@wso2)/)'
-    ],
-    collectCoverageFrom: [
-        'src/**/*.{ts,tsx}',
-        '!src/**/*.d.ts',
-        '!src/**/*.stories.{ts,tsx}',
-        '!src/test/**/*'
-    ]
+    ...base,
+    rootDir: '.',
 };

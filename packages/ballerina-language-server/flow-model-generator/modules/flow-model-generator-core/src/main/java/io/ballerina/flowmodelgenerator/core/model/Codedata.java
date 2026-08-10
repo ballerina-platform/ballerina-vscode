@@ -104,6 +104,10 @@ public record Codedata(NodeKind node, String org, String module, String packageN
             return this;
         }
 
+        public NodeKind node() {
+            return node;
+        }
+
         public Builder<T> org(String org) {
             this.org = org;
             return this;

@@ -541,63 +541,73 @@ The following test IDs should be added for better testability:
 
 ### 18. Import type from JSON (Description: Generate type from JSON sample)
 
-**Steps:**
-1. Navigate to Type Editor
-2. Click on the "Add Type" button
-3. Verify the "New Type" dialog is displayed
-4. Click on "Import" button
-5. Verify the import dialog is displayed
-6. Select "JSON" as the import source
-7. Enter or paste a JSON sample (e.g., `{"name": "John", "age": 30}`)
-8. Click on "Generate" or "Import" button
-9. Verify the type is generated from the JSON sample
-10. Verify the form shows the generated type structure
-11. Verify field names and types are correctly inferred
-12. (Optional) Modify the generated type if needed
-13. Enter a name for the type (e.g., "Person")
-14. Click on the "Save" button
-15. Verify the type is created and appears in the diagram
-16. **Verify the source generated:**
-    - Open the type source file (or use Type Menu > Source option)
-    - Verify the generated Ballerina code contains:
-      - Record type with fields matching the JSON structure
-      - Correct field types inferred from JSON values
-17. **Verify the diagram:**
-    - Verify the diagram shows entity node with the type name
-    - Verify the diagram visualization is updated with the new type
+**UI elements used:**
+- "Add Type" button in the Type Editor view
+- "Import" tab in the TabPanel (alongside "Create from scratch" tab); `data-testid="import-tab"`
+- Format dropdown (`id="format-selector"`, `vscode-dropdown`) — defaults to JSON, no change needed
+- Name text field (label "Name") — appears above the textarea when format is JSON
+- Textarea (placeholder "Paste your JSON here...") — inside a `vscode-text-area`
+- "Import" button — becomes enabled once valid JSON is entered and Name is set
 
-**Expected Result:** Type is successfully generated from JSON sample, source code matches the JSON structure, and the type appears in the diagram.
+**Steps:**
+1. Navigate to Type Editor (it should already be open from a previous test)
+2. Click on the "Add Type" button
+3. Verify the type creation panel opens with two tabs: "Create from scratch" and "Import"
+4. Click on the "Import" tab
+5. Verify the Import tab content is visible
+6. Verify the Format dropdown defaults to "JSON"
+7. Verify the "Name" text field is visible (above the textarea)
+8. Enter "PersonJson" in the "Name" text field
+9. Click on the textarea (placeholder "Paste your JSON here...")
+10. Paste the following JSON: `{"name": "John", "age": 30, "city": "New York"}`
+11. Verify no validation error is shown
+12. Verify the "Import" button is now enabled
+13. Click on the "Import" button
+14. Verify the type editor navigates back to the diagram view
+15. Verify the new type node "PersonJson" is visible in the diagram
+16. **Verify the source generated:**
+    - Verify the generated Ballerina code in `types.bal` contains a record type named `PersonJson`
+    - Verify it has fields matching the JSON keys: `name` (string), `age` (int), `city` (string)
+17. **Verify the diagram:**
+    - Verify the diagram shows `data-testid="type-node-PersonJson"`
+
+**Expected Result:** A Record type "PersonJson" is successfully generated from the JSON sample, source code matches the JSON structure, and the type node appears in the diagram.
 
 ---
 
 ### 19. Import type from XML (Description: Generate type from XML sample)
 
-**Steps:**
-1. Navigate to Type Editor
-2. Click on the "Add Type" button
-3. Verify the "New Type" dialog is displayed
-4. Click on "Import" button
-5. Verify the import dialog is displayed
-6. Select "XML" as the import source
-7. Enter or paste an XML sample (e.g., `<person><name>John</name><age>30</age></person>`)
-8. Click on "Generate" or "Import" button
-9. Verify the type is generated from the XML sample
-10. Verify the form shows the generated type structure
-11. Verify field names and types are correctly inferred
-12. (Optional) Modify the generated type if needed
-13. Enter a name for the type (e.g., "Person")
-14. Click on the "Save" button
-15. Verify the type is created and appears in the diagram
-16. **Verify the source generated:**
-    - Open the type source file (or use Type Menu > Source option)
-    - Verify the generated Ballerina code contains:
-      - Record type with fields matching the XML structure
-      - Correct field types inferred from XML content
-17. **Verify the diagram:**
-    - Verify the diagram shows entity node with the type name
-    - Verify the diagram visualization is updated with the new type
+**UI elements used:**
+- "Add Type" button in the Type Editor view
+- "Import" tab in the TabPanel; `data-testid="import-tab"`
+- Format dropdown (`id="format-selector"`, `vscode-dropdown`) — must be changed from JSON to XML
+- Textarea (placeholder "Paste your XML here...") — inside a `vscode-text-area`; appears after format change
+- No "Name" field for XML — the type name is derived from the XML root element tag
+- "Import" button — becomes enabled once valid XML is entered
 
-**Expected Result:** Type is successfully generated from XML sample, source code matches the XML structure, and the type appears in the diagram.
+**Steps:**
+1. Navigate to Type Editor (continuing from previous test in the same session)
+2. Click on the "Add Type" button
+3. Verify the type creation panel opens with two tabs: "Create from scratch" and "Import"
+4. Click on the "Import" tab
+5. Verify the Import tab content is visible
+6. Locate the Format dropdown (currently showing "JSON")
+7. Change the Format dropdown value to "XML"
+8. Verify the "Name" text field is no longer visible (XML does not require a name — derived from root element)
+9. Verify the textarea changes to show placeholder "Paste your XML here..."
+10. Click on the textarea and paste the following XML: `<person><name>John</name><age>30</age></person>`
+11. Verify no validation error is shown
+12. Verify the "Import" button is now enabled
+13. Click on the "Import" button
+14. Verify the type editor navigates back to the diagram view
+15. Verify a new type node derived from the XML root element ("Person") is visible in the diagram
+16. **Verify the source generated:**
+    - Verify the generated Ballerina code in `types.bal` contains a record type (name based on root element "person" → "Person")
+    - Verify it has fields matching the XML child elements: `name` (string), `age` (string or int)
+17. **Verify the diagram:**
+    - Verify the diagram shows a new `data-testid="type-node-Person"` (or the inferred name)
+
+**Expected Result:** A Record type is successfully generated from the XML sample with the name derived from the root element, source code matches the XML structure, and the type node appears in the diagram.
 
 ---
 

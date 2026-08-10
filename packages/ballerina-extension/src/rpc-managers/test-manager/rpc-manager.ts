@@ -19,6 +19,8 @@ import {
     AddOrUpdateTestFunctionRequest,
     GetTestFunctionRequest,
     GetTestFunctionResponse,
+    GetTestFunctionNamesRequest,
+    GetTestFunctionNamesResponse,
     STModification,
     SourceUpdateResponse,
     SyntaxTree,
@@ -51,6 +53,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
 import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
+import { getTestFunctionNames } from "../../utils/test-discovery";
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -105,6 +108,17 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 console.log(error);
             }
         });
+    }
+
+    async getTestFunctionNames(params: GetTestFunctionNamesRequest): Promise<GetTestFunctionNamesResponse> {
+        try {
+            const res = await StateMachine.context().langClient
+                .getProjectTestFunctions({ projectPath: params.projectPath });
+            return { names: res && 'result' in res ? getTestFunctionNames(res) : [] };
+        } catch (error) {
+            console.error('Failed to discover test function names:', error);
+            return { names: [] };
+        }
     }
 
     async getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {

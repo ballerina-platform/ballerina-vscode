@@ -26,7 +26,7 @@ import { CodeActionParams, DefinitionParams, DocumentSymbolParams, ExecuteComman
 import { Category, Flow, FlowNode, CodeData, ConfigVariable, FunctionNode, Property, PropertyTypeMemberInfo, DIRECTORY_MAP, Imports, NodeKind, InputType, FormFieldInputType, ProjectStructureArtifactResponse, VISIBILITY } from "./bi";
 import { ConnectorRequest, ConnectorResponse } from "../rpc-types/connector-wizard/interfaces";
 import { SqFlow } from "../rpc-types/sequence-diagram/interfaces";
-import { FieldType, FunctionModel, ListenerModel, ServiceClassModel, ServiceInitModel, ServiceModel } from "./service";
+import { FieldType, FunctionModel, ListenerModel, PropertyModel, ServiceClassModel, ServiceInitModel, ServiceModel, ValidationResult } from "./service";
 import { CDModel } from "./component-diagram";
 import { DMModel, ExpandedDMModel, IntermediateClause, Mapping, VisualizableField, FnMetadata, ResultClauseType, IOType } from "./data-mapper";
 import { ArtifactData, DataMapperMetadata, SCOPE } from "./shared-types";
@@ -620,7 +620,8 @@ export interface TestsDiscoveryRequest {
 }
 
 export interface TestsDiscoveryResponse {
-    result?: Map<string, FunctionTreeNode[]>;
+    // The language client returns a Map in-process, while JSON RPC can deserialize it as a plain object.
+    result?: Map<string, FunctionTreeNode[]> | Record<string, FunctionTreeNode[]>;
     errorMsg?: string;
     stacktrace?: string;
 }
@@ -666,6 +667,16 @@ export interface GetTestFunctionRequest {
 export interface AddOrUpdateTestFunctionRequest {
     filePath: string;
     function: TestFunction;
+    evalTemplate?: {
+        symbol: string;
+        parameters: Record<string, string>;
+        dataSource?: {
+            paramName: string;
+            mode: "evalset" | "queries";
+            evalSetFile?: string;
+            queries?: string[];
+        };
+    };
 }
 
 export interface TestSourceEditResponse {
@@ -941,6 +952,7 @@ export interface BINodeTemplateRequest {
     id: CodeData;
     forceAssign?: boolean;
     isLibrary?: boolean;
+    projectPath?: string;
 }
 
 export type BINodeTemplateResponse = {
@@ -962,6 +974,11 @@ export type SearchQueryParams = {
     orgName?: string;
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
+    /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
+    excludeBuiltins?: string;
+    /** ACTIVITY_CALL search: node kind stamped on result items (e.g. DURABLE_AGENT_ADD_ACTIVITY). */
+    nodeKind?: string;
+    source?: string;
 }
 
 export type SearchKind =
@@ -970,6 +987,7 @@ export type SearchKind =
     | "TYPE"
     | "WORKFLOW_RUN"
     | "ACTIVITY_CALL"
+    | "EVAL_TEMPLATE"
     | "NP_FUNCTION"
     | "MODEL_PROVIDER"
     | "VECTOR_STORE"
@@ -1016,10 +1034,63 @@ export interface WorkflowDataResponse {
     stacktrace?: string;
 }
 
+export interface GenActivityRequest {
+    filePath: string;
+    flowNode: FlowNode;
+    activityName: string;
+    description: string;
+    connection: string;
+    activityParameters?: ToolParameters;
+    /** When the action returns a stream, its element type T: the activity collects it and returns T[]. */
+    streamElementType?: string;
+    /** When true, the connection is exposed as the activity's first parameter (built-in activity style). */
+    connectionAsParam?: boolean;
+}
+
+export interface GenActivityResponse {
+    artifacts?: ProjectStructureArtifactResponse[];
+    textEdits?: {
+        [key: string]: TextEdit[];
+    };
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
+export interface AnalyzeActivityActionRequest {
+    filePath: string;
+    /** Name of the module-level connection variable the action belongs to. */
+    connection: string;
+    /** Name of the action (method) to analyze. */
+    actionName: string;
+    /** REMOTE_ACTION_CALL or RESOURCE_ACTION_CALL — disambiguates same-named remote/resource methods. */
+    nodeKind: string;
+}
+
+export interface ActivityActionAnalysis {
+    /** Whether an activity can be generated from the action automatically. */
+    supported: boolean;
+    /** When unsupported, the human-readable reasons. */
+    reasons: string[];
+    /** The derived activity parameters. */
+    params: { name: string; type: string; required: boolean; description?: string }[];
+    /** The derived activity return type (success type, without |error). */
+    returnType: string;
+    /** When the action returns a stream, its element type T (the activity returns T[]); else absent. */
+    streamElementType?: string;
+    /** True when the return type is inferred from a typedesc param — the user provides the type T. */
+    dependentReturn?: boolean;
+}
+
+export interface AnalyzeActivityActionResponse {
+    analysis?: ActivityActionAnalysis;
+    errorMsg?: string;
+    stacktrace?: string;
+}
+
 export type BISearchNodesRequest = {
     filePath: string;
     position?: LinePosition;
-    queryMap?: SearchNodesQueryParams;
+    query?: SearchNodesQuery;
 }
 
 export type BISearchNodesResponse = {
@@ -1027,9 +1098,19 @@ export type BISearchNodesResponse = {
     error: string;
 }
 
-export type SearchNodesQueryParams = {
+export type SearchNodesTypeConstraint = {
+    relation?: "exact" | "subtype";
+    org?: string;
+    packageName?: string;
+    module?: string;
+    name: string;
+    version?: string;
+}
+
+export type SearchNodesQuery = {
     kind?: NodeKind;
     exactMatch?: string;
+    targetType?: SearchNodesTypeConstraint;
 }
 
 export type BIGetEnclosedFunctionRequest = {
@@ -1352,10 +1433,12 @@ export interface TriggerModelsRequest {
     packageName?: string;
     query?: string;
     keyWord?: string;
+    includeLocalRepository?: boolean;
 }
 
 export interface TriggerModelsResponse {
     local: ServiceModel[];
+    localRepositoryResults?: ServiceModel[];
 }
 
 // <-------- Trigger Related ------->
@@ -1396,6 +1479,7 @@ export interface ListenerSourceCodeResponse {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    validationErrors?: ValidationResult[];
 }
 export interface ServiceModelRequest {
     filePath: string;
@@ -1403,6 +1487,9 @@ export interface ServiceModelRequest {
     listenerName?: string;
     orgName?: string;
     pkgName?: string;
+    version?: string;
+    projectPath?: string;
+    isLocalRepository?: boolean;
 }
 export interface ServiceModelResponse {
     service: ServiceModel;
@@ -1430,6 +1517,32 @@ export interface AddFieldRequest {
     };
 }
 
+export interface ClassTarget {
+    filePath: string;
+    classLineRange: LineRange;
+}
+
+export interface CreateClassDependencyRequest extends ClassTarget {
+    field: FieldType;
+}
+
+export interface ClassMemberRequest extends ClassTarget {}
+
+export interface SaveClassMemberRequest extends ClassTarget {
+    flowNode: FlowNode;
+}
+
+export interface DeleteClassMemberRequest extends ClassTarget {
+    fieldName: string;
+}
+
+export interface ModifyClassDependencyRequest {
+    filePath: string;
+    field: FieldType;
+}
+
+export type ClassMembersResponse = BIModuleNodesResponse;
+
 export interface ExpressionTokensRequest {
     expression: string;
     filePath: string;
@@ -1440,12 +1553,17 @@ export interface ExpressionTokensResponse {
     data: number[];
 }
 
+/**
+ * `validationErrors` are rule failures from the language server's save-time gate. An ERROR here
+ * means the model was refused and `textEdits` is empty; WARNINGs accompany a successful generation.
+ */
 export interface SourceEditResponse {
     textEdits?: {
         [key: string]: TextEdit[];
     };
     errorMsg?: string;
     stacktrace?: string;
+    validationErrors?: ValidationResult[];
 }
 
 export interface ServiceClassSourceRequest {
@@ -1500,6 +1618,29 @@ export interface ServiceModelInitResponse {
 export interface ServiceInitSourceRequest {
     filePath: string;
     serviceInitModel: ServiceInitModel;
+    projectPath?: string;
+}
+
+/**
+ * A live validation request for a single form node. `version` is the caller's per-field revision;
+ * it comes back untouched on the response so an answer about a stale value can be discarded.
+ * `codedata` locates the enclosing service, for rules scoped to one service.
+ */
+export interface ValidatePropertyRequest {
+    filePath: string;
+    propertyPath: string;
+    property: PropertyModel;
+    moduleName?: string;
+    codedata?: CodeData;
+    version: number;
+}
+
+export interface ValidatePropertyResponse {
+    propertyPath: string;
+    version: number;
+    validationErrors: ValidationResult[];
+    errorMsg?: string;
+    stacktrace?: string;
 }
 
 // <-------- Type Related ------->
@@ -1790,6 +1931,7 @@ export interface ResourceSourceCodeResponse {
     textEdits: {
         [key: string]: TextEdit[];
     };
+    validationErrors?: ValidationResult[];
 }
 
 export interface ResourceReturnTypesRequest {
@@ -1916,20 +2058,17 @@ export interface McpToolsResponse {
     errorMsg?: string;
 }
 
-export interface AIGentToolsRequest {
-    filePath: string;
-    flowNode: FlowNode;
-    toolName: string;
-    description: string;
-    connection: string;
-    toolParameters?: ToolParameters;
-}
-
 export interface AIGentToolsResponse {
     artifacts?: ProjectStructureArtifactResponse[];
     textEdits: {
         [key: string]: TextEdit[];
     };
+}
+
+export interface GenAgentDefinitionRequest {
+    filePath: string;
+    name: string;
+    description: string;
 }
 
 export interface AIGetPackageVersionRequest {
@@ -2006,6 +2145,34 @@ export interface WorkspaceDeploymentRequest {
 
 // 2201.12.3 -> New Project Component Artifacts Tree
 
+/**
+ * A structured, multi-representation icon descriptor resolved by the Language Server (Phase-6 icon
+ * architecture). The LS fills `url`/`kind`/`source` and any connector-declared `glyph`/`color`; the IDE
+ * completes missing `glyph`/`color` from its brand-icon registry and applies the `kind` default.
+ * `light`/`dark` are a paired set of theme-specific images (data: URI) used when a single `url` isn't
+ * theme-aware.
+ */
+export interface IconDescriptor {
+    url?: string;
+    glyph?: string;
+    color?: string;
+    kind?: string;
+    source?: string;
+    light?: string;
+    dark?: string;
+}
+
+/**
+ * Normalizes a wire icon value into an {@link IconDescriptor}. Accepts a bare string (legacy: a plain
+ * URL) for backward compatibility, reading it as `{ url }`.
+ */
+export function toIconDescriptor(icon?: string | IconDescriptor): IconDescriptor | undefined {
+    if (icon === undefined || icon === null) {
+        return undefined;
+    }
+    return typeof icon === "string" ? { url: icon } : icon;
+}
+
 export interface BaseArtifact<T = any> {
     id: string;
     location: {
@@ -2024,7 +2191,7 @@ export interface BaseArtifact<T = any> {
     module?: string;
     scope: string;
     visibility?: VISIBILITY;
-    icon?: string; // Optional for those that have an icon
+    icon?: IconDescriptor | string; // Resolved icon descriptor; a bare string (legacy URL) is accepted
     children?: Record<string, BaseArtifact>; // To allow nested structures
     accessor?: string; // Specific to Entry Points
     value?: T; // Generic value property to hold different types
@@ -2035,6 +2202,8 @@ export enum ARTIFACT_TYPE {
     Functions = "Functions",
     Workflows = "Workflows",
     Connections = "Connections",
+    Agents = "Agents",
+    AgentDefinitions = "Agent Definitions",
     Listeners = "Listeners",
     EntryPoints = "Entry Points",
     Types = "Types",
@@ -2053,6 +2222,8 @@ export interface Artifacts {
     [ARTIFACT_TYPE.Functions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Workflows]?: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Connections]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.Agents]: Record<string, BaseArtifact>;
+    [ARTIFACT_TYPE.AgentDefinitions]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Listeners]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.EntryPoints]: Record<string, BaseArtifact>;
     [ARTIFACT_TYPE.Types]: Record<string, BaseArtifact>;
@@ -2124,6 +2295,7 @@ export interface BIInterface extends BaseLangClientInterface {
 
     // New Service Designer APIs
     getTriggerModels: (params: TriggerModelsRequest) => Promise<TriggerModelsResponse>;
+    searchTriggers: (params: TriggerModelsRequest) => Promise<TriggerModelsResponse>;
     getListeners: (params: ListenersRequest) => Promise<ListenersResponse>;
     getListenerModel: (params: ListenerModelRequest) => Promise<ListenerModelResponse>;
     addListenerSourceCode: (params: ListenerSourceCodeRequest) => Promise<ListenerSourceCodeResponse>;
@@ -2137,6 +2309,7 @@ export interface BIInterface extends BaseLangClientInterface {
     getResourceReturnTypes: (params: ResourceReturnTypesRequest) => Promise<VisibleTypesResponse>;
     getServiceInitModel: (params: ServiceModelRequest) => Promise<ServiceModelInitResponse>;
     createServiceAndListener: (params: ServiceInitSourceRequest) => Promise<SourceEditResponse>;
+    validateProperty: (params: ValidatePropertyRequest) => Promise<ValidatePropertyResponse>;
 
     // Function APIs
     getFunctionNode: (params: FunctionNodeRequest) => Promise<FunctionNodeResponse>;
@@ -2148,6 +2321,8 @@ export interface BIInterface extends BaseLangClientInterface {
     getSimpleTypeOfExpression: (params: GetSimpleTypeOfExpressionRequest) => Promise<GetSimpleTypeOfExpressionResponse>;
     updateType: (params: UpdateTypeRequest) => Promise<UpdateTypeResponse>;
     getAllData: (params: WorkflowDataRequest) => Promise<WorkflowDataResponse>;
+    genActivity: (params: GenActivityRequest) => Promise<GenActivityResponse>;
+    analyzeActivityAction: (params: AnalyzeActivityActionRequest) => Promise<AnalyzeActivityActionResponse>;
     updateImports: (params: UpdateImportsRequest) => Promise<ImportsInfoResponse>;
     addFunction: (params: AddFunctionRequest) => Promise<AddImportItemResponse>;
     convertJsonToRecordType: (params: JsonToRecordParams) => Promise<TypeDataWithReferences>;
@@ -2159,7 +2334,6 @@ export interface BIInterface extends BaseLangClientInterface {
     getModels: (params: AIModelsRequest) => Promise<AIModelsResponse>;
     getTools: (params: AIToolsRequest) => Promise<AIToolsResponse>;
     getMcpTools: (params: McpToolsRequest) => Promise<McpToolsResponse>;
-    genTool: (params: AIGentToolsRequest) => Promise<AIGentToolsResponse>;
     getPackageVersion: (params: AIGetPackageVersionRequest) => Promise<AIGetPackageVersionResponse>;
 }
 

@@ -265,6 +265,10 @@ function createICPTask(icpPath: string): vscode.Task {
 }
 
 export function activateICP(ballerinaExtInstance: BallerinaExtension) {
+    // Only set when ICP is available — the ICP commands are gated on this key in package.json,
+    // and an unset key evaluates as false for the standalone Ballerina extension.
+    vscode.commands.executeCommand('setContext', 'ballerina.icpSupported', true);
+
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
     setICPState(false);
     statusBarItem.show();

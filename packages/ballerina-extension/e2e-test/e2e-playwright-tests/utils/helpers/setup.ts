@@ -20,8 +20,7 @@ import { downloadExtensionFromMarketplace, ExtendedPage, Form, startVSCode, swit
 import { test } from '@playwright/test';
 import fs, { existsSync } from 'fs';
 import path from 'path';
-import { exec, execSync } from 'child_process';
-import { promisify } from 'util';
+import { execFileSync, execSync } from 'child_process';
 import { getWebview } from './webview';
 import { BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, DEFAULT_PROJECT_FOLDER_NAME, DEFAULT_PROJECT_NAME } from './constants';
 import { waitForBISidebarTreeView } from './sidebar';
@@ -58,8 +57,6 @@ export let lastTestFailed = false;
 const SCREENSHOT_TIMEOUT_MS = Number(process.env.BI_E2E_SCREENSHOT_TIMEOUT_MS ?? 15000);
 const RELOAD_TIMEOUT_MS = Number(process.env.BI_E2E_RELOAD_TIMEOUT_MS ?? 60000);
 const POST_FAILURE_CLEANUP_TIMEOUT_MS = Number(process.env.BI_E2E_POST_FAILURE_CLEANUP_TIMEOUT_MS ?? 10000);
-
-const execAsync = promisify(exec);
 
 /**
  * Race `operation` against a timer. If the timer wins, throw with the provided
@@ -214,24 +211,45 @@ async function prepareExtensionsForLaunch(profileName: string): Promise<string> 
 }
 
 /**
- * Execute bal pull command to download Ballerina packages before project creation
- * This is done to fix "Language server has stopped working due to unresolved modules in your project. Please resolve them to proceed." issue
- * This is a temporary solution until Ballerina 2201.13.0 release
+ * Pre-pulls Ballerina Central packages into the local cache before project creation/tests run.
+ * Originally added to work around "Language server has stopped working due to unresolved
+ * modules in your project" (temporary until Ballerina 2201.13.0); also used by test suites
+ * (e.g. project-explorer) to warm non-bundled connector packages, since a cold Central cache
+ * on a fresh CI runner otherwise stalls the language server's semantic model resolution.
+ * `bal pull` is idempotent - a package that's already cached prints "Package already exists."
+ * and exits 0 - so this is a fast no-op on a warm developer cache.
  */
-async function executeBallPullCommand(): Promise<void> {
-    console.log('Executing bal pull ballerina/task:2.7.0...');
-    try {
-        const { stdout, stderr } = await execAsync('bal pull ballerina/task:2.7.0');
-        console.log('bal pull stdout:', stdout);
-        if (stderr) {
-            console.warn('bal pull stderr:', stderr);
+export function executeBallPullCommand(modules: string[] = ['ballerina/task:2.7.0']): void {
+    for (const module of modules) {
+        console.log(`Executing bal pull ${module}...`);
+        try {
+            execFileSync('bal', ['pull', module], { stdio: 'pipe', timeout: 180000 });
+            console.log(`✓ Successfully executed bal pull ${module}`);
+        } catch (err) {
+            const details = err as { stdout?: unknown; stderr?: unknown; message?: string };
+            const output = `${details.stdout ?? ''}${details.stderr ?? ''}`;
+            // A non-zero exit for an already-cached package is expected on some
+            // distributions; only surface genuinely unexpected failures.
+            if (!/already exists/i.test(output)) {
+                console.warn(`  ⚠️  Failed to pre-pull ${module}: ${output || details.message}`);
+            }
         }
-        console.log('✓ Successfully executed bal pull ballerina/task:2.7.0');
-    } catch (error) {
-        console.error('Failed to execute bal pull command:', error);
-        // Don't throw error - continue with project creation even if bal pull fails
-        // This ensures tests don't fail due to network issues or package availability
-        console.warn('Continuing with project creation despite bal pull failure...');
+    }
+}
+
+/**
+ * The cached macOS test VS Code build's Contents/MacOS/Electron entry can end up missing —
+ * `@wso2/playwright-vscode-tester`'s zip-unpack step doesn't always preserve that symlink,
+ * which the library's CLI invocations (--install-extension, version check, etc.) require on
+ * darwin. Re-link it from the adjacent `Code` binary rather than re-downloading ~250MB.
+ */
+function ensureMacElectronSymlink(): void {
+    if (process.platform !== 'darwin') return;
+    const macOSDir = path.join(resourcesFolder, 'Visual Studio Code.app', 'Contents', 'MacOS');
+    const codeBinary = path.join(macOSDir, 'Code');
+    const electronBinary = path.join(macOSDir, 'Electron');
+    if (fs.existsSync(codeBinary) && !fs.existsSync(electronBinary)) {
+        fs.symlinkSync('Code', electronBinary);
     }
 }
 
@@ -239,6 +257,7 @@ async function initVSCode(workspacePath: string = newProjectPath) {
     if (vscode && page) {
         await page.executePaletteCommand('Reload Window');
     } else {
+        ensureMacElectronSymlink();
         const profileName = getVsCodeProfileName();
         const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
         vscode = await startVSCode(
@@ -254,11 +273,32 @@ async function initVSCode(workspacePath: string = newProjectPath) {
     page = new ExtendedPage(await vscode!.firstWindow({ timeout: 60000 }));
 }
 
+/**
+ * Re-acquire the current VS Code window into the shared `page` binding.
+ *
+ * The BI extension can trigger a `workbench.action.reloadWindow` while it
+ * finishes activation (e.g. its distribution setup flow). That closes the
+ * Electron page a test is currently driving, surfacing as
+ * "Target page, context or browser has been closed". This helper grabs the
+ * fresh window the reload produced so the caller can retry against it, mirroring
+ * how the initTest reload path re-acquires `page`. Returns true if a live window
+ * was obtained.
+ */
+export async function reacquireWindow(timeout: number = 60000): Promise<boolean> {
+    if (!vscode) {
+        return false;
+    }
+    page = new ExtendedPage(await vscode.firstWindow({ timeout }));
+    await page.page.waitForLoadState();
+    return true;
+}
+
 async function resumeVSCode() {
     if (vscode && page) {
         await page.executePaletteCommand('Reload Window');
     } else {
         console.log('Starting VSCode');
+        ensureMacElectronSymlink();
         const profileName = getVsCodeProfileName();
         const launchExtensionsFolder = await prepareExtensionsForLaunch(profileName);
         vscode = await startVSCode(
@@ -436,21 +476,30 @@ export async function createProject(page: ExtendedPage, projectName?: string) {
     if (!webview) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
     }
+
+    // Name step: integration name + path, then advance to the Type step.
+    const nameInput = webview.getByRole('textbox', { name: /Integration Name/i });
+    await nameInput.waitFor();
+    await nameInput.fill(projectName ?? DEFAULT_PROJECT_NAME);
+
     const form = new Form(page.page, BI_INTEGRATOR_LABEL, webview);
     await form.switchToFormView(false, webview);
     await form.fill({
         values: {
-            'Integration Name*': {
-                type: 'input',
-                value: projectName ?? DEFAULT_PROJECT_NAME,
-            },
             'Select Path': {
                 type: 'directory',
                 value: newProjectPath
             }
         }
     });
-    await form.submit('Create Integration');
+    // `force` — the Copilot chat input in this panel has been observed to
+    // overlap the footer and intercept pointer events on the button beneath it.
+    await webview.getByRole('button', { name: 'Next' }).click({ force: true, timeout: 60000 });
+
+    // Type step: skip straight to an empty integration, matching this helper's
+    // old single-step "fill name+path, submit" semantics.
+    await webview.getByRole('button', { name: 'Create Empty Integration' }).click({ force: true, timeout: 60000 });
+
     const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
     if (!artifactWebView) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);

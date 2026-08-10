@@ -20,8 +20,8 @@ import styled from "@emotion/styled";
 
 /**
  * Outer container for approval/clarify footers.
- * Mirrors AIChatInput's InputArea: same border token, background, radius, and width
- * so switching between chat input and action footers is visually seamless.
+ * Lives inside the same ambient frame as AIChatInput so switching between the
+ * composer and an interactive prompt is visually seamless.
  */
 export const FooterBox = styled.div`
     display: flex;
@@ -30,8 +30,8 @@ export const FooterBox = styled.div`
     width: 100%;
     box-sizing: border-box;
     padding: 8px 12px;
-    border: 1px solid var(--vscode-editorWidget-border, var(--vscode-input-border));
-    border-radius: 4px;
+    border: none;
+    border-radius: 9px;
     background-color: var(--vscode-editor-background);
 `;
 

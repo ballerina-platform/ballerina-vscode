@@ -20,6 +20,8 @@
 
 import { createExtensionTransportManager, createRequestRouter } from "@wso2/webview-giga-bridge";
 import { randomBytes } from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import { Disposable, WebviewPanel } from "vscode";
 import { extension } from "../BalExtensionContext";
 import {
@@ -33,15 +35,64 @@ import {
 import { CommonRpcManager } from "../rpc-managers/common/rpc-manager";
 import { LangClientRpcManager } from "../rpc-managers/lang-client/rpc-manager";
 import { MigrateIntegrationRpcManager } from "../rpc-managers/migrate-integration/rpc-manager";
-import { createBIProject, getDefaultCreationPath, validateProjectPath } from "../utils/bi";
+import { ServiceDesignerRpcManager } from "../rpc-managers/service-designer/rpc-manager";
+import { BiDiagramRpcManager } from "../rpc-managers/bi-diagram/rpc-manager";
+import {
+    createBIProject,
+    getDefaultCreationPath,
+    getExistingProjectInfo,
+    getProjectComponentNames,
+    validateProjectPath
+} from "../utils/bi";
+import { writeBallerinaFileDidOpenTemp } from "../utils/modification";
 import { onMigratedProjectEvent, onMigrationToolLogEvent, onMigrationToolStateEvent } from "../features/ai/migration/migrationEvents";
+import {
+    addIntegrationArtifact,
+    cancelIntegrationWizard,
+    cleanupAbandonedScaffolds,
+    createIntegration,
+    getWizardCapabilities,
+    getWorkspaceSupport,
+    scaffoldIntegrationProject,
+} from "../features/bi/integration-wizard";
+import { StateMachine } from "../stateMachine";
 // Shared wire contract — single source of truth for both this server and the
 // webview client (`ballerina-visualizer` `BiWsClient`).
-import { WEBVIEW_WS_EVENTS, WebviewWsRequest, WebviewWsResponse, WebviewWsBootstrap } from "@wso2/ballerina-core";
+import {
+    WEBVIEW_WS_EVENTS,
+    WebviewWsRequest,
+    WebviewWsResponse,
+    WebviewWsBootstrap,
+    WizardFormTargetRequest,
+    WizardFormTargetResponse,
+} from "@wso2/ballerina-core";
 
 export type { WebviewWsBootstrap };
 
 type TransportManager = ReturnType<typeof createExtensionTransportManager<WebviewWsRequest, WebviewWsResponse>>;
+
+/** Upper bound for a bridge request waiting on language-server activation. */
+const LANG_CLIENT_READY_TIMEOUT_MS = 60 * 1000;
+
+/** Resolves once the state machine has an active language client; model handlers await this. */
+function waitForLangClientReady(): Promise<void> {
+    if (StateMachine.context().langClient) {
+        return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            subscription.unsubscribe();
+            reject(new Error("Timed out waiting for the Ballerina language server to become ready."));
+        }, LANG_CLIENT_READY_TIMEOUT_MS);
+        const subscription = StateMachine.service().subscribe(() => {
+            if (StateMachine.context().langClient) {
+                clearTimeout(timeout);
+                subscription.unsubscribe();
+                resolve();
+            }
+        });
+    });
+}
 
 /**
  * The future webview-communication layer for the BI "migrated forms" (project
@@ -65,7 +116,9 @@ export class DefaultServer {
     private readonly router = createRequestRouter<WebviewWsRequest, WebviewWsResponse>();
     private proxyManager: TransportManager | undefined;
     private wsManager: TransportManager | undefined;
-    private wsBootstrap: WebviewWsBootstrap | undefined;
+    /** In-flight or completed bootstrap. Cached as a promise so that concurrent
+     *  callers share one server instead of racing to create two. */
+    private wsBootstrap: Promise<WebviewWsBootstrap> | undefined;
     private readonly disposables: Disposable[] = [];
     private eventsWired = false;
 
@@ -89,24 +142,34 @@ export class DefaultServer {
 
     /** Starts (if needed) the websocket server for the embedded integrator form
      *  and returns the connection coordinates. */
-    getWsBootstrap(): WebviewWsBootstrap {
+    getWsBootstrap(): Promise<WebviewWsBootstrap> {
         if (!this.wsBootstrap) {
-            const mgr = createExtensionTransportManager<WebviewWsRequest, WebviewWsResponse>({
-                initialMode: "websocket",
-                wsPort: 0,
-                handleRequest: (request) => {
-                    if (!request || request.token !== this.token) {
-                        return this.errorResponse(request?.action ?? "unknown", "Unauthorized BI bridge request.");
-                    }
-                    return this.router.handle(request);
-                },
+            this.wsBootstrap = this.startWsServer().catch((error: unknown) => {
+                // Let a later call retry instead of caching the failure forever.
+                this.wsManager?.dispose();
+                this.wsBootstrap = undefined;
+                this.wsManager = undefined;
+                throw error;
             });
-            this.wsManager = mgr;
-            this.wireEvents();
-            const wb = mgr.getWebviewBootstrap();
-            this.wsBootstrap = { host: wb.wsServer, port: wb.wsPort, token: this.token };
         }
         return this.wsBootstrap;
+    }
+
+    private async startWsServer(): Promise<WebviewWsBootstrap> {
+        const mgr = createExtensionTransportManager<WebviewWsRequest, WebviewWsResponse>({
+            initialMode: "websocket",
+            wsPort: 0,
+            // Authenticates the handshake; upgrades without this token are refused.
+            authToken: this.token,
+            handleRequest: (request) => this.router.handle(request),
+        });
+        this.wsManager = mgr;
+        this.wireEvents();
+        // The OS assigns the port, which is only known once the server is bound,
+        // so the bootstrap must not be read before this resolves.
+        await mgr.startWebSocketServer();
+        const wb = mgr.getWebviewBootstrap();
+        return { host: wb.wsServer, port: wb.wsPort, token: this.token };
     }
 
     dispose(): void {
@@ -163,6 +226,19 @@ export class DefaultServer {
         );
     }
 
+    /** Resolves (and creates, if missing) the file the wizard's Configure-step artifact
+     *  form targets inside the silently scaffolded project. */
+    private async resolveWizardFormTarget(params: WizardFormTargetRequest): Promise<WizardFormTargetResponse> {
+        const filePath = path.join(params.projectRoot, "main.bal");
+        if (!fs.existsSync(filePath)) {
+            // Create the file and notify the language server (didOpen). The temp
+            // variant is used deliberately: pre-open, no ArtifactsUpdated
+            // notification ever arrives, so the awaited variant would reject.
+            writeBallerinaFileDidOpenTemp(filePath, "\n");
+        }
+        return { filePath };
+    }
+
     private successResponse(action: string, result: unknown): WebviewWsResponse {
         return { type: WEBVIEW_WS_EVENTS.WS_RESPONSE, action, success: true, result: result ?? null };
     }
@@ -185,12 +261,16 @@ export class DefaultServer {
         const common = new CommonRpcManager();
         const langClient = new LangClientRpcManager();
         const migrate = MigrateIntegrationRpcManager.getInstance();
+        const serviceDesigner = new ServiceDesignerRpcManager();
+        const biDiagram = new BiDiagramRpcManager();
 
         // ── Project creation ──────────────────────────────────
         this.register("createBIProject", (p) => createBIProject(p));
         this.register("validateProjectPath", (p) =>
-            validateProjectPath(p.projectPath, p.projectName, p.createDirectory, p.createAsWorkspace),
+            validateProjectPath(p.projectPath, p.projectName, p.createDirectory, p.createAsWorkspace, p.directoryName, p.allowExistingDirectory),
         );
+        this.register("getExistingProjectInfo", (p) => getExistingProjectInfo(p.projectPath));
+        this.register("getProjectComponentNames", (p) => getProjectComponentNames(p.projectPath));
         this.register("selectFileOrDirPath", (p) => common.selectFileOrDirPath(p));
         this.register("selectFileOrFolderPath", () => common.selectFileOrFolderPath());
         this.register("getWorkspaceRoot", () => common.getWorkspaceRoot());
@@ -198,6 +278,46 @@ export class DefaultServer {
         this.register("getDefaultCreationPath", () => ({ path: getDefaultCreationPath() }));
         this.register("isSupportedSLVersion", (p) => langClient.isSupportedSLVersion(p));
         this.register("showErrorMessage", (p) => common.showErrorMessage(p));
+        // The model handlers await LS activation: the embedded wizard can send
+        // requests while the extension is still in `activateLS`.
+        this.register("getWizardCapabilities", () => getWizardCapabilities());
+        // Awaits only the distribution version, NOT the language server — this is what the
+        // Create flow's "Next" button is gated on.
+        this.register("getWorkspaceSupport", () => getWorkspaceSupport());
+        this.register("getTriggerModels", async (p) => {
+            await waitForLangClientReady();
+            return serviceDesigner.getTriggerModels(p);
+        });
+        this.register("getServiceInitModel", async (p) => {
+            await waitForLangClientReady();
+            return serviceDesigner.getServiceInitModel(p);
+        });
+        this.register("getNodeTemplate", async (p) => {
+            await waitForLangClientReady();
+            return biDiagram.getNodeTemplate(p);
+        });
+        this.register("getWizardFormTarget", async (p) => {
+            await waitForLangClientReady();
+            return this.resolveWizardFormTarget(p);
+        });
+        this.register("getExpressionDiagnostics", async (p) => {
+            await waitForLangClientReady();
+            return biDiagram.getExpressionDiagnostics(p);
+        });
+        this.register("scaffoldIntegrationProject", async () => {
+            await waitForLangClientReady();
+            return scaffoldIntegrationProject();
+        });
+        this.register("createIntegration", async (p) => {
+            await waitForLangClientReady();
+            return createIntegration(p);
+        });
+        this.register("addIntegrationArtifact", async (p) => {
+            await waitForLangClientReady();
+            return addIntegrationArtifact(p);
+        });
+        this.register("cancelIntegrationWizard", () => cancelIntegrationWizard());
+        this.register("cleanupAbandonedIntegrationScaffolds", () => cleanupAbandonedScaffolds());
 
         // ── Import / migration ────────────────────────────────
         this.register("getMigrationTools", () => migrate.getMigrationTools());

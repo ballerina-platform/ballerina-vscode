@@ -31,7 +31,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Location",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -46,7 +51,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Address",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -61,7 +71,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Employee",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -76,7 +91,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Person",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -91,7 +111,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Admission",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -106,7 +131,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Event",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -121,7 +151,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "MyAcceptRec",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -136,7 +171,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "Addresses",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         },
@@ -151,7 +191,12 @@
             "module": "proj",
             "packageName": "proj",
             "symbol": "JsonArray",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "isGenerated": false,
+            "data": {
+              "moduleRelation": "CURRENT_MODULE",
+              "moduleKind": "DEFAULT_MODULE"
+            }
           },
           "enabled": true
         }

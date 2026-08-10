@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.CONTEXT_CLASS_NAME;
+import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.DEFAULT_CTX_PARAM_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.DEFAULT_INPUT_PARAM_NAME;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_MODULE;
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
@@ -58,8 +60,10 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
     public static final String DESCRIPTION = "Define a workflow process function";
 
     public static final String INPUT_KEY = "inputType";
-    public static final String INPUT_LABEL = "Input Type";
+    public static final String INPUT_LABEL = "Workflow Input Data type";
     public static final String INPUT_DOC = "Type of the input data to the workflow";
+    public static final String NAME_DOC =
+            "Unique workflow identifier used to reference it in workflow management and execution.";
     public static final String ANYDATA_TYPE = "anydata";
 
     @Override
@@ -92,8 +96,9 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
     public void setConcreteTemplateData(TemplateContext context) {
         ModuleInfo workflowModuleInfo = new ModuleInfo(WORKFLOW_ORG, WORKFLOW_MODULE, WORKFLOW_MODULE, null);
         PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
-        // Add function name
-        properties().functionNameTemplate("workflow", context.getAllVisibleSymbolNames());
+        // Add function name (workflow-specific label/doc so it reads as a workflow identifier)
+        properties().functionNameTemplate("workflow", context.getAllVisibleSymbolNames(),
+                FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
         setMandatoryProperties(this, "json|error", "", "");
         // Add input property with WORKFLOW_INPUT_TYPE
         setInputTypeProperty(this, "");
@@ -204,9 +209,14 @@ public class WorkflowBuilder extends FunctionDefinitionBuilder {
                     generateParameter(sourceBuilder, inputTypeName, DEFAULT_INPUT_PARAM_NAME);
                 }
             }
-        } else if (!inputTypeName.isEmpty()) {
-            // New workflow — emit the input param from the property using the default name.
-            generateParameter(sourceBuilder, inputTypeName, DEFAULT_INPUT_PARAM_NAME);
+        } else {
+            // New workflow — a @workflow:Workflow function must declare workflow:Context as its first
+            // parameter; the input type (when set) follows it as the second parameter.
+            generateParameter(sourceBuilder, WORKFLOW_MODULE + ":" + CONTEXT_CLASS_NAME, DEFAULT_CTX_PARAM_NAME);
+            if (!inputTypeName.isEmpty()) {
+                sourceBuilder.token().keyword(SyntaxKind.COMMA_TOKEN);
+                generateParameter(sourceBuilder, inputTypeName, DEFAULT_INPUT_PARAM_NAME);
+            }
         }
 
         sourceBuilder.token().keyword(SyntaxKind.CLOSE_PAREN_TOKEN);

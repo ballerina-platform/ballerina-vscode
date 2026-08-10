@@ -1,0 +1,123 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "Listener" },
+      "services": ["service"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": { "name": "Service" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "identifier": {
+        "presence": "optional",
+        "form": ["stringLiteral"]
+      },
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onMessage",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              {
+                "type": [{ "name": "AnydataMessage" }, { "name": "BytesMessage" }],
+                "presence": "required",
+                "dataBinding": "messagePayload",
+                "annotations": ["payload"]
+              },
+              { "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onRequest",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              {
+                "type": [{ "name": "AnydataMessage" }, { "name": "BytesMessage" }],
+                "presence": "required",
+                "dataBinding": "messagePayload",
+                "annotations": ["payload"]
+              },
+              { "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "anydata" }, { "name": "error" }]
+          },
+          {
+            "name": "onError",
+            "kind": "remote",
+            "presence": "optional",
+            "params": [
+              { "type": { "name": "AnydataMessage" }, "presence": "required" },
+              { "type": { "name": "Error" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          }
+        ]
+      },
+
+      "rules": [
+        {
+          "id": "queueNameSource",
+          "type": "oneOf",
+          "members": [
+            { "annotation": "serviceConfig", "field": "queueName", "preferred": true },
+            { "part": "identifier" }
+          ]
+        },
+        {
+          "id": "messageHandlerChoice",
+          "type": "oneOf",
+          "members": [
+            { "handler": "onMessage" },
+            { "handler": "onRequest" }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "annotations": [
+    {
+      "id": "serviceConfig",
+      "type": { "name": "ServiceConfig" },
+      "attachPoint": "service",
+      "presence": "optional"
+    },
+    {
+      "id": "payload",
+      "type": { "name": "Payload" },
+      "attachPoint": "parameter",
+      "presence": "optional"
+    }
+  ],
+
+  "dataBindingRules": [
+    {
+      "id": "messagePayload",
+      "envelopeType": { "name": "AnydataMessage" },
+      "supportedModes": [
+        {
+          "mode": "direct",
+          "typeConstraint": [{ "name": "anydata" }],
+          "excludes": [{ "name": "AnydataMessage" }]
+        },
+        {
+          "mode": "includedRecord",
+          "includes": { "name": "AnydataMessage" },
+          "bindableFields": ["content"]
+        }
+      ]
+    }
+  ]
+}

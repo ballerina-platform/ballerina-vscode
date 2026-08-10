@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { NodeTypes } from "../../../resources/constants";
 import { PromptNodeModel } from "./PromptNodeModel";
 import { PromptNodeWidget } from "./PromptNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class PromptNodeFactory extends AbstractReactFactory<PromptNodeModel, DiagramEngine> {
 
@@ -34,6 +35,10 @@ export class PromptNodeFactory extends AbstractReactFactory<PromptNodeModel, Dia
     }
 
     generateReactWidget(event: GenerateWidgetEvent<PromptNodeModel>) {
-        return <PromptNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <PromptNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

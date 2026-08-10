@@ -22,6 +22,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.syntax.tree.ImportDeclarationNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.NonTerminalNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.PropertyType;
@@ -102,11 +104,55 @@ public class ExpressionEditorContext {
         return info;
     }
 
+    /**
+     * The position the probe statement is spliced at. Callers are responsible for sending a
+     * position where a statement parses: the editor splices
+     * {@code <type> __reserved__ = <expr>;} here, so a position inside an expression — a field of
+     * a mapping constructor, say — is the caller's bug, not something this context corrects.
+     *
+     * @return the resolved probe position
+     */
     public LinePosition startLine() {
         if (startLine == null) {
-            startLine = CommonUtils.getPosition(info.startLine(), documentContext.document());
+            startLine = normalizeStatementPosition(
+                    CommonUtils.getPosition(info.startLine(), documentContext.document()));
         }
         return startLine;
+    }
+
+    // The probe statement must land in a statement (or module-member) context. Capability
+    // properties of an object-model durable agent carry positions INSIDE the module-level
+    // `check new ({...})` config literal, where a spliced statement cannot parse — hoist such
+    // positions to the start of the enclosing module-level declaration, where the typed
+    // `<type> __reserved__ = <expr>;` probe parses as a module-level variable declaration.
+    private LinePosition normalizeStatementPosition(LinePosition position) {
+        try {
+            ModulePartNode rootNode = documentContext.document().syntaxTree().rootNode();
+            TextDocument textDocument = documentContext.document().textDocument();
+            int textPosition = textDocument.textPositionFrom(position);
+            NonTerminalNode node = rootNode.findNode(TextRange.from(textPosition, 0), true);
+            NonTerminalNode current = node;
+            boolean insideFunction = false;
+            NonTerminalNode moduleVarDecl = null;
+            while (current != null) {
+                SyntaxKind kind = current.kind();
+                if (kind == SyntaxKind.FUNCTION_DEFINITION || kind == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION
+                        || kind == SyntaxKind.OBJECT_METHOD_DEFINITION) {
+                    insideFunction = true;
+                    break;
+                }
+                if (kind == SyntaxKind.MODULE_VAR_DECL) {
+                    moduleVarDecl = current;
+                }
+                current = current.parent();
+            }
+            if (!insideFunction && moduleVarDecl != null) {
+                return LinePosition.from(moduleVarDecl.lineRange().startLine().line(), 0);
+            }
+        } catch (RuntimeException e) {
+            // Fall through to the original position on any resolution failure.
+        }
+        return position;
     }
 
     // TODO: Check how we can use SourceBuilder in place of this method
@@ -365,6 +411,8 @@ public class ExpressionEditorContext {
         private static final String ORG_KEY = "org";
         private static final String MODULE_KEY = "module";
         private static final String NODE_KEY = "node";
+        private static final String PROPERTY_CODEDATA_KEY = "codedata";
+        private static final String LINE_RANGE_KEY = "lineRange";
 
         public Property(JsonObject property, JsonObject codedata) {
             this.property = property;
@@ -456,6 +504,20 @@ public class ExpressionEditorContext {
         public NodeKind nodeKind() {
             initialize();
             return nodeKind;
+        }
+
+        /**
+         * Returns {@code true} when the property carries a codedata line range, i.e., it is bound
+         * to an existing declaration in the source (edit/rename flow) rather than a new-node
+         * template whose declaration has not been written yet.
+         *
+         * @return whether the property is backed by an existing source declaration
+         */
+        public boolean hasExistingDeclaration() {
+            return property != null
+                    && property.has(PROPERTY_CODEDATA_KEY)
+                    && property.get(PROPERTY_CODEDATA_KEY).isJsonObject()
+                    && property.getAsJsonObject(PROPERTY_CODEDATA_KEY).has(LINE_RANGE_KEY);
         }
     }
 

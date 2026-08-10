@@ -52,7 +52,8 @@ import { AssertionError } from "assert";
 import {
     BALLERINA_HOME, ENABLE_ALL_CODELENS, ENABLE_TELEMETRY, ENABLE_SEMANTIC_HIGHLIGHTING, OVERRIDE_BALLERINA_HOME,
     ENABLE_PERFORMANCE_FORECAST, ENABLE_DEBUG_LOG, ENABLE_BALLERINA_LS_DEBUG,
-    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_RUN_FAST, ENABLE_INLAY_HINTS, FILE_DOWNLOAD_PATH,
+    ENABLE_EXPERIMENTAL_FEATURES, ENABLE_NOTEBOOK_DEBUG, ENABLE_RUN_FAST, ENABLE_ADDITIONAL_TRIGGER_SEARCH,
+    ENABLE_INLAY_HINTS, FILE_DOWNLOAD_PATH,
     ENABLE_LIVE_RELOAD,
     ENABLE_AI_SUGGESTIONS,
     ENABLE_SEQUENCE_DIAGRAM_VIEW,
@@ -179,6 +180,23 @@ export class BallerinaExtension {
     private readonly _downloadProgressEmitter = new EventEmitter<DownloadProgress>();
     public readonly onDownloadProgress: Event<DownloadProgress> = this._downloadProgressEmitter.event;
     private _wiCommandAvailable: boolean | undefined = undefined;
+    private _resolveFeatureSupport!: () => void;
+    /**
+     * Whether {@link biSupported}/{@link isNPSupported}/{@link isWorkspaceSupported} hold a
+     * real answer yet. They are all initialized to `false` in the constructor, so before
+     * this flips a reader cannot tell "unsupported" from "not determined yet" — anything
+     * user-facing must await {@link featureSupportReady} instead of reading them directly.
+     */
+    public featureSupportResolved = false;
+    /**
+     * Resolves once the feature-support flags are settled — after the distribution version
+     * is known, which is far earlier than the language server being up. Also resolves (with
+     * the flags left `false`) when initialization fails, so waiters never hang on a machine
+     * without a Ballerina distribution.
+     */
+    public readonly featureSupportReady: Promise<void> = new Promise<void>((resolve) => {
+        this._resolveFeatureSupport = resolve;
+    });
 
     constructor() {
         debug("[EXTENSION] Starting constructor initialization...");
@@ -344,6 +362,16 @@ export class BallerinaExtension {
         this.context = context;
     }
 
+    /**
+     * Publishes the feature-support flags to everything awaiting {@link featureSupportReady}.
+     * Idempotent — called both when the flags are computed and on the initialization failure
+     * path, where they keep their `false` defaults.
+     */
+    markFeatureSupportResolved() {
+        this.featureSupportResolved = true;
+        this._resolveFeatureSupport();
+    }
+
     init(_onBeforeInit: Function): Promise<void> {
         debug("[INIT] Starting extension initialization...");
         debug(`[INIT] Platform: ${process.platform}, Architecture: ${process.arch}`);
@@ -484,6 +512,10 @@ export class BallerinaExtension {
                 } catch (error) {
                     debug(`[INIT] Error calculating feature support: ${error}`);
                     // Don't throw here, we can continue without these features
+                } finally {
+                    // Release waiters as soon as the flags are settled — the Create flow gates
+                    // its project chooser on this and must not wait for the language server.
+                    this.markFeatureSupportResolved();
                 }
 
                 try {
@@ -2448,6 +2480,10 @@ export class BallerinaExtension {
 
     public enabledRunFast(): boolean {
         return <boolean>workspace.getConfiguration().get(ENABLE_RUN_FAST);
+    }
+
+    public enabledAdditionalTriggerSearch(): boolean {
+        return <boolean>workspace.getConfiguration().get(ENABLE_ADDITIONAL_TRIGGER_SEARCH);
     }
 
     public getFileDownloadPath(): string {

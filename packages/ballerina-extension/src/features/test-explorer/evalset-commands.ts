@@ -54,14 +54,15 @@ export async function createNewEvalset(): Promise<void> {
         await vscode.workspace.fs.writeFile(fileUri, new TextEncoder().encode(jsonContent));
 
         // 5. Success message with Open option
-        const action = await vscode.window.showInformationMessage(
+        void vscode.window.showInformationMessage(
             `Evalset created: ${name}.evalset.json`,
             'Open'
-        );
-
-        if (action === 'Open') {
-            vscode.commands.executeCommand('ballerina.openEvalsetViewer', fileUri);
-        }
+        ).then((action) => {
+            if (action === 'Open') {
+                return vscode.commands.executeCommand('ballerina.openEvalsetViewer', fileUri);
+            }
+            return undefined;
+        });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

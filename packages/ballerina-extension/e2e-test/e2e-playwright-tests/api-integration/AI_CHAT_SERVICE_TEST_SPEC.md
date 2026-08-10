@@ -2,13 +2,13 @@
 
 ## Application Overview
 
-The AI Chat Service (AI Chat Agent) feature in WSO2 Integrator: BI allows users to create AI-powered chat services that can interact with AI models. The service can be configured with AI model settings and chat capabilities.
+The AI Chat Service (Chat Agent Service) feature in WSO2 Integrator: BI allows users to create AI-powered chat services that can interact with AI models. The service can be configured with AI model settings and chat capabilities.
 
 ## UI Elements Identified
 
 ### Buttons and Actions
 - **Add Artifact** button (text: "Add Artifact", icon: ➕)
-- **AI Chat Agent** option in Artifacts menu (under "AI Integration" section)
+- **Chat Agent Service** option in Artifacts menu (under "AI Integration" section)
 - **Create** button (in service creation form)
 - **Cancel** button (in service creation form)
 - **Configure** button (text: "Configure", icon: ⚙️) - for editing service
@@ -32,7 +32,7 @@ The AI Chat Service (AI Chat Agent) feature in WSO2 Integrator: BI allows users 
 
 ### Tree View Elements
 - **Entry Points** section
-- **AI Chat Agent** tree item
+- **Chat Agent Service** tree item
 - **AI Integration** section (if separate)
 
 ### Authentication Elements
@@ -73,8 +73,8 @@ The following test IDs should be added for better testability:
 3. If "Login to WSO2 AI Platform" banner is displayed, click on "Manage Accounts" and complete authentication
 4. Click on the "Add Artifact" button
 5. Verify the Artifacts menu is displayed
-6. Under "AI Integration" section, click on "AI Chat Agent" option
-7. Verify the "Create AI Chat Agent" form is displayed
+6. Under "AI Integration" section, click on "Chat Agent Service" option
+7. Verify the "Create Chat Agent Service" form is displayed
 8. (Optional) Enter service name "myChatAgent" in the "Service Name" field
 9. Configure AI model settings:
    - Select AI model from dropdown (if available)
@@ -86,18 +86,18 @@ The following test IDs should be added for better testability:
 
 **Expected Results:**
 - AI Chat Service is created
-- Service appears in the "Entry Points" section of the project tree as "AI Chat Agent" (or custom name)
+- Service appears in the "Entry Points" section of the project tree as "Chat Agent Service" (or custom name)
 - Service designer view is displayed
 - AI model configuration is saved
 - Service is ready to use
 
 **Element Identifiers:**
 - Add Artifact button: `button[aria-label*="Add Artifact"]` or `button:has-text("Add Artifact")`
-- AI Chat Agent option: `div:has-text("AI Chat Agent")` (in Artifacts menu, under "AI Integration")
+- Chat Agent Service option: `div:has-text("Chat Agent Service")` (in Artifacts menu, under "AI Integration")
 - Service Name input: `input[name*="Service Name"]` or `textbox[name*="Name"]`
 - Model select: `select[name*="Model"]` or dropdown
 - Create button: `button:has-text("Create")`
-- Service tree item: `treeitem:has-text("AI Chat Agent")`
+- Service tree item: `treeitem:has-text("Chat Agent Service")`
 
 ---
 
@@ -190,7 +190,7 @@ The following test IDs should be added for better testability:
 - Project tree updates to reflect the deletion
 
 **Element Identifiers:**
-- Service tree item: `treeitem:has-text("AI Chat Agent")`
+- Service tree item: `treeitem:has-text("Chat Agent Service")`
 - Delete button: `button[aria-label*="Delete"]` or toolbar button with delete icon
 
 ---
@@ -201,7 +201,7 @@ The following test IDs should be added for better testability:
 
 **Steps:**
 1. Ensure user is not authenticated to WSO2 AI Platform
-2. Click on "Add Artifact" → "AI Chat Agent"
+2. Click on "Add Artifact" → "Chat Agent Service"
 3. Verify "Login to WSO2 AI Platform" banner or warning is displayed
 4. Click on "Manage Accounts" button
 5. Complete authentication process
@@ -216,7 +216,7 @@ The following test IDs should be added for better testability:
 ### 6. Create AI Chat Service with Invalid Model Configuration
 
 **Steps:**
-1. Click on "Add Artifact" → "AI Chat Agent"
+1. Click on "Add Artifact" → "Chat Agent Service"
 2. Leave required model fields empty or enter invalid values
 3. Click on "Create" button
 4. Verify validation error is displayed
@@ -243,7 +243,7 @@ The following test IDs should be added for better testability:
 ### 8. Cancel AI Chat Service Creation
 
 **Steps:**
-1. Click on "Add Artifact" → "AI Chat Agent"
+1. Click on "Add Artifact" → "Chat Agent Service"
 2. Enter service name and configuration
 3. Click on "Cancel" button
 4. Verify form is closed

@@ -12,6 +12,11 @@
   "projects": [
     // Ballerina packages (moved from wso2-vscode-extensions/workspaces/ballerina)
     {
+      "packageName": "@wso2/test-config",
+      "projectFolder": "packages/test-config",
+      "shouldPublish": false
+    },
+    {
       "packageName": "@wso2/ballerina-core",
       "projectFolder": "packages/ballerina-core",
       "versionPolicyName": "ballerina-extension"

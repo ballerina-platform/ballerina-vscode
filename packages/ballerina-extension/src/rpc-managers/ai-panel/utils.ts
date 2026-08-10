@@ -16,18 +16,16 @@
  * under the License.
  */
 
-import { Attachment, AttachmentStatus, DiagnosticEntry, DataMapperModelResponse, Mapping, FileChanges, DMModel, SourceFile, repairCodeRequest, RepairedMapping} from "@wso2/ballerina-core";
+import { Attachment, AttachmentStatus, DiagnosticEntry, FileChanges} from "@wso2/ballerina-core";
 import { Position, Range, Uri, workspace, WorkspaceEdit } from 'vscode';
 
 import path from "path";
 import * as fs from 'fs';
 import { AIChatError } from "./utils/errors";
-import { generateMappingInstructionFromFiles, processDataMapperInput } from "../../features/ai/data-mapper/context-api";
-import { DataMapperRequest, DataMapperResponse, FileData, RepairedMappings } from "../../features/ai/data-mapper/types";
+import { processAttachments } from "../../features/ai/data-mapper/context-api";
+import { AttachmentProcessRequest, AttachmentProcessResponse, FileData, ProcessType } from "../../features/ai/data-mapper/types";
 import { getAskResponse } from "../../features/ai/ask/index";
-import { generateAutoMappings, generateRepairCode } from "../../features/ai/data-mapper/index";
 import { ArtifactNotificationHandler, ArtifactsUpdated } from "../../utils/project-artifacts-handler";
-import { CopilotEventHandler } from "../../features/ai/utils/events";
 import { VisualizerRpcManager } from "../visualizer/rpc-manager";
 import { renderDatamapper } from "../../../src/views/ai-panel/checkpoint/checkpointUtils";
 
@@ -52,6 +50,11 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
         }
         isBalFileAdded = true;
 
+        if (fileChange.deleted) {
+            formattedWorkspaceEdit.deleteFile(fileUri, { ignoreIfNotExists: true });
+            continue;
+        }
+
         formattedWorkspaceEdit.createFile(fileUri, { ignoreIfExists: true });
 
         formattedWorkspaceEdit.replace(
@@ -71,6 +74,10 @@ export async function addToIntegration(workspaceFolderPath: string, fileChanges:
     // Write non ballerina files separately as ls doesn't need to be notified of those changes
     for (const fileChange of nonBalFiles) {
         let absoluteFilePath = path.join(workspaceFolderPath, fileChange.filePath);
+        if (fileChange.deleted) {
+            fs.rmSync(absoluteFilePath, { force: true });
+            continue;
+        }
         const directory = path.dirname(absoluteFilePath);
         if (!fs.existsSync(directory)) {
             fs.mkdirSync(directory, { recursive: true });
@@ -116,66 +123,6 @@ async function convertAttachmentToFileData(attachment: Attachment): Promise<File
     };
 }
 
-// Datamapper related functions
-
-// Processes data mapper model and optional mapping instruction files to generate mapping expressions
-export async function generateMappingExpressionsFromModel(
-    dataMapperModel: DMModel,
-    mappingInstructionFiles: Attachment[] = [],
-    eventHandler: CopilotEventHandler
-): Promise<Mapping[]> {
-    let dataMapperResponse: DataMapperModelResponse = {
-        mappingsModel: dataMapperModel as DMModel
-    };
-    if (mappingInstructionFiles.length > 0) {
-        const processingHintsId = `processing-mapping-hints_${Date.now()}`;
-        eventHandler({ type: "chat_component", componentType: "progress", id: processingHintsId, data: { text: "Processing mapping hints from attachments...", status: "start" } });
-        const enhancedResponse = await enrichModelWithMappingInstructions(mappingInstructionFiles, dataMapperResponse);
-        eventHandler({ type: "chat_component", componentType: "progress", id: processingHintsId, data: { text: "Processing mapping hints from attachments...", status: "end" } });
-        dataMapperResponse = enhancedResponse as DataMapperModelResponse;
-    }
-    const generatingMappingsId = `generating-data-mappings_${Date.now()}`;
-    eventHandler({ type: "chat_component", componentType: "progress", id: generatingMappingsId, data: { text: "Generating data mappings...", status: "start" } });
-    const generatedMappings = await generateAutoMappings(dataMapperResponse);
-    eventHandler({ type: "chat_component", componentType: "progress", id: generatingMappingsId, data: { text: "Generating data mappings...", status: "end" } });
-    return generatedMappings.map(mapping => ({
-        output: mapping.output,
-        expression: mapping.expression,
-        isFunctionCall: (mapping as any).requiresCustomFunction,
-        functionContent: mapping.functionContent
-    }));
-}
-
-// Processes mapping instruction files and merges them with the existing data mapper model
-export async function enrichModelWithMappingInstructions(mappingInstructionFiles: Attachment[], currentDataMapperResponse: DataMapperModelResponse): Promise<DataMapperModelResponse> {
-    if (!mappingInstructionFiles || mappingInstructionFiles.length === 0) { return currentDataMapperResponse; }
-
-    const fileDataArray = await Promise.all(
-        mappingInstructionFiles.map(file => convertAttachmentToFileData(file))
-    );
-
-    const mappingInstructions = await generateMappingInstructionFromFiles(fileDataArray);
-
-    return {
-        ...currentDataMapperResponse,
-        mappingsModel: {
-            ...currentDataMapperResponse.mappingsModel,
-            mapping_fields: mappingInstructions.mapping_fields
-        }
-    };
-}
-
-// Processes a repair request and returns the repaired mappings using AI
-export async function repairSourceFilesWithAI(codeRepairRequest: repairCodeRequest): Promise<{ repairedMappings: RepairedMapping[] }> {
-    try {
-        const repairResponse = await generateRepairCode(codeRepairRequest);
-        return { repairedMappings: repairResponse.repairedMappings };
-    } catch (error) {
-        console.error(error);
-        throw error;
-    }
-}
-
 // Type Creator related functions
 
 // Extracts type definitions from a file attachment and generates Ballerina record definitions
@@ -189,11 +136,11 @@ export async function extractRecordTypeDefinitionsFromFile(sourceFiles: Attachme
         sourceFiles.map(attachment => convertAttachmentToFileData(attachment))
     );
 
-    const requestParams: DataMapperRequest = {
+    const requestParams: AttachmentProcessRequest = {
         files: fileDataArray,
-        processType: "records"
+        processType: ProcessType.Records
     };
-    const response: DataMapperResponse = await processDataMapperInput(requestParams);
+    const response: AttachmentProcessResponse = await processAttachments(requestParams);
     return response.fileContent;
 }
 
@@ -208,12 +155,11 @@ export async function requirementsSpecification(filepath: string): Promise<strin
         name: path.basename(filepath),
         content: convertFileToBase64(filepath), status: AttachmentStatus.UnknownError
     });
-    const params: DataMapperRequest = {
+    const params: AttachmentProcessRequest = {
         files: [fileData],
-        processType: "requirements",
-        isRequirementAnalysis: true
+        processType: ProcessType.Requirements,
     };
-    const resp: DataMapperResponse = await processDataMapperInput(params);
+    const resp: AttachmentProcessResponse = await processAttachments(params);
     return resp.fileContent;
 }
 

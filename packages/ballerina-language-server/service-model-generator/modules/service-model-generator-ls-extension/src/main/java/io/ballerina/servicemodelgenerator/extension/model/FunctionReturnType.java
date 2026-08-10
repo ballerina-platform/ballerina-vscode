@@ -20,6 +20,7 @@ package io.ballerina.servicemodelgenerator.extension.model;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Represents the return type of function.
@@ -31,9 +32,31 @@ public class FunctionReturnType extends Value {
     private Map<String, HttpResponse> schema;
     private boolean hasError;
     private boolean isGraphqlId;
+    private Value documentation;
 
     public FunctionReturnType(Value value) {
         super(value);
+    }
+
+    public Value getDocumentation() {
+        if (documentation == null) {
+            documentation = new Value.ValueBuilder()
+                    .types(List.of(PropertyType.types(Value.FieldType.TEXT)))
+                    .enabled(true)
+                    .optional(true)
+                    .editable(true)
+                    .build();
+        }
+        return documentation;
+    }
+
+    public void setDocumentation(Value documentation) {
+        this.documentation = documentation;
+    }
+
+    public boolean hasDocumentationValue() {
+        return Objects.nonNull(this.documentation) && Objects.nonNull(this.documentation.getValue())
+                && !this.documentation.getValue().isEmpty();
     }
 
     public List<HttpResponse> getResponses() {

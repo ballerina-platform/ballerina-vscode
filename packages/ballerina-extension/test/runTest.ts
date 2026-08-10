@@ -18,7 +18,7 @@
 import * as path from 'path';
 import { runTests } from './lib/index';
 const dotenv = require('dotenv');
-const { createEnvDefinePlugin } = require('../../../../../common/scripts/env-webpack-helper');
+const { createEnvDefinePlugin } = require('../../../../common/scripts/env-webpack-helper');
 
 async function go() {
 	try {

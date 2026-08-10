@@ -26,6 +26,7 @@ export interface ProjectRequest {
     projectName?: string;
     packageName?: string;
     projectPath: string;
+    directoryName?: string;
     createDirectory: boolean;
     createAsWorkspace?: boolean;
     workspaceName?: string;
@@ -34,19 +35,35 @@ export interface ProjectRequest {
     version?: string;
     isLibrary?: boolean;
     projectHandle?: string;
+    newProject?: boolean;
+    convertToWorkspace?: boolean;
 }
 
 export interface AddProjectToWorkspaceRequest {
     projectName: string;
     packageName: string;
     path: string;
+    /** Folder name for the PROJECT (workspace) being created by the convert flow. */
+    directoryName?: string;
+    /**
+     * Folder name for the new integration/library package inside the project,
+     * derived from its display name and independent of `packageName`. When omitted
+     * the folder falls back to the sanitized package name (legacy behaviour).
+     */
+    packageDirectoryName?: string;
     convertToWorkspace?: boolean;
+    addNewAfterConvert?: boolean;
     workspaceName?: string;
     orgName?: string;
     orgHandle?: string;
     version?: string;
     isLibrary?: boolean;
     projectHandle?: string;
+    silentRefresh?: boolean;
+}
+
+export interface AddProjectToWorkspaceResponse {
+    projectPath: string;
 }
 
 export interface WorkspacesResponse {
@@ -234,6 +251,10 @@ export interface ValidateProjectFormRequest {
     projectName: string;
     createDirectory: boolean;
     createAsWorkspace?: boolean;
+    directoryName?: string;
+    /** Allow the target directory to already exist (as long as it is not already a
+     *  Ballerina project), so the project can be created in place. */
+    allowExistingDirectory?: boolean;
 }
 
 export interface SuggestedProjectDefaultsResponse {
@@ -247,6 +268,14 @@ export interface ValidateProjectFormResponse {
     isValid: boolean;
     errorMessage?: string;
     errorField?: ValidateProjectFormErrorField;
+    /**
+     * Set when the validated path resolves inside an existing Ballerina workspace
+     * (a "project"): either the path itself is the workspace root or its parent is.
+     * The new integration/library will be added into that project rather than
+     * created as a standalone package. Only reported for component creation
+     * (`createAsWorkspace: false`); it is never set for project creation.
+     */
+    existingWorkspace?: boolean;
 }
 
 export enum ValidateProjectFormErrorField {

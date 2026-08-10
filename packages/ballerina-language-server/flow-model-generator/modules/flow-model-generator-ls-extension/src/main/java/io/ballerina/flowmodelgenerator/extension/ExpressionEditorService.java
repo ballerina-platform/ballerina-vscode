@@ -47,7 +47,6 @@ import io.ballerina.flowmodelgenerator.extension.response.VisibleVariableTypesRe
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
-import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.Document;
 import io.ballerina.tools.text.TextEdit;
 import org.ballerinalang.annotation.JavaSPIService;
@@ -79,8 +78,6 @@ public class ExpressionEditorService implements ExtendedLanguageServerService {
     private WorkspaceManagerProxy workspaceManagerProxy;
     private LanguageServer langServer;
     private LSClientLogger lsClientLogger;
-    private static final CompilationOptions COMPILATION_OPTIONS =
-            CompilationOptions.builder().setSticky(false).setOffline(false).build();
 
     @Override
     public void init(LanguageServer langServer, WorkspaceManagerProxy workspaceManagerProxy,

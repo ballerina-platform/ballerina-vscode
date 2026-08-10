@@ -487,7 +487,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "acks"
             },
-            "defaultValue": "ACKS_SINGLE"
+            "defaultValue": "\"all\""
           },
           "compressionType": {
             "metadata": {
@@ -536,7 +536,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "compressionType"
             },
-            "defaultValue": "COMPRESSION_NONE"
+            "defaultValue": "\"none\""
           },
           "clientId": {
             "metadata": {
@@ -894,7 +894,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "keySerializerType"
             },
-            "defaultValue": "SER_BYTE_ARRAY"
+            "defaultValue": "\"SER_AVRO\""
           },
           "valueSerializerType": {
             "metadata": {
@@ -931,7 +931,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "valueSerializerType"
             },
-            "defaultValue": "SER_BYTE_ARRAY"
+            "defaultValue": "\"SER_AVRO\""
           },
           "additionalProperties": {
             "metadata": {
@@ -1628,7 +1628,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "securityProtocol"
             },
-            "defaultValue": "PROTOCOL_PLAINTEXT"
+            "defaultValue": "\"PLAINTEXT\""
           },
           "checkError": {
             "metadata": {

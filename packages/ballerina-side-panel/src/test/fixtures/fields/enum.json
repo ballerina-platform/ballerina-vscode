@@ -1,0 +1,17 @@
+{
+    "description": "ENUM field type must render the DropdownEditor",
+    "expectedEditor": "DropdownEditor",
+    "fieldInputType": { "fieldType": "ENUM" },
+    "field": {
+        "key": "logLevel",
+        "label": "Log Level",
+        "type": "ENUM",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "DEBUG",
+        "items": ["DEBUG", "INFO", "ERROR"],
+        "types": [{ "fieldType": "ENUM", "selected": false }],
+        "enabled": true
+    }
+}

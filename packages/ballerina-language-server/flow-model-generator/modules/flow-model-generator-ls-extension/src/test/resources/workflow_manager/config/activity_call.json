@@ -17,7 +17,7 @@
     "metadata": {
       "label": "sendNotification",
       "description": "Send notification activity",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/test_null_0.1.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/test_workflow_function_0.1.0.png"
     },
     "codedata": {
       "node": "ACTIVITY_CALL",
@@ -146,14 +146,14 @@
       "retryPolicy": {
         "metadata": {
           "label": "Retry Policy",
-          "description": "Retry strategy to apply when the activity call fails"
+          "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
         },
         "types": [
           {
             "fieldType": "DROPDOWN_CHOICE",
             "options": [
               {
-                "label": "No Retry",
+                "label": "No Automatic Retry",
                 "value": "NoRetry"
               },
               {
@@ -161,7 +161,7 @@
                 "value": "AutoRetry"
               },
               {
-                "label": "Manual Retry",
+                "label": "Human Review",
                 "value": "ManualRetry"
               }
             ],
@@ -176,6 +176,42 @@
         "dynamicFormFields": {
           "NoRetry": {},
           "AutoRetry": {
+            "maxRetries": {
+              "metadata": {
+                "label": "Max Retries",
+                "description": "Maximum number of retry attempts"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "int",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "retryDelay": {
+              "metadata": {
+                "label": "Retry Delay",
+                "description": "Initial delay between retries in seconds"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
             "retryBackoff": {
               "metadata": {
                 "label": "Retry Backoff",
@@ -211,34 +247,18 @@
               "editable": true,
               "advanced": false,
               "hidden": false
-            },
-            "retryDelay": {
+            }
+          },
+          "ManualRetry": {
+            "retryUserRoles": {
               "metadata": {
-                "label": "Retry Delay",
-                "description": "Initial delay between retries in seconds"
+                "label": "Reviewer Roles",
+                "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
               },
               "types": [
                 {
                   "fieldType": "EXPRESSION",
-                  "ballerinaType": "decimal",
-                  "selected": true
-                }
-              ],
-              "value": "",
-              "optional": false,
-              "editable": true,
-              "advanced": false,
-              "hidden": false
-            },
-            "maxRetries": {
-              "metadata": {
-                "label": "Max Retries",
-                "description": "Maximum number of retry attempts"
-              },
-              "types": [
-                {
-                  "fieldType": "EXPRESSION",
-                  "ballerinaType": "int",
+                  "ballerinaType": "string|string[]",
                   "selected": true
                 }
               ],
@@ -248,13 +268,12 @@
               "advanced": false,
               "hidden": false
             }
-          },
-          "ManualRetry": {}
+          }
         },
         "itemOptions": [
           {
             "id": "NoRetry",
-            "content": "No Retry",
+            "content": "No Automatic Retry",
             "value": "NoRetry"
           },
           {
@@ -264,7 +283,7 @@
           },
           {
             "id": "ManualRetry",
-            "content": "Manual Retry",
+            "content": "Human Review",
             "value": "ManualRetry"
           }
         ]
@@ -296,6 +315,24 @@
           {
             "fieldType": "EXPRESSION",
             "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles",
+          "description": "Role(s) permitted to decide the retry review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
             "selected": true
           }
         ],

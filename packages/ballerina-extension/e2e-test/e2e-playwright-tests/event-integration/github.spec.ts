@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, test } from '@playwright/test';
-import { addArtifact, BI_INTEGRATOR_LABEL, BI_WEBVIEW_NOT_FOUND_ERROR, initTest, page } from '../utils/helpers';
-import { Form, switchToIFrame } from '@wso2/playwright-vscode-tester';
+import { test } from '@playwright/test';
+import { confirmSaveChangesAndGoBack, createArtifactAndGetWebview, deleteArtifactFromTree, domClick, getWebview, BI_INTEGRATOR_LABEL, initTest, page } from '../utils/helpers';
+import { Form } from '@wso2/playwright-vscode-tester';
 import { ProjectExplorer } from '../utils/pages';
 import { DEFAULT_PROJECT_NAME } from '../utils/helpers/constants';
 
@@ -30,49 +30,50 @@ export default function createTests() {
         test('Create Github Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Creating a new service in test attempt: ', testAttempt);
-            // Creating a HTTP Service
-            await addArtifact('Github Integration', 'trigger-trigger-github');
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            // Create a new listener
-            listenerName = `listenerGithub${testAttempt}`;
+
+            const artifactWebView = await createArtifactAndGetWebview('Github Integration', 'trigger-trigger-github');
+
+            // Event Channel already defaults to "Issues" (github:IssuesService), matching
+            // this test's intent, so only the newly-required Webhook Secret needs filling.
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
             await form.fill({
                 values: {
-                    'Event Channel': {
-                        type: 'dropdown',
-                        value: 'IssuesService',
+                    'webhookSecret': {
+                        type: 'cmEditor',
+                        value: `test-secret`,
                     }
                 }
             });
-
+            // Dismiss the expression helper panel opened by filling the field above —
+            // it can cover the submit button.
+            await page.page.keyboard.press('Escape');
             await form.submit('Create');
 
-            const onOpened = artifactWebView.locator(`text="onOpened"`);
-            await onOpened.waitFor();
+            await artifactWebView.locator(`text="onOpened"`).waitFor();
 
             const projectExplorer = new ProjectExplorer(page.page);
             await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `github:IssuesService`]);
 
             listenerName = `githubListener`;
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
         });
 
         test('Editing Github Service', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Editing a service in test attempt: ', testAttempt);
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
+            const artifactWebView = await getWebview(BI_INTEGRATOR_LABEL, page);
 
-            const editBtn = artifactWebView.locator('vscode-button[title="Edit Service"]');
-            await editBtn.waitFor();
-            await editBtn.click({ force: true });
+            // The Create test can leave the webview either on the integration overview
+            // (service shown as a diagram node — click it to reach the dedicated service
+            // page) or already on that dedicated page (Configure visible directly).
+            const entryNode = artifactWebView.locator('[data-testid="entry-node-service"]');
+            if (await entryNode.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await domClick(entryNode);
+            }
+            const configureBtn = artifactWebView.getByRole('button', { name: 'Configure' });
+            await configureBtn.waitFor();
+            await domClick(configureBtn);
 
             const form = new Form(page.page, BI_INTEGRATOR_LABEL, artifactWebView);
             await form.switchToFormView(false, artifactWebView);
@@ -81,47 +82,26 @@ export default function createTests() {
                     'listenOn': {
                         type: 'cmEditor',
                         value: `9090`,
-                        additionalProps: { clickLabel: true, switchMode: 'primary-mode', window: global.window }
+                        additionalProps: { switchMode: 'primary-mode' }
                     }
                 }
             });
-
+            await page.page.keyboard.press('Escape');
             await form.submit('Save Changes');
+            await confirmSaveChangesAndGoBack(artifactWebView);
 
-            const saveChangesBtn = artifactWebView.locator('#save-changes-btn vscode-button[appearance="primary"]');
-            await saveChangesBtn.waitFor({ state: 'visible' });
-            await expect(saveChangesBtn).toHaveClass('disabled', { timeout: 5000 });
-            await expect(saveChangesBtn).toHaveText('Save Changes');
+            await configureBtn.waitFor();
 
-            const backBtn = artifactWebView.locator('[data-testid="back-button"]');
-            await backBtn.waitFor();
-            await backBtn.click();
-
-            await editBtn.waitFor();
-
-            const context = artifactWebView.locator(`text=${listenerName}`);
-            await context.waitFor();
-
-            const onOpened = artifactWebView.locator(`text="onOpened"`);
-            await onOpened.waitFor();
+            await artifactWebView.locator(`text=${listenerName}`).waitFor();
+            await artifactWebView.locator(`text="onOpened"`).waitFor();
         });
 
         test('Delete Github Integration', async ({ }, testInfo) => {
             const testAttempt = testInfo.retry + 1;
             console.log('Deleting Github integration in test attempt: ', testAttempt);
 
-            const artifactWebView = await switchToIFrame(BI_INTEGRATOR_LABEL, page.page);
-            if (!artifactWebView) {
-                throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
-            }
-            const projectExplorer = new ProjectExplorer(page.page);
-            const serviceTreeItem = await projectExplorer.findItem([DEFAULT_PROJECT_NAME, `github:IssuesService`]);
-            await serviceTreeItem.click({ button: 'right' });
-            const deleteButton = page.page.getByRole('button', { name: 'Delete' }).first();
-            await deleteButton.waitFor({ timeout: 5000 });
-            await deleteButton.click();
-            await page.page.waitForTimeout(500);
-            await expect(serviceTreeItem).not.toBeVisible({ timeout: 10000 });
+            await getWebview(BI_INTEGRATOR_LABEL, page);
+            await deleteArtifactFromTree([DEFAULT_PROJECT_NAME, `github:IssuesService`]);
         });
     });
 }

@@ -1,0 +1,118 @@
+{
+    "fileName": "/tmp/sample/main.bal",
+    "nodes": [
+        {
+            "id": "40001",
+            "metadata": {
+                "label": "Start",
+                "description": "",
+                "data": {
+                    "kind": "Resource",
+                    "label": "orderStatus",
+                    "accessor": "get",
+                    "isServiceFunction": true,
+                    "return": "string"
+                }
+            },
+            "codedata": {
+                "node": "EVENT_START",
+                "lineRange": {
+                    "fileName": "main.bal",
+                    "startLine": { "line": 10, "offset": 4 },
+                    "endLine": { "line": 16, "offset": 5 }
+                },
+                "sourceCode": "resource function get orderStatus() returns string {"
+            },
+            "branches": [],
+            "returning": false,
+            "flags": 0
+        },
+        {
+            "id": "40002",
+            "metadata": {
+                "label": "Declare Variable",
+                "description": "New variable with type"
+            },
+            "codedata": {
+                "node": "VARIABLE",
+                "lineRange": {
+                    "fileName": "main.bal",
+                    "startLine": { "line": 11, "offset": 8 },
+                    "endLine": { "line": 11, "offset": 52 }
+                },
+                "sourceCode": "string orderStatus = orderValue.status;"
+            },
+            "properties": {
+                "variable": {
+                    "metadata": { "label": "Name", "description": "Name of the variable" },
+                    "value": "orderStatus",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                },
+                "expression": {
+                    "metadata": { "label": "Expression", "description": "Expression of the variable" },
+                    "value": "orderValue.status",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                }
+            },
+            "branches": [],
+            "returning": false,
+            "flags": 0
+        },
+        {
+            "id": "40003",
+            "metadata": {
+                "label": "Call Function",
+                "description": "Call the logOrderStatusRetrieved function"
+            },
+            "codedata": {
+                "node": "FUNCTION_CALL",
+                "symbol": "logOrderStatusRetrieved",
+                "lineRange": {
+                    "fileName": "main.bal",
+                    "startLine": { "line": 13, "offset": 8 },
+                    "endLine": { "line": 13, "offset": 48 }
+                },
+                "sourceCode": "logOrderStatusRetrieved(orderStatus);"
+            },
+            "branches": [],
+            "returning": false,
+            "flags": 0
+        },
+        {
+            "id": "40004",
+            "metadata": {
+                "label": "Return",
+                "description": "Return a value"
+            },
+            "codedata": {
+                "node": "RETURN",
+                "lineRange": {
+                    "fileName": "main.bal",
+                    "startLine": { "line": 15, "offset": 8 },
+                    "endLine": { "line": 15, "offset": 27 }
+                },
+                "sourceCode": "return orderStatus;"
+            },
+            "properties": {
+                "expression": {
+                    "metadata": { "label": "Expression", "description": "Return value" },
+                    "value": "orderStatus",
+                    "optional": false,
+                    "editable": true,
+                    "advanced": false,
+                    "hidden": false
+                }
+            },
+            "branches": [],
+            "returning": true,
+            "flags": 0
+        }
+    ],
+    "connections": []
+}

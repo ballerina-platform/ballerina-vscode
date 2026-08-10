@@ -1,0 +1,482 @@
+/**
+ * Copyright (c) 2026, WSO2 LLC. (https://www.wso2.com) All Rights Reserved.
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
+import { ConnectorIcon } from "@wso2/bi-diagram";
+import { AvailableNode, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
+import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { cloneDeep, debounce } from "lodash";
+import ButtonCard from "../../../../components/ButtonCard";
+import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { FlowNodeForm } from "../../Forms/FlowNodeForm";
+import { fetchAgentNodeTemplate, getEndOfFileLineRange, getNodeTemplate } from "../utils";
+import { AgentDefinitionForm } from "../AgentDefinitionForm";
+import { AgentInfoCard } from "./AgentInfoCard";
+import {
+    AgentDefinitionFormContainer,
+    AgentOptionCard,
+    AgentOptionContent,
+    AgentOptionDescription,
+    AgentOptionIcon,
+    AgentOptionTitle,
+    AgentsGrid,
+    ArrowIcon,
+    EmptyState,
+    FilterButton,
+    FilterButtons,
+    FormContainer,
+    IntroText,
+    LoaderWrapper,
+    PopupContent,
+    ResultsSection,
+    Section,
+    SectionHeader,
+    SectionTitle,
+    StyledSearchBox,
+} from "./styles";
+
+const AGENT_FILE_NAME = "agents.bal";
+
+type AgentFilter = "All" | "Project" | "Organization";
+export type AddAgentView = "gallery" | "configure" | "create" | "createDefinition";
+
+export interface AddAgentPopupContentProps {
+    projectPath: string;
+    onClose?: () => void;
+    onAgentDefinitionCreated?: () => void;
+    view: AddAgentView;
+    onViewChange: (view: AddAgentView) => void;
+    pendingAgent?: AvailableNode;
+    onPendingAgentChange: (agent: AvailableNode | undefined) => void;
+    inFlow?: boolean;
+    onAgentCreated?: (agentVarName: string) => void;
+    dependencyMode?: boolean;
+    onAgentSelectedForDependency?: (agent: AvailableNode) => void;
+    onGenericAgentSelected?: () => void;
+}
+
+const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
+    All: "all",
+    Project: "local",
+    Organization: "organization",
+};
+
+export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
+    const {
+        projectPath,
+        onClose,
+        onAgentDefinitionCreated,
+        view,
+        onViewChange,
+        pendingAgent,
+        onPendingAgentChange,
+        inFlow,
+        onAgentCreated,
+        dependencyMode,
+        onAgentSelectedForDependency,
+        onGenericAgentSelected,
+    } = props;
+    const { rpcClient } = useRpcContext();
+    const [searchText, setSearchText] = useState("");
+    const [filterType, setFilterType] = useState<AgentFilter>("All");
+    const [agents, setAgents] = useState<AvailableNode[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [isWorkspace, setIsWorkspace] = useState(false);
+    const searchRequestRef = useRef(0);
+    const previousFilterRef = useRef<AgentFilter | undefined>(undefined);
+
+    useEffect(() => {
+        let cancelled = false;
+        rpcClient
+            .getCommonRpcClient()
+            .getWorkspaceType()
+            .then((result) => {
+                if (cancelled) return;
+                setIsWorkspace(
+                    ["MULTIPLE_PROJECTS", "BALLERINA_WORKSPACE", "VSCODE_WORKSPACE"].includes(result?.type)
+                );
+            })
+            .catch(() => {
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [rpcClient]);
+
+    const [agentNode, setAgentNode] = useState<FlowNode>();
+    const [agentFilePath, setAgentFilePath] = useState("");
+    const [targetLineRange, setTargetLineRange] = useState<LineRange>();
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [loadError, setLoadError] = useState<string>();
+    const [loadAttempt, setLoadAttempt] = useState(0);
+    const createFormNode = useMemo(() => agentNode ? cloneDeep(agentNode) : undefined, [agentNode]);
+    const configureFormNode = useMemo(() => {
+        if (!agentNode) {
+            return undefined;
+        }
+        const node = cloneDeep(agentNode);
+        if (node.metadata?.description) {
+            delete node.metadata.description;
+        }
+        return node;
+    }, [agentNode]);
+
+    useEffect(() => {
+        if ((view !== "configure" && view !== "create") || (view === "configure" && !pendingAgent)) {
+            setAgentNode(undefined);
+            setTargetLineRange(undefined);
+            setIsSubmitting(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoadError(undefined);
+                const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
+                let template: FlowNode;
+                if (view === "configure") {
+                    template = await getNodeTemplate(
+                        rpcClient,
+                        pendingAgent!.codedata,
+                        endOfFile.fileName,
+                        endOfFile.startLine
+                    );
+                    if (!template) {
+                        throw new Error("No agent node template returned");
+                    }
+                } else {
+                    template = await fetchAgentNodeTemplate(rpcClient, projectPath);
+                }
+                template.codedata.lineRange = endOfFile;
+                if (cancelled) return;
+                setAgentFilePath(endOfFile.fileName);
+                setTargetLineRange(endOfFile);
+                setAgentNode(template);
+            } catch (error) {
+                console.error("Error loading agent node template:", error);
+                if (!cancelled) {
+                    setLoadError("Unable to load the agent template.");
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [view, pendingAgent, rpcClient, projectPath, loadAttempt]);
+
+    const runSearch = (text: string, filter: AgentFilter) => {
+        const request = ++searchRequestRef.current;
+        setIsSearching(true);
+        rpcClient
+            .getBIDiagramRpcClient()
+            .search({
+                filePath: projectPath,
+                queryMap: {
+                    ...(text ? { q: text } : {}),
+                    limit: 60,
+                    source: FILTER_TO_SOURCE[filter],
+                },
+                searchKind: "AGENT",
+            })
+            .then((model) => {
+                if (request === searchRequestRef.current) {
+                    setAgents((model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]));
+                }
+            })
+            .finally(() => {
+                if (request === searchRequestRef.current) {
+                    setIsSearching(false);
+                }
+            });
+    };
+
+    const debouncedSearch = debounce((text: string, filter: AgentFilter) => runSearch(text, filter), 1100);
+
+    useEffect(() => {
+        if (view !== "gallery") {
+            previousFilterRef.current = undefined;
+            return;
+        }
+        const filterChanged = previousFilterRef.current !== filterType;
+        previousFilterRef.current = filterType;
+        if (!searchText || filterChanged) {
+            runSearch(searchText, filterType);
+            return;
+        }
+        searchRequestRef.current += 1;
+        debouncedSearch(searchText, filterType);
+        return () => debouncedSearch.cancel();
+    }, [view, searchText, filterType, rpcClient, projectPath]);
+
+    const handleCustomAgent = () => {
+        onPendingAgentChange(undefined);
+        onViewChange("create");
+    };
+
+    const handleCreateAgent = async (updatedNode?: FlowNode) => {
+        if (!updatedNode) {
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const node = cloneDeep(updatedNode);
+
+            const endOfFile = await getEndOfFileLineRange(AGENT_FILE_NAME, rpcClient);
+            node.codedata.lineRange = endOfFile;
+
+            const sourceResponse = await rpcClient
+                .getBIDiagramRpcClient()
+                .getSourceCode({ filePath: endOfFile.fileName, flowNode: node });
+
+            if (isDefaultModelProviderExpr(node.properties?.model?.value)) {
+                await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
+            }
+
+            const agentVarName = String(node.properties?.variable?.value ?? "");
+
+            if (inFlow) {
+                onAgentCreated?.(agentVarName);
+                return;
+            }
+
+            const agentArtifact =
+                sourceResponse?.artifacts?.find((artifact) => artifact.isNew && artifact.name === agentVarName) ||
+                sourceResponse?.artifacts?.find((artifact) => artifact.name === agentVarName);
+
+            if (agentArtifact?.path && agentArtifact?.position) {
+                await rpcClient.getVisualizerRpcClient().openView({
+                    type: EVENT_TYPE.OPEN_VIEW,
+                    location: {
+                        documentUri: agentArtifact.path,
+                        position: agentArtifact.position,
+                        identifier: agentVarName,
+                    },
+                });
+                return;
+            }
+            onClose?.();
+        } catch (error) {
+            console.error("Error creating custom agent:", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to create the agent. Please try again.",
+            });
+            setIsSubmitting(false);
+        }
+    };
+
+    const renderLoadError = () => (
+        <LoaderWrapper>
+            <div role="alert">
+                <p>{loadError}</p>
+                <Button appearance="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+                    Retry
+                </Button>
+            </div>
+        </LoaderWrapper>
+    );
+
+    const handleSelectAgent = (agent: AvailableNode) => {
+        if (dependencyMode) {
+            onAgentSelectedForDependency?.(agent);
+            return;
+        }
+        onPendingAgentChange(agent);
+        onViewChange("configure");
+    };
+
+    if (view === "createDefinition") {
+        return (
+            <AgentDefinitionFormContainer>
+                <AgentDefinitionForm projectPath={projectPath} onCreated={onAgentDefinitionCreated} />
+            </AgentDefinitionFormContainer>
+        );
+    }
+
+    if (view === "create" || view === "configure") {
+        const isConfiguring = view === "configure";
+        const fieldOverrides = {
+            type: { hidden: true },
+            variable: { label: "Agent Name", documentation: "Name of the agent" },
+        };
+        // Memoized per `agentNode` so a re-render does not hand the form a new node
+        // object and wipe the values the user has already typed.
+        const formNode = isConfiguring ? configureFormNode : createFormNode;
+        const submitText = isConfiguring ? "Add Agent" : "Create Agent";
+        const submittingText = isConfiguring ? "Adding..." : "Creating...";
+        return (
+            <FormContainer>
+                {loadError ? renderLoadError() : formNode && targetLineRange ? (
+                    <>
+                        {isConfiguring && <AgentInfoCard
+                            label={pendingAgent?.metadata?.label || ""}
+                            description={pendingAgent?.metadata?.description || agentNode?.metadata?.description}
+                            icon={pendingAgent?.metadata?.icon}
+                        />}
+                        <FlowNodeForm
+                            fileName={agentFilePath}
+                            node={formNode}
+                            nodeFormTemplate={formNode}
+                            targetLineRange={targetLineRange}
+                            onSubmit={handleCreateAgent}
+                            submitText={isSubmitting ? submittingText : submitText}
+                            showProgressIndicator={isSubmitting}
+                            disableSaveButton={isSubmitting}
+                            footerActionButton
+                            fieldOverrides={fieldOverrides}
+                        />
+                    </>
+                ) : (
+                    <LoaderWrapper>
+                        <RelativeLoader />
+                    </LoaderWrapper>
+                )}
+            </FormContainer>
+        );
+    }
+
+    return (
+        <PopupContent>
+            <IntroText>
+                {dependencyMode
+                    ? "Choose the agent this definition should delegate to. The selected agent will be passed into this definition when it is created."
+                    : "To add an agent, create a one-off agent for this project, create a reusable agent definition that can be shared across projects, or select one of the pre-built agents below. You will then be guided to provide the required details to complete the agent setup."}
+            </IntroText>
+
+            <StyledSearchBox
+                value={searchText}
+                placeholder="Search agents..."
+                onChange={setSearchText}
+                size={60}
+            />
+
+            <Section>
+                <SectionTitle variant="h4">{dependencyMode ? "Generic Agent" : "Create New"}</SectionTitle>
+                <Section>
+                    <AgentOptionCard onClick={dependencyMode ? onGenericAgentSelected : handleCustomAgent}>
+                        <AgentOptionIcon>
+                            <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                        </AgentOptionIcon>
+                        <AgentOptionContent>
+                            <AgentOptionTitle>
+                                {dependencyMode ? "Generic ai:Agent" : "Create Agent"}
+                            </AgentOptionTitle>
+                            <AgentOptionDescription>
+                                {dependencyMode
+                                    ? "Use a flexible agent input when the concrete agent is supplied by the caller."
+                                    : "Create a one-off agent instance for this integration only."}
+                            </AgentOptionDescription>
+                        </AgentOptionContent>
+                        <ArrowIcon>
+                            <Codicon name="chevron-right" />
+                        </ArrowIcon>
+                    </AgentOptionCard>
+                    {!dependencyMode && (
+                        <AgentOptionCard onClick={() => onViewChange("createDefinition")}>
+                            <AgentOptionIcon>
+                                <Icon
+                                    isCodicon={true}
+                                    name="symbol-class"
+                                    sx={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    iconSx={{ fontSize: "24px" }}
+                                />
+                            </AgentOptionIcon>
+                            <AgentOptionContent>
+                                <AgentOptionTitle>Create Agent Definition</AgentOptionTitle>
+                                <AgentOptionDescription>
+                                    Create an agent definition that can be shared and used to create agent instances with the same configuration.
+                                </AgentOptionDescription>
+                            </AgentOptionContent>
+                            <ArrowIcon>
+                                <Codicon name="chevron-right" />
+                            </ArrowIcon>
+                        </AgentOptionCard>
+                    )}
+                </Section>
+            </Section>
+
+            <ResultsSection>
+                <SectionHeader>
+                    <SectionTitle variant="h4">{dependencyMode ? "Agent Types" : "Pre-built Agents"}</SectionTitle>
+                    <FilterButtons>
+                        <FilterButton
+                            active={filterType === "All"}
+                            onClick={() => setFilterType("All")}
+                        >
+                            All
+                        </FilterButton>
+                        {isWorkspace && (
+                            <FilterButton
+                                active={filterType === "Project"}
+                                onClick={() => setFilterType("Project")}
+                            >
+                                Project
+                            </FilterButton>
+                        )}
+                        <FilterButton
+                            active={filterType === "Organization"}
+                            onClick={() => setFilterType("Organization")}
+                        >
+                            Organization
+                        </FilterButton>
+                    </FilterButtons>
+                </SectionHeader>
+                {isSearching && agents.length === 0 ? (
+                    <LoaderWrapper>
+                        <RelativeLoader />
+                    </LoaderWrapper>
+                ) : agents.length === 0 ? (
+                    <EmptyState>
+                        {filterType === "Project"
+                            ? "No agents found in this project."
+                            : filterType === "Organization"
+                                ? "No agents found in your organization."
+                                : "No agents found."}
+                    </EmptyState>
+                ) : (
+                    <AgentsGrid>
+                        {agents.map((agent) => {
+                            const key = `${agent.codedata.org}/${agent.codedata.module}/${agent.metadata.label}`;
+                            return (
+                                <ButtonCard
+                                    id={`agent-${key}`}
+                                    key={key}
+                                    title={agent.metadata.label}
+                                    description={`${agent.codedata.org} / ${agent.codedata.module}`}
+                                    truncate={true}
+                                    icon={
+                                        <ConnectorIcon
+                                            url={agent.metadata.icon}
+                                            fallbackIcon={
+                                                <Icon
+                                                    name="bi-ai-agent"
+                                                    sx={{ fontSize: 24, width: 24, height: 24 }}
+                                                />
+                                            }
+                                        />
+                                    }
+                                    onClick={() => handleSelectAgent(agent)}
+                                />
+                            );
+                        })}
+                    </AgentsGrid>
+                )}
+            </ResultsSection>
+        </PopupContent>
+    );
+}

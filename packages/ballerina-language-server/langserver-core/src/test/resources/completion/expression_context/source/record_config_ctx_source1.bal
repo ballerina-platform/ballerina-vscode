@@ -1,8 +1,8 @@
-import ballerina/http;
+import ballerina/module1;
 
 type ConfigRecord record {
     string configStr;
-    http:Client httpClient;
+    module1:Client httpClient;
     AnotherRecord nestedRecord;
 };
 

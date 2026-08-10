@@ -1,0 +1,47 @@
+{
+  "description": "A Global identifier in a test document collides with a test module variable",
+  "filePath": "testproj/tests/tests.bal",
+  "context": {
+    "expression": "testModuleValue",
+    "startLine": {
+      "line": 15,
+      "offset": 0
+    },
+    "offset": 0,
+    "property": {
+      "metadata": {
+        "label": "Test Function Name",
+        "description": "Name of the test function"
+      },
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "scope": "Global"
+        }
+      ],
+      "value": "",
+      "optional": false,
+      "editable": true,
+      "advanced": false
+    }
+  },
+  "diagnostics": [
+    {
+      "range": {
+        "start": {
+          "line": 15,
+          "character": 0
+        },
+        "end": {
+          "line": 15,
+          "character": 15
+        }
+      },
+      "severity": "Error",
+      "code": {
+        "left": "BCE2008"
+      },
+      "message": "redeclared symbol 'testModuleValue'"
+    }
+  ]
+}

@@ -62,15 +62,18 @@ export const RecordEditor = forwardRef<{ addMember: () => void }, RecordEditorPr
 
     const handleFieldValidation = (functionIndex: number, isIdentifier: boolean, hasError: boolean) => {
         setValidationErrors(prev => {
+            const current = prev[functionIndex];
+            // Bail out when the outcome is unchanged. Returning a new array on every validation
+            // callback churns this state, and the effect below is keyed on its identity.
+            if (current && (isIdentifier ? current.identifier : current.type) === hasError) {
+                return prev;
+            }
+
             const newErrors = [...prev];
-            if (!newErrors[functionIndex]) {
-                newErrors[functionIndex] = { identifier: false, type: false };
-            }
-            if (isIdentifier) {
-                newErrors[functionIndex] = { ...newErrors[functionIndex], identifier: hasError };
-            } else {
-                newErrors[functionIndex] = { ...newErrors[functionIndex], type: hasError };
-            }
+            const entry = current ?? { identifier: false, type: false };
+            newErrors[functionIndex] = isIdentifier
+                ? { ...entry, identifier: hasError }
+                : { ...entry, type: hasError };
 
             return newErrors;
         });

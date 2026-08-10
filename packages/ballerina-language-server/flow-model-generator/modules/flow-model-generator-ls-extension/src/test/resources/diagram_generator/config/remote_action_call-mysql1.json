@@ -91,6 +91,30 @@
             "advanced": false,
             "hidden": true
           },
+          "rowType": {
+            "metadata": {
+              "label": "Row Type",
+              "description": "Record type to map query results to"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "record {|anydata...;|}",
+                "selected": false
+              }
+            ],
+            "value": "Row",
+            "placeholder": "record {|anydata...;|}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "rowType"
+            },
+            "defaultValue": "record {|anydata...;|}"
+          },
           "sqlQuery": {
             "metadata": {
               "label": "SQL Query",
@@ -121,30 +145,6 @@
             "imports": {
               "sql": "ballerina/sql"
             }
-          },
-          "rowType": {
-            "metadata": {
-              "label": "Row Type",
-              "description": "Record type to map query results to"
-            },
-            "types": [
-              {
-                "fieldType": "TYPE",
-                "ballerinaType": "record {|anydata...;|}",
-                "selected": false
-              }
-            ],
-            "value": "Row",
-            "placeholder": "record {|anydata...;|}",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "PARAM_FOR_TYPE_INFER",
-              "originalName": "rowType"
-            },
-            "defaultValue": "record {|anydata...;|}"
           },
           "variable": {
             "metadata": {
@@ -248,6 +248,30 @@
             "advanced": false,
             "hidden": true
           },
+          "rowType": {
+            "metadata": {
+              "label": "Row Type",
+              "description": "Record type to map query results to"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "ballerinaType": "record {|anydata...;|}",
+                "selected": false
+              }
+            ],
+            "value": "record {|string id; int val;|}",
+            "placeholder": "record {|anydata...;|}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "PARAM_FOR_TYPE_INFER",
+              "originalName": "rowType"
+            },
+            "defaultValue": "record {|anydata...;|}"
+          },
           "sqlQuery": {
             "metadata": {
               "label": "SQL Query",
@@ -278,30 +302,6 @@
             "imports": {
               "sql": "ballerina/sql"
             }
-          },
-          "rowType": {
-            "metadata": {
-              "label": "Row Type",
-              "description": "Record type to map query results to"
-            },
-            "types": [
-              {
-                "fieldType": "TYPE",
-                "ballerinaType": "record {|anydata...;|}",
-                "selected": false
-              }
-            ],
-            "value": "record {|string id; int val;|}",
-            "placeholder": "record {|anydata...;|}",
-            "optional": false,
-            "editable": true,
-            "advanced": false,
-            "hidden": false,
-            "codedata": {
-              "kind": "PARAM_FOR_TYPE_INFER",
-              "originalName": "rowType"
-            },
-            "defaultValue": "record {|anydata...;|}"
           },
           "variable": {
             "metadata": {
@@ -411,7 +411,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "host"
             },
-            "defaultValue": "\"localhost\""
+            "defaultValue": "\"\""
           },
           "user": {
             "metadata": {
@@ -439,7 +439,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "user"
             },
-            "defaultValue": "\"root\""
+            "defaultValue": "()"
           },
           "password": {
             "metadata": {
@@ -523,7 +523,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "port"
             },
-            "defaultValue": "3306"
+            "defaultValue": "0"
           },
           "options": {
             "metadata": {

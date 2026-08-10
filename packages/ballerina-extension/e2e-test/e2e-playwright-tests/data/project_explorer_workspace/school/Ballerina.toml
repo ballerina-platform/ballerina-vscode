@@ -1,0 +1,9 @@
+[package]
+org = "samith"
+name = "school"
+version = "0.1.0"
+distribution = "2201.13.4"
+title = "School"
+
+[build-options]
+sticky = true

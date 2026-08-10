@@ -1,0 +1,283 @@
+# Declares every Ballerina package the language-server tests need in the local
+# central cache. `bal build` on this project resolves and downloads the whole
+# set in one pass, and Dependencies.toml locks every version (transitives
+# included) until deliberately regenerated.
+
+[package]
+org = "wso2"
+name = "ballerina_dependencies"
+version = "0.1.0"
+lockingMode = "LOCKED"
+
+[build-options]
+sticky = true
+
+[[dependency]]
+org = "ballerina"
+name = "http"
+version = "2.16.6"
+
+[[dependency]]
+org = "ballerinax"
+name = "kafka"
+version = "4.6.5"
+
+[[dependency]]
+org = "ballerinax"
+name = "rabbitmq"
+version = "3.3.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.github"
+version = "0.11.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.shopify"
+version = "1.6.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "redis"
+version = "3.1.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "postgresql"
+version = "1.17.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "postgresql.driver"
+version = "1.6.3"
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.salesforce"
+version = "0.10.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "github"
+version = "5.1.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "snowflake"
+version = "2.2.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "docusign.dsadmin"
+version = "2.0.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "mysql"
+version = "1.18.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "mysql.cdc.driver"
+version = "1.0.2"
+
+[[dependency]]
+org = "ballerinax"
+name = "wso2.controlplane"
+version = "1.0.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.pinecone"
+version = "1.1.5"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.devant"
+version = "1.0.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.openai"
+version = "1.3.5"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.ollama"
+version = "1.2.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.azure"
+version = "1.4.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.anthropic"
+version = "1.3.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.deepseek"
+version = "1.1.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.googleapis.vertex"
+version = "1.0.2"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.openrouter"
+version = "1.0.2"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.milvus"
+version = "1.0.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.pgvector"
+version = "1.0.5"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.weaviate"
+version = "1.0.5"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.microsoft.sharepoint"
+version = "1.0.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "ai.mistral"
+version = "1.2.4"
+
+[[dependency]]
+org = "ballerina"
+name = "ai"
+version = "1.13.0"
+
+[[dependency]]
+org = "ballerina"
+name = "ai.eval"
+version = "0.9.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "solace"
+version = "0.3.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "cdc"
+version = "1.3.2"
+
+[[dependency]]
+org = "ballerinax"
+name = "mssql"
+version = "1.17.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "mssql.cdc.driver"
+version = "1.0.2"
+
+[[dependency]]
+org = "ballerinax"
+name = "salesforce"
+version = "8.4.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "solace.jms"
+version = "0.1.0"
+
+[[dependency]]
+org = "ballerina"
+name = "ftp"
+version = "2.16.0"
+
+[[dependency]]
+org = "ballerina"
+name = "data.csv"
+version = "0.8.2"
+
+[[dependency]]
+org = "ballerina"
+name = "workflow"
+version = "0.8.3"
+
+[[dependency]]
+org = "ballerina"
+name = "grpc"
+version = "1.13.2"
+
+[[dependency]]
+org = "ballerina"
+name = "mqtt"
+version = "1.4.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "oracledb"
+version = "1.14.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "nats"
+version = "3.2.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "covid19"
+version = "1.5.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "azure.cosmosdb"
+version = "4.2.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "azure.datalake"
+version = "1.5.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "docusign.dsesign"
+version = "1.0.1"
+
+[[dependency]]
+org = "ballerinax"
+name = "mongodb"
+version = "5.1.0"
+
+[[dependency]]
+org = "ballerinax"
+name = "ibm.ibmmq"
+version = "1.4.4"
+
+[[dependency]]
+org = "ballerinax"
+name = "trigger.hubspot"
+version = "0.12.0"
+
+[[dependency]]
+org = "ballerina"
+name = "mcp"
+version = "1.0.3"
+
+# ballerinax/ibm.ibmmq declares the IBM MQ client jar with 'provided' scope, so it
+# is not bundled and must be supplied by the consuming project. Declaring it here
+# (available on Maven Central) lets `bal build` resolve ibm.ibmmq and cache it for
+# the offline tests. Tests only need the semantic model, but bal build fails to
+# resolve the package graph without this.
+[[platform.java21.dependency]]
+groupId = "com.ibm.mq"
+artifactId = "com.ibm.mq.allclient"
+version = "9.4.1.0"

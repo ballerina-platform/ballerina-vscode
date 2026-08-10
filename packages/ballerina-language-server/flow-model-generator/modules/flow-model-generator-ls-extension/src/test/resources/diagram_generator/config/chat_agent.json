@@ -17,7 +17,7 @@
         "metadata": {
           "label": "Start",
           "data": {
-            "kind": "AI Chat Agent",
+            "kind": "Chat Agent Service",
             "label": "chat",
             "isServiceFunction": true,
             "accessor": "post",
@@ -52,23 +52,25 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
           "data": {
-            "tools": [],
-            "agent": {
-              "systemPrompt": "{role: \"\", instructions: string ``}",
-              "instructions": "",
-              "role": "\"\"",
-              "scope": "Global",
-              "model": "_WorkflowAgentModel",
-              "tools": "[]"
-            },
-            "memory": {
-              "type": "ai:MessageWindowChatMemory",
-              "size": "10"
-            },
-            "model": {
-              "name": "_WorkflowAgentModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
-              "type": "OpenAiProvider"
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "",
+                "role": "\"\""
+              },
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "_WorkflowAgentModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "OpenAiProvider"
+                }
+              },
+              "tools": []
             }
           }
         },
@@ -463,7 +465,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -491,7 +493,7 @@
             "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "REQUIRED"
+              "kind": "DEFAULTABLE"
             },
             "defaultValue": ""
           },
@@ -570,7 +572,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "sessionId"
             },
-            "defaultValue": "DEFAULT_SESSION_ID"
+            "defaultValue": "\"\""
           }
         },
         "flags": 1
@@ -625,14 +627,38 @@
         "metadata": {
           "label": "Agent",
           "description": "Represents an agent.",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+          "data": {
+            "agentInfo": {
+              "systemPrompt": {
+                "instructions": "",
+                "role": "\"\""
+              },
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
+              },
+              "modelProvider": {
+                "presentation": {
+                  "name": "_WorkflowAgentModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "OpenAiProvider"
+                }
+              },
+              "tools": []
+            }
+          }
         },
         "codedata": {
           "node": "AGENT",
           "org": "ballerinax",
           "module": "ai",
+          "packageName": "ai",
           "object": "Agent",
           "symbol": "init",
+          "version": "1.0.1",
           "lineRange": {
             "fileName": "chat_agent.bal",
             "startLine": {
@@ -679,7 +705,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -759,7 +785,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -801,7 +827,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "agentType"
             },
-            "defaultValue": "FUNCTION_CALL_AGENT"
+            "defaultValue": "\"FUNCTION_CALL_AGENT\""
           },
           "maxIter": {
             "metadata": {
@@ -829,7 +855,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "5"
+            "defaultValue": "0"
           },
           "verbose": {
             "metadata": {
@@ -875,12 +901,12 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "new MessageWindowChatMemory()"
+            "defaultValue": "()"
           },
           "checkError": {
             "metadata": {
@@ -915,6 +941,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"\"",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": true
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": false
+              }
+            ],
+            "value": "",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {
@@ -1195,7 +1277,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "serviceUrl"
             },
-            "defaultValue": "OPENAI_SERVICE_URL"
+            "defaultValue": "\"\""
           },
           "maxTokens": {
             "metadata": {
@@ -1223,7 +1305,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "maxTokens"
             },
-            "defaultValue": "DEFAULT_MAX_TOKEN_COUNT"
+            "defaultValue": "0"
           },
           "temperature": {
             "metadata": {
@@ -1251,7 +1333,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": "0.0d"
           },
           "httpVersion": {
             "metadata": {
@@ -1295,7 +1377,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": "\"2.0\""
           },
           "http1Settings": {
             "metadata": {
@@ -1309,7 +1391,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1349,7 +1431,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1403,7 +1485,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "60"
+            "defaultValue": "0.0d"
           },
           "forwarded": {
             "metadata": {
@@ -1431,7 +1513,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"disable\""
+            "defaultValue": "\"\""
           },
           "poolConfig": {
             "metadata": {
@@ -1445,7 +1527,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1485,7 +1567,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1555,7 +1637,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": "\"AUTO\""
           },
           "circuitBreaker": {
             "metadata": {
@@ -1569,7 +1651,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1609,7 +1691,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1649,7 +1731,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1689,7 +1771,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1729,7 +1811,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1783,7 +1865,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "true"
+            "defaultValue": "false"
           },
           "checkError": {
             "metadata": {

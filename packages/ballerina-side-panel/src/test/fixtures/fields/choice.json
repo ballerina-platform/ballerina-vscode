@@ -1,0 +1,16 @@
+{
+    "description": "CHOICE -> ChoiceForm",
+    "expectedEditor": "ChoiceForm",
+    "fieldInputType": { "fieldType": "CHOICE" },
+    "field": {
+        "key": "f_CHOICE",
+        "label": "CHOICE field",
+        "type": "CHOICE",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "CHOICE", "selected": false }],
+        "enabled": true
+    }
+}

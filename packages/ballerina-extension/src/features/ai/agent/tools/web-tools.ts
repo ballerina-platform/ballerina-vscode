@@ -20,7 +20,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { v4 as uuidv4 } from 'uuid';
 import { CopilotEventHandler } from '../../utils/events';
 import { approvalManager } from '../../state/ApprovalManager';
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from '../../utils/ai-client';
+import { getAnthropicClient, getProviderModelOptions, ANTHROPIC_SONNET } from '../../utils/ai-client';
 import { sendWebToolToggleNotification } from '../../utils/ai-utils';
 
 const WEB_TOOL_NOTIFICATION_TYPE = "webtool";
@@ -139,7 +139,8 @@ async function executeWebSearch(
 
         console.log(`[WebTools] search | query: ${input.query} | context: ${input.context}`);
         const result = await generateText({
-            model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+            model: await getAnthropicClient(ANTHROPIC_SONNET),
+            providerOptions: await getProviderModelOptions(),
             system: WEB_SEARCH_SYSTEM_PROMPT,
             prompt: `Context: ${input.context}\n\nSearch query: ${input.query}\n\nSearch the web and provide a detailed, accurate answer based on the results.`,
             tools: {
@@ -221,7 +222,8 @@ async function executeWebFetch(
 
         console.log(`[WebTools] fetch | url: ${input.url}`);
         const result = await generateText({
-            model: await getAnthropicClient(ANTHROPIC_SONNET_4),
+            model: await getAnthropicClient(ANTHROPIC_SONNET),
+            providerOptions: await getProviderModelOptions(),
             system: 'You are a web fetcher. Your only job is to invoke the web_fetch tool with the given URL. STRICT RULES: (1) Do NOT write any text before the tool call. (2) Do NOT write any text after the tool call. (3) Do NOT summarize, describe, or explain the result. The tool result is consumed programmatically — any text you emit is ignored and wastes tokens.',
             prompt: `URL: ${input.url}`,
             tools: {

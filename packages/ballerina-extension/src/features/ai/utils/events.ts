@@ -14,69 +14,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ChatNotify, Command, onChatNotify } from "@wso2/ballerina-core";
+import { ChatNotify, Command } from "@wso2/ballerina-core";
 import { ModelUsage } from "./libs/function-registry";
-import { RPCLayer } from "../../../RPCLayer";
-import { AiPanelWebview } from "../../../views/ai-panel/webview";
 import {
-    sendContentAppendNotification,
-    sendContentReplaceNotification,
-    sendDiagnosticMessageNotification,
-    sendErrorNotification,
-    sendMessagesNotification,
-    sendMessageStartNotification,
-    sendMessageStopNotification,
-    sendIntermidateStateNotification,
-    sendToolCallNotification,
-    sendToolResultNotification,
-    sendTaskApprovalRequestNotification,
-    sendWebToolApprovalNotification,
-    sendAbortNotification,
-    sendSaveChatNotification,
-    sendConnectorGenerationNotification,
-    sendConfigurationCollectionNotification,
     sendMigrationPanelNotification,
     sendVisualizerMigrationNotification,
     sendAIPanelNotification,
-    sendClarifyNotification,
-    sendSkillEnableNotification,
-    sendChatComponentNotification,
-    sendUsageMetricsNotification,
+    AIPanelRunContext,
 } from "./ai-utils";
 
 export type CopilotEventHandler = (event: ChatNotify) => void;
 
 export type ToolModelUsage = Record<string, { inputTokens: number; outputTokens: number }>;
 
-// Per-million-token pricing by model
-const MODEL_PRICING: Record<string, { input: number; cacheWrite: number; cacheRead: number; output: number }> = {
-    'claude-sonnet-4-6':            { input: 3,  cacheWrite: 3.75, cacheRead: 0.30, output: 15 },
-    'claude-haiku-4-5-20251001':    { input: 1,  cacheWrite: 1.25, cacheRead: 0.10, output: 5  },
-};
+import { calculateCost } from "./model-pricing";
 
-interface CostInput {
-    model: string;
-    inputTokens: number;
-    outputTokens: number;
-    cacheReadTokens?: number;
-    cacheWriteTokens?: number;
-}
-
-export function calculateCost(usage: CostInput): number {
-    const pricing = MODEL_PRICING[usage.model];
-    if (!pricing) { return 0; }
-
-    const cacheRead = usage.cacheReadTokens || 0;
-    const cacheWrite = usage.cacheWriteTokens || 0;
-    const baseInput = usage.inputTokens - cacheRead - cacheWrite;
-
-    return (
-        baseInput   * pricing.input      +
-        cacheWrite  * pricing.cacheWrite  +
-        cacheRead   * pricing.cacheRead   +
-        usage.outputTokens * pricing.output
-    ) / 1_000_000;
-}
+export { calculateCost };
 
 export function calculateTotalCost(
     mainModel: string,
@@ -121,96 +74,32 @@ export function updateAndSaveChat(messageId: string, command: Command, eventHand
 }
 
 // Event listener that handles events and sends notifications
-export function createWebviewEventHandler(command: Command): CopilotEventHandler {
+export function createWebviewEventHandler(
+    command: Command,
+    runContext?: AIPanelRunContext
+): CopilotEventHandler {
     return (event: ChatNotify) => {
-        switch (event.type) {
-            case "start":
-                sendMessageStartNotification();
-                break;
-            case "content_block":
-                sendContentAppendNotification(event.content);
-                break;
-            case "content_replace":
-                sendContentReplaceNotification(event.content);
-                break;
-            case "error":
-                sendErrorNotification(event);
-                break;
-            case "stop":
-                sendMessageStopNotification(command);
-                break;
-            case "abort":
-                sendAbortNotification(event.command);
-                break;
-            case "save_chat":
-                sendSaveChatNotification(event.command, event.messageId);
-                break;
-            case "intermediary_state":
-                sendIntermidateStateNotification(event.state);
-                break;
-            case "messages":
-                sendMessagesNotification(event.messages);
-                break;
-            case "tool_call":
-                sendToolCallNotification(event.toolName, event.toolInput, event.toolCallId);
-                break;
-            case "tool_result":
-                sendToolResultNotification(event.toolName, event.toolOutput, event.toolCallId, event.failed);
-                break;
-            case "task_approval_request":
-                console.log("[Event Handler] Task approval request received:", event);
-                sendTaskApprovalRequestNotification(
-                    event.approvalType,
-                    event.tasks,
-                    event.taskDescription,
-                    event.message,
-                    event.requestId,
-                    event.autoApproved
-                );
-                break;
-            case "evals_tool_result":
-                // Ignore evals-specific events in webview
-                break;
-            case "usage_metrics":
-                sendUsageMetricsNotification(event.usage, event.breakdown);
-                break;
-            case "diagnostics":
-                sendDiagnosticMessageNotification(event.diagnostics);
-                break;
-            case "connector_generation_notification":
-                sendConnectorGenerationNotification(event);
-                break;
-            case "configuration_collection_event":
-                sendConfigurationCollectionNotification(event);
-                break;
-            case "clarify_event":
-                sendClarifyNotification(event);
-                break;
-            case "skill_enable_event":
-                sendSkillEnableNotification(event);
-                break;
-            case "chat_component":
-                sendChatComponentNotification(event.componentType, event.data, event.id);
-                break;
-            case "web_tool_approval_request":
-                sendWebToolApprovalNotification(event.requestId, event.toolName, event.content);
-                break;
-            case "compaction_start":
-                console.log('[Compaction] Context compaction started');
-                RPCLayer._messenger.sendNotification(onChatNotify, { type: "webview", webviewType: AiPanelWebview.viewType }, event);
-                break;
-            case "compaction_end":
-                console.log('[Compaction] Context compaction completed');
-                RPCLayer._messenger.sendNotification(onChatNotify, { type: "webview", webviewType: AiPanelWebview.viewType }, event);
-                break;
-            case "compaction_disabled":
-                console.warn('[Compaction] Compaction disabled — codebase floor exceeds trigger threshold');
-                RPCLayer._messenger.sendNotification(onChatNotify, { type: "webview", webviewType: AiPanelWebview.viewType }, event);
-                break;
-            default:
-                console.warn(`Unhandled event type: ${event}`);
-                break;
+        if (event.type === "evals_tool_result") {
+            return;
         }
+        if (event.type === "task_approval_request") {
+            console.log("[Event Handler] Task approval request received:", event);
+        } else if (event.type === "compaction_start") {
+            console.log("[Compaction] Context compaction started");
+        } else if (event.type === "compaction_end") {
+            console.log("[Compaction] Context compaction completed");
+        } else if (event.type === "compaction_disabled") {
+            console.warn("[Compaction] Compaction disabled — codebase floor exceeds trigger threshold");
+        }
+
+        // The executor event is already the public ChatNotify shape. Forward it
+        // unchanged so the run identity remains attached end-to-end.
+        sendAIPanelNotification(
+            event.type === "stop" && event.command === undefined
+                ? { ...event, command }
+                : event,
+            runContext
+        );
     };
 }
 

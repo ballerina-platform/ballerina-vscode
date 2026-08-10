@@ -1,0 +1,16 @@
+{
+    "description": "SLIDER -> SliderEditor",
+    "expectedEditor": "SliderEditor",
+    "fieldInputType": { "fieldType": "SLIDER" },
+    "field": {
+        "key": "f_SLIDER",
+        "label": "SLIDER field",
+        "type": "SLIDER",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "1",
+        "types": [{ "fieldType": "SLIDER", "selected": false }],
+        "enabled": true
+    }
+}

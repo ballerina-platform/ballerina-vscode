@@ -14,17 +14,45 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { SourceFile } from "@wso2/ballerina-core";
+import { ExecutionContext } from "@wso2/ballerina-core";
 import { tool } from 'ai';
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Uri } from 'vscode';
-import { StateMachine } from "../../../../stateMachine";
-import { sendAISchemaDidChange, sendAiSchemaDidOpen } from "../../utils/project/ls-schema-notifications";
 import { CopilotEventHandler } from "../../utils/events";
 import { normalizeInvisibleChars } from "../../utils/string-utils";
 import { normalizeToLf, readAndNormalize, restoreEol } from "../../utils/eol-utils";
+import { addToIntegration } from "../../../../rpc-managers/ai-panel/utils";
+import { recordAiTouchedFile } from "../../../../rpc-managers/diagram-validity";
+
+/**
+ * Persists a tool's computed content directly into the real workspace file via VS Code's
+ * document model (workspace.applyEdit + saveAll), so open editors and diagrams see it
+ * immediately. No intermediate temp-directory write: tempProjectPath is the real project
+ * root, so this is the only place a live edit is actually written.
+ */
+async function persistLiveEdit(
+  file_path: string,
+  content: string,
+  modifiedFiles: string[] | undefined,
+  allModifiedFiles: Set<string> | undefined,
+  ctx: ExecutionContext | undefined
+): Promise<void> {
+  if (modifiedFiles) {
+    insertIntoUpdateFileNames(modifiedFiles, file_path);
+  }
+  if (!ctx) {
+    return;
+  }
+  const workspaceRoot = ctx.workspacePath || ctx.projectPath;
+  try {
+    await addToIntegration(workspaceRoot, [{ filePath: file_path, content }]);
+    recordAiTouchedFile(path.join(workspaceRoot, file_path));
+    allModifiedFiles?.add(file_path);
+  } catch (error) {
+    console.error("[TextEditorTool] Live persist failed:", error);
+  }
+}
 
 // ============================================================================
 // Display Helper Functions
@@ -172,63 +200,6 @@ function validateLineRange(
 // Utility Functions
 // ============================================================================
 
-/**
- * Sends didChange notification to Language Server for a modified file
- * @param tempProjectPath The root path of the temporary project
- * @param filePath The relative file path that was modified
- */
-function notifyLanguageServer(tempProjectPath: string, filePath: string): void {
-  // Only send LS notifications for .bal files - the Ballerina LS doesn't handle other file types
-  if (!filePath.endsWith('.bal')) {
-    return;
-  }
-
-  try {
-    const fullPath = path.join(tempProjectPath, filePath);
-    if (!fs.existsSync(fullPath)) {
-      console.warn(`[TextEditorTool] File does not exist, skipping didChange: ${fullPath}`);
-      return;
-    }
-
-    const fileContent = fs.readFileSync(fullPath, 'utf-8');
-    const fileUri = Uri.file(fullPath).toString();
-    StateMachine.langClient().didOpen({
-        textDocument: {
-            uri: fileUri,
-            languageId: 'ballerina',
-            version: 1,
-            text: fileContent
-        }
-    });
-
-    console.log(`[TextEditorTool] Sent didChange notification for: ${filePath}`);
-  } catch (error) {
-    console.error(`[TextEditorTool] Failed to send didChange notification for ${filePath}:`, error);
-  }
-}
-
-function findFileIndex(files: SourceFile[], filePath: string): number {
-  return files.findIndex(f => f.filePath === filePath);
-}
-
-function getFileContent(files: SourceFile[], filePath: string): string | null {
-  const file = files.find(f => f.filePath === filePath);
-  return file?.content ?? null;
-}
-
-function updateOrCreateFile(
-  files: SourceFile[],
-  filePath: string,
-  content: string
-): void {
-  const index = findFileIndex(files, filePath);
-  if (index !== -1) {
-    files[index].content = content;
-  } else {
-    files.push({ filePath, content });
-  }
-}
-
 function countOccurrences(text: string, searchString: string): number {
   if (searchString.trim().length === 0 && text.trim().length === 0) {
         return 1;
@@ -264,7 +235,9 @@ function truncateLongLines(content: string, maxLength: number = MAX_LINE_LENGTH)
 export function createWriteExecute(
   eventHandler: CopilotEventHandler,
   tempProjectPath: string,
-  modifiedFiles?: string[]
+  modifiedFiles?: string[],
+  allModifiedFiles?: Set<string>,
+  ctx?: ExecutionContext
 ) {
   return async (args: {
     file_path: string;
@@ -322,30 +295,15 @@ export function createWriteExecute(
       }
     }
 
-    // Create parent directories if they don't exist
-    const dirPath = path.dirname(fullPath);
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-
-    // Write the file to temp directory
-    fs.writeFileSync(fullPath, content, 'utf-8');
-
-    if (modifiedFiles) {
-      insertIntoUpdateFileNames(modifiedFiles, file_path);
-    }
-
     const lineCount = content.split('\n').length;
     const action: 'created' | 'updated' = fileExists ? 'updated' : 'created';
 
-    // Notify Language Server
-    if (action === 'created') {
-      sendAiSchemaDidOpen(tempProjectPath, file_path);
-    } else {
-      sendAISchemaDidChange(tempProjectPath, file_path);
-    }
+    // Neither case notifies the ai:// baseline: a brand-new file has to stay absent from it
+    // to read as an addition, and an existing one is already frozen there from generation
+    // start. See the notes in utils/project/ls-schema-notifications.ts.
+    await persistLiveEdit(file_path, content, modifiedFiles, allModifiedFiles, ctx);
 
-    console.log(`[FileWriteTool] Successfully ${action} file: ${file_path} with ${lineCount} lines to temp project.`);
+    console.log(`[FileWriteTool] Successfully ${action} file: ${file_path} with ${lineCount} lines.`);
     const result = {
       success: true,
       message: `Successfully ${action} file '${file_path}' with ${lineCount} line(s).`,
@@ -366,7 +324,9 @@ export function createWriteExecute(
 export function createEditExecute(
   eventHandler: CopilotEventHandler,
   tempProjectPath: string,
-  modifiedFiles?: string[]
+  modifiedFiles?: string[],
+  allModifiedFiles?: Set<string>,
+  ctx?: ExecutionContext
 ) {
   return async (args: {
     file_path: string;
@@ -486,15 +446,7 @@ export function createEditExecute(
       }
     }
 
-    // Write back to temp directory, restoring original line endings
-    fs.writeFileSync(fullPath, restoreEol(newContent, originalEol), 'utf-8');
-
-    if (modifiedFiles) {
-      insertIntoUpdateFileNames(modifiedFiles, file_path);
-    }
-
-    // Notify Language Server of the change
-    sendAISchemaDidChange(tempProjectPath, file_path);
+    await persistLiveEdit(file_path, restoreEol(newContent, originalEol), modifiedFiles, allModifiedFiles, ctx);
 
     const replacedCount = replace_all ? occurrenceCount : 1;
     console.log(`[FileEditTool] Successfully replaced ${replacedCount} occurrence(s) in file: ${file_path}`);
@@ -517,7 +469,9 @@ export function createEditExecute(
 export function createMultiEditExecute(
   eventHandler: CopilotEventHandler,
   tempProjectPath: string,
-  modifiedFiles?: string[]
+  modifiedFiles?: string[],
+  allModifiedFiles?: Set<string>,
+  ctx?: ExecutionContext
 ) {
   return async (args: {
     file_path: string;
@@ -657,15 +611,7 @@ export function createMultiEditExecute(
     }
 
     // All validations passed, content already has all edits applied
-    // Write back to temp directory, restoring original line endings
-    fs.writeFileSync(fullPath, restoreEol(content, originalEol), 'utf-8');
-
-    if (modifiedFiles) {
-      insertIntoUpdateFileNames(modifiedFiles, file_path);
-    }
-
-    // Notify Language Server of the change
-    sendAISchemaDidChange(tempProjectPath, file_path);
+    await persistLiveEdit(file_path, restoreEol(content, originalEol), modifiedFiles, allModifiedFiles, ctx);
 
     console.log(`[FileMultiEditTool] Successfully applied ${edits.length} edits to file: ${file_path}`);
     const result = {

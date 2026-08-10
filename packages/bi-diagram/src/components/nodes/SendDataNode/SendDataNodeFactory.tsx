@@ -22,6 +22,7 @@ import { DiagramEngine } from "@projectstorm/react-diagrams-core";
 import { NodeTypes } from "../../../resources/constants";
 import { SendDataNodeModel } from "./SendDataNodeModel";
 import { SendDataNodeWidget } from "./SendDataNodeWidget";
+import { DiffTooltip } from "../../DiffTooltip";
 
 export class SendDataNodeFactory extends AbstractReactFactory<SendDataNodeModel, DiagramEngine> {
     constructor() {
@@ -33,6 +34,10 @@ export class SendDataNodeFactory extends AbstractReactFactory<SendDataNodeModel,
     }
 
     generateReactWidget(event: GenerateWidgetEvent<SendDataNodeModel>) {
-        return <SendDataNodeWidget engine={this.engine} model={event.model} />;
+        return (
+            <DiffTooltip node={event.model.node}>
+                <SendDataNodeWidget engine={this.engine} model={event.model} />
+            </DiffTooltip>
+        );
     }
 }

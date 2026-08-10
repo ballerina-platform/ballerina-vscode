@@ -519,7 +519,7 @@
                     "name": "TrustStore",
                     "orgName": "ballerina",
                     "moduleName": "crypto",
-                    "version": "2.8.0"
+                    "version": "2.12.1"
                   },
                   "defaultable": false,
                   "documentation": "Configurations associated with the TrustStore",
@@ -555,7 +555,7 @@
                     "name": "KeyStore",
                     "orgName": "ballerina",
                     "moduleName": "crypto",
-                    "version": "2.8.0"
+                    "version": "2.12.1"
                   },
                   "defaultable": false,
                   "documentation": "Configurations associated with the KeyStore",

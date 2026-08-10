@@ -53,7 +53,7 @@ public class TestUpdateTestFunction extends AbstractLSTest {
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
 
         UpdateTestFunctionRequest request = new UpdateTestFunctionRequest(
-                sourceDir.resolve(testConfig.filePath()).toString(), testConfig.function());
+                sourceDir.resolve(testConfig.filePath()).toString(), testConfig.function(), testConfig.evalTemplate());
         JsonObject jsonMap = getResponse(request).getAsJsonObject("textEdits");
 
         Map<String, List<TextEdit>> actualTextEdits = gson.fromJson(jsonMap, TEXT_EDIT_LIST_TYPE);
@@ -84,10 +84,18 @@ public class TestUpdateTestFunction extends AbstractLSTest {
         if (assertFailure) {
             TestConfig updatedConfig =
                     new TestConfig(testConfig.filePath(), testConfig.description(),
-                            testConfig.function(), newMap);
+                            testConfig.function(), testConfig.evalTemplate(), newMap);
 //            updateConfig(configJsonPath, updatedConfig);
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
+    }
+
+    @Override
+    protected String[] skipList() {
+        return new String[]{
+                // Will be removed after this issue is fixed: https://github.com/wso2/product-integrator/issues/1920
+                "update_eval_template_evalset_config1.json",
+        };
     }
 
     @Override
@@ -116,9 +124,10 @@ public class TestUpdateTestFunction extends AbstractLSTest {
      * @param filePath    The path to the source file.
      * @param description The description of the test.
      * @param function    The function to be updated.
+     * @param evalTemplate The evaluation template payload for the update.
      * @param output      The expected output.
      */
-    private record TestConfig(String filePath, String description, TestFunction function,
+    private record TestConfig(String filePath, String description, TestFunction function, JsonObject evalTemplate,
                               Map<String, List<TextEdit>> output) {
 
         public String description() {

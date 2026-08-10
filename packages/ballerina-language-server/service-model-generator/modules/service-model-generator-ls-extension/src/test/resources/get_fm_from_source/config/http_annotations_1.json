@@ -643,8 +643,8 @@
           "moduleName": ""
         },
         "value": "{\n        label: \"Annotated Resource\"\n    }",
-        "enabled": false,
-        "editable": false,
+        "enabled": true,
+        "editable": true,
         "optional": false,
         "advanced": false
       },

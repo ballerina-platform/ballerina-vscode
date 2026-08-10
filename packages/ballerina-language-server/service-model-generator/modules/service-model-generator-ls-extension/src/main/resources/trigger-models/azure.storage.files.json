@@ -1,0 +1,4034 @@
+{
+  "schemaVersion": "1.0",
+  "id": "azure.storage.files",
+  "displayName": "Azure Files Integration",
+  "shortDisplayName": "Azure Files",
+  "description": "Create a service that handles files appearing in an Azure Files share path.",
+  "orgName": "ballerinax",
+  "packageName": "azure.storage.files",
+  "moduleName": "azure.storage.files",
+  "version": "0.9.0",
+  "type": "files",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.storage.files_0.9.0.png",
+  "kind": "file",
+  "listenerKind": "SINGLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Listener",
+        "description": "Attach the service to a new or existing listener."
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Define a new listener in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the Azure Files listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true
+                    }
+                  ],
+                  "value": "azFilesListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME",
+                    "preserveValue": true
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name",
+                      "message": "A listener with this name already exists in the project"
+                    }
+                  ]
+                },
+                "shareName": {
+                  "metadata": {
+                    "label": "Share Name",
+                    "description": "The name of the Azure Files share to watch"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true,
+                      "validations": [
+                        {
+                          "rule": "common.validate.non.empty"
+                        }
+                      ]
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "placeholder": "my-share",
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "originalName": "shareName",
+                    "position": 1
+                  }
+                },
+                "auth": {
+                  "metadata": {
+                    "label": "Authentication",
+                    "description": "Select the authentication method"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true
+                    }
+                  ],
+                  "value": "SHARED_KEY",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "Shared Key",
+                        "description": "Authenticate with the storage account name and access key"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "SHARED_KEY",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "accountName": {
+                          "metadata": {
+                            "label": "Account Name",
+                            "description": "The storage account name, used to sign requests and to derive the service URL"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "placeholder": "mystorageaccount",
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "accountName",
+                            "path": "auth.accountName"
+                          }
+                        },
+                        "accountKey": {
+                          "metadata": {
+                            "label": "Account Key",
+                            "description": "A base64-encoded access key of the storage account"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "accountKey",
+                            "path": "auth.accountKey"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "SAS Token",
+                        "description": "Authenticate with a shared access signature token"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "SAS_TOKEN",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "accountName": {
+                          "metadata": {
+                            "label": "Account Name",
+                            "description": "The storage account name"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "placeholder": "mystorageaccount",
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "accountName",
+                            "path": "auth.accountName"
+                          }
+                        },
+                        "sasToken": {
+                          "metadata": {
+                            "label": "SAS Token",
+                            "description": "A SAS token scoped to the required resources and permissions"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "sasToken",
+                            "path": "auth.sasToken"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "SAS URL",
+                        "description": "Authenticate with a full file-service SAS URL"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "SAS_URL",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "sasUrl": {
+                          "metadata": {
+                            "label": "SAS URL",
+                            "description": "A full file-service SAS URL, including the scheme and the SAS query string"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "sasUrl",
+                            "path": "auth.sasUrl"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Connection String",
+                        "description": "Authenticate with an Azure Storage connection string"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "CONNECTION_STRING",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "connectionString": {
+                          "metadata": {
+                            "label": "Connection String",
+                            "description": "An Azure Storage connection string, as issued by the Azure portal, the Azure CLI, or infrastructure tooling"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "value": "",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                            "originalName": "connectionString",
+                            "path": "auth.connectionString"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Microsoft Entra ID",
+                        "description": "Authenticate with Microsoft Entra ID (Azure AD)"
+                      },
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "value": "ENTRA_ID",
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "properties": {
+                        "credential": {
+                          "metadata": {
+                            "label": "Entra ID Credential",
+                            "description": "Select the Microsoft Entra ID credential type"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "CHOICE",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DEFAULT",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "choices": [
+                            {
+                              "metadata": {
+                                "label": "Default Credential Chain",
+                                "description": "Resolve credentials from the environment (env vars, managed identity, developer tools)"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "value": "DEFAULT",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "properties": {
+                                "accountName": {
+                                  "metadata": {
+                                    "label": "Account Name",
+                                    "description": "The storage account name"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "placeholder": "mystorageaccount",
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "accountName",
+                                    "path": "auth.accountName"
+                                  }
+                                },
+                                "kind": {
+                                  "metadata": {
+                                    "label": "Credential Kind",
+                                    "description": "Selects the credential kind"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "value": "\"default\"",
+                                  "enabled": true,
+                                  "editable": false,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "kind",
+                                    "path": "auth.kind"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "metadata": {
+                                "label": "Managed Identity",
+                                "description": "Authenticate as the Azure-assigned managed identity"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "value": "MANAGED_IDENTITY",
+                              "enabled": false,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "properties": {
+                                "accountName": {
+                                  "metadata": {
+                                    "label": "Account Name",
+                                    "description": "The storage account name"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "placeholder": "mystorageaccount",
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "accountName",
+                                    "path": "auth.accountName"
+                                  }
+                                },
+                                "kind": {
+                                  "metadata": {
+                                    "label": "Credential Kind",
+                                    "description": "Selects the credential kind"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    }
+                                  ],
+                                  "value": "\"managed-identity\"",
+                                  "enabled": true,
+                                  "editable": false,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "kind",
+                                    "path": "auth.kind"
+                                  }
+                                },
+                                "clientId": {
+                                  "metadata": {
+                                    "label": "Client ID",
+                                    "description": "The client id of a user-assigned managed identity; omit to use the system-assigned identity"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": true,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "clientId",
+                                    "path": "auth.clientId"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "metadata": {
+                                "label": "Client Secret",
+                                "description": "Authenticate as a service principal with a client secret"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "value": "CLIENT_SECRET",
+                              "enabled": false,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "properties": {
+                                "accountName": {
+                                  "metadata": {
+                                    "label": "Account Name",
+                                    "description": "The storage account name"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "placeholder": "mystorageaccount",
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "accountName",
+                                    "path": "auth.accountName"
+                                  }
+                                },
+                                "tenantId": {
+                                  "metadata": {
+                                    "label": "Tenant ID",
+                                    "description": "The Entra ID tenant (directory) id"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "tenantId",
+                                    "path": "auth.tenantId"
+                                  }
+                                },
+                                "clientId": {
+                                  "metadata": {
+                                    "label": "Client ID",
+                                    "description": "The client id of the service principal"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "clientId",
+                                    "path": "auth.clientId"
+                                  }
+                                },
+                                "clientSecret": {
+                                  "metadata": {
+                                    "label": "Client Secret",
+                                    "description": "The client secret of the service principal"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "clientSecret",
+                                    "path": "auth.clientSecret"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "metadata": {
+                                "label": "Client Certificate",
+                                "description": "Authenticate as a service principal with a certificate"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "value": "CLIENT_CERTIFICATE",
+                              "enabled": false,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "properties": {
+                                "accountName": {
+                                  "metadata": {
+                                    "label": "Account Name",
+                                    "description": "The storage account name"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "placeholder": "mystorageaccount",
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "accountName",
+                                    "path": "auth.accountName"
+                                  }
+                                },
+                                "tenantId": {
+                                  "metadata": {
+                                    "label": "Tenant ID",
+                                    "description": "The Entra ID tenant (directory) id"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "tenantId",
+                                    "path": "auth.tenantId"
+                                  }
+                                },
+                                "clientId": {
+                                  "metadata": {
+                                    "label": "Client ID",
+                                    "description": "The client id of the service principal"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "clientId",
+                                    "path": "auth.clientId"
+                                  }
+                                },
+                                "certificatePath": {
+                                  "metadata": {
+                                    "label": "Certificate Path",
+                                    "description": "The path to the certificate file (PEM, or PFX when a password is set)"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "certificatePath",
+                                    "path": "auth.certificatePath"
+                                  }
+                                },
+                                "certificatePassword": {
+                                  "metadata": {
+                                    "label": "Certificate Password",
+                                    "description": "The password protecting the certificate file"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": true,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "certificatePassword",
+                                    "path": "auth.certificatePassword"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "metadata": {
+                                "label": "Workload Identity",
+                                "description": "Authenticate with a federated service-account token (e.g. AKS workload identity)"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "FORM",
+                                  "selected": true
+                                }
+                              ],
+                              "value": "WORKLOAD_IDENTITY",
+                              "enabled": false,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "properties": {
+                                "accountName": {
+                                  "metadata": {
+                                    "label": "Account Name",
+                                    "description": "The storage account name"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "placeholder": "mystorageaccount",
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "accountName",
+                                    "path": "auth.accountName"
+                                  }
+                                },
+                                "tenantId": {
+                                  "metadata": {
+                                    "label": "Tenant ID",
+                                    "description": "The Entra ID tenant (directory) id"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "tenantId",
+                                    "path": "auth.tenantId"
+                                  }
+                                },
+                                "clientId": {
+                                  "metadata": {
+                                    "label": "Client ID",
+                                    "description": "The client id of the workload identity"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "clientId",
+                                    "path": "auth.clientId"
+                                  }
+                                },
+                                "tokenFilePath": {
+                                  "metadata": {
+                                    "label": "Token File Path",
+                                    "description": "The path to the file holding the federated service-account token"
+                                  },
+                                  "types": [
+                                    {
+                                      "fieldType": "TEXT",
+                                      "ballerinaType": "string",
+                                      "selected": true
+                                    },
+                                    {
+                                      "fieldType": "EXPRESSION",
+                                      "ballerinaType": "string",
+                                      "selected": false
+                                    }
+                                  ],
+                                  "value": "",
+                                  "enabled": true,
+                                  "editable": true,
+                                  "optional": false,
+                                  "advanced": false,
+                                  "codedata": {
+                                    "argType": "LISTENER_PARAM_INCLUDED_FIELD",
+                                    "originalName": "tokenFilePath",
+                                    "path": "auth.tokenFilePath"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Attach to a listener already declared in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener",
+                "description": "Select an existing listener to attach to."
+              },
+              "types": [
+                {
+                  "fieldType": "SINGLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "files:Listener"
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              },
+              "items": []
+            }
+          }
+        }
+      ]
+    },
+    "path": {
+      "metadata": {
+        "label": "Monitoring Path",
+        "description": "The folder on the share to monitor for file actions (e.g., /uploads or /incoming); / watches the share root"
+      },
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "value": "\"/\"",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "placeholder": "/",
+      "codedata": {
+        "type": "SERVICE_BASE_PATH"
+      }
+    },
+    "recursive": {
+      "metadata": {
+        "label": "Watch Subdirectories",
+        "description": "Watch subdirectories under the path"
+      },
+      "types": [
+        {
+          "fieldType": "FLAG",
+          "ballerinaType": "boolean",
+          "selected": true
+        }
+      ],
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": true,
+      "advanced": true,
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "recursive",
+        "moduleName": "files",
+        "originalName": "ServiceConfig"
+      }
+    },
+    "fileNamePattern": {
+      "metadata": {
+        "label": "File Name Pattern",
+        "description": "A regular expression matched against the file name; non-matching files are never dispatched"
+      },
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": true,
+      "advanced": true,
+      "placeholder": "(.*).json",
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "fileNamePattern",
+        "moduleName": "files",
+        "originalName": "ServiceConfig"
+      }
+    },
+    "minFileAgeSeconds": {
+      "metadata": {
+        "label": "Minimum File Age (seconds)",
+        "description": "Skip files younger than this many seconds"
+      },
+      "types": [
+        {
+          "fieldType": "NUMBER",
+          "ballerinaType": "decimal",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "decimal",
+          "selected": false
+        }
+      ],
+      "value": "",
+      "enabled": false,
+      "editable": true,
+      "optional": true,
+      "advanced": true,
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "minFileAgeSeconds",
+        "moduleName": "files",
+        "originalName": "ServiceConfig"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Azure Files Service",
+        "description": "Handles files appearing in the watched Azure Files share path. Declare at least one content handler."
+      },
+      "name": "Service",
+      "description": "Handles files appearing in the watched Azure Files share path.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "files",
+        "originalName": "Service"
+      },
+      "properties": {
+        "serviceConfig": {
+          "metadata": {
+            "label": "Service Configuration",
+            "description": "Advanced watch configuration for the Azure Files service"
+          },
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "files:ServiceConfig",
+              "typeMembers": [
+                {
+                  "type": "ServiceConfiguration",
+                  "packageInfo": "ballerinax:azure.storage.files:0.9.0",
+                  "packageName": "azure.storage.files",
+                  "kind": "RECORD_TYPE",
+                  "selected": true
+                }
+              ],
+              "selected": true
+            }
+          ],
+          "value": "",
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "codedata": {
+            "type": "SERVICE_ANNOTATION",
+            "originalName": "ServiceConfig",
+            "moduleName": "files"
+          }
+        }
+      },
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+            "addLabel": "Add On Create Handler (CSV)",
+            "badge": "onCreate"
+          },
+          "name": "onFileCsv",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "CSV",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[]).",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileCsv",
+            "moduleName": "files",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Content",
+                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                },
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Row Schema",
+                      "description": "Define or select the bound row type (T); content is delivered as T[]. Defaults to string[] rows."
+                    },
+                    "value": "string[][]",
+                    "enabled": false,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "string[][]",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "string[]",
+                      "template": "{{type}}[]"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "Handles a file whose extension routes to the CSV format (.csv), binding its content as string[][] or as rows of a record type (T[])."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "File properties: path, name, size, eTag and last-modified time."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the fileInfo parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:FileInfo"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:FileInfo"
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "File properties: path, name, size, eTag and last-modified time."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the caller parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:Caller"
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "afterFileProcessing": {
+              "metadata": {
+                "label": "After File Processing",
+                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "files"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/processed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler fails or the file content does not match the expected format."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/failed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+            "addLabel": "Add On Create Handler (JSON)",
+            "badge": "onCreate"
+          },
+          "name": "onFileJson",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "JSON",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileJson",
+            "moduleName": "files",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Content",
+                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                },
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content Schema",
+                      "description": "Bound content type (defaults to map<json>). Bind a record type for schema-checked access; bare json is not supported."
+                    },
+                    "value": "map<json>",
+                    "enabled": true,
+                    "editable": true,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "map<json>",
+                        "formats": [
+                          {
+                            "supported": [
+                              "json",
+                              "schema",
+                              "browse"
+                            ],
+                            "defaultFormat": "json"
+                          }
+                        ],
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "map<json>",
+                      "template": "{{type}}"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "Handles a file whose extension routes to the JSON format (.json), binding its content as map<json> or a record type."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "File properties: path, name, size, eTag and last-modified time."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the fileInfo parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:FileInfo"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:FileInfo"
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "File properties: path, name, size, eTag and last-modified time."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the caller parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:Caller"
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "afterFileProcessing": {
+              "metadata": {
+                "label": "After File Processing",
+                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "files"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/processed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler fails or the file content does not match the expected format."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/failed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+            "addLabel": "Add On Create Handler (XML)",
+            "badge": "onCreate"
+          },
+          "name": "onFileXml",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "XML",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileXml",
+            "moduleName": "files",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Content",
+                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                },
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content Schema",
+                      "description": "Bound content type (defaults to xml). Bind a record type for schema-checked access."
+                    },
+                    "value": "xml",
+                    "enabled": false,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "PAYLOAD_TYPE",
+                        "selected": true,
+                        "ballerinaType": "xml",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": true,
+                      "boundType": "",
+                      "typeConstraint": "anydata",
+                      "bindingKind": "USER_SELECTED",
+                      "defaultType": "xml",
+                      "template": "{{type}}"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "Handles a file whose extension routes to the XML format (.xml), binding its content as xml or a record type."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "File properties: path, name, size, eTag and last-modified time."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the fileInfo parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:FileInfo"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:FileInfo"
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "File properties: path, name, size, eTag and last-modified time."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the caller parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:Caller"
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "afterFileProcessing": {
+              "metadata": {
+                "label": "After File Processing",
+                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "files"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/processed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler fails or the file content does not match the expected format."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/failed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Handles a file whose extension routes to the Text format (.txt).",
+            "addLabel": "Add On Create Handler (Text)",
+            "badge": "onCreate"
+          },
+          "name": "onFileText",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "Text",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles a file whose extension routes to the Text format (.txt).",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFileText",
+            "moduleName": "files",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Handles a file whose extension routes to the Text format (.txt)."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Content",
+                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                },
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content",
+                      "description": "The text file content as a plain string."
+                    },
+                    "value": "string",
+                    "enabled": false,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "TYPE",
+                        "selected": true,
+                        "ballerinaType": "string",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": false,
+                      "defaultType": "string"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "Handles a file whose extension routes to the Text format (.txt)."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "File properties: path, name, size, eTag and last-modified time."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the fileInfo parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:FileInfo"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:FileInfo"
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "File properties: path, name, size, eTag and last-modified time."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the caller parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:Caller"
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "afterFileProcessing": {
+              "metadata": {
+                "label": "After File Processing",
+                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "files"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/processed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler fails or the file content does not match the expected format."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/failed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Create",
+            "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+            "addLabel": "Add On Create Handler (Raw Bytes)",
+            "badge": "onCreate"
+          },
+          "name": "onFile",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "group": "onCreate",
+          "variantLabel": "Raw Bytes",
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "ONE_EACH_PER_GROUP",
+          "documentation": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onFile",
+            "moduleName": "files",
+            "group": "onCreate"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Content",
+                "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+              },
+              "kind": "DATA_BINDING",
+              "type": {
+                "metadata": {
+                  "label": "Content",
+                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                },
+                "types": [
+                  {
+                    "fieldType": "COMPLEX_PAYLOAD",
+                    "selected": true
+                  }
+                ],
+                "value": "",
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false,
+                "properties": {
+                  "payload": {
+                    "metadata": {
+                      "label": "Content",
+                      "description": "The raw file content as bytes."
+                    },
+                    "value": "byte[]",
+                    "enabled": false,
+                    "editable": false,
+                    "optional": false,
+                    "advanced": false,
+                    "types": [
+                      {
+                        "fieldType": "TYPE",
+                        "selected": true,
+                        "ballerinaType": "byte[]",
+                        "template": "{{type}}"
+                      }
+                    ],
+                    "codedata": {
+                      "type": "PAYLOAD_TYPE",
+                      "bindable": false,
+                      "defaultType": "byte[]"
+                    }
+                  }
+                }
+              },
+              "name": {
+                "metadata": {
+                  "label": "content",
+                  "description": "Handles any present file as raw bytes; also the fallback for extensions without a typed handler."
+                },
+                "placeholder": "content",
+                "value": "content",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "File Metadata (fileInfo)",
+                "description": "File properties: path, name, size, eTag and last-modified time."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include File Metadata (fileInfo)",
+                  "description": "Tick to include the fileInfo parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:FileInfo"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:FileInfo"
+              },
+              "name": {
+                "metadata": {
+                  "label": "fileInfo",
+                  "description": "File properties: path, name, size, eTag and last-modified time."
+                },
+                "placeholder": "fileInfo",
+                "value": "fileInfo",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the caller parameter in the handler signature."
+                },
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "value": false,
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false,
+                "placeholder": "files:Caller"
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          },
+          "properties": {
+            "afterFileProcessing": {
+              "metadata": {
+                "label": "After File Processing",
+                "description": "@files:FunctionConfig - routing and auto-consume actions applied to the file after this handler runs."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "enabled": true,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "codedata": {
+                "type": "COMPLEX_FUNCTION_ANNOTATION",
+                "originalName": "FunctionConfig",
+                "moduleName": "files"
+              },
+              "properties": {
+                "afterProcess": {
+                  "metadata": {
+                    "label": "On Success",
+                    "description": "Action when the handler completes without returning an error."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterProcess",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/processed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/processed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "afterError": {
+                  "metadata": {
+                    "label": "On Error",
+                    "description": "Action when the handler fails or the file content does not match the expected format."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "OPTIONAL_FIELD",
+                      "selected": true
+                    }
+                  ],
+                  "value": true,
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "MAPPING_FIELD",
+                    "field": "afterError",
+                    "optional": true
+                  },
+                  "properties": {
+                    "action": {
+                      "metadata": {
+                        "label": "Action",
+                        "description": "Move the file to another directory, or delete it."
+                      },
+                      "types": [
+                        {
+                          "fieldType": "CHOICE",
+                          "selected": true,
+                          "options": [
+                            {
+                              "label": "Move",
+                              "value": "MOVE"
+                            },
+                            {
+                              "label": "Delete",
+                              "value": "DELETE"
+                            }
+                          ]
+                        }
+                      ],
+                      "value": "MOVE",
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "codedata": {
+                        "type": "FIELD_VALUE_CHOICE"
+                      },
+                      "choices": [
+                        {
+                          "metadata": {
+                            "label": "Move",
+                            "description": "Move the file to a destination directory."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "FORM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "MOVE",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "MAPPING_CONSTRUCTOR"
+                          },
+                          "properties": {
+                            "moveTo": {
+                              "metadata": {
+                                "label": "Move To",
+                                "description": "Directory to move the file to. The directory is created if it does not exist.",
+                                "subLabel": "Destination path"
+                              },
+                              "types": [
+                                {
+                                  "fieldType": "TEXT",
+                                  "selected": true,
+                                  "ballerinaType": "string",
+                                  "validations": [
+                                    {
+                                      "rule": "common.validate.non.empty"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "fieldType": "EXPRESSION",
+                                  "selected": false,
+                                  "ballerinaType": "string"
+                                }
+                              ],
+                              "value": "/failed",
+                              "enabled": true,
+                              "editable": true,
+                              "optional": false,
+                              "advanced": false,
+                              "placeholder": "/failed",
+                              "codedata": {
+                                "type": "MAPPING_FIELD",
+                                "field": "moveTo",
+                                "valueKind": "STRING_LITERAL"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "metadata": {
+                            "label": "Delete",
+                            "description": "Delete the file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "ENUM",
+                              "selected": true
+                            }
+                          ],
+                          "value": "DELETE",
+                          "enabled": false,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "type": "ENUM_LITERAL",
+                            "value": "DELETE",
+                            "valueQualifier": "files"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Invoked when a poll or file-processing error occurs.",
+            "addLabel": "Add On Error Handler",
+            "badge": "onError"
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "files"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Azure Files Error",
+                "description": "The error raised by the poll or the file processing."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "files:Error",
+                "value": "files:Error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "err",
+                  "description": "The error that occurred during file processing."
+                },
+                "placeholder": "err",
+                "value": "err",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": true,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Azure Files Connection (caller)",
+                "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Azure Files Connection (caller)",
+                  "description": "Tick to include the Azure Files Connection (caller) parameter in the handler signature."
+                },
+                "placeholder": "files:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "files:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "A connection scoped to the watched share for acting on the file (download, upload, delete, move) within the handler."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "path",
+      "displayName": "Monitored Path",
+      "kind": "SERVICE_ANNOTATION",
+      "path": "ServiceConfig.path"
+    }
+  ],
+  "importStatements": []
+}

@@ -35,6 +35,7 @@ import {
     OpenViewRequest,
     redo,
     reopenApprovalView,
+    NavigateReviewModeRequest,
     ReopenApprovalViewRequest,
     resetUndoRedoStack,
     saveEvalThread,
@@ -43,7 +44,6 @@ import {
     undoRedoState,
     updateCurrentArtifactLocation,
     UpdatedArtifactsResponse,
-    reviewAccepted,
     navigateReviewMode,
     GoBackRequest,
     GoHomeRequest
@@ -67,9 +67,8 @@ export function registerVisualizerRpcHandlers(messenger: Messenger) {
     messenger.onRequest(joinProjectPath, (args: JoinProjectPathRequest) => rpcManger.joinProjectPath(args));
     messenger.onRequest(getThemeKind, () => rpcManger.getThemeKind());
     messenger.onRequest(updateCurrentArtifactLocation, (args: UpdatedArtifactsResponse) => rpcManger.updateCurrentArtifactLocation(args));
-    messenger.onNotification(reviewAccepted, () => rpcManger.reviewAccepted());
     messenger.onNotification(handleApprovalPopupClose, (args: HandleApprovalPopupCloseRequest) => rpcManger.handleApprovalPopupClose(args));
     messenger.onNotification(reopenApprovalView, (args: ReopenApprovalViewRequest) => rpcManger.reopenApprovalView(args));
     messenger.onRequest(saveEvalThread, (args: SaveEvalThreadRequest) => rpcManger.saveEvalThread(args));
-    messenger.onNotification(navigateReviewMode, (index: number) => rpcManger.navigateReviewMode(index));
+    messenger.onNotification(navigateReviewMode, (args: NavigateReviewModeRequest) => rpcManger.navigateReviewMode(args));
 }

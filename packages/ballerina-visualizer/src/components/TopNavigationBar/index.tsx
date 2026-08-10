@@ -243,7 +243,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
             MACHINE_VIEW.BIFunctionForm,
             MACHINE_VIEW.BINPFunctionForm,
             MACHINE_VIEW.BITestFunctionForm,
-            MACHINE_VIEW.BIAgentToolForm,
+            MACHINE_VIEW.AIAgentToolForm,
             MACHINE_VIEW.BIAIEvaluationForm,
             MACHINE_VIEW.BIServiceWizard,
             MACHINE_VIEW.BIDataMapperForm,
@@ -275,7 +275,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
                     <Icon name="bi-arrow-back" iconSx={{ color: "var(--vscode-foreground)" }} />
                 </IconButton>
             )}
-            <IconButton onClick={handleHome}>
+            <IconButton onClick={handleHome} data-testid="home-button">
                 <Icon name="bi-home" iconSx={{ color: "var(--vscode-foreground)" }} />
             </IconButton>
             <BreadcrumbContainer>
@@ -550,18 +550,24 @@ function getDisplayLabel(location: VisualizerLocation): string {
             return "Function Configuration";
         case MACHINE_VIEW.BIWorkflowForm:
             return "Workflow";
+        case MACHINE_VIEW.BIDurableAgentForm:
+            return "Durable Agentic Workflow";
         case MACHINE_VIEW.BIActivityForm:
             return "Workflow Activity";
         case MACHINE_VIEW.BINPFunctionForm:
             return "Natural Function";
         case MACHINE_VIEW.BITestFunctionForm:
             return "Test Function";
-        case MACHINE_VIEW.BIAgentToolForm:
-            return "Agent Tool";
         case MACHINE_VIEW.BIAIEvaluationForm:
             return "AI Evaluation";
         case MACHINE_VIEW.BIServiceWizard:
             return "Service";
+        case MACHINE_VIEW.ServiceFunctionForm:
+            return location.artifactType === DIRECTORY_MAP.AGENT_DEFINITION && location.identifier === "init"
+                ? "Agent Definition Constructor"
+                : "Service Function Form";
+        case MACHINE_VIEW.AIAgentToolForm:
+            return "Agent Tool";
         case MACHINE_VIEW.BIDataMapperForm:
             return "Data Mapper";
         case MACHINE_VIEW.AddConnectionWizard:

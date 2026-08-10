@@ -1,0 +1,12 @@
+# Fixture: an mcp release pinned in Ballerina.toml with no Dependencies.toml — i.e. a project that
+# has never been built. The pin must win even though the local bala cache may only hold a newer
+# release, because the language server resolves offline and would substitute that newer one.
+[package]
+org = "wso2"
+name = "manifest_pinned_mcp"
+version = "0.1.0"
+
+[[dependency]]
+org = "ballerina"
+name = "mcp"
+version = "1.0.3"

@@ -19,6 +19,8 @@
 package io.ballerina.flowmodelgenerator.core.model.node;
 
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
+import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
@@ -30,6 +32,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.FlowNode;
 import io.ballerina.flowmodelgenerator.core.model.ItemOption;
+import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
@@ -97,6 +100,7 @@ public class ActivityCallBuilder extends CallBuilder {
     public static final String NO_RETRY_VALUE = "NoRetry";
     public static final String AUTO_RETRY_VALUE = "AutoRetry";
     public static final String MANUAL_RETRY_VALUE = "ManualRetry";
+    public static final String RETRY_USER_ROLES_KEY = "retryUserRoles";
     public static final String MAX_RETRIES_KEY = "maxRetries";
     public static final String RETRY_DELAY_KEY = "retryDelay";
     public static final String RETRY_BACKOFF_KEY = "retryBackoff";
@@ -121,9 +125,30 @@ public class ActivityCallBuilder extends CallBuilder {
     // (called during the advanced-parameter iteration) and buildBuiltinTemplate.
     private BuiltinActivityStrategy currentBuiltinStrategy;
 
+    // For user-defined activities: whether any parameter is a connection client, making this activity
+    // connection-backed (so the node kind is switched to CONNECTION_ACTIVITY_CALL).
+    private boolean userActivityConnectionBacked;
+
     @Override
     protected NodeKind getFunctionNodeKind() {
         return NodeKind.ACTIVITY_CALL;
+    }
+
+    /**
+     * {@link NodeBuilder#build()} re-invokes {@code setConstData()} after the template/analysis has run,
+     * which would otherwise reset the node kind back to {@code ACTIVITY_CALL}. Preserve the
+     * connection-backed kind when it has been chosen — either by the builtin/user-connection template
+     * path (via the flags) or by the analysis path (which sets the node kind on the codedata directly
+     * before {@code build()}).
+     */
+    @Override
+    public void setConcreteConstData() {
+        if (currentBuiltinStrategy != null || userActivityConnectionBacked
+                || codedata().node() == NodeKind.CONNECTION_ACTIVITY_CALL) {
+            codedata().node(NodeKind.CONNECTION_ACTIVITY_CALL);
+        } else {
+            codedata().node(NodeKind.ACTIVITY_CALL);
+        }
     }
 
     @Override
@@ -141,7 +166,12 @@ public class ActivityCallBuilder extends CallBuilder {
         if (currentBuiltinStrategy != null) {
             buildBuiltinTemplate(context, codedata.symbol(), currentBuiltinStrategy);
         } else {
+            userActivityConnectionBacked = false;
             super.setConcreteTemplateData(context);
+            if (userActivityConnectionBacked) {
+                // Leading parameter is a connection client — render this call with a connection arrow.
+                codedata().node(NodeKind.CONNECTION_ACTIVITY_CALL);
+            }
             addRetryPolicyFormProperties(this, NO_RETRY_VALUE, "", "", "", "");
             addAdvancedParameters(context, moduleInfo, this);
         }
@@ -158,7 +188,9 @@ public class ActivityCallBuilder extends CallBuilder {
      */
     private void buildBuiltinTemplate(TemplateContext context, String symbol, BuiltinActivityStrategy strategy) {
         metadata().label(strategy.getLabel()).description(strategy.getDescription());
-        codedata().node(NodeKind.ACTIVITY_CALL)
+        // Builtin activities wrap a connection, so they are modelled as connection-backed activity
+        // calls — the diagram renders these with a connection arrow (like remote action calls).
+        codedata().node(NodeKind.CONNECTION_ACTIVITY_CALL)
                 .org(WORKFLOW_ORG)
                 .module(ACTIVITY_MODULE)
                 .symbol(symbol);
@@ -244,6 +276,16 @@ public class ActivityCallBuilder extends CallBuilder {
     @Override
     protected boolean processSpecialParameter(ParameterData paramData) {
         if (currentBuiltinStrategy == null) {
+            // User-defined activity: treat every connection-client parameter as a connection
+            // selector (like builtin activities) so the diagram links the call to each connection.
+            Optional<ClassSymbol> connectionClass =
+                    WorkflowUtil.resolveConnectionClass(paramData.typeSymbol());
+            if (connectionClass.isPresent()) {
+                userActivityConnectionBacked = true;
+                addUserActivityConnectionSelector(connectionClass.get(),
+                        ParamUtils.removeLeadingSingleQuote(paramData.name()));
+                return true;
+            }
             return false;
         }
 
@@ -260,6 +302,58 @@ public class ActivityCallBuilder extends CallBuilder {
     }
 
     /**
+     * Adds the connection selector for a user-defined connection-backed activity. Mirrors the builtin
+     * activities: the connection field lists connections of the client's category and offers an inline
+     * "Add new connection" wizard entry derived from the connection client type — so a connection can be
+     * created from the wizard just like for the prebuilt activities. The property key is the parameter
+     * name so source generation round-trips the argument (an activity may take several connections).
+     */
+    private void addUserActivityConnectionSelector(ClassSymbol connectionClass, String paramName) {
+        ConnectionSelectorData selector = resolveUserActivityConnectionSelector(connectionClass);
+        String label = Property.CONNECTION_KEY.equals(paramName) ? Property.CONNECTION_LABEL : paramName;
+        properties().connectionSelector(paramName, label, NEW_CONNECTION_SENTINEL,
+                selector.searchNodesKind(), selector.connectors());
+    }
+
+    /**
+     * The connection dropdown metadata for a user-defined connection-backed activity: the category of
+     * connections to list and the inline "Add new connection" wizard entry derived from the client type.
+     *
+     * @param searchNodesKind the connection category the dropdown lists
+     * @param connectors      the allowed "add new connection" wizard entries (may be empty)
+     */
+    public record ConnectionSelectorData(String searchNodesKind, List<Metadata.AllowedConnector> connectors) {
+    }
+
+    /**
+     * Derives the connection selector metadata (category + add-new wizard entry) for a connection client
+     * class. Shared by the template path ({@link #addUserActivityConnectionSelector}) and the source
+     * analysis path (CodeAnalyzer) so both render an identical connection dropdown.
+     */
+    public static ConnectionSelectorData resolveUserActivityConnectionSelector(ClassSymbol connectionClass) {
+        Optional<ModuleSymbol> connectionModule = connectionClass.getModule();
+        if (connectionModule.isEmpty()) {
+            return new ConnectionSelectorData(null, List.of());
+        }
+        ModuleInfo connectorModuleInfo = ModuleInfo.from(connectionModule.get().id());
+        // searchNodes treats non-NodeKind kind strings as a module-prefix filter (e.g. "HTTP" matches
+        // module "http"), so pass the connector module name to list its existing connections.
+        String searchNodesKind = connectorModuleInfo.moduleName();
+        Codedata connector = new Codedata.Builder<>(null)
+                .node(NodeKind.NEW_CONNECTION)
+                .org(connectorModuleInfo.org())
+                .module(connectorModuleInfo.moduleName())
+                .packageName(connectorModuleInfo.packageName())
+                .object(connectionClass.getName().orElse("Client"))
+                .symbol("init")
+                .version(connectorModuleInfo.version())
+                .build();
+        List<Metadata.AllowedConnector> connectors = List.of(new Metadata.AllowedConnector(connector,
+                "Add new " + connectorModuleInfo.packageName() + " connection"));
+        return new ConnectionSelectorData(searchNodesKind, connectors);
+    }
+
+    /**
      * Adds the retryPolicy DROPDOWN_CHOICE and its hidden root sub-field properties to the given node builder.
      * Must be called at ROOT level (outside any nested property scope) so the UI can render
      * the DROPDOWN_CHOICE with dynamic sub-fields — nested scopes (ADVANCE_PARAM_LIST) do not
@@ -273,10 +367,26 @@ public class ActivityCallBuilder extends CallBuilder {
     public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
                                                     String maxRetries, String retryDelay,
                                                     String retryBackoff, String maxRetryDelay) {
-        List<Option> options = List.of(
-                new Option("No Retry", NO_RETRY_VALUE),
+        addRetryPolicyFormProperties(nodeBuilder, retryPolicyValue, maxRetries, retryDelay,
+                retryBackoff, maxRetryDelay, "");
+    }
+
+    public static void addRetryPolicyFormProperties(NodeBuilder nodeBuilder, String retryPolicyValue,
+                                                    String maxRetries, String retryDelay,
+                                                    String retryBackoff, String maxRetryDelay,
+                                                    String retryUserRoles) {
+        String selectedValue = retryPolicyValue == null || retryPolicyValue.isBlank()
+                ? NO_RETRY_VALUE : retryPolicyValue;
+        List<Option> options = new ArrayList<>(List.of(
+                new Option("No Automatic Retry", NO_RETRY_VALUE),
                 new Option("Auto Retry", AUTO_RETRY_VALUE),
-                new Option("Manual Retry", MANUAL_RETRY_VALUE));
+                new Option("Human Review", MANUAL_RETRY_VALUE)));
+        // A policy the form cannot represent (a const or variable reference, say) is carried as its
+        // own option, so it renders as the selection and is written back verbatim on save.
+        boolean opaquePolicy = options.stream().noneMatch(option -> selectedValue.equals(option.value()));
+        if (opaquePolicy) {
+            options.add(new Option(selectedValue, selectedValue));
+        }
 
         // Sub-property definitions for the AutoRetry option. Empty values are intentional:
         // the UI reads real values from the root hidden properties with matching keys.
@@ -300,19 +410,27 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Map<String, Property>> dynamicFields = new LinkedHashMap<>();
         dynamicFields.put(NO_RETRY_VALUE, Map.of());
         dynamicFields.put(AUTO_RETRY_VALUE, autoRetryFields);
-        dynamicFields.put(MANUAL_RETRY_VALUE, Map.of());
+        Map<String, Property> manualRetryFields = new LinkedHashMap<>();
+        manualRetryFields.put(RETRY_USER_ROLES_KEY, buildRetrySubProperty("Reviewer Roles",
+                "Role(s) permitted to decide the human review, e.g. \"manager\" or "
+                        + "[\"finance\", \"manager\"]. Leave empty to allow any role.", "string|string[]"));
+        dynamicFields.put(MANUAL_RETRY_VALUE, manualRetryFields);
+        if (opaquePolicy) {
+            dynamicFields.put(selectedValue, Map.of());
+        }
 
         nodeBuilder.properties().custom()
                 .metadata()
                     .label("Retry Policy")
-                    .description("Retry strategy to apply when the activity call fails")
+                    .description("Engine retry strategy when the activity fails: no automatic retry (an AI agent "
+                            + "may still re-invoke it), automatic backoff retries, or a human review task")
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.DROPDOWN_CHOICE)
                     .options(options)
                     .selected(true)
                     .stepOut()
-                .value(retryPolicyValue != null ? retryPolicyValue : NO_RETRY_VALUE)
+                .value(selectedValue)
                 .editable(true)
                 .itemOptions(ItemOption.from(options))
                 .dynamicFormFields(dynamicFields)
@@ -324,6 +442,9 @@ public class ActivityCallBuilder extends CallBuilder {
                 "Max Retries", "Maximum number of retry attempts", "int", maxRetries);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_DELAY_KEY,
                 "Retry Delay", "Initial delay between retries in seconds", "decimal", retryDelay);
+        addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_USER_ROLES_KEY,
+                "Reviewer Roles", "Role(s) permitted to decide the retry review", "string|string[]",
+                retryUserRoles);
         addHiddenRetrySubFieldProperty(nodeBuilder, RETRY_BACKOFF_KEY,
                 "Retry Backoff", "Exponential backoff multiplier", "decimal", retryBackoff);
         addHiddenRetrySubFieldProperty(nodeBuilder, MAX_RETRY_DELAY_KEY,
@@ -439,7 +560,7 @@ public class ActivityCallBuilder extends CallBuilder {
         Map<String, Property> properties = flowNode.properties();
         Set<String> excludedKeys = Set.of(Property.VARIABLE_KEY, Property.TYPE_KEY,
                 CHECK_ERROR_KEY, ADVANCED_PARAM_KEY, RETRY_POLICY_PARAM,
-                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY);
+                MAX_RETRIES_KEY, RETRY_DELAY_KEY, RETRY_BACKOFF_KEY, MAX_RETRY_DELAY_KEY, RETRY_USER_ROLES_KEY);
         populateActivityCallArg(sourceBuilder, properties, excludedKeys);
         populateRetryPolicyArg(sourceBuilder, properties);
         populateAdvancedArgs(sourceBuilder, properties);
@@ -597,8 +718,13 @@ public class ActivityCallBuilder extends CallBuilder {
                     continue;
                 }
 
-                Object value = entry.getValue().value();
-                if (value == null) {
+                if (entry.getValue().value() == null) {
+                    continue;
+                }
+                // toSourceCode() converts structured values (map/array form values) into Ballerina
+                // literals; the raw value.toString() would emit the internal form-field objects.
+                String source = entry.getValue().toSourceCode();
+                if (source == null || source.isEmpty()) {
                     continue;
                 }
 
@@ -612,7 +738,7 @@ public class ActivityCallBuilder extends CallBuilder {
                         .whiteSpace()
                         .name(entry.getKey())
                         .keyword(SyntaxKind.COLON_TOKEN)
-                        .name(value.toString());
+                        .name(source);
             }
         }
         sourceBuilder.token()
@@ -646,6 +772,26 @@ public class ActivityCallBuilder extends CallBuilder {
                 .name(retryPolicyExpr);
     }
 
+    /**
+     * The retry-policy value for a declaration entry, or {@code null} when no engine retry is
+     * configured (the default, not emitted).
+     *
+     * @param properties the node's properties
+     * @return the policy expression or {@code null}
+     */
+    public static String retryPolicyEntryValue(Map<String, Property> properties) {
+        if (properties == null) {
+            return null;
+        }
+        Property retryPolicy = properties.get(RETRY_POLICY_PARAM);
+        if (retryPolicy == null || retryPolicy.value() == null || retryPolicy.value().toString().isEmpty()
+                || NO_RETRY_VALUE.equals(retryPolicy.value().toString())) {
+            return null;
+        }
+        String expression = retryPolicyExpression(retryPolicy, properties);
+        return expression == null || expression.isEmpty() ? null : expression;
+    }
+
     private static String retryPolicyExpression(Property retryPolicy, Map<String, Property> properties) {
         String value = retryPolicy.value().toString();
         if (AUTO_RETRY_VALUE.equals(value)) {
@@ -653,7 +799,14 @@ public class ActivityCallBuilder extends CallBuilder {
         }
         return switch (value) {
             // NO_RETRY is handled (and skipped) by populateRetryPolicyArg before reaching here.
-            case MANUAL_RETRY_VALUE -> "workflow:ManualRetry";
+            case MANUAL_RETRY_VALUE -> {
+                Property roles = properties.get(RETRY_USER_ROLES_KEY);
+                String rolesValue = roles == null || roles.value() == null
+                        ? "" : roles.value().toString().trim();
+                // ManualRetry is the reviewer role(s); an empty list means any role may decide.
+                yield rolesValue.isBlank() ? "[]" : WorkflowUtil.quoteIfBareRole(rolesValue);
+            }
+            // A policy expression the form could not represent: written back as it was read.
             default -> value;
         };
     }

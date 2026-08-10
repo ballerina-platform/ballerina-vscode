@@ -87,6 +87,8 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.DataMappingDeleteTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ExpressionEditorSemanticTokensTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.WorkflowManagerTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.AnalyzeActivityActionTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.GenActivityTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.workflowmanager.WorkflowNodeTemplateTest"/>
             <!--types manager-->
             <class name="io.ballerina.flowmodelgenerator.extension.typesmanager.CreateAndUpdateTypeTest"/>
@@ -104,8 +106,8 @@ under the License.
 
             <!--agents manager-->
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.NodeTemplateTest"/>
-            <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.SourceGeneratorTest"/>
-            <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GenToolsTest"/>
+        <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.SourceGeneratorTest"/>
+        <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.AgentDefinitionConnectionTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAgentOrgTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllAgentsTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.agentsmanager.GetAllModelsTest"/>

@@ -1,0 +1,519 @@
+{
+  "description": "Workflow nodes offered when the module declares a durable agent",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "source": "durable_agent_module.bal",
+  "categories": [
+    {
+      "metadata": {
+        "label": "Connections",
+        "description": "The connections used in the flow"
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "AI",
+        "description": "AI components available in the flow"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Direct LLM",
+            "description": "AI components that connect directly with a large language model"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Model Provider",
+                "description": "Model providers available within the integration for connecting to an LLM"
+              },
+              "codedata": {
+                "node": "MODEL_PROVIDERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Call Natural Function",
+                "description": "Call a natural programming function",
+                "icon": "https://gist.github.com/user-attachments/assets/903c5c16-7d67-4af8-8113-ce7c59ccdaab"
+              },
+              "codedata": {
+                "node": "NP_FUNCTION"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "RAG",
+            "description": "AI components specific to Retrieval-Augmented Generation workflows"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Knowledge Base",
+                "description": "Knowledge bases available in the integration"
+              },
+              "codedata": {
+                "node": "KNOWLEDGE_BASES",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "object": "KnowledgeBase",
+                "symbol": "init"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Data Loader",
+                "description": "Data loaders available in the integration"
+              },
+              "codedata": {
+                "node": "DATA_LOADERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Recursive Document Chunker"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "chunkDocumentRecursively"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Chunker",
+                "description": "Chunkers available in the integration"
+              },
+              "codedata": {
+                "node": "CHUNKERS"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Augment Query"
+              },
+              "codedata": {
+                "node": "FUNCTION_CALL",
+                "org": "ballerina",
+                "module": "ai",
+                "packageName": "ai",
+                "symbol": "augmentUserQuery"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Vector Store",
+                "description": "Vector stores available in the integration"
+              },
+              "codedata": {
+                "node": "VECTOR_STORES"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Embedding Provider",
+                "description": "Embedding providers available in the integration for connecting to an embedding model"
+              },
+              "codedata": {
+                "node": "EMBEDDING_PROVIDERS"
+              },
+              "enabled": true
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "label": "Agent",
+            "description": "Represents an AI Agent within a workflow"
+          },
+          "items": [
+            {
+              "metadata": {
+                "label": "Agent",
+                "description": "Create or reuse an Agent."
+              },
+              "codedata": {
+                "node": "AGENTS"
+              },
+              "enabled": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Workflow",
+        "description": "Workflow orchestration components"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Run Durable Agent",
+            "description": "Start a durable agent instance and bind its instance ID"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_START"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Send Agent Data Event",
+            "description": "Send a data event to a running durable agent and read its answer for that turn"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_UPDATE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Get Agent Result",
+            "description": "Read a durable agent instance's final result"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_RESULT"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Get Data Event Result",
+            "description": "Read the agent's answer for a sent data event by its correlation token"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_DATA_RESULT"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Statement",
+        "description": "Fundamental executable units in a program"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Declare Variable"
+          },
+          "codedata": {
+            "node": "VARIABLE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Update Variable",
+            "description": "Update the value of an existing variable"
+          },
+          "codedata": {
+            "node": "ASSIGN"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Call Function",
+            "description": "Both project and utility functions"
+          },
+          "codedata": {
+            "node": "FUNCTION"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Map Data"
+          },
+          "codedata": {
+            "node": "DATA_MAPPER_CALL"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Control",
+        "description": "Control nodes"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "If",
+            "description": "Add conditional branch to the integration flow."
+          },
+          "codedata": {
+            "node": "IF"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Match",
+            "description": "Switches the data flow based on the value of an expression."
+          },
+          "codedata": {
+            "node": "MATCH"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "While",
+            "description": "Loop over a block of code."
+          },
+          "codedata": {
+            "node": "WHILE"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Foreach",
+            "description": "Iterate over a block of code."
+          },
+          "codedata": {
+            "node": "FOREACH"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Return"
+          },
+          "codedata": {
+            "node": "RETURN"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Error Handling",
+        "description": "Handle errors that occur during execution"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "ErrorHandler",
+            "description": "Catch and handle errors"
+          },
+          "codedata": {
+            "node": "ERROR_HANDLER"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Fail",
+            "description": "Fail the execution"
+          },
+          "codedata": {
+            "node": "FAIL"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Panic",
+            "description": "Panic and stop the execution"
+          },
+          "codedata": {
+            "node": "PANIC"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Concurrency",
+        "description": "Concurrency nodes"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Fork",
+            "description": "Create parallel workers"
+          },
+          "codedata": {
+            "node": "FORK"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Parallel Flow",
+            "description": "Create parallel flows"
+          },
+          "codedata": {
+            "node": "PARALLEL_FLOW"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Wait",
+            "description": "Wait for a set of futures to complete"
+          },
+          "codedata": {
+            "node": "WAIT"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Lock",
+            "description": "Allow to access mutable states safely"
+          },
+          "codedata": {
+            "node": "LOCK"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Start",
+            "description": "Execute a function or a method invocation in a new strand"
+          },
+          "codedata": {
+            "node": "START"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Transaction",
+            "description": "Handle transaction."
+          },
+          "codedata": {
+            "node": "TRANSACTION"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Commit",
+            "description": "Commit transaction"
+          },
+          "codedata": {
+            "node": "COMMIT"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Rollback",
+            "description": "Rollback the transaction"
+          },
+          "codedata": {
+            "node": "ROLLBACK"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Retry Block",
+            "description": "Retry block."
+          },
+          "codedata": {
+            "node": "RETRY"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Logging"
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Log Info",
+            "description": "Prints info logs.\n```ballerina\nlog:printInfo(\"info message\", id = 845315)\n```\n\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "ballerina",
+            "module": "log",
+            "packageName": "log",
+            "symbol": "printInfo",
+            "version": "2.10.0"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Log Error",
+            "description": "Prints error logs.\n```ballerina\nerror e = error(\"error occurred\");\nlog:printError(\"error log with cause\", 'error = e, id = 845315);\n```\n\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "ballerina",
+            "module": "log",
+            "packageName": "log",
+            "symbol": "printError",
+            "version": "2.10.0"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Log Warn",
+            "description": "Prints warn logs.\n```ballerina\nlog:printWarn(\"warn message\", id = 845315)\n```\n\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "ballerina",
+            "module": "log",
+            "packageName": "log",
+            "symbol": "printWarn",
+            "version": "2.10.0"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "Log Debug",
+            "description": "Prints debug logs.\n```ballerina\nlog:printDebug(\"debug message\", id = 845315)\n```\n\n",
+            "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_log_2.10.0.png"
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "org": "ballerina",
+            "module": "log",
+            "packageName": "log",
+            "symbol": "printDebug",
+            "version": "2.10.0"
+          },
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

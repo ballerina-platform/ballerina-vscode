@@ -1,0 +1,26 @@
+name: Set up Ballerina
+description: Install the Ballerina distribution required by the language-server build
+outputs:
+  version:
+    description: The Ballerina distribution version from the LS Gradle properties
+    value: ${{ steps.version.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve Ballerina distribution version
+      id: version
+      shell: bash
+      run: |
+        set -euo pipefail
+        properties="${{ github.workspace }}/packages/ballerina-language-server/gradle.properties"
+        version=$(sed -n 's/^ballerinaLangVersion=//p' "${properties}")
+        if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Invalid or missing ballerinaLangVersion in packages/ballerina-language-server/gradle.properties"
+          exit 1
+        fi
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Install Ballerina
+      uses: ballerina-platform/setup-ballerina@97fd67111e3c3ecdfafff96fc24d95ad909ab299 # v1.1.4
+      with:
+        version: ${{ steps.version.outputs.version }}

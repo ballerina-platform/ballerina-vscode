@@ -552,12 +552,12 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
      * @param serviceNode  the service declaration node from source
      * @param context      the model context
      */
-    private void populateServiceModelFromSource(Service serviceModel, ServiceDeclarationNode serviceNode,
+    protected void populateServiceModelFromSource(Service serviceModel, ServiceDeclarationNode serviceNode,
                                                 ModelFromSourceContext context) {
         extractServicePathInfo(serviceNode, serviceModel);
 
         List<Function> functionsInSource = extractFunctionsFromSource(serviceNode);
-        updateServiceInfoNew(serviceModel, functionsInSource);
+        mergeSourceFunctions(serviceModel, functionsInSource);
 
         // Set code metadata
         Codedata codedata = new Codedata.Builder()
@@ -574,6 +574,19 @@ public abstract class AbstractServiceBuilder implements ServiceNodeBuilder {
         updateAnnotationAttachmentProperty(serviceNode, serviceModel);
         updateListenerItems(context.moduleName(), context.semanticModel(), context.project(), serviceModel);
         updateReadOnlyMetadataWithAnnotations(serviceModel, serviceNode, context);
+    }
+
+    /**
+     * Merges the functions parsed from the user's source into the service template. The default
+     * merge marks template functions present in the source as enabled and appends unknown source
+     * functions; builders with richer templates (e.g. the schema-driven trigger catalog) override
+     * this to enrich the source functions instead.
+     *
+     * @param serviceModel      the service template being populated
+     * @param functionsInSource the functions parsed from the service declaration
+     */
+    protected void mergeSourceFunctions(Service serviceModel, List<Function> functionsInSource) {
+        updateServiceInfoNew(serviceModel, functionsInSource);
     }
 
     /**

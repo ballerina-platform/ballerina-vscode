@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Button, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Codicon, ProgressRing, SearchBox, SidePanelBody, ThemeColors } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { BackIcon, CloseIcon, LogIcon } from "../../resources";
 import { Category, Item, Node } from "../NodeList/types";
@@ -87,13 +87,15 @@ namespace S {
         transition: all 0.2s ease;
         background-color: ${ThemeColors.SURFACE};
         min-height: 60px;
+        user-select: none;
+        -webkit-user-select: none;
 
         ${({ enabled }) => !enabled && "opacity: 0.5;"}
 
         &:hover {
             ${({ enabled }) =>
-                enabled &&
-                `
+            enabled &&
+            `
                 background-color: ${ThemeColors.PRIMARY_CONTAINER};
                 border: 1px solid ${ThemeColors.PRIMARY};
                 transform: translateY(-1px);
@@ -150,6 +152,186 @@ namespace S {
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    `;
+
+    export const GroupContainer = styled.div<{ expanded?: boolean }>`
+        display: flex;
+        flex-direction: column;
+        border: 1px solid ${({ expanded }) => (expanded ? ThemeColors.PRIMARY : ThemeColors.OUTLINE_VARIANT)};
+        border-radius: 8px;
+        background-color: ${ThemeColors.SURFACE};
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+        ${({ expanded }) => expanded && `box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);`}
+
+        ${({ expanded }) =>
+            !expanded &&
+            `
+            &:hover {
+                background-color: ${ThemeColors.PRIMARY_CONTAINER};
+                border-color: ${ThemeColors.PRIMARY};
+                transform: translateY(-1px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+        `}
+    `;
+
+    export const GroupHeader = styled.div`
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        min-height: 60px;
+        cursor: pointer;
+        background-color: transparent;
+
+        &:focus {
+            outline: none;
+        }
+
+        &:focus-visible {
+            outline: 1px solid var(--vscode-focusBorder, ${ThemeColors.PRIMARY});
+            outline-offset: -2px;
+        }
+    `;
+
+    export const CountPill = styled.span`
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1;
+        padding: 3px 8px;
+        border-radius: 999px;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        background-color: ${ThemeColors.SURFACE_CONTAINER};
+        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        white-space: nowrap;
+    `;
+
+    export const ChevronWrapper = styled.div<{ expanded?: boolean }>`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        transition: transform 0.2s ease;
+        transform: rotate(${({ expanded }) => (expanded ? "180deg" : "0deg")});
+    `;
+
+    export const GroupBody = styled.div`
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        background-color: ${ThemeColors.SURFACE_DIM};
+        animation: groupBodyIn 0.18s ease;
+
+        @keyframes groupBodyIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    `;
+
+    export const ChildCard = styled.div<{ enabled?: boolean }>`
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 15px;
+        padding: 12px 16px;
+        cursor: ${({ enabled }) => (enabled ? "pointer" : "not-allowed")};
+        transition: background-color 0.15s ease;
+
+        &:not(:last-child) {
+            border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        }
+
+        ${({ enabled }) => enabled === false && "opacity: 0.5;"}
+
+        &:hover {
+            ${({ enabled }) =>
+            enabled !== false &&
+            `background-color: var(--vscode-list-hoverBackground, ${ThemeColors.SURFACE_CONTAINER});`}
+        }
+    `;
+
+    export const ChildIcon = styled.div`
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+    `;
+
+    export const ChildIconMain = styled.div`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        & svg,
+        & img {
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 3px;
+        }
+    `;
+
+    export const ChildIconBadge = styled.div`
+        position: absolute;
+        right: -3px;
+        bottom: -3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        overflow: hidden;
+        background-color: ${ThemeColors.SURFACE};
+        box-shadow: 0 0 0 1px ${ThemeColors.OUTLINE_VARIANT};
+
+        & svg,
+        & img {
+            width: 12px !important;
+            height: 12px !important;
+            border-radius: 2px;
+        }
+    `;
+
+    export const ChildContent = styled.div`
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        min-width: 0;
+    `;
+
+    export const ChildTitle = styled.div`
+        font-size: 13px;
+        font-weight: 600;
+        color: ${ThemeColors.ON_SURFACE};
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    `;
+
+    export const ChildDescription = styled.div`
+        font-size: 12px;
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
+        opacity: 0.8;
+        margin-top: 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     `;
 
     export const Row = styled.div<{}>`
@@ -211,13 +393,22 @@ export interface CardListProps {
     onSearch?: (text: string) => void;
     onBack?: () => void;
     onClose?: () => void;
+    // Supply both to keep a group expanded across view switches (e.g. returning from a form).
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
 }
 
 function CardList(props: CardListProps) {
-    const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose } = props;
+    const { categories, title, searchPlaceholder, onSelect, onSearch, onBack, onClose,
+        expandedGroupId: controlledExpandedGroupId, onExpandedGroupChange } = props;
 
     const [searchText, setSearchText] = useState<string>("");
     const [isSearching, setIsSearching] = useState(false);
+    const [localExpandedGroupId, setLocalExpandedGroupId] = useState<string | null>(null);
+
+    const isControlled = onExpandedGroupChange !== undefined;
+    const expandedGroupId = isControlled ? controlledExpandedGroupId ?? null : localExpandedGroupId;
+    const setExpandedGroupId = isControlled ? onExpandedGroupChange : setLocalExpandedGroupId;
 
     useEffect(() => {
         if (onSearch) {
@@ -243,8 +434,21 @@ function CardList(props: CardListProps) {
         setIsSearching(false);
     }, [categories]);
 
+    useEffect(() => {
+        if (!isControlled) {
+            setLocalExpandedGroupId(null);
+        }
+    }, [categories]);
+
     const handleCardClick = (node: Node) => {
         onSelect(node.id, { node: node.metadata });
+    };
+
+    const getGroupId = (category: Category) => `${category.title}:${category.description}`;
+
+    const handleGroupClick = (category: Category) => {
+        const groupId = getGroupId(category);
+        setExpandedGroupId(expandedGroupId === groupId ? null : groupId);
     };
 
     // Filter items based on search text (only if no onSearch prop - local filtering)
@@ -264,7 +468,7 @@ function CardList(props: CardListProps) {
                     if (categoryMatches || filteredItems.length > 0) {
                         return {
                             ...item,
-                            items: filteredItems,
+                            items: categoryMatches ? item.items : filteredItems,
                         };
                     }
                     return null;
@@ -287,10 +491,50 @@ function CardList(props: CardListProps) {
             .filter(Boolean) as Item[];
     };
 
-    const renderCards = (items: Item[]) => {
-        const nodes = items.filter((item): item is Node => item != null && "id" in item && "label" in item);
+    const renderGroupChildren = (items: Item[], groupIcon?: JSX.Element) => {
+        return items
+            .filter((item): item is Node | Category => item != null)
+            .map((item, index) => {
+                // Not expected inside a group, but fall back gracefully.
+                if ("items" in item && "title" in item) {
+                    return <React.Fragment key={item.title + index}>{renderCards([item])}</React.Fragment>;
+                }
 
-        if (nodes.length === 0) {
+                const node = item as Node;
+                return (
+                    <S.ChildCard
+                        key={node.id + index}
+                        enabled={node.enabled}
+                        onClick={() => node.enabled !== false && handleCardClick(node)}
+                        onKeyDown={(event) => {
+                            if (node.enabled !== false && (event.key === "Enter" || event.key === " ")) {
+                                event.preventDefault();
+                                handleCardClick(node);
+                            }
+                        }}
+                        role="button"
+                        tabIndex={node.enabled !== false ? 0 : -1}
+                        title={node.description}
+                    >
+                        <S.ChildIcon>
+                            <S.ChildIconMain>{groupIcon ? groupIcon : node.icon ? node.icon : <LogIcon />}</S.ChildIconMain>
+                            {groupIcon && node.icon && <S.ChildIconBadge>{node.icon}</S.ChildIconBadge>}
+                        </S.ChildIcon>
+                        <S.ChildContent>
+                            <S.ChildTitle>{node.label}</S.ChildTitle>
+                            {node.description && <S.ChildDescription>{node.description}</S.ChildDescription>}
+                        </S.ChildContent>
+                    </S.ChildCard>
+                );
+            });
+    };
+
+    const renderCards = (items: Item[]) => {
+        const cards = items.filter((item): item is Node | Category => item != null && (
+            ("id" in item && "label" in item) || ("items" in item && "title" in item)
+        ));
+
+        if (cards.length === 0) {
             return (
                 <S.EmptyState>
                     <S.EmptyStateText>No items found</S.EmptyStateText>
@@ -301,15 +545,62 @@ function CardList(props: CardListProps) {
 
         return (
             <S.CardsContainer>
-                {nodes.map((node, index) => (
-                    <S.Card key={node.id + index} enabled={node.enabled} onClick={() => handleCardClick(node)} title={node.description}>
-                        <S.CardIcon>{node.icon ? node.icon : <LogIcon />}</S.CardIcon>
-                        <S.CardContent>
-                            <S.CardTitle>{node.label}</S.CardTitle>
-                            {node.description && <S.CardDescription>{node.description}</S.CardDescription>}
-                        </S.CardContent>
-                    </S.Card>
-                ))}
+                {cards.map((item, index) => {
+                    if ("id" in item && "label" in item) {
+                        const node = item as Node;
+                        return (
+                            <S.Card key={node.id + index} enabled={node.enabled} onClick={() => handleCardClick(node)} title={node.description}>
+                                <S.CardIcon>{node.icon ? node.icon : <LogIcon />}</S.CardIcon>
+                                <S.CardContent>
+                                    <S.CardTitle>{node.label}</S.CardTitle>
+                                    {node.description && <S.CardDescription>{node.description}</S.CardDescription>}
+                                </S.CardContent>
+                            </S.Card>
+                        );
+                    }
+
+                    const category = item as Category;
+                    const itemCount = category.items.length;
+                    const countLabel = `${itemCount} ${itemCount === 1 ? "option" : "options"}`;
+                    const groupId = getGroupId(category);
+                    const isExpanded = Boolean(searchText) || expandedGroupId === groupId;
+                    const groupChildrenId = `group-${category.title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}-${index}`;
+                    return (
+                        <S.GroupContainer key={category.title + index} expanded={isExpanded}>
+                            <S.GroupHeader
+                                onClick={() => handleGroupClick(category)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        handleGroupClick(category);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={isExpanded}
+                                aria-controls={groupChildrenId}
+                                title={category.description}
+                            >
+                                <S.CardIcon>{category.icon ? category.icon : <LogIcon />}</S.CardIcon>
+                                <S.CardContent>
+                                    <S.CardTitle>{category.title}</S.CardTitle>
+                                    {category.description && (
+                                        <S.CardDescription>{category.description}</S.CardDescription>
+                                    )}
+                                </S.CardContent>
+                                <S.CountPill>{countLabel}</S.CountPill>
+                                <S.ChevronWrapper expanded={isExpanded} aria-hidden="true">
+                                    <Codicon name="chevron-down" sx={{ fontSize: 16 }} />
+                                </S.ChevronWrapper>
+                            </S.GroupHeader>
+                            {isExpanded && (
+                                <S.GroupBody id={groupChildrenId}>
+                                    {renderGroupChildren(category.items, category.icon)}
+                                </S.GroupBody>
+                            )}
+                        </S.GroupContainer>
+                    );
+                })}
             </S.CardsContainer>
         );
     };
@@ -317,26 +608,28 @@ function CardList(props: CardListProps) {
     const filteredCategories = onSearch
         ? categories
         : cloneDeep(categories).map((category) => {
-              if (!category || !category.items) {
-                  return category;
-              }
-              category.items = filterItems(category.items) || [];
-              return category;
-          });
+            if (!category || !category.items) {
+                return category;
+            }
+            category.items = filterItems(category.items) || [];
+            return category;
+        });
 
     const hasContent = filteredCategories.some((category) => category?.items && category.items.length > 0);
-    const shouldShowHeaderActions = (onBack && title) || onClose;
+    const headerTitle = title;
+    const canGoBack = Boolean(onBack);
+    const shouldShowHeaderActions = (canGoBack && headerTitle) || onClose;
     return (
         <S.Container>
             <S.HeaderContainer>
                 {shouldShowHeaderActions && (
                     <S.Row>
-                        {onBack && title && (
+                        {canGoBack && headerTitle && (
                             <S.LeftAlignRow>
-                                <S.BackButton appearance="icon" onClick={onBack}>
+                                <S.BackButton appearance="icon" onClick={() => onBack?.()}>
                                     <BackIcon />
                                 </S.BackButton>
-                                {title}
+                                {headerTitle}
                             </S.LeftAlignRow>
                         )}
                         {onClose && (

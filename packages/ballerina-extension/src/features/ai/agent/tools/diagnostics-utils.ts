@@ -84,6 +84,11 @@ function transformDiagnosticsToEnriched(diagnostics: Diagnostics[]): EnrichedDia
  * Note: In Ballerina, diagnostics are generated at the package level, so this checks
  * the entire package/project in the current workspace.
  *
+ * Deliberately queries the file:// scheme (checkProjectDiagnostics's default), not ai://
+ * — tempProjectPath is the real project root, and ai:// is the frozen pre-generation
+ * baseline. Querying ai:// would report diagnostics for the code as it was before this
+ * generation's edits, never surfacing errors the agent's own changes introduced.
+ *
  * @param updatedSourceFiles - Array of source files in the current session (not used, kept for compatibility)
  * @param updatedFileNames - Array of file names in the current session (not used, kept for compatibility)
  * @returns DiagnosticsCheckResult with enriched diagnostics
@@ -99,7 +104,7 @@ export async function checkCompilationErrors(
         console.log(`[DiagnosticsUtils] Calling language server for diagnostics on ${tempProjectPath}`);
         let diagnostics: Diagnostics[] = [];
         try {
-            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath, true);
+            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath);
             // HACK: When the generated code includes `import ballerinax/client.config;` (without the quoted
             // identifier), the language server returns diagnostics with the module name stripped to
             // `ballerinax/.config` — omitting "client". As a workaround, we detect this and
@@ -119,19 +124,21 @@ export async function checkCompilationErrors(
                 };
             }
         } catch (diagError) {
-            // Resolve module dependencies using ai scheme
-            const aiUri = Uri.file(tempProjectPath).with({ scheme: 'ai' }).toString();
+            // Resolve module dependencies against the live project (file:// — tempProjectPath
+            // is the real workspace/project root). Using ai:// here would resolve against the
+            // frozen pre-generation baseline instead, missing any import just added this turn.
+            const fileUri = Uri.file(tempProjectPath).toString();
             await langClient.resolveModuleDependencies({
                 documentIdentifier: {
-                    uri: aiUri
+                    uri: fileUri
                 }
             });
-            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath, true);
+            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath);
         }
         // Check if there are module not found diagnostics and attempt to resolve them
         const isDiagsChanged = await resolveModuleNotFoundDiagnostics(diagnostics, langClient);
         if (isDiagsChanged) {
-            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath, true);
+            diagnostics = await checkProjectDiagnostics(langClient, tempProjectPath);
         }
 
         // Transform and enrich diagnostics with hints

@@ -60,6 +60,12 @@ import {
     SourceEditResponse,
     ServiceClassSourceRequest,
     AddFieldRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     RenameIdentifierRequest,
     BISearchRequest,
     BISearchResponse,
@@ -101,6 +107,10 @@ import {
     BIFlowModelRequest,
     GetSimpleTypeOfExpressionRequest,
     GetSimpleTypeOfExpressionResponse,
+    GenActivityRequest,
+    GenActivityResponse,
+    AnalyzeActivityActionRequest,
+    AnalyzeActivityActionResponse,
     WorkflowDataRequest,
     WorkflowDataResponse
 } from "../../interfaces/extended-lang-client";
@@ -128,6 +138,7 @@ import {
     WorkspaceDevantMetadata,
     GeneratedClientSaveResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     DeleteProjectRequest,
     OpenReadmeRequest,
     ValidateProjectFormRequest,
@@ -157,7 +168,7 @@ export interface BIDiagramAPI {
     validateProjectPath: (params: ValidateProjectFormRequest) => Promise<ValidateProjectFormResponse>;
     getSuggestedProjectDefaults: (params: { isInProject: boolean }) => Promise<SuggestedProjectDefaultsResponse>;
     deleteProject: (params: DeleteProjectRequest) => void;
-    addProjectToWorkspace: (params: AddProjectToWorkspaceRequest) => void;
+    addProjectToWorkspace: (params: AddProjectToWorkspaceRequest) => Promise<AddProjectToWorkspaceResponse>;
     getWorkspaces: () => Promise<WorkspacesResponse>;
     getProjectStructure: () => Promise<ProjectStructureResponse>;
     getProjectComponents: () => Promise<ProjectComponentsResponse>;
@@ -203,6 +214,12 @@ export interface BIDiagramAPI {
     getServiceClassModel: (params: ModelFromCodeRequest) => Promise<ServiceClassModelResponse>;
     updateClassField: (params: ClassFieldModifierRequest) => Promise<SourceEditResponse>;
     addClassField: (params: AddFieldRequest) => Promise<SourceEditResponse>;
+    createClassDependency: (params: CreateClassDependencyRequest) => Promise<SourceEditResponse>;
+    listClassMembers: (params: ClassMemberRequest) => Promise<ClassMembersResponse>;
+    saveClassMember: (params: SaveClassMemberRequest) => Promise<SourceEditResponse>;
+    deleteClassMember: (params: DeleteClassMemberRequest) => Promise<SourceEditResponse>;
+    updateClassDependency: (params: ModifyClassDependencyRequest) => Promise<SourceEditResponse>;
+    removeClassDependency: (params: ModifyClassDependencyRequest) => Promise<SourceEditResponse>;
     updateServiceClass: (params: ServiceClassSourceRequest) => Promise<UpdatedArtifactsResponse>;
     createGraphqlClassType: (params: UpdateTypeRequest) => Promise<UpdateTypeResponse>;
     getRecordConfig: (params: GetRecordConfigRequest) => Promise<GetRecordConfigResponse>;
@@ -215,6 +232,8 @@ export interface BIDiagramAPI {
     getEndOfFile: (params: EndOfFileRequest) => Promise<LinePosition>;
     search: (params: BISearchRequest) => Promise<BISearchResponse>;
     getAllData: (params: WorkflowDataRequest) => Promise<WorkflowDataResponse>;
+    genActivity: (params: GenActivityRequest) => Promise<GenActivityResponse>;
+    analyzeActivityAction: (params: AnalyzeActivityActionRequest) => Promise<AnalyzeActivityActionResponse>;
     searchNodes: (params: BISearchNodesRequest) => Promise<BISearchNodesResponse>;
     getRecordNames: () => Promise<RecordsInWorkspaceMentions>;
     getFunctionNames: () => Promise<RecordsInWorkspaceMentions>;

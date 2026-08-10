@@ -27,7 +27,6 @@ import { IfNodeModel } from "../components/nodes/IfNode/IfNodeModel";
 import { SendDataNodeModel } from "../components/nodes/SendDataNode";
 import { StartNodeModel } from "../components/nodes/StartNode/StartNodeModel";
 import { WaitDataNodeModel } from "../components/nodes/WaitDataNode";
-import { WorkflowRunNodeModel } from "../components/nodes/WorkflowRunNode";
 import { WhileNodeModel } from "../components/nodes/WhileNode";
 import { EndNodeModel } from "../components/nodes/EndNode";
 
@@ -39,7 +38,6 @@ export type NodeModel =
     | WhileNodeModel
     | StartNodeModel
     | ApiCallNodeModel
-    | WorkflowRunNodeModel
     | CallActivityNodeModel
     | SendDataNodeModel
     | WaitDataNodeModel
@@ -56,6 +54,7 @@ export type {
     ClientKind,
     ClientScope,
     FlowNode,
+    FlowNodeDiffState,
     NodeKind,
     Branch,
     LineRange,

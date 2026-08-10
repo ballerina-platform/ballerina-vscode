@@ -14,225 +14,17 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import { ModelMessage, generateObject } from "ai";
-import { getAnthropicClient, ANTHROPIC_SONNET_4 } from "../utils/ai-client";
-import {
-    DatamapperResponse,
-    DataModelStructure,
-    MappingFields,
-    RepairedMapping,
-    RepairedMappings,
-} from "./types";
-import { GeneratedMappingSchema, RepairedMappingsSchema } from "./schema";
-import { DataMapperModelResponse, DMModel, Mapping, repairCodeRequest, SourceFile, ImportInfo, Command, ProcessContextTypeCreationRequest, keywords, CodeContext } from "@wso2/ballerina-core";
-import { getDataMappingPrompt } from "./prompts/mapping-prompt";
-import { getBallerinaCodeRepairPrompt } from "./prompts/repair-prompt";
-import { CopilotEventHandler, createWebviewEventHandler, updateAndSaveChat } from "../utils/events";
+import { SourceFile, Command, ProcessContextTypeCreationRequest, CodeContext } from "@wso2/ballerina-core";
+import { CopilotEventHandler, updateAndSaveChat } from "../utils/events";
 import { getErrorMessage, buildChatError } from "../utils/ai-utils";
 import { generateTypesFromContext } from "./utils/types-generation";
-import { generateDataMapperModel } from "./utils/model";
 import { BiDiagramRpcManager } from "../../../rpc-managers/bi-diagram/rpc-manager";
 import { StateMachine } from "../../../stateMachine";
-import { commands } from "vscode";
 import { openAIPanelWithPrompt } from "../../../views/ai-panel/aiMachine";
 import path from "path";
-import { getTempProject, cleanupTempProject } from "../utils/project/temp-project";
-import { integrateCodeToWorkspace, formatCodeContext } from "../agent/utils";
+import { formatCodeContext } from "../agent/utils";
 import { createExecutionContextFromStateMachine } from "../agent";
-
-// =============================================================================
-// ENHANCED MAIN ORCHESTRATOR FUNCTION
-// =============================================================================
-
-// Generates AI-powered data mappings with retry logic for handling failures
-async function generateAIPoweredDataMappings(dataMapperModelResponse: DataMapperModelResponse): Promise<DatamapperResponse> {
-    if (!dataMapperModelResponse.mappingsModel) {
-        throw new Error("Mappings model is required in the data mapper response");
-    }
-
-    const maxRetries = 3;
-    let lastError: Error;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        if (attempt > 0) {
-            console.debug("Retrying to generate mappings for the payload.");
-        }
-
-        try {
-            const mappingsModel = dataMapperModelResponse.mappingsModel as DMModel;
-            const existingMappings = mappingsModel.mappings;
-            const userProvidedMappingHints = mappingsModel.mapping_fields || {};
-            const existingSubMappings = mappingsModel.subMappings as Mapping[] || [];
-
-            if (!mappingsModel.inputs || !mappingsModel.output) {
-                throw new Error("Mappings model must contain both inputs and output fields");
-            }
-
-            // Extract only inputs, output, and refs from mappingsModel
-            const dataModelStructure: DataModelStructure = {
-                inputs: mappingsModel.inputs,
-                output: mappingsModel.output,
-                refs: mappingsModel.refs
-            };
-
-            const aiGeneratedMappings = await generateAIMappings(
-                dataModelStructure,
-                existingMappings,
-                userProvidedMappingHints,
-                existingSubMappings
-            );
-
-            if (Object.keys(aiGeneratedMappings).length === 0) {
-                throw new Error("No valid fields were identified for mapping between the given input and output records.");
-            }
-
-            return { mappings: aiGeneratedMappings };
-
-        } catch (error) {
-            console.error(`Error occurred while generating mappings: ${error}`);
-            lastError = error as Error;
-        }
-    }
-
-    throw lastError!;
-}
-
-// Calls Claude AI to generate mappings based on data model, user mappings, and mapping hints
-async function generateAIMappings(
-    dataModelStructure: DataModelStructure,
-    existingUserMappings: Mapping[],
-    userProvidedMappingHints: { [key: string]: MappingFields },
-    existingSubMappings: Mapping[]
-): Promise<Mapping[]> {
-    if (!dataModelStructure.inputs || !dataModelStructure.output) {
-        throw new Error("Data model structure must contain inputs and output");
-    }
-
-    // Build prompt for AI
-    const aiPrompt = getDataMappingPrompt(
-        JSON.stringify(dataModelStructure),
-        JSON.stringify(existingUserMappings || []),
-        JSON.stringify(userProvidedMappingHints || {}),
-        JSON.stringify(existingSubMappings || []),
-        keywords
-    );
-
-    const chatMessages: ModelMessage[] = [
-        { role: "user", content: aiPrompt }
-    ];
-
-    try {
-        const { object } = await generateObject({
-            model: await getAnthropicClient(ANTHROPIC_SONNET_4),
-            maxOutputTokens: 8192,
-            temperature: 0,
-            messages: chatMessages,
-            schema: GeneratedMappingSchema,
-            abortSignal: new AbortController().signal,
-        });
-
-        const aiGeneratedMappings = object.generatedMappings as Mapping[];
-        return aiGeneratedMappings;
-    } catch (error) {
-        console.error("Failed to parse response:", error);
-        throw new Error(`Failed to parse mapping response: ${error}`);
-    }
-}
-
-// =============================================================================
-// DM MODEL-BASED CODE REPAIR
-// =============================================================================
-
-// Uses Claude AI to repair code based on DM model with diagnostics and import information
-async function repairBallerinaCode(
-    dmModel: DMModel,
-    availableImports: ImportInfo[]
-): Promise<RepairedMapping[]> {
-    if (!dmModel) {
-        throw new Error("DM model is required for code repair");
-    }
-
-    // Build repair prompt
-    const codeRepairPrompt = getBallerinaCodeRepairPrompt(
-        JSON.stringify(dmModel),
-        JSON.stringify(availableImports || [])
-    );
-
-    const chatMessages: ModelMessage[] = [
-        { role: "user", content: codeRepairPrompt }
-    ];
-
-    try {
-        const { object } = await generateObject({
-            model: await getAnthropicClient(ANTHROPIC_SONNET_4),
-            maxOutputTokens: 8192,
-            temperature: 0,
-            messages: chatMessages,
-            schema: RepairedMappingsSchema,
-            abortSignal: new AbortController().signal,
-        });
-
-        return object.repairedMappings as RepairedMapping[];
-    } catch (error) {
-        console.error("Failed to parse response:", error);
-        throw new Error(`Failed to parse repaired mappings response: ${error}`);
-    }
-}
-
-// Generates repaired mappings by fixing diagnostics with retry logic
-export async function generateRepairCode(codeRepairRequest?: repairCodeRequest): Promise<RepairedMappings> {
-    if (!codeRepairRequest) {
-        throw new Error("Code repair request is required for generating repair code");
-    }
-
-    const maxRetries = 3;
-    let attemptCount = 0;
-    let lastError: Error;
-
-    while (attemptCount < maxRetries) {
-        if (attemptCount > 0) {
-            console.debug("Retrying to generate repair code for the payload.");
-        }
-
-        try {
-            // Generate AI-powered repaired mappings using Claude with DM model
-            const aiRepairedMappings = await repairBallerinaCode(codeRepairRequest.dmModel, codeRepairRequest.imports);
-
-            if (!aiRepairedMappings || aiRepairedMappings.length === 0) {
-                console.warn("No mappings were repaired. The code may not have fixable errors.");
-                return { repairedMappings: [] };
-            }
-
-            return { repairedMappings: aiRepairedMappings };
-
-        } catch (error) {
-            console.error(`Error occurred while generating repaired code: ${error}`);
-            lastError = error as Error;
-            attemptCount += 1;
-            continue;
-        }
-    }
-
-    throw lastError!;
-}
-
-// =============================================================================
-// MAIN EXPORT FUNCTION
-// =============================================================================
-
-// Main entry point for generating automatic data mappings from data mapper model
-export async function generateAutoMappings(dataMapperModelResponse?: DataMapperModelResponse): Promise<Mapping[]> {
-    if (!dataMapperModelResponse) {
-        throw new Error("Data mapper model response is required for generating auto mappings");
-    }
-    try {
-        const mappingResponse: DatamapperResponse = await generateAIPoweredDataMappings(dataMapperModelResponse);
-        return mappingResponse.mappings;
-    } catch (error) {
-        console.error(`Error generating auto mappings: ${error}`);
-        throw error;
-    }
-}
+import { addToIntegration } from "../../../rpc-managers/ai-panel/utils";
 
 // =============================================================================
 // CONTEXT TYPE CREATION WITH EVENT HANDLERS
@@ -293,12 +85,11 @@ export async function generateContextTypesCore(
         }];
         const modifiedFiles = [targetFilePath];
 
-        // Integrate code to workspace automatically
         if (modifiedFiles.length > 0) {
             const integratingCodeId = `integrating-code_${Date.now()}`;
             eventHandler({ type: "chat_component", componentType: "progress", id: integratingCodeId, data: { text: "Integrating code to workspace...", status: "start" } });
-            const modifiedFilesSet = new Set(modifiedFiles);
-            await integrateCodeToWorkspace(tempProjectPath, modifiedFilesSet, ctx);
+            const workspaceRoot = ctx.workspacePath || ctx.projectPath;
+            await addToIntegration(workspaceRoot, [{ filePath: targetFilePath, content: typesCode }]);
             eventHandler({ type: "chat_component", componentType: "progress", id: integratingCodeId, data: { text: "Integrating code to workspace...", status: "end" } });
             console.log(`[DataMapper] Integrated ${modifiedFiles.length} file(s) to workspace`);
             eventHandler({ type: "content_block", content: "\n\nType generation is complete! The generated types have been added to your workspace." });
@@ -331,48 +122,22 @@ export async function generateContextTypesCore(
     }
 }
 
-// Main public function that uses the default event handler for context type creation
-export async function generateContextTypes(typeCreationRequest: ProcessContextTypeCreationRequest, messageId?: string): Promise<void> {
-    const eventHandler = createWebviewEventHandler(Command.TypeCreator);
-
-    // Create temp project for backward compatibility
-    const ctx = createExecutionContextFromStateMachine();
-    const { path: tempProjectPath } = await getTempProject(ctx);
-
-    try {
-        await generateContextTypesCore(typeCreationRequest, eventHandler, messageId, tempProjectPath);
-    } catch (error) {
-        console.error("Error during context type creation:", error);
-        throw error;
-    } finally {
-        // Cleanup for backward compatibility
-        await cleanupTempProject(tempProjectPath);
-    }
-}
-
 // Opens the AI panel with data mapper chat interface
 export async function openChatWindowWithCommand(): Promise<void> {
     const context = StateMachine.context();
     const { identifier, documentUri } = context;
 
     let args: string | undefined;
+    let tagParams: Record<string, string> | undefined;
     const hiddenParts: string[] = [];
     if (documentUri) { hiddenParts.push(`File: ${documentUri}`); }
 
     if (identifier) {
-        args = `generate mappings for the ${identifier} function`;
+        args = `generate mappings for the <functionname> function`;
+        tagParams = { functionName: identifier };
         hiddenParts.push(`Mode: function`);
         hiddenParts.push(`Function: ${identifier}`);
     } else {
-        try {
-            const langClient = StateMachine.langClient();
-            const model = await generateDataMapperModel({}, langClient, context);
-            const output = (model.mappingsModel as DMModel)?.output;
-            const outputType = output?.typeName ?? output?.name;
-            if (outputType) { hiddenParts.push(`Output type: ${outputType}`); }
-        } catch (err) {
-            console.warn('[openChatWindowWithCommand] Failed to extract output type:', err);
-        }
         try {
             const lineRange = context.dataMapperMetadata?.codeData?.lineRange;
             if (lineRange && documentUri) {
@@ -397,6 +162,7 @@ export async function openChatWindowWithCommand(): Promise<void> {
         skillId: 'data-map',
         skillName: 'data-map',
         ...(args && { args }),
+        ...(tagParams && { tagParams }),
         ...(hiddenParts.length > 0 && { hiddenContext: hiddenParts.join('\n') }),
     });
 }

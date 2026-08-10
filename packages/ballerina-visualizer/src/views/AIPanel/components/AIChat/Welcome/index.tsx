@@ -19,7 +19,17 @@
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Typography } from "@wso2/ui-toolkit";
-import React from "react";
+import React, { useCallback, useState } from "react";
+import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
+import {
+    Gloss,
+    IconOverlay,
+    ORB_COLORS,
+    ORB_ENERGY,
+    Sphere,
+} from "../../../../../components/AgentStatusOrb/shared";
+
+const WELCOME_ORB_SIZE = 58;
 
 const PanelWrapper = styled.div`
     display: flex;
@@ -48,6 +58,37 @@ const Content = styled.div`
     align-self: center;
 `;
 
+const WelcomeOrbHalo = styled.div`
+    position: relative;
+    width: 86px;
+    height: 86px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -14px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%);
+        filter: blur(8px);
+        pointer-events: none;
+    }
+
+    @media (forced-colors: active) {
+        &::before {
+            display: none;
+        }
+    }
+`;
+
+const WelcomeOrb = styled.div`
+    position: relative;
+    width: ${WELCOME_ORB_SIZE}px;
+    height: ${WELCOME_ORB_SIZE}px;
+    flex: none;
+`;
 
 const GuideChip = styled.div`
     margin: 42px auto 0;
@@ -84,16 +125,35 @@ interface WelcomeMessageProps {
 
 const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false }) => {
     const { rpcClient } = useRpcContext();
+    const [webglFailed, setWebglFailed] = useState(false);
+    const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
 
     return (
         <PanelWrapper>
             <TopSpacer />
             <Content>
-                <Icon
-                    name="bi-ai-chat"
-                    sx={{ width: 54, height: 54 }}
-                    iconSx={{ fontSize: "54px", color: "var(--vscode-foreground)", cursor: "default" }}
-                />
+                <WelcomeOrbHalo>
+                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                        {webglFailed ? (
+                            <Sphere colors={ORB_COLORS.idle} energy={ORB_ENERGY.idle} />
+                        ) : (
+                            <ShaderOrb
+                                colors={ORB_COLORS.idle}
+                                energy={ORB_ENERGY.idle}
+                                size={WELCOME_ORB_SIZE}
+                                onContextFailed={handleWebglFailed}
+                            />
+                        )}
+                        <Gloss />
+                        <IconOverlay>
+                            <Icon
+                                name="bi-ai-chat"
+                                sx={{ width: 24, height: 24 }}
+                                iconSx={{ fontSize: "24px", color: "#ffffff", cursor: "default" }}
+                            />
+                        </IconOverlay>
+                    </WelcomeOrb>
+                </WelcomeOrbHalo>
                 <Typography
                     variant="h2"
                     sx={{
@@ -113,7 +173,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         marginTop: "16px",
                     }}
                 >
-                    Build integrations faster with AI. Describe what you need and get working integrations instantly.
+                    I can help you build, update, and understand your integration. Tell me what you’d like to do.
                 </Typography>
                 <Typography
                     variant="body1"
@@ -124,7 +184,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         marginTop: "36px",
                     }}
                 >
-                    Type <b>/</b> to use commands
+                    Use <b>/</b> for commands
                 </Typography>
                 <Typography
                     variant="body1"
@@ -139,7 +199,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                     }}
                 >
                     <Icon name="Paperclip" sx={{ fontSize: "16px", verticalAlign: "-3px", marginRight: "-4px" }} />
-                    to attach context
+                    Add files and context
                 </Typography>
                 {isOnboarding && (
                     <GuideChip

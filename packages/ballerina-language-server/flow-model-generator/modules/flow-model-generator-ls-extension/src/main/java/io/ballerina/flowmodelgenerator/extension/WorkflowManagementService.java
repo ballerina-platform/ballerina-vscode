@@ -112,8 +112,12 @@ public class WorkflowManagementService implements ExtendedLanguageServerService 
             try {
                 Project project = this.workspaceManager.loadProject(Path.of(request.projectPath()));
                 Package pkg = project.currentPackage();
+                // Use the control-plane import (not the full isIcpEnabled) as the ICP signal: this
+                // runs during ICP enablement, right after the import is added via a text edit but
+                // before the Ballerina.toml remoteManagement write is reflected in the loaded
+                // project, so an isIcpEnabled() toml check would spuriously fail here.
                 boolean shouldEnable = !hasManagementImport(pkg)
-                        && ICPEnablerService.isIcpEnabled(pkg)
+                        && ICPEnablerService.hasControlPlaneImport(pkg)
                         && hasWorkflowFunction(pkg);
                 response.setEnabled(shouldEnable);
             } catch (Throwable e) {

@@ -167,9 +167,23 @@ export class TypeEditorUtils {
      * Save form and wait for completion
      */
     async saveAndWait(form: Form): Promise<void> {
-        await form.submit('Save');
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on this button.
+        await form.submit('Save', true);
         await this.page.waitForTimeout(2000);
         await this.page.waitForLoadState('domcontentloaded');
+    }
+
+    /**
+     * Wait until the diagram has returned to its base state (Add Type button
+     * back in the toolbar). A prior action (e.g. an import completing) can
+     * render the new type node before the toolbar chrome remounts — waiting
+     * only for the node leaks that gap into whichever test runs next, where
+     * it shows up as an unexplained clickAddType() timeout instead of at the
+     * point it actually happens.
+     */
+    async waitForDiagramReady(timeout: number = 120000): Promise<void> {
+        await this.waitForElement(this.webView.getByRole('button', { name: 'Add Type' }), timeout);
     }
 
     /**
@@ -177,7 +191,23 @@ export class TypeEditorUtils {
      */
     async clickAddType(): Promise<void> {
         const addTypeButton = this.webView.getByRole('button', { name: 'Add Type' });
-        await this.waitForElement(addTypeButton);
+        try {
+            // The type diagram's first load is slow while the language server warms up
+            await this.waitForElement(addTypeButton, 120000);
+        } catch (error) {
+            // This has timed out intermittently on CI with zero other activity in
+            // the trace — capture what's actually blocking it (a lingering modal,
+            // a stuck import panel, etc.) instead of failing with just a bare
+            // "element not found", so the next occurrence is diagnosable.
+            const overlayVisible = await this.webView.locator('[data-testid="side-panel"], .unq-modal-overlay')
+                .first().isVisible().catch(() => false);
+            const visibleButtons = await this.webView.getByRole('button').allTextContents().catch(() => []);
+            throw new Error(
+                `clickAddType(): "Add Type" button never appeared. ` +
+                `overlayVisible=${overlayVisible} visibleButtons=${JSON.stringify(visibleButtons)} ` +
+                `original error: ${(error as Error).message}`
+            );
+        }
         await addTypeButton.click();
     }
 
@@ -190,6 +220,39 @@ export class TypeEditorUtils {
     }
 
     /**
+     * Snapshot the set of type node ids currently in the diagram. Use before an
+     * action whose resulting node name isn't known upfront (e.g. import, where
+     * the name is derived from the imported content), then diff against
+     * waitForNewTypeNode() afterwards — a bare `.first()` on
+     * `[data-testid^="type-node-"]` can match a pre-existing node left over
+     * from an earlier test instead of the one the action just created,
+     * especially under diagram virtualization.
+     */
+    async snapshotTypeNodeIds(): Promise<Set<string>> {
+        const ids = await this.webView.locator('[data-testid^="type-node-"]').evaluateAll(
+            (elements) => elements.map((element) => element.getAttribute('data-testid'))
+        );
+        return new Set(ids.filter((id): id is string => !!id));
+    }
+
+    /**
+     * Wait for a type node not present in existingIds to appear, and return its
+     * name (the node's data-testid with the "type-node-" prefix stripped).
+     */
+    async waitForNewTypeNode(existingIds: Set<string>, timeout: number = 30000): Promise<string> {
+        const deadline = Date.now() + timeout;
+        while (Date.now() < deadline) {
+            const currentIds = await this.snapshotTypeNodeIds();
+            const newId = [...currentIds].find((id) => !existingIds.has(id));
+            if (newId) {
+                return newId.replace('type-node-', '');
+            }
+            await this.page.waitForTimeout(500);
+        }
+        throw new Error('New type node did not appear on the diagram within the timeout');
+    }
+
+    /**
      * Verify that a link exists between two types
      */
     async verifyTypeLink(fromType: string, field: string, toType: string): Promise<void> {
@@ -199,23 +262,61 @@ export class TypeEditorUtils {
     }
 
     /**
+     * Open a type node's three-dot menu and click one of its items.
+     *
+     * The popover can close on its own while the diagram re-renders (the LS
+     * pushes an updated model right after a save), which detaches the item
+     * mid-click. Playwright then keeps retrying against a menu that no longer
+     * exists and burns the whole click timeout without ever recovering —
+     * "element was detached from the DOM, retrying" until it fails. Re-opening
+     * the menu is the only thing that can recover, so drive the open+click as
+     * one retryable unit and stop as soon as `isOpen` confirms the target view
+     * actually came up.
+     *
+     * Targets the menu item by its `#menu-item-<id>` id (set by ui-toolkit's
+     * MenuItem) rather than by visible text, so it can't match stray "Edit"
+     * text rendered elsewhere in the webview.
+     */
+    private async openTypeNodeMenuItem(
+        typeName: string,
+        menuItemId: string,
+        isOpen: () => Promise<boolean>,
+        attempts: number = 5
+    ): Promise<void> {
+        const menuButton = this.webView.locator(`[data-testid="type-node-${typeName}-menu"]`);
+        const menuItem = this.webView.locator(`#menu-item-${menuItemId}`);
+
+        for (let attempt = 0; attempt < attempts; attempt++) {
+            await this.waitForElement(menuButton, 15000);
+            // The clickable target is the MoreVert icon inside the MenuButton;
+            // fall back to the button host if the icon doesn't expose a role.
+            const menuIcon = menuButton.getByRole('img');
+            const target = await menuIcon.count() > 0 ? menuIcon.first() : menuButton;
+            await target.click({ force: true });
+
+            const clicked = await menuItem.waitFor({ state: 'visible', timeout: 5000 })
+                .then(() => menuItem.click({ force: true, timeout: 5000 }))
+                .then(() => true)
+                .catch(() => false);
+
+            if (clicked && await isOpen()) {
+                return;
+            }
+            await this.page.waitForTimeout(1000);
+        }
+        throw new Error(
+            `"${menuItemId}" did not open from the ${typeName} node menu after ${attempts} attempts`
+        );
+    }
+
+    /**
      * Edit an existing type by clicking its menu
      */
     async editType(typeName: string): Promise<void> {
-        const menuButton = this.webView.locator(`[data-testid="type-node-${typeName}-menu"]`);
-        await this.waitForElement(menuButton);
-        await menuButton.click();
-
-        // The menu can briefly re-render after open on slow runners, detaching the
-        // Edit item between stability check and click. Force the click to bypass
-        // the stability retry that hits the detached node.
-        const editMenuItem = this.webView.getByText('Edit', { exact: true });
-        await this.waitForElement(editMenuItem);
-        await editMenuItem.click({ force: true });
-
-        // Wait for type editor to load
         const typeEditorContent = this.webView.locator('[data-testid="type-editor-container"]');
-        await this.waitForElement(typeEditorContent);
+        await this.openTypeNodeMenuItem(typeName, 'edit', () =>
+            typeEditorContent.waitFor({ state: 'visible', timeout: 30000 })
+                .then(() => true).catch(() => false));
     }
 
     /**
@@ -290,6 +391,135 @@ export class TypeEditorUtils {
     }
 
     /**
+     * Open an already-created service class for editing. Unlike editType()
+     * (which targets the record editor and waits for `type-editor-container`),
+     * a service class's Edit view renders the dedicated Method/Variable
+     * buttons and has no `type-editor-container`, so this only opens the node
+     * menu (via its icon) and clicks Edit, leaving the method/variable helpers
+     * to wait on their own buttons.
+     */
+    async openServiceClassForEditing(name: string): Promise<void> {
+        // The edit view's own "Method" button is the post-condition here — the
+        // service class editor has no `type-editor-container` to wait on.
+        const methodButton = this.webView.getByRole('button', { name: ' Method' });
+        await this.openTypeNodeMenuItem(name, 'edit', () =>
+            methodButton.waitFor({ state: 'visible', timeout: 30000 })
+                .then(() => true).catch(() => false));
+    }
+
+    /**
+     * Add a method (Resource or Remote) to a service class already open for
+     * editing (via openServiceClassForEditing()) — the edit view exposes a
+     * dedicated "Method" button with a Resource/Remote picker, distinct from
+     * addFunction()'s generic identifier/type fields used at creation time.
+     */
+    async addMethod(name: string, returnType: string, kind: 'Resource' | 'Remote'): Promise<void> {
+        const methodButton = await this.waitForButton(' Method');
+        await methodButton.click();
+
+        await this.webView.getByText(kind).click();
+
+        const inputFieldName = kind === 'Remote'
+            ? 'Function Name*The name of the'
+            : 'Resource Path*The resource';
+
+        const nameField = await this.waitForTextbox(inputFieldName);
+        await nameField.fill(name);
+
+        const returnBox = await this.waitForTextbox('Return Type');
+        await returnBox.click();
+        await this.webView.getByText(returnType, { exact: true }).click();
+        await this.handleTypeCompletion(returnBox);
+
+        const saveButton = await this.waitForButton('Save');
+        await saveButton.click();
+    }
+
+    /**
+     * Add a variable to a service class already open for editing.
+     */
+    async addVariable(name: string, type: string): Promise<void> {
+        const variableButton = await this.waitForButton(' Variable');
+        await variableButton.click();
+
+        const nameField = await this.waitForTextbox('Variable Name*The name of the variable');
+        await nameField.fill(name);
+
+        const typeField = await this.waitForTextbox('Variable Type');
+        await typeField.click();
+        await typeField.fill(type);
+        await this.page.waitForTimeout(1000);
+        await this.webView.getByText(type, { exact: true }).click();
+        await this.handleTypeCompletion(typeField);
+
+        const saveButton = await this.waitForButton('Save');
+        await saveButton.click();
+    }
+
+    /**
+     * Rename an existing method on a service class open for editing.
+     */
+    async editMethod(methodName: string, newName: string): Promise<void> {
+        const editButton = this.webView.getByTestId(`edit-method-button-${methodName}`).locator('i');
+        await editButton.click();
+
+        const resourcePathField = await this.waitForTextbox('Resource Path*The resource');
+        await resourcePathField.fill(newName);
+
+        const saveButton = await this.waitForButton('Save');
+        await saveButton.click();
+        await this.page.waitForTimeout(3000);
+    }
+
+    /**
+     * Delete an existing variable on a service class open for editing.
+     */
+    async deleteVariable(variableName: string): Promise<void> {
+        const deleteButton = this.webView.getByTestId(`delete-variable-button-${variableName}`).locator('i');
+        await deleteButton.click({ force: true });
+
+        const okayButton = await this.waitForButton('Okay');
+        await okayButton.click({ force: true });
+    }
+
+    /**
+     * Wait for a button by accessible name — shared by the service-class
+     * method/variable editing helpers above.
+     */
+    private async waitForButton(name: string, timeout: number = 10000) {
+        const button = this.webView.getByRole('button', { name });
+        await button.waitFor({ state: 'visible', timeout });
+        return button;
+    }
+
+    /**
+     * Wait for a textbox by accessible name. vscode-text-area web components
+     * expose their label via a custom `arialabel` attribute rather than a
+     * standard `aria-label`; the fillable element is the <textarea> inside
+     * the shadow DOM, which Playwright pierces automatically via a
+     * descendant CSS selector.
+     */
+    private async waitForTextbox(name: string, timeout: number = 10000) {
+        const textbox = this.webView.getByRole('textbox', { name })
+            .or(this.webView.locator(`vscode-text-area[arialabel="${name}"] textarea`));
+        await textbox.waitFor({ state: 'visible', timeout });
+        return textbox;
+    }
+
+    /**
+     * Dismiss the type-completion suggestion popup if it appeared after
+     * typing into a return-type/variable-type field, so the typed value
+     * isn't immediately overwritten by an accepted suggestion.
+     */
+    private async handleTypeCompletion(inputElement: Locator): Promise<void> {
+        await this.page.waitForTimeout(3000);
+        const completion = this.webView.getByTestId('add-type-completion');
+        if (await completion.isVisible()) {
+            await inputElement.press('Escape');
+        }
+    }
+
+    /**
      * Toggle field options by clicking the chevron icon
      * @param fieldIndex Index of the field to toggle (default is 0 for the first field)
      */
@@ -341,5 +571,62 @@ export class TypeEditorUtils {
         if (isCurrentlyChecked !== checked) {
             await checkbox.click();
         }
+    }
+
+    /**
+     * Set the Format dropdown on the Import tab (JSON or XML)
+     */
+    async setImportFormat(format: 'JSON' | 'XML'): Promise<void> {
+        const dropdown = this.webView.locator('vscode-dropdown#format-selector');
+        await this.waitForElement(dropdown);
+        await dropdown.click();
+        const option = this.webView.locator(`vscode-option[value="${format}"]`);
+        await option.waitFor();
+        await option.click();
+        await this.page.waitForTimeout(500);
+    }
+
+    /**
+     * Fill the Name field on the Import tab (JSON format only)
+     */
+    async setImportTypeName(name: string): Promise<void> {
+        // vscode-text-field with label="Name" renders an accessible textbox
+        const input = this.webView.getByRole('textbox', { name: 'Name' });
+        await input.waitFor({ timeout: 10000 });
+        await input.fill(name);
+    }
+
+    /**
+     * Paste content into the Import textarea (JSON or XML)
+     */
+    async fillImportTextArea(content: string): Promise<void> {
+        const textarea = this.webView.locator('vscode-text-area textarea').first();
+        await this.waitForElement(textarea);
+        await textarea.click();
+        await textarea.fill(content);
+    }
+
+    async switchToImportTab(): Promise<void> {
+        const importBtn = this.webView.getByRole('button', { name: 'Import' });
+        await this.waitForElement(importBtn);
+        await importBtn.click();
+        await this.page.waitForTimeout(2000);
+        await this.page.waitForLoadState('domcontentloaded');
+    }
+
+    /**
+     * Click the Import button and wait for the diagram to reload
+     */
+    async clickImportButton(): Promise<void> {
+        const importBtn = this.webView.getByTestId('import-tab').getByRole('button', { name: 'Import' });
+        await this.waitForElement(importBtn);
+        await importBtn.click();
+        await this.page.waitForTimeout(2000);
+        await this.page.waitForLoadState('domcontentloaded');
+        // Confirm the diagram's toolbar chrome is back before this test ends —
+        // otherwise a slow remount here surfaces as a bare clickAddType()
+        // timeout in whichever test runs next, far from where the delay
+        // actually occurred.
+        await this.waitForDiagramReady();
     }
 }

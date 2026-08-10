@@ -219,7 +219,7 @@ export function AIAgentDesigner(props: AIAgentDesignerProps) {
         <View>
             <TopNavigationBar projectPath={projectPath} />
             <TitleBar
-                title="AI Chat Agent"
+                title="Chat Agent Service"
                 subtitle={serviceName}
                 actions={
                     <>

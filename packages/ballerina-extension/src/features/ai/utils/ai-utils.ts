@@ -35,7 +35,9 @@ import {
     FileAttatchment,
     OperationType,
     Protocol,
-    webToolToggle
+    webToolToggle,
+    onCopilotChatNotify,
+    GenerationReviewState
 } from "@wso2/ballerina-core";
 import { ModelMessage } from "ai";
 import { MessageRole } from "./ai-types";
@@ -45,6 +47,8 @@ import { AiPanelWebview } from "../../../views/ai-panel/webview";
 import { MigrationPanelWebview } from "../../../views/migration-panel/webview";
 import { VisualizerWebview } from "../../../views/visualizer/webview";
 import { GenerationType } from "./libs/libraries";
+import { runEventStore } from "./run-event-store";
+import { agentStatusManager } from "../state/AgentStatusManager";
 // import { REQUIREMENTS_DOCUMENT_KEY } from "./code/np_prompts";
 
 export function populateHistory(chatHistory: ChatEntry[]): ModelMessage[] {
@@ -317,6 +321,15 @@ export function sendSkillEnableNotification(event: ChatNotify & { type: "skill_e
     sendAIPanelNotification(event);
 }
 
+export function sendGenerationStatusNotification(generationId: string, status: GenerationReviewState["status"]): void {
+    const msg: ChatNotify = {
+        type: "generation_status",
+        generationId,
+        status,
+    };
+    sendAIPanelNotification(msg);
+}
+
 export function sendWebToolToggleNotification(active: boolean): void {
     RPCLayer._messenger.sendNotification(
         webToolToggle,
@@ -325,8 +338,53 @@ export function sendWebToolToggleNotification(active: boolean): void {
     );
 }
 
-export function sendAIPanelNotification(msg: ChatNotify): void {
-    RPCLayer._messenger.sendNotification(onChatNotify, { type: "webview", webviewType: AiPanelWebview.viewType }, msg);
+export interface AIPanelRunContext {
+    projectRootPath: string;
+    threadId: string;
+    generationId: string;
+}
+
+export function sendAIPanelNotification(msg: ChatNotify, runContext?: AIPanelRunContext): void {
+    // Only executor-owned handlers provide a run context. Unrelated AI-panel
+    // notifications must never be captured by another concurrently running turn.
+    const stamped = runContext
+        ? runEventStore.stamp(
+            runContext.projectRootPath,
+            runContext.threadId,
+            runContext.generationId,
+            msg
+        )
+        : msg;
+
+    // Feed the ambient indicators (status bar + visualizer orb); ignores events
+    // outside the explicitly scoped agent run.
+    if (runContext) {
+        agentStatusManager.onChatNotify(stamped);
+    }
+    // The agent keeps running after the panel is closed (by design). The event is
+    // already buffered above, so skipping the post loses nothing — reconnect replays
+    // it on reopen. Guard on the live panel and swallow any late-dispose race.
+    if (AiPanelWebview.currentPanel) {
+        try {
+            RPCLayer._messenger.sendNotification(onChatNotify, { type: "webview", webviewType: AiPanelWebview.viewType }, stamped);
+            return;
+        } catch (e) {
+            // Panel was disposed between the guard and the send — fall through and
+            // mirror to the visualizer instead (the panel is effectively gone; the
+            // buffer also has the event for replay).
+        }
+    }
+    // Panel closed: mirror the stream to the visualizer webview so its mini-chat
+    // overlay can render live. Best-effort — the buffer above remains the source
+    // of truth for replay. Sent on a dedicated method (onCopilotChatNotify)
+    // because the visualizer's onChatNotify belongs to the migration wizard.
+    if (VisualizerWebview.currentPanel) {
+        try {
+            RPCLayer._messenger.sendNotification(onCopilotChatNotify, { type: "webview", webviewType: VisualizerWebview.viewType }, stamped);
+        } catch (e) {
+            // Visualizer disposed between the guard and the send — safe to ignore.
+        }
+    }
 }
 
 /**
@@ -392,7 +450,7 @@ export function getErrorMessage(error: unknown): string {
             return "The AI service returned an invalid response. Please try again.";
         }
         if (msg.includes("Unsupported login method")) {
-            return "Please sign in to BI Copilot to use AI features.";
+            return "Please sign in to WSO2 Integrator Copilot to use AI features.";
         }
 
         return msg;

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { FunctionModel, ResponseCode, VisibleTypeItem, VisibleTypesResponse } from '@wso2/ballerina-core';
+import { FunctionModel, VisibleTypeItem, VisibleTypesResponse } from '@wso2/ballerina-core';
 import { StringTemplateEditorConfig } from '@wso2/ballerina-side-panel';
 
 export enum HTTP_METHOD {
@@ -88,8 +88,7 @@ export function removeForwardSlashes(value: string): string {
 }
 
 export function canDataBind(functionModel: FunctionModel): boolean {
-    return functionModel.properties?.canDataBind?.value === "true" ||
-        functionModel.parameters?.some(param => param.kind === "DATA_BINDING");
+    return functionModel.properties?.canDataBind?.value === "true";
 }
 
 export function getDefaultTab(functionModel: FunctionModel) {

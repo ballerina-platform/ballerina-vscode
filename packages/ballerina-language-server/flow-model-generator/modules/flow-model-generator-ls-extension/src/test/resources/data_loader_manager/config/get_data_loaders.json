@@ -29,7 +29,6 @@
                   "packageName": "ai.devant",
                   "object": "BinaryDataLoader",
                   "symbol": "load",
-                  "version": "1.0.0",
                   "parentSymbol": "binaryLoader",
                   "resourcePath": ""
                 },
@@ -58,7 +57,6 @@
                   "packageName": "ai",
                   "object": "TextDataLoader",
                   "symbol": "load",
-                  "version": "1.5.0",
                   "parentSymbol": "textLoader",
                   "resourcePath": ""
                 },

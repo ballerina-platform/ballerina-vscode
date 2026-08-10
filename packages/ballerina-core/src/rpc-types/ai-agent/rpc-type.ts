@@ -17,8 +17,8 @@
  * 
  * THIS FILE INCLUDES AUTO GENERATED CODE
  */
-import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsRequest, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest } from "../../interfaces/extended-lang-client";
-import { AIAgentRequest, AIAgentResponse, AIAgentToolsUpdateRequest, DefaultProviderKind, McpToolUpdateRequest } from "./interfaces";
+import { AiModuleOrgRequest, AiModuleOrgResponse, AIGentToolsResponse, AIModelsRequest, AINodesRequest, AINodesResponse, AIToolsRequest, AIToolsResponse, AIModelsResponse, MemoryManagersResponse, MemoryManagersRequest, McpToolsRequest, McpToolsResponse, AIToolResponse, AIToolRequest, AIGetPackageVersionResponse, AIGetPackageVersionRequest, GenAgentDefinitionRequest } from "../../interfaces/extended-lang-client";
+import { DefaultProviderKind, McpToolUpdateRequest } from "./interfaces";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
 const _preFix = "ai-agent";
@@ -30,10 +30,8 @@ export const getModels: RequestType<AIModelsRequest, AIModelsResponse> = { metho
 export const getTools: RequestType<AIToolsRequest, AIToolsResponse> = { method: `${_preFix}/getTools` };
 export const getTool: RequestType<AIToolRequest, AIToolResponse> = { method: `${_preFix}/getTool` };
 export const getMcpTools: RequestType<McpToolsRequest, McpToolsResponse> = { method: `${_preFix}/getMcpTools` };
-export const genTool: RequestType<AIGentToolsRequest, AIGentToolsResponse> = { method: `${_preFix}/genTool` };
+export const genAgentDefinition: RequestType<GenAgentDefinitionRequest, AIGentToolsResponse> = { method: `${_preFix}/genAgentDefinition` };
 export const getPackageVersion: RequestType<AIGetPackageVersionRequest, AIGetPackageVersionResponse> = { method: `${_preFix}/getPackageVersion` };
 export const fixMissingImports: RequestType<void, void> = { method: `${_preFix}/fixMissingImports` };
 export const configureDefaultModelProvider: NotificationType<DefaultProviderKind> = { method: `${_preFix}/configureDefaultModelProvider` };
-export const createAIAgent: RequestType<AIAgentRequest, AIAgentResponse> = { method: `${_preFix}/createAIAgent` };
-export const updateAIAgentTools: RequestType<AIAgentToolsUpdateRequest, AIAgentResponse> = { method: `${_preFix}/updateAIAgentTools` };
 export const updateMCPToolKit: NotificationType<McpToolUpdateRequest> = { method: `${_preFix}/updateMCPToolKit` };

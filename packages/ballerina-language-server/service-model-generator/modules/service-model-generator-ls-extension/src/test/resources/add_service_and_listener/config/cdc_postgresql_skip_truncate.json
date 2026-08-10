@@ -290,7 +290,7 @@
             "character": 0
           }
         },
-        "newText": "\nimport ballerinax/cdc;\n"
+        "newText": "\nimport ballerinax/postgresql;\n\nimport ballerinax/cdc;\n\nimport ballerinax/postgresql.cdc.driver as _;\n"
       },
       {
         "range": {
@@ -303,46 +303,7 @@
             "character": 0
           }
         },
-        "newText": "\nimport ballerinax/postgresql;\n"
-      },
-      {
-        "range": {
-          "start": {
-            "line": 0,
-            "character": 0
-          },
-          "end": {
-            "line": 0,
-            "character": 0
-          }
-        },
-        "newText": "\nimport ballerinax/postgresql.cdc.driver as _;\n"
-      },
-      {
-        "range": {
-          "start": {
-            "line": 0,
-            "character": 0
-          },
-          "end": {
-            "line": 0,
-            "character": 0
-          }
-        },
-        "newText": "\nlistener postgresql:CdcListener postgresqlCdcListener = new (database = {hostname : \"localhost\", port : 5432, username : \"postgres\", password : \"Test@1234\", databaseNames : [\"testdb\"]}, options = {skippedOperations: [\"t\"]});"
-      },
-      {
-        "range": {
-          "start": {
-            "line": 0,
-            "character": 0
-          },
-          "end": {
-            "line": 0,
-            "character": 0
-          }
-        },
-        "newText": "\nservice cdc:Service on postgresqlCdcListener {\n}\n"
+        "newText": "\nlistener postgresql:CdcListener postgresqlCdcListener = new (database = {hostname : \"localhost\", port : 5432, username : \"postgres\", password : \"Test@1234\", databaseNames : [\"testdb\"]}, options = {skippedOperations: [\"t\"]});\nservice cdc:Service on postgresqlCdcListener {\n\n}\n"
       }
     ]
   }

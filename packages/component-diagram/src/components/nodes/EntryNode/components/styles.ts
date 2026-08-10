@@ -112,6 +112,7 @@ export const Box = styled.div<NodeStyleProp>`
     align-items: center;
     gap: 8px;
     width: 100%;
+    position: relative;
     border: ${NODE_BORDER_WIDTH}px solid
         ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
     border-radius: 8px;
@@ -149,6 +150,53 @@ export const StyledServiceBox = styled(ServiceBox) <NodeStyleProp>`
         ${(props: NodeStyleProp) => (props.hovered ? ThemeColors.HIGHLIGHT : ThemeColors.OUTLINE_VARIANT)};
     border-radius: 8px;
     background-color: ${ThemeColors.SURFACE_DIM};
+`;
+
+export const EventTypeText = styled(StyledText)`
+    margin-left: auto;
+    font-size: 12px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+    color: ${ThemeColors.ON_SURFACE};
+    opacity: 0.7;
+`;
+
+export const PlayButtonCircle = styled.div`
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 28px;
+    position: absolute;
+    left: -15px;
+    top: 22px;
+    border: ${NODE_BORDER_WIDTH}px solid ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 50%;
+    background-color: ${ThemeColors.SURFACE_DIM};
+    color: ${ThemeColors.ON_SURFACE};
+    z-index: 1;
+`;
+
+export const PlayButtonPortWrapper = styled.div`
+    position: absolute;
+    left: 0;
+    top: 50%;
+`;
+
+export const RowIconWrapper = styled.div`
+    display: flex;
+    align-items: center;
+    svg {
+        fill: ${ThemeColors.ON_SURFACE};
+    }
+    > div:first-child {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
 `;
 
 export const GroupContainer = styled.div<{ accent: string }>`

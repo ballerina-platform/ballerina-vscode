@@ -174,8 +174,11 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             });
             elementDiagnosticsRef.current = initialDioagnostics;
         }
-        let newValue = buildStringArray(props.value);
-        const initialValues = stringToRawArrayElements(newValue);
+        // An array holds the elements already, so the values are read from it directly. Building a string out of it
+        // and splitting it back apart loses an element that contains a comma, such as a string template.
+        const initialValues: string[] = Array.isArray(props.value)
+            ? props.value.map((val: any) => (typeof val === "string" ? val : String(val?.value ?? "")))
+            : stringToRawArrayElements(buildStringArray(props.value));
         if (!Array.isArray(props.value)) {
             initialValues.forEach((val: any, index: number) => {
                 const key = crypto.randomUUID();
@@ -183,7 +186,13 @@ export const FormArrayEditor = (props: FormFieldEditorProps & {
             })
         }
         if (keyArray.length !== initialValues.length) {
-            throw new Error("Key array length and initial values length do not match");
+            // The keys are only used to identify the elements of the editor. Hence, they are adjusted to the values
+            // instead of failing the render of the form.
+            console.warn(`FormArrayEditor: ${keyArray.length} keys for ${initialValues.length} values`);
+            while (keyArray.length < initialValues.length) {
+                keyArray.push(crypto.randomUUID());
+            }
+            keyArray.length = initialValues.length;
         }
         const initialFields = initialValues.map((val, index) => {
             const key = keyArray[index];

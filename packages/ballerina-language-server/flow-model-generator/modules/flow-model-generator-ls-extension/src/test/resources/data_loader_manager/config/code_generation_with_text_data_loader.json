@@ -13,7 +13,6 @@
       "module": "ai",
       "packageName": "ai",
       "object": "TextDataLoader",
-      "version": "1.5.0",
       "isNew": true
     },
     "returning": false,

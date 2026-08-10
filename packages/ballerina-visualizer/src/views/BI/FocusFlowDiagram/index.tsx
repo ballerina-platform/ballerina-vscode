@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { debounce } from "lodash";
+import { cloneDeep, debounce } from "lodash";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory } from "@wso2/ballerina-side-panel";
@@ -41,10 +41,19 @@ import {
     TextEdit,
     ParentMetadata,
     UpdatedArtifactsResponse,
-    NodePosition
+    NodePosition,
+    NodeMetadata,
+    FOCUS_FLOW_DIAGRAM_VIEW,
+    FocusFlowDiagramView
 } from "@wso2/ballerina-core";
 import { PanelContainer } from "@wso2/ballerina-side-panel";
 import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "../../../components/ConnectionSelector";
+import { FlowNodeForm } from "../Forms/FlowNodeForm";
+import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
+import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAgentChat } from "../AIChatAgent/utils";
+import { buildAgentRenderNode } from "./agent";
+import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
 import {
     addDraftNodeToDiagram,
@@ -59,12 +68,14 @@ import { View, ProgressRing, ProgressIndicator, ThemeColors, CompletionItem } fr
 import { EXPRESSION_EXTRACTION_REGEX } from "../../../constants";
 import { ConnectionKind } from "../../../components/ConnectionSelector";
 import { SidePanelView } from "../FlowDiagram/PanelManager";
+import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
+import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
 
 
-const Container = styled.div`
+const Container = styled.div<{ embedded?: boolean }>`
     width: 100%;
-    height: calc(100vh - 50px);
+    height: ${(props: { embedded?: boolean }) => props.embedded ? "100%" : "calc(100vh - 50px)"};
 `;
 
 const SpinnerContainer = styled.div`
@@ -77,13 +88,28 @@ const SpinnerContainer = styled.div`
 export interface BIFocusFlowDiagramProps {
     projectPath: string;
     filePath: string;
+    view?: FocusFlowDiagramView;
+    position?: NodePosition;
+    embedded?: boolean;
     onUpdate: () => void;
     onReady: (fileName: string, parentMetadata?: ParentMetadata, position?: NodePosition) => void;
 }
 
+type AgentPanel = "NONE" | "FORM";
+
 export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
-    const { projectPath, filePath, onUpdate, onReady } = props;
+    const { projectPath, filePath, view, onUpdate, onReady, embedded } = props;
+    const embeddedPositionRef = useRef<NodePosition | undefined>(props.position);
     const { rpcClient } = useRpcContext();
+    const isAgent = view === FOCUS_FLOW_DIAGRAM_VIEW.AGENT;
+    const isAgentType = view === FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT;
+
+    const agentDeclRef = useRef<FlowNode>();
+    const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
+    const suppressAgentTypeReloadRef = useRef(false);
+    const suppressAgentReloadRef = useRef(false);
+    const [agentFormKey, setAgentFormKey] = useState(0);
+    const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
@@ -92,6 +118,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [showConnectionPanel, setShowConnectionPanel] = useState(false);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
     const [connectionView, setConnectionView] = useState<SidePanelView.CONNECTION_CONFIG | SidePanelView.CONNECTION_SELECT | SidePanelView.CONNECTION_CREATE>();
+    const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
     const selectedNodeRef = useRef<FlowNode>();
     const nodeTemplateRef = useRef<FlowNode>();
@@ -111,26 +138,65 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const expressionOffsetRef = useRef<number>(0); // To track the expression offset on adding import statements
 
     useEffect(() => {
-        debouncedGetFlowModel();
+        if (isAgent) {
+            getAgentModel();
+        } else if (isAgentType) {
+            getAgentTypeModel();
+        } else {
+            debouncedGetFlowModel();
+        }
     }, []);
 
     useEffect(() => {
-        rpcClient.onProjectContentUpdated((state: boolean) => {
+        const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> on project content updated", state);
+            if (isAgent) {
+                debouncedGetAgentModel();
+                return;
+            }
+            if (isAgentType) {
+                debouncedGetAgentTypeModel();
+                return;
+            }
             fetchNodes(topNodeRef.current, targetRef.current, true);
         });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             console.log(">>> on parent popup submitted", parent);
+            if (isAgent) {
+                debouncedGetAgentModel();
+                return;
+            }
+            if (isAgentType) {
+                debouncedGetAgentTypeModel();
+                return;
+            }
             const toNode = topNodeRef.current;
             const target = targetRef.current;
             fetchNodes(toNode, target, false);
         });
+        return () => {
+            unsubscribeContentUpdated();
+        };
     }, [rpcClient]);
 
     const debouncedGetFlowModel = useCallback(
         debounce(() => {
             getFlowModel();
         }, 1000),
+        [rpcClient]
+    );
+
+    const debouncedGetAgentModel = useCallback(
+        debounce(() => {
+            getAgentModel();
+        }, 300),
+        [rpcClient]
+    );
+
+    const debouncedGetAgentTypeModel = useCallback(
+        debounce(() => {
+            getAgentTypeModel();
+        }, 300),
         [rpcClient]
     );
 
@@ -190,6 +256,143 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                         onReady(undefined, undefined, undefined);
                     });
             });
+    };
+
+
+    const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
+        const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
+        const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
+        if (suppressRef.current) {
+            suppressRef.current = false;
+            return;
+        }
+        setShowProgressIndicator(true);
+        onUpdate();
+        try {
+            const location = await rpcClient.getVisualizerLocation();
+            const pos = posOverride ?? (embedded ? embeddedPositionRef.current : location?.position) ?? location?.position;
+            if (!pos) {
+                console.error(`>>> ${logLabel}: no position in visualizer location`, location);
+                return;
+            }
+            if (embedded) {
+                embeddedPositionRef.current = pos;
+            }
+
+            const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+                filePath,
+                startLine: { line: pos.startLine, offset: pos.startColumn },
+                endLine: { line: pos.endLine, offset: pos.endColumn },
+            });
+            const fetchedFlow = response?.flowModel;
+            const agentDecl = fetchedFlow?.nodes?.find((node) => node.codedata?.node === kind);
+            if (!agentDecl) {
+                console.error(`>>> ${logLabel}: ${kind} node not found`, { filePath, pos });
+                return;
+            }
+            agentDeclRef.current = agentDecl;
+            setAgentFormKey((key) => key + 1);
+
+            const connections = fetchedFlow?.connections || [];
+            const renderNode: FlowNode = kind === "AGENT"
+                ? buildAgentRenderNode(agentDecl, connections)
+                : {
+                    ...agentDecl,
+                    id: agentDecl.id || "agent-type-focus-node",
+                    branches: [],
+                    flags: agentDecl.flags ?? 0,
+                    returning: true,
+                };
+            const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
+            setModel(flow);
+
+            const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
+            setBreakpointInfo(breakpointResponse);
+            onReady(filePath, undefined, pos);
+        } catch (error) {
+            console.error(`>>> ${logLabel}: error building model`, error);
+        } finally {
+            setShowProgressIndicator(false);
+            onReady(undefined, undefined, undefined);
+        }
+    };
+
+    const getAgentModel = (posOverride?: NodePosition) => getAgentFocusModel("AGENT", posOverride);
+
+    const getAgentTypeModel = (posOverride?: NodePosition) => getAgentFocusModel("TYPED_AGENT", posOverride);
+
+    const openAgentTypeForm = (mode: "ALL" | "MODEL") => {
+        if (!agentDeclRef.current) {
+            return;
+        }
+        setAgentTypeFormMode(mode);
+        setAgentPanel("FORM");
+    };
+
+    const handleEditAgentTypeForm = () => openAgentTypeForm("ALL");
+
+    const handleEditAgentTypeModel = () => openAgentTypeForm("MODEL");
+
+    const buildAgentTypeFieldOverrides = (node: FlowNode, mode: "ALL" | "MODEL") => {
+        const modelParam = (node.metadata?.data as NodeMetadata)?.agentInfo?.modelProvider?.propertyKey;
+        const overrides: Record<string, { hidden?: boolean; label?: string; documentation?: string }> = {
+            type: { hidden: true },
+        };
+        if (mode === "MODEL") {
+            Object.keys(node.properties || {}).forEach((key) => {
+                overrides[key] = { hidden: key !== modelParam };
+            });
+            if (modelParam) {
+                overrides[modelParam] = { hidden: false };
+            }
+        } else if (modelParam) {
+            overrides[modelParam] = { hidden: true };
+        }
+        overrides.variable = { ...overrides.variable, label: "Agent Name", documentation: "Name of the agent" };
+        return overrides;
+    };
+
+    const handleCloseAgentPanel = () => {
+        setShowConnectionPanel(false);
+        setAgentPanel("NONE");
+    };
+
+    const handleEditAgentModel = (_node: FlowNode) => {
+        const agentDecl = agentDeclRef.current;
+        if (!agentDecl) {
+            return;
+        }
+        selectedNodeRef.current = agentDecl;
+        setAgentPanel("NONE");
+        setSelectedConnectionKind("MODEL_PROVIDER");
+        setConnectionView(SidePanelView.CONNECTION_CONFIG);
+        setShowConnectionPanel(true);
+    };
+
+    const handleEditAgentForm = (_node: FlowNode) => {
+        const agentDecl = agentDeclRef.current;
+        if (!agentDecl) {
+            return;
+        }
+        setShowConnectionPanel(false);
+        setAgentPanel("FORM");
+    };
+
+    const handleSubmitAgentForm = async (updatedNode?: FlowNode) => {
+        if (!updatedNode) {
+            return;
+        }
+        suppressAgentTypeReloadRef.current = false;
+        setShowProgressIndicator(true);
+        try {
+            const fileName = model?.fileName;
+            await rpcClient.getBIDiagramRpcClient().getSourceCode({ filePath: fileName, flowNode: updatedNode });
+        } catch (error) {
+            console.error(">>> agent focus: error saving agent form", error);
+        } finally {
+            setShowProgressIndicator(false);
+            handleCloseAgentPanel();
+        }
     };
 
     const handleOnCloseSidePanel = () => {
@@ -364,13 +567,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             filePath: model.fileName,
             id: node.codedata,
         }).then((response) => {
-                const nodesWithCustomForms = ["IF", "FORK"];
-                // if node doesn't have properties. don't show edit form
-                if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
-                    console.log(">>> Node doesn't have properties. Don't show edit form", response.flowNode);
-                    setShowProgressIndicator(false);
-                    showEditForm.current = false;
-                    return;
+            const nodesWithCustomForms = ["IF", "FORK"];
+            if (!response.flowNode.properties && !nodesWithCustomForms.includes(response.flowNode.codedata.node)) {
+                setShowProgressIndicator(false);
+                showEditForm.current = false;
+                return;
                 }
 
                 nodeTemplateRef.current = response.flowNode;
@@ -424,6 +625,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         };
         await rpcClient.getVisualizerRpcClient().openView({ type: EVENT_TYPE.OPEN_VIEW, location: context });
     };
+
+    const handleGoToAgent = (node: FlowNode) => goToAgent(node, rpcClient);
+
+    const handleGoToAgentDefinition = (node: FlowNode) => goToAgentDefinitionFromInstance(node, rpcClient);
+
+    const handleGetAgentDefinitionLocation = (node: FlowNode) => resolveAgentDefinitionLocation(node, rpcClient);
 
     const flowModel = originalFlowModel.current && suggestedModel ? suggestedModel : model;
 
@@ -568,7 +775,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const handleCloseConnectionPanel = () => {
         setShowConnectionPanel(false);
         selectedNodeRef.current = undefined;
-        getFlowModel();
+        if (isAgent) {
+            setAgentPanel("NONE");
+        } else {
+            getFlowModel();
+        }
     };
 
     const handleNavigateToSelectionList = () => {
@@ -651,6 +862,28 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         });
     }, [model, projectPath, completions, filteredCompletions, debouncedRetrieveCompletions, rpcClient, selectedNode]);
 
+    const agentEditor = useAgentEditorController({
+        projectPath,
+        filePath,
+        onModelSelect: isAgentType ? handleEditAgentTypeModel : handleEditAgentModel,
+        onRefresh: (position) => { void (isAgentType ? getAgentTypeModel(position) : getAgentModel(position)); },
+        onLoadingChange: setShowProgressIndicator,
+        onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
+        resolveAgentNode: (node) => agentDeclRef.current ?? node,
+        onChat: (node) => startAgentChat(node, filePath, rpcClient),
+    });
+
+    const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";
+    const handleOverlayClick = () => {
+        if (showConnectionPanel) {
+            handleCloseConnectionPanel();
+        } else if (agentPanel !== "NONE") {
+            handleCloseAgentPanel();
+        } else {
+            agentEditor.close();
+        }
+    };
+
     const memoizedDiagramProps = useMemo(
         () => ({
             model: flowModel,
@@ -661,6 +894,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             addBreakpoint: handleAddBreakpoint,
             removeBreakpoint: handleRemoveBreakpoint,
             openView: handleOpenView,
+            goToAgent: handleGoToAgent,
             projectPath,
             breakpointInfo,
             expressionContext: {
@@ -680,31 +914,96 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         [flowModel, projectPath, breakpointInfo, filteredCompletions, createHelperPane, handleGetExpressionTokens]
     );
 
-    return (
-        <>
-            <View>
-                {(showProgressIndicator) && model && (
-                    <ProgressIndicator color={ThemeColors.PRIMARY} />
-                )}
-                <Container>
-                    {!model && (
-                        <SpinnerContainer>
-                            <ProgressRing color={ThemeColors.PRIMARY} />
-                        </SpinnerContainer>
-                    )}
-                    {model && <MemoizedDiagram {...memoizedDiagramProps} />}
-                </Container>
-            </View>
+    const noop = () => { };
 
-            {showConnectionPanel && selectedNodeRef.current && (
-                <PanelContainer
-                    title="Configure Model Provider Connection"
-                    show={showConnectionPanel}
-                    onClose={handleCloseConnectionPanel}
-                    onBack={connectionView === SidePanelView.CONNECTION_SELECT ? () => setConnectionView(SidePanelView.CONNECTION_CONFIG) :
-                        connectionView === SidePanelView.CONNECTION_CREATE ? () => setConnectionView(SidePanelView.CONNECTION_SELECT) :
-                            undefined}
-                >
+    const agentFocusDiagramProps = useMemo(
+        () => ({
+            model: flowModel,
+            onNodeSelect: isAgentType ? handleEditAgentTypeForm : handleEditAgentForm,
+            onAddNode: noop,
+            onDeleteNode: noop,
+            goToSource: handleOnGoToSource,
+            openView: handleOpenView,
+            goToAgent: handleGoToAgent,
+            goToAgentDefinition: handleGoToAgentDefinition,
+            getAgentDefinitionLocation: handleGetAgentDefinitionLocation,
+            projectPath,
+            breakpointInfo,
+            readOnly: showProgressIndicator,
+            isAgentFocusView: true,
+            embedded,
+            overlay: {
+                visible: isAgentPanelOpen,
+                onClickOverlay: handleOverlayClick,
+            },
+            agentNode: agentEditor.diagramCallbacks,
+        }),
+        [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
+            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType]
+    );
+
+    const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
+
+    const agentTypeFormNode = (() => {
+        if (!agentDeclRef.current || agentTypeFormMode !== "MODEL") {
+            return agentDeclRef.current;
+        }
+        const node = cloneDeep(agentDeclRef.current);
+        if (node.metadata?.description) {
+            delete node.metadata.description;
+        }
+        return node;
+    })();
+
+    const agentTypePromptInjection = (() => {
+        if (agentTypeFormMode !== "ALL") {
+            return undefined;
+        }
+        const agent = (agentDeclRef.current?.metadata?.data as NodeMetadata | undefined)?.agentInfo?.systemPrompt;
+        if (!agent || (!agent.role && !agent.instructions)) {
+            return undefined;
+        }
+        return [{ component: <AgentPromptDisplay role={agent.role} instructions={agent.instructions} />, index: 0 }];
+    })();
+
+    const agentPanelTitle: string | undefined = (() => {
+        if (showConnectionPanel) {
+            return "Configure Model Provider Connection";
+        }
+        if (agentPanel === "FORM") {
+            return isAgentType
+                ? agentTypeFormMode === "MODEL" ? "Configure Model Provider" : "Configure Agent"
+                : "Edit Agent";
+        }
+        return agentEditor.view !== "NONE" ? getAgentEditorPanelTitle(agentEditor) : undefined;
+    })();
+
+    const agentPanelOnBack: (() => void) | undefined = (() => {
+        if (showConnectionPanel) {
+            if (connectionView === SidePanelView.CONNECTION_SELECT) {
+                return () => setConnectionView(SidePanelView.CONNECTION_CONFIG);
+            }
+            if (connectionView === SidePanelView.CONNECTION_CREATE) {
+                return () => setConnectionView(SidePanelView.CONNECTION_SELECT);
+            }
+            return undefined;
+        }
+        if (agentPanel === "FORM") {
+            return undefined;
+        }
+        const backViews: AgentEditorView[] =
+            ["NEW_TOOL_CUSTOM", "NEW_TOOL_CONNECTION", "NEW_TOOL_FUNCTION", "ADD_MCP", "NEW_TOOL_AGENT",
+                "NEW_TOOL_AGENT_FORM"];
+        return backViews.includes(agentEditor.view) ? agentEditor.back : undefined;
+    })();
+
+    const renderAgentPanelContent = () => {
+        if (showConnectionPanel) {
+            if (!selectedNodeRef.current) {
+                return null;
+            }
+            return (
+                <>
                     {connectionView === SidePanelView.CONNECTION_CONFIG && (
                         <ConnectionConfig
                             fileName={filePath}
@@ -719,6 +1018,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                             connectionKind={selectedConnectionKind}
                             selectedNode={selectedNodeRef.current}
                             onSelect={handleSelectConnection}
+                            expandedGroupId={expandedGroupId}
+                            onExpandedGroupChange={setExpandedGroupId}
                         />
                     )}
                     {connectionView === SidePanelView.CONNECTION_CREATE && (
@@ -729,8 +1030,65 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                             onSave={handleUpdateNodeWithConnection}
                         />
                     )}
+                </>
+            );
+        }
+        if (agentPanel === "FORM" && agentDeclRef.current) {
+            const node = isAgentType ? agentTypeFormNode : agentDeclRef.current;
+            const fieldOverrides = isAgentType
+                ? buildAgentTypeFieldOverrides(agentDeclRef.current, agentTypeFormMode)
+                : { model: { hidden: true }, type: { hidden: true }, variable: { label: "Agent Name", documentation: "Name of the agent" } };
+            return (
+                <FlowNodeForm
+                    key={agentFormKey}
+                    fileName={model?.fileName || ""}
+                    node={node}
+                    nodeFormTemplate={node}
+                    targetLineRange={agentDeclRef.current.codedata?.lineRange as any}
+                    projectPath={projectPath}
+                    editForm={true}
+                    onSubmit={handleSubmitAgentForm}
+                    submitText={showProgressIndicator ? "Saving..." : "Save"}
+                    showProgressIndicator={showProgressIndicator}
+                    disableSaveButton={showProgressIndicator}
+                    fieldOverrides={fieldOverrides}
+                    injectedComponents={isAgentType ? agentTypePromptInjection : undefined}
+                    hideInfoBanner={isAgentType && Boolean(agentTypePromptInjection)}
+                    onConnectionCreated={isAgentType ? () => { suppressAgentTypeReloadRef.current = true; } : undefined}
+                />
+            );
+        }
+        return agentEditor.view !== "NONE" ? <AgentEditorPanelContent controller={agentEditor} /> : null;
+    };
+
+    return (
+        <PanelOverlayProvider>
+            <View>
+                {(showProgressIndicator) && model && (
+                    <ProgressIndicator color={ThemeColors.PRIMARY} />
+                )}
+                <Container embedded={embedded}>
+                    {!model && (
+                        <SpinnerContainer>
+                            <ProgressRing color={ThemeColors.PRIMARY} />
+                        </SpinnerContainer>
+                    )}
+                    {model && <MemoizedDiagram {...diagramProps} />}
+                </Container>
+            </View>
+
+            {isAgentPanelOpen && (
+                <PanelContainer
+                    title={agentPanelTitle}
+                    show={true}
+                    onClose={showConnectionPanel ? handleCloseConnectionPanel
+                        : agentPanel !== "NONE" ? handleCloseAgentPanel : () => agentEditor.close()}
+                    onBack={agentPanelOnBack}
+                >
+                    {renderAgentPanelContent()}
                 </PanelContainer>
             )}
-        </>
+            <PanelOverlayRenderer />
+        </PanelOverlayProvider>
     );
 }

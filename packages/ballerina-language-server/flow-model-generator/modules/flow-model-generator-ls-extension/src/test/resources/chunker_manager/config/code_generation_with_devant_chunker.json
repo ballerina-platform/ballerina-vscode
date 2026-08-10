@@ -13,7 +13,6 @@
       "module": "ai.devant",
       "packageName": "ai.devant",
       "object": "Chunker",
-      "version": "1.0.0",
       "isNew": true
     },
     "returning": false,

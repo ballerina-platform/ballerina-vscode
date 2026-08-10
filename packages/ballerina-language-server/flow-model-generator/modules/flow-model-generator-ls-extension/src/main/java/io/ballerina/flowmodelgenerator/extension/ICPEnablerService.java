@@ -247,23 +247,31 @@ public class ICPEnablerService implements ExtendedLanguageServerService {
      * @param pkg the package to inspect
      * @return {@code true} if ICP is enabled, {@code false} otherwise
      */
-    public static boolean isIcpEnabled(Package pkg) {
+    /**
+     * Checks whether the default module imports {@code ballerinax/wso2.controlplane as _}. Unlike
+     * {@link #isIcpEnabled(Package)}, this does not consult Ballerina.toml, so it reflects an import
+     * added in-session (e.g. via a text edit) even before the toml build-option write is visible to
+     * the loaded project.
+     *
+     * @param pkg the package to inspect
+     * @return {@code true} if the control-plane import is present
+     */
+    public static boolean hasControlPlaneImport(Package pkg) {
         Module defaultModule = pkg.getDefaultModule();
-        boolean hasCorrectImport = false;
         for (DocumentId documentId : defaultModule.documentIds()) {
             Document document = defaultModule.document(documentId);
             ModulePartNode root = document.syntaxTree().rootNode();
             for (ImportDeclarationNode importNode : root.imports()) {
                 if (validOrg(importNode) && validModuleName(importNode) && validPrefix(importNode)) {
-                    hasCorrectImport = true;
-                    break;
+                    return true;
                 }
             }
-            if (hasCorrectImport) {
-                break;
-            }
         }
-        if (!hasCorrectImport) {
+        return false;
+    }
+
+    public static boolean isIcpEnabled(Package pkg) {
+        if (!hasControlPlaneImport(pkg)) {
             return false;
         }
         Optional<BallerinaToml> ballerinaToml = pkg.ballerinaToml();

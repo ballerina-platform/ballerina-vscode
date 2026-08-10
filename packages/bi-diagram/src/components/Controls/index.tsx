@@ -23,13 +23,13 @@ import { loadDiagramZoomAndPosition, resetDiagramZoomAndPosition } from "../../u
 import { Icon } from "@wso2/ui-toolkit";
 import { CONTROLS_BG_COLOR, CONTROLS_DIVIDER_COLOR, CONTROLS_HOVER_BG_COLOR, NODE_TEXT_COLOR } from "../../resources/constants";
 
-const Container = styled.div<{}>`
+const Container = styled.div<{ embedded?: boolean }>`
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 8px;
 
-    position: fixed;
+    position: ${(props) => (props.embedded ? "absolute" : "fixed")};
     bottom: 20px;
     left: 20px;
     z-index: 1000;
@@ -83,10 +83,11 @@ const Button = styled.div<{}>`
 
 interface ControlsProps {
     engine: DiagramEngine;
+    embedded?: boolean;
 }
 
 export function Controls(props: ControlsProps) {
-    const { engine } = props;
+    const { engine, embedded } = props;
 
     const handleZoomToFit = () => {
         resetDiagramZoomAndPosition();
@@ -101,7 +102,7 @@ export function Controls(props: ControlsProps) {
     };
 
     return (
-        <Container>
+        <Container embedded={embedded}>
             <Button onClick={handleZoomToFit}>
                 <Icon name="bi-fit-screen" sx={{ width: 16, height: 16, fontSize: 16 }} />
             </Button>

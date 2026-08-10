@@ -1,0 +1,4868 @@
+{
+  "$comment": "TriggerModel \u2014 GitHub (ballerinax/trigger.github). GitHub exposes MANY selectable service types (event channels): the user picks ONE event channel at init time via the 'serviceType' SINGLE_SELECT (codedata SERVICE_TYPE_DESCRIPTOR), and that service type's full handler set is generated. Every service type lists ALL its remote handlers in `functions` (locked: enabled:true, editable:false, nameEditable:false); there are NO schemaFunctions because nothing is added later from a catalog. serviceTypes[].enabled marks the selected type (IssuesService here); the rest are editable:true so the user can switch. Each handler takes a single `payload` param of the channel's event record and returns error?. initProperties.listener is a CHOICE: 'Create New Listener' (generates `listener github:Listener githubListener = new(<listenOn>, {webhookSecret: ...})`) vs 'Use Existing Listener' (SINGLE_SELECT_LISTENER). Assumptions: (a) the IssuesService handler set follows the service-type DESCRIPTION (onOpened/onClosed/onReopened/onAssigned/onUnassigned/onLabeled/onUnlabeled) rather than the inbuilt file's function array, which contains a duplicated onAssigned and omits onUnassigned; (b) IssueCommentService payloads are github:IssueCommentEvent (the inbuilt file's onCreated payload type github:IssuesEvent is a known data bug); (c) the listener constructor shape `new(int|http:Listener listenOn, github:ListenerConfig {webhookSecret})` is inferred from the package README and the init form.",
+  "schemaVersion": "1.0",
+  "id": "13",
+  "displayName": "GitHub Event Integration",
+  "description": "Create a service to handle webhook events from GitHub",
+  "orgName": "ballerinax",
+  "packageName": "trigger.github",
+  "moduleName": "trigger.github",
+  "version": "0.10.0",
+  "type": "github",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_trigger.github_0.10.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Listener",
+        "description": "Attach the service to a new or existing GitHub webhook listener."
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create New Listener",
+            "description": "Define a new GitHub webhook listener in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the GitHub webhook listener."
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "github:Listener"
+                    }
+                  ],
+                  "value": "githubListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  }
+                },
+                "listenOn": {
+                  "metadata": {
+                    "label": "Webhook Listener Port",
+                    "description": "The port on which the webhook listener accepts incoming HTTP requests"
+                  },
+                  "placeholder": "8090",
+                  "value": "8090",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_REQUIRED",
+                    "position": 2,
+                    "originalName": "listenOn"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "selected": true,
+                      "ballerinaType": "int"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "int|http:Listener"
+                    }
+                  ]
+                },
+                "webhookSecret": {
+                  "metadata": {
+                    "label": "Webhook Secret",
+                    "description": "Secret used to validate incoming GitHub webhook requests"
+                  },
+                  "placeholder": "",
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "path": "webhookSecret",
+                    "originalName": "webhookSecret",
+                    "position": 1
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "selected": true,
+                      "ballerinaType": "string"
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "selected": false,
+                      "ballerinaType": "string"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use Existing Listener",
+            "description": "Attach to a GitHub listener already declared in the project."
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener",
+                "description": "Select an existing listener to attach the service to."
+              },
+              "types": [
+                {
+                  "fieldType": "SINGLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "github:Listener"
+                }
+              ],
+              "items": [
+                "githubListener"
+              ],
+              "value": "githubListener",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "serviceType": {
+      "metadata": {
+        "label": "Event Channel",
+        "description": "The type of GitHub event to listen for"
+      },
+      "types": [
+        {
+          "fieldType": "SINGLE_SELECT",
+          "selected": true,
+          "ballerinaType": "github:GenericServiceType",
+          "options": [
+            {
+              "label": "Issues",
+              "value": "github:IssuesService"
+            },
+            {
+              "label": "Issue Comment",
+              "value": "github:IssueCommentService"
+            },
+            {
+              "label": "Pull Request",
+              "value": "github:PullRequestService"
+            },
+            {
+              "label": "Pull Request Review",
+              "value": "github:PullRequestReviewService"
+            },
+            {
+              "label": "Pull Request Review Comment",
+              "value": "github:PullRequestReviewCommentService"
+            },
+            {
+              "label": "Release",
+              "value": "github:ReleaseService"
+            },
+            {
+              "label": "Label",
+              "value": "github:LabelService"
+            },
+            {
+              "label": "Milestone",
+              "value": "github:MilestoneService"
+            },
+            {
+              "label": "Push",
+              "value": "github:PushService"
+            },
+            {
+              "label": "Project Card",
+              "value": "github:ProjectCardService"
+            }
+          ]
+        }
+      ],
+      "value": "github:IssuesService",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "Issues",
+        "description": "Triggered when an event related to a GitHub issue is received. Available actions: onOpened, onClosed, onReopened, onAssigned, onUnassigned, onLabeled, and onUnlabeled."
+      },
+      "name": "github:IssuesService",
+      "description": "Triggered when an event related to a GitHub issue is received. Available actions: onOpened, onClosed, onReopened, onAssigned, onUnassigned, onLabeled, and onUnlabeled.",
+      "enabled": true,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "IssuesService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Opened",
+            "description": "Triggered when an issue is opened."
+          },
+          "name": "onOpened",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is opened.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOpened",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Closed",
+            "description": "Triggered when an issue is closed."
+          },
+          "name": "onClosed",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is closed.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onClosed",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Reopened",
+            "description": "Triggered when an issue is reopened."
+          },
+          "name": "onReopened",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is reopened.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReopened",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Assigned",
+            "description": "Triggered when an issue is assigned to someone."
+          },
+          "name": "onAssigned",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is assigned to someone.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onAssigned",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Unassigned",
+            "description": "Triggered when an issue is unassigned."
+          },
+          "name": "onUnassigned",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is unassigned.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUnassigned",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Labeled",
+            "description": "Triggered when an issue is labeled."
+          },
+          "name": "onLabeled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is labeled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLabeled",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Unlabeled",
+            "description": "Triggered when an issue is unlabeled."
+          },
+          "name": "onUnlabeled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue is unlabeled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUnlabeled",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssuesEvent",
+                "value": "github:IssuesEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Issue Comment",
+        "description": "Triggered when a comment is added, edited, or removed on a pull request or a GitHub issue. Available actions: onCreated, onEdited, and onDeleted."
+      },
+      "name": "github:IssueCommentService",
+      "description": "Triggered when a comment is added, edited, or removed on a pull request or a GitHub issue. Available actions: onCreated, onEdited, and onDeleted.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "IssueCommentService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when an issue comment is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue comment is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssueCommentEvent",
+                "value": "github:IssueCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when an issue comment is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue comment is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssueCommentEvent",
+                "value": "github:IssueCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when an issue comment is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when an issue comment is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:IssueCommentEvent",
+                "value": "github:IssueCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Pull Request",
+        "description": "Triggered when an event related to a GitHub pull request is received. Available actions: onOpened, onClosed, onReopened, onAssigned, onUnassigned, onReviewRequested, onReviewRequestRemoved, onLabeled, onUnlabeled, and onEdited."
+      },
+      "name": "github:PullRequestService",
+      "description": "Triggered when an event related to a GitHub pull request is received. Available actions: onOpened, onClosed, onReopened, onAssigned, onUnassigned, onReviewRequested, onReviewRequestRemoved, onLabeled, onUnlabeled, and onEdited.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "PullRequestService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Opened",
+            "description": "Triggered when a pull request is opened."
+          },
+          "name": "onOpened",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is opened.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOpened",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Closed",
+            "description": "Triggered when a pull request is closed."
+          },
+          "name": "onClosed",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is closed.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onClosed",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Reopened",
+            "description": "Triggered when a pull request is reopened."
+          },
+          "name": "onReopened",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is reopened.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReopened",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Assigned",
+            "description": "Triggered when a pull request is assigned to someone."
+          },
+          "name": "onAssigned",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is assigned to someone.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onAssigned",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Unassigned",
+            "description": "Triggered when a pull request is unassigned."
+          },
+          "name": "onUnassigned",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is unassigned.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUnassigned",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Review Requested",
+            "description": "Triggered when a pull request review is requested."
+          },
+          "name": "onReviewRequested",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review is requested.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReviewRequested",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Review Request Removed",
+            "description": "Triggered when a pull request review request is removed."
+          },
+          "name": "onReviewRequestRemoved",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review request is removed.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReviewRequestRemoved",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Labeled",
+            "description": "Triggered when a pull request is labeled."
+          },
+          "name": "onLabeled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is labeled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onLabeled",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Unlabeled",
+            "description": "Triggered when a pull request is unlabeled."
+          },
+          "name": "onUnlabeled",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is unlabeled.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUnlabeled",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a pull request is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestEvent",
+                "value": "github:PullRequestEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Pull Request Review",
+        "description": "Triggered when an event related to a pull request review is received. Available actions: onSubmitted, onEdited, and onDismissed."
+      },
+      "name": "github:PullRequestReviewService",
+      "description": "Triggered when an event related to a pull request review is received. Available actions: onSubmitted, onEdited, and onDismissed.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "PullRequestReviewService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Submitted",
+            "description": "Triggered when a pull request review is submitted."
+          },
+          "name": "onSubmitted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review is submitted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onSubmitted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewEvent",
+                "value": "github:PullRequestReviewEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a pull request review is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewEvent",
+                "value": "github:PullRequestReviewEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Dismissed",
+            "description": "Triggered when a pull request review is dismissed."
+          },
+          "name": "onDismissed",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review is dismissed.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDismissed",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewEvent",
+                "value": "github:PullRequestReviewEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Pull Request Review Comment",
+        "description": "Triggered when a comment is added to a pull request review's unified diff view. Available actions: onCreated, onEdited, and onDeleted."
+      },
+      "name": "github:PullRequestReviewCommentService",
+      "description": "Triggered when a comment is added to a pull request review's unified diff view. Available actions: onCreated, onEdited, and onDeleted.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "PullRequestReviewCommentService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when a pull request review comment is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review comment is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewCommentEvent",
+                "value": "github:PullRequestReviewCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a pull request review comment is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review comment is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewCommentEvent",
+                "value": "github:PullRequestReviewCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when a pull request review comment is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a pull request review comment is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PullRequestReviewCommentEvent",
+                "value": "github:PullRequestReviewCommentEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Release",
+        "description": "Triggered when an event related to a GitHub release is received. Available actions: onPublished, onUnpublished, onCreated, onEdited, onDeleted, onPreReleased, and onReleased."
+      },
+      "name": "github:ReleaseService",
+      "description": "Triggered when an event related to a GitHub release is received. Available actions: onPublished, onUnpublished, onCreated, onEdited, onDeleted, onPreReleased, and onReleased.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "ReleaseService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Published",
+            "description": "Triggered when a release is published."
+          },
+          "name": "onPublished",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is published.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPublished",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Unpublished",
+            "description": "Triggered when a release is unpublished."
+          },
+          "name": "onUnpublished",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is unpublished.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onUnpublished",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when a release is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a release is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when a release is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Pre Released",
+            "description": "Triggered when a release is pre-released."
+          },
+          "name": "onPreReleased",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is pre-released.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPreReleased",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Released",
+            "description": "Triggered when a release is released."
+          },
+          "name": "onReleased",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a release is released.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onReleased",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ReleaseEvent",
+                "value": "github:ReleaseEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Label",
+        "description": "Triggered when an event related to a repository label is received. Available actions: onCreated, onEdited, and onDeleted."
+      },
+      "name": "github:LabelService",
+      "description": "Triggered when an event related to a repository label is received. Available actions: onCreated, onEdited, and onDeleted.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "LabelService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when a label is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a label is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:LabelEvent",
+                "value": "github:LabelEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a label is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a label is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:LabelEvent",
+                "value": "github:LabelEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when a label is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a label is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:LabelEvent",
+                "value": "github:LabelEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Milestone",
+        "description": "Triggered when an event related to a GitHub milestone is received. Available actions: onCreated, onEdited, onDeleted, onClosed, and onOpened."
+      },
+      "name": "github:MilestoneService",
+      "description": "Triggered when an event related to a GitHub milestone is received. Available actions: onCreated, onEdited, onDeleted, onClosed, and onOpened.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "MilestoneService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when a milestone is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a milestone is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:MilestoneEvent",
+                "value": "github:MilestoneEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a milestone is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a milestone is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:MilestoneEvent",
+                "value": "github:MilestoneEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when a milestone is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a milestone is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:MilestoneEvent",
+                "value": "github:MilestoneEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Closed",
+            "description": "Triggered when a milestone is closed."
+          },
+          "name": "onClosed",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a milestone is closed.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onClosed",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:MilestoneEvent",
+                "value": "github:MilestoneEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Opened",
+            "description": "Triggered when a milestone is opened."
+          },
+          "name": "onOpened",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a milestone is opened.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onOpened",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:MilestoneEvent",
+                "value": "github:MilestoneEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Push",
+        "description": "Triggered when a push event is received. Available action: onPush."
+      },
+      "name": "github:PushService",
+      "description": "Triggered when a push event is received. Available action: onPush.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "PushService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Push",
+            "description": "Triggered when a commit is pushed to the repository."
+          },
+          "name": "onPush",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a commit is pushed to the repository.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onPush",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:PushEvent",
+                "value": "github:PushEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Project Card",
+        "description": "Triggered when an event related to a project card is received. Available actions: onCreated, onEdited, onMoved, onConverted, and onDeleted."
+      },
+      "name": "github:ProjectCardService",
+      "description": "Triggered when an event related to a project card is received. Available actions: onCreated, onEdited, onMoved, onConverted, and onDeleted.",
+      "enabled": false,
+      "editable": true,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "github",
+        "originalName": "ProjectCardService"
+      },
+      "properties": {},
+      "functions": [
+        {
+          "metadata": {
+            "label": "On Created",
+            "description": "Triggered when a project card is created."
+          },
+          "name": "onCreated",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a project card is created.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onCreated",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ProjectCardEvent",
+                "value": "github:ProjectCardEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Edited",
+            "description": "Triggered when a project card is edited."
+          },
+          "name": "onEdited",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a project card is edited.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onEdited",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ProjectCardEvent",
+                "value": "github:ProjectCardEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Moved",
+            "description": "Triggered when a project card is moved."
+          },
+          "name": "onMoved",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a project card is moved.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMoved",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ProjectCardEvent",
+                "value": "github:ProjectCardEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Converted",
+            "description": "Triggered when a project card is converted to an issue."
+          },
+          "name": "onConverted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a project card is converted to an issue.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onConverted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ProjectCardEvent",
+                "value": "github:ProjectCardEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Deleted",
+            "description": "Triggered when a project card is deleted."
+          },
+          "name": "onDeleted",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "documentation": "Triggered when a project card is deleted.",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onDeleted",
+            "moduleName": "github"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Payload",
+                "description": "The information about the triggered event."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "github:ProjectCardEvent",
+                "value": "github:ProjectCardEvent",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "payload",
+                  "description": "The information about the triggered event."
+                },
+                "placeholder": "payload",
+                "value": "payload",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function; `error?` to signal a processing error."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "typeConstraint": "error?",
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "serviceType",
+      "displayName": "Event Channel",
+      "kind": "SERVICE_DESCRIPTION"
+    }
+  ]
+}

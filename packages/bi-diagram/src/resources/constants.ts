@@ -32,6 +32,10 @@ export enum NodeTypes {
     END_NODE = "end-node",
     ERROR_NODE = "error-node",
     AGENT_CALL_NODE = "agent-call-node",
+    DURABLE_AGENT_RUN_NODE = "durable-agent-run-node",
+    EVAL_NODE = "eval-node",
+    TYPED_AGENT_NODE = "typed-agent-node",
+    AGENT_NODE = "agent-node",
     PROMPT_NODE = "prompt-node",
     WORKFLOW_RUN_NODE = "workflow-run-node",
     CALL_ACTIVITY_NODE = "call-activity-node",
@@ -76,6 +80,22 @@ export const END_NODE_BG_COLOR = ThemeColors.ON_SURFACE;
 // ─── Empty Node (add-point circle) Colors ────────────────────────────────────
 export const EMPTY_NODE_ACTIVE_BORDER_COLOR = ThemeColors.ON_SURFACE;
 export const EMPTY_NODE_ACTIVE_BG_COLOR = ThemeColors.PRIMARY_CONTAINER;
+
+// ─── Review Diff Colors (unified old/new diagram) ────────────────────────────
+// Prefer the diff-editor borders because VS Code defines dedicated variants for
+// both high-contrast themes. Standard themes fall back to their Git decoration.
+export const DIFF_REMOVED_COLOR =
+    "var(--vscode-diffEditor-removedTextBorder, var(--vscode-gitDecoration-deletedResourceForeground, #c74e39))";
+export const DIFF_REMOVED_BG_COLOR = "var(--vscode-diffEditor-removedTextBackground, transparent)";
+export const DIFF_ADDED_COLOR =
+    "var(--vscode-diffEditor-insertedTextBorder, var(--vscode-gitDecoration-addedResourceForeground, #2ea043))";
+export const DIFF_ADDED_BG_COLOR = "var(--vscode-diffEditor-insertedTextBackground, transparent)";
+
+// Use VS Code's familiar SCM modified color. The explicit "~ Modified" marker
+// and dotted border keep the state identifiable without relying on amber alone.
+export const DIFF_MODIFIED_COLOR =
+    "var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-editorInfo-foreground, #e2c08d))";
+export const DIFF_MODIFIED_BG_COLOR = "transparent";
 
 // ─── Link Colors ─────────────────────────────────────────────────────────────
 export const LINK_COLOR = ThemeColors.ON_SURFACE_VARIANT;
@@ -142,7 +162,9 @@ export const LAST_NODE = "lastNode";
 // agent node
 export const AGENT_NODE_TOOL_GAP = 5;
 export const AGENT_NODE_TOOL_SECTION_GAP = 120;
+export const AGENT_CALL_TOOL_SECTION_GAP = 80;
 export const AGENT_NODE_ADD_TOOL_BUTTON_WIDTH = 20;
+export const AGENT_CALL_AGENT_ROW_HEIGHT = 38;
 
 // prompt node
 export const PROMPT_NODE_WIDTH = 350;

@@ -58,8 +58,12 @@ export class InitVisitor implements BaseVisitor {
 
     endVisitNode(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
+        // The durable-agent declaration canvas is not a flow — its model is just
+        // [Start, agent box] — so it gets no trailing end node (or arrow into one).
+        const isDurableAgentCanvas =
+            (this.flow.nodes?.[0]?.metadata?.data as { kind?: string })?.kind === "Durable Agentic Workflow";
         // if this is last block in the flow, add empty node end of the block
-        if (!node.returning && this.flow.nodes.at(-1).id === node.id) {
+        if (!node.returning && !isDurableAgentCanvas && this.flow.nodes.at(-1).id === node.id) {
             const emptyNode: FlowNode = {
                 id: getCustomNodeId(node.id, LAST_NODE),
                 codedata: {
@@ -84,6 +88,7 @@ export class InitVisitor implements BaseVisitor {
             "ERROR_HANDLER",
             "FORK",
             "LOCK",
+            "DIFF_HUNK",
         ];
         if (node.branches && !supportedNodeTypes.includes(node.codedata.node)) {
             // unsupported node types with children and branches
@@ -151,6 +156,15 @@ export class InitVisitor implements BaseVisitor {
                 children: [emptyElseBranch],
             });
         }
+    }
+
+    // Synthetic review-diff container (see utils/diff.ts). Branches hold the removed/added lanes.
+    beginVisitDiffHunk(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        node.viewState = this.getDefaultViewState();
+        node.branches?.forEach((branch) => {
+            branch.viewState = this.getDefaultViewState();
+        });
     }
 
     beginVisitMatch(node: FlowNode, parent?: FlowNode): void {

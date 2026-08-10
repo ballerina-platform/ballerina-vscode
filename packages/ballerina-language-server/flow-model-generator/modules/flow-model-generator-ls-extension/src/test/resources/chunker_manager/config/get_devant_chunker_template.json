@@ -6,8 +6,7 @@
     "module": "ai.devant",
     "packageName": "ai.devant",
     "object": "Chunker",
-    "symbol": "init",
-    "version": "1.0.0"
+    "symbol": "init"
   },
   "expectedTemplate": {
     "flowNode": {
@@ -15,7 +14,7 @@
       "metadata": {
         "label": "Chunker",
         "description": "Initializes a new `Chunker` instance.\n",
-        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.0.png"
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai.devant_1.0.4.png"
       },
       "codedata": {
         "node": "CHUNKER",
@@ -23,7 +22,7 @@
         "module": "ai.devant",
         "packageName": "ai.devant",
         "object": "Chunker",
-        "version": "1.0.0",
+        "version": "1.0.4",
         "isNew": true
       },
       "returning": false,
@@ -278,7 +277,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp1Settings",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -318,7 +317,7 @@
               "typeMembers": [
                 {
                   "type": "ClientHttp2Settings",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -414,7 +413,7 @@
               "typeMembers": [
                 {
                   "type": "PoolConfiguration",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -454,7 +453,7 @@
               "typeMembers": [
                 {
                   "type": "CacheConfig",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -538,7 +537,7 @@
               "typeMembers": [
                 {
                   "type": "CircuitBreakerConfig",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -578,7 +577,7 @@
               "typeMembers": [
                 {
                   "type": "RetryConfig",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -618,7 +617,7 @@
               "typeMembers": [
                 {
                   "type": "ResponseLimitConfigs",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -658,7 +657,7 @@
               "typeMembers": [
                 {
                   "type": "ClientSecureSocket",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -698,7 +697,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfig",
-                  "packageInfo": "ballerina:http:2.14.3",
+                  "packageInfo": "ballerina:http:2.16.6",
                   "packageName": "http",
                   "kind": "RECORD_TYPE",
                   "selected": false

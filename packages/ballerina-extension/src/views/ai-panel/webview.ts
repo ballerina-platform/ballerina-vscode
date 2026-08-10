@@ -25,6 +25,7 @@ import { extension } from '../../BalExtensionContext';
 import { AIStateMachine } from './aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core';
 import { approvalManager } from '../../features/ai/state/ApprovalManager';
+import { agentStatusManager } from '../../features/ai/state/AgentStatusManager';
 
 export class AiPanelWebview {
     public static currentPanel: AiPanelWebview | undefined;
@@ -35,8 +36,15 @@ export class AiPanelWebview {
     constructor() {
         this._panel = AiPanelWebview.createWebview();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.onDidChangeViewState(
+            () => agentStatusManager.setAiPanelVisible(this._panel?.visible ?? false),
+            null,
+            this._disposables
+        );
         this._panel.webview.html = this.getWebviewContent(this._panel.webview);
         RPCLayer.create(this._panel);
+        agentStatusManager.setAiPanelOpen(true);
+        agentStatusManager.setAiPanelVisible(this._panel.visible);
     }
 
     private static createWebview(): vscode.WebviewPanel {
@@ -128,9 +136,16 @@ export class AiPanelWebview {
 
     public dispose() {
 
-        approvalManager.cancelAllPending("AI Panel closed");
+        // Closing the panel must not discard an in-progress run's pending question. The agent keeps
+        // running in the extension host, so leave in-chat prompts (clarify/approval/etc.) pending —
+        // they are re-surfaced from the event buffer on reopen and remain answerable. Only popup-based
+        // prompts that can't be replayed (configuration) are cancelled here. Explicit abort still
+        // cancels everything via chatStateStorage.abortActiveExecution → cancelAllPending.
+        approvalManager.cancelOnPanelClose("AI Panel closed");
 
         AiPanelWebview.currentPanel = undefined;
+        agentStatusManager.setAiPanelOpen(false);
+        agentStatusManager.setAiPanelVisible(false);
         AIStateMachine.sendEvent(AIMachineEventType.DISPOSE);
         this._panel?.dispose();
 

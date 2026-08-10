@@ -56,6 +56,8 @@ export interface ConnectionSelectionListProps {
     connectionKind: ConnectionKind;
     selectedNode?: FlowNode;
     onSelect?: (id: string, metadata?: any) => void;
+    expandedGroupId?: string | null;
+    onExpandedGroupChange?: (groupId: string | null) => void;
 }
 
 export interface ConnectionCreatorProps {

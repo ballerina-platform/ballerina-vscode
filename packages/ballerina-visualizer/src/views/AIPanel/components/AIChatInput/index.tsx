@@ -19,7 +19,16 @@
 import { useState, useRef, KeyboardEvent, useEffect, useLayoutEffect, useImperativeHandle, forwardRef } from "react";
 import styled from "@emotion/styled";
 import { Icon } from "@wso2/ui-toolkit";
-import { AIPanelPrompt, Attachment, AttachmentStatus, Command, ExtendedDataMapperMetadata, SkillEntry, TemplateId } from "@wso2/ballerina-core";
+import {
+    AgentRunState,
+    AIPanelPrompt,
+    Attachment,
+    AttachmentStatus,
+    Command,
+    ExtendedDataMapperMetadata,
+    SkillEntry,
+    TemplateId,
+} from "@wso2/ballerina-core";
 import AttachmentBox, { AttachmentsContainer } from "../AttachmentBox";
 import { StyledInputComponent, StyledInputRef } from "./StyledInput";
 import { AttachmentOptions, useAttachments } from "./hooks/useAttachments";
@@ -40,6 +49,7 @@ import { PlaceholderTagMap } from "../../commandTemplates/data/placeholderTags.c
 import ContextUsageWidget from "../AIChat/compaction/ContextUsageWidget";
 import RunningServicesChip, { RunningServicesPanel } from "./RunningServicesChip";
 import McpToolsChip from "./McpToolsChip";
+import { AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
 
 
 // Styled Components
@@ -68,17 +78,14 @@ const InputArea = styled.div`
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 4px;
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
+    min-width: 0;
+    padding: 5px;
+    border: none;
+    border-radius: 9px;
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     cursor: text;
     flex: 1;
-
-    &:focus-within {
-        border-color: var(--vscode-button-background);
-    }
 `;
 
 const ActionButton = styled.button`
@@ -147,13 +154,36 @@ interface AIChatInputProps {
     onOpenMcpManager?: () => void;
     runningServicesPanel?: RunningServicesPanel;
     skills?: SkillEntry[];
+    ambientState?: AgentRunState;
 }
 
 const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
-    ({ initialCommandTemplate, tagOptions, attachmentOptions, placeholder, onSend, onStop, isLoading,
-       agentMode = AgentMode.Edit, onChangeAgentMode, isAutoApproveEnabled = false, onDisableAutoApprove,
-       isWebToolsEnabled = false, onToggleWebSearch, disabled,
-       contextUsage, mcpToolsEnabled = false, onOpenMcpManager, runningServicesPanel, skills }, ref) => {        const [inputValue, setInputValue] = useState<{
+    (
+        {
+            initialCommandTemplate,
+            tagOptions,
+            attachmentOptions,
+            placeholder,
+            onSend,
+            onStop,
+            isLoading,
+            agentMode = AgentMode.Edit,
+            onChangeAgentMode,
+            isAutoApproveEnabled = false,
+            onDisableAutoApprove,
+            isWebToolsEnabled = false,
+            onToggleWebSearch,
+            disabled,
+            contextUsage,
+            mcpToolsEnabled = false,
+            onOpenMcpManager,
+            runningServicesPanel,
+            skills,
+            ambientState = isLoading ? "running" : "idle",
+        },
+        ref
+    ) => {
+        const [inputValue, setInputValue] = useState<{
             text: string;
             [key: string]: any;
         }>({
@@ -340,17 +370,30 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
                         case "text":
                             inputRef.current?.insertTextAtCursor({ text: updatedContent.text });
                             break;
-                        case "skill":
-                            inputRef.current?.insertBadgeAtCursor({
-                                displayText: `/${updatedContent.skillName}`,
-                                rawValue: updatedContent.skillId,
-                                badgeType: ChatBadgeType.Skill,
-                                suffixText: " ",
-                            });
-                            if (updatedContent.args) {
-                                inputRef.current?.insertTextAtCursor({ text: updatedContent.args });
+                        case "skill": {
+                            const skillEntry = skills?.find(s => s.id === updatedContent.skillId);
+                            if (skillEntry && skillEntry.commandTemplates?.length) {
+                                await insertSkill(skillEntry);
+                                if (updatedContent.args) {
+                                    inputRef.current?.insertTextAtCursor({
+                                        text: updatedContent.args,
+                                        templateInserted: true,
+                                        ...(updatedContent.tagParams && { tagParams: updatedContent.tagParams }),
+                                    });
+                                }
+                            } else {
+                                inputRef.current?.insertBadgeAtCursor({
+                                    displayText: `/${updatedContent.skillName}`,
+                                    rawValue: updatedContent.skillId,
+                                    badgeType: ChatBadgeType.Skill,
+                                    suffixText: " ",
+                                });
+                                if (updatedContent.args) {
+                                    inputRef.current?.insertTextAtCursor({ text: updatedContent.args });
+                                }
                             }
                             break;
+                        }
                         default:
                             break;
                     }
@@ -656,96 +699,98 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         return (
             <Container ref={containerRef}>
                 <FlexRow>
-                    <InputArea>
-                        <StyledInputComponent
-                            ref={inputRef}
-                            value={inputValue}
-                            onChange={setInputValue}
-                            onKeyDown={handleKeyDown}
-                            onBlur={() => completeSuggestionSelection()}
-                            placeholder={disabled ? "Usage limit exceeded" : placeholder}
-                            onPostDOMUpdate={executeOnPostDOMUpdate}
-                            disabled={disabled}
-                        />
-                        {/* Attachments Display */}
-                        {attachments.length > 0 && (
-                            <AttachmentsContainer>
-                                {attachments.map((file, index) => (
-                                    <AttachmentBox
-                                        key={index}
-                                        status={file.status}
-                                        fileName={file.name}
-                                        index={index}
-                                        removeAttachment={removeAttachment}
-                                    />
-                                ))}
-                            </AttachmentsContainer>
-                        )}
+                    <AmbientFrame $variant="composer" $state={ambientState}>
+                        <InputArea>
+                            <StyledInputComponent
+                                ref={inputRef}
+                                value={inputValue}
+                                onChange={setInputValue}
+                                onKeyDown={handleKeyDown}
+                                onBlur={() => completeSuggestionSelection()}
+                                placeholder={disabled ? "Usage limit exceeded" : placeholder}
+                                onPostDOMUpdate={executeOnPostDOMUpdate}
+                                disabled={disabled}
+                            />
+                            {/* Attachments Display */}
+                            {attachments.length > 0 && (
+                                <AttachmentsContainer>
+                                    {attachments.map((file, index) => (
+                                        <AttachmentBox
+                                            key={index}
+                                            status={file.status}
+                                            fileName={file.name}
+                                            index={index}
+                                            removeAttachment={removeAttachment}
+                                        />
+                                    ))}
+                                </AttachmentsContainer>
+                            )}
 
-                        <ActionRow>
-                            <div style={{ display: "flex", alignItems: "center" }}>
-                                {onChangeAgentMode && (
-                                    <ModeToggle
-                                        mode={agentMode}
-                                        onChange={onChangeAgentMode}
-                                        disabled={isLoading}
+                            <ActionRow>
+                                <div style={{ display: "flex", alignItems: "center" }}>
+                                    {onChangeAgentMode && (
+                                        <ModeToggle
+                                            mode={agentMode}
+                                            onChange={onChangeAgentMode}
+                                            disabled={isLoading}
+                                        />
+                                    )}
+                                    {isAutoApproveEnabled && onDisableAutoApprove && (
+                                        <AutoApproveChip onToggle={onDisableAutoApprove} />
+                                    )}
+                                    {onToggleWebSearch && (
+                                        <WebSearchToggle isActive={isWebToolsEnabled} onToggle={onToggleWebSearch} />
+                                    )}
+                                    {contextUsage && (
+                                        <ContextUsageWidget
+                                            percentage={contextUsage.percentage}
+                                            inputTokens={contextUsage.inputTokens}
+                                            breakdown={contextUsage.breakdown}
+                                        />
+                                    )}
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center" }}>
+                                    {mcpToolsEnabled && (
+                                        <McpToolsChip mcpToolsEnabled={mcpToolsEnabled} onOpenMcpManager={onOpenMcpManager ?? (() => {})} />
+                                    )}
+                                    {runningServicesPanel && runningServicesPanel.services.length > 0 && (
+                                        <RunningServicesChip {...runningServicesPanel} />
+                                    )}
+                                    <ActionButton
+                                        title="Chat with Command"
+                                        disabled={inputValue.text !== ""}
+                                        onClick={() => {
+                                            inputRef.current?.insertTextAtCursor({ text: "/" });
+                                        }}
+                                    >
+                                        /
+                                    </ActionButton>
+                                    <input
+                                        type="file"
+                                        multiple={attachmentOptions.multiple}
+                                        accept={attachmentOptions.acceptResolver(activeCommand, activeSkillWithTemplates?.skillCommand)}
+                                        style={{ display: "none" }}
+                                        ref={fileInputRef}
+                                        onChange={onAttachmentSelection}
                                     />
-                                )}
-                                {isAutoApproveEnabled && onDisableAutoApprove && (
-                                    <AutoApproveChip onToggle={onDisableAutoApprove} />
-                                )}
-                                {onToggleWebSearch && (
-                                    <WebSearchToggle isActive={isWebToolsEnabled} onToggle={onToggleWebSearch} />
-                                )}
-                                {contextUsage && (
-                                    <ContextUsageWidget
-                                        percentage={contextUsage.percentage}
-                                        inputTokens={contextUsage.inputTokens}
-                                        breakdown={contextUsage.breakdown}
-                                    />
-                                )}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center" }}>
-                                {mcpToolsEnabled && (
-                                    <McpToolsChip mcpToolsEnabled={mcpToolsEnabled} onOpenMcpManager={onOpenMcpManager ?? (() => {})} />
-                                )}
-                                {runningServicesPanel && runningServicesPanel.services.length > 0 && (
-                                    <RunningServicesChip {...runningServicesPanel} />
-                                )}
-                                <ActionButton
-                                    title="Chat with Command"
-                                    disabled={inputValue.text !== ""}
-                                    onClick={() => {
-                                        inputRef.current?.insertTextAtCursor({ text: "/" });
-                                    }}
-                                >
-                                    /
-                                </ActionButton>
-                                <input
-                                    type="file"
-                                    multiple={attachmentOptions.multiple}
-                                    accept={attachmentOptions.acceptResolver(activeCommand, activeSkillWithTemplates?.skillCommand)}
-                                    style={{ display: "none" }}
-                                    ref={fileInputRef}
-                                    onChange={onAttachmentSelection}
-                                />
-                                <ActionButton title="Attach Context" onClick={handleAttachClick}>
-                                    <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
-                                </ActionButton>
-                                <div style={{ width: "1px", height: "16px", background: "var(--vscode-panel-border)", margin: "0 2px" }} />
-                                <ActionButton
-                                    title={isLoading ? "Stop (Escape)" : "Send (Enter)"}
-                                    disabled={(inputValue.text.trim() === "" && !isLoading) || disabled}
-                                    onClick={isLoading ? handleStop : handleSend}
-                                >
-                                    {isLoading
-                                        ? <span className="codicon codicon-stop-circle"></span>
-                                        : <Icon name="Send" sx={{ fontSize: "16px" }} />
-                                    }
-                                </ActionButton>
-                            </div>
-                        </ActionRow>
-                    </InputArea>
+                                    <ActionButton title="Attach Context" onClick={handleAttachClick}>
+                                        <Icon name="Paperclip" sx={{ fontSize: "16px" }} />
+                                    </ActionButton>
+                                    <div style={{ width: "1px", height: "16px", background: "var(--vscode-panel-border)", margin: "0 2px" }} />
+                                    <ActionButton
+                                        title={isLoading ? "Stop (Escape)" : "Send (Enter)"}
+                                        disabled={(inputValue.text.trim() === "" && !isLoading) || disabled}
+                                        onClick={isLoading ? handleStop : handleSend}
+                                    >
+                                        {isLoading
+                                            ? <span className="codicon codicon-stop-circle"></span>
+                                            : <Icon name="Send" sx={{ fontSize: "16px" }} />
+                                        }
+                                    </ActionButton>
+                                </div>
+                            </ActionRow>
+                        </InputArea>
+                    </AmbientFrame>
                 </FlexRow>
                 {filteredSuggestions.length > 0 && (
                     <SuggestionsList

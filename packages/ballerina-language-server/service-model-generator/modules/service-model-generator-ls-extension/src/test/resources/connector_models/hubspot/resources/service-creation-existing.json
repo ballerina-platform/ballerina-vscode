@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0",
+  "id": "trigger.hubspot",
+  "displayName": "HubSpot Event Integration",
+  "description": "Create a service to handle webhook events from HubSpot CRM objects",
+  "orgName": "ballerinax",
+  "packageName": "trigger.hubspot",
+  "moduleName": "trigger.hubspot",
+  "version": "0.12.0",
+  "type": "trigger.hubspot",
+  "icon": "docs/icon.png",
+  "properties": {
+    "serviceType": {
+      "metadata": { "label": "Event Type", "description": "The HubSpot CRM object whose events this service handles" },
+      "codedata": { "argType": "SERVICE_TYPE_DESCRIPTOR" },
+      "value": "ContactService",
+      "types": [ { "fieldType": "SINGLE_SELECT", "ballerinaType": "hubspot:GenericServiceType", "selected": true } ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false
+    },
+    "configureListener": {
+      "metadata": { "label": "Configure HubSpot Listener", "description": "Select an existing HubSpot listener or create a new one" },
+      "value": "1",
+      "types": [ { "fieldType": "CHOICE", "selected": true } ],
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "choices": [
+        {
+          "metadata": { "label": "Create new", "description": "Create a new HubSpot listener" },
+          "types": [ { "fieldType": "FORM", "selected": true } ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {}
+        },
+        {
+          "metadata": { "label": "Use existing", "description": "Select an existing HubSpot listener" },
+          "types": [ { "fieldType": "FORM", "selected": true } ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": { "label": "Listener Configuration", "description": "Existing listener" },
+              "types": [ { "fieldType": "GROUP_SECTION", "selected": true } ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "existingListener": {
+                  "metadata": { "label": "Select Listener", "description": "Select from the existing hubspot listeners" },
+                  "value": "myHubspotListener",
+                  "types": [
+                    {
+                      "fieldType": "SINGLE_SELECT",
+                      "selected": true,
+                      "options": [ { "label": "myHubspotListener", "value": "myHubspotListener" } ]
+                    }
+                  ],
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

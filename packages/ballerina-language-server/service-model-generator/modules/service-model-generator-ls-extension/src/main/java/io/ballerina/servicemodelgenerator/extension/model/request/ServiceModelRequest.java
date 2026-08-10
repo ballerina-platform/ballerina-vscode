@@ -18,10 +18,34 @@
 
 package io.ballerina.servicemodelgenerator.extension.model.request;
 
+/**
+ * @param filePath          the path of the file the service is being added to
+ * @param orgName           the organization name of the connector's package
+ * @param pkgName           the name of the connector's package
+ * @param moduleName        the name of the connector's module
+ * @param listenerName      the identifier of an existing listener to attach to, if any
+ * @param version           the version of the connector's package
+ * @param isLocalRepository whether the connector was picked from a search result found in the Ballerina
+ *                          local repository ({@code ~/.ballerina/repositories/local}) rather than
+ *                          Central -- the client is the one that knows which result list a selection
+ *                          came from, so this must be supplied explicitly rather than inferred (a
+ *                          brand-new local connector has no {@code Ballerina.toml} entry yet to infer it
+ *                          from). Defaults to {@code false} for every existing/older client.
+ */
 public record ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
-                                  String listenerName) {
+                                  String listenerName, String version, boolean isLocalRepository) {
+
+    public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
+                               String listenerName, String version) {
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, false);
+    }
 
     public ServiceModelRequest(String filePath, String orgName, String moduleName, String listenerName) {
-        this(filePath, orgName, moduleName, moduleName, listenerName);
+        this(filePath, orgName, moduleName, moduleName, listenerName, null, false);
+    }
+
+    public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
+                               String listenerName) {
+        this(filePath, orgName, pkgName, moduleName, listenerName, null, false);
     }
 }

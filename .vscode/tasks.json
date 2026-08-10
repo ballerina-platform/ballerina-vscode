@@ -91,13 +91,6 @@
             "problemMatcher": []
         },
         {
-            "label": "copy-ls:download",
-            "type": "npm",
-            "path": "packages/ballerina-extension",
-            "script": "download-ls",
-            "problemMatcher": []
-        },
-        {
             "label": "build:ballerina-language-server",
             "type": "shell",
             "command": "./gradlew",

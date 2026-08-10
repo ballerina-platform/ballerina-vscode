@@ -4,7 +4,7 @@
     "org": "ballerina",
     "module": "http",
     "packageName": "http",
-    "version": "2.13.2"
+    "version": "2.16.6"
   },
   "typeConstraint": "ClientSocketConfig",
   "expr": "{keepAlive: true}",

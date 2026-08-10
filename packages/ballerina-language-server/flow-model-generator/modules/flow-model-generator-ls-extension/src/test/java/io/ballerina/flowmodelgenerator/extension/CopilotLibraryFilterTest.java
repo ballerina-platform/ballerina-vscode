@@ -125,10 +125,10 @@ public class CopilotLibraryFilterTest extends AbstractLSTest {
     }
 
     @Test
-    public void testReadmeIncludedOnlyForWhitelistedLibraries() throws IOException {
-        // ballerinax/salesforce is whitelisted in CopilotLibraryManager.README_WHITELIST;
-        // ballerina/http is not. Both libraries must still return their full runtime
-        // payload (clients/typeDefs); only the readme field should differ.
+    public void testDocumentationIncludedForWhitelistedOrgs() throws IOException {
+        // Documentation is whitelisted per organization (CopilotLibraryManager.DOC_WHITELIST_ORGS),
+        // so both ballerinax/salesforce and ballerina/http carry a readme. Both must also still
+        // return their full runtime payload (clients/typeDefs).
         GetSelectedLibrariesRequest request = new GetSelectedLibrariesRequest(
                 new String[]{"ballerinax/salesforce", "ballerina/http"});
         JsonObject response = getResponse(request);
@@ -148,7 +148,7 @@ public class CopilotLibraryFilterTest extends AbstractLSTest {
         assertHasNonEmptyArray(salesforce, "clients");
         assertHasNonEmptyArray(salesforce, "typeDefs");
         Assert.assertTrue(salesforce.has("readme"),
-                "ballerinax/salesforce should have readme as it is whitelisted");
+                "ballerinax/salesforce should have readme as ballerinax is whitelisted");
         Assert.assertFalse(salesforce.get("readme").getAsString().isEmpty(),
                 "ballerinax/salesforce readme should not be empty");
 
@@ -156,8 +156,10 @@ public class CopilotLibraryFilterTest extends AbstractLSTest {
         assertHasNonEmptyArray(http, "clients");
         assertHasNonEmptyArray(http, "typeDefs");
         assertHasNonEmptyArray(http, "functions");
-        Assert.assertFalse(http.has("readme"),
-                "ballerina/http should NOT have readme as it is not whitelisted");
+        Assert.assertTrue(http.has("readme"),
+                "ballerina/http should have readme as ballerina is whitelisted");
+        Assert.assertFalse(http.get("readme").getAsString().isEmpty(),
+                "ballerina/http readme should not be empty");
     }
 
     private static void assertHasNonEmptyArray(JsonObject lib, String field) {

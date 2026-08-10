@@ -24,13 +24,16 @@ import {
     DRAFT_NODE_BORDER_WIDTH,
     HIGHLIGHT_NODE_BORDER_COLOR,
     HIGHLIGHT_NODE_BORDER_WIDTH,
+    LABEL_HEIGHT,
     NODE_BG_BREAKPOINT_COLOR,
     NODE_BG_COLOR,
     NODE_BG_HOVER_COLOR,
     NODE_HOVER_GLOW,
+    NODE_BORDER_COLOR,
     NODE_BORDER_ERROR_COLOR,
     NODE_BORDER_SELECTED_COLOR,
     NODE_ERROR_COLOR,
+    NODE_GAP_X,
     NODE_HEIGHT,
     NODE_PADDING,
     NODE_TEXT_COLOR,
@@ -39,14 +42,71 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Tooltip } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import NodeIcon from "../../NodeIcon";
+import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { CallActivityNodeModel } from "./CallActivityNodeModel";
-import { ELineRange, FlowNode } from "@wso2/ballerina-core";
+import { CodeData, ELineRange, FlowNode, Property } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getNodeTitle, nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 
 const SIDE_FILL_WIDTH = 2;
+// One connection row in the side SVG: circle + name label, matching the ApiCallNode geometry.
+const CONNECTION_ROW_HEIGHT = NODE_HEIGHT + LABEL_HEIGHT;
+const CONNECTION_SVG_WIDTH = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT;
+
+/**
+ * A connection rendered next to a connection-backed activity call: the property key,
+ * the connection (variable) name shown under the circle, and the connector icon.
+ */
+interface ActivityConnection {
+    key: string;
+    name: string;
+    iconUrl?: string;
+    connectorCodedata?: CodeData;
+}
+
+/**
+ * Collects the connection properties of a connection-backed activity call. A property is a
+ * connection when the language server built it as a connection selector (fieldType CONNECTION).
+ * An activity may take several connections — each gets its own circle in the diagram.
+ */
+function getActivityConnections(node: FlowNode): ActivityConnection[] {
+    const properties = (node.properties ?? {}) as Record<string, Property>;
+    const connections: ActivityConnection[] = [];
+    for (const [key, property] of Object.entries(properties)) {
+        const isConnection = property?.types?.some((type) => (type as any)?.fieldType === "CONNECTION");
+        if (!isConnection) {
+            continue;
+        }
+        const name = typeof property.value === "string" ? property.value.trim() : "";
+        if (!name || name === "NEW_CONNECTION") {
+            continue;
+        }
+        const connectorCodedata = (property.metadata as any)?.connectors?.[0]?.codedata as CodeData | undefined;
+        connections.push({
+            key,
+            name,
+            iconUrl: connectorIconUrl(connectorCodedata) ?? node.metadata?.icon,
+            connectorCodedata,
+        });
+    }
+    return connections;
+}
+
+/**
+ * Derives the Ballerina Central package icon URL from a connector's codedata, mirroring the
+ * language server's icon generation.
+ */
+function connectorIconUrl(codedata?: CodeData): string | undefined {
+    const org = (codedata as any)?.org;
+    const packageName = (codedata as any)?.packageName ?? (codedata as any)?.module;
+    const version = (codedata as any)?.version;
+    if (!org || !packageName || !version) {
+        return undefined;
+    }
+    return `https://bcentral-packageicons.azureedge.net/images/${org}_${packageName}_${version}.png`;
+}
 
 namespace S {
     export type NodeStyleProp = {
@@ -57,6 +117,12 @@ namespace S {
         isActiveBreakpoint?: boolean;
         isSelected?: boolean;
     };
+
+    export const Container = styled.div`
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+    `;
 
     export const Wrapper = styled.div`
         position: relative;
@@ -208,6 +274,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
     const { model, engine, onClick } = props;
     const {
         onNodeSelect,
+        onConnectionSelect,
         goToSource,
         openView,
         onDeleteNode,
@@ -220,6 +287,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
 
     const isSelected = selectedNodeId === model.node.id;
     const [isHovered, setIsHovered] = useState(false);
+    const [hoveredConnection, setHoveredConnection] = useState<string | null>(null);
     const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
     const [menuButtonElement, setMenuButtonElement] = useState<HTMLElement | null>(null);
     const isMenuOpen = menuPos !== null;
@@ -271,7 +339,19 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                     ?.split("(")[0]
                     ?.trim()
                 : undefined;
-    const canViewActivityFunction = Boolean(activityFunctionName);
+    // "View function flow" applies only to activities defined in this project: builtin/pre-built
+    // activities (e.g. activity:callRestAPI) and functions imported from other modules have no
+    // project source to open, so the icon is hidden for them.
+    const activityFunctionRef =
+        (typeof activityFunctionValue === "string" ? activityFunctionValue : fallbackActivityFunctionValue)?.trim() ??
+        "";
+    const isProjectActivity =
+        !activityFunctionRef.includes(":") &&
+        Boolean(model.node.codedata?.org) &&
+        model.node.codedata?.org === project?.org;
+    const canViewActivityFunction = Boolean(activityFunctionName) && isProjectActivity;
+
+    const connections = getActivityConnections(model.node);
 
     const sideFillColor = hasError
         ? NODE_BORDER_ERROR_COLOR
@@ -345,6 +425,16 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
         }
     };
 
+    const onConnectionClick = (connectionName: string) => {
+        if (readOnly) return;
+        if (connectionName && onConnectionSelect) {
+            onConnectionSelect(connectionName);
+        } else {
+            onNodeClick();
+        }
+        setMenuPos(null);
+    };
+
     const menuItems: Item[] = [
         { id: "edit", label: "Edit", onClick: () => onNodeClick() },
         { id: "goToSource", label: "Source", onClick: () => onGoToSource() },
@@ -366,6 +456,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
         : model.node.properties?.variable?.value || model.node.properties?.expression?.value;
 
     return (
+        <S.Container>
         <S.Wrapper
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -377,6 +468,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
             >
                 {hasBreakpoint && (
@@ -398,7 +490,7 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
                     </S.NodeIcon>
                     <S.Row style={{ flex: 1, minWidth: 0, width: "auto" }}>
                         <S.Header onClick={handleOnClick}>
-                            <S.Title>{nodeTitle}</S.Title>
+                            <S.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</S.Title>
                             <S.Description>{nodeDescription as ReactNode}</S.Description>
                         </S.Header>
                         <S.ActionButtonGroup>
@@ -461,5 +553,94 @@ export function CallActivityNodeWidget(props: CallActivityNodeWidgetProps) {
             <S.SideFill side="left" color={sideFillColor} />
             <S.SideFill side="right" color={sideFillColor} />
         </S.Wrapper>
+        {connections.length > 0 && (
+            <svg
+                width={CONNECTION_SVG_WIDTH}
+                height={CONNECTION_ROW_HEIGHT * connections.length}
+                style={{ flexShrink: 0 }}
+            >
+                {connections.map((connection, index) => {
+                    const offsetY = CONNECTION_ROW_HEIGHT * index;
+                    const isConnectionHovered = hoveredConnection === connection.key;
+                    const disabled = model.node.suggested;
+                    const lineColor =
+                        disabled || readOnly
+                            ? NODE_TEXT_COLOR
+                            : isHovered
+                                ? NODE_BORDER_SELECTED_COLOR
+                                : NODE_TEXT_COLOR;
+                    return (
+                        <g
+                            key={connection.key}
+                            onClick={() => onConnectionClick(connection.name)}
+                            onMouseEnter={() => !readOnly && setHoveredConnection(connection.key)}
+                            onMouseLeave={() => setHoveredConnection(null)}
+                            style={{ cursor: readOnly ? "default" : "pointer" }}
+                        >
+                            {/* A dashed link without an arrowhead: an activity call is a local
+                                invocation that uses the connection, not a remote call. */}
+                            <line
+                                x1="0"
+                                y1="25"
+                                x2="57"
+                                y2={24 + offsetY}
+                                style={{
+                                    stroke: lineColor,
+                                    strokeWidth: 1.5,
+                                    strokeDasharray: "5 5",
+                                }}
+                            />
+                            <circle
+                                cx="80"
+                                cy={24 + offsetY}
+                                r="22"
+                                fill={NODE_BG_COLOR}
+                                stroke={
+                                    isConnectionHovered && !disabled
+                                        ? NODE_BORDER_SELECTED_COLOR
+                                        : NODE_BORDER_COLOR
+                                }
+                                strokeWidth={1.5}
+                                strokeDasharray={disabled ? "5 5" : "none"}
+                                opacity={disabled ? 0.7 : 1}
+                                style={{
+                                    filter:
+                                        isConnectionHovered && !disabled
+                                            ? `drop-shadow(0 0 4px ${NODE_BORDER_SELECTED_COLOR})`
+                                            : "none",
+                                    transition: "filter 0.1s ease",
+                                }}
+                            />
+                            <text
+                                x="80"
+                                y={66 + offsetY}
+                                textAnchor="middle"
+                                fill={NODE_TEXT_COLOR}
+                                fontSize="14px"
+                                fontFamily="GilmerRegular"
+                            >
+                                {connection.name.length > 16
+                                    ? `${connection.name.slice(0, 16)}...`
+                                    : connection.name}
+                            </text>
+                            <foreignObject x="68" y={12 + offsetY} width="24" height="24" fill={NODE_TEXT_COLOR}>
+                                <ConnectorIcon
+                                    url={connection.iconUrl}
+                                    style={{
+                                        width: 24,
+                                        height: 24,
+                                        fontSize: 24,
+                                        cursor: readOnly ? "default" : "pointer",
+                                        pointerEvents: readOnly ? "none" : "auto",
+                                    }}
+                                    codedata={connection.connectorCodedata ?? model.node?.codedata}
+                                />
+                            </foreignObject>
+                        </g>
+                    );
+                })}
+            </svg>
+        )}
+        </S.Container>
     );
 }

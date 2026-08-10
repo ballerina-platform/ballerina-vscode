@@ -39,14 +39,14 @@ import {
     NODE_TEXT_COLOR,
     NODE_WIDTH,
 } from "../../../resources/constants";
-import { Button, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Icon, Item, Menu, MenuItem, ThemeColors } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources";
 import { FlowNode } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getNodeTitle, nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeMetadata } from "@wso2/ballerina-core";
 
@@ -265,7 +265,25 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
     const processFunctionProperty = (model.node.properties as any)?.processFunction;
     const connectionValue = connectionProperty?.value as string | undefined;
     const fallbackEndpointValue = processFunctionProperty?.value as string | undefined;
-    const endpointLabel = connectionValue ?? fallbackEndpointValue ?? "";
+    // A child workflow statement targets a workflow rather than a connection: the form carries it
+    // as the selected workflow, and a statement read back from source carries it as the node's
+    // second line, so the arrow points at the workflow being run either way.
+    const workflowValue = (model.node.properties as any)?.workflow?.value as string | undefined;
+    const isWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW")
+        || model.node.codedata?.node === "WORKFLOW_RUN";
+    // A child workflow statement carries the workflow it concerns as its second line. A workflow
+    // run does not — its second line is the node's own description, so using it here printed the
+    // documentation instead of a name. Only the child statements may fall back to it.
+    const childWorkflowTarget = model.node.codedata?.node?.startsWith("CHILD_WORKFLOW")
+        ? model.node.metadata?.description
+        : undefined;
+    // A workflow run keeps the workflow it runs as its symbol — the property the form uses is
+    // dropped when the statement is read back, so the symbol is where the name actually is.
+    const runWorkflowTarget = model.node.codedata?.node === "WORKFLOW_RUN"
+        ? model.node.codedata?.symbol
+        : undefined;
+    const endpointLabel =
+        connectionValue ?? fallbackEndpointValue ?? workflowValue ?? childWorkflowTarget ?? runWorkflowTarget ?? "";
     const connectorType = (connectionProperty?.metadata?.data as NodeMetadata | undefined)?.connectorType;
 
     useEffect(() => {
@@ -372,6 +390,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 readOnly={readOnly}
                 isActiveBreakpoint={isActiveBreakpoint}
                 isSelected={isSelected}
+                style={getDiffContainerStyles(model.node)}
                 onMouseEnter={() => setIsBoxHovered(true)}
                 onMouseLeave={() => setIsBoxHovered(false)}
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
@@ -401,7 +420,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                     </NodeStyles.Icon>
                     <NodeStyles.Row>
                         <NodeStyles.Header onClick={handleOnClick}>
-                            <NodeStyles.Title>{nodeTitle}</NodeStyles.Title>
+                            <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{nodeTitle}</NodeStyles.Title>
                             <NodeStyles.Description>
                                 {model.node.properties.variable?.value as ReactNode}
                             </NodeStyles.Description>
@@ -460,6 +479,19 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                 onMouseEnter={() => !readOnly && setIsCircleHovered(true)}
                 onMouseLeave={() => setIsCircleHovered(false)}
             >
+                {isWorkflowTarget ? (
+                    <rect
+                        x="58"
+                        y="2"
+                        width="44"
+                        height="44"
+                        rx="12"
+                        fill={NODE_BG_COLOR}
+                        stroke={isCircleHovered && !disabled ? NODE_BORDER_SELECTED_COLOR : NODE_BORDER_COLOR}
+                        strokeWidth={1.5}
+                        opacity={disabled ? 0.7 : 1}
+                    />
+                ) : (
                 <circle
                     cx="80"
                     cy="24"
@@ -474,6 +506,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                         transition: 'filter 0.1s ease',
                     }}
                 />
+                )}
                 <text
                     x="80"
                     y="66"
@@ -485,6 +518,9 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                     {endpointLabel.length > 16 ? `${endpointLabel.slice(0, 16)}...` : endpointLabel}
                 </text>
                 <foreignObject x="68" y="12" width="24" height="24" fill={NODE_TEXT_COLOR}>
+                    {isWorkflowTarget ? (
+                        <Icon name="bi-flowchart" sx={{ width: 24, height: 24, fontSize: 24 }} />
+                    ) : (
                     <ConnectorIcon
                         url={model.node.metadata.icon}
                         style={{
@@ -497,6 +533,7 @@ export function ApiCallNodeWidget(props: ApiCallNodeWidgetProps) {
                         codedata={model.node?.codedata}
                         connectorType={connectorType}
                     />
+                    )}
                 </foreignObject>
                 <line
                     x1="0"

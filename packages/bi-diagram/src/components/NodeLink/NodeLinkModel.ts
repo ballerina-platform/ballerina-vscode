@@ -18,7 +18,7 @@
 
 import { DefaultLinkModel } from "@projectstorm/react-diagrams";
 import { LINK_COLOR, LINK_HOVERED_COLOR, NODE_GAP_Y, NODE_LINK, NodeTypes } from "../../resources/constants";
-import { Branch, FlowNode, LinePosition, NodeModel } from "../../utils/types";
+import { Branch, FlowNode, FlowNodeDiffState, LinePosition, NodeModel } from "../../utils/types";
 
 export const LINK_BOTTOM_OFFSET = 30;
 
@@ -31,6 +31,7 @@ export interface NodeLinkModelOptions {
     brokenLine?: boolean; // default false
     disabled?: boolean; // default false
     alignBottom?: boolean; // default false
+    diffState?: FlowNodeDiffState; // review diff lane the link belongs to
     linkCounter?: number;
     onAddClick?: () => void;
 }
@@ -49,6 +50,7 @@ export class NodeLinkModel extends DefaultLinkModel {
     brokenLine = false;
     disabled = false;
     alignBottom = false;
+    diffState: FlowNodeDiffState | undefined = undefined;
     linkBottomOffset = LINK_BOTTOM_OFFSET;
     linkCounter?: number;
     onAddClick?: () => void;
@@ -91,6 +93,9 @@ export class NodeLinkModel extends DefaultLinkModel {
                 }
                 if ((options as NodeLinkModelOptions).alignBottom === true) {
                     this.alignBottom = (options as NodeLinkModelOptions).alignBottom;
+                }
+                if ((options as NodeLinkModelOptions).diffState) {
+                    this.diffState = (options as NodeLinkModelOptions).diffState;
                 }
                 if ((options as NodeLinkModelOptions).linkCounter) {
                     this.linkCounter = (options as NodeLinkModelOptions).linkCounter;

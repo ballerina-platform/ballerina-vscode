@@ -1,0 +1,853 @@
+{
+  "schemaVersion": "1.0",
+  "displayName": "AWS SQS Event Integration",
+  "description": "Create a service to handle messages from an AWS SQS queue",
+  "orgName": "ballerinax",
+  "packageName": "aws.sqs",
+  "moduleName": "aws.sqs",
+  "version": "5.0.0",
+  "type": "aws.sqs",
+  "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_5.0.0.png",
+  "kind": "event",
+  "listenerKind": "MULTIPLE_SELECT_LISTENER",
+  "importPrefix": "sqs",
+  "initProperties": {
+    "listener": {
+      "metadata": {
+        "label": "Configure SQS Listener",
+        "description": "Select an existing SQS listener or create a new one"
+      },
+      "types": [
+        {
+          "fieldType": "CHOICE",
+          "selected": true
+        }
+      ],
+      "value": "createNew",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "codedata": {
+        "type": "LISTENER_CONFIG"
+      },
+      "choices": [
+        {
+          "metadata": {
+            "label": "Create new",
+            "description": "Create a new SQS listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "listenerConfig": {
+              "metadata": {
+                "label": "Listener Configurations",
+                "description": "Configure the AWS SQS listener"
+              },
+              "types": [
+                {
+                  "fieldType": "GROUP_SECTION",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "properties": {
+                "listenerVarName": {
+                  "metadata": {
+                    "label": "Listener Name",
+                    "description": "Provide a name for the listener being created."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "IDENTIFIER",
+                      "selected": true,
+                      "ballerinaType": "sqs:Listener"
+                    }
+                  ],
+                  "value": "sqsListener",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "codedata": {
+                    "type": "LISTENER_VAR_NAME"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.identifier"
+                    },
+                    {
+                      "rule": "ls.validate.unique.listener.name"
+                    }
+                  ]
+                },
+                "auth": {
+                  "metadata": {
+                    "label": "Authentication",
+                    "description": "AWS authentication method for the SQS connection."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "CHOICE",
+                      "selected": true
+                    }
+                  ],
+                  "value": "staticCredentials",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "choices": [
+                    {
+                      "metadata": {
+                        "label": "Static Credentials"
+                      },
+                      "enabled": true,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "properties": {
+                        "accessKeyId": {
+                          "metadata": {
+                            "label": "Access Key ID",
+                            "description": "AWS access key ID used to identify the AWS account."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.accessKeyId"
+                          },
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ]
+                        },
+                        "secretAccessKey": {
+                          "metadata": {
+                            "label": "Secret Access Key",
+                            "description": "AWS secret access key used to authenticate the user."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.secretAccessKey"
+                          },
+                          "validations": [
+                            {
+                              "rule": "common.validate.required"
+                            }
+                          ]
+                        },
+                        "sessionToken": {
+                          "metadata": {
+                            "label": "Session Token",
+                            "description": "Optional session token used for temporary credentials."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            },
+                            {
+                              "fieldType": "EXPRESSION",
+                              "ballerinaType": "string",
+                              "selected": false
+                            }
+                          ],
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.sessionToken"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Profile Credentials"
+                      },
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "properties": {
+                        "profileName": {
+                          "metadata": {
+                            "label": "Profile Name",
+                            "description": "Name of the AWS profile in the credentials file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            }
+                          ],
+                          "value": "\"default\"",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.profileName"
+                          }
+                        },
+                        "credentialsFilePath": {
+                          "metadata": {
+                            "label": "Credentials File Path",
+                            "description": "Optional custom path to the AWS credentials file."
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            }
+                          ],
+                          "value": "\"~/.aws/credentials\"",
+                          "enabled": true,
+                          "editable": true,
+                          "optional": true,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth.credentialsFilePath"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "metadata": {
+                        "label": "Default Credentials",
+                        "description": "Automatically resolves credentials from environment variables, ECS, EC2 instance profiles, and other standard AWS credential sources."
+                      },
+                      "enabled": false,
+                      "editable": true,
+                      "optional": false,
+                      "advanced": false,
+                      "types": [
+                        {
+                          "fieldType": "FORM",
+                          "selected": true
+                        }
+                      ],
+                      "properties": {
+                        "defaultCredentialsValue": {
+                          "metadata": {
+                            "label": "Credential Source"
+                          },
+                          "types": [
+                            {
+                              "fieldType": "TEXT",
+                              "ballerinaType": "string",
+                              "selected": true
+                            }
+                          ],
+                          "value": "\"DEFAULT_CREDENTIALS\"",
+                          "enabled": true,
+                          "editable": false,
+                          "optional": false,
+                          "advanced": false,
+                          "codedata": {
+                            "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                            "position": 1,
+                            "path": "auth"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "region": {
+                  "metadata": {
+                    "label": "Region",
+                    "description": "AWS region (e.g. us-east-1)"
+                  },
+                  "placeholder": "us-east-1",
+                  "value": "\"us-east-1\"",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": false,
+                  "advanced": false,
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "sqs:Region|string",
+                      "selected": false
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "position": 1,
+                    "path": "region"
+                  },
+                  "validations": [
+                    {
+                      "rule": "common.validate.required"
+                    }
+                  ]
+                },
+                "endpoint": {
+                  "metadata": {
+                    "label": "Endpoint",
+                    "description": "Optional endpoint options: FIPS/dualstack variants, or a custom endpoint override (e.g. LocalStack, VPC interface endpoints)"
+                  },
+                  "value": "",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "sqs:EndpointConfig",
+                      "selected": true
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "position": 1,
+                    "path": "endpoint"
+                  }
+                },
+                "pollInterval": {
+                  "metadata": {
+                    "label": "Poll Interval",
+                    "description": "Interval between polling attempts in seconds"
+                  },
+                  "placeholder": "1",
+                  "value": "1",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": false
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "position": 2,
+                    "path": "pollInterval"
+                  }
+                },
+                "waitTime": {
+                  "metadata": {
+                    "label": "Wait Time",
+                    "description": "Duration in seconds for which the polling waits for messages"
+                  },
+                  "placeholder": "20",
+                  "value": "20",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "int",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": false
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "position": 2,
+                    "path": "waitTime"
+                  }
+                },
+                "visibilityTimeout": {
+                  "metadata": {
+                    "label": "Visibility Timeout",
+                    "description": "Duration in seconds for which the received message remains invisible to other consumers"
+                  },
+                  "placeholder": "30",
+                  "value": "30",
+                  "enabled": true,
+                  "editable": true,
+                  "optional": true,
+                  "advanced": true,
+                  "types": [
+                    {
+                      "fieldType": "NUMBER",
+                      "ballerinaType": "int",
+                      "selected": true
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": false
+                    }
+                  ],
+                  "codedata": {
+                    "argType": "LISTENER_PARAM_CONFIG_FIELD",
+                    "position": 2,
+                    "path": "visibilityTimeout"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "Use existing",
+            "description": "Select an existing SQS listener"
+          },
+          "types": [
+            {
+              "fieldType": "FORM",
+              "selected": true
+            }
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": false,
+          "advanced": false,
+          "properties": {
+            "existingListener": {
+              "metadata": {
+                "label": "Listener",
+                "description": "Select existing listener(s) to attach the service to."
+              },
+              "types": [
+                {
+                  "fieldType": "MULTIPLE_SELECT_LISTENER",
+                  "selected": true,
+                  "ballerinaType": "sqs:Listener"
+                }
+              ],
+              "items": [
+                "sqsListener"
+              ],
+              "value": "sqsListener",
+              "enabled": true,
+              "editable": true,
+              "optional": false,
+              "advanced": false,
+              "codedata": {
+                "type": "KEY_EXISTING_LISTENER"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "queueUrl": {
+      "metadata": {
+        "label": "Queue URL",
+        "description": "The URL of the SQS queue to consume messages from"
+      },
+      "placeholder": "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue",
+      "value": "",
+      "enabled": true,
+      "editable": true,
+      "optional": false,
+      "advanced": false,
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "ballerinaType": "string",
+          "selected": true
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "string",
+          "selected": false
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "queueUrl",
+        "moduleName": "sqs",
+        "originalName": "ServiceConfig"
+      },
+      "validations": [
+        {
+          "rule": "common.validate.required"
+        }
+      ]
+    },
+    "autoDelete": {
+      "metadata": {
+        "label": "Auto Delete Messages",
+        "description": "Automatically delete messages after receiving. Disable to use the Caller for manual deletion."
+      },
+      "value": true,
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false,
+      "types": [
+        {
+          "fieldType": "FLAG",
+          "selected": true,
+          "ballerinaType": "boolean"
+        },
+        {
+          "fieldType": "EXPRESSION",
+          "ballerinaType": "boolean",
+          "selected": false
+        }
+      ],
+      "codedata": {
+        "type": "SERVICE_ANNOTATION",
+        "path": "autoDelete",
+        "moduleName": "sqs",
+        "originalName": "ServiceConfig"
+      }
+    }
+  },
+  "serviceTypes": [
+    {
+      "metadata": {
+        "label": "SQS Consumer",
+        "description": "Consumes messages from the subscribed AWS SQS queue."
+      },
+      "name": "Service",
+      "description": "Handles messages received from an AWS SQS queue.",
+      "enabled": true,
+      "editable": false,
+      "codedata": {
+        "type": "SERVICE_TYPE_DESCRIPTOR",
+        "moduleName": "sqs",
+        "originalName": "Service"
+      },
+      "properties": {},
+      "functions": [],
+      "schemaFunctions": [
+        {
+          "metadata": {
+            "label": "On Message",
+            "description": "Triggered when a message is received from the subscribed SQS queue.",
+            "addLabel": "Add On Message Handler"
+          },
+          "name": "onMessage",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onMessage",
+            "moduleName": "sqs"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "Message",
+                "description": "The message received from the SQS queue."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "sqs:Message",
+                "value": "sqs:Message",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true,
+                    "ballerinaType": "sqs:Message"
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "message",
+                  "description": "The message received from the SQS queue."
+                },
+                "placeholder": "message",
+                "value": "message",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            },
+            {
+              "metadata": {
+                "label": "Caller",
+                "description": "Enable this to access the SQS caller for manual message deletion (requires Auto Delete to be off)."
+              },
+              "kind": "OPTIONAL",
+              "type": {
+                "metadata": {
+                  "label": "Include Caller",
+                  "description": "Tick to include the SQS caller parameter in the handler signature."
+                },
+                "placeholder": "sqs:Caller",
+                "value": false,
+                "types": [
+                  {
+                    "fieldType": "FLAG",
+                    "selected": true,
+                    "ballerinaType": "sqs:Caller"
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": true,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "caller",
+                  "description": "The SQS caller used to manually delete messages."
+                },
+                "placeholder": "caller",
+                "value": "caller",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": false,
+              "editable": true,
+              "optional": true,
+              "advanced": true,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        },
+        {
+          "metadata": {
+            "label": "On Error",
+            "description": "Triggered when an error occurs during message processing.",
+            "addLabel": "Add On Error Handler"
+          },
+          "name": "onError",
+          "nameEditable": false,
+          "kind": "REMOTE",
+          "accessor": "",
+          "qualifiers": [
+            "remote"
+          ],
+          "enabled": false,
+          "editable": true,
+          "optional": true,
+          "canAddParameters": false,
+          "repeatable": "FALSE",
+          "codedata": {
+            "type": "FUNCTION",
+            "originalName": "onError",
+            "moduleName": "sqs"
+          },
+          "parameters": [
+            {
+              "metadata": {
+                "label": "SQS Error",
+                "description": "The error that occurred during message processing."
+              },
+              "kind": "REQUIRED",
+              "type": {
+                "metadata": {
+                  "label": "Parameter Type",
+                  "description": "The type of the parameter"
+                },
+                "placeholder": "sqs:Error",
+                "value": "sqs:Error",
+                "types": [
+                  {
+                    "fieldType": "TYPE",
+                    "selected": true,
+                    "ballerinaType": "sqs:Error"
+                  }
+                ],
+                "enabled": true,
+                "editable": false,
+                "optional": false,
+                "advanced": false
+              },
+              "name": {
+                "metadata": {
+                  "label": "sqsError",
+                  "description": "The error that occurred during message processing."
+                },
+                "placeholder": "sqsError",
+                "value": "sqsError",
+                "types": [
+                  {
+                    "fieldType": "IDENTIFIER",
+                    "selected": true
+                  }
+                ],
+                "enabled": true,
+                "editable": true,
+                "optional": false,
+                "advanced": false
+              },
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false,
+              "hidden": false,
+              "codedata": {
+                "type": "FUNCTION_PARAM"
+              }
+            }
+          ],
+          "returnType": {
+            "metadata": {
+              "label": "Return Type",
+              "description": "The return type of the function."
+            },
+            "type": "error?",
+            "typeEditable": false,
+            "enabled": true,
+            "editable": false,
+            "optional": true,
+            "hasError": true,
+            "importStatements": "",
+            "codedata": {
+              "type": "FUNCTION_RETURN"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "readOnlyMetadata": [
+    {
+      "key": "queueUrl",
+      "displayName": "Queue URL",
+      "kind": "SERVICE_ANNOTATION",
+      "path": "ServiceConfig.queueUrl"
+    }
+  ],
+  "importStatements": []
+}

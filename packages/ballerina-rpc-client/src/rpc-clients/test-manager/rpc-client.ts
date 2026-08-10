@@ -19,6 +19,7 @@ import {
     TestManagerServiceAPI, GetTestFunctionRequest, AddOrUpdateTestFunctionRequest,
     TestSourceEditResponse, GetTestFunctionResponse,
     getTestFunction, addTestFunction, updateTestFunction,
+    GetTestFunctionNamesRequest, GetTestFunctionNamesResponse, getTestFunctionNames,
     SourceUpdateResponse, GetEvalsetsRequest, GetEvalsetsResponse, getEvalsets,
     GetEvaluationHistoryRequest, GetEvaluationHistoryResponse, getEvaluationHistory,
     OpenEvaluationReportRequest, openEvaluationReport,
@@ -46,6 +47,10 @@ export class TestManagerServiceRpcClient implements TestManagerServiceAPI {
 
     updateTestFunction(params: AddOrUpdateTestFunctionRequest): Promise<SourceUpdateResponse> {
         return this._messenger.sendRequest(updateTestFunction, HOST_EXTENSION, params);
+    }
+
+    getTestFunctionNames(params: GetTestFunctionNamesRequest): Promise<GetTestFunctionNamesResponse> {
+        return this._messenger.sendRequest(getTestFunctionNames, HOST_EXTENSION, params);
     }
 
     getEvalsets(params: GetEvalsetsRequest): Promise<GetEvalsetsResponse> {

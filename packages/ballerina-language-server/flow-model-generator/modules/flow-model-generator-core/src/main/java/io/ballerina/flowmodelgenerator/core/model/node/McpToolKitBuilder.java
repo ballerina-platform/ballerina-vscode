@@ -86,6 +86,7 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String TOOL_KIT_DEFAULT_CLASS_NAME = "McpToolKit";
     private static final String PERMITTED_TOOLS_PROPERTY = "permittedTools";
     private static final String TOOL_SCOPES_PROPERTY = "toolScopes";
+    private static final String INCLUDE_CONTEXT_PROPERTY = "includeContext";
     private static final String TOOL_SCOPES_PROPERTY_LABEL = "Tool Scopes";
     private static final String TOOL_SCOPES_DESCRIPTION = "OAuth scopes for each tool";
     private static final String AI_MCP_TOOL_KIT_CLASS = "McpToolKit";
@@ -94,6 +95,7 @@ public class McpToolKitBuilder extends NodeBuilder {
     private static final String MINIMUM_COMPATIBLE_AI_VERSION = "1.6.0";
     private static final String CONNECTIONS_BAL = "connections.bal";
     public static final String MCP_CLASS_DEFINITION = "mcpClassDefinition";
+    public static final String AGENT_DEFINITION_MCP_TOOL_KIT = "agentDefinitionMcpToolKit";
     private static final Gson gson = new Gson();
     private static final String NEW_LINE = System.lineSeparator();
 
@@ -180,6 +182,15 @@ public class McpToolKitBuilder extends NodeBuilder {
         }
     }
 
+    public static void setIncludeContextProperty(NodeBuilder nodeBuilder) {
+        nodeBuilder.properties().custom()
+                .metadata().label("Pass agent context").description("Pass the invoking agent's context to MCP tools")
+                .stepOut()
+                .codedata().kind(Kind.INCLUDED_FIELD.name()).originalName(INCLUDE_CONTEXT_PROPERTY).stepOut()
+                .hidden().value(true).editable().stepOut()
+                .addProperty(INCLUDE_CONTEXT_PROPERTY);
+    }
+
     private boolean hasCompatibleAiVersion(String aiModuleVersion) {
         // checks if aiModule version is latest or have required features implemented in ai module
         return aiModuleVersion == null || AiUtils.compareSemver(aiModuleVersion, MINIMUM_COMPATIBLE_AI_VERSION) >= 0;
@@ -251,11 +262,15 @@ public class McpToolKitBuilder extends NodeBuilder {
     @Override
     public Map<Path, List<TextEdit>> toSource(SourceBuilder sourceBuilder) {
 
-        Path connectionsFilePath =
-                sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath).resolve(CONNECTIONS_BAL);
+        Map<String, Object> data = sourceBuilder.flowNode.codedata().data();
+        boolean agentDefinitionMcpToolKit = data != null && data.containsKey(AGENT_DEFINITION_MCP_TOOL_KIT);
+        Path connectionsFilePath = agentDefinitionMcpToolKit
+                ? sourceBuilder.filePath
+                : sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath).resolve(CONNECTIONS_BAL);
         Range defaultRange = getDefaultLineRange(sourceBuilder, connectionsFilePath);
 
-        if ((sourceBuilder.flowNode.codedata().isNew() == null || !sourceBuilder.flowNode.codedata().isNew())) {
+        if (!agentDefinitionMcpToolKit
+                && (sourceBuilder.flowNode.codedata().isNew() == null || !sourceBuilder.flowNode.codedata().isNew())) {
             connectionsFilePath = sourceBuilder.workspaceManager.projectRoot(sourceBuilder.filePath)
                     .resolve(sourceBuilder.flowNode.codedata().lineRange().fileName());
             LineRange lineRange = sourceBuilder.flowNode.codedata().lineRange();
@@ -283,10 +298,11 @@ public class McpToolKitBuilder extends NodeBuilder {
             String toolKitName = String.valueOf(toolKitNameProperty.value());
 
             Map<String, List<String>> toolScopesMap = parseToolScopes(sourceBuilder.flowNode);
-            String sourceCode = generateMcpToolKitClassSource(toolKitName, permittedTools, toolScopesMap);
+            boolean includeContext = parseIncludeContext(sourceBuilder.flowNode);
+            String sourceCode = generateMcpToolKitClassSource(toolKitName, permittedTools, toolScopesMap,
+                    includeContext);
 
             // Check if class definition data exists in codedata
-            Map<String, Object> data = sourceBuilder.flowNode.codedata().data();
             Map<Path, List<TextEdit>> classTextEdits = null;
             if (data != null && data.containsKey(MCP_CLASS_DEFINITION)) {
                 Object classDefinitionCodedata = data.get(MCP_CLASS_DEFINITION);
@@ -328,6 +344,7 @@ public class McpToolKitBuilder extends NodeBuilder {
             sourceBuilder.flowNode.properties().remove(TOOL_KIT_NAME_PROPERTY);
             sourceBuilder.flowNode.properties().remove(PERMITTED_TOOLS_PROPERTY);
             sourceBuilder.flowNode.properties().remove(TOOL_SCOPES_PROPERTY);
+            sourceBuilder.flowNode.properties().remove(INCLUDE_CONTEXT_PROPERTY);
             sourceBuilder.flowNode.properties().remove(TYPE_KEY);
             sourceBuilder.flowNode.properties().put(TYPE_KEY, toolKitNameProperty);
             sourceBuilder.token().keyword(SyntaxKind.FINAL_KEYWORD).stepOut().newVariable()
@@ -366,7 +383,8 @@ public class McpToolKitBuilder extends NodeBuilder {
     }
 
     private String generateMcpToolKitClassSource(String className, String permittedTools,
-                                                 Map<String, List<String>> toolScopesMap) {
+                                                 Map<String, List<String>> toolScopesMap,
+                                                 boolean includeContext) {
         String initBody;
         String toolFunctions;
         boolean hasAnyScopes = !toolScopesMap.isEmpty();
@@ -405,7 +423,7 @@ public class McpToolKitBuilder extends NodeBuilder {
 
             // Generate callTool method
             List<String> callToolScopes = toolScopesMap.getOrDefault("callTool", List.of());
-            toolFunctions = getToolMethodSignature("callTool", callToolScopes);
+            toolFunctions = getToolMethodSignature("callTool", callToolScopes, includeContext);
         } else {
             // Generate init body with permitted tools mapping
             Map<String, String> toolMapping = generatePermittedToolsMapping(permittedTools);
@@ -458,7 +476,7 @@ public class McpToolKitBuilder extends NodeBuilder {
                         // (permittedTools keys retain quotes like "toolName", but toolScopes keys don't)
                         String unquotedToolName = originalToolName.replaceAll("^\"|\"$", "");
                         List<String> scopes = toolScopesMap.getOrDefault(unquotedToolName, List.of());
-                        return getToolMethodSignature(methodName, scopes);
+                        return getToolMethodSignature(methodName, scopes, includeContext);
                     })
                     .collect(Collectors.joining(System.lineSeparator()));
         }
@@ -481,8 +499,9 @@ public class McpToolKitBuilder extends NodeBuilder {
                 "}" + NEW_LINE;
     }
 
-    private String getToolMethodSignature(String toolName, List<String> scopes) {
+    private String getToolMethodSignature(String toolName, List<String> scopes, boolean includeContext) {
         boolean hasScopes = scopes != null && !scopes.isEmpty();
+        boolean requiresContext = includeContext || hasScopes;
 
         StringBuilder sb = new StringBuilder();
         if (hasScopes) {
@@ -506,7 +525,9 @@ public class McpToolKitBuilder extends NodeBuilder {
                     .append("string `Bearer ${check ctx.getAccessToken(params.name)}`});").append(NEW_LINE)
                     .append("    }").append(NEW_LINE);
         } else {
-            sb.append("    public isolated function ").append(toolName).append("(mcp:CallToolParams params)")
+            sb.append("    public isolated function ").append(toolName).append("(")
+                    .append(requiresContext ? "ai:Context ctx, " : "")
+                    .append("mcp:CallToolParams params)")
                     .append(" returns mcp:CallToolResult|error {").append(NEW_LINE)
                     .append("        return self.mcpClient->callTool(params);").append(NEW_LINE)
                     .append("    }").append(NEW_LINE);
@@ -606,6 +627,11 @@ public class McpToolKitBuilder extends NodeBuilder {
         } catch (JsonSyntaxException | IllegalStateException e) {
             return Collections.emptyMap();
         }
+    }
+
+    private static boolean parseIncludeContext(FlowNode flowNode) {
+        Property includeContextProperty = flowNode.properties().get(INCLUDE_CONTEXT_PROPERTY);
+        return includeContextProperty != null && Boolean.parseBoolean(String.valueOf(includeContextProperty.value()));
     }
 
     private static void combineTextEdits(Map<Path, List<TextEdit>> source,

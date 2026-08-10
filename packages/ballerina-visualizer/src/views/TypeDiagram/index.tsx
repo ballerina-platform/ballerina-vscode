@@ -16,7 +16,9 @@
  * under the License.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { debounce } from "lodash";
+import { DIAGRAM_REFRESH_DEBOUNCE_MS } from "../BI/diagramRefreshDebounce";
 import { VisualizerLocation, NodePosition, Type, EVENT_TYPE, MACHINE_VIEW, TypeNodeKind, Member } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
@@ -143,6 +145,12 @@ export function TypeDiagram(props: TypeDiagramProps) {
         });
     }
 
+    // Memoised so the provider does not hand every consumer a new object on each render of this
+    const editorContextValue = useMemo(
+        () => ({ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }),
+        [stack]
+    );
+
     useEffect(() => {
         if (!typesModel) {
             return;
@@ -174,24 +182,54 @@ export function TypeDiagram(props: TypeDiagramProps) {
 
     useEffect(() => {
         if (rpcClient) {
-            rpcClient.getVisualizerLocation().then((value) => {
-                setVisualizerLocation(value);
-            });
+            rpcClient.getVisualizerLocation()
+                .then((value) => {
+                    setVisualizerLocation(value);
+                })
+                .catch((error) => {
+                    // The location never resolves, so `getComponentModel` would keep bailing out
+                    // and the view would sit on the progress ring forever. Stop waiting instead.
+                    console.error(">>> error resolving the visualizer location", error);
+                    setIsModelLoaded(true);
+                });
         }
     }, [rpcClient, projectPath]);
 
     useEffect(() => {
-        setIsModelLoaded(false);
         getComponentModel();
     }, [visualizerLocation]);
 
-    rpcClient?.onProjectContentUpdated((state: boolean) => {
-        if (state) {
-            console.log("Project content updated, refreshing type model");
-            setIsModelLoaded(false);
-            getComponentModel();
-        }
+    // `getComponentModel` is re-created on every render and closes over `visualizerLocation`,
+    // which is only populated asynchronously after the first render. Keep the latest one in a ref
+    // so the debounced refresh below never invokes a stale closure that still sees it as
+    // undefined - that closure would bail out early and leave `isModelLoaded` false forever.
+    const getComponentModelRef = useRef<(() => Promise<void>) | undefined>(undefined);
+    // Monotonic id so a slow in-flight fetch cannot overwrite the result of a newer one.
+    const componentModelRequestId = useRef(0);
+    useEffect(() => {
+        getComponentModelRef.current = getComponentModel;
     });
+
+    const debouncedGetComponentModel = useMemo(
+        () =>
+            debounce(() => {
+                getComponentModelRef.current?.();
+            }, DIAGRAM_REFRESH_DEBOUNCE_MS),
+        []
+    );
+
+    useEffect(() => {
+        const disposable = rpcClient?.onProjectContentUpdated((state: boolean) => {
+            if (state) {
+                console.log("Project content updated, refreshing type model");
+                debouncedGetComponentModel();
+            }
+        });
+        return () => {
+            debouncedGetComponentModel.cancel();
+            disposable?.();
+        };
+    }, [rpcClient]);
 
 
 
@@ -259,21 +297,54 @@ export function TypeDiagram(props: TypeDiagramProps) {
     }
 
     const getComponentModel = async () => {
-        if (!rpcClient || !visualizerLocation?.metadata?.recordFilePath) {
+        // The visualizer location resolves asynchronously. Until it does there is nothing to
+        // fetch and the progress ring is the correct state, so return without clearing it.
+        if (!rpcClient || !visualizerLocation) {
             return;
         }
-        const response = await rpcClient
-            .getBIDiagramRpcClient()
-            .getTypes({ filePath: visualizerLocation?.metadata?.recordFilePath });
-        setTypesModel(response.types);
 
-        // Set focused node immediately if we have selectedTypeId and more than 80 types
-        if (response.types && response.types.length > MAX_TYPES_FOR_FULL_VIEW && selectedTypeId) {
-            setFocusedNodeId(selectedTypeId);
+        const recordFilePath = visualizerLocation.metadata?.recordFilePath;
+        const requestId = ++componentModelRequestId.current;
+        const isCurrent = () => requestId === componentModelRequestId.current;
+
+        // Raised here rather than by the callers so it can only ever be set when a fetch is
+        // actually about to run, and is always paired with the `finally` below.
+        setIsModelLoaded(false);
+
+        try {
+            if (!recordFilePath) {
+                // The location resolved but this package has no types file. Render an empty
+                // diagram rather than leaving the view stuck on the progress ring.
+                setTypesModel([]);
+                return;
+            }
+
+            const response = await rpcClient
+                .getBIDiagramRpcClient()
+                .getTypes({ filePath: recordFilePath });
+
+            // A newer request superseded this one while it was in flight; drop the stale result.
+            if (!isCurrent()) {
+                return;
+            }
+
+            if (response?.types) {
+                setTypesModel(response.types);
+
+                // Set focused node immediately if we have selectedTypeId and more than 80 types
+                if (response.types.length > MAX_TYPES_FOR_FULL_VIEW && selectedTypeId) {
+                    setFocusedNodeId(selectedTypeId);
+                }
+            }
+        } catch (error) {
+            console.error(">>> error fetching the type model", error);
+        } finally {
+            // Always clear the loading state for the newest request. A failed or empty fetch must
+            // not leave the diagram stuck on the progress ring with no way to recover.
+            if (isCurrent()) {
+                setIsModelLoaded(true);
+            }
         }
-
-        setIsModelLoaded(true);
-        console.log(response);
     };
 
     const showProblemPanel = async () => {
@@ -532,7 +603,7 @@ export function TypeDiagram(props: TypeDiagramProps) {
                     </>
                 </ViewContent>
             </View>
-            <EditorContext.Provider value={{ stack, push: pushTypeStack, pop: popTypeStack, peek: peekTypeStack, replaceTop: replaceTop }}>
+            <EditorContext.Provider value={editorContextValue}>
                 {/* Panel for editing and creating types */}
                 <PanelContainer
                     title={typeEditorState.editingTypeId ?

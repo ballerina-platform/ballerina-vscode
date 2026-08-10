@@ -25,9 +25,9 @@ import { RPCLayer } from "../../RPCLayer";
 /**
  * Standalone Migration Enhancement Panel.
  *
- * Decoupled from the AI Chat (BI Copilot) panel so that users can choose any
+ * Decoupled from the AI Chat (WSO2 Integrator Copilot) panel so that users can choose any
  * LLM model through the VS Code Language Model API or direct provider keys,
- * without requiring WSO2 Copilot authentication.
+ * without requiring WSO2 Integrator Copilot authentication.
  */
 export class MigrationPanelWebview {
     public static currentPanel: MigrationPanelWebview | undefined;

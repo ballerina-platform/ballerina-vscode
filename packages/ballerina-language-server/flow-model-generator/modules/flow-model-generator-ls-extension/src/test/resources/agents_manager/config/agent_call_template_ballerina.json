@@ -34,326 +34,6 @@
     },
     "returning": false,
     "properties": {
-      "systemPrompt": {
-        "metadata": {
-          "label": "System Prompt",
-          "description": "The system prompt assigned to the agent"
-        },
-        "types": [
-          {
-            "fieldType": "RECORD_MAP_EXPRESSION",
-            "ballerinaType": "ai:SystemPrompt",
-            "typeMembers": [
-              {
-                "type": "SystemPrompt",
-                "packageInfo": "ballerina:ai:1.0.0",
-                "packageName": "ai",
-                "kind": "RECORD_TYPE",
-                "selected": false
-              }
-            ],
-            "selected": false
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "ai:SystemPrompt",
-            "selected": false
-          }
-        ],
-        "placeholder": "{role: \"\", instructions: \"\"}",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": true,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "systemPrompt"
-        },
-        "defaultValue": "{role: \"\", instructions: \"\"}"
-      },
-      "model": {
-        "metadata": {
-          "label": "Model",
-          "description": "The model used by the agent"
-        },
-        "types": [
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "ai:ModelProvider",
-            "selected": false
-          }
-        ],
-        "placeholder": "object {}",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": true,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "model"
-        },
-        "defaultValue": "object {}"
-      },
-      "tools": {
-        "metadata": {
-          "label": "Tools",
-          "description": "The tools available for the agent"
-        },
-        "types": [
-          {
-            "fieldType": "REPEATABLE_LIST",
-            "ballerinaType": "(ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool)[]",
-            "template": {
-              "types": [
-                {
-                  "fieldType": "RECORD_MAP_EXPRESSION",
-                  "ballerinaType": "ai:ToolConfig",
-                  "typeMembers": [
-                    {
-                      "type": "ToolConfig",
-                      "packageInfo": "ballerina:ai:1.0.0",
-                      "packageName": "ai",
-                      "kind": "RECORD_TYPE",
-                      "selected": false
-                    }
-                  ],
-                  "selected": false
-                },
-                {
-                  "fieldType": "EXPRESSION",
-                  "ballerinaType": "ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool",
-                  "selected": false
-                }
-              ],
-              "optional": false,
-              "editable": false,
-              "advanced": false,
-              "hidden": false
-            },
-            "selected": false
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "(ai:BaseToolKit|ai:ToolConfig|ai:FunctionTool)[]",
-            "selected": false
-          }
-        ],
-        "placeholder": "[]",
-        "optional": true,
-        "editable": true,
-        "advanced": true,
-        "hidden": true,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "tools"
-        },
-        "defaultValue": "[]"
-      },
-      "maxIter": {
-        "metadata": {
-          "label": "Maximum Iterations",
-          "description": "The maximum number of iterations the agent performs to complete the task.\nBy default, it is set to the number of tools + 1."
-        },
-        "types": [
-          {
-            "fieldType": "NUMBER",
-            "ballerinaType": "int",
-            "selected": false
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "\"INFER_TOOL_COUNT\"|int",
-            "selected": false
-          }
-        ],
-        "placeholder": "\"INFER_TOOL_COUNT\"",
-        "optional": true,
-        "editable": true,
-        "advanced": true,
-        "hidden": false,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "maxIter"
-        },
-        "defaultValue": "INFER_TOOL_COUNT"
-      },
-      "verbose": {
-        "metadata": {
-          "label": "Verbose",
-          "description": "Specifies whether verbose logging is enabled"
-        },
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "ballerinaType": "boolean",
-            "selected": false
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "boolean",
-            "selected": false
-          }
-        ],
-        "placeholder": "false",
-        "optional": true,
-        "editable": true,
-        "advanced": true,
-        "hidden": false,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "verbose"
-        },
-        "defaultValue": "false"
-      },
-      "memory": {
-        "metadata": {
-          "label": "Memory",
-          "description": "The memory used by the agent to store and manage conversation history"
-        },
-        "types": [
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "ai:Memory?",
-            "selected": false
-          }
-        ],
-        "placeholder": "()",
-        "optional": true,
-        "editable": true,
-        "advanced": true,
-        "hidden": true,
-        "codedata": {
-          "kind": "INCLUDED_FIELD",
-          "originalName": "memory"
-        },
-        "defaultValue": "new MessageWindowChatMemory()"
-      },
-      "type": {
-        "metadata": {
-          "label": "Result Type",
-          "description": "Type of the variable"
-        },
-        "types": [
-          {
-            "fieldType": "TYPE",
-            "selected": true
-          }
-        ],
-        "value": "string",
-        "placeholder": "var",
-        "optional": false,
-        "editable": false,
-        "advanced": false,
-        "hidden": false,
-        "codedata": {}
-      },
-      "variable": {
-        "metadata": {
-          "label": "Result",
-          "description": "Name of the result variable"
-        },
-        "types": [
-          {
-            "fieldType": "IDENTIFIER",
-            "selected": true
-          }
-        ],
-        "value": "stringResult",
-        "optional": false,
-        "editable": true,
-        "advanced": false,
-        "hidden": false
-      },
-      "checkError": {
-        "metadata": {
-          "label": "Check Error",
-          "description": "Trigger error flow"
-        },
-        "types": [
-          {
-            "fieldType": "FLAG",
-            "selected": true
-          }
-        ],
-        "value": true,
-        "optional": false,
-        "editable": true,
-        "advanced": true,
-        "hidden": true
-      },
-      "scope": {
-        "metadata": {
-          "label": "Connection Scope",
-          "description": "Scope of the connection, Global or Local"
-        },
-        "types": [
-          {
-            "fieldType": "ENUM",
-            "selected": true
-          }
-        ],
-        "value": "Global",
-        "optional": false,
-        "editable": true,
-        "advanced": true,
-        "hidden": true
-      },
-      "role": {
-        "metadata": {
-          "label": "Role",
-          "description": "Define the agent's primary function"
-        },
-        "types": [
-          {
-            "fieldType": "PROMPT",
-            "ballerinaType": "string",
-            "selected": true
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "string",
-            "selected": false
-          }
-        ],
-        "value": "",
-        "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false,
-        "codedata": {
-          "kind": "REQUIRED"
-        },
-        "defaultValue": ""
-      },
-      "instructions": {
-        "metadata": {
-          "label": "Instructions",
-          "description": "Detailed instructions for the agent"
-        },
-        "types": [
-          {
-            "fieldType": "PROMPT",
-            "ballerinaType": "string",
-            "selected": true
-          },
-          {
-            "fieldType": "EXPRESSION",
-            "ballerinaType": "string",
-            "selected": false
-          }
-        ],
-        "value": "",
-        "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
-        "optional": true,
-        "editable": true,
-        "advanced": false,
-        "hidden": false,
-        "codedata": {
-          "kind": "REQUIRED"
-        },
-        "defaultValue": ""
-      },
       "connection": {
         "metadata": {
           "label": "Connection",
@@ -426,6 +106,59 @@
           "originalName": "sessionId"
         },
         "defaultValue": "sessionId"
+      },
+      "type": {
+        "metadata": {
+          "label": "Result Type",
+          "description": "Type of the variable"
+        },
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "value": "string",
+        "placeholder": "var",
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {}
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "stringResult",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
       }
     },
     "flags": 0

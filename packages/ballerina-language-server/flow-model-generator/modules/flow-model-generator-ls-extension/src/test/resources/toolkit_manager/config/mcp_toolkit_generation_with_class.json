@@ -13,7 +13,6 @@
       "module": "ai",
       "packageName": "ai",
       "object": "McpToolKit",
-      "version": "1.5.4",
       "isNew": true
     },
     "returning": false,
@@ -770,6 +769,20 @@
         ],
         "defaultValue": "\"\""
       },
+      "includeContext": {
+        "metadata": {
+          "label": "Pass agent context"
+        },
+        "value": true,
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "includeContext"
+        }
+      },
       "toolKitName": {
         "metadata": {
           "label": "MCP Toolkit Name",
@@ -851,7 +864,7 @@
               "character": 1
             }
           },
-          "newText": "\nisolated class McpToolKit {\n    *ai:McpBaseToolKit;\n    private final mcp:StreamableHttpClient mcpClient;\n    private final readonly & ai:ToolConfig[] tools;\n\n    public isolated function init(string serverUrl, mcp:Implementation info = {name: \"MCP\", version: \"1.0.0\"},\n            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {\n        final map<ai:FunctionTool> permittedTools = {\n                \"check\" : self.'check,\n                \"greet-me\" : self.greet_me,\n                \"greetMeAgain\" : self.greetmeagain\n        };\n\n        do {\n            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);\n            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools).cloneReadOnly();\n        } on fail error e {\n            return error ai:Error(\"Failed to initialize MCP toolkit\", e);\n        }\n    }\n\n    public isolated function getTools() returns ai:ToolConfig[] => self.tools;\n\n    @ai:AgentTool\n    public isolated function 'check(mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n\n    @ai:AgentTool\n    public isolated function greet_me(mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n\n    @ai:AgentTool\n    public isolated function greetmeagain(mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n}\n"
+          "newText": "\nisolated class McpToolKit {\n    *ai:McpBaseToolKit;\n    private final mcp:StreamableHttpClient mcpClient;\n    private final readonly & ai:ToolConfig[] tools;\n\n    public isolated function init(string serverUrl, mcp:Implementation info = {name: \"MCP\", version: \"1.0.0\"},\n            *mcp:StreamableHttpClientTransportConfig config) returns ai:Error? {\n        final map<ai:FunctionTool> permittedTools = {\n                \"check\" : self.'check,\n                \"greet-me\" : self.greet_me,\n                \"greetMeAgain\" : self.greetmeagain\n        };\n\n        do {\n            self.mcpClient = check new mcp:StreamableHttpClient(serverUrl, config);\n            self.tools = check ai:getPermittedMcpToolConfigs(self.mcpClient, info, permittedTools).cloneReadOnly();\n        } on fail error e {\n            return error ai:Error(\"Failed to initialize MCP toolkit\", e);\n        }\n    }\n\n    public isolated function getTools() returns ai:ToolConfig[] => self.tools;\n\n    @ai:AgentTool\n    public isolated function 'check(ai:Context ctx, mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n\n    @ai:AgentTool\n    public isolated function greet_me(ai:Context ctx, mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n\n    @ai:AgentTool\n    public isolated function greetmeagain(ai:Context ctx, mcp:CallToolParams params) returns mcp:CallToolResult|error {\n        return self.mcpClient->callTool(params);\n    }\n}\n"
         }
       ]
     }

@@ -20,10 +20,17 @@
 import {
     AIChatRequest,
     AddFieldRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     BIAiSuggestionsRequest,
     BIAiSuggestionsResponse,
     BIAvailableNodesRequest,
@@ -46,6 +53,10 @@ import {
     BISearchNodesResponse,
     BISearchRequest,
     BISearchResponse,
+    GenActivityRequest,
+    GenActivityResponse,
+    AnalyzeActivityActionRequest,
+    AnalyzeActivityActionResponse,
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
@@ -140,6 +151,12 @@ import {
     WorkspacesResponse,
     addBreakpointToSource,
     addClassField,
+    createClassDependency,
+    listClassMembers,
+    saveClassMember,
+    deleteClassMember,
+    updateClassDependency,
+    removeClassDependency,
     addFunction,
     addProjectToWorkspace,
     buildProject,
@@ -214,6 +231,8 @@ import {
     renameIdentifier,
     runProject,
     search,
+    genActivity,
+    analyzeActivityAction,
     getAllData,
     searchNodes,
     updateClassField,
@@ -313,8 +332,8 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendNotification(deleteProject, HOST_EXTENSION, params);
     }
 
-    addProjectToWorkspace(params: AddProjectToWorkspaceRequest): void {
-        return this._messenger.sendNotification(addProjectToWorkspace, HOST_EXTENSION, params);
+    addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<AddProjectToWorkspaceResponse> {
+        return this._messenger.sendRequest(addProjectToWorkspace, HOST_EXTENSION, params);
     }
 
     getWorkspaces(): Promise<WorkspacesResponse> {
@@ -497,6 +516,30 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
         return this._messenger.sendRequest(addClassField, HOST_EXTENSION, params);
     }
 
+    createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(createClassDependency, HOST_EXTENSION, params);
+    }
+
+    listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
+        return this._messenger.sendRequest(listClassMembers, HOST_EXTENSION, params);
+    }
+
+    saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(saveClassMember, HOST_EXTENSION, params);
+    }
+
+    deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(deleteClassMember, HOST_EXTENSION, params);
+    }
+
+    updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(updateClassDependency, HOST_EXTENSION, params);
+    }
+
+    removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return this._messenger.sendRequest(removeClassDependency, HOST_EXTENSION, params);
+    }
+
     updateServiceClass(params: ServiceClassSourceRequest): Promise<UpdatedArtifactsResponse> {
         return this._messenger.sendRequest(updateServiceClass, HOST_EXTENSION, params);
     }
@@ -543,6 +586,14 @@ export class BiDiagramRpcClient implements BIDiagramAPI {
 
     getAllData(params: WorkflowDataRequest): Promise<WorkflowDataResponse> {
         return this._messenger.sendRequest(getAllData, HOST_EXTENSION, params);
+    }
+
+    genActivity(params: GenActivityRequest): Promise<GenActivityResponse> {
+        return this._messenger.sendRequest(genActivity, HOST_EXTENSION, params);
+    }
+
+    analyzeActivityAction(params: AnalyzeActivityActionRequest): Promise<AnalyzeActivityActionResponse> {
+        return this._messenger.sendRequest(analyzeActivityAction, HOST_EXTENSION, params);
     }
 
     searchNodes(params: BISearchNodesRequest): Promise<BISearchNodesResponse> {

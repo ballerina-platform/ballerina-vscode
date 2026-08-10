@@ -17,13 +17,6 @@
 // Main entry points for data-mapper
 export * from './orchestrator';
 export * from './types';
-export * from './schema';
 export * from './context-api';
-export * from './constants';
-
 // Export utilities from focused modules
-export * from './utils/temp-project';
-export * from './utils/code-generation';
-export * from './utils/model';
-export * from './utils/model-optimization';
 export * from './utils/types-generation';

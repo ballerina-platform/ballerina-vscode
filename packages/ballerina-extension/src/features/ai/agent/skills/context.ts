@@ -14,11 +14,11 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import * as path from 'path';
 import { ProjectSkillMeta } from './types';
-import { getDisabledBuiltIns, REGISTERED_SKILLS } from './index';
+import { REGISTERED_SKILLS } from './registry';
+import { getDisabledBuiltIns } from './index';
 import { scanProjectSkills, scanUserSkills } from '../tools/skill-tool/skill-reader';
-import { getSkillsConfig, GLOBAL_SKILLS_CONFIG_PATH } from '../tools/skill-tool/skill-writer';
+import { getSkillsConfig } from '../tools/skill-tool/skill-writer';
 
 export interface SkillsContext {
     allDisabled: Set<string>;
@@ -27,20 +27,11 @@ export interface SkillsContext {
     disabledSkillMetas: Array<{ name: string; trigger: string }>;
 }
 
-/** Canonical path for a project's skills config file. */
-export function buildProjectSkillsConfigPath(projectRootPath: string): string {
-    return path.join(projectRootPath, '.copilot', 'skills.config.json');
-}
-
 /** Merged set of globally and project-disabled skill IDs, respecting built-in optional/default flags. */
 export function buildAllDisabledSet(projectRootPath: string | null): Set<string> {
-    const globalConfig = getSkillsConfig(GLOBAL_SKILLS_CONFIG_PATH);
-    const projectConfig = projectRootPath
-        ? getSkillsConfig(buildProjectSkillsConfigPath(projectRootPath))
-        : { disabledSkills: [], enabledSkills: [] };
-
-    const allDisabled = new Set([...globalConfig.disabledSkills, ...projectConfig.disabledSkills]);
-    const allEnabled = new Set([...globalConfig.enabledSkills, ...projectConfig.enabledSkills]);
+    const config = getSkillsConfig(projectRootPath);
+    const allDisabled = new Set(config.disabledSkills);
+    const allEnabled  = new Set(config.enabledSkills);
 
     for (const skill of REGISTERED_SKILLS) {
         if (skill.optional === false) {

@@ -60,6 +60,10 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
         CURRENT_ACTIVITIES("Activities", "Activities defined within the current integration",
                 List.of("Project", "Local", "Activity")),
         AGENT_TOOLS("Agent Tools", "Functions used as agent tools", List.of("Project", "Local", "Function")),
+        AGENT_TOOLBOX("Tools", "AI tools usable by the durable agent",
+                List.of("Tool", "Agent")),
+        AGENT_MCP_TOOLS("MCP Tools", "MCP servers exposing tools to the durable agent",
+                List.of("MCP", "Tool", "Agent")),
         CURRENT_ORGANIZATION("Current Organization", "Components in the current organization",
                 List.of("Organization", "Function", "Library")),
         STANDARD_LIBRARY("Standard Library", "Components supported officially by Ballerina",
@@ -77,14 +81,24 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
         VECTOR_STORE("Vector Stores", "Vector stores used in the integration", null),
         DATA_LOADER("Data Loaders", "Data loaders available in the integration", null),
         CHUNKER("Chunkers", "Document chunkers available in the integration", null),
+        SHORT_TERM_MEMORY_STORE("Memory Stores", "Short-term memory stores available in the integration", null),
         AI("AI", "AI components available in the flow", null),
         WORKFLOW("Workflow", "Workflow orchestration components", null),
+        WORKFLOW_STEPS("Steps", "Durable steps executed by this workflow",
+                List.of("Activity", "Human Task", "Sleep", "Data", "Workflow")),
+        CHILD_WORKFLOWS("Child Workflows", "Compose child workflows from this workflow",
+                List.of("Child", "Workflow", "Composition")),
+        WORKFLOW_FUNCTIONS("Workflow Functions", "Utility functions of the workflow context",
+                List.of("Utility", "Workflow", "Time", "Replay")),
         BUILTIN_ACTIVITIES("Prebuilt Activities", "Prebuilt activities for common integrations",
                 List.of("REST", "SOAP", "Email", "Workflow", "Activity")),
         MORE("More", "Expandable section to view more content", null),
         DIRECT_LLM("Direct LLM", "AI components that connect directly with a large language model", null),
         RAG("RAG", "AI components specific to Retrieval-Augmented Generation workflows", null),
-        AGENT("Agent", "Represents an AI Agent within a workflow", null);
+        AGENT("Agent", "Represents an AI Agent within a workflow", null),
+        DURABLE_AGENT("Configure Agent",
+                "Configure the durable agent's model, tools, and human tasks, then run it",
+                List.of("Durable", "Agent", "Workflow"));
 
         final String name;
         final String description;
@@ -94,6 +108,15 @@ public record Category(Metadata metadata, List<Item> items) implements Item {
             this.name = name;
             this.description = description;
             this.keywords = keywords;
+        }
+
+        /**
+         * Returns the display label for this category.
+         *
+         * @return the category display label
+         */
+        public String label() {
+            return name;
         }
     }
 

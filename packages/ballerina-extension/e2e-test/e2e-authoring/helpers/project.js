@@ -39,13 +39,48 @@ globalThis.createProjectAndIntegration = async (baseName = 'Authoring') => {
     await projectPathInput.first().fill(dataFolder);
   }
 
-  await frame.getByRole('button', { name: 'Create Integration' }).click({ force: true });
+  // A plain (even force:true) Playwright click silently no-ops on this button in the
+  // current UI — confirmed via manual daemon poking. A real DOM click is required.
+  await domClick(frame.getByRole('button', { name: 'Create Integration' }));
   frame = await waitForGuest(BI_INTEGRATOR_LABEL, 120000);
-  await frame.getByText(projectName, { exact: true }).waitFor({ timeout: 120000 });
-  await frame.getByText(integrationName, { exact: true }).click({ force: true });
-  await waitForText('Add Artifact', 60000);
-  const projectDir = path.join(dataFolder, projectName.toLowerCase());
-  const integrationDir = path.join(projectDir, integrationName.toLowerCase());
+  // Two landing flows exist: older builds land on the project overview (click
+  // the integration name to open it), newer builds land directly on the
+  // integration overview. Once there, an empty integration shows 'Add
+  // Integration' instead of 'Add Artifact' — accept either as "landed".
+  const deadline = Date.now() + 120000;
+  let landed = false;
+  while (Date.now() < deadline) {
+    const current = await snapshot().catch(() => '');
+    if (current.includes('Add Artifact') || current.includes('Add Integration')) { landed = true; break; }
+    if (current.includes(integrationName)) {
+      await frame.getByText(integrationName, { exact: true }).first().click({ force: true }).catch(() => {});
+      const opened = Date.now() + 60000;
+      while (Date.now() < opened) {
+        const inner = await snapshot().catch(() => '');
+        if (inner.includes('Add Artifact') || inner.includes('Add Integration')) { landed = true; break; }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  if (!landed) throw new Error(`Integration overview did not load after Create Integration (${integrationName})`);
+  // Resolve the created integration directory: newer builds create
+  // data/<integration> directly; older ones data/<project>/<integration>.
+  // Poll briefly since the directory can lag behind the UI landing.
+  const candidates = [
+    path.join(dataFolder, projectName.toLowerCase(), integrationName.toLowerCase()),
+    path.join(dataFolder, integrationName.toLowerCase()),
+  ];
+  const dirDeadline = Date.now() + 30000;
+  let integrationDir;
+  while (Date.now() < dirDeadline) {
+    integrationDir = candidates.find((dir) => fs.existsSync(dir));
+    if (integrationDir) break;
+    await window.waitForTimeout(500);
+  }
+  if (!integrationDir) throw new Error(`integration directory not found, tried: ${candidates.join(', ')}`);
+  const projectDir = path.dirname(integrationDir);
   globalThis.newProjectPath = integrationDir;
   return { projectName, integrationName, projectDir, integrationDir };
 };

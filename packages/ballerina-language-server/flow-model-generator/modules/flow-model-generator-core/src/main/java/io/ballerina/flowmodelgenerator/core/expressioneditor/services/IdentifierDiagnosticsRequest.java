@@ -90,13 +90,13 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
             return Set.of();
         }
 
+        Optional<Document> document = context.workspaceManager().document(context.filePath());
+
         // Obtain the symbol stream based on the scope of the identifier
         Stream<Symbol> symbolStream;
         if (Property.GLOBAL_SCOPE.equals(scope)) {
-            symbolStream = semanticModel.get().moduleSymbols().stream()
-                    .filter(symbol -> symbol.kind() != SymbolKind.MODULE);
+            symbolStream = globalSymbols(semanticModel.get(), document);
         } else {
-            Optional<Document> document = context.workspaceManager().document(context.filePath());
             if (document.isEmpty()) {
                 return Set.of();
             }
@@ -106,16 +106,33 @@ public class IdentifierDiagnosticsRequest extends DiagnosticsRequest {
                             || symbol.kind() == SymbolKind.WORKER);
         }
 
-        // Check for redeclared symbols
+        // Check for redeclared symbols. The property's original value is only excluded when the
+        // property is bound to an existing declaration (edit/rename flow) — there, the matching
+        // symbol is the node's own variable. For a new node no declaration exists yet, so any
+        // visible symbol with the same name (including one matching the generated default) is a
+        // genuine duplicate and must be reported.
         Set<Diagnostic> diagnostics = new HashSet<>();
         String inputValue = context.info().expression();
-        boolean redeclaredSymbol =
-                symbolStream.anyMatch(symbol -> symbol.nameEquals(inputValue) && !symbol.nameEquals(value));
+        boolean existingDeclaration = property.hasExistingDeclaration();
+        boolean redeclaredSymbol = symbolStream.anyMatch(symbol -> symbol.nameEquals(inputValue)
+                && !(existingDeclaration && symbol.nameEquals(value)));
         if (redeclaredSymbol) {
             String message = String.format(REDECLARED_SYMBOL, inputValue);
             diagnostics.add(CommonUtils.createDiagnostic(message, context.getExpressionLineRange(),
                     REDECLARED_SYMBOL_ERROR_CODE));
         }
         return diagnostics;
+    }
+
+    private Stream<Symbol> globalSymbols(SemanticModel semanticModel, Optional<Document> document) {
+        if (document.isPresent() && document.get().module().testDocumentIds().contains(document.get().documentId())) {
+            // Querying at the module root avoids exposing function-local symbols while still including
+            // declarations from the testable package, which moduleSymbols() omits.
+            return semanticModel.visibleSymbols(document.get(), document.get().syntaxTree().rootNode().lineRange()
+                            .endLine())
+                    .parallelStream()
+                    .filter(symbol -> symbol.kind() != SymbolKind.MODULE);
+        }
+        return semanticModel.moduleSymbols().stream().filter(symbol -> symbol.kind() != SymbolKind.MODULE);
     }
 }

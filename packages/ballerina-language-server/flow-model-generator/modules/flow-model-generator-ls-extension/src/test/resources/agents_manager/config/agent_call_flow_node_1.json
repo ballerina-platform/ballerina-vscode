@@ -19,40 +19,41 @@
           "description": "Executes the agent for a given user query.",
           "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
           "data": {
-            "tools": [
-              {
-                "name": "set",
-                "path": "/path/icon.png",
-                "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+            "agentInfo": {
+              "systemPrompt": {
+                "role": "\"Math tutor\"",
+                "instructions": "\"Help the students with their questions.\""
               },
-              {
-                "name": "sum",
-                "path": "",
-                "description": ""
+              "tools": [
+                {
+                  "name": "set",
+                  "path": "/path/icon.png",
+                  "description": "The `Client.get()` function can be used to send HTTP GET requests to HTTP endpoints."
+                },
+                {
+                  "name": "sum",
+                  "path": "",
+                  "description": ""
+                },
+                {
+                  "name": "mutiply",
+                  "path": "",
+                  "description": ""
+                }
+              ],
+              "modelProvider": {
+                "presentation": {
+                  "name": "myModel",
+                  "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
+                  "type": "AzureOpenAiProvider"
+                }
               },
-              {
-                "name": "mutiply",
-                "path": "",
-                "description": ""
+              "memory": {
+                "presentation": {
+                  "type": "ai:MessageWindowChatMemory",
+                  "size": "10"
+                }
               }
-            ],
-            "agent": {
-              "systemPrompt": "{role: \"Math tutor\", instructions: \"Help the students with their questions.\"}",
-              "instructions": "\"Help the students with their questions.\"",
-              "agentType": "ai:REACT_AGENT",
-              "role": "\"Math tutor\"",
-              "scope": "Global",
-              "model": "myModel",
-              "tools": "[set, sum, mutiply]"
-            },
-            "memory": {
-              "type": "ai:MessageWindowChatMemory",
-              "size": "10"
-            },
-            "model": {
-              "name": "myModel",
-              "path": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ai_1.0.1.png",
-              "type": "AzureOpenAiProvider"
             }
           }
         },
@@ -554,7 +555,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "sessionId"
             },
-            "defaultValue": "DEFAULT_SESSION_ID"
+            "defaultValue": "\"\""
           }
         },
         "flags": 1
@@ -644,7 +645,7 @@
             "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "systemPrompt"
@@ -687,7 +688,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "agentType"
             },
-            "defaultValue": "FUNCTION_CALL_AGENT"
+            "defaultValue": "\"FUNCTION_CALL_AGENT\""
           },
           "tools": {
             "metadata": {
@@ -823,7 +824,7 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "tools"
@@ -856,7 +857,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "maxIter"
             },
-            "defaultValue": "5"
+            "defaultValue": "0"
           },
           "verbose": {
             "metadata": {
@@ -902,12 +903,12 @@
             "optional": true,
             "editable": true,
             "advanced": true,
-            "hidden": false,
+            "hidden": true,
             "codedata": {
               "kind": "INCLUDED_FIELD",
               "originalName": "memory"
             },
-            "defaultValue": "new MessageWindowChatMemory()"
+            "defaultValue": "()"
           },
           "checkError": {
             "metadata": {
@@ -942,6 +943,62 @@
             "editable": true,
             "advanced": true,
             "hidden": true
+          },
+          "role": {
+            "metadata": {
+              "label": "Role",
+              "description": "Define the agent's primary function"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Math tutor\"",
+            "placeholder": "e.g., Customer Support Assistant, Sales Advisor, Data Analyst",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
+          },
+          "instructions": {
+            "metadata": {
+              "label": "Instructions",
+              "description": "Detailed instructions for the agent"
+            },
+            "types": [
+              {
+                "fieldType": "PROMPT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "\"Help the students with their questions.\"",
+            "placeholder": "e.g., You are a friendly assistant. Your goal is to...",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED"
+            },
+            "defaultValue": ""
           },
           "variable": {
             "metadata": {
@@ -1000,7 +1057,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",
@@ -1104,7 +1161,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1141,7 +1198,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1234,7 +1291,7 @@
                 "typeMembers": [
                   {
                     "type": "FollowRedirects",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1271,7 +1328,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1308,7 +1365,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1386,49 +1443,49 @@
                 "typeMembers": [
                   {
                     "type": "CredentialsConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "BearerTokenConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "JwtIssuerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2ClientCredentialsGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2PasswordGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2RefreshTokenGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2JwtBearerGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1465,7 +1522,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1502,7 +1559,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1539,7 +1596,7 @@
                 "typeMembers": [
                   {
                     "type": "CookieConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1576,7 +1633,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1613,7 +1670,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1678,7 +1735,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSocketConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1743,7 +1800,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -1859,7 +1916,7 @@
         "metadata": {
           "label": "HTTP",
           "description": "The HTTP client provides functionality to connect to remote HTTP services and perform requests using standard HTTP methods like GET, POST, PUT, DELETE, etc.\n",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.4.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
         },
         "codedata": {
           "node": "NEW_CONNECTION",
@@ -1963,7 +2020,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2000,7 +2057,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2093,7 +2150,7 @@
                 "typeMembers": [
                   {
                     "type": "FollowRedirects",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2130,7 +2187,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2167,7 +2224,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2245,49 +2302,49 @@
                 "typeMembers": [
                   {
                     "type": "CredentialsConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "BearerTokenConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "JwtIssuerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2ClientCredentialsGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2PasswordGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2RefreshTokenGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
                   },
                   {
                     "type": "OAuth2JwtBearerGrantConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2324,7 +2381,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2361,7 +2418,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2398,7 +2455,7 @@
                 "typeMembers": [
                   {
                     "type": "CookieConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2435,7 +2492,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2472,7 +2529,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2537,7 +2594,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSocketConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2602,7 +2659,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -2879,7 +2936,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "maxTokens"
             },
-            "defaultValue": "DEFAULT_MAX_TOKEN_COUNT"
+            "defaultValue": "0"
           },
           "temperature": {
             "metadata": {
@@ -2907,7 +2964,7 @@
               "kind": "DEFAULTABLE",
               "originalName": "temperature"
             },
-            "defaultValue": "DEFAULT_TEMPERATURE"
+            "defaultValue": "0.0d"
           },
           "httpVersion": {
             "metadata": {
@@ -2951,7 +3008,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:HTTP_2_0"
+            "defaultValue": "\"2.0\""
           },
           "http1Settings": {
             "metadata": {
@@ -2965,7 +3022,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp1Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3005,7 +3062,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientHttp2Settings",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3059,7 +3116,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "timeout"
             },
-            "defaultValue": "60"
+            "defaultValue": "0.0d"
           },
           "forwarded": {
             "metadata": {
@@ -3087,7 +3144,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "forwarded"
             },
-            "defaultValue": "\"disable\""
+            "defaultValue": "\"\""
           },
           "poolConfig": {
             "metadata": {
@@ -3101,7 +3158,7 @@
                 "typeMembers": [
                   {
                     "type": "PoolConfiguration",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3141,7 +3198,7 @@
                 "typeMembers": [
                   {
                     "type": "CacheConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3211,7 +3268,7 @@
             "imports": {
               "http": "ballerina/http"
             },
-            "defaultValue": "http:COMPRESSION_AUTO"
+            "defaultValue": "\"AUTO\""
           },
           "circuitBreaker": {
             "metadata": {
@@ -3225,7 +3282,7 @@
                 "typeMembers": [
                   {
                     "type": "CircuitBreakerConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3265,7 +3322,7 @@
                 "typeMembers": [
                   {
                     "type": "RetryConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3305,7 +3362,7 @@
                 "typeMembers": [
                   {
                     "type": "ResponseLimitConfigs",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3345,7 +3402,7 @@
                 "typeMembers": [
                   {
                     "type": "ClientSecureSocket",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3385,7 +3442,7 @@
                 "typeMembers": [
                   {
                     "type": "ProxyConfig",
-                    "packageInfo": "ballerina:http:2.16.4",
+                    "packageInfo": "ballerina:http:2.16.6",
                     "packageName": "http",
                     "kind": "RECORD_TYPE",
                     "selected": false
@@ -3439,7 +3496,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "validation"
             },
-            "defaultValue": "true"
+            "defaultValue": "false"
           },
           "checkError": {
             "metadata": {
@@ -3595,7 +3652,7 @@
               "kind": "INCLUDED_FIELD",
               "originalName": "connection"
             },
-            "defaultValue": "\"redis://localhost:6379\""
+            "defaultValue": "\"\""
           },
           "connectionPooling": {
             "metadata": {

@@ -22,5 +22,19 @@ import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
 import java.util.List;
 
-public record TriggerListResponse(List<TriggerBasicInfo> local) {
+/**
+ * @param local                 {@code getTriggerModels}'s bundled-index matches, or {@code searchTriggers}'s
+ *                              live Central matches -- this single record backs both RPCs (pre-existing;
+ *                              the field name predates and is unrelated to {@code localRepositoryResults}).
+ * @param localRepositoryResults {@code searchTriggers}'s matches found in the Ballerina local repository
+ *                              ({@code ~/.ballerina/repositories/local}) when the request opted in via
+ *                              {@code includeLocalRepository} -- kept as a separate list, never merged
+ *                              into {@code local}, so the same org/name resolvable from both Central and
+ *                              the local repository can be shown (and picked from) distinctly.
+ */
+public record TriggerListResponse(List<TriggerBasicInfo> local, List<TriggerBasicInfo> localRepositoryResults) {
+
+    public TriggerListResponse(List<TriggerBasicInfo> local) {
+        this(local, List.of());
+    }
 }

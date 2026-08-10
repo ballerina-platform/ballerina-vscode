@@ -25,17 +25,44 @@ import { McpConfigFile, McpScope, McpServerConfig } from "./types";
 
 const COPILOT_ROOT = path.join(os.homedir(), ".ballerina", "copilot");
 export const USER_MCP_CONFIG_PATH = path.join(COPILOT_ROOT, "mcp.json");
-/** Bare-name `.mcp.json` matches Claude Code / Cline convention for tool-agnostic config. */
+/** Bare-name `.mcp.json` matches Claude Code / Cline convention for tool-agnostic config. This is the
+ *  one project-scope file the UI writes to — every other project-scope path is read-only. */
 export const PROJECT_MCP_FILENAME = ".mcp.json";
+/** Extra project-scope locations, read-only and merged into the same "workspace" scope as
+ *  `.mcp.json`. Append future locations here — nothing else needs to change to support one. */
+export const ADDITIONAL_PROJECT_MCP_RELATIVE_PATHS: readonly string[] = [
+    path.join(".wso2", "mcp.json"),
+];
 
 export const EMPTY_CONFIG: McpConfigFile = { mcpServers: {} };
 
 /**
  * Project-scope MCP config lives in the user's workspace tree (versioned with
  * the repo), at `<workspacePath>/.mcp.json`. Standard adopted from Claude Code.
+ * This is the sole read+write target — the UI's add/edit/delete and "edit raw
+ * JSON" affordances always resolve here regardless of what else is being read.
  */
 export function workspaceMcpConfigPath(workspacePath: string): string {
     return path.join(path.resolve(workspacePath), PROJECT_MCP_FILENAME);
+}
+
+/** Absolute paths for `ADDITIONAL_PROJECT_MCP_RELATIVE_PATHS`, resolved against a workspace. */
+export function workspaceAdditionalMcpConfigPaths(workspacePath: string): string[] {
+    const root = path.resolve(workspacePath);
+    return ADDITIONAL_PROJECT_MCP_RELATIVE_PATHS.map(relative => path.join(root, relative));
+}
+
+/** Presence of the primary file or any additional one — the implicit opt-in signal for MCP tool support. */
+export function hasProjectMcpConfig(workspacePath?: string): boolean {
+    if (!workspacePath) {
+        return false;
+    }
+    try {
+        const paths = [workspaceMcpConfigPath(workspacePath), ...workspaceAdditionalMcpConfigPaths(workspacePath)];
+        return paths.some(p => fs.existsSync(p));
+    } catch {
+        return false;
+    }
 }
 
 /** Returns the on-disk path for the given scope. Throws if scope=workspace without a workspace path. */
@@ -128,12 +155,18 @@ function normaliseEntries(scope: McpScope, file: McpConfigFile): Array<{ name: s
 
 /**
  * Reads the user-global mcp.json plus, when both a workspace path is provided
- * and `allowWorkspace` is true, the project-tree `<workspacePath>/.mcp.json`.
- * Returns a flat list tagged with scope. The two scopes are independent:
+ * and `allowWorkspace` is true, every project-scope file — `.mcp.json` plus each
+ * of `ADDITIONAL_PROJECT_MCP_RELATIVE_PATHS` — merged into one "workspace" scope.
+ * Returns a flat list tagged with scope. The two top-level scopes are independent:
  * `{user, foo}` and `{workspace, foo}` can coexist.
  *
+ * Within "workspace", earlier files win: `.mcp.json` is read first and always
+ * keeps its entries; each additional path is then folded in, in list order,
+ * dropping any name already claimed by a file read before it — so every scope
+ * keeps exactly one entry per name no matter how many project-scope files exist.
+ *
  * `allowWorkspace` is the workspace-trust gate — callers pass `false` for
- * untrusted workspaces so arbitrary `command` entries in a cloned `.mcp.json`
+ * untrusted workspaces so arbitrary `command` entries in a cloned project file
  * don't auto-spawn processes.
  */
 export interface McpLoadErrors {
@@ -157,12 +190,22 @@ export function loadMcpConfig(workspacePath?: string, allowWorkspace: boolean = 
     entries.push(...normaliseEntries("user", userRead.file));
 
     if (workspacePath && allowWorkspace) {
-        const wsFile = workspaceMcpConfigPath(workspacePath);
-        const wsRead = readConfigFile(wsFile);
-        if (wsRead.error) {
-            errors.workspace = wsRead.error;
+        const projectPaths = [workspaceMcpConfigPath(workspacePath), ...workspaceAdditionalMcpConfigPaths(workspacePath)];
+        const workspaceErrors: string[] = [];
+        const claimedNames = new Set<string>();
+
+        for (const filePath of projectPaths) {
+            const read = readConfigFile(filePath);
+            if (read.error) {
+                workspaceErrors.push(`${filePath}: ${read.error}`);
+            }
+            const fresh = normaliseEntries("workspace", read.file).filter(e => !claimedNames.has(e.name));
+            fresh.forEach(e => claimedNames.add(e.name));
+            entries.push(...fresh);
         }
-        entries.push(...normaliseEntries("workspace", wsRead.file));
+        if (workspaceErrors.length) {
+            errors.workspace = workspaceErrors.join("; ");
+        }
     }
     return { entries, errors };
 }
@@ -260,15 +303,24 @@ export function deleteMcpServer(name: string, scope: McpScope = "user", workspac
     }
 }
 
+/** Relative glob for every project-scope file — the primary plus each additional path. */
+function projectMcpRelativePatterns(): string[] {
+    return [PROJECT_MCP_FILENAME, ...ADDITIONAL_PROJECT_MCP_RELATIVE_PATHS];
+}
+
 /**
- * Subscribes to config file changes. Returns a single disposer.
+ * Subscribes to every config file's change/create/delete events. Returns a single disposer.
+ * This is the one watcher over MCP config — callers use the same `onChange` for both
+ * "does MCP need to be enabled/disabled" and "refresh an already-running manager", since
+ * a single file event can mean either depending on current state.
  *
  * - **User-global file** (`~/.ballerina/copilot/mcp.json`) lives outside any
  *   workspace, so the editor's `createFileSystemWatcher` can't see it. We use
  *   `fs.watchFile` polling — reliable across atomic-save (rename) patterns
  *   that `fs.watch` would miss.
- * - **Project-tree file** (`<workspace>/.mcp.json`) lives inside the open
- *   workspace, so we use the editor's OS-event-based watcher — no polling.
+ * - **Project-tree files** (`<workspace>/.mcp.json` and each additional path)
+ *   live inside the open workspace, so each gets its own editor OS-event-based
+ *   watcher — no polling.
  */
 export function watchMcpConfig(workspacePath: string | undefined, onChange: () => void): () => void {
     if (!fs.existsSync(COPILOT_ROOT)) {
@@ -282,20 +334,20 @@ export function watchMcpConfig(workspacePath: string | undefined, onChange: () =
     ];
 
     if (workspacePath) {
-        const wsFile = workspaceMcpConfigPath(workspacePath);
-        const wsDir = path.dirname(wsFile);
-        try { fs.mkdirSync(wsDir, { recursive: true }); } catch { /* ignore */ }
-        try {
-            const pattern = new vscode.RelativePattern(vscode.Uri.file(workspacePath), PROJECT_MCP_FILENAME);
-            const watcher = vscode.workspace.createFileSystemWatcher(pattern);
-            watcher.onDidChange(listener);
-            watcher.onDidCreate(listener);
-            watcher.onDidDelete(listener);
-            disposers.push(() => watcher.dispose());
-        } catch (err) {
-            console.warn("[mcp] Failed to set up workspace .mcp.json watcher, falling back to polling:", err);
-            fs.watchFile(wsFile, { interval: 3000 }, listener);
-            disposers.push(() => { try { fs.unwatchFile(wsFile, listener); } catch { /* ignore */ } });
+        for (const relative of projectMcpRelativePatterns()) {
+            const filePath = path.join(path.resolve(workspacePath), relative);
+            try {
+                const pattern = new vscode.RelativePattern(vscode.Uri.file(workspacePath), relative);
+                const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+                watcher.onDidChange(listener);
+                watcher.onDidCreate(listener);
+                watcher.onDidDelete(listener);
+                disposers.push(() => watcher.dispose());
+            } catch (err) {
+                console.warn(`[mcp] Failed to set up workspace '${relative}' watcher, falling back to polling:`, err);
+                fs.watchFile(filePath, { interval: 3000 }, listener);
+                disposers.push(() => { try { fs.unwatchFile(filePath, listener); } catch { /* ignore */ } });
+            }
         }
     }
 

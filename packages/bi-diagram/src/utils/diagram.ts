@@ -21,7 +21,7 @@ import { NodePortFactory, NodePortModel } from "../components/NodePort";
 import { NodeLinkFactory, NodeLinkModel, NodeLinkModelOptions } from "../components/NodeLink";
 import { EmptyNodeFactory } from "../components/nodes/EmptyNode";
 import { OverlayLayerFactory } from "../components/OverlayLayer";
-import { LinkableNodeModel, NodeModel } from "./types";
+import { FlowNode, FlowNodeDiffState, LinkableNodeModel, NodeModel } from "./types";
 import { VerticalScrollCanvasAction } from "../actions/VerticalScrollCanvasAction";
 import { IfNodeFactory } from "../components/nodes/IfNode/IfNodeFactory";
 import { StartNodeFactory } from "../components/nodes/StartNode/StartNodeFactory";
@@ -34,11 +34,13 @@ import { WhileNodeFactory } from "../components/nodes/WhileNode";
 import { EndNodeFactory } from "../components/nodes/EndNode";
 import { ErrorNodeFactory } from "../components/nodes/ErrorNode";
 import { AgentCallNodeFactory } from "../components/nodes/AgentCallNode/AgentCallNodeFactory";
+import { DurableAgentRunNodeFactory } from "../components/nodes/DurableAgentRunNode/DurableAgentRunNodeFactory";
+import { EvalNodeFactory } from "../components/nodes/EvalNode/EvalNodeFactory";
+import { AgentNodeFactory } from "../components/nodes/AgentNode/AgentNodeFactory";
 import { PromptNodeFactory } from "../components/nodes/PromptNode/PromptNodeFactory";
 import { CallActivityNodeFactory } from "../components/nodes/CallActivityNode";
 import { SendDataNodeFactory } from "../components/nodes/SendDataNode";
 import { WaitDataNodeFactory } from "../components/nodes/WaitDataNode";
-import { WorkflowRunNodeFactory } from "../components/nodes/WorkflowRunNode";
 
 export function generateEngine(): DiagramEngine {
     const engine = createEngine({
@@ -63,10 +65,13 @@ export function generateEngine(): DiagramEngine {
     engine.getNodeFactories().registerFactory(new EndNodeFactory());
     engine.getNodeFactories().registerFactory(new ErrorNodeFactory());
     engine.getNodeFactories().registerFactory(new AgentCallNodeFactory());
-    engine.getNodeFactories().registerFactory(new WorkflowRunNodeFactory());
+    engine.getNodeFactories().registerFactory(new DurableAgentRunNodeFactory());
     engine.getNodeFactories().registerFactory(new CallActivityNodeFactory());
     engine.getNodeFactories().registerFactory(new SendDataNodeFactory());
     engine.getNodeFactories().registerFactory(new WaitDataNodeFactory());
+    engine.getNodeFactories().registerFactory(new EvalNodeFactory());
+    engine.getNodeFactories().registerFactory(new AgentNodeFactory(NodeTypes.TYPED_AGENT_NODE));
+    engine.getNodeFactories().registerFactory(new AgentNodeFactory());
 
     engine.getLayerFactories().registerFactory(new OverlayLayerFactory());
 
@@ -100,12 +105,26 @@ export function createNodesLink(sourceNode: NodeModel, targetNode: NodeModel, op
     const source = sourceNode as LinkableNodeModel;
     const target = targetNode as LinkableNodeModel;
 
+    // Links attached to a review-diff node inherit its removed/added styling
+    const diffState = getNodeDiffState(targetNode) ?? getNodeDiffState(sourceNode);
+    if (diffState && !options?.diffState) {
+        options = { ...options, diffState };
+    }
+
     const sourcePort = source.getOutPort();
     const targetPort = target.getInPort();
     const link = createPortsLink(sourcePort, targetPort, options);
     link.setSourceNode(sourceNode);
     link.setTargetNode(targetNode);
     return link;
+}
+
+// get the diff state of the flow node wrapped by a diagram node model, if any.
+// Modified nodes sit inline in the main flow, so their links stay unstyled.
+function getNodeDiffState(nodeModel: NodeModel): FlowNodeDiffState | undefined {
+    const flowNode = (nodeModel as { node?: FlowNode }).node;
+    const diffState = flowNode?.diffState;
+    return diffState === "added" || diffState === "removed" ? diffState : undefined;
 }
 
 // save diagram zoom level and position to local storage

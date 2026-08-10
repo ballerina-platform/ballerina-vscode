@@ -31,8 +31,17 @@ import type {
     FlowNode,
     Imports,
     DropdownType,
+    InputType,
+    CodeData,
+    SearchNodesTypeConstraint,
 } from "@wso2/ballerina-core";
-import { getPrimaryInputType, isTemplateType, isDropDownType } from "@wso2/ballerina-core";
+import {
+    DEFAULT_MODEL_PROVIDER_EXPR,
+    getPrimaryInputType,
+    isDefaultModelProviderExpr,
+    isTemplateType,
+    isDropDownType,
+} from "@wso2/ballerina-core";
 
 import type {
     FormField,
@@ -127,7 +136,113 @@ export function convertNodePropertyToFormField(
             : undefined,
         imports: property.imports
     };
+    enrichModelProviderField(formField, property);
+    enrichClientConnectionField(formField, property);
+    enrichMemoryField(formField, property);
+    enrichAgentField(formField, property);
     return formField;
+}
+
+const AI_MODEL_PROVIDER_TYPE = "ai:ModelProvider";
+const MEMORY_SEARCH_KIND = "MEMORY";
+export const DEFAULT_MODEL_PROVIDER_ITEM = {
+    id: "ai:getDefaultModelProvider",
+    label: "Default WSO2 Model Provider",
+    value: DEFAULT_MODEL_PROVIDER_EXPR,
+    codedata: { module: "ai", node: "MODEL_PROVIDER" } as any,
+};
+
+function isInlineExpressionValue(value: unknown): boolean {
+    if (isDefaultModelProviderExpr(value)) return false;
+    return typeof value === "string" && value.trim() !== "" && !/^[a-zA-Z_][a-zA-Z0-9_']*$/.test(value.trim());
+}
+
+function applyExpressionToggle(
+    formField: FormField,
+    ballerinaType: string | undefined,
+    searchNodesKind: string,
+    codedataExtras: Record<string, unknown> = {},
+    treatUnitAsUnset = false
+): void {
+    const expressionMode = !(treatUnitAsUnset && formField.value?.toString().trim() === "()")
+        && isInlineExpressionValue(formField.value);
+    formField.type = expressionMode ? "EXPRESSION" : "ACTION_EXPRESSION";
+    formField.types = [
+        { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: !expressionMode },
+        { fieldType: "EXPRESSION", selected: expressionMode },
+    ] as InputType[];
+    formField.codedata = {
+        ...(formField.codedata || {}),
+        searchNodesKind,
+        ...codedataExtras,
+    };
+}
+
+function enrichModelProviderField(formField: FormField, property: Property): void {
+    const isModelProvider = property.types?.some((t) => t.ballerinaType === AI_MODEL_PROVIDER_TYPE);
+    if (!isModelProvider || !formField.editable) {
+        return;
+    }
+    applyExpressionToggle(formField, AI_MODEL_PROVIDER_TYPE, "MODEL_PROVIDER", {
+        staticItems: [...(formField.codedata?.staticItems ?? []), DEFAULT_MODEL_PROVIDER_ITEM],
+    });
+}
+
+function getConnectionTargetType(property: Property): SearchNodesTypeConstraint | undefined {
+    const connection = property.codedata?.data?.connection as {
+        org?: string;
+        packageName?: string;
+        module?: string;
+        object?: string;
+        version?: string;
+    } | undefined;
+    if (connection?.module && connection?.object) {
+        return {
+            relation: "exact",
+            ...(connection.org && { org: connection.org }),
+            ...(connection.packageName && { packageName: connection.packageName }),
+            module: connection.module,
+            name: connection.object,
+            ...(connection.version && { version: connection.version }),
+        };
+    }
+}
+
+function enrichClientConnectionField(formField: FormField, property: Property): void {
+    if (!property.codedata?.data?.connection || !formField.editable) {
+        return;
+    }
+    const targetType = getConnectionTargetType(property);
+    const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
+    applyExpressionToggle(formField, ballerinaType, "NEW_CONNECTION",
+        targetType ? { targetType } : {});
+}
+
+const AI_MEMORY_TYPE = "ai:Memory";
+
+function enrichMemoryField(formField: FormField, property: Property): void {
+    const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
+    if (!isMemory || !formField.editable) {
+        return;
+    }
+    applyExpressionToggle(formField, AI_MEMORY_TYPE, MEMORY_SEARCH_KIND, {}, true);
+}
+
+function enrichAgentField(formField: FormField, property: Property): void {
+    const agent = property.codedata?.data?.agent as CodeData | undefined;
+    if (!agent || !formField.editable || !agent.node) {
+        return;
+    }
+    const ballerinaType = property.types?.find((type) => type.ballerinaType)?.ballerinaType;
+    const targetType = agent.object ? {
+        relation: "subtype" as const,
+        ...(agent.org && { org: agent.org }),
+        ...(agent.packageName && { packageName: agent.packageName }),
+        ...(agent.module && { module: agent.module }),
+        name: agent.object,
+        ...(agent.version && { version: agent.version }),
+    } : undefined;
+    applyExpressionToggle(formField, ballerinaType, agent.node, targetType ? { targetType } : {});
 }
 
 function isFieldEditable(expression: Property, connections?: FlowNode[], clientName?: string) {
@@ -348,4 +463,35 @@ export function updateNodeProperties(
     }
 
     return updatedNodeProperties;
+}
+
+/**
+ * Assemble the form fields for a node's properties: one FormField per property key
+ * (in sorted order unless `sortKeys` is false), excluding `skipKeys`. Moved here from
+ * `utils/bi.tsx` to sit with its siblings and be unit-testable; `bi.tsx` re-exports it.
+ *
+ * Note: this faithfully emits a field for EVERY non-skipped key — it does not dedupe by
+ * label. When two keys carry the same `metadata.label` (e.g. `rowType` + `type` both
+ * "Row Type"), both fields appear; suppressing the redundant one is the caller's job via
+ * `skipKeys` (see #1487).
+ */
+export function convertConfig(properties: NodeProperties, skipKeys: string[] = [], sortKeys: boolean = true): FormField[] {
+    const formFields: FormField[] = [];
+    const sortedKeys = sortKeys ? Object.keys(properties).sort() : Object.keys(properties);
+
+    for (const key of sortedKeys) {
+        if (skipKeys.includes(key)) {
+            continue;
+        }
+        const property = properties[key as keyof NodeProperties];
+        const formField = convertNodePropertyToFormField(key, property);
+
+        if (getPrimaryInputType(property.types)?.fieldType === "REPEATABLE_PROPERTY") {
+            handleRepeatableProperty(property, formField);
+        }
+
+        formFields.push(formField);
+    }
+
+    return formFields;
 }

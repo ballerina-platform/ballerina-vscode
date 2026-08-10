@@ -22,7 +22,20 @@
       "value": "moduleVar",
       "optional": false,
       "editable": true,
-      "advanced": false
+      "advanced": false,
+      "codedata": {
+        "lineRange": {
+          "fileName": "source.bal",
+          "startLine": {
+            "line": 3,
+            "offset": 4
+          },
+          "endLine": {
+            "line": 3,
+            "offset": 13
+          }
+        }
+      }
     }
   },
   "diagnostics": []

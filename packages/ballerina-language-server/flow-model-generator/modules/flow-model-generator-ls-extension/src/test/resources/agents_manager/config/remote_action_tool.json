@@ -134,7 +134,6 @@
       "module": "http",
       "object": "Client",
       "symbol": "get",
-      "version": "2.13.2",
       "lineRange": {
         "fileName": "main.bal",
         "startLine": {

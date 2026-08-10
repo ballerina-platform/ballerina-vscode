@@ -28,6 +28,7 @@ import { Button } from '@wso2/ui-toolkit';
 import { CommonRPCAPI, STModification } from '@wso2/ballerina-core';
 import { VSCodeCheckbox } from '@vscode/webview-ui-toolkit/react';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
+import { filterTypeBrowserItems } from './utils';
 
 const ComboboxButtonContainerActive = cx(css`
     width: 20%;
@@ -206,12 +207,7 @@ export const TypeBrowser: React.FC<TypeBrowserProps> = (props: TypeBrowserProps)
     };
     const displayItemValue = (item: string) => item;
 
-    const filteredResults =
-        query === ''
-            ? items
-            : items.filter(item =>
-                item.toLowerCase().replace(/\s+/g, '').includes(query.toLowerCase().replace(/\?/g, '').replace(/\s+/g, '').replace(/\[\]/g, ''))
-            );
+    const filteredResults = filterTypeBrowserItems(items, query);
 
     return (
         <Container sx={sx}>

@@ -32,7 +32,6 @@ export interface StreamContext {
 
     // Configuration (immutable during stream)
     projects: ProjectSource[];
-    shouldCleanup: boolean;
     messageId: string;
     userMessageContent: any;
 
@@ -51,6 +50,8 @@ export interface StreamContext {
 
     // Mid-stream compaction status
     compactionFailedMidStream?: boolean;
+    /** Set to true when a compaction block was detected in this turn's response. */
+    wasCompactionTurn?: boolean;
 
     // Accumulated token usage from tool-internal LLM calls, keyed by model name
     toolModelUsage: ToolModelUsage;

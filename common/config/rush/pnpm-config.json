@@ -90,44 +90,87 @@
      */
     "globalOverrides": {
       "lodash": "4.18.1",
-      "brace-expansion@>=5.0.0 <6": "5.0.6",
+      // Security fix: the DoS advisories are now backported, so each line is
+      // pinned to its own fix. 5.x is not a drop-in replacement for the
+      // 1.x/2.x consumers (it dropped the CommonJS default export that
+      // minimatch 3.x/5.x/9.x rely on), hence the per-line selectors.
+      "brace-expansion@>=1 <2": "1.1.18",
+      "brace-expansion@>=2 <3": "2.1.4",
+      "brace-expansion@>=5.0.0 <6": "5.0.9",
+      // Claude Sonnet 5 must be sent `thinking: {"type": "disabled"}` explicitly,
+      // because an absent `thinking` field means adaptive reasoning is ON. Only
+      // @ai-sdk/anthropic >= 3.0.104 serializes that value — earlier 3.x releases
+      // accept it and then silently drop it from the request body. google-vertex
+      // pins 3.0.63 and anthropic-aws pins 3.0.81, so both need forcing. The
+      // selector stays inside 3.x: the 4.x line implements the v4 model spec,
+      // which the pinned ai@6 core cannot consume.
+      "@ai-sdk/anthropic@>=3 <4": "3.0.104",
       // Security overrides — keep in sync with trivy findings. Bump to the
       // first fix version listed for each CVE. If a bump breaks workspace
       // consumers, narrow the selector (e.g. "pkg@<x.y.z": "x.y.z").
       "@babel/core@>=7 <8": "7.29.6",
+      // Security fix: no 1.x fix; force the 2.x line, at the version fixing
+      // a follow-up advisory on the earlier 2.x releases. Transitive-only
+      // (used by the wso2-vscode-extensions submodule's tooling), not
+      // shipped in the built extension.
+      "@hono/node-server": "2.0.10",
       "@tootallnate/once": "3.0.1",
+      "axios@<1.18.0": "1.18.0",
+      "body-parser@>=1 <2": "1.20.6",
       "braces": "3.0.3",
-      "dompurify": "3.4.11",
+      // Security fix: bump past the previous override version, which is now
+      // itself flagged.
+      "dompurify": "3.4.13",
+      // Security fix: 3.1.5 is the current 3.x line fix.
+      "fast-uri": "3.1.5",
       "form-data@>=2 <3": "2.5.6",
       "form-data@>=4 <5": "4.0.6",
       "handlebars": "4.7.9",
+      // Security fix: ReDoS in the CORS middleware, fixed in 4.12.34.
+      "hono@>=4 <5": "4.12.34",
       "http-proxy": "1.18.1",
       // CVE-2026-55602: stay on the 2.x line (first 2.x fix is 2.0.10). The
       // 0.17.x transitive is not flagged, so leave it untouched.
       "http-proxy-middleware@>=2 <3": "2.0.10",
+      // Security fix: no 3.x fix; force the 4.x line (transitive-only
+      // dependency, not declared directly by any workspace package). Narrow
+      // the selector if a consumer needs the v3 Record API.
+      "immutable@3": "4.3.9",
+      // Security fix: 10.3.1 is the first release covering all three flagged
+      // advisories.
+      "ip-address@10": "10.3.1",
       "joi@>=17 <18": "17.13.4",
-      // js-yaml v3 has no in-line fix for CVE-2026-53550; the GHSA only fixes
-      // in v4.2.0. Force all consumers to v4 — revert with narrower selector
-      // if a workspace package needs the v3 sync API.
-      "js-yaml": "4.2.0",
+      // js-yaml v3 has no in-line fix; the fix only lands in v4.3.0+.
+      // Force all consumers to v4 — revert with narrower selector if a
+      // workspace package needs the v3 sync API.
+      // Security fix: 4.3.0 itself got flagged, bumped to 4.3.1.
+      "js-yaml": "4.3.1",
       "launch-editor": "2.14.1",
+      // Security fix: scoped to the 5.x line already in use; leave the
+      // unrelated 3.0.3 transitive untouched.
+      "linkify-it@5": "5.0.2",
       "markdown-it@>=14 <15": "14.2.0",
       "micromatch": "4.0.8",
+      // Security fix: path traversal via source map auto-loading.
+      "postcss@8": "8.5.23",
       "prismjs": "1.30.0",
-      "protobufjs@>=7 <8": "7.6.3",
+      "protobufjs@>=7 <8": "7.6.5",
       "qs@6": "6.15.2",
       "serialize-javascript": "7.0.5",
+      "shell-quote": "1.9.0",
       "tmp": "0.2.7",
-      // CVE-2026-12151/6734/9697/9678/9679/11525/6733: 7.28.0 is the 7.x fix
-      // line covering all flagged undici advisories.
-      "undici@>=7 <8": "7.28.0",
+      // No 5.x release fixes the flagged advisories, so the transitive 5.x copy
+      // (@ai-sdk/provider-utils) has to move up a major; 6.28.0 covers all of them.
+      "undici@>=5 <6": "6.28.0",
+      // 7.29.0 is the 7.x fix line covering all flagged undici advisories.
+      "undici@>=7 <8": "7.29.0",
       // uuid 8.x has no in-line fix; bump to 11.1.1 (fix line for v11). Revert
       // if this breaks consumers that strictly need uuid v8 API.
       "uuid@8": "11.1.1",
       "uuid@>=11 <11.1.1": "11.1.1",
-      // CVE-2026-9595: 5.2.5 is the 5.x fix. The 2.11.3 transitive is not
+      // CVE-2026-9595: 5.2.6 is the 5.x fix. The 2.11.3 transitive is not
       // flagged, so leave it untouched.
-      "webpack-dev-server@>=5 <6": "5.2.5",
+      "webpack-dev-server@>=5 <6": "5.2.6",
       "yaml@2": "2.8.3"
     },
   

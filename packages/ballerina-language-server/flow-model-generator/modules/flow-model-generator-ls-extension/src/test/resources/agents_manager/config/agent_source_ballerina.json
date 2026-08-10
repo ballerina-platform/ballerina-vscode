@@ -22,7 +22,6 @@
       "packageName": "ai",
       "object": "Agent",
       "symbol": "init",
-      "version": "1.0.0",
       "isNew": true
     },
     "returning": false,

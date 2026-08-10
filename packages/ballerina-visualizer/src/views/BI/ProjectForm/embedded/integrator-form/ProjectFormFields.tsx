@@ -18,8 +18,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import debounce from "lodash/debounce";
-import { TextField, CheckBox } from "@wso2/ui-toolkit";
-import { DirectorySelector } from "./components/DirectorySelector/DirectorySelector";
+import { TextField, CheckBox, DirectorySelector } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
 import { useCloudContext, useCloudProjects, useProjectModeSupportedStatus, useWorkspaceRoot } from "./providers";
 import {

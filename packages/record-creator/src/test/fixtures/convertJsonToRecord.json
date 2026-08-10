@@ -1,0 +1,12 @@
+{
+  "params": {
+    "jsonString": "{\"id\":1,\"name\":\"Ballerina\"}",
+    "recordName": "Person",
+    "isRecordTypeDesc": false,
+    "isClosed": false
+  },
+  "response": {
+    "codeBlock": "type Person record {|\n    int id;\n    string name;\n    json...;\n|};\n",
+    "diagnostics": []
+  }
+}

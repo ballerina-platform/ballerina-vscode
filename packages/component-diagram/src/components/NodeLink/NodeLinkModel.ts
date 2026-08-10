@@ -26,6 +26,9 @@ export const LINK_BOTTOM_OFFSET = 30;
 export interface NodeLinkModelOptions {
     label?: string;
     visible: boolean;
+    broken?: boolean;
+    // neutral dashed link (e.g. a read-only interaction with a durable agent)
+    dashed?: boolean;
     onAddClick?: () => void;
 }
 
@@ -35,6 +38,10 @@ export class NodeLinkModel extends DefaultLinkModel {
     // options
     label: string;
     visible = true;
+    // marks a link that cannot be resolved statically (e.g. a workflow:sendData call whose
+    // data event name does not match any event declared by the workflow)
+    broken = false;
+    dashed = false;
     // call back
     onAddClick?: () => void;
 
@@ -57,6 +64,12 @@ export class NodeLinkModel extends DefaultLinkModel {
                 }
                 if ((options as NodeLinkModelOptions).visible === false) {
                     this.visible = (options as NodeLinkModelOptions).visible;
+                }
+                if ((options as NodeLinkModelOptions).broken) {
+                    this.broken = true;
+                }
+                if ((options as NodeLinkModelOptions).dashed) {
+                    this.dashed = true;
                 }
             }
             if ((options as NodeLinkModelOptions).onAddClick) {

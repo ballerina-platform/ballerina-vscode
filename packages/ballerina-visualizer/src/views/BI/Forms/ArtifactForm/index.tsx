@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
     EVENT_TYPE,
     LineRange,
@@ -39,7 +39,8 @@ import {
     ExpressionCompletionsResponse,
     InputType,
     getPrimaryInputType,
-    Diagnostic
+    Diagnostic,
+    ValidationResult
 } from "@wso2/ballerina-core";
 import {
     FormField,
@@ -79,6 +80,7 @@ import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
 import { deserializeForDiagnosticsAPI } from "../form-utils";
+import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
     isOpen: boolean;
@@ -113,7 +115,9 @@ interface ArtifactFormProps {
     concertMessage?: string;
     concertRequired?: boolean;
     description?: string;
+    hideInfoBanner?: boolean;
     preserveFieldOrder?: boolean;
+    bottomFields?: string[];
     injectedComponents?: {
         component: ReactNode;
         index: number;
@@ -122,9 +126,15 @@ interface ArtifactFormProps {
     changeOptionalFieldTitle?: string;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
     hideSaveButton?: boolean;
+    // Optional extra primary action next to the submit button (e.g. a "Next" that submits and
+    // continues to a following step). Validated through the same path as submit.
+    secondarySubmitText?: string;
+    onSecondarySubmit?: (data: FormValues, formImports?: FormImports, importsCodedata?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
     recordsOnly?: boolean;
+    serverValidationErrors?: ValidationResult[];
+    footerActionButton?: boolean;
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -153,17 +163,27 @@ export function ArtifactForm(props: ArtifactFormProps) {
         concertMessage,
         concertRequired,
         description,
+        hideInfoBanner,
         preserveFieldOrder,
+        bottomFields,
         injectedComponents,
         changeOptionalFieldTitle,
         onChange,
         hideSaveButton,
         customDiagnosticFilter,
         onValidityChange,
-        recordsOnly
+        recordsOnly,
+        secondarySubmitText,
+        onSecondarySubmit,
+        serverValidationErrors,
+        footerActionButton
     } = props;
 
     const { rpcClient } = useRpcContext();
+    // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
+    // mounted beneath them may offer; unrestricted when no provider is present.
+    const hostCapabilities = useContext(FormHostCapabilitiesContext);
+    const allowTypeCreation = hostCapabilities?.typeCreation ?? true;
 
 
 
@@ -841,7 +861,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             onChange: onChange,
             changeTypeHelperState: changeHelperPaneState,
             updateImports: handleUpdateImports,
-            onTypeCreate: handleCreateNewType,
+            onTypeCreate: allowTypeCreation ? handleCreateNewType : undefined,
             onCloseCompletions: handleCloseCompletions,
             exprRef: exprRef,
             typeHelperContext: typeHelperContext,
@@ -1094,13 +1114,28 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     concertMessage={concertMessage}
                     concertRequired={concertRequired}
                     infoLabel={description}
+                    hideInfoBanner={hideInfoBanner}
                     formImports={formImports}
                     preserveOrder={preserveFieldOrder}
+                    bottomFields={bottomFields}
                     injectedComponents={injectedComponents}
                     changeOptionalFieldTitle={changeOptionalFieldTitle}
+                    serverValidationErrors={serverValidationErrors}
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
+                    footerActionButton={footerActionButton}
                     onValidityChange={onValidityChange}
+                    secondarySubmitButton={
+                        onSecondarySubmit
+                            ? {
+                                text: secondarySubmitText || "Next",
+                                onClick: (values: FormValues) => {
+                                    onSecondarySubmit(values, formImports, importsCodedataRef.current);
+                                    importsCodedataRef.current = {};
+                                },
+                            }
+                            : undefined
+                    }
                 />
             )}
             {

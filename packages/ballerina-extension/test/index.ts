@@ -20,6 +20,13 @@ if (!tty.getWindowSize) {
     };
 }
 
+// Modules that inline markdown via the webpack raw-loader (e.g. `import skillMd from "./SKILL.md"`)
+// must also load under the tsc-compiled test host, where no webpack loaders are available.
+// The .md assets are copied next to the compiled sources by the test-compile script.
+(require as any).extensions[".md"] = (module: any, filename: string) => {
+    module.exports = fs.readFileSync(filename, "utf-8");
+};
+
 let mocha = new Mocha({
     ui: "tdd",
     useColors: true,
@@ -69,7 +76,12 @@ function run(testsRoot: string, clb: any): void {
     (async () => {
         try {
             // Glob test files - using promise-based API (glob v11+)
-            const files = await glob.glob("**/**.test.js", { cwd: testsRoot });
+            let files = await glob.glob("**/**.test.js", { cwd: testsRoot });
+            // Run a subset of the test files, e.g. TEST_FILE_GREP=workflow pnpm test
+            if (process.env.TEST_FILE_GREP) {
+                files = files.filter((f: string) => f.includes(process.env.TEST_FILE_GREP!));
+                console.log("🔍 [TEST RUNNER] TEST_FILE_GREP:", process.env.TEST_FILE_GREP, "filtered files:", files);
+            }
 
             console.log("🔍 [TEST RUNNER] Glob completed");
             console.log("🔍 [TEST RUNNER] Files found:", files?.length, files);

@@ -41,6 +41,7 @@ import {
     ShowQuickPickRequest,
     PublishToCentralResponse
 } from "./interfaces";
+import { AgentRunStatus } from "../../state-machine-types";
 import { RequestType, NotificationType } from "vscode-messenger-common";
 
 const _preFix = "common";
@@ -49,11 +50,13 @@ export const goToSource: NotificationType<GoToSourceRequest> = { method: `${_pre
 export const getWorkspaceFiles: RequestType<WorkspaceFileRequest, WorkspacesFileResponse> = { method: `${_preFix}/getWorkspaceFiles` };
 export const getBallerinaDiagnostics: RequestType<BallerinaDiagnosticsRequest, BallerinaDiagnosticsResponse> = { method: `${_preFix}/getBallerinaDiagnostics` };
 export const executeCommand: RequestType<CommandsRequest, CommandsResponse> = { method: `${_preFix}/executeCommand` };
+export const getAgentRunStatus: RequestType<void, AgentRunStatus> = { method: `${_preFix}/getAgentRunStatus` };
 export const runBackgroundTerminalCommand: RequestType<RunExternalCommandRequest, RunExternalCommandResponse> = { method: `${_preFix}/runBackgroundTerminalCommand` };
 export const openExternalUrl: NotificationType<OpenExternalUrlRequest> = { method: `${_preFix}/openExternalUrl` };
 export const selectFileOrDirPath: RequestType<FileOrDirRequest, FileOrDirResponse> = { method: `${_preFix}/selectFileOrDirPath` };
 export const selectFileOrFolderPath: RequestType<void, FileOrDirResponse> = { method: `${_preFix}/selectFileOrFolderPath` };
 export const experimentalEnabled: RequestType<void, boolean> = { method: `${_preFix}/experimentalEnabled` };
+export const additionalTriggerSearchEnabled: RequestType<void, boolean> = { method: `${_preFix}/additionalTriggerSearchEnabled` };
 export const isNPSupported: RequestType<void, boolean> = { method: `${_preFix}/isNPSupported` };
 export const getWorkspaceRoot: RequestType<void, WorkspaceRootResponse> = { method: `${_preFix}/getWorkspaceRoot` };
 export const showErrorMessage: NotificationType<ShowErrorMessageRequest> = { method: `${_preFix}/showErrorMessage` };

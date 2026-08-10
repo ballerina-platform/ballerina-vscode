@@ -28,6 +28,9 @@ import io.ballerina.compiler.syntax.tree.FunctionArgumentNode;
 import io.ballerina.compiler.syntax.tree.ImplicitNewExpressionNode;
 import io.ballerina.compiler.syntax.tree.ListConstructorExpressionNode;
 import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
+import io.ballerina.compiler.syntax.tree.MappingConstructorExpressionNode;
+import io.ballerina.compiler.syntax.tree.MappingFieldNode;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
 import io.ballerina.compiler.syntax.tree.NameReferenceNode;
 import io.ballerina.compiler.syntax.tree.NamedArgumentNode;
@@ -36,6 +39,8 @@ import io.ballerina.compiler.syntax.tree.ParenthesizedArgList;
 import io.ballerina.compiler.syntax.tree.PositionalArgumentNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
+import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.ReadOnlyMetaData;
@@ -220,27 +225,62 @@ public class ListenerParamExtractor implements ReadOnlyMetadataExtractor {
      */
     private List<String> extractFromVariableReference(NameReferenceNode nameRef, SemanticModel semanticModel,
                                                       String parameterName, ModelFromSourceContext context) {
-        Optional<Symbol> symbol = semanticModel.symbol(nameRef);
-        if (symbol.isPresent() && symbol.get() instanceof VariableSymbol variableSymbol) {
-            // Find the listener declaration using the working approach
-            Optional<ListenerDeclarationNode> listenerNode = findListenerDeclaration(variableSymbol, context);
-            if (listenerNode.isPresent()) {
-                // Extract from the listener's initializer expression
-                Node initializer = listenerNode.get().initializer();
+        // The listener variable is declared in the same file as the service, so resolve its
+        // declaration directly from the shared syntax tree. The symbol -> workspace-document lookup
+        // (findListenerDeclaration) is kept only as a fallback: it resolves a relative file path
+        // against the workspace and returns empty for a same-file listener, so on its own the value
+        // never resolves.
+        Optional<ListenerDeclarationNode> listenerNode = findListenerDeclarationInModule(nameRef);
+        if (listenerNode.isEmpty()) {
+            Optional<Symbol> symbol = semanticModel.symbol(nameRef);
+            if (symbol.isPresent() && symbol.get() instanceof VariableSymbol variableSymbol) {
+                listenerNode = findListenerDeclaration(variableSymbol, context);
+            }
+        }
+        if (listenerNode.isPresent()) {
+            // Extract from the listener's initializer expression
+            Node initializer = listenerNode.get().initializer();
 
-                if (initializer instanceof CheckExpressionNode checkExpr) {
-                    initializer = checkExpr.expression();
-                }
+            if (initializer instanceof CheckExpressionNode checkExpr) {
+                initializer = checkExpr.expression();
+            }
 
-                if (initializer instanceof ExplicitNewExpressionNode explicitNew) {
-                    return extractFromListenerConstructor(explicitNew, parameterName, semanticModel, context);
-                } else if (initializer instanceof ImplicitNewExpressionNode implicitNew) {
-                    return extractFromImplicitListenerConstructor(implicitNew, parameterName, semanticModel, context);
-                }
+            if (initializer instanceof ExplicitNewExpressionNode explicitNew) {
+                return extractFromListenerConstructor(explicitNew, parameterName, semanticModel, context);
+            } else if (initializer instanceof ImplicitNewExpressionNode implicitNew) {
+                return extractFromImplicitListenerConstructor(implicitNew, parameterName, semanticModel, context);
             }
         }
 
         return new ArrayList<>();
+    }
+
+    /**
+     * Finds the module-level {@code listener} declaration bound to a simple name reference by walking
+     * up to the enclosing {@link ModulePartNode} and matching the declared variable name — the
+     * listener and the service share a syntax tree, so no symbol/workspace resolution is needed.
+     */
+    private static Optional<ListenerDeclarationNode> findListenerDeclarationInModule(NameReferenceNode nameRef) {
+        if (!(nameRef instanceof SimpleNameReferenceNode simpleName)) {
+            return Optional.empty();
+        }
+        String listenerName = simpleName.name().text();
+        Node current = nameRef;
+        while (current != null && !(current instanceof ModulePartNode)) {
+            current = current.parent();
+        }
+        // The loop above only exits when `current` is null or already a ModulePartNode.
+        if (current == null) {
+            return Optional.empty();
+        }
+        ModulePartNode modulePart = (ModulePartNode) current;
+        for (ModuleMemberDeclarationNode member : modulePart.members()) {
+            if (member instanceof ListenerDeclarationNode listener
+                    && listener.variableName().text().equals(listenerName)) {
+                return Optional.of(listener);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -301,15 +341,46 @@ public class ListenerParamExtractor implements ReadOnlyMetadataExtractor {
                 if (argName.equals(parameterName)) {
                     return extractValuesFromSingleExpression(namedArg.expression(), semanticModel, context);
                 }
-            } else if (argument instanceof PositionalArgumentNode positionalArg && targetArgIndex == positionalIndex) {
-                return extractValuesFromSingleExpression(positionalArg.expression(), semanticModel, context);
-            }
-
-            if (argument instanceof PositionalArgumentNode) {
+            } else if (argument instanceof PositionalArgumentNode positionalArg) {
+                // An included-field config record passed as a mapping constructor
+                // (e.g. `new file:Listener({path: "/tmp", ...})`): the field lives inside the
+                // mapping, not as a named/positional listener argument, so descend by field name.
+                if (positionalArg.expression() instanceof MappingConstructorExpressionNode mapping) {
+                    List<String> fieldValues = extractFromMappingField(mapping, parameterName,
+                            semanticModel, context);
+                    if (!fieldValues.isEmpty()) {
+                        return fieldValues;
+                    }
+                }
+                if (targetArgIndex == positionalIndex) {
+                    return extractValuesFromSingleExpression(positionalArg.expression(), semanticModel, context);
+                }
                 positionalIndex++;
             }
         }
 
+        return new ArrayList<>();
+    }
+
+    /**
+     * Extracts a field's value from a mapping constructor used as an included-field config record —
+     * e.g. {@code path} from {@code {path: "/tmp", recursive: false}}. Matches both a plain
+     * identifier key ({@code path:}) and a quoted-string key ({@code "path":}).
+     */
+    private List<String> extractFromMappingField(MappingConstructorExpressionNode mapping, String fieldName,
+                                                 SemanticModel semanticModel, ModelFromSourceContext context) {
+        for (MappingFieldNode field : mapping.fields()) {
+            if (field instanceof SpecificFieldNode specificField && specificField.valueExpr().isPresent()) {
+                String key = specificField.fieldName().toString().trim();
+                if (key.length() >= 2 && key.startsWith("\"") && key.endsWith("\"")) {
+                    key = key.substring(1, key.length() - 1);
+                }
+                if (key.equals(fieldName)) {
+                    return extractValuesFromSingleExpression(specificField.valueExpr().get(),
+                            semanticModel, context);
+                }
+            }
+        }
         return new ArrayList<>();
     }
 

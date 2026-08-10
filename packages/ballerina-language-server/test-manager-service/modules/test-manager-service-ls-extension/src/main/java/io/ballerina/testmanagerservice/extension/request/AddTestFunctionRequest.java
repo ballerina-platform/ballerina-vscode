@@ -18,15 +18,21 @@
 
 package io.ballerina.testmanagerservice.extension.request;
 
+import com.google.gson.JsonObject;
 import io.ballerina.testmanagerservice.extension.model.TestFunction;
 
 /**
  * Represents a request to add a test function.
  *
- * @param filePath  path for the source test
- * @param function  test function
+ * @param filePath     path for the source test
+ * @param function     test function
+ * @param evalTemplate evaluation template for the test
  *
  * @since 1.0.0
  */
-public record AddTestFunctionRequest(String filePath, TestFunction function) {
+public record AddTestFunctionRequest(String filePath, TestFunction function, JsonObject evalTemplate) {
+
+    public AddTestFunctionRequest(String filePath, TestFunction function) {
+        this(filePath, function, null);
+    }
 }

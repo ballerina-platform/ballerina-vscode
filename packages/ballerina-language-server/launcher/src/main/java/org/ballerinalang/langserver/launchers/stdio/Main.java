@@ -24,6 +24,7 @@ import org.eclipse.lsp4j.jsonrpc.Launcher;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
@@ -47,9 +48,7 @@ public final class Main {
 
     public static void startServer(InputStream in, OutputStream out)
             throws InterruptedException, ExecutionException {
-        // Disable writing ballerina central calls to stdout to avoid conflicting with LS client communicating
-        // over stdout with the LS
-        System.getProperty("enableOutputStream", "false");
+        protectJsonRpcStream();
 
         BallerinaLanguageServer server = new BallerinaLanguageServer();
         Launcher<ExtendedLanguageClient> launcher = Launcher.createLauncher(server,
@@ -58,5 +57,19 @@ public final class Main {
         server.connect(client);
         Future<?> startListening = launcher.startListening();
         startListening.get();
+    }
+
+    /**
+     * Protects the JSON-RPC stream used by the language server.
+     * <p>
+     * The stdio launcher communicates with the LS client over stdout. Any stray write to stdout (e.g. Ballerina
+     * central pull progress, warnings, or third-party dependency logs) corrupts the JSON-RPC frames and causes the
+     * client connection to error out. This method disables the central client output stream and redirects
+     * {@link System#out} to {@link System#err} so that such writes can never reach the protocol stream. lsp4j keeps
+     * writing to the original stdout stream captured before this method is invoked.
+     */
+    static void protectJsonRpcStream() {
+        System.setProperty("enableOutputStream", "false");
+        System.setOut(new PrintStream(System.err, true));
     }
 }

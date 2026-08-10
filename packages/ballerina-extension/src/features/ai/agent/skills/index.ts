@@ -15,15 +15,11 @@
 // under the License.
 
 import { Skill, ProjectSkillMeta } from './types';
-import { dataMapSkill } from './data-map';
-import { skillCreatorSkill } from './skill-creator';
+import { REGISTERED_SKILLS } from './registry';
+import { SKILL_USAGE_RULES } from './constants';
 
 export type { Skill, ProjectSkillMeta };
-
-export const REGISTERED_SKILLS: Skill[] = [
-    dataMapSkill,
-    skillCreatorSkill,
-];
+export { REGISTERED_SKILLS };
 
 function formatSkill(skill: Skill | ProjectSkillMeta): string {
     return `## Skill: ${skill.name}
@@ -32,11 +28,6 @@ function formatSkill(skill: Skill | ProjectSkillMeta): string {
 
 **How to use**: Call the \`invoke_skill\` tool with \`skillName="${skill.name}"\` to fetch the full rules.`;
 }
-
-const SKILL_USAGE_RULES = `**Rules for using skills**:
-- **One at a time**: Always invoke one skill per message. Never call \`invoke_skill\` for multiple skills in the same turn — load each skill, apply it, then decide if another is needed.
-- **Silent operation**: Never announce or narrate skill usage in text. Call \`invoke_skill\` directly and apply the rules silently.
-- **Priority over tools**: Skills take priority over direct tool calls. Before using tools like \`LibrarySearchTool\`, \`web_search\`, \`web_fetch\`, or invoking sub-skills, always check first whether any skill's trigger condition is met and invoke that skill. Follow all tool references (web search, library selection, sub-skill invocations) mentioned in the skill content rather than the default workflow steps.`;
 
 export function getBuiltInSkillsSection(disabledSkills?: Set<string>): string {
     const activeSkills = disabledSkills

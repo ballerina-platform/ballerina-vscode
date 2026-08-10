@@ -1,0 +1,16 @@
+{
+    "description": "REPEATABLE_MAP -> FormMapEditorWrapper",
+    "expectedEditor": "FormMapEditorWrapper",
+    "fieldInputType": { "fieldType": "REPEATABLE_MAP" },
+    "field": {
+        "key": "f_REPEATABLE_MAP",
+        "label": "REPEATABLE_MAP field",
+        "type": "REPEATABLE_MAP",
+        "optional": false,
+        "editable": true,
+        "documentation": "",
+        "value": "",
+        "types": [{ "fieldType": "REPEATABLE_MAP", "selected": false }],
+        "enabled": true
+    }
+}

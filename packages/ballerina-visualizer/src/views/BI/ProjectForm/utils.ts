@@ -125,12 +125,27 @@ export const validateComponentName = (name: string, isLibrary: boolean): string 
     return null;
 };
 
-export const isFormValidAddProject = (formData: AddProjectFormData, isInProject: boolean): boolean => {
+export const isFormValidAddProject = (
+    formData: AddProjectFormData,
+    isInProject: boolean,
+    addNewAfterConvert: boolean = true,
+    options?: {
+        /**
+         * Whether the organization name is the caller's to validate. False for a route that
+         * neither shows the field nor surfaces its error — gating there would disable submit
+         * over a value the user can neither see nor correct. The organization is resolved
+         * rather than typed, so it can arrive late, or reserved, or not at all.
+         */
+        requireOrgName?: boolean;
+    }
+): boolean => {
+    const needsComponent = isInProject || addNewAfterConvert;
+    const requireOrgName = options?.requireOrgName ?? true;
     return (
         (isInProject || (formData.workspaceName?.length ?? 0) >= 1) &&
-        validateComponentName(formData.integrationName, formData.isLibrary) === null &&
-        validatePackageName(formData.packageName, formData.integrationName) === null &&
-        validateOrgName(formData.orgName) === null &&
+        (!needsComponent || validateComponentName(formData.integrationName, formData.isLibrary) === null) &&
+        (!needsComponent || validatePackageName(formData.packageName, formData.integrationName) === null) &&
+        (!requireOrgName || validateOrgName(formData.orgName) === null) &&
         (formData.projectHandle === undefined || validateProjectHandle(formData.projectHandle) === null)
     );
 };
@@ -142,6 +157,52 @@ export const sanitizePackageName = (name: string): string => {
         .toLowerCase()
         .replace(/\.{2,}/g, ".") // Convert multiple consecutive dots to single dot
         .replace(/_{2,}/g, "_"); // Convert multiple consecutive underscores to single underscore
+};
+
+/**
+ * Cross-platform path join for webview display. Detects the separator from the
+ * base string (defaults to "/"). Returns the base unchanged when `name` is empty.
+ */
+export const joinPath = (base: string, name: string): string => {
+    if (!base) return name;
+    if (!name) return base;
+    const sep = base.includes("\\") ? "\\" : "/";
+    const trimmed = base.endsWith("/") || base.endsWith("\\") ? base.slice(0, -1) : base;
+    return `${trimmed}${sep}${name}`;
+};
+
+/**
+ * Splits a full path into its parent directory and last segment (the directory
+ * name), handling both POSIX and Windows separators. A trailing separator yields
+ * an empty `name`.
+ */
+export const splitPath = (fullPath: string): { base: string; name: string } => {
+    const lastSep = Math.max(fullPath.lastIndexOf("/"), fullPath.lastIndexOf("\\"));
+    if (lastSep < 0) return { base: "", name: fullPath };
+    // Preserve the root separator (e.g. "/" or "C:\") as the base.
+    const base = lastSep === 0 ? fullPath.slice(0, 1) : fullPath.slice(0, lastSep);
+    return { base, name: fullPath.slice(lastSep + 1) };
+};
+
+export const toPascalCase = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2") // split camelCase/PascalCase boundaries
+        .split(/[^a-zA-Z0-9]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join("")
+        .replace(/^[0-9]+/, ""); // identifiers cannot start with a digit
+};
+
+export const toSnakeCasePackageName = (value: string): string => {
+    return value
+        .replace(/([a-z0-9])([A-Z])/g, "$1_$2") // camelCase boundary
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2") // acronym boundary (HTTPClient -> HTTP_Client)
+        .replace(/[^a-zA-Z0-9]+/g, "_") // separators -> underscore
+        .toLowerCase()
+        .replace(/_{2,}/g, "_")
+        .replace(/^_+/, "")
+        .replace(/_+$/, "");
 };
 
 // Reserved organization names

@@ -6,10 +6,10 @@
     "org": "ballerina",
     "module": "log",
     "symbol": "printInfo",
-    "version": "2.10.0"
+    "version": "2.17.0"
   },
   "kind": "AVAILABLE",
   "functionCall": "log:printInfo(${1})",
   "prefix": "log",
-  "moduleId": "ballerina/log:2.10.0"
+  "moduleId": "ballerina/log:2.17.0"
 }

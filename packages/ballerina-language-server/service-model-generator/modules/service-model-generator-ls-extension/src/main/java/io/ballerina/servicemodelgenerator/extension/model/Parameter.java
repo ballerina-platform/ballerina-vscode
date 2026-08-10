@@ -344,6 +344,7 @@ public class Parameter {
         private Value name;
         private Value defaultValue;
         private Value documentation;
+        private Value headerName;
         private boolean enabled;
         private boolean editable;
         private boolean optional;
@@ -381,6 +382,11 @@ public class Parameter {
 
         public Builder defaultValue(Value defaultValue) {
             this.defaultValue = defaultValue;
+            return this;
+        }
+
+        public Builder headerName(Value headerName) {
+            this.headerName = headerName;
             return this;
         }
 
@@ -433,8 +439,10 @@ public class Parameter {
         }
 
         public Parameter build() {
-            return new Parameter(metadata, kind, type, name, defaultValue, documentation, enabled, editable, optional,
-                    advanced, httpParamType, hidden, properties, isGraphqlId);
+            Parameter parameter = new Parameter(metadata, kind, type, name, defaultValue, documentation, enabled,
+                    editable, optional, advanced, httpParamType, hidden, properties, isGraphqlId);
+            parameter.setHeaderName(headerName);
+            return parameter;
         }
     }
 }

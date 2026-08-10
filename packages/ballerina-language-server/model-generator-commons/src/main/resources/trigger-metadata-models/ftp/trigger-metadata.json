@@ -1,0 +1,163 @@
+{
+  "listeners": [
+    {
+      "type": { "name": "Listener" },
+      "services": ["service"]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "service",
+      "type": { "name": "Service" },
+      "concrete": false,
+      "multipleListenersAllowed": true,
+      "multipleServicesPerListenerAllowed": true,
+
+      "handlers": {
+        "backedByConcreteType": false,
+        "addMode": "subset",
+        "options": [
+          {
+            "name": "onFileCsv",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              {
+                "name": "contents",
+                "type": [
+                  { "name": "string[][]" }, { "name": "record {}[]" },
+                  { "name": "stream<string[], error?>" }, { "name": "stream<record {}, error?>" }
+                ],
+                "presence": "required",
+                "dataBinding": "csvContent"
+              },
+              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" },
+              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onFileJson",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "name": "content", "type": { "name": "json" }, "presence": "required", "dataBinding": "jsonContent" },
+              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onFileXml",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "name": "content", "type": { "name": "xml" }, "presence": "required", "dataBinding": "xmlContent" },
+              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onFileText",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "name": "content", "type": { "name": "string" }, "presence": "required" },
+              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onFile",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              {
+                "name": "content",
+                "type": [{ "name": "byte[]" }, { "name": "stream<byte[], error?>" }],
+                "presence": "required"
+              },
+              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onFileDelete",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "name": "deleteFiles", "type": { "name": "string" }, "presence": "required" },
+              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+          {
+            "name": "onError",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "name": "ftpError", "type": { "name": "Error" }, "presence": "required" },
+              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          },
+                    {
+            "name": "onFileChange",
+            "kind": "remote",
+            "presence": "optional",
+            "annotations": ["functionConfig"],
+            "params": [
+              { "type": { "name": "WatchEvent" }, "presence": "required" }
+            ],
+            "returns": [{ "name": "error" }, { "name": "()" }]
+          }
+        ]
+      }
+    }
+  ],
+
+  "annotations": [
+    {
+      "id": "serviceConfig",
+      "type": { "name": "ServiceConfig" },
+      "attachPoint": "service",
+      "appliesTo": ["service"],
+      "presence": "required"
+    },
+    {
+      "id": "functionConfig",
+      "type": { "name": "FunctionConfig" },
+      "attachPoint": "function",
+      "presence": "optional"
+    }
+  ],
+
+  "dataBindingRules": [
+    {
+      "id": "jsonContent",
+      "supportedModes": [
+        { "mode": "direct", "typeConstraint": [{ "name": "json" }, { "name": "record {}" }] }
+      ]
+    },
+    {
+      "id": "xmlContent",
+      "supportedModes": [
+        { "mode": "direct", "typeConstraint": [{ "name": "xml" }, { "name": "record {}" }] }
+      ]
+    },
+    {
+      "id": "csvContent",
+      "supportedModes": [
+        { "mode": "direct", "typeConstraint": [{ "name": "string[][]" }, { "name": "record {}[]" }] },
+        { "mode": "streamable", "typeConstraint": [{ "name": "stream<string[], error?>" }, { "name": "stream<record {}, error?>" }] }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,7 @@
  */
 
 import { Frame, Locator, Page } from "@playwright/test";
+import { domClick } from "../helpers";
 
 export class SidePanel {
     private sidePanel!: Locator;
@@ -49,7 +50,9 @@ export class SidePanel {
             }
         }
         await nodeContainer.waitFor({ state: 'visible', timeout: 30000 });
-        await nodeContainer.click();
+        // domClick — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on nodes in this panel.
+        await domClick(nodeContainer);
     }
 
     /**
@@ -61,9 +64,9 @@ export class SidePanel {
         try {
             await sectionContainer.click({ timeout: 5000 });
         } catch {
-            // Fall back to force click if a VS Code overlay (e.g. notification popup)
-            // is blocking the element — this can occur on macOS but not on Linux CI.
-            await sectionContainer.click({ force: true });
+            // Fall back to domClick if a VS Code overlay (e.g. notification popup,
+            // the Copilot orb) is blocking the element.
+            await domClick(sectionContainer);
         }
     }
 }

@@ -6,8 +6,10 @@
                 "dist",
                 "build",
                 "build-app",
+                "build-federation",
                 "lib",
                 "vsix",
+                "ls",
                 "resources/jslibs"
             ]
         }

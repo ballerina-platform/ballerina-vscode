@@ -52,8 +52,9 @@ const IMAGE_TYPES = [
 
 /**
  * Combined text and image types for general commands.
+ * PDFs are included so they can be attached as native document blocks in the chat.
  */
-const TEXT_AND_IMAGE_TYPES = [...TEXT_BASED_TYPES, ...IMAGE_TYPES];
+const TEXT_AND_IMAGE_TYPES = [...TEXT_BASED_TYPES, ...IMAGE_TYPES, "application/pdf"];
 
 /**
  * Allowed file types for commands expecting documents/images.

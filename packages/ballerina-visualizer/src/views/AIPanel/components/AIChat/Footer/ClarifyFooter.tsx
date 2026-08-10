@@ -22,6 +22,7 @@ import { ClarifyQuestion } from "@wso2/ballerina-core";
 import { FooterContainer } from "./index";
 import { ActionButton } from "../../AgentStreamView/styles";
 import { FooterBox, FooterDivider, FooterTextInputRow, FooterInput } from "./styles";
+import { AmbientFrame } from "../../../../../components/AgentStatusOrb/shared";
 
 // ── Clarify-specific styled components ────────────────────────────────────────
 
@@ -215,94 +216,96 @@ const ClarifyFooter: React.FC<ClarifyFooterProps> = ({ questions, requestId, rpc
 
     return (
         <FooterContainer>
-            <FooterBox>
-                {questions.length > 1 && (
-                    <TabRow>
-                        {questions.map((qu, i) => (
-                            <Tab
-                                key={i}
-                                active={i === page}
-                                data-active={i === page}
-                                onClick={() => setPage(i)}
-                                disabled={isSubmitting}
-                            >
-                                {qu.tabLabel}
-                            </Tab>
-                        ))}
-                    </TabRow>
-                )}
-
-                <QuestionHeader>
-                    <QuestionText>{q.question}</QuestionText>
-                    <TypeBadge>{isMulti ? "multiple answer" : "single answer"}</TypeBadge>
-                </QuestionHeader>
-
-                <OptionsList>
-                    {q.options.map(opt => {
-                        const isSelected = (selections[page] ?? []).includes(opt.value);
-                        return (
-                            <OptionButton
-                                key={opt.value}
-                                selected={isSelected}
-                                onClick={() => handleSelectOption(opt.value)}
-                                disabled={isSubmitting}
-                            >
-                                <OptionRow>
-                                    <span
-                                        className={`codicon ${isMulti
-                                            ? isSelected ? "codicon-check" : "codicon-circle-outline"
-                                            : isSelected ? "codicon-circle-filled" : "codicon-circle-outline"
-                                        }`}
-                                        style={{ fontSize: "14px", flexShrink: 0, color: isSelected ? "var(--vscode-charts-blue)" : "var(--vscode-descriptionForeground)", opacity: isSelected ? 1 : 0.5 }}
-                                    />
-                                    <OptionLabel selected={isSelected}>{opt.label}</OptionLabel>
-                                </OptionRow>
-                            </OptionButton>
-                        );
-                    })}
-                    <OptionButton
-                        selected={isOtherActive}
-                        onClick={handleToggleOther}
-                        disabled={isSubmitting}
-                    >
-                        <OptionRow>
-                            <span
-                                className={`codicon ${isMulti
-                                    ? isOtherActive ? "codicon-check" : "codicon-circle-outline"
-                                    : isOtherActive ? "codicon-circle-filled" : "codicon-circle-outline"
-                                }`}
-                                style={{ fontSize: "14px", flexShrink: 0, color: isOtherActive ? "var(--vscode-charts-blue)" : "var(--vscode-descriptionForeground)", opacity: isOtherActive ? 1 : 0.5 }}
-                            />
-                            <OptionLabel selected={isOtherActive}>Other</OptionLabel>
-                        </OptionRow>
-                    </OptionButton>
-                    {isOtherActive && (
-                        <OtherInputRow>
-                            <FooterInput
-                                type="text"
-                                placeholder="Type your answer..."
-                                value={customTexts[page] ?? ""}
-                                disabled={isSubmitting}
-                                autoFocus
-                                onChange={e => setCustomTexts(prev => ({ ...prev, [page]: e.target.value }))}
-                            />
-                        </OtherInputRow>
+            <AmbientFrame $variant="composer" $state="awaiting-input">
+                <FooterBox>
+                    {questions.length > 1 && (
+                        <TabRow>
+                            {questions.map((qu, i) => (
+                                <Tab
+                                    key={i}
+                                    active={i === page}
+                                    data-active={i === page}
+                                    onClick={() => setPage(i)}
+                                    disabled={isSubmitting}
+                                >
+                                    {qu.tabLabel}
+                                </Tab>
+                            ))}
+                        </TabRow>
                     )}
-                </OptionsList>
 
-                <FooterDivider />
+                    <QuestionHeader>
+                        <QuestionText>{q.question}</QuestionText>
+                        <TypeBadge>{isMulti ? "multiple answer" : "single answer"}</TypeBadge>
+                    </QuestionHeader>
 
-                <ActionButton
-                    onClick={handleSubmit}
-                    disabled={!canSubmit || isSubmitting}
-                    style={{ justifyContent: "flex-start", gap: "6px" }}
-                >
-                    {isSubmitting
-                        ? <><span className="codicon codicon-loading codicon-modifier-spin" style={{ fontSize: "12px" }} /> Submitting...</>
-                        : <><span className="codicon codicon-send" style={{ fontSize: "12px" }} /> Submit</>
-                    }
-                </ActionButton>
-            </FooterBox>
+                    <OptionsList>
+                        {q.options.map(opt => {
+                            const isSelected = (selections[page] ?? []).includes(opt.value);
+                            return (
+                                <OptionButton
+                                    key={opt.value}
+                                    selected={isSelected}
+                                    onClick={() => handleSelectOption(opt.value)}
+                                    disabled={isSubmitting}
+                                >
+                                    <OptionRow>
+                                        <span
+                                            className={`codicon ${isMulti
+                                                ? isSelected ? "codicon-check" : "codicon-circle-outline"
+                                                : isSelected ? "codicon-circle-filled" : "codicon-circle-outline"
+                                            }`}
+                                            style={{ fontSize: "14px", flexShrink: 0, color: isSelected ? "var(--vscode-charts-blue)" : "var(--vscode-descriptionForeground)", opacity: isSelected ? 1 : 0.5 }}
+                                        />
+                                        <OptionLabel selected={isSelected}>{opt.label}</OptionLabel>
+                                    </OptionRow>
+                                </OptionButton>
+                            );
+                        })}
+                        <OptionButton
+                            selected={isOtherActive}
+                            onClick={handleToggleOther}
+                            disabled={isSubmitting}
+                        >
+                            <OptionRow>
+                                <span
+                                    className={`codicon ${isMulti
+                                        ? isOtherActive ? "codicon-check" : "codicon-circle-outline"
+                                        : isOtherActive ? "codicon-circle-filled" : "codicon-circle-outline"
+                                    }`}
+                                    style={{ fontSize: "14px", flexShrink: 0, color: isOtherActive ? "var(--vscode-charts-blue)" : "var(--vscode-descriptionForeground)", opacity: isOtherActive ? 1 : 0.5 }}
+                                />
+                                <OptionLabel selected={isOtherActive}>Other</OptionLabel>
+                            </OptionRow>
+                        </OptionButton>
+                        {isOtherActive && (
+                            <OtherInputRow>
+                                <FooterInput
+                                    type="text"
+                                    placeholder="Type your answer..."
+                                    value={customTexts[page] ?? ""}
+                                    disabled={isSubmitting}
+                                    autoFocus
+                                    onChange={e => setCustomTexts(prev => ({ ...prev, [page]: e.target.value }))}
+                                />
+                            </OtherInputRow>
+                        )}
+                    </OptionsList>
+
+                    <FooterDivider />
+
+                    <ActionButton
+                        onClick={handleSubmit}
+                        disabled={!canSubmit || isSubmitting}
+                        style={{ justifyContent: "flex-start", gap: "6px" }}
+                    >
+                        {isSubmitting
+                            ? <><span className="codicon codicon-loading codicon-modifier-spin" style={{ fontSize: "12px" }} /> Submitting...</>
+                            : <><span className="codicon codicon-send" style={{ fontSize: "12px" }} /> Submit</>
+                        }
+                    </ActionButton>
+                </FooterBox>
+            </AmbientFrame>
         </FooterContainer>
     );
 };

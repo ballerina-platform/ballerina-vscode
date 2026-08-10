@@ -35,8 +35,6 @@ export enum TypeHelperContext {
     HTTP_STATUS_CODE = 'HTTP_STATUS_CODE',
 }
 
-export const GET_DEFAULT_MODEL_PROVIDER = "getDefaultModelProvider";
-export const GET_DEFAULT_EMBEDDING_PROVIDER = "getDefaultEmbeddingProvider";
 export const WSO2_MODEL_PROVIDER = "Default Model Provider (WSO2)";
 
 export const PROVIDER_NAME_MAP: Record<string, string> = {
@@ -55,6 +53,7 @@ export const FUNCTION_CALL = "FUNCTION_CALL";
 export const METHOD_CALL = "METHOD_CALL";
 
 export const LOADING_MESSAGE = "Loading...";
+export const FORM_LOADING_MESSAGE = "Loading form...";
 export const AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT = 3000; // Timeout (ms) before showing the 'fetching from Central' progress message
 export const AI_COMPONENT_PROGRESS_MESSAGE = "Fetching resources from Ballerina Central. This may take a few moments...";
 

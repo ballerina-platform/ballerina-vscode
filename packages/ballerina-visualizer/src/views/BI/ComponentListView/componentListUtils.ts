@@ -23,3 +23,16 @@ export const AutomationAlreadyExistsTooltip = "An integration can only have one 
 export function isBetaModule(moduleName: string) {
     return BetaModules.includes(moduleName);
 }
+
+/**
+ * Whether a card matches the Add-Artifact search query (case-insensitive substring
+ * over the title plus any `extraTerms`, e.g. package/module names). An empty/blank
+ * query matches everything, so panels show all cards.
+ */
+export function cardMatchesSearch(title: string, query?: string, ...extraTerms: (string | undefined)[]): boolean {
+    const q = (query ?? "").trim().toLowerCase();
+    if (q === "") {
+        return true;
+    }
+    return [title, ...extraTerms].filter(Boolean).join(" ").toLowerCase().includes(q);
+}

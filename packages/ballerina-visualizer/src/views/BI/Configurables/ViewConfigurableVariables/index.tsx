@@ -391,29 +391,34 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
         let data: ConfigVariablesState = {};
         let errorMsg: string = '';
 
-        await rpcClient
-            .getBIDiagramRpcClient()
-            .getConfigVariablesV2({
-                projectPath: ''
-            })
-            .then((variables) => {
-                const raw = (variables as any).configVariables as ConfigVariablesState;
-                errorMsg = (variables as any).errorMsg;
-                // Exclude variables that have 'isTestConfig' in codedata.data — those belong to Tests only.
-                // Modules and categories are always preserved even if all variables are filtered out,
-                // so submodules appear in both Application and Test environments.
-                const filtered: ConfigVariablesState = {};
-                Object.keys(raw || {}).forEach(category => {
-                    const filteredModules: { [module: string]: ConfigVariable[] } = {};
-                    Object.keys(raw[category]).forEach(module => {
-                        filteredModules[module] = raw[category][module].filter(
-                            variable => !('isTestConfig' in (variable.codedata?.data || {}))
-                        );
-                    });
-                    filtered[category] = filteredModules;
+        try {
+            const variables = await rpcClient
+                .getBIDiagramRpcClient()
+                .getConfigVariablesV2({
+                    projectPath: ''
                 });
-                data = filtered;
-            })
+            const raw = (variables as any).configVariables as ConfigVariablesState;
+            errorMsg = (variables as any).errorMsg;
+            // Exclude variables that have 'isTestConfig' in codedata.data — those belong to Tests only.
+            // Modules and categories are always preserved even if all variables are filtered out,
+            // so submodules appear in both Application and Test environments.
+            const filtered: ConfigVariablesState = {};
+            Object.keys(raw || {}).forEach(category => {
+                const filteredModules: { [module: string]: ConfigVariable[] } = {};
+                Object.keys(raw[category]).forEach(module => {
+                    filteredModules[module] = raw[category][module].filter(
+                        variable => !('isTestConfig' in (variable.codedata?.data || {}))
+                    );
+                });
+                filtered[category] = filteredModules;
+            });
+            data = filtered;
+        } catch (error) {
+            // A rejected/hung langclient call (e.g. LS not yet ready) must not
+            // leave isLoading stuck true forever — that hides the whole view,
+            // including the title, with no visible error.
+            console.error(">>> Error fetching config variables", error);
+        }
 
         setConfigVariables(data);
         setErrorMessage(errorMsg);

@@ -26,6 +26,7 @@ import {
     Command,
     TemplateId,
     ChatNotify,
+    FollowupSuggestion,
     DocumentationGeneratorIntermediaryState,
     OperationType,
     DocGenerationRequest,
@@ -36,6 +37,7 @@ import {
     WebToolToggle,
     LoginMethod,
     RunningServiceInfo,
+    ThreadSummary,
 } from "@wso2/ballerina-core";
 
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -48,12 +50,16 @@ import TryItScenariosSegment from "../TryItScenariosSegment";
 import TodoSection from "../TodoSection";
 import AgentStreamView from "../AgentStreamView";
 import { StreamEntry, StreamItem } from "../AgentStreamView/types";
+import { getToolCallDisplay } from "../AgentStreamView/toolDisplay";
 import { ConnectorGeneratorSegment } from "../ConnectorGeneratorSegment";
-import { ConfigurationCollectorSegment, ConfigurationCollectionData } from "../ConfigurationCollectorSegment";
+import { ConfigurationCollectorSegment } from "../ConfigurationCollectorSegment";
 import CheckpointSeparator from "../CheckpointSeparator";
-import { Attachment, AttachmentStatus, SkillEntry, TaskApprovalRequest } from "@wso2/ballerina-core";
+import FollowupSuggestions from "../FollowupSuggestions";
+import { Attachment, AttachmentStatus, SkillEnableStage, SkillEntry, TaskApprovalRequest } from "@wso2/ballerina-core";
+import type { ClarifyEvent, ConfigurationCollectionEvent, ConnectorGenerationNotification } from "@wso2/ballerina-core";
 
-import { AIChatView, Header, HeaderButtons, ChatMessage, TurnGroup, AuthProviderChip, UsageBadge, ApprovalOverlay, OverlayMessage, OverlayCloseButton } from "../../styles";
+import { AIChatView, Header, HeaderButtons, ChatMessage, TurnGroup, AuthProviderChip, UsageBadge, UsageRefreshButton, ApprovalOverlay, OverlayMessage, OverlayCloseButton } from "../../styles";
+import { SessionHistoryDropdown } from "../SessionHistory";
 import ReferenceDropdown from "../ReferenceDropdown";
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react";
 import MarkdownRenderer from "../MarkdownRenderer";
@@ -84,19 +90,28 @@ import { McpManagerPanel } from "../../McpManagerPanel";
 export type PanelRoute = "settings" | "mcp" | "skills";
 import WelcomeMessage from "./Welcome";
 import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
+import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
+import {
+    serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
+    buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
+    COMPACTION_DISABLED_NOTICE,
+} from "./utils/streamSerialization";
 
 import FeedbackBar from "./../FeedbackBar";
+import QuotaRequestDialog from "./../QuotaRequestDialog";
 import { useFeedback } from "./utils/useFeedback";
 import { SegmentType, splitContent } from "./segment";
 import { MigrationContextCard } from "../MigrationContextCard";
 import { ActiveMigrationSession } from "@wso2/ballerina-rpc-client";
 import { ReviewBar } from "../ReviewBar";
 import SkillsManager from "../SkillsManager";
+import { MAX_CONTEXT_WINDOW } from "./compaction/ContextUsageWidget";
 
 const NO_DRIFT_FOUND = "No drift identified between the code and the documentation.";
 const DRIFT_CHECK_ERROR = "Failed to check drift between the code and the documentation. Please try again.";
 
 const USAGE_EXCEEDED_THRESHOLD_PERCENT = 3;
+const QUOTA_CONTACT_EMAIL = "support@wso2.com";
 
 //TODO: Add better error handling from backend. stream error type and non 200 status codes
 
@@ -167,26 +182,61 @@ const UsageLimitNoticeContainer = styled.div`
 `;
 
 // ── Agent stream serialization ────────────────────────────────────────────────
+// Shared with the floating-orb mini chat so both surfaces read/write the same
+// persisted `<agentstream>` transcript format. See ./utils/streamSerialization.
 
-function serializeStream(entries: StreamEntry[], existingContent: string): string {
-    const blob = `<agentstream>${JSON.stringify({ entries })}</agentstream>`;
-    if (existingContent.includes("<agentstream>")) {
-        return existingContent.replace(/<agentstream>[\s\S]*?<\/agentstream>/, blob);
-    }
-    return existingContent + blob;
-}
+// Interactive-prompt events need care while replaying buffered events on reopen: their
+// transcript cards must be rebuilt (they are part of the turn), but a "waiting for user"
+// state may only be re-surfaced when the backend still has the request pending (in-chat
+// prompts survive panel close and stay answerable). For card-driven prompts — whose waiting
+// UI derives from the card's `stage` — the pending-stage event of an already-resolved
+// request is dropped; its resolution event later in the buffer rebuilds the card in its
+// final state. Banner-driven prompts (task/web-tool approval) are handled inside their
+// branches instead: transcript items are always rebuilt, only the banner is suppressed.
+const REPLAY_PENDING_STAGES: Record<string, string> = {
+    clarify_event: "asking" satisfies ClarifyEvent["stage"],
+    skill_enable_event: SkillEnableStage.PROMPTING,
+    configuration_collection_event: "collecting" satisfies ConfigurationCollectionEvent["stage"],
+    connector_generation_notification: "requesting_input" satisfies ConnectorGenerationNotification["stage"],
+};
 
-function parseStream(content: string): StreamEntry[] {
-    const match = content.match(/<agentstream>([\s\S]*?)<\/agentstream>/);
-    if (!match) return [];
-    try { return JSON.parse(match[1]).entries ?? []; } catch { return []; }
-}
-
-function appendToLastEntry(entries: StreamEntry[], item: StreamItem): StreamEntry[] {
-    if (entries.length === 0) return [{ description: "", items: [item] }];
-    const last = entries[entries.length - 1];
-    return [...entries.slice(0, -1), { ...last, items: [...last.items, item] }];
-}
+/**
+ * `ChatNotify` types `handleChatNotify` deliberately ignores: they carry nothing that
+ * belongs in the persisted assistant transcript, and nothing this panel renders.
+ *
+ * Enumerated rather than swallowed by a bare `default` so that adding a variant to
+ * `ChatNotify` breaks the build here, forcing a decision. That guard matters because
+ * this panel AUTHORS the persisted transcript (its `save_chat` branch writes the
+ * rendered scrollback back via `updateChatMessage`, which drops the run-event buffer
+ * that could otherwise rebuild the turn — once the run is no longer active; mid-run
+ * per-step saves keep it, see `clearBuffer`'s guard in `rpc-manager.ts`) — an event
+ * that should be folded into
+ * `content` but is silently ignored is data the store loses for good. Mirrors
+ * `MiniChat.tsx`'s `UnmodelledNotifyType`; deliberately named differently because the
+ * two lists are NOT meant to match — the panel models strictly more events, so its
+ * residual is smaller. Keep both greppable rather than trying to share one type.
+ *
+ * ⚠️ Coverage boundary: this fires only when a variant is ADDED to `ChatNotify`. It
+ * does NOT fire when a type already listed below starts carrying transcript content,
+ * or starts being emitted on a path it previously wasn't — that stays a human
+ * judgement call, so re-read the justifications below when touching an emitter.
+ *
+ * Why each of these is safe to ignore *here*:
+ *  - `start` — the panel already enters its loading state when it sends the request.
+ *  - `evals_tool_result` never reaches any webview: `features/ai/utils/events.ts`
+ *    drops it before dispatch.
+ *  - `plan_updated` is declared but never emitted anywhere.
+ *  - `migration_progress` is pure progress telemetry with no transcript content. Note
+ *    it genuinely DOES reach this panel — `createAIPanelMigrationEventHandler`
+ *    forwards every event when migration enhancement runs from AI Chat — so it is
+ *    exactly the case the coverage boundary above applies to: if migration is ever
+ *    folded into the main chat transcript, the tripwire will NOT catch it.
+ */
+type PanelUnmodelledNotifyType =
+    | "start"
+    | "evals_tool_result"
+    | "plan_updated"
+    | "migration_progress";
 
 const SCAFFOLD_DONE_PREFIX = "ballerina.scaffold.done:";
 
@@ -202,7 +252,27 @@ function scaffoldKeyHash(text: string, hiddenContext: string | undefined): strin
 
 const AIChat: React.FC = () => {
     const { rpcClient } = useRpcContext();
-    const [messages, setMessages] = useState<Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>>([]);
+    const [messages, setMessages] = useState<PanelMessage[]>([]);
+    const renderedMessagesRef = useRef(messages);
+    const messagesCommitWaitersRef = useRef<Array<() => void>>([]);
+    const [messagesCommitSignal, setMessagesCommitSignal] = useState(0);
+
+    React.useLayoutEffect(() => {
+        renderedMessagesRef.current = messages;
+        const waiters = messagesCommitWaitersRef.current.splice(0);
+        for (const resolve of waiters) {
+            resolve();
+        }
+    }, [messages, messagesCommitSignal]);
+
+    const waitForMessagesCommit = useCallback((): Promise<void> => {
+        return new Promise((resolve) => {
+            messagesCommitWaitersRef.current.push(resolve);
+            // This marker is queued after all preceding message updates. The
+            // layout effect therefore observes their final committed state.
+            setMessagesCommitSignal((value) => value + 1);
+        });
+    }, []);
 
     const getLatestAssistantMessageIndex = (chatMessages: Array<{ role: string }>): number => {
         for (let i = chatMessages.length - 1; i >= 0; i--) {
@@ -214,15 +284,41 @@ const AIChat: React.FC = () => {
         return -1;
     };
 
-    const ensureAssistantMessage = (
-        chatMessages: Array<{ role: string; content: string; type: string; checkpointId?: string; messageId?: string }>
-    ): number => {
-        let targetIndex = getLatestAssistantMessageIndex(chatMessages);
-        if (targetIndex === -1) {
-            chatMessages.push({ role: "Copilot", content: "", type: "assistant_message" });
-            targetIndex = chatMessages.length - 1;
+    const getLatestUserMessageIndex = (chatMessages: Array<{ role: string }>): number => {
+        for (let i = chatMessages.length - 1; i >= 0; i--) {
+            const role = chatMessages[i]?.role;
+            if (role === "User" || role === "user") {
+                return i;
+            }
         }
-        return targetIndex;
+        return -1;
+    };
+
+    const ensureAssistantMessage = (
+        chatMessages: PanelMessage[]
+    ): number => {
+        const targetIndex = getLatestAssistantMessageIndex(chatMessages);
+        // Reuse the trailing assistant bubble only if it belongs to the CURRENT turn — i.e. it
+        // comes after the most recent user message. Otherwise (a newer user prompt exists, or there
+        // is no assistant yet) start a fresh bubble so streamed content lands under the right turn.
+        // Without this, replaying a follow-up turn's events on reopen merges them into the previous
+        // turn's bubble and the follow-up prompt is pushed below its own response.
+        if (targetIndex !== -1 && targetIndex > getLatestUserMessageIndex(chatMessages)) {
+            if (!chatMessages[targetIndex].messageId && activeRunGenerationIdRef.current) {
+                chatMessages[targetIndex] = {
+                    ...chatMessages[targetIndex],
+                    messageId: activeRunGenerationIdRef.current,
+                };
+            }
+            return targetIndex;
+        }
+        chatMessages.push({
+            role: "Copilot",
+            content: "",
+            type: "assistant_message",
+            messageId: activeRunGenerationIdRef.current,
+        });
+        return chatMessages.length - 1;
     };
 
     const updateLastMessage = (updater: (content: string) => string) => {
@@ -235,7 +331,20 @@ const AIChat: React.FC = () => {
     };
 
     const [isLoading, setIsLoading] = useState(false);
+    // onChatNotify is re-registered each render, so stale closures fire too — suggestion
+    // staleness has to be judged against a ref, not the captured isLoading value.
+    const isLoadingRef = useRef(false);
+    isLoadingRef.current = isLoading;
+    const [followupSuggestions, setFollowupSuggestions] = useState<FollowupSuggestion[]>([]);
     const [isCompacting, setIsCompacting] = useState(false);
+    // Tools currently in flight, oldest first, for the composer's loading
+    // indicator. This is a list rather than a single slot because a step can run
+    // several tools concurrently (the AI SDK executes a step's calls with
+    // Promise.all, and each tool emits its own tool_call/tool_result): with one
+    // slot, the first result to land would clear a sibling that is still
+    // running. Empty means the model is thinking or writing rather than calling
+    // a tool, and the indicator falls back to its generic label.
+    const [inFlightTools, setInFlightTools] = useState<{ id: string; label: string }[]>([]);
     const [hoveredTurnIndex, setHoveredTurnIndex] = useState<number | null>(null);
     const [lastQuestionIndex, setLastQuestionIndex] = useState(-1);
     const [isCodeLoading, setIsCodeLoading] = useState(false);
@@ -267,7 +376,10 @@ const AIChat: React.FC = () => {
 
     const [availableCheckpointIds, setAvailableCheckpointIds] = useState<Set<string>>(new Set());
     const [restoringCheckpointId, setRestoringCheckpointId] = useState<string | null>(null);
-    const [hasActiveReview, setHasActiveReview] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [threads, setThreads] = useState<ThreadSummary[]>([]);
+    const [threadsLoading, setThreadsLoading] = useState(false);
+    const [threadsError, setThreadsError] = useState<string | null>(null);
 
     const [approvalRequest, setApprovalRequest] = useState<TaskApprovalRequest | null>(null);
     const [approvalOverlay, setApprovalOverlay] = useState<ApprovalOverlayState>({ show: false });
@@ -284,8 +396,11 @@ const AIChat: React.FC = () => {
 
     const [migrationSession, setMigrationSession] = useState<ActiveMigrationSession | null>(null);
     const [isMigrationEnhancementRunning, setIsMigrationEnhancementRunning] = useState(false);
-    const [usage, setUsage] = useState<{ remainingUsagePercentage: number; resetsIn: number } | null>(null);
+    const [usage, setUsage] = useState<{ remainingUsagePercentage: number; resetsIn: number; orgId?: string; alreadyRequested?: boolean } | null>(null);
     const [isUsageExceeded, setIsUsageExceeded] = useState(false);
+    const [showQuotaDialog, setShowQuotaDialog] = useState(false);
+    const [quotaRequestSubmitting, setQuotaRequestSubmitting] = useState(false);
+    const [quotaRequestError, setQuotaRequestError] = useState<string | undefined>(undefined);
     const [loginMethod, setLoginMethod] = useState<LoginMethod | null>(null);
 
     const [contextUsage, setContextUsage] = useState<{
@@ -310,6 +425,53 @@ const AIChat: React.FC = () => {
 
     const isErrorChunkReceivedRef = useRef(false);
     const activeScaffoldKeyRef = useRef<string | null>(null);
+
+    // --- Panel reconnection safeguards ---
+    // The agent run survives the panel closing; these let a reopened panel
+    // re-attach to an in-flight run, replay missed events, and poll for events
+    // that were dropped while no panel was listening.
+    const ENABLE_STREAM_SAFEGUARDS = true;
+    const ENABLE_STREAM_POLLING_FALLBACK = ENABLE_STREAM_SAFEGUARDS;
+    const POLL_STALE_THRESHOLD_MS = 5_000;
+    const POLL_INTERVAL_MS = 3_000;
+    const lastReceivedSeqRef = useRef<number>(0);          // highest seq seen (push or replay)
+    const lastEventTimeRef = useRef<number>(0);            // timestamp of last event (staleness)
+    const terminalEventReceivedRef = useRef<boolean>(false); // stop/abort/error seen
+    const pollInFlightRef = useRef<boolean>(false);        // prevents overlapping polls
+    const activeRunGenerationIdRef = useRef<string | undefined>(undefined); // drop stale-run events
+    const activeRunScopeRef = useRef<{ projectRootPath: string; threadId: string } | undefined>(undefined);
+    const runEpochRef = useRef(0);                         // invalidates old in-flight poll responses
+    const runAcknowledgedRef = useRef(false);              // backend has exposed/evented the expected run
+    const handleChatNotifyRef = useRef<(response: ChatNotify) => void | Promise<void>>(() => {});
+    const [backendRequestTriggered, setBackendRequestTriggered] = useState(false);
+    // True while replaying buffered events on reopen — lets the notify handler skip
+    // interactive prompts that were already resolved earlier in the run.
+    const replayingRef = useRef(false);
+    // Ensures the reconnect/replay runs at most once for this panel mount
+    // (guards StrictMode double-effects and rpcClient identity churn).
+    const didReconnectRef = useRef(false);
+    // Request ids of interactive prompts still awaiting a response, captured at reconnect.
+    // During replay, a buffered prompt is re-shown only if its id is in here (still pending).
+    const pendingRequestIdsRef = useRef<Set<string>>(new Set());
+    // Live-event gate. The onChatNotify subscription is active from the first render, but
+    // reconnect (history load + buffer replay) happens later and asynchronously. While the gate
+    // is CLOSED, incoming live events are queued instead of processed, so they can't interleave
+    // with the replay. The reconnect effect drains the queue in order (seq-deduped against the
+    // replay's high-water mark) and opens the gate once replay is done.
+    const liveGateClosedRef = useRef(true);
+    const liveQueueRef = useRef<ChatNotify[]>([]);
+    // Resolved once the mount-time reconnect (history load + buffer replay + recovery
+    // persist) has settled. Sends await this before hitting the backend: a new run's
+    // beginRun resets the event buffer, so a send racing the replay (e.g. an
+    // auto-submitted initial prompt) would wipe a finished run's not-yet-persisted
+    // tail — review chip and final transcript included.
+    const reconnectSettledResolveRef = useRef<(() => void) | null>(null);
+    const reconnectSettledRef = useRef<Promise<void> | null>(null);
+    if (reconnectSettledRef.current === null) {
+        reconnectSettledRef.current = new Promise<void>((resolve) => {
+            reconnectSettledResolveRef.current = resolve;
+        });
+    }
 
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -427,7 +589,7 @@ const AIChat: React.FC = () => {
         return parts.length > 0 ? parts.join(' ') : 'less than a minute';
     };
 
-    const fetchUsage = async () => {
+    const fetchUsage = async (clearOnError = true) => {
         try {
             const result = await rpcClient.getAiPanelRpcClient().getUsage();
             if (result) {
@@ -439,9 +601,42 @@ const AIChat: React.FC = () => {
             }
         } catch (e) {
             console.error("Failed to fetch usage:", e);
-            // Reset on error to avoid permanently blocking the user on transient failures
-            setUsage(null);
-            setIsUsageExceeded(false);
+            // Clear only on the automatic path, so a transient failure can't block the user.
+            if (clearOnError) {
+                setUsage(null);
+                setIsUsageExceeded(false);
+            }
+        }
+    };
+
+    const [recheckingUsage, setRecheckingUsage] = useState(false);
+
+    /** Nothing else re-checks while the limit is up — the input is disabled, so no turn runs. */
+    const handleRecheckUsage = async (): Promise<void> => {
+        setRecheckingUsage(true);
+        try {
+            await fetchUsage(false);
+        } finally {
+            setRecheckingUsage(false);
+        }
+    };
+
+    const handleQuotaRequestSubmit = async (note: string) => {
+        setQuotaRequestSubmitting(true);
+        setQuotaRequestError(undefined);
+        try {
+            const result = await rpcClient.getAiPanelRpcClient().requestQuota({ note });
+            if (result.status === "submitted" || result.status === "already_requested") {
+                setShowQuotaDialog(false);
+                await fetchUsage();
+            } else {
+                setQuotaRequestError(`Something went wrong. Please try again or email ${QUOTA_CONTACT_EMAIL}.`);
+            }
+        } catch (e) {
+            console.error("Failed to submit quota request:", e);
+            setQuotaRequestError(`Something went wrong. Please try again or email ${QUOTA_CONTACT_EMAIL}.`);
+        } finally {
+            setQuotaRequestSubmitting(false);
         }
     };
 
@@ -454,7 +649,7 @@ const AIChat: React.FC = () => {
         }
     };
 
-    useEffect(() => { fetchUsage(); fetchLoginMethod(); }, []);
+    useEffect(() => { fetchUsage(); fetchLoginMethod(); loadThreads(); }, []);
 
     const refreshSkills = useCallback(() => {
         rpcClient.getAiPanelRpcClient().getSkills().then(res => setSkills(res.skills));
@@ -468,6 +663,17 @@ const AIChat: React.FC = () => {
         rpcClient.getAiPanelRpcClient().getShowContextUsage().then(setShowContextUsage).catch(() => {});
         rpcClient.getAiPanelRpcClient().getMcpToolsEnabled().then(setMcpToolsEnabled).catch(() => {});
     }, []);
+
+    /** Re-derives chips for whichever turn is now last (after a restore or a thread change). */
+    const refreshFollowupSuggestions = async () => {
+        try {
+            const suggestions = await rpcClient.getAiPanelRpcClient().getLatestFollowupSuggestions();
+            setFollowupSuggestions(suggestions ?? []);
+        } catch (error) {
+            console.error('[AIChat] Failed to refresh follow-up suggestions:', error);
+            setFollowupSuggestions([]);
+        }
+    };
 
     const handleCheckpointRestore = async (checkpointId: string) => {
         // Guard against concurrent restores — the separator UI also disables
@@ -505,7 +711,8 @@ const AIChat: React.FC = () => {
             // Clear stale context usage — token count changed with the restore.
             // Widget will reappear with accurate data on the next agent turn.
             setContextUsage(null);
-            setHasActiveReview(false);
+            // History is trimmed to the checkpoint — re-derive so the reverted turn's chips drop.
+            await refreshFollowupSuggestions();
         } catch (error) {
             console.error("Failed to restore checkpoint:", error);
         } finally {
@@ -583,24 +790,310 @@ const AIChat: React.FC = () => {
     };
 
     /**
+     * Re-attach to an agent run after the panel was closed and reopened: fetch
+     * the buffered events, adopt the run, and replay what the closed panel
+     * missed. Covers both a run that is still executing (live re-attach) and a
+     * run that finished while the panel was closed — the backend serves the
+     * latter's buffer exactly once, and replaying its save_chat also persists
+     * the final transcript the closed panel never round-tripped. No-op when
+     * there is nothing to replay.
+     */
+    const reconnectToActiveRun = async (historyMessages: ReturnType<typeof convertToUIMessages>) => {
+        try {
+            const runStatus = await rpcClient.getAiPanelRpcClient().getRunStatus({});
+            activeRunScopeRef.current = {
+                projectRootPath: runStatus.projectRootPath,
+                threadId: runStatus.threadId,
+            };
+            // Prompts still awaiting an answer — used by the replay skip guard to
+            // re-show only still-pending interactive prompts.
+            pendingRequestIdsRef.current = new Set(runStatus.pendingRequestIds ?? []);
+
+            const generationId = runStatus.generationId
+                ?? runStatus.events.find(e => !!e.generationId)?.generationId;
+            // A buffer only exists while the turn's FINAL transcript is not yet persisted
+            // (per-step save_chat writes partial uiResponses mid-run, so a history bubble
+            // for this generation does NOT imply completeness) — whenever one exists,
+            // rebuild the turn from it; the persist that follows clears it, so this
+            // converges. A live run always proceeds, even with an empty buffer, to arm
+            // the spinner and polling fallback.
+            if (!runStatus.isRunning && runStatus.events.length === 0) {
+                return;
+            }
+
+            // Older extension versions could expose a run before its generation
+            // was persisted. Repair such a history defensively from the backend's
+            // authoritative prompt so streamed content cannot attach to the prior turn.
+            if (
+                generationId
+                && runStatus.userPrompt
+                && !historyMessages.some((message) =>
+                    message.role === "User" && message.messageId === generationId
+                )
+            ) {
+                setMessages((previous) => [
+                    ...previous,
+                    {
+                        role: "User",
+                        content: runStatus.userPrompt!,
+                        type: "user_message",
+                        messageId: generationId,
+                    },
+                ]);
+            }
+
+            // Adopt this run so any stray events from a prior run are dropped.
+            activeRunGenerationIdRef.current = generationId;
+            runAcknowledgedRef.current = !!generationId;
+            runEpochRef.current += 1;
+            if (ENABLE_STREAM_SAFEGUARDS) {
+                lastReceivedSeqRef.current = runStatus.truncated
+                    ? (runStatus.events[runStatus.events.length - 1]?.seq ?? 0)
+                    : 0;
+                lastEventTimeRef.current = Date.now();
+                terminalEventReceivedRef.current = false;
+            }
+            if (runStatus.isPlanMode !== undefined) {
+                setAgentMode(runStatus.isPlanMode ? AgentMode.Plan : AgentMode.Edit);
+            }
+            // The status notification is not buffered with the run's events, so the bubble
+            // the replay rebuilds below would lose it — carry the loaded value across.
+            const loadedGenerationStatus = historyMessages.find(
+                (message) => message.type === "assistant_message" && message.messageId === generationId
+            )?.generationStatus;
+
+            if (!runStatus.truncated) {
+                // Drop any assistant bubble already loaded for this generation (stale
+                // partial uiResponse) — the replay rebuilds the full turn from scratch,
+                // and turn-aware ensureAssistantMessage starts a fresh bubble for it.
+                setMessages(prev => prev.filter(
+                    (m) => !(m.type === "assistant_message" && m.messageId === generationId)
+                ));
+            } else {
+                // Never present or persist a retained tail as though it were the
+                // complete turn. Keep any durable partial and make the gap explicit.
+                setMessages((previous) => {
+                    const next = [...previous];
+                    const targetIndex = ensureAssistantMessage(next);
+                    const current = next[targetIndex];
+                    const warning = "\n\n*[Some output streamed while this panel was closed could not be recovered. The transcript below may be incomplete.]*";
+                    if (!current.content.includes(warning.trim())) {
+                        next[targetIndex] = { ...current, content: `${current.content}${warning}` };
+                    }
+                    return next;
+                });
+            }
+            if (runStatus.isRunning) {
+                setIsLoading(true);
+                setBackendRequestTriggered(true);
+            }
+            replayingRef.current = true;
+            try {
+                if (!runStatus.truncated) {
+                    for (const ev of runStatus.events) {
+                        await handleChatNotifyRef.current(ev);
+                    }
+                } else {
+                    // The retained tail is not a complete transcript. Re-surface only
+                    // still-answerable prompts and safe structural state.
+                    for (const ev of runStatus.events) {
+                        const reqId = (ev as any).requestId;
+                        const stillPendingPrompt = !!reqId && pendingRequestIdsRef.current.has(reqId);
+                        const structuralTail = ev.type === "chat_component" || ev.type === "diagnostics"
+                            || ev.type === "plan_approval_resolved"
+                            || (!runStatus.isRunning && ev.type === "error");
+                        if (stillPendingPrompt || structuralTail) {
+                            await handleChatNotifyRef.current(ev);
+                        }
+                    }
+                }
+            } finally {
+                replayingRef.current = false;
+            }
+            if (loadedGenerationStatus) {
+                setMessages(prev => prev.map(m =>
+                    m.type === "assistant_message" && m.messageId === generationId
+                        ? { ...m, generationStatus: loadedGenerationStatus }
+                        : m
+                ));
+            }
+            if (!runStatus.isRunning && generationId && !runStatus.truncated) {
+                // Finished while the panel was closed. Persist the rebuilt transcript so
+                // it's durable, the backend drops the buffer, and later reopens serve from
+                // history. (The replayed save_chat usually does this already; this covers
+                // buffers whose run ended without one, e.g. an error turn.) Read the
+                // Wait for React to commit every replay update, then perform one
+                // explicit, awaited final write. This is the only recovery write
+                // allowed to clear the backend buffer.
+                await waitForMessagesCommit();
+                const recoveredMessage = [...renderedMessagesRef.current]
+                    .reverse()
+                    .find((message) =>
+                        (message.role === "Copilot" || message.role === "assistant")
+                        && message.messageId === generationId
+                    );
+                if (recoveredMessage?.content) {
+                    await rpcClient.getAiPanelRpcClient().updateChatMessage({
+                        messageId: generationId,
+                        content: recoveredMessage.content,
+                        projectRootPath: runStatus.projectRootPath,
+                        threadId: runStatus.threadId,
+                        clearRunBuffer: true,
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('[AIChat] Failed to restore in-flight run status:', error);
+        }
+    };
+
+    /**
      * Effect: Load initial chat history from aiChatMachine context
      */
     useEffect(function loadInitialChatHistory() {
         const loadHistory = async () => {
+            // Duplicate/concurrent mount (React StrictMode, or an rpcClient identity
+            // change): the primary run owns history load, gate and replay. Bail so we
+            // never replay twice or double-open the gate.
+            if (didReconnectRef.current) {
+                return;
+            }
+            didReconnectRef.current = true;
+
             try {
-                const historyMessages = await rpcClient.getAiPanelRpcClient().getChatMessages();
-                if (historyMessages && historyMessages.length > 0) {
-                    const uiMessages = convertToUIMessages(historyMessages);
-                    setMessages((prevMessages) => (prevMessages.length > 0 ? prevMessages : uiMessages));
+                let uiMessages: ReturnType<typeof convertToUIMessages> = [];
+                try {
+                    const historyMessages = await rpcClient.getAiPanelRpcClient().getChatMessages();
+                    if (historyMessages && historyMessages.length > 0) {
+                        uiMessages = convertToUIMessages(historyMessages);
+                        setMessages((prevMessages) => (prevMessages.length > 0 ? prevMessages : uiMessages));
+                    }
+                } catch (error) {
+                    console.error('[AIChat] Failed to load initial chat history:', error);
+                    // Continue with empty messages - don't block the UI
+                }
+
+                // Reconnect to an in-flight run: the run keeps executing on the
+                // extension host while the panel is closed, buffering the events we
+                // missed. Replay them so the reopened panel shows live progress.
+                await reconnectToActiveRun(uiMessages);
+            } finally {
+                // Open the gate: replay is done (or was skipped). Drain live events
+                // that arrived meanwhile, in order, deduped against the replay's seq
+                // high-water mark; then resume direct dispatch. Events arriving during
+                // the drain re-queue and are picked up by the loop, so opening the
+                // gate right after the loop (synchronously) can't drop anything.
+                const q = liveQueueRef.current;
+                while (q.length > 0) {
+                    const ev = q.shift();
+                    if (!ev) { continue; }
+                    if (typeof ev.seq === "number" && ev.seq <= lastReceivedSeqRef.current) {
+                        continue; // already applied by the replay
+                    }
+                    try {
+                        await handleChatNotifyRef.current(ev);
+                    } catch (e) {
+                        console.error('[AIChat] live drain failed:', e);
+                    }
+                }
+                liveGateClosedRef.current = false;
+                reconnectSettledResolveRef.current?.();
+            }
+            // Follow-up chips arrive via a live notification, so a webview reload would
+            // otherwise lose them — re-derive from the latest generation, like review state.
+            try {
+                const suggestions = await rpcClient.getAiPanelRpcClient().getLatestFollowupSuggestions();
+                if (suggestions?.length > 0) {
+                    setFollowupSuggestions(suggestions);
                 }
             } catch (error) {
-                console.error('[AIChat] Failed to load initial chat history:', error);
-                // Continue with empty messages - don't block the UI
+                console.error('[AIChat] Failed to restore follow-up suggestions:', error);
             }
         };
 
         loadHistory();
     }, [rpcClient]);
+
+    /**
+     * Effect: Polling fallback for panel reconnection. When a run is active but
+     * live push events go stale (e.g. the panel was briefly closed, or a burst
+     * was dropped), poll `getRunStatus` for events since the last seen `seq` and
+     * replay them. Stops once a terminal event is seen or the run ends.
+     */
+    useEffect(() => {
+        if (!ENABLE_STREAM_POLLING_FALLBACK || !backendRequestTriggered || !rpcClient) {
+            return;
+        }
+        const intervalId = setInterval(async () => {
+            if (terminalEventReceivedRef.current || pollInFlightRef.current) {
+                return;
+            }
+            if (Date.now() - lastEventTimeRef.current < POLL_STALE_THRESHOLD_MS) {
+                return;
+            }
+            try {
+                pollInFlightRef.current = true;
+                const requestedEpoch = runEpochRef.current;
+                const requestedGenerationId = activeRunGenerationIdRef.current;
+                const runStatus = await rpcClient.getAiPanelRpcClient().getRunStatus({
+                    sinceSeq: lastReceivedSeqRef.current,
+                });
+                // A new send/reconnect happened while this request was in flight,
+                // or the response belongs to a different server-side run.
+                if (
+                    requestedEpoch !== runEpochRef.current
+                    || (
+                        requestedGenerationId
+                        && runStatus.generationId
+                        && requestedGenerationId !== runStatus.generationId
+                    )
+                    || (
+                        requestedGenerationId
+                        && !runStatus.generationId
+                        && !runAcknowledgedRef.current
+                    )
+                ) {
+                    return;
+                }
+                if (
+                    requestedGenerationId
+                    && runStatus.generationId === requestedGenerationId
+                ) {
+                    runAcknowledgedRef.current = true;
+                }
+                activeRunScopeRef.current = {
+                    projectRootPath: runStatus.projectRootPath,
+                    threadId: runStatus.threadId,
+                };
+                for (const ev of runStatus.events) {
+                    // Race guard against a push arriving concurrently with the poll.
+                    if (typeof ev.seq === "number" && ev.seq <= lastReceivedSeqRef.current) {
+                        continue;
+                    }
+                    await handleChatNotifyRef.current(ev);
+                }
+                if (!runStatus.isRunning && runStatus.events.length === 0 && !terminalEventReceivedRef.current) {
+                    // Watchdog: the run is genuinely gone but its terminal event never
+                    // reached us (and there's nothing left to replay) — release the
+                    // spinner instead of stranding it. The transcript on screen is
+                    // whatever streamed/replayed; only the loading state is stuck.
+                    console.warn('[AIChat] Polling watchdog clearing a stuck spinner (missed terminal signal).');
+                    setIsLoading(false);
+                    setIsCodeLoading(false);
+                    setIsCompacting(false);
+                    setBackendRequestTriggered(false);
+                }
+            } catch {
+                // best-effort; try again next tick
+            } finally {
+                pollInFlightRef.current = false;
+            }
+        }, POLL_INTERVAL_MS);
+        return () => {
+            clearInterval(intervalId);
+            pollInFlightRef.current = false;
+        };
+    }, [backendRequestTriggered, rpcClient]);
 
     /**
      * Effect: Check for an active migration session that needs AI enhancement.
@@ -649,12 +1142,108 @@ const AIChat: React.FC = () => {
         }
     });
 
-    rpcClient?.onChatNotify(async (response: ChatNotify) => {
+    // Backstop for the step label: a run can stop being "loading" through many
+    // paths (terminal event, thrown error, reconnect deciding the run is over,
+    // checkpoint restore, explicit stop), and only some of them are ChatNotify
+    // events. Clearing on the flag itself means the next turn can never open
+    // showing the previous turn's last tool. It is also the only thing that
+    // retires a tool whose result never arrives (a tool that throws produces an
+    // SDK tool-error chunk, which the extension host currently drops).
+    useEffect(() => {
+        if (!isLoading) {
+            setInFlightTools(prev => (prev.length === 0 ? prev : []));
+        }
+    }, [isLoading]);
+
+    // The newest in-flight tool is the step worth showing; older siblings are
+    // still running but the indicator is one line.
+    const activeToolLabel = inFlightTools.length > 0 ? inFlightTools[inFlightTools.length - 1].label : undefined;
+
+    const handleChatNotify = async (response: ChatNotify) => {
+        // Drop events belonging to a different (previously-interrupted) run once we
+        // have adopted a specific run on reconnect — BEFORE any bookkeeping. seq is
+        // per-run, so a stale run's event must not advance the adopted run's seq
+        // high-water mark (it would poison sinceSeq polling) or set the terminal
+        // flag (it would stop polling for the still-live adopted run).
+        if (
+            response.generationId &&
+            activeRunGenerationIdRef.current &&
+            response.generationId !== activeRunGenerationIdRef.current
+        ) {
+            return;
+        }
+        if (
+            response.generationId
+            && response.generationId === activeRunGenerationIdRef.current
+        ) {
+            runAcknowledgedRef.current = true;
+        }
+        if (
+            !replayingRef.current
+            && typeof response.seq === "number"
+            && response.seq <= lastReceivedSeqRef.current
+        ) {
+            return;
+        }
+        // Reconnection bookkeeping: track the seq high-water mark, staleness
+        // timestamp, and terminal state for the accepted event.
+        if (ENABLE_STREAM_SAFEGUARDS) {
+            if (typeof response.seq === "number" && response.seq > lastReceivedSeqRef.current) {
+                lastReceivedSeqRef.current = response.seq;
+            }
+            lastEventTimeRef.current = Date.now();
+            if (response.type === "stop" || response.type === "abort" || response.type === "error") {
+                terminalEventReceivedRef.current = true;
+            }
+        }
+
         const type = response.type;
 
-        if (type === "content_block") {
+        // Track in-flight tools for the composer's loading indicator. This is a
+        // separate pass rather than extra lines inside the big dispatch below: it
+        // reads one start signal and four end signals that the dispatch already
+        // handles for other reasons, and keeping it here makes the indicator's
+        // whole data source greppable in one place. This block never returns, so
+        // narrowing re-widens after it and the exhaustiveness guard at the tail of
+        // the dispatch is unaffected in both directions.
+        if (type === "tool_call") {
+            const { label, detail } = getToolCallDisplay(response.toolName, response.toolInput);
+            const entry = { id: response.toolCallId ?? "", label: detail ? `${label} ${detail}` : label };
+            setInFlightTools(prev => [...prev, entry]);
+        } else if (type === "tool_result") {
+            // Drop only the matching call. Tools without an id share the "" key,
+            // so each anonymous result retires the oldest anonymous call.
+            const finishedId = response.toolCallId ?? "";
+            setInFlightTools(prev => {
+                const index = prev.findIndex(tool => tool.id === finishedId);
+                return index === -1 ? prev : [...prev.slice(0, index), ...prev.slice(index + 1)];
+            });
+        } else if (type === "stop" || type === "abort" || type === "error") {
+            setInFlightTools(prev => (prev.length === 0 ? prev : []));
+        }
+
+        // True only while replaying a buffered event whose request the backend no longer has
+        // pending — its live interaction was already resolved and must not be re-surfaced.
+        // A still-pending prompt falls through and renders live (answerable after reopen).
+        const isResolvedReplayedPrompt = (reqId?: string) =>
+            replayingRef.current && (!reqId || !pendingRequestIdsRef.current.has(reqId));
+
+        // Card-driven prompts: drop the pending-stage event of an already-resolved request;
+        // its resolution event later in the buffer rebuilds the card in its final state.
+        const pendingStage = REPLAY_PENDING_STAGES[type];
+        if (
+            pendingStage &&
+            (response as any).stage === pendingStage &&
+            isResolvedReplayedPrompt((response as any).requestId)
+        ) {
+            return;
+        }
+
+        if (type === "content_block" || type === "content_replace") {
             const content = response.content;
-            if (content === "") return;
+            // An empty append is a no-op; an empty *replace* is meaningful (it clears
+            // the trailing text), so only the append path short-circuits.
+            if (type === "content_block" && content === "") return;
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
@@ -665,7 +1254,8 @@ const AIChat: React.FC = () => {
                     const lastEntry = entries[entries.length - 1];
                     const lastItem = lastEntry.items[lastEntry.items.length - 1];
                     if (lastItem?.kind === "text") {
-                        const updatedItems = [...lastEntry.items.slice(0, -1), { ...lastItem, text: lastItem.text + content }];
+                        const mergedText = type === "content_block" ? lastItem.text + content : content;
+                        const updatedItems = [...lastEntry.items.slice(0, -1), { ...lastItem, text: mergedText }];
                         const updated = [...entries.slice(0, -1), { ...lastEntry, items: updatedItems }];
                         msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                         return msgs;
@@ -690,34 +1280,16 @@ const AIChat: React.FC = () => {
 
         } else if (type === "tool_result") {
             if (response.toolName === "TaskWrite") {
-                const tasks: Array<{ status: string; description: string }> = response.toolOutput?.tasks ?? [];
-                const inProgressTask = tasks.find(t => t.status === "in_progress");
-                const lastCompletedTask = [...tasks].reverse().find(t => t.status === "completed");
+                const tasks = response.toolOutput?.tasks ?? [];
                 setMessages(prevMessages => {
                     const msgs = [...prevMessages];
                     const targetIndex = ensureAssistantMessage(msgs);
                     const last = msgs[targetIndex];
-                    let entries = parseStream(last.content);
-                    if (inProgressTask) {
-                        // Push a named entry for this task (skip if already present)
-                        if (entries.some(e => e.description === inProgressTask.description)) return prevMessages;
-                        entries = [...entries, { description: inProgressTask.description, items: [], status: "in_progress" as const }];
-                    } else {
-                        // Mark the just-completed named entry as done
-                        if (lastCompletedTask) {
-                            entries = entries.map(e =>
-                                e.description === lastCompletedTask.description
-                                    ? { ...e, status: "completed" as const }
-                                    : e
-                            );
-                        }
-                        // Push a floating entry for subsequent content (if not already present)
-                        const lastEntry = entries[entries.length - 1];
-                        if (!lastEntry || lastEntry.description !== "") {
-                            entries = [...entries, { description: "", items: [] }];
-                        }
-                    }
-                    msgs[targetIndex] = { ...last, content: serializeStream(entries, last.content) };
+                    const entries = parseStream(last.content);
+                    const updated = applyTaskWriteResult(entries, tasks);
+                    // Unchanged (task entry already open) — skip the redundant write.
+                    if (updated === entries) return prevMessages;
+                    msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                     return msgs;
                 });
             } else {
@@ -727,7 +1299,7 @@ const AIChat: React.FC = () => {
                     const targetIndex = ensureAssistantMessage(msgs);
                     const last = msgs[targetIndex];
                     const entries = parseStream(last.content);
-                    const resultItem: StreamItem = { kind: "tool_result", toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: (response as any).failed };
+                    const resultItem: StreamItem = { kind: "tool_result", toolCallId: response.toolCallId, toolName: response.toolName, toolOutput: response.toolOutput, failed: response.failed };
                     let matched = false;
                     const updated = entries.map(entry => {
                         if (matched) return entry;
@@ -754,14 +1326,19 @@ const AIChat: React.FC = () => {
                     const targetIndex = ensureAssistantMessage(msgs);
                     const last = msgs[targetIndex];
                     const entries = parseStream(last.content);
-                    const planItem: StreamItem = {
-                        kind: "plan", requestId: response.requestId, tasks: response.tasks, message: response.message,
-                        ...(response.autoApproved ? { approvalStatus: "approved" as const } : {})
-                    };
-                    const updated = appendToLastEntry(entries, planItem);
+                    const updated = appendToLastEntry(
+                        entries,
+                        buildPlanItem(response.requestId, response.tasks, response.message, response.autoApproved)
+                    );
                     msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                     return msgs;
                 });
+            }
+
+            // Replayed, already-resolved approval: the plan transcript item above is still
+            // rebuilt; only the interactive banner / auto-approve side effects are skipped.
+            if (isResolvedReplayedPrompt(response.requestId)) {
+                return;
             }
 
             // Skip approval UI when auto-approved from backend (scaffold mode)
@@ -783,7 +1360,39 @@ const AIChat: React.FC = () => {
                 message: response.message,
             });
 
+        } else if (type === "plan_approval_resolved") {
+            setMessages((previous) => {
+                const next = [...previous];
+                const assistantIndex = getLatestAssistantMessageIndex(next);
+                if (assistantIndex === -1) {
+                    return previous;
+                }
+                const assistant = next[assistantIndex];
+                const entries = parseStream(assistant.content);
+                const updated = applyPlanApprovalResolution(
+                    entries,
+                    response.requestId,
+                    response.approved,
+                    response.comment
+                );
+                if (updated === entries) {
+                    return previous;
+                }
+                next[assistantIndex] = {
+                    ...assistant,
+                    content: serializeStream(updated, assistant.content),
+                };
+                return next;
+            });
+            setApprovalRequest((pending) =>
+                pending?.requestId === response.requestId ? null : pending
+            );
+
         } else if (type === "web_tool_approval_request") {
+            // Banner-only event (no transcript item) — nothing to rebuild for a resolved one.
+            if (isResolvedReplayedPrompt(response.requestId)) {
+                return;
+            }
             setWebToolApprovalRequest({
                 requestId: response.requestId,
                 toolName: response.toolName,
@@ -800,110 +1409,49 @@ const AIChat: React.FC = () => {
             setCurrentFileArray(response.fileArray);
 
         } else if (type === "connector_generation_notification") {
-            const connectorNotification = response as any;
-            const connectorData = {
-                requestId: connectorNotification.requestId,
-                stage: connectorNotification.stage,
-                serviceName: connectorNotification.serviceName,
-                serviceDescription: connectorNotification.serviceDescription,
-                spec: connectorNotification.spec,
-                connector: connectorNotification.connector,
-                error: connectorNotification.error,
-                message: connectorNotification.message,
-                inputMethod: connectorNotification.inputMethod,
-                sourceIdentifier: connectorNotification.sourceIdentifier
-            };
+            const connectorData = buildRequestCardData("connector", response);
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 const entries = parseStream(last.content);
-                let found = false;
-                let updated = entries.map(entry => {
-                    const idx = entry.items.findIndex(item => item.kind === "connector" && (item.data as any)?.requestId === connectorData.requestId);
-                    if (idx === -1) return entry;
-                    found = true;
-                    return { ...entry, items: entry.items.map((item, i) => i === idx ? { kind: "connector" as const, data: connectorData } : item) };
-                });
-                if (!found) updated = appendToLastEntry(entries, { kind: "connector", data: connectorData });
+                const updated = upsertRequestCard(entries, "connector", connectorData);
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
 
         } else if (type === "configuration_collection_event") {
-            const configurationNotification = response as any;
-            const configurationData: ConfigurationCollectionData = {
-                requestId: configurationNotification.requestId,
-                stage: configurationNotification.stage,
-                variables: configurationNotification.variables,
-                existingValues: configurationNotification.existingValues,
-                message: configurationNotification.message,
-                isTestConfig: configurationNotification.isTestConfig,
-                error: configurationNotification.error
-            };
+            const configurationData = buildRequestCardData("config", response);
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 const entries = parseStream(last.content);
-                let found = false;
-                let updated = entries.map(entry => {
-                    const idx = entry.items.findIndex(item => item.kind === "config" && (item.data as any)?.requestId === configurationData.requestId);
-                    if (idx === -1) return entry;
-                    found = true;
-                    return { ...entry, items: entry.items.map((item, i) => i === idx ? { kind: "config" as const, data: configurationData } : item) };
-                });
-                if (!found) updated = appendToLastEntry(entries, { kind: "config", data: configurationData });
+                const updated = upsertRequestCard(entries, "config", configurationData);
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
 
         } else if (type === "clarify_event") {
-            const clarifyNotification = response as any;
-            const clarifyData = {
-                requestId: clarifyNotification.requestId,
-                stage: clarifyNotification.stage,
-                questions: clarifyNotification.questions,
-                answers: clarifyNotification.answers,
-            };
+            const clarifyData = buildRequestCardData("ask", response);
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 const entries = parseStream(last.content);
-                let found = false;
-                let updated = entries.map(entry => {
-                    const idx = entry.items.findIndex(item => item.kind === "ask" && (item.data as any)?.requestId === clarifyData.requestId);
-                    if (idx === -1) return entry;
-                    found = true;
-                    return { ...entry, items: entry.items.map((item, i) => i === idx ? { kind: "ask" as const, data: clarifyData } : item) };
-                });
-                if (!found) updated = appendToLastEntry(entries, { kind: "ask", data: clarifyData });
+                const updated = upsertRequestCard(entries, "ask", clarifyData);
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
 
         } else if (type === "skill_enable_event") {
-            const evt = response as any;
-            const enableData = {
-                requestId: evt.requestId,
-                stage: evt.stage,
-                skillName: evt.skillName,
-                skillId: evt.skillId,
-            };
+            const enableData = buildRequestCardData("skill_enable", response);
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 const entries = parseStream(last.content);
-                let found = false;
-                let updated = entries.map(entry => {
-                    const idx = entry.items.findIndex(item => item.kind === "skill_enable" && (item.data as any)?.requestId === enableData.requestId);
-                    if (idx === -1) return entry;
-                    found = true;
-                    return { ...entry, items: entry.items.map((item, i) => i === idx ? { kind: "skill_enable" as const, data: enableData } : item) };
-                });
-                if (!found) updated = appendToLastEntry(entries, { kind: "skill_enable", data: enableData });
+                const updated = upsertRequestCard(entries, "skill_enable", enableData);
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
@@ -911,37 +1459,21 @@ const AIChat: React.FC = () => {
         } else if (type === "diagnostics") {
             currentDiagnosticsRef.current = response.diagnostics;
 
-        } else if ((response as any).type === "chat_component") {
-            const { componentType, id, data } = response as any;
+        } else if (type === "chat_component") {
+            const { componentType, id, data } = response;
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
                 const entries = parseStream(last.content);
-                let found = false;
-                let updated = entries.map(entry => {
-                    const idx = entry.items.findIndex(item =>
-                        item.kind === "component" &&
-                        (id ? (item as any).id === id : (item as any).componentType === componentType)
-                    );
-                    if (idx === -1) return entry;
-                    found = true;
-                    return {
-                        ...entry,
-                        items: entry.items.map((item, i) =>
-                            i === idx
-                                ? { ...item, data: { ...(item as any).data, ...data } }
-                                : item
-                        )
-                    };
-                });
-                if (!found) updated = appendToLastEntry(entries, { kind: "component", componentType, id, data });
+                const updated = upsertComponent(entries, componentType, id, data);
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
-            if (componentType === "review") {
-                setHasActiveReview(true);
-            }
+
+        } else if (type === "generation_status") {
+            const { generationId, status } = response;
+            setMessages(prevMessages => applyGenerationStatus(prevMessages, generationId, status));
 
         } else if (type === "messages") {
             messagesRef.current = response.messages;
@@ -958,25 +1490,21 @@ const AIChat: React.FC = () => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
-                msgs[targetIndex] = {
-                    ...last,
-                    content: last.content + "\n<compaction>Your project is large — automatic context compaction is disabled. You may hit the context limit on long sessions. Start a new thread if that happens.</compaction>"
-                };
+                msgs[targetIndex] = { ...last, content: last.content + COMPACTION_DISABLED_NOTICE };
                 return msgs;
             });
 
         } else if (type === "usage_metrics") {
-            const inputTokens = (response as any).usage?.inputTokens ?? 0;
-            const MAX_CONTEXT_WINDOW = 200_000;
+            const inputTokens = response.usage?.inputTokens ?? 0;
             const percentage = Math.min(100, Math.round((inputTokens / MAX_CONTEXT_WINDOW) * 100));
-            const breakdown = (response as any).breakdown;
+            const breakdown = response.breakdown;
             setContextUsage({ inputTokens, percentage, breakdown });
 
         } else if (type === "config_change") {
-            if ((response as any).key === 'showContextUsage') {
-                setShowContextUsage((response as any).value);
-            } else if ((response as any).key === 'mcpToolsEnabled') {
-                setMcpToolsEnabled((response as any).value);
+            if (response.key === 'showContextUsage') {
+                setShowContextUsage(response.value);
+            } else if (response.key === 'mcpToolsEnabled') {
+                setMcpToolsEnabled(response.value);
             }
 
         } else if (type === "stop") {
@@ -987,6 +1515,7 @@ const AIChat: React.FC = () => {
             setIsCodeLoading(false);
             setIsLoading(false);
             setIsMigrationEnhancementRunning(false);
+            setBackendRequestTriggered(false);
             fetchUsage();
             setAgentMode(AgentMode.Edit);
             if (activeScaffoldKeyRef.current && !isErrorChunkReceivedRef.current) {
@@ -999,19 +1528,18 @@ const AIChat: React.FC = () => {
             activeScaffoldKeyRef.current = null;
             setIsWebToolsEnabled(userWebSearchPreferenceRef.current);
             setWebToolApprovalRequest(null);
-            const abortItem: StreamItem = { kind: "text", text: "*[Request interrupted by user]*" };
             setMessages(prevMessages => {
                 const msgs = [...prevMessages];
                 const targetIndex = ensureAssistantMessage(msgs);
                 const last = msgs[targetIndex];
-                const entries = parseStream(last.content);
-                const updated = [...entries, { description: "", items: [abortItem] }];
+                const updated = appendAbortMarker(parseStream(last.content));
                 msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
                 return msgs;
             });
             setIsCompacting(false);
             setIsCodeLoading(false);
             setIsLoading(false);
+            setBackendRequestTriggered(false);
             if (isMigrationEnhancementRunning) {
                 setIsMigrationEnhancementRunning(false);
                 // Re-fetch session so the Resume card appears
@@ -1025,12 +1553,44 @@ const AIChat: React.FC = () => {
 
         } else if (type === "save_chat") {
             console.log("Received save_chat signal");
-            const assistantIndex = getLatestAssistantMessageIndex(messages);
-            const contentToSave = assistantIndex >= 0 ? messages[assistantIndex]?.content : messages[messages.length - 1]?.content;
-            await rpcClient.getAiPanelRpcClient().updateChatMessage({
-                messageId: response.messageId,
-                content: contentToSave || "",
-            });
+            const messageId = response.messageId;
+            const isRecoveryIntermediateWrite = replayingRef.current;
+            await waitForMessagesCommit();
+            const scopedAssistant = [...renderedMessagesRef.current]
+                .reverse()
+                .find((message) =>
+                    (message.role === "Copilot" || message.role === "assistant")
+                    && message.messageId === messageId
+                );
+            const fallbackAssistant = (
+                response.generationId === undefined
+                || activeRunGenerationIdRef.current === messageId
+            )
+                ? renderedMessagesRef.current[getLatestAssistantMessageIndex(renderedMessagesRef.current)]
+                : undefined;
+            const contentToSave = scopedAssistant?.content || fallbackAssistant?.content || "";
+            try {
+                await rpcClient.getAiPanelRpcClient().updateChatMessage({
+                    messageId,
+                    content: contentToSave,
+                    projectRootPath: activeRunScopeRef.current?.projectRootPath,
+                    threadId: activeRunScopeRef.current?.threadId,
+                    clearRunBuffer: !isRecoveryIntermediateWrite,
+                });
+            } catch (error) {
+                console.error("[AIChat] Failed to persist chat message:", error);
+                if (isRecoveryIntermediateWrite) {
+                    throw error;
+                }
+            }
+
+        } else if (type === "followup_suggestions") {
+            console.log(`[Followups] Received: ${response.suggestions.map(s => s.label).join(', ')}`);
+            // Chips only ever describe a finished turn, so anything arriving mid-turn is stale.
+            if (isLoadingRef.current) {
+                return;
+            }
+            setFollowupSuggestions(response.suggestions);
 
         } else if (type === "error") {
             console.log("Received error signal");
@@ -1081,9 +1641,52 @@ const AIChat: React.FC = () => {
             setIsCompacting(false);
             setIsCodeLoading(false);
             setIsLoading(false);
+            setBackendRequestTriggered(false);
             isErrorChunkReceivedRef.current = true;
+
+        } else {
+            // Tripwire: this assignment fails to compile when a new `ChatNotify` variant
+            // is added, forcing an explicit decision instead of a silent drop. If the new
+            // variant contributes to the persisted transcript, give it a branch above; if
+            // it is genuinely presentational, add it to `PanelUnmodelledNotifyType` (and
+            // check whether the mini chat needs the same branch — it authors the same
+            // record). See that type for what this guard does NOT cover.
+            //
+            // Relies on aliased-discriminant narrowing (TS 4.4+) of `type`, so every
+            // branch above must test `type`, not `response.type` — a branch that tests
+            // `response.type` (or casts through `as any`) silently opts out of narrowing
+            // and drops its own literal from this residual without failing the build.
+            type ResidualAtTail = typeof type;
+            // Forward direction: residual ⊆ declared. Catches an unhandled variant.
+            const _unmodelled: PanelUnmodelledNotifyType = type;
+            // Reverse direction: declared ⊆ residual. Catches a STALE entry — one that
+            // has since gained a branch above, so the list would otherwise keep claiming
+            // an event is unmodelled when it is actually folded. Assigning the narrowed
+            // residual into the hand-written union only ever checks the forward direction,
+            // so without this the list can silently rot into inaccurate documentation.
+            // (`typeof type` captures the flow-narrowed residual at this point, not the
+            // declared union — verified; that is what makes this check non-vacuous.)
+            const _noStaleEntries: ResidualAtTail = {} as PanelUnmodelledNotifyType;
+            void _unmodelled;
+            void _noStaleEntries;
         }
-    });
+    };
+
+    // Keep the subscription behaviour identical to before (fresh closure per
+    // render so `messages`-reading branches stay current), and expose the
+    // latest handler via a ref for the reconnect/poll replay paths.
+    handleChatNotifyRef.current = handleChatNotify;
+    // Live subscription. While the reconnect gate is closed (mount → replay done),
+    // queue events so they can't interleave with the async replay; the reconnect
+    // effect drains them in order (seq-deduped) and opens the gate.
+    const onLiveChatNotify = (response: ChatNotify) => {
+        if (liveGateClosedRef.current) {
+            liveQueueRef.current.push(response);
+            return;
+        }
+        return handleChatNotify(response);
+    };
+    rpcClient?.onChatNotify(onLiveChatNotify);
 
     function generateNaturalProgrammingTemplate(isReqFileExists: boolean) {
         if (isReqFileExists) {
@@ -1139,7 +1742,7 @@ const AIChat: React.FC = () => {
             const t = setTimeout(() => scrollToEnd("auto"), 120);
             return () => clearTimeout(t);
         }
-    }, [messages, hasActiveReview, isLoading, isCodeLoading]);
+    }, [messages, isLoading, isCodeLoading, followupSuggestions]);
 
     async function handleSendQuery(content: {
         input: Input[];
@@ -1235,17 +1838,24 @@ const AIChat: React.FC = () => {
      * triggers the auto-submit effect.
      */
     async function handleSend(content: { input: Input[]; attachments: Attachment[]; metadata?: Record<string, any> }) {
+        // A new run's beginRun resets the backend event buffer — wait for the
+        // mount-time reconnect to finish replaying/persisting any buffered run
+        // first, so an auto-submitted prompt can't wipe a finished run's
+        // not-yet-persisted tail (review chip and final transcript included).
+        await reconnectSettledRef.current;
         setCurrentGeneratingPromptIndex(otherMessages.length);
         setIsPromptExecutedInCurrentWindow(true);
         setFeedbackGiven(null);
+        setFollowupSuggestions([]);
 
         if (content.input.length === 0) {
             return;
         }
-        if (hasActiveReview) {
-            await rpcClient.getAiPanelRpcClient().acceptChanges().catch((e: unknown) => console.warn("[AIChat] auto-accept failed:", e));
-            setHasActiveReview(false);
-        }
+        const generationId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+        activeRunGenerationIdRef.current = generationId;
+        activeRunScopeRef.current = undefined;
+        runEpochRef.current += 1;
+        runAcknowledgedRef.current = false;
         // Clear until onCheckpointCaptured repopulates with the new set
         setAvailableCheckpointIds(new Set());
         rpcClient.getAiPanelRpcClient().clearInitialPrompt();
@@ -1253,6 +1863,14 @@ const AIChat: React.FC = () => {
         setMessages((prevMessages) => prevMessages.filter((message) => message.type !== "question"));
         setIsLoading(true);
         isErrorChunkReceivedRef.current = false;
+        // Reset reconnection safeguards for the explicitly identified new run
+        // and arm the polling fallback.
+        if (ENABLE_STREAM_SAFEGUARDS) {
+            lastReceivedSeqRef.current = 0;
+            lastEventTimeRef.current = Date.now();
+            terminalEventReceivedRef.current = false;
+        }
+        setBackendRequestTriggered(true);
         setMessages((prevMessages) =>
             prevMessages.filter((message, index) => index <= lastQuestionIndex || message.type !== "question")
         );
@@ -1261,8 +1879,8 @@ const AIChat: React.FC = () => {
         const uerMessage = getUserMessage([stringifiedContent, content.attachments]);
         setMessages((prevMessages) => [
             ...prevMessages,
-            { role: "User", content: uerMessage, type: "user_message" },
-            { role: "Copilot", content: "", type: "assistant_message" }, // Add a new message for the assistant
+            { role: "User", content: uerMessage, type: "user_message", messageId: generationId },
+            { role: "Copilot", content: "", type: "assistant_message", messageId: generationId },
         ]);
 
         await handleSendQuery(content);
@@ -1540,9 +2158,11 @@ const AIChat: React.FC = () => {
         const currentHiddenContext = hiddenContextRef.current;
         hiddenContextRef.current = undefined;
         console.log("Submitting agent prompt:", { useCase, agentMode: agentModeRef.current, codeContext: currentCodeContext, operationType, fileAttatchments });
-        rpcClient.getAiPanelRpcClient().generateAgent({
+        await rpcClient.getAiPanelRpcClient().generateAgent({
+            generationId: activeRunGenerationIdRef.current,
+            promptSource: 'ai-panel',
             usecase: useCase, hiddenContext: currentHiddenContext, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
-        })
+        });
     }
 
     async function handleStop() {
@@ -1569,7 +2189,75 @@ const AIChat: React.FC = () => {
         setMessages([]);
         setApprovalRequest(null);
         setContextUsage(null);
+        setFollowupSuggestions([]);
         await rpcClient.getAiPanelRpcClient().clearChat();
+        loadThreads();
+    }
+
+    // Six call sites fire this without serializing, so a slow earlier response could otherwise
+    // overwrite a newer list — or end the spinner while a newer request is still running.
+    const loadThreadsSeqRef = useRef(0);
+
+    async function loadThreads(): Promise<void> {
+        const seq = ++loadThreadsSeqRef.current;
+        setThreadsLoading(true);
+        setThreadsError(null);
+        try {
+            const list = await rpcClient.getAiPanelRpcClient().listThreads();
+            if (seq !== loadThreadsSeqRef.current) { return; }
+            setThreads(list);
+        } catch (error) {
+            if (seq !== loadThreadsSeqRef.current) { return; }
+            console.error('[AIChat] Failed to load chat sessions:', error);
+            setThreadsError("Couldn't load sessions. Close and reopen to retry.");
+        } finally {
+            if (seq === loadThreadsSeqRef.current) { setThreadsLoading(false); }
+        }
+    }
+
+    async function handleSwitchThread(threadId: string): Promise<void> {
+        await rpcClient.getAiPanelRpcClient().switchThread({ threadId });
+
+        // Reload messages and checkpoints for the newly active thread in parallel
+        const [msgs, checkpoints] = await Promise.all([
+            rpcClient.getAiPanelRpcClient().getChatMessages(),
+            rpcClient.getAiPanelRpcClient().getCheckpoints(),
+        ]);
+
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
+
+        // Rebuild the checkpoint availability set for the switched-to thread.
+        // Without this, every checkpointId from the old thread would be absent from the set
+        // and all restore buttons would appear disabled.
+        setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
+
+        setRestoringCheckpointId(null);
+        setApprovalRequest(null);
+        setContextUsage(null);
+        await refreshFollowupSuggestions();
+        loadThreads();
+    }
+
+    async function handleDeleteThread(threadId: string): Promise<void> {
+        await rpcClient.getAiPanelRpcClient().deleteThread({ threadId });
+
+        // Reload messages and checkpoints for the (possibly new) active thread
+        const [msgs, checkpoints] = await Promise.all([
+            rpcClient.getAiPanelRpcClient().getChatMessages(),
+            rpcClient.getAiPanelRpcClient().getCheckpoints(),
+        ]);
+        setMessages(msgs.map(m => ({ role: m.role === "user" ? "User" : "Copilot", content: m.content, type: "text", checkpointId: m.checkpointId, messageId: m.messageId, generationStatus: m.generationStatus })));
+        setAvailableCheckpointIds(new Set(checkpoints.map(cp => cp.id)));
+        setRestoringCheckpointId(null);
+        setApprovalRequest(null);
+        setContextUsage(null);
+        await refreshFollowupSuggestions();
+        loadThreads();
+    }
+
+    async function handleRenameThread(threadId: string, name: string): Promise<void> {
+        await rpcClient.getAiPanelRpcClient().renameThread({ threadId, name });
+        loadThreads();
     }
 
     const handleToggleAutoApprove = () => {
@@ -1603,25 +2291,6 @@ const AIChat: React.FC = () => {
         }
     }, [otherMessages.length]);
 
-
-    const updateReviewStatus = (message: { role: string; content: string; type: string }, newStatus: "discarded") => {
-        setMessages(prevMessages => {
-            const msgs = [...prevMessages];
-            const idx = msgs.findIndex(m => m === message);
-            if (idx === -1) return prevMessages;
-            const entries = parseStream(msgs[idx].content);
-            const updated = entries.map(entry => ({
-                ...entry,
-                items: entry.items.map(item =>
-                    item.kind === "component" && (item as any).componentType === "review"
-                        ? { ...item, data: { ...(item as any).data, status: newStatus } }
-                        : item
-                )
-            }));
-            msgs[idx] = { ...msgs[idx], content: serializeStream(updated, msgs[idx].content) };
-            return msgs;
-        });
-    };
 
     const saveDocumentation = async () => {
         if (!docGenIntermediaryState) return;
@@ -1697,22 +2366,6 @@ const AIChat: React.FC = () => {
                 requestId: approvalRequest.requestId,
                 comment: undefined
             });
-            // Collapse TodoSection into approval summary — mark plan items as approved
-            setMessages(prevMessages => {
-                const msgs = [...prevMessages];
-                const lastIdx = [...msgs].map(m => m.role).lastIndexOf("Copilot");
-                if (lastIdx === -1) return prevMessages;
-                const last = msgs[lastIdx];
-                const entries = parseStream(last.content);
-                const updated = entries.map(entry => ({
-                    ...entry,
-                    items: entry.items.map(item =>
-                        item.kind === "plan" && item.requestId === approvalRequest.requestId ? { ...item, approvalStatus: "approved" as const } : item
-                    )
-                }));
-                msgs[lastIdx] = { ...last, content: serializeStream(updated, last.content) };
-                return msgs;
-            });
         } else if (approvalRequest.approvalType === "completion") {
             const reviewTasks = approvalRequest.tasks.filter(t => t.status === "review");
             const lastReviewTask = reviewTasks[reviewTasks.length - 1];
@@ -1733,22 +2386,6 @@ const AIChat: React.FC = () => {
             await rpcClient.getAiPanelRpcClient().declinePlan({
                 requestId: approvalRequest.requestId,
                 comment
-            });
-            // Collapse TodoSection into revision summary — mark plan items as revised
-            setMessages(prevMessages => {
-                const msgs = [...prevMessages];
-                const lastIdx = [...msgs].map(m => m.role).lastIndexOf("Copilot");
-                if (lastIdx === -1) return prevMessages;
-                const last = msgs[lastIdx];
-                const entries = parseStream(last.content);
-                const updated = entries.map(entry => ({
-                    ...entry,
-                    items: entry.items.map(item =>
-                        item.kind === "plan" && item.requestId === approvalRequest.requestId ? { ...item, approvalStatus: "revised" as const, approvalComment: comment } : item
-                    )
-                }));
-                msgs[lastIdx] = { ...last, content: serializeStream(updated, last.content) };
-                return msgs;
             });
         } else if (approvalRequest.approvalType === "completion") {
             await rpcClient.getAiPanelRpcClient().declineTask({
@@ -1824,12 +2461,13 @@ const AIChat: React.FC = () => {
                         </ApprovalOverlay>
                     )}
                     <Header>
-                        {loginMethod === LoginMethod.ANTHROPIC_KEY || loginMethod === LoginMethod.AWS_BEDROCK || loginMethod === LoginMethod.VERTEX_AI ? (
+                        {loginMethod === LoginMethod.ANTHROPIC_KEY || loginMethod === LoginMethod.AWS_BEDROCK || loginMethod === LoginMethod.VERTEX_AI || loginMethod === LoginMethod.ANTHROPIC_AWS ? (
                             <AuthProviderChip>
                                 <UsageBadge>
                                     <span className="codicon codicon-key" style={{ fontSize: 11 }} />
                                     {loginMethod === LoginMethod.ANTHROPIC_KEY ? "Anthropic (own key)"
                                         : loginMethod === LoginMethod.AWS_BEDROCK ? "AWS Bedrock (own key)"
+                                        : loginMethod === LoginMethod.ANTHROPIC_AWS ? "Anthropic AWS (own key)"
                                         : "Vertex AI (own key)"}
                                 </UsageBadge>
                             </AuthProviderChip>
@@ -1847,20 +2485,45 @@ const AIChat: React.FC = () => {
                                         <UsageBadge>{isUsageExceeded ? "100%" : `${Math.round(100 - usage.remainingUsagePercentage)}%`}</UsageBadge>
                                     </Tooltip>
                                 )}
+                                {isUsageExceeded && (
+                                    <Tooltip content="Check usage again">
+                                        <UsageRefreshButton
+                                            type="button"
+                                            onClick={() => { void handleRecheckUsage(); }}
+                                            disabled={recheckingUsage}
+                                            aria-label="Check usage again"
+                                        >
+                                            <span className={`codicon codicon-refresh${recheckingUsage ? " codicon-modifier-spin" : ""}`} style={{ fontSize: 12 }} />
+                                        </UsageRefreshButton>
+                                    </Tooltip>
+                                )}
                             </AuthProviderChip>
                         )}
                         <HeaderButtons>
-                            {otherMessages.length > 0 && (
+                            {/* New chat is created from a row inside the dropdown, not from this button. */}
+                            <div style={{ position: "relative" }}>
                                 <Button
                                     appearance="icon"
-                                    onClick={() => handleClearChat()}
-                                    tooltip="New Chat"
-                                    disabled={isLoading}
+                                    onClick={() => { void loadThreads(); setHistoryOpen(v => !v); }}
+                                    tooltip="Chat sessions"
                                 >
-                                    <Icon name="NewChat" sx={{ fontSize: "16px", marginRight: 4 }} iconSx={{ position: "relative", top: "2px" }} />
-                                    New Chat
+                                    <Icon name="CopilotChatRounded" sx={{ fontSize: "18px", marginRight: 6 }} iconSx={{ position: "relative" }} />
+                                    Chats
                                 </Button>
-                            )}
+                                {historyOpen && (
+                                    <SessionHistoryDropdown
+                                        threads={threads}
+                                        loading={threadsLoading}
+                                        error={threadsError}
+                                        readOnly={isLoading}
+                                        onNewChat={handleClearChat}
+                                        onSwitch={handleSwitchThread}
+                                        onDelete={handleDeleteThread}
+                                        onRename={handleRenameThread}
+                                        onClose={() => setHistoryOpen(false)}
+                                    />
+                                )}
+                            </div>
                             <Button appearance="icon" onClick={() => handleSettings()} tooltip="Settings">
                                 <Icon name="SettingsRounded" sx={{ fontSize: "18px", marginRight: 6 }} iconSx={{ position: "relative" }} />
                                 Settings
@@ -1901,11 +2564,11 @@ const AIChat: React.FC = () => {
                                     const isUserMessage = message.role === "User";
                                     const isAssistantMessage = message.role === "Copilot";
                                     const isLatestAssistantMessage = isAssistantMessage && index === lastAssistantIndex;
+                                    const reviewBar = deriveReviewBarState(message.generationStatus, isLatestAssistantMessage, isLoading);
 
                             // Note: Cannot use useMemo here as it's inside map() callback
                             // The stateless regex implementation in splitContent() ensures no corruption during streaming
                             const segmentedContent = splitContent(message.content);
-                            const hasReviewActions = isLatestAssistantMessage && hasActiveReview;
                             return (
                                 <ChatMessage key={index}>
                                     {/* Checkpoint separator before user messages */}
@@ -1967,13 +2630,9 @@ const AIChat: React.FC = () => {
                                                                 isWorkspace={(reviewItem as any).data.isWorkspace}
                                                                 diffPackageMap={(reviewItem as any).data.diffPackageMap}
                                                                 generationId={(reviewItem as any).data.generationId}
-                                                                isDiscarded={(reviewItem as any)?.data?.status === "discarded"}
+                                                                isDiscarded={reviewBar.isDiscarded}
                                                                 rpcClient={isLatestAssistantMessage ? rpcClient : undefined}
-                                                                isActive={isLatestAssistantMessage && !isLoading && hasActiveReview}
-                                                                onDiscarded={() => {
-                                                                    updateReviewStatus(message, "discarded");
-                                                                    setHasActiveReview(false);
-                                                                }}
+                                                                isActive={reviewBar.isActive}
                                                             />
                                                         )}
                                                         {buttonItems.map((item: StreamItem, ci: number) => {
@@ -2182,12 +2841,25 @@ const AIChat: React.FC = () => {
                                             }
                                         })}
                                     </MessageBody>
-                                    {/* Show feedback bar only for the latest assistant message and when loading is complete, but not if review actions are present */}
-                                    {isAssistantMessage && isLatestAssistantMessage && !isLoading && !isCodeLoading && !hasReviewActions && (
+                                    {/* Show feedback bar for the latest assistant message once loading is complete */}
+                                    {isAssistantMessage && isLatestAssistantMessage && !isLoading && !isCodeLoading && (
                                         <FeedbackBar
                                             messageIndex={index}
                                             onFeedback={handleFeedback}
                                             currentFeedback={feedbackGiven}
+                                        />
+                                    )}
+                                    {/* Hidden while over quota: the input is disabled, so a chip would prefill something unsendable. */}
+                                    {isAssistantMessage && isLatestAssistantMessage && !isLoading && !isCodeLoading && !isUsageExceeded && followupSuggestions.length > 0 && (
+                                        <FollowupSuggestions
+                                            suggestions={followupSuggestions}
+                                            onPick={(suggestion) => {
+                                                aiChatInputRef.current?.setInputContent({
+                                                    type: "text",
+                                                    text: suggestion.prompt,
+                                                    planMode: agentMode === AgentMode.Plan,
+                                                });
+                                            }}
                                         />
                                     )}
                                 </ChatMessage>
@@ -2214,9 +2886,20 @@ const AIChat: React.FC = () => {
                             <span>
                                 You've reached your Integrator Copilot usage limit
                                 {usage && usage.resetsIn !== -1 ? `, which resets in ${formatResetsIn(usage.resetsIn)}` : ""}.
-                                {/* TODO: add a quota request portal link here once available. */}
+                                {usage?.alreadyRequested
+                                    ? <>{" "}Your request for additional quota has been submitted. Reach us at <a href={`mailto:${QUOTA_CONTACT_EMAIL}`}>{QUOTA_CONTACT_EMAIL}</a>.</>
+                                    : <>{" "}<a href="#" onClick={(e) => { e.preventDefault(); setShowQuotaDialog(true); }}>Request additional quota</a>.</>
+                                }
                             </span>
                         </UsageLimitNoticeContainer>
+                    )}
+                    {showQuotaDialog && (
+                        <QuotaRequestDialog
+                            submitting={quotaRequestSubmitting}
+                            error={quotaRequestError}
+                            onCancel={() => { setShowQuotaDialog(false); setQuotaRequestError(undefined); }}
+                            onSubmit={handleQuotaRequestSubmit}
+                        />
                     )}
                     {(() => {
                         const lastAssistantMsg = [...otherMessages].reverse().find(m => m.role === "Copilot");
@@ -2289,15 +2972,15 @@ const AIChat: React.FC = () => {
                             inputPlaceholder={
                                 footerInputPlaceholder ??
                                 (agentMode === AgentMode.Plan
-                                    ? "Describe what you'd like to plan and build…"
+                                    ? "What would you like to plan?"
                                     : messages.length === 0
-                                        ? "Describe the change you'd like to make…"
-                                        : "Describe what to change next…")
+                                        ? "What would you like to change?"
+                                        : "What should we do next?")
                             }
                             onSend={handleSend}
                             onStop={handleStop}
                             isLoading={isLoading}
-                            loadingLabel={isCompacting ? "Compacting conversation" : undefined}
+                            loadingLabel={isCompacting ? "Compacting conversation" : activeToolLabel}
                             showSuggestedCommands={Array.isArray(otherMessages) && otherMessages.length === 0}
                             codeContext={codeContext}
                             onRemoveCodeContext={() => updateCodeContext(undefined)}

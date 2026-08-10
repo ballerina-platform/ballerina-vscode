@@ -49,6 +49,7 @@ public class ServiceInitModel {
     private final String type;
     private final String icon;
     private final Map<String, Value> properties = new LinkedHashMap<>();
+    private Boolean isLocalRepository;
 
     public ServiceInitModel(String id, String displayName, String description, String orgName,
                             String packageName, String moduleName, String version, String type, String icon) {
@@ -101,6 +102,14 @@ public class ServiceInitModel {
 
     public Map<String, Value> getProperties() {
         return properties;
+    }
+
+    public boolean isLocalRepository() {
+        return Boolean.TRUE.equals(isLocalRepository);
+    }
+
+    public void setLocalRepository(boolean isLocalRepository) {
+        this.isLocalRepository = isLocalRepository;
     }
 
     public void addProperty(String key, Value value) {

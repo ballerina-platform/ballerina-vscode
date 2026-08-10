@@ -21,6 +21,7 @@ package io.ballerina.modelgenerator.commons;
 import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
@@ -34,12 +35,14 @@ import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
+import io.ballerina.projects.environment.PackageLockingMode;
 import io.ballerina.projects.environment.PackageMetadataResponse;
 import io.ballerina.projects.environment.PackageResolver;
 import io.ballerina.projects.environment.ResolutionOptions;
 import io.ballerina.projects.environment.ResolutionRequest;
 import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
+import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -68,6 +71,41 @@ import java.util.concurrent.locks.ReentrantLock;
 public class PackageUtil {
 
     private static final String BALLERINA_HOME_PROPERTY = "ballerina.home";
+
+    // Test-only switch (set by the Gradle test tasks via -Dls.test.offline=true). When
+    // enabled, package resolution never contacts Ballerina Central: packages resolve
+    // only from the local repositories the build pre-populates, "latest version"
+    // lookups use the cached version instead of the remote one, and versions that are
+    // not cached fail visibly. Absent in production, so production stays online.
+    private static final boolean FORCE_OFFLINE = Boolean.getBoolean("ls.test.offline");
+
+    /**
+     * Whether resolution is forced offline (test runs). When true, callers must avoid contacting Ballerina Central
+     * (e.g. live catalog/keyword lookups) so behaviour is deterministic and reproducible from the build-owned home.
+     *
+     * @return {@code true} if offline resolution is forced; {@code false} in production.
+     */
+    public static boolean isOffline() {
+        return FORCE_OFFLINE;
+    }
+
+    /**
+     * Build options for loading a resolved bala, branched by mode:
+     * <ul>
+     *   <li><b>Tests</b> ({@code FORCE_OFFLINE}): resolve offline with SOFT locking, so a bala's baked transitive
+     *       versions re-resolve to the locked/available versions in the cache instead of demanding the exact baked
+     *       version (which is often not provisioned).</li>
+     *   <li><b>Production</b>: replicate the original two-argument {@code BalaProject.loadProject} behaviour
+     *       ({@code sticky = true}), so production is unchanged.</li>
+     * </ul>
+     */
+    private static BuildOptions balaBuildOptions() {
+        if (FORCE_OFFLINE) {
+            return BuildOptions.builder().setOffline(true).setLockingMode(PackageLockingMode.SOFT).build();
+        }
+        return BuildOptions.builder().setSticky(true).build();
+    }
+
     private static final BuildProject SAMPLE_PROJECT = getSampleProject();
 
     private static final String PULLING_THE_MODULE_MESSAGE = "Pulling the module '%s' from the central";
@@ -76,6 +114,28 @@ public class PackageUtil {
 
     // Concurrent map to store locks for each project
     private static final ConcurrentHashMap<Path, ReentrantLock> PROJECT_LOCKS = new ConcurrentHashMap<>();
+
+    /**
+     * Resolves the version of a package available in the local repositories (offline),
+     * i.e. the version the build has provisioned. Returns null if not cached.
+     */
+    public static String cachedVersion(String org, String name) {
+        try {
+            PackageResolver resolver = SAMPLE_PROJECT.projectEnvironmentContext().getService(PackageResolver.class);
+            Collection<PackageMetadataResponse> responses = resolver.resolvePackageMetadata(
+                    Collections.singletonList(ResolutionRequest.from(
+                            PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)))),
+                    ResolutionOptions.builder().setOffline(true).build());
+            Optional<PackageMetadataResponse> first = responses.stream().findFirst();
+            if (first.isPresent()
+                    && first.get().resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+                return first.get().resolvedDescriptor().version().toString();
+            }
+        } catch (RuntimeException ignored) {
+            // fall through to null
+        }
+        return null;
+    }
 
     public static BuildProject getSampleProject() {
         // Obtain the Ballerina distribution path
@@ -147,14 +207,33 @@ public class PackageUtil {
      */
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name,
                                                      String version) {
-        ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version)));
+        Optional<Package> resolved = getModulePackage(buildProject, org, name, version, null);
+        if (resolved.isPresent()) {
+            return resolved;
+        }
+        // Unreleased versions (e.g. an in-development ballerina/workflow build) are not on
+        // central; fall back to the local repository, where such builds are published.
+        return getModulePackage(buildProject, org, name, version, ProjectConstants.LOCAL_REPOSITORY_NAME);
+    }
 
-        Collection<ResolutionResponse> resolutionResponses =
-                buildProject.projectEnvironmentContext().getService(PackageResolver.class)
-                        .resolvePackages(Collections.singletonList(resolutionRequest),
-                                ResolutionOptions.builder().setOffline(false).setSticky(false).build());
-        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
+    /**
+     * Retrieves a package from a specific Ballerina repository.
+     *
+     * @param repository the Ballerina repository name, for example {@code local}; {@code null} uses the default
+     *                   repository resolution
+     */
+    public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name,
+                                                     String version, String repository) {
+        PackageOrg packageOrg = PackageOrg.from(org);
+        PackageName packageName = PackageName.from(name);
+        PackageVersion packageVersion = PackageVersion.from(version);
+        PackageDescriptor packageDescriptor = repository == null
+                ? PackageDescriptor.from(packageOrg, packageName, packageVersion)
+                : PackageDescriptor.from(packageOrg, packageName, packageVersion, repository);
+        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
+
+        Optional<ResolutionResponse> resolutionResponse =
+                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), false);
         if (resolutionResponse.isEmpty()) {
             return Optional.empty();
         }
@@ -162,8 +241,26 @@ public class PackageUtil {
         Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
         ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
         defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath);
+        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
         return Optional.ofNullable(balaProject.currentPackage());
+    }
+
+    /**
+     * A response is only usable when it actually {@code RESOLVED} — {@code resolvePackages} can return
+     * a non-empty collection containing an {@code UNRESOLVED} entry (with a {@code null} {@code
+     * resolvedPackage()}) rather than an empty collection, which previously slipped past an {@code
+     * isEmpty()} check and threw a {@code NullPointerException} on {@code resolvedPackage().project()}
+     * — silently swallowed by callers' broad {@code catch (Throwable)}, masquerading as "package not
+     * found".
+     */
+    private static Optional<ResolutionResponse> resolveResponse(PackageResolver packageResolver,
+                                                                 ResolutionRequest resolutionRequest,
+                                                                 boolean offline) {
+        return packageResolver.resolvePackages(Collections.singletonList(resolutionRequest),
+                        ResolutionOptions.builder().setOffline(offline).setSticky(false).build())
+                .stream()
+                .filter(response -> response.resolutionStatus() == ResolutionResponse.ResolutionStatus.RESOLVED)
+                .findFirst();
     }
 
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name) {
@@ -177,6 +274,10 @@ public class PackageUtil {
         PackageDescriptor packageDescriptor;
         if (pkgMetadata.isEmpty() ||
                 pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+            if (FORCE_OFFLINE) {
+                // Not in the local repositories and network fallback is disabled.
+                return Optional.empty();
+            }
             // If the package metadata is not found locally, fetch the latest version from the central repository
             CentralAPI centralApi = RemoteCentral.getInstance();
             String version = centralApi.latestPackageVersion(org, name);
@@ -188,7 +289,43 @@ public class PackageUtil {
 
         Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
                 Collections.singletonList(ResolutionRequest.from(packageDescriptor)),
-                ResolutionOptions.builder().setOffline(false).build());
+                ResolutionOptions.builder().setOffline(FORCE_OFFLINE).build());
+        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
+        if (resolutionResponse.isEmpty() || resolutionResponse.get().resolvedPackage() == null) {
+            // Offline and the package could not be resolved from the local repositories.
+            return Optional.empty();
+        }
+
+        Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
+        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
+        return Optional.ofNullable(balaProject.currentPackage());
+    }
+
+    /**
+     * Offline counterpart of {@link #getModulePackage(BuildProject, String, String)}: resolves a module
+     * package strictly from what's already available locally, never reaching out to Central. Returns
+     * {@code Optional.empty()} when the package isn't already resolvable offline, leaving the decision
+     * to actually pull it to the LS's existing explicit, user-notified pull flow (see
+     * {@link #pullModuleAndNotify}) rather than pulling it silently as a side effect of a read.
+     */
+    public static Optional<Package> getModulePackageOffline(BuildProject buildProject, String org, String name) {
+        ResolutionRequest resolutionRequest = ResolutionRequest.from(
+                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)));
+        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
+        Collection<PackageMetadataResponse> packageMetadataResponses = packageResolver.resolvePackageMetadata(
+                Collections.singletonList(resolutionRequest),
+                ResolutionOptions.builder().setOffline(true).build());
+        Optional<PackageMetadataResponse> pkgMetadata = packageMetadataResponses.stream().findFirst();
+        if (pkgMetadata.isEmpty() ||
+                pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+            return Optional.empty();
+        }
+
+        Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
+                Collections.singletonList(ResolutionRequest.from(pkgMetadata.get().resolvedDescriptor())),
+                ResolutionOptions.builder().setOffline(true).build());
         Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
         if (resolutionResponse.isEmpty()) {
             return Optional.empty();
@@ -290,10 +427,28 @@ public class PackageUtil {
      * @param org         the organization name of the target package
      * @param packageName the package name of the target package
      * @param moduleName  the module name of the target package
-     * @return an Optional containing the semantic model if a matching sibling project is found
+     * @return an Optional containing the semantic model and package if a matching sibling project is found
      */
-    public static Optional<SemanticModel> getSemanticModelFromWorkspace(Project project, String org,
-                                                                        String packageName, String moduleName) {
+    public static Optional<WorkspacePackageResolution> getSemanticModelFromWorkspace(Project project, String org,
+                                                                                      String packageName,
+                                                                                      String moduleName) {
+        return getSemanticModelFromWorkspace(project, org, packageName, moduleName, null);
+    }
+
+    /**
+     * Retrieves the semantic model for a version-matching package from sibling projects within the same workspace.
+     *
+     * @param project     the current project used to find the workspace
+     * @param org         the organization name of the target package
+     * @param packageName the package name of the target package
+     * @param moduleName  the module name of the target package
+     * @param version     the requested package version, or null when any workspace version is acceptable
+     * @return an Optional containing the semantic model and package if a matching sibling project is found
+     */
+    public static Optional<WorkspacePackageResolution> getSemanticModelFromWorkspace(Project project, String org,
+                                                                                      String packageName,
+                                                                                      String moduleName,
+                                                                                      String version) {
         BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
         Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
         if (workspaceProject.isEmpty()) {
@@ -305,30 +460,84 @@ public class PackageUtil {
             String currentPackageName = currentPackage.packageName().value();
             boolean orgMatches = currentPackage.packageOrg().value().equals(org);
             boolean nameMatches = currentPackageName.equals(packageName) || currentPackageName.equals(moduleName);
-            if (!orgMatches || !nameMatches) {
+            boolean versionMatches = version == null
+                    || currentPackage.descriptor().version().toString().equals(version);
+            if (!orgMatches || !nameMatches || !versionMatches) {
                 continue;
             }
 
             ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-            if (moduleName == null || moduleName.isEmpty() || packageName.equals(moduleName)) {
-                return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+            if (moduleName == null || moduleName.isEmpty() || currentPackageName.equals(moduleName)) {
+                return Optional.of(new WorkspacePackageResolution(
+                        getCompilation(childProject).getSemanticModel(moduleId), currentPackage));
             }
             for (Module mod : currentPackage.modules()) {
                 if (mod.moduleName().toString().equals(moduleName)) {
-                    moduleId = mod.moduleId();
-                    break;
+                    return Optional.of(new WorkspacePackageResolution(
+                            getCompilation(childProject).getSemanticModel(mod.moduleId()), currentPackage));
                 }
             }
-            return Optional.of(getCompilation(childProject).getSemanticModel(moduleId));
+            return Optional.empty();
         }
         return Optional.empty();
     }
 
+    /**
+     * Finds a workspace-sibling package matching the given org and package/module name.
+     * <p>
+     * Use this to skip a Central round-trip when the target package lives next door in the same
+     * workspace. The match accepts either {@code packageName} or {@code moduleName} on the sibling's
+     * package name so callers can pass whichever they have.
+     *
+     * @param project     the current project used to discover the workspace
+     * @param org         the target package's organization
+     * @param packageName the target package name (may be {@code null} if only {@code moduleName} is known)
+     * @param moduleName  the target module name (may be {@code null} if only {@code packageName} is known)
+     * @return the matching workspace sibling's {@link Package}, or empty if none found / not in a workspace
+     */
+    public static Optional<Package> findWorkspacePackage(Project project, String org, String packageName,
+                                                         String moduleName) {
+        if (project == null || org == null) {
+            return Optional.empty();
+        }
+        try {
+            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
+            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
+            if (workspaceProject.isEmpty()) {
+                return Optional.empty();
+            }
+            for (Project childProject : compilerApi.getWorkspaceProjectsInOrder(workspaceProject.get())) {
+                Package currentPackage = childProject.currentPackage();
+                String currentPackageName = currentPackage.packageName().value();
+                if (currentPackage.packageOrg().value().equals(org)
+                        && (currentPackageName.equals(packageName) || currentPackageName.equals(moduleName))) {
+                    return Optional.of(currentPackage);
+                }
+            }
+        } catch (RuntimeException e) {
+            // Best-effort: callers fall back to Central resolution.
+        }
+        return Optional.empty();
+    }
+
+    public record WorkspacePackageResolution(SemanticModel semanticModel, Package resolvedPackage) {
+    }
+
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
-            CentralAPI centralApi = RemoteCentral.getInstance();
-            return new ModuleInfo(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName(),
-                    centralApi.latestPackageVersion(moduleInfo.org(), moduleInfo.packageName()));
+            String version = FORCE_OFFLINE
+                    ? cachedVersion(moduleInfo.org(), moduleInfo.packageName())
+                    : RemoteCentral.getInstance().latestPackageVersion(moduleInfo.org(), moduleInfo.packageName());
+            // Under FORCE_OFFLINE a null version means the package was never provisioned into the build-owned
+            // cache. Fail loudly (matching the FORCE_OFFLINE contract above) so a missing lock entry is
+            // self-diagnosing, rather than silently degrading into an empty model downstream.
+            if (FORCE_OFFLINE && version == null) {
+                throw new IllegalStateException(String.format(
+                        "Package '%s/%s' is not provisioned in the offline test cache. Add it to "
+                        + "build-config/ballerina_dependencies (Ballerina.toml) " + "and regenerate Dependencies.toml.",
+                        moduleInfo.org(), moduleInfo.packageName()));
+            }
+            return new ModuleInfo(moduleInfo.org(), moduleInfo.packageName(), moduleInfo.moduleName(), version);
         }
         return moduleInfo;
     }

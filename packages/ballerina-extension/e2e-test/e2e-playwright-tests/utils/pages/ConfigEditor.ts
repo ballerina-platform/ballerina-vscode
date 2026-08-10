@@ -53,7 +53,9 @@ export class ConfigEditor {
         }
 
         await addConfigButton.first().waitFor({ state: 'visible', timeout: 30000 });
-        await addConfigButton.first().click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await addConfigButton.first().click({ force: true });
     }
 
     public async verifyPageLoaded() {
@@ -66,7 +68,9 @@ export class ConfigEditor {
         console.log(`Verify config variable ${variableName}`);
         const configVariableItem = this.webView.locator(`div#${variableName}-variable`);
         await configVariableItem.waitFor({ state: 'visible', timeout: 30000 });
-        await configVariableItem.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await configVariableItem.click({ force: true });
 
         // Verify the variable name and default
         const variableExists = await configVariableItem.isVisible();
@@ -97,7 +101,9 @@ export class ConfigEditor {
         // Click on the edit button 
         const editButton = configVariableItem.locator('vscode-button[title="Edit Configurable Variable"]');
         await editButton.waitFor({ state: 'visible', timeout: 30000 });
-        await editButton.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await editButton.click({ force: true });
     }
 
     public async deleteConfigVariable(variableName: string) {
@@ -111,7 +117,9 @@ export class ConfigEditor {
         // Click on the delete button 
         const deleteButton = configVariableItem.locator('vscode-button[title="Delete Configurable Variable"]');
         await deleteButton.waitFor({ state: 'visible', timeout: 30000 });
-        await deleteButton.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await deleteButton.click({ force: true });
 
         // Wait for the variable to be deleted
         await configVariableItem.waitFor({ state: 'detached', timeout: 30000 });
@@ -137,7 +145,9 @@ export class ConfigEditor {
         console.log(`Verify warning for config variable ${variableName}`);
         const configVariableItem = this.webView.locator(`div#${variableName}-variable`);
         await configVariableItem.waitFor({ state: 'visible', timeout: 30000 });
-        await configVariableItem.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await configVariableItem.click({ force: true });
 
         // Verify the Required warning text is visible
         const requiredWarningText = configVariableItem.locator('span', { hasText: 'Required' });
@@ -150,7 +160,9 @@ export class ConfigEditor {
         console.log(`Verify no warning for config variable ${variableName}`);
         const configVariableItem = this.webView.locator(`div#${variableName}-variable`);
         await configVariableItem.waitFor({ state: 'visible', timeout: 30000 });
-        await configVariableItem.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await configVariableItem.click({ force: true });
 
         // Wait for the Required warning text to be hidden or detached
         const requiredWarningText = configVariableItem.locator('span', { hasText: 'Required' });
@@ -171,7 +183,7 @@ export class ConfigEditor {
 
     public async getSelectedPackage(): Promise<string> {
         const titleDiv = this.webView.locator('div#TitleDiv h2');
-        await titleDiv.waitFor({ state: 'visible', timeout: 30000 });
+        await expect(titleDiv).not.toHaveText('', { timeout: 120000 });
         return (await titleDiv.textContent())?.trim() || '';
     }
 
@@ -182,7 +194,9 @@ export class ConfigEditor {
         // Try to click the <p> element with the package name if span is not found
         const packageItem = packageTreeview.locator('p', { hasText: packageName });
         await packageItem.waitFor({ state: 'visible', timeout: 30000 });
-        await packageItem.click();
+        // `force` — the floating Copilot orb/invite box has been observed to
+        // overlap and intercept pointer events on buttons in this webview.
+        await packageItem.click({ force: true });
 
         // Verify the package is selected
         const selectedPackage = await this.getSelectedPackage();

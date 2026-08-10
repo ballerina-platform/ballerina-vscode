@@ -43,7 +43,7 @@ import { FlowNode } from "../../../utils/types";
 import { useDiagramContext } from "../../DiagramContext";
 import { MoreVertIcon } from "../../../resources";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { nodeHasError } from "../../../utils/node";
+import { getDiffContainerStyles, getDiffTitleStyles, nodeHasError } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeIcon } from "../../NodeIcon";
 
@@ -366,6 +366,7 @@ export function WhileNodeWidget(props: WhileNodeWidgetProps) {
                         isActiveBreakpoint={isActiveBreakpoint}
                         disabled={disabled}
                         isSelected={isSelected}
+                        style={getDiffContainerStyles(model.node)}
                     >
                         {hasBreakpoint && (
                             <div
@@ -391,7 +392,7 @@ export function WhileNodeWidget(props: WhileNodeWidgetProps) {
                     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                         <div style={{}}>
                             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "4px" }}>
-                                <NodeStyles.Title>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
+                                <NodeStyles.Title style={getDiffTitleStyles(model.node)}>{model.node.metadata.label || model.node.codedata.node}</NodeStyles.Title>
                                 <NodeStyles.StyledButton
                                     ref={setMenuButtonElement}
                                     buttonSx={readOnly ? { cursor: "not-allowed" } : {}}

@@ -1,0 +1,17 @@
+// Type-checks the contract test (node env; ballerina-core does not use the jsdom preset,
+// so no shared jest-dom ambient). Run via `pnpm run test:typecheck`.
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "build",
+        "lib"
+    ]
+}

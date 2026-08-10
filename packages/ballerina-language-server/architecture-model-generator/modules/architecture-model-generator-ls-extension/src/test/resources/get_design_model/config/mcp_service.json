@@ -1,0 +1,68 @@
+{
+  "description": "MCP object-typed service retains its module-qualified type (mcp:Service) in the design model",
+  "projectPath": "project_11",
+  "output": {
+    "designModel": {
+      "connections": [],
+      "listeners": [
+        {
+          "symbol": "mcpListener",
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_11/service.bal",
+            "startLine": {
+              "line": 2,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 2,
+              "offset": 46
+            }
+          },
+          "attachedServices": [
+            "9d7deb9b-633a-1087-8a9b-1ee7fd1091ec"
+          ],
+          "kind": "NAMED",
+          "type": "mcp:Listener",
+          "args": [
+            {
+              "key": "listenTo",
+              "value": "8080"
+            }
+          ],
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.1.0.png",
+          "uuid": "5d4e7555-da87-4523-317b-8497e9d819f0",
+          "enableFlowModel": true,
+          "sortText": "service.bal2"
+        }
+      ],
+      "services": [
+        {
+          "location": {
+            "filePath": "/Users/danniles/Documents/Projects/WSO2/wso2-integrator/ballerina-language-server/architecture-model-generator/modules/architecture-model-generator-ls-extension/src/test/resources/get_design_model/source/project_11/service.bal",
+            "startLine": {
+              "line": 4,
+              "offset": 0
+            },
+            "endLine": {
+              "line": 5,
+              "offset": 1
+            }
+          },
+          "attachedListeners": [
+            "5d4e7555-da87-4523-317b-8497e9d819f0"
+          ],
+          "connections": [],
+          "functions": [],
+          "remoteFunctions": [],
+          "resourceFunctions": [],
+          "absolutePath": "/mcp ",
+          "type": "mcp:Service",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.1.0.png",
+          "uuid": "9d7deb9b-633a-1087-8a9b-1ee7fd1091ec",
+          "enableFlowModel": true,
+          "sortText": "service.bal4"
+        }
+      ]
+    }
+  }
+}

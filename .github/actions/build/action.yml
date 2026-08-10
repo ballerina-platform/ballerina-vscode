@@ -7,40 +7,37 @@ inputs:
     description: Whether this is a prerelease build
     required: false
     default: 'true'
-  lsSource:
-    description: LS source — local (use jar built from source) or download (fetch from GitHub release)
+  nightly:
+    description: >-
+      Nightly build: stamp the timestamped version derived from the extension
+      package.json's '-SNAPSHOT' version (major.(minor-1).<minutes since 2020-01-01 UTC>).
+      Selects the version only; 'vsce package --pre-release' follows
+      isPreRelease, which a nightly also passes.
     required: false
-    default: 'local'
-  ballerinaLsTag:
-    description: Release tag to download the LS from when lsSource=download (latest, prerelease, v1.5.0)
-    required: false
-    default: ''
+    default: 'false'
   enableCache:
     description: Enable rush/pnpm install caches
     required: false
     default: 'true'
-  enableLSCache:
-    description: Enable cache for the Ballerina LS jar
-    required: false
-    default: 'false'
   ballerina:
     description: Update Ballerina extension version
     required: false
     default: 'false'
   version:
-    description: Version bump kind (patch/minor/major) or N/A
+    description: Explicit version override, or N/A to derive it from the extension package.json
     required: false
     default: 'N/A'
-  balVersion:
-    description: Ballerina distribution version
-    required: false
-    default: '2201.13.2'
   COPILOT_ROOT_URL:
     required: false
   COPILOT_DEV_ROOT_URL:
     required: false
   APPINSIGHTS_INSTRUMENTATION_KEY:
     required: false
+
+outputs:
+  ballerinaVersion:
+    description: The Ballerina distribution version used by the build
+    value: ${{ steps.ballerina.outputs.version }}
 
 runs:
   using: "composite"
@@ -66,10 +63,16 @@ runs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
-    - uses: ballerina-platform/setup-ballerina@8a64987be305edb95f32092f64916ff973f40824 # v1
-      name: Install Ballerina
-      with:
-        version: ${{ inputs.balVersion }}
+    - name: Install Ballerina
+      id: ballerina
+      uses: ./.github/actions/setup-ballerina
+
+    - name: Validate build mode
+      if: ${{ inputs.nightly == 'true' && inputs.isPreRelease != 'true' }}
+      shell: bash
+      run: |
+        echo "::error::A nightly build must set isPreRelease=true so its VSIX is packaged with --pre-release."
+        exit 1
 
     - name: Cache Ballerina dependencies (LS gradle)
       if: ${{ inputs.enableCache == 'true' }}
@@ -84,20 +87,9 @@ runs:
       if: ${{ inputs.ballerina == 'true' }}
       uses: ./.github/actions/updateVersion
       with:
-        path: "ballerina-extension"
         isPreRelease: ${{ inputs.isPreRelease }}
+        nightly: ${{ inputs.nightly }}
         version: ${{ inputs.version }}
-
-    - name: Validate lsSource
-      shell: bash
-      run: |
-        case "${{ inputs.lsSource }}" in
-          local|download) ;;
-          *)
-            echo "::error::Invalid lsSource '${{ inputs.lsSource }}'. Must be 'local' or 'download'."
-            exit 1
-            ;;
-        esac
 
     - name: Copy .env.example to .env
       shell: bash
@@ -106,23 +98,6 @@ runs:
           envfile="$(dirname "$example")/.env"
           cp "$example" "$envfile"
         done
-
-    - name: Resolve Ballerina LS version
-      id: resolve-ballerina-ls-version
-      if: ${{ inputs.lsSource == 'download' && inputs.enableLSCache == 'true' }}
-      shell: bash
-      run: node packages/ballerina-extension/scripts/download-ls.js --resolve-version
-      env:
-        BALLERINA_LS_TAG: ${{ inputs.ballerinaLsTag != '' && inputs.ballerinaLsTag || (inputs.isPreRelease == 'true' && 'prerelease' || 'latest') }}
-        GITHUB_TOKEN: ${{ github.token }}
-
-    - name: Restore Ballerina LS from cache
-      id: ballerina-ls-cache
-      if: ${{ inputs.lsSource == 'download' && inputs.enableLSCache == 'true' }}
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: packages/ballerina-extension/ls
-        key: ballerina-ls-${{ steps.resolve-ballerina-ls-version.outputs.version }}
 
     - name: Build repo
       shell: bash
@@ -135,9 +110,11 @@ runs:
         echo "::endgroup::"
         node common/scripts/install-run-rush.js build --to ballerina --verbose
       env:
+        # Consumed by common-libs/scripts/package-vsix.js, which turns it into
+        # 'vsce package --pre-release'. The bundled language server is always the one
+        # built from source in this repo, at the version in gradle.properties, so
+        # nothing here selects an LS.
         isPreRelease: ${{ inputs.isPreRelease == 'true' }}
-        BALLERINA_LS_SOURCE: ${{ inputs.lsSource == 'download' && 'download' || '' }}
-        BALLERINA_LS_TAG: ${{ inputs.lsSource == 'download' && (inputs.enableLSCache == 'true' && steps.resolve-ballerina-ls-version.outputs.version || (inputs.ballerinaLsTag != '' && inputs.ballerinaLsTag || (inputs.isPreRelease == 'true' && 'prerelease' || 'latest'))) || '' }}
         # Credentials for the LS gradle build (maven.pkg.github.com/ballerina-platform/*)
         packageUser: ${{ github.actor }}
         packagePAT: ${{ github.token }}
@@ -145,16 +122,51 @@ runs:
         COPILOT_DEV_ROOT_URL: ${{ inputs.COPILOT_DEV_ROOT_URL }}
         APPINSIGHTS_INSTRUMENTATION_KEY: ${{ inputs.APPINSIGHTS_INSTRUMENTATION_KEY }}
 
+    # Guards the federated BI project form consumed by the WSO2 Integrator webview.
+    # A missing remote is invisible until runtime, so fail here rather than upload a
+    # VSIX that cannot federate. See packages/ballerina-extension/scripts/copy-federation.js.
+    - name: Verify federation assets in the VSIX
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        vsix="packages/ballerina-extension/vsix/ballerina-${version}.vsix"
+        entry='extension/resources/jslibs/federation/remoteEntry.js'
+        # 'zip' and 'unzip' are separate packages, so the sibling Compress build step
+        # using zip does not imply unzip is here. Say so plainly rather than surfacing
+        # a bare 'unzip: command not found' against a step about federation.
+        if ! command -v unzip >/dev/null 2>&1; then
+          echo "::error::unzip is not installed on this runner, so ${vsix} cannot be verified."
+          exit 1
+        fi
+        # Listed once into a variable: piping unzip into 'grep -q' lets grep exit on the
+        # first match, and the resulting SIGPIPE fails the pipeline under pipefail.
+        listing=$(unzip -Z1 "$vsix")
+        if ! grep -Fxq "$entry" <<<"$listing"; then
+          echo "::error::${vsix} is missing ${entry}; the BI project form cannot be federated."
+          grep -F 'resources/jslibs/federation' <<<"$listing" || echo "No federation files at all."
+          exit 1
+        fi
+        count=$(grep -cF 'extension/resources/jslibs/federation/' <<<"$listing")
+        echo "Federation assets present in ${vsix}: ${count} file(s)."
+
     - name: Compress build
       shell: bash
       run: |
-        zip -rq build.zip ./ -x 'common/temp*' -x '**/node_modules/*' -x 'submodules/wso2-vscode-extensions/.git/*'
         # Resolve the exact VSIX from packages/ballerina-extension/vsix/. The 'vsix/'
         # subdir (populated by the copyVSIX script) is one of the rush build-cache
         # outputFolderNames, so it's present even when ballerina is restored from
         # cache. The package-root 'ballerina-<version>.vsix' (vsce's direct output)
         # is NOT cached and may be missing on cache-restore.
+        #
+        # Read the version from the extension manifest — the single source of truth
+        # and the file vsce used to name the VSIX.
         version=$(node -p "require('./packages/ballerina-extension/package.json').version")
+        # Stage the VSIX at the workspace root so consumers that unzip build.zip
+        # (release-pre-release.yml and notifications) resolve 'ballerina-<v>.vsix'
+        # with a root-level `ls`. Must happen before build.zip is created.
+        cp "packages/ballerina-extension/vsix/ballerina-${version}.vsix" ./
+        zip -rq build.zip ./ -x 'common/temp*' -x '**/node_modules/*' -x 'submodules/wso2-vscode-extensions/.git/*'
         zip -j VSIX.zip "packages/ballerina-extension/vsix/ballerina-${version}.vsix"
 
     - name: Save build

@@ -20,6 +20,7 @@ import com.google.gson.JsonElement;
 import io.ballerina.projects.Settings;
 import io.ballerina.projects.util.ProjectUtils;
 import org.ballerinalang.central.client.CentralAPIClient;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.wso2.ballerinalang.util.RepoUtils;
 
@@ -70,6 +71,10 @@ public class CentralPackageDescriptorLoader {
     }
 
     private List<LSPackageLoader.ModuleInfo> getCentralGraphQLPackages() {
+        // Tests (ls.test.offline) never contact Central; completions resolve from local/distribution packages only.
+        if (CommonUtil.TEST_OFFLINE) {
+            return Collections.emptyList();
+        }
         try {
             Settings settings = RepoUtils.readSettings();
             CentralAPIClient centralAPIClient = new CentralAPIClient(RepoUtils.getRemoteRepoGraphQLURL(),

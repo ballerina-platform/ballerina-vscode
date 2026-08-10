@@ -20,10 +20,17 @@
 import {
     AIChatRequest,
     AddFieldRequest,
+    ClassMembersResponse,
+    CreateClassDependencyRequest,
+    DeleteClassMemberRequest,
+    ClassMemberRequest,
+    SaveClassMemberRequest,
+    ModifyClassDependencyRequest,
     InlineAgentChatRequest,
     AddFunctionRequest,
     AddImportItemResponse,
     AddProjectToWorkspaceRequest,
+    AddProjectToWorkspaceResponse,
     ArtifactData,
     BIAiSuggestionsRequest,
     BIAiSuggestionsResponse,
@@ -49,6 +56,10 @@ import {
     BISearchNodesResponse,
     BISearchRequest,
     BISearchResponse,
+    GenActivityRequest,
+    GenActivityResponse,
+    AnalyzeActivityActionRequest,
+    AnalyzeActivityActionResponse,
     WorkflowDataRequest,
     WorkflowDataResponse,
     BISourceCodeRequest,
@@ -187,6 +198,7 @@ import {
 } from "vscode";
 import { DebugProtocol } from "vscode-debugprotocol";
 import { extension } from "../../BalExtensionContext";
+import { notifyCurrentWebview } from "../../RPCLayer";
 import { OLD_BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
@@ -204,10 +216,12 @@ import {
     createEmptyBIWorkspace,
     deleteProjectFromWorkspace,
     openInVSCode,
+    refreshProjectInfoAndWait,
     validateProjectPath,
     getSuggestedProjectDefaults
 } from "../../utils/bi";
-import { writeBallerinaFileDidOpen } from "../../utils/modification";
+import { writeBallerinaFileDidOpen, writeBallerinaFileDidOpenTemp } from "../../utils/modification";
+import { buildProjectsStructure } from "../../utils/project-artifacts";
 import { updateSourceCode } from "../../utils/source-utils";
 import { getView } from "../../utils/state-machine-utils";
 import { isLibraryProject } from "../../utils/config";
@@ -218,7 +232,7 @@ import { CommonRpcManager } from "../common/rpc-manager";
 import * as toml from "@iarna/toml";
 import { readOrWriteReadmeContent } from "./utils";
 import { registerFormOpen, registerFormClose, setFormDirtyState } from "./form-state";
-import { chatStateStorage } from "../../views/ai-panel/chatStateStorage";
+import { isAiSourceParseable } from "../diagram-validity";
 import { getRepoRoot } from "../platform-ext/platform-utils";
 import { WI_EXTENSION_ID } from "../../utils";
 import { notifyOnIdentifierUpdated } from "../../RPCLayer";
@@ -291,8 +305,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             if (params?.filePath && params?.startLine && params?.endLine) {
                 console.log(">>> using params to create request");
                 let filePath = params.filePath;
-                // When useFileSchema is set, use file:// scheme to show original content
-                if (params.useFileSchema) {
+                // filePath defaults to ai:// (the frozen baseline, used for "old"); convert
+                // to file:// (live) unless the caller explicitly wants the old view.
+                if (!params.useFileSchema) {
                     filePath = this.convertAiToFileScheme(filePath);
                 }
                 request = {
@@ -331,8 +346,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             StateMachine.langClient()
                 .getFlowModel(request)
-                .then((model) => {
+                .then(async (model) => {
                     console.log(">>> bi flow model received from ls");
+                    if (model?.flowModel && !(await isAiSourceParseable([request.filePath]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(model);
                 })
                 .catch((error) => {
@@ -345,20 +364,24 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async getSourceCode(params: BISourceCodeRequest): Promise<UpdatedArtifactsResponse> {
         console.log(">>> requesting bi source code from ls", params);
         try {
+            this.ensureTargetFileExists(params.filePath);
             const model = await StateMachine.langClient().getSourceCode(params) as BISourceCodeResponse;
             console.log(">>> bi source code from ls", model);
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
+                // The LS reports either a message written for the user (a missing field, an
+                // unsupported construct) or one generic sentence for an internal failure, whose
+                // detail travels in the stacktrace for the output channel.
                 console.error(">>> error generating source code from ls", { errorMessage, stacktrace: model.stacktrace });
                 window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
                 return { artifacts: [], error: errorMessage };
             }
 
             if (!model?.textEdits) {
-                const errorMessage = "Failed to save changes: language server returned an empty source update.";
+                const errorMessage = "The language server returned an empty source update.";
                 console.error(">>> invalid source code response from ls", model);
-                window.showErrorMessage(errorMessage);
+                window.showErrorMessage("Failed to save changes: the operation could not be applied. Please try again.");
                 return { artifacts: [], error: errorMessage };
             }
 
@@ -373,6 +396,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
                 params.isHelperPaneChange
             );
+            if (typeof nodeKind === "string" && nodeKind.startsWith("DURABLE_AGENT")) {
+                // Capability edits rewrite the module-level agent declaration; if no artifact
+                // notification fired for it, the webview would never learn the source changed.
+                notifyCurrentWebview();
+            }
             return { artifacts };
         } catch (error) {
             console.log(">>> error fetching source code from ls", error);
@@ -380,6 +408,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
             return { artifacts: [], error: errorMessage };
         }
+    }
+
+    private ensureTargetFileExists(filePath: string) {
+        if (!filePath || !filePath.endsWith(".bal") || fs.existsSync(filePath)) { return; }
+        if (!fs.existsSync(path.dirname(filePath))) { return; }
+        writeBallerinaFileDidOpenTemp(filePath, "");
     }
 
     private capitalizeFirstLetter(name: string): string {
@@ -415,6 +449,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { artifactType: DIRECTORY_MAP.WORKFLOW };
             case 'ACTIVITY':
                 return { artifactType: DIRECTORY_MAP.ACTIVITY };
+            // Durable-agent capability nodes rewrite the agent declaration, whose artifact
+            // publishes as a WORKFLOW entry (durable agents list alongside workflows).
+            case 'DURABLE_AGENT':
+            case 'DURABLE_AGENT_RUN':
+            case 'DURABLE_AGENT_ADD_ACTIVITY':
+            case 'DURABLE_AGENT_REGISTER_TOOL':
+            case 'DURABLE_AGENT_REGISTER_EVENT':
+            case 'DURABLE_AGENT_HUMAN_TASK':
+                return { artifactType: DIRECTORY_MAP.WORKFLOW };
             // Add other cases as needed
             default:
                 return undefined;
@@ -707,7 +750,7 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     async getNodeTemplate(params: BINodeTemplateRequest): Promise<BINodeTemplateResponse> {
         console.log(">>> requesting bi node template from ls", params);
         params.forceAssign = true; // TODO: remove this
-        const projectPath = StateMachine.context().projectPath;
+        const projectPath = params.projectPath ?? StateMachine.context().projectPath;
         params.isLibrary = projectPath ? await isLibraryProject(projectPath) : false;
 
         // Check if the file exists
@@ -749,12 +792,20 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async validateProjectPath(params: ValidateProjectFormRequest): Promise<ValidateProjectFormResponse> {
-        // When converting an integtatino/library to a project, the new directory is created as a sibling of the
-        // current integration/library (i.e. under path.dirname(projectPath)), not inside the project itself.
-        const basePath = params.createAsWorkspace
-            ? path.dirname(StateMachine.context().projectPath)
-            : params.projectPath;
-        return validateProjectPath(basePath, params.projectName, params.createDirectory, params.createAsWorkspace);
+        // The caller supplies the parent location in `projectPath`. When converting an
+        // integration/library to a project without an explicit path, fall back to the
+        // current integration's parent directory (the legacy sibling-directory default).
+        const basePath = params.projectPath?.trim()
+            ? params.projectPath
+            : (params.createAsWorkspace ? path.dirname(StateMachine.context().projectPath) : params.projectPath);
+        return validateProjectPath(
+            basePath,
+            params.projectName,
+            params.createDirectory,
+            params.createAsWorkspace,
+            params.directoryName,
+            params.allowExistingDirectory
+        );
     }
 
     async deleteProject(params: DeleteProjectRequest): Promise<void> {
@@ -787,26 +838,34 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         StateMachine.refreshProjectInfo();
     }
 
-    async addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<void> {
-        if (params.convertToWorkspace) {
-            try {
-                await convertProjectToWorkspace(params);
-                // Refresh project info to update UI with newly added project
+    async addProjectToWorkspace(params: AddProjectToWorkspaceRequest): Promise<AddProjectToWorkspaceResponse> {
+        try {
+            const projectPath = params.convertToWorkspace
+                ? await convertProjectToWorkspace(params)
+                : await addProjectToExistingWorkspace(params);
+            if (params.silentRefresh) {
+                const refreshPath = StateMachine.context().workspacePath || StateMachine.context().projectPath;
+                const projectInfo = await StateMachine.langClient().getProjectInfo({ projectPath: refreshPath });
+                StateMachine.setProjectInfo(projectInfo);
+                await buildProjectsStructure(projectInfo, StateMachine.langClient(), true);
+            } else if (params.convertToWorkspace) {
                 StateMachine.refreshProjectInfo();
-            } catch (error) {
-                window.showErrorMessage("Error converting integration to project");
-                console.error("Error converting integration to project:", error);
-                return;
+            } else {
+                // The project was already open, so the new package is the news: land on
+                // its own overview. Refresh BEFORE navigating — that view fetches project
+                // structure on mount, so navigating first would show it a bare spinner.
+                if (await refreshProjectInfoAndWait()) {
+                    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath });
+                }
             }
-        } else {
-            try {
-                await addProjectToExistingWorkspace(params);
-                // Refresh project info to update UI with newly added project
-                StateMachine.refreshProjectInfo();
-            } catch (error) {
-                window.showErrorMessage("Error adding integration to existing project");
-                console.error("Error adding integration to existing project:", error);
-            }
+            return { projectPath };
+        } catch (error) {
+            const operation = params.convertToWorkspace
+                ? "converting integration to project"
+                : "adding integration to existing project";
+            window.showErrorMessage(`Error ${operation}`);
+            console.error(`Error ${operation}:`, error);
+            throw error;
         }
     }
 
@@ -1040,21 +1099,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
     }
 
     async getConfigVariablesV2(params: ConfigVariableRequest): Promise<ConfigVariableResponse> {
-        return new Promise(async (resolve) => {
-            const projectPath = StateMachine.context().projectPath;
-            const showLibraryConfigVariables = extension.ballerinaExtInstance.showLibraryConfigVariables();
+        const projectPath = StateMachine.context().projectPath;
+        const showLibraryConfigVariables = extension.ballerinaExtInstance.showLibraryConfigVariables();
 
-            // if params includeLibraries is not set, then use settings
-            const includeLibraries = params?.includeLibraries !== undefined
-                ? params.includeLibraries
-                : showLibraryConfigVariables !== false;
+        // if params includeLibraries is not set, then use settings
+        const includeLibraries = params?.includeLibraries !== undefined
+            ? params.includeLibraries
+            : showLibraryConfigVariables !== false;
 
-            const variables = await StateMachine.langClient().getConfigVariablesV2({
-                projectPath: projectPath,
-                includeLibraries
-            }) as ConfigVariableResponse;
-            resolve(variables);
-        });
+        return await StateMachine.langClient().getConfigVariablesV2({
+            projectPath: projectPath,
+            includeLibraries
+        }) as ConfigVariableResponse;
     }
 
     async updateConfigVariablesV2(params: UpdateConfigVariableRequestV2): Promise<UpdateConfigVariableResponseV2> {
@@ -1385,6 +1441,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 'workspace/didChangeWatchedFiles',
                 { changes: [{ uri: fileUri.toString(), type: fileExisted ? 2 : 1 }] }
             );
+
+            await writeBallerinaFileDidOpen(generatedFilePath, fs.readFileSync(generatedFilePath, 'utf8'))
+                .catch((e) => console.warn('[agent-chat] Timed out waiting for artifacts:', e));
 
             // Navigate to the chat resource function flow diagram
             openView(EVENT_TYPE.OPEN_VIEW, {
@@ -1750,9 +1809,8 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
     async getEnclosedFunction(params: BIGetEnclosedFunctionRequest): Promise<BIGetEnclosedFunctionResponse> {
         console.log(">>> requesting parent functin definition", params);
-        // When useFileSchema is set, use file:// scheme to show original content
         let filePath = params.filePath;
-        if (params.useFileSchema) {
+        if (!params.useFileSchema) {
             filePath = this.convertAiToFileScheme(filePath);
         }
         const request = { filePath, position: params.position, findClass: params.findClass };
@@ -1839,11 +1897,10 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             let projectPath: string;
             if (params?.projectPath) {
                 if (params.useFileSchema) {
-                    // Use file:// scheme to show original content
-                    projectPath = Uri.file(params.projectPath).toString();
+                    // ai:// is the frozen baseline — the "old" view
+                    projectPath = Uri.file(params.projectPath).with({ scheme: 'ai' }).toString();
                 } else {
-                    const uri = Uri.file(params.projectPath);
-                    projectPath = uri.with({ scheme: 'ai' }).toString();
+                    projectPath = Uri.file(params.projectPath).toString();
                 }
             } else {
                 projectPath = StateMachine.context().projectPath;
@@ -1851,8 +1908,12 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             StateMachine.langClient()
                 .getDesignModel({ projectPath })
-                .then((model) => {
+                .then(async (model) => {
                     console.log(">>> design model from ls", model);
+                    if (model?.designModel && !(await isAiSourceParseable([]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(model);
                 })
                 .catch((error) => {
@@ -1881,15 +1942,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             });
         }
 
-        // When useFileSchema is set, use file:// scheme to show original content
-        if (params.useFileSchema) {
+        if (!params.useFileSchema) {
             filePath = this.convertAiToFileScheme(filePath);
         }
 
         return new Promise((resolve, reject) => {
             StateMachine.langClient()
                 .getTypes({ filePath })
-                .then((types) => {
+                .then(async (types) => {
+                    if (types?.types && !(await isAiSourceParseable([filePath]))) {
+                        resolve(undefined);
+                        return;
+                    }
                     resolve(types);
                 }).catch((error) => {
                     console.log(">>> error fetching types from ls", error);
@@ -2103,6 +2167,77 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
         });
     }
 
+    async createClassDependency(params: CreateClassDependencyRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().createClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Create Class Dependency' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async listClassMembers(params: ClassMemberRequest): Promise<ClassMembersResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: ClassMembersResponse = await StateMachine.langClient().listClassMembers(params);
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async saveClassMember(params: SaveClassMemberRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().saveClassMember(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Save Class Member' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async deleteClassMember(params: DeleteClassMemberRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().deleteClassMember(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Delete Class Member' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async updateClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().updateClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Update Class Dependency' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    async removeClassDependency(params: ModifyClassDependencyRequest): Promise<SourceEditResponse> {
+        return new Promise(async (resolve) => {
+            try {
+                const res: SourceEditResponse = await StateMachine.langClient().removeClassDependency(params);
+                await updateSourceCode({ textEdits: res.textEdits, description: 'Remove Class Dependency' });
+                resolve(res);
+            } catch (error) {
+                console.log(error);
+            }
+        });
+    }
+
     async renameIdentifier(params: RenameIdentifierRequest): Promise<void> {
         const projectPath = StateMachine.context().projectPath;
         const filePath = path.join(projectPath, params.fileName);
@@ -2172,6 +2307,25 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 reject(error);
             });
         });
+    }
+
+    async genActivity(params: GenActivityRequest): Promise<GenActivityResponse> {
+        if (!params.description) {
+            params.description = "";
+        }
+        const response = await StateMachine.langClient().genActivity(params);
+        if (response.errorMsg) {
+            throw new Error(response.errorMsg);
+        }
+        if (!response.textEdits) {
+            throw new Error("No text edits were returned for the generated activity.");
+        }
+        const artifacts = await updateSourceCode({ textEdits: response.textEdits });
+        return { artifacts, textEdits: response.textEdits };
+    }
+
+    async analyzeActivityAction(params: AnalyzeActivityActionRequest): Promise<AnalyzeActivityActionResponse> {
+        return StateMachine.langClient().analyzeActivityAction(params);
     }
 
     async getRecordNames(): Promise<RecordsInWorkspaceMentions> {
@@ -2555,7 +2709,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             StateMachine.langClient().deleteType({ filePath: filePath, lineRange: params.lineRange })
                 .then(async (deleteTypeResponse: DeleteTypeResponse) => {
                     if (deleteTypeResponse.textEdits) {
-                        await updateSourceCode({ textEdits: deleteTypeResponse.textEdits, description: 'Type Deletion' });
+                        // Skip the payload check: a deletion publishes an empty artifact list, so
+                        // waiting for a non-empty payload would always hit the 10s timeout.
+                        await updateSourceCode({ textEdits: deleteTypeResponse.textEdits, description: 'Type Deletion', skipPayloadCheck: true });
                         resolve(deleteTypeResponse);
                     } else {
                         reject(deleteTypeResponse.errorMsg);
