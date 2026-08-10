@@ -67,7 +67,15 @@ public class AgentTriggerGenerationTest {
     private String render(Map<String, List<TextEdit>> edits) {
         StringBuilder source = new StringBuilder();
         edits.values().forEach(fileEdits -> fileEdits.forEach(edit -> source.append(edit.getNewText())));
-        return source.toString();
+        return normalized(source.toString());
+    }
+
+    /**
+     * The generator joins lines with {@code System.lineSeparator()}, so on Windows every assertion
+     * spanning a line break would have to spell {@code \r\n}. Assert the shape, not the host.
+     */
+    private static String normalized(String source) {
+        return source.replace("\r\n", "\n");
     }
 
     private String generateForAgent(String moduleName, String agentVarName, String agentOrgName) {
@@ -400,7 +408,7 @@ public class AgentTriggerGenerationTest {
             String target = lines.get(line);
             lines.set(line, target.substring(0, character) + edit.getNewText() + target.substring(character));
         }
-        return String.join("\n", lines);
+        return normalized(String.join("\n", lines));
     }
 
 
