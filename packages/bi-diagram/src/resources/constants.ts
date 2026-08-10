@@ -102,7 +102,7 @@ export const LINK_HOVERED_COLOR = ThemeColors.PRIMARY;
 export const LINK_DISABLED_COLOR = ThemeColors.OUTLINE_VARIANT;
 
 // ─── Add Button Colors ───────────────────────────────────────────────────────
-export const ADD_TILE_LABEL_COLOR = ThemeColors.ON_SURFACE_VARIANT;
+export const ADD_TILE_LABEL_COLOR = ThemeColors.ON_SURFACE;
 export const ADD_BUTTON_COLOR = ThemeColors.ON_SURFACE;
 export const ADD_BUTTON_HOVERED_COLOR = ThemeColors.PRIMARY;
 export const ADD_BUTTON_DISABLED_COLOR = ThemeColors.OUTLINE_VARIANT;
