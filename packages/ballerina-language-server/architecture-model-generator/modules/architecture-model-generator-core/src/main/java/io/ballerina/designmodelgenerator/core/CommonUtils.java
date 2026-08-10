@@ -327,7 +327,8 @@ public class CommonUtils {
 
     public static boolean isHiddenAiClass(Symbol symbol) {
         return isAgentClass(symbol) || isAiFixedTypedAgent(symbol) || isAiDependentlyTypedAgent(symbol)
-                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol)  || isAiDataLoader(symbol);
+                || isAiKnowledgeBase(symbol) || isAiMemory(symbol) || isAiShortTermMemoryStore(symbol)
+                || isAiDataLoader(symbol);
     }
 
     private static boolean hasAiTypeInclusion(ObjectTypeSymbol objectTypeSymbol, String includedTypeName) {
