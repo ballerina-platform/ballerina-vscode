@@ -144,7 +144,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                         const name = evalsetData.name || path.basename(uri.fsPath, '.evalset.json');
                         const description = evalsetData.description || '';
                         const filePath = params.projectPath
-                            ? path.relative(params.projectPath, uri.fsPath)
+                            ? path.relative(params.projectPath, uri.fsPath).split(path.sep).join('/')
                             : uri.fsPath;
 
                         evalsets.push({
