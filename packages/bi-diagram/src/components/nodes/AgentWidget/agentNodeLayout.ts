@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { AgentUsage, NodeMetadata } from "@wso2/ballerina-core";
+import { AgentUsage, NodeMetadata, unwrapBallerinaString } from "@wso2/ballerina-core";
 import {
     AGENT_CALL_TOOL_SECTION_GAP,
     AGENT_NODE_TOOL_GAP,
@@ -32,9 +32,27 @@ import { FlowNode } from "../../../utils/types";
 
 export type AgentWidgetType = NodeTypes.AGENT_NODE | NodeTypes.TYPED_AGENT_NODE | NodeTypes.AGENT_CALL_NODE;
 
+const PROMPT_CHARS_PER_LINE = 42;
+const PROMPT_LINE_HEIGHT = 17;
+const PROMPT_LINES_IN_BASE_HEIGHT = 4;
+const PROMPT_MAX_EXTRA_LINES = 6;
+
+function getPromptExtraHeight(agentInfo?: NodeMetadata["agentInfo"]): number {
+    const instructions = unwrapBallerinaString(agentInfo?.systemPrompt?.instructions);
+    if (!instructions) {
+        return 0;
+    }
+    const lines = instructions
+        .split(/\r?\n|\\n/)
+        .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / PROMPT_CHARS_PER_LINE)), 0);
+    const extraLines = Math.min(Math.max(lines - PROMPT_LINES_IN_BASE_HEIGHT, 0), PROMPT_MAX_EXTRA_LINES);
+    return extraLines * PROMPT_LINE_HEIGHT;
+}
+
 const layoutStrategies = {
-    [NodeTypes.AGENT_NODE]: (toolHeight: number) => NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
-        + toolHeight + (NODE_HEIGHT + AGENT_NODE_TOOL_GAP),
+    [NodeTypes.AGENT_NODE]: (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => NODE_HEIGHT
+        + AGENT_NODE_TOOL_SECTION_GAP + toolHeight + (NODE_HEIGHT + AGENT_NODE_TOOL_GAP)
+        + (toolHeight === 0 ? getPromptExtraHeight(agentInfo) : 0),
     [NodeTypes.TYPED_AGENT_NODE]: (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => {
         const memoryHeight = agentInfo?.memory?.propertyKey ? 52 : 0;
         const hasPrompt = Boolean(agentInfo?.systemPrompt?.role && agentInfo?.systemPrompt?.instructions);

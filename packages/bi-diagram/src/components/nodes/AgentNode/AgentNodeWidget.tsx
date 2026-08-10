@@ -21,7 +21,7 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
 import {
-    ADD_TILE_COLOR,
+    ADD_TILE_LABEL_COLOR,
     AGENT_NODE_TOOL_GAP,
     AGENT_NODE_USAGE_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
@@ -428,6 +428,15 @@ const USAGE_TEXT_RIGHT_X = 190;
 const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
 const USAGE_MENU_SIZE = 24;
+// The usage column's viewBox ends at the node's left border; the tool column's starts at the right one.
+const NODE_EDGE_LEFT_X = 300;
+const NODE_EDGE_RIGHT_X = 0;
+const EDGE_ADD_DOT_R = 3;
+const EDGE_ADD_LINE_END = 22;
+const EDGE_ADD_PLUS_CX = 31;
+const EDGE_ADD_PLUS_R = 9;
+const EDGE_ADD_LABEL_GAP = 8;
+const EDGE_ADD_HIT_WIDTH = 170;
 
 const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
     ai: { glyph: "comment-discussion", isCodicon: true },
@@ -465,6 +474,83 @@ function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }
         );
     }
     return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />;
+}
+
+function EdgeAddButton(props: {
+    anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string; onClick: () => void;
+}) {
+    const { anchorX, y, side, label, title, testId, onClick } = props;
+    const dir = side === "right" ? 1 : -1;
+    const plusCx = dir * EDGE_ADD_PLUS_CX;
+    const labelX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
+    return (
+        <g
+            data-testid={testId}
+            transform={`translate(${anchorX}, ${y})`}
+            onClick={onClick}
+            css={css`
+                cursor: pointer;
+                &:hover .edge-add-stroke {
+                    stroke: ${ThemeColors.SECONDARY};
+                }
+                &:hover text {
+                    fill: ${ThemeColors.SECONDARY};
+                }
+            `}
+        >
+            <rect
+                x={side === "right" ? -EDGE_ADD_DOT_R : EDGE_ADD_DOT_R - EDGE_ADD_HIT_WIDTH}
+                y={-15}
+                width={EDGE_ADD_HIT_WIDTH}
+                height="30"
+                fill="transparent"
+                style={{ pointerEvents: "all" }}
+            />
+            <circle
+                className="edge-add-stroke"
+                cx="0"
+                cy="0"
+                r={EDGE_ADD_DOT_R}
+                fill={ThemeColors.SURFACE_DIM}
+                stroke={ThemeColors.ON_SURFACE}
+                strokeWidth={1.5}
+            />
+            <line
+                className="edge-add-stroke"
+                x1={dir * (EDGE_ADD_DOT_R + 1)}
+                y1="0"
+                x2={dir * EDGE_ADD_LINE_END}
+                y2="0"
+                stroke={ThemeColors.ON_SURFACE}
+                strokeWidth={1.5}
+            />
+            <circle
+                className="edge-add-stroke"
+                cx={plusCx}
+                cy="0"
+                r={EDGE_ADD_PLUS_R}
+                fill={ThemeColors.SURFACE_DIM}
+                stroke={ThemeColors.ON_SURFACE}
+                strokeWidth={1.5}
+            />
+            <line className="edge-add-stroke" x1={plusCx - 4} y1="0" x2={plusCx + 4} y2="0"
+                stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+            <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
+                stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+            <text
+                x={labelX}
+                y="0"
+                textAnchor={side === "right" ? "start" : "end"}
+                fill={ADD_TILE_LABEL_COLOR}
+                fontSize="13px"
+                fontFamily="GilmerMedium"
+                dominantBaseline="middle"
+            >
+                {label}
+                <title>{title}</title>
+            </text>
+        </g>
+    );
 }
 
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
@@ -760,8 +846,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const onUsageClick = (usage: AgentUsage) => {
         openView?.({ documentUri: usage.documentUri, position: usage.position });
     };
-    const addToolCx = 80;
-    const addTriggerX = 198;
 
     const canDeleteTrigger = (usage: AgentUsage) =>
         !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
@@ -1024,81 +1108,15 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 </Popover>
 
                 {showsAddTile && (
-                    <g
-                        data-testid="agent-add-trigger"
-                        transform={`translate(0, ${addTileY})`}
+                    <EdgeAddButton
+                        testId="agent-add-trigger"
+                        anchorX={NODE_EDGE_LEFT_X}
+                        y={addTileY + 24}
+                        side="left"
+                        label="Add Trigger"
+                        title="Connect this agent to a channel such as WhatsApp or Telegram"
                         onClick={onAddTriggerClick}
-                        css={css`
-                            cursor: pointer;
-                            > g {
-                                ${animateUsages
-                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
-                                       animation-delay: ${addTileRow * 70}ms;`
-                                : ""}
-                            }
-                            &:hover .add-tile {
-                                stroke: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover .add-connector {
-                                stroke: ${ThemeColors.SECONDARY};
-                                marker-end: url(#${model.node.id}-arrow-head-add-hover);
-                            }
-                            &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                        `}
-                    >
-                        <g>
-                            <rect x={addTriggerX - 86} y="0" width="132" height="48" fill="transparent"
-                                style={{ pointerEvents: "all" }} />
-                            <rect
-                                className="add-tile"
-                                x={addTriggerX}
-                                y="2"
-                                width="44"
-                                height="44"
-                                rx="10"
-                                fill="transparent"
-                                stroke={ADD_TILE_COLOR}
-                                strokeWidth={1.5}
-                                strokeDasharray="4 3"
-                            />
-                            <text
-                                x={addTriggerX + 22}
-                                y="25"
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                fill={ADD_TILE_COLOR}
-                                fontSize="20px"
-                                fontFamily="GilmerRegular"
-                            >
-                                +
-                            </text>
-                            <text
-                                x={addTriggerX - 8}
-                                y="25"
-                                textAnchor="end"
-                                fill={ADD_TILE_COLOR}
-                                fontSize="13px"
-                                fontFamily="GilmerMedium"
-                                dominantBaseline="middle"
-                            >
-                                Add Trigger
-                                <title>Connect this agent to a channel such as WhatsApp or Telegram</title>
-                            </text>
-                            <line
-                                className="add-connector"
-                                x1={addTriggerX + 45}
-                                y1="25"
-                                x2="300"
-                                y2="25"
-                                stroke={ADD_TILE_COLOR}
-                                strokeWidth={1.5}
-                                strokeDasharray="6 6"
-                                markerEnd={`url(#${model.node.id}-arrow-head-add)`}
-                            />
-                        </g>
-                    </g>
+                    />
                 )}
 
                 <defs>
@@ -1112,28 +1130,6 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         orient="auto"
                     >
                         <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
-                    </marker>
-                    <marker
-                        id={`${model.node.id}-arrow-head-add-hover`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.SECONDARY}></polygon>
-                    </marker>
-                    <marker
-                        id={`${model.node.id}-arrow-head-add`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={ADD_TILE_COLOR}></polygon>
                     </marker>
                 </defs>
             </svg>}
@@ -1646,90 +1642,21 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </Menu>
                 </Popover>}
 
-                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
-                    data-testid="agent-add-tool"
-                    transform={`translate(0, ${tools.length > 0
-                        ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                        : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
-                        })`}
-                    onClick={onAddToolClick}
-                    css={css`
-                        cursor: pointer;
-                        &:hover circle,
-                        &:hover line {
-                            stroke: ${ThemeColors.SECONDARY};
-                        }
-                        &:hover .add-connector {
-                            marker-end: url(#${model.node.id}-arrow-head-add-tool-hover);
-                        }
-                        &:hover text {
-                            fill: ${ThemeColors.SECONDARY};
-                        }
-                    `}
-                >
-                    <rect x={addToolCx - 24} y="0" width="128" height="48" fill="transparent"
-                        style={{ pointerEvents: "all" }} />
-                    <line
-                        className="add-connector"
-                        x1="0"
-                        y1="25"
-                        x2={addToolCx - 23}
-                        y2="25"
-                        stroke={ADD_TILE_COLOR}
-                        strokeWidth={1.5}
-                        strokeDasharray="6 6"
-                        markerEnd={`url(#${model.node.id}-arrow-head-add-tool)`}
+                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && (
+                    <EdgeAddButton
+                        testId="agent-add-tool"
+                        anchorX={NODE_EDGE_RIGHT_X}
+                        y={(tools.length > 0
+                            ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
+                            : containerHeight - NODE_HEIGHT - AGENT_NODE_TOOL_GAP) + 24}
+                        side="right"
+                        label="Add Tool"
+                        title="Add a tool or MCP server for this agent to call"
+                        onClick={onAddToolClick}
                     />
-                    <circle
-                        cx={addToolCx}
-                        cy="24"
-                        r="22"
-                        fill="transparent"
-                        stroke={ADD_TILE_COLOR}
-                        strokeWidth={1.5}
-                        strokeDasharray="4 3"
-                    />
-                    <line x1={addToolCx - 4.5} y1="24" x2={addToolCx + 4.5} y2="24"
-                        stroke={ADD_TILE_COLOR} strokeWidth={1.5} strokeLinecap="round" />
-                    <line x1={addToolCx} y1="19.5" x2={addToolCx} y2="28.5"
-                        stroke={ADD_TILE_COLOR} strokeWidth={1.5} strokeLinecap="round" />
-                    <text
-                        x={addToolCx + 30}
-                        y="28"
-                        textAnchor="start"
-                        fill={ADD_TILE_COLOR}
-                        fontSize="13px"
-                        fontFamily="GilmerMedium"
-                        dominantBaseline="middle"
-                    >
-                        Add Tool
-                        <title>Add a tool or MCP server for this agent to call</title>
-                    </text>
-                </g>}
+                )}
 
                 <defs>
-                    <marker
-                        id={`${model.node.id}-arrow-head-add-tool-hover`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.SECONDARY}></polygon>
-                    </marker>
-                    <marker
-                        id={`${model.node.id}-arrow-head-add-tool`}
-                        markerWidth="4"
-                        markerHeight="4"
-                        refX="3"
-                        refY="2"
-                        viewBox="0 0 4 4"
-                        orient="auto"
-                    >
-                        <polygon points="0,4 0,0 4,2" fill={ADD_TILE_COLOR}></polygon>
-                    </marker>
                     <marker
                         id={`${model.node.id}-arrow-head`}
                         markerWidth="4"
