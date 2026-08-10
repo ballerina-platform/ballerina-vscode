@@ -428,7 +428,6 @@ const USAGE_TEXT_RIGHT_X = 190;
 const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
 const USAGE_MENU_SIZE = 24;
-// The usage column's viewBox ends at the node's left border; the tool column's starts at the right one.
 const NODE_EDGE_LEFT_X = 300;
 const NODE_EDGE_RIGHT_X = 0;
 const EDGE_ADD_DOT_R = 3;
@@ -437,6 +436,11 @@ const EDGE_ADD_PLUS_CX = 31;
 const EDGE_ADD_PLUS_R = 9;
 const EDGE_ADD_LABEL_GAP = 8;
 const EDGE_ADD_HIT_WIDTH = 170;
+
+const usageFadeIn = (delay: number) => css`
+    animation: ${usageRowFadeIn} 260ms ease-out both;
+    animation-delay: ${delay}ms;
+`;
 
 const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
     ai: { glyph: "comment-discussion", isCodicon: true },
@@ -477,9 +481,10 @@ function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }
 }
 
 function EdgeAddButton(props: {
-    anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string; onClick: () => void;
+    anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
+    animationDelay?: number; onClick: () => void;
 }) {
-    const { anchorX, y, side, label, title, testId, onClick } = props;
+    const { anchorX, y, side, label, title, testId, animationDelay, onClick } = props;
     const dir = side === "right" ? 1 : -1;
     const plusCx = dir * EDGE_ADD_PLUS_CX;
     const labelX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
@@ -490,6 +495,9 @@ function EdgeAddButton(props: {
             onClick={onClick}
             css={css`
                 cursor: pointer;
+                > g {
+                    ${animationDelay === undefined ? "" : usageFadeIn(animationDelay)}
+                }
                 &:hover .edge-add-stroke {
                     stroke: ${ThemeColors.SECONDARY};
                 }
@@ -498,57 +506,59 @@ function EdgeAddButton(props: {
                 }
             `}
         >
-            <rect
-                x={side === "right" ? -EDGE_ADD_DOT_R : EDGE_ADD_DOT_R - EDGE_ADD_HIT_WIDTH}
-                y={-15}
-                width={EDGE_ADD_HIT_WIDTH}
-                height="30"
-                fill="transparent"
-                style={{ pointerEvents: "all" }}
-            />
-            <circle
-                className="edge-add-stroke"
-                cx="0"
-                cy="0"
-                r={EDGE_ADD_DOT_R}
-                fill={ThemeColors.SURFACE_DIM}
-                stroke={ThemeColors.ON_SURFACE}
-                strokeWidth={1.5}
-            />
-            <line
-                className="edge-add-stroke"
-                x1={dir * (EDGE_ADD_DOT_R + 1)}
-                y1="0"
-                x2={dir * EDGE_ADD_LINE_END}
-                y2="0"
-                stroke={ThemeColors.ON_SURFACE}
-                strokeWidth={1.5}
-            />
-            <circle
-                className="edge-add-stroke"
-                cx={plusCx}
-                cy="0"
-                r={EDGE_ADD_PLUS_R}
-                fill={ThemeColors.SURFACE_DIM}
-                stroke={ThemeColors.ON_SURFACE}
-                strokeWidth={1.5}
-            />
-            <line className="edge-add-stroke" x1={plusCx - 4} y1="0" x2={plusCx + 4} y2="0"
-                stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
-            <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
-                stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
-            <text
-                x={labelX}
-                y="0"
-                textAnchor={side === "right" ? "start" : "end"}
-                fill={ADD_TILE_LABEL_COLOR}
-                fontSize="13px"
-                fontFamily="GilmerMedium"
-                dominantBaseline="middle"
-            >
-                {label}
-                <title>{title}</title>
-            </text>
+            <g>
+                <rect
+                    x={side === "right" ? -EDGE_ADD_DOT_R : EDGE_ADD_DOT_R - EDGE_ADD_HIT_WIDTH}
+                    y={-15}
+                    width={EDGE_ADD_HIT_WIDTH}
+                    height="30"
+                    fill="transparent"
+                    style={{ pointerEvents: "all" }}
+                />
+                <circle
+                    className="edge-add-stroke"
+                    cx="0"
+                    cy="0"
+                    r={EDGE_ADD_DOT_R}
+                    fill={ThemeColors.SURFACE_DIM}
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <line
+                    className="edge-add-stroke"
+                    x1={dir * (EDGE_ADD_DOT_R + 1)}
+                    y1="0"
+                    x2={dir * EDGE_ADD_LINE_END}
+                    y2="0"
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <circle
+                    className="edge-add-stroke"
+                    cx={plusCx}
+                    cy="0"
+                    r={EDGE_ADD_PLUS_R}
+                    fill={ThemeColors.SURFACE_DIM}
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <line className="edge-add-stroke" x1={plusCx - 4} y1="0" x2={plusCx + 4} y2="0"
+                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
+                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                <text
+                    x={labelX}
+                    y="0"
+                    textAnchor={side === "right" ? "start" : "end"}
+                    fill={ADD_TILE_LABEL_COLOR}
+                    fontSize="13px"
+                    fontFamily="GilmerMedium"
+                    dominantBaseline="middle"
+                >
+                    {label}
+                    <title>{title}</title>
+                </text>
+            </g>
         </g>
     );
 }
@@ -951,10 +961,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         css={css`
                             cursor: pointer;
                             > g {
-                                ${animateUsages
-                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
-                                       animation-delay: ${index * 70}ms;`
-                                : ""}
+                                ${animateUsages ? usageFadeIn(index * 70) : ""}
                             }
                             &:hover rect:first-of-type {
                                 stroke: ${ThemeColors.SECONDARY};
@@ -1077,10 +1084,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         fontFamily="GilmerRegular"
                         dominantBaseline="middle"
                         css={css`
-                            ${animateUsages
-                                ? `animation: ${usageRowFadeIn} 260ms ease-out both;
-                                   animation-delay: ${usages.length * 70}ms;`
-                                : ""}
+                            ${animateUsages ? usageFadeIn(usages.length * 70) : ""}
                         `}
                     >
                         {`+${hiddenUsageCount} more`}
@@ -1109,12 +1113,14 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
                 {showsAddTile && (
                     <EdgeAddButton
+                        key={addTileRow}
                         testId="agent-add-trigger"
                         anchorX={NODE_EDGE_LEFT_X}
                         y={addTileY + 24}
                         side="left"
                         label="Add Trigger"
                         title="Connect this agent to a channel such as WhatsApp or Telegram"
+                        animationDelay={animateUsages ? addTileRow * 70 : undefined}
                         onClick={onAddTriggerClick}
                     />
                 )}
