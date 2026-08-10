@@ -70,9 +70,16 @@ function serviceTypeLabel(type?: string): string | undefined {
     return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart} Service`;
 }
 
+function resourcePath(path: string): string {
+    return unescapePath(path === "." ? "/" : path.startsWith("/") ? path : `/${path}`);
+}
+
 function resourceLabel(accessor: string, path: string): string {
-    const normalized = path === "." ? "/" : path.startsWith("/") ? path : `/${path}`;
-    return `${accessor.toUpperCase()} ${unescapePath(normalized)}`;
+    return `${accessor.toUpperCase()} ${resourcePath(path)}`;
+}
+
+function serviceName(service: CDService): string {
+    return unescapePath(service.absolutePath || service.displayName || service.type);
 }
 
 function modulePrefix(type?: string): string {
@@ -98,13 +105,17 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
 
 function usagesForService(service: CDService, uuid: string, trigger?: AgentUsageTrigger): AgentUsage[] {
     const label = serviceLabel(service);
+    const name = serviceName(service);
+    const isAgentChat = modulePrefix(service.type) === "ai";
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
         if (resource.connections?.includes(uuid)) {
             usages.push({
-                label: resourceLabel(resource.accessor, resource.path),
+                label: isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path),
                 serviceLabel: label,
+                serviceName: name,
+                functionName: resourcePath(resource.path),
                 type: service.type,
                 typeLabel: serviceTypeLabel(service.type),
                 icon: service.icon,
@@ -120,6 +131,8 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
             usages.push({
                 label: fn.name,
                 serviceLabel: label,
+                serviceName: name,
+                functionName: fn.name,
                 type: service.type,
                 typeLabel: serviceTypeLabel(service.type),
                 icon: service.icon,
@@ -133,6 +146,7 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
     if (usages.length === 0) {
         usages.push({
             label,
+            serviceName: name,
             type: service.type,
             typeLabel: serviceTypeLabel(service.type),
             icon: service.icon,

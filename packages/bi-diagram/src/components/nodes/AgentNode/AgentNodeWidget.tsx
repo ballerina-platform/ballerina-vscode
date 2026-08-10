@@ -38,7 +38,7 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon from "../../NodeIcon";
+import NodeIcon, { ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
@@ -63,6 +63,7 @@ import {
     getVisibleAgentUsages,
 } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
+import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -578,11 +579,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const controller = useAgentNodeController(model);
     const {
         onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
-        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation, openView,
+        goToAgentDefinition, getAgentDefinitionLocation, openView,
     } = controller.context;
     const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
         setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
-        boxSyncPulseAnimation } = controller;
+        boxSyncPulseAnimation, handleThemeChange } = controller;
 
     const [canViewDefinition, setCanViewDefinition] = useState(false);
     const [toolAnchorEl, setToolAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
@@ -881,55 +882,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const description = agentInfo?.description;
     const isPrebuilt = isTypeDefinition && Boolean(model.node.codedata?.org);
     const modelPropertyKey = agentInfo?.modelProvider?.propertyKey ?? "model";
-    const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
-    const nodeRole = sanitizedAgent?.role || '';
-    const nodeInstructions = sanitizedAgent?.instructions || '';
 
-    const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
-        if (entrypointContext) {
-            const traceService = traceAnimation.entrypointServiceName ?? '';
-            const traceFunction = traceAnimation.entrypointFunctionName ?? '';
-            const ctxService = entrypointContext.serviceName ?? '';
-            const ctxFunction = entrypointContext.functionName ?? '';
-            if (traceService !== ctxService || traceFunction !== ctxFunction) {
-                return false;
-            }
-        }
-
-        const sysInstr = traceAnimation.systemInstructions;
-        if (sysInstr) {
-            const extractedRole = sysInstr.match(/(?:^|\n)#\s*Role[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions|$)/i)?.[1]?.trim();
-            const extractedInstructions = sysInstr.match(/(?:^|\n)#\s*Instructions[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions for Tool Validation Failure Handling|$)/i)?.[1]?.trim();
-
-            const roleMatch = nodeRole != null && extractedRole === nodeRole.trim();
-            const cleanedInstructions = extractedInstructions
-                ?.replace(/\n#\s*Instructions for Tool Validation Failure Handling[^\n]*\n[\s\S]*$/, '')
-                ?.trim();
-            const instrMatch = nodeInstructions != null && cleanedInstructions === nodeInstructions.trim();
-
-            if (nodeRole != null && nodeInstructions != null) {
-                return roleMatch && instrMatch;
-            }
-        }
-        const hasToolOverlap =
-            traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
-        if (hasToolOverlap) return true;
-        return false;
-    })();
-    const matchedEntries = isTraceMatch ? traceAnimation.entries : [];
-
-    const chatEntry = matchedEntries.find(e => e.type === 'chat');
-    const toolEntries = matchedEntries.filter(e => e.type === 'execute_tool');
-
-    const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
-    const isAnyToolActive = activeToolNames.length > 0;
-
-    const isModelActive = chatEntry?.phase === 'active' && !isAnyToolActive;
-
-    const isAgentNodeActive = isModelActive || isAnyToolActive;
+    const { isModelActive, activeToolNames, isAgentNodeActive, activeEntrypoint } = getAgentTraceState({
+        traceAnimation,
+        tools,
+        systemPrompt: agentInfo?.systemPrompt,
+        enabled: !isTypeDefinition,
+        requireEntrypointMatch: false,
+    });
+    const isUsageActive = (usage: AgentUsage) =>
+        isAgentNodeActive && matchesUsageEntrypoint(usage, activeEntrypoint);
 
     let containerHeight = getAgentNodeContainerHeight(model.node,
         isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE);
@@ -946,7 +908,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 viewBox={`0 0 300 ${containerHeight}`}
                 style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
             >
-                {usages.map((usage: AgentUsage, index: number) => (
+                {usages.map((usage: AgentUsage, index: number) => {
+                    const isRowActive = isUsageActive(usage);
+                    return (
                     <g
                         key={`${usage.documentUri}-${usage.label}-${index}`}
                         data-testid="agent-usage-row"
@@ -989,6 +953,24 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 css={css`
                                 transition: stroke 0.4s ease-out;
                             `}
+                            />
+                            <rect
+                                x="198"
+                                y="2"
+                                width="44"
+                                height="44"
+                                rx="10"
+                                fill="none"
+                                stroke={aiColor}
+                                strokeWidth={2.5}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isRowActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    transform-origin: 220px 24px;
+                                    transform: scale(1.03);
+                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                                `}
                             />
                             <foreignObject
                                 x="208"
@@ -1038,7 +1020,27 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     stroke: ThemeColors.ON_SURFACE,
                                     strokeWidth: 1.5,
                                     markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
+                                    opacity: isRowActive ? 0 : 1,
+                                    transition: "opacity 0.4s ease-out",
                                 }}
+                            />
+                            <line
+                                x1="243"
+                                y1="25"
+                                x2="300"
+                                y2="25"
+                                style={{
+                                    stroke: aiColor,
+                                    strokeWidth: 2.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-usage-active)`,
+                                    strokeDasharray: "6 6",
+                                }}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isRowActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    animation: ${flowDashAnimation} 1s linear infinite;
+                                `}
                             />
 
                             {canDeleteTrigger(usage) && (
@@ -1072,7 +1074,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             )}
                         </g>
                     </g>
-                ))}
+                    );
+                })}
 
                 {hiddenUsageCount > 0 && (
                     <text
@@ -1137,6 +1140,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
                     </marker>
+
+                    <marker
+                        id={`${model.node.id}-arrow-head-usage-active`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                    </marker>
                 </defs>
             </svg>}
 
@@ -1153,6 +1168,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                 title="Configure Agent"
             >
+                <div
+                    css={css`
+                        position: absolute;
+                        top: -1px; left: -1px; right: -1px; bottom: -1px;
+                        border-radius: 10px;
+                        border: 2px solid ${aiColor};
+                        opacity: ${isAgentNodeActive ? 1 : 0};
+                        transition: opacity 0.4s ease-out;
+                        animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        pointer-events: none;
+                        z-index: 1;
+                    `}
+                />
                 {hasBreakpoint && (
                     <div
                         data-testid={isActiveBreakpoint ? "breakpoint-indicator-diagram-active" : "breakpoint-indicator-diagram"}
@@ -1402,6 +1430,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <title>{"Configure Model Provider"}</title>
                     </circle>
+                    <circle
+                        cx="80"
+                        cy="24"
+                        r="22"
+                        fill="none"
+                        stroke={aiColor}
+                        strokeWidth={2.5}
+                        css={css`
+                            pointer-events: none;
+                            opacity: ${isModelActive ? 1 : 0};
+                            transition: opacity 0.4s ease-out;
+                            transform-origin: 80px 24px;
+                            transform: scale(1.03);
+                            animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        `}
+                    />
                     <foreignObject
                         x="68"
                         y="12"
@@ -1447,11 +1491,32 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             strokeWidth: 1.5,
                             markerEnd: `url(#${model.node.id}-arrow-head)`,
                             markerStart: `url(#${model.node.id}-diamond-start)`,
+                            opacity: isModelActive ? 0 : 1,
+                            transition: "opacity 0.4s ease-out",
                         }}
+                    />
+                    <line
+                        x1="0"
+                        y1="25"
+                        x2="57"
+                        y2="25"
+                        style={{
+                            stroke: aiColor,
+                            strokeWidth: 2.5,
+                            markerEnd: `url(#${model.node.id}-arrow-head-active)`,
+                            strokeDasharray: "6 6",
+                        }}
+                        css={css`
+                            pointer-events: none;
+                            opacity: ${isModelActive ? 1 : 0};
+                            transition: opacity 0.4s ease-out;
+                            animation: ${flowDashAnimation} 1s linear infinite;
+                        `}
                     />
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
+                    const isToolActive = activeToolNames.includes(tool.name);
                     return (
                         <g
                             key={index}
@@ -1500,6 +1565,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 opacity={disabled ? 0.7 : 1}
                                 css={css`
                                     transition: stroke 0.4s ease-out;
+                                `}
+                            />
+                            <circle
+                                cx="80"
+                                cy="24"
+                                r="22"
+                                fill="none"
+                                stroke={aiColor}
+                                strokeWidth={2.5}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isToolActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    transform-origin: 80px 24px;
+                                    transform: scale(1.03);
+                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
                                 `}
                             />
                             <foreignObject
@@ -1599,7 +1680,27 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     strokeWidth: 1.5,
                                     markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
                                     strokeDasharray: "6 6",
+                                    opacity: isToolActive ? 0 : 1,
+                                    transition: "opacity 0.4s ease-out",
                                 }}
+                            />
+                            <line
+                                x1="0"
+                                y1="25"
+                                x2="57"
+                                y2="25"
+                                style={{
+                                    stroke: aiColor,
+                                    strokeWidth: 2.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active)`,
+                                    strokeDasharray: "6 6",
+                                }}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isToolActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    animation: ${flowDashAnimation} 1s linear infinite;
+                                `}
                             />
 
                             {!toolsReadOnly && <foreignObject
@@ -1676,6 +1777,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </marker>
 
                     <marker
+                        id={`${model.node.id}-arrow-head-active`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                    </marker>
+
+                    <marker
                         id={`${model.node.id}-diamond-start`}
                         markerWidth="8"
                         markerHeight="8"
@@ -1706,10 +1819,23 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             >
                                 <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
                             </marker>
+
+                            <marker
+                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
+                                markerWidth="4"
+                                markerHeight="4"
+                                refX="3"
+                                refY="2"
+                                viewBox="0 0 4 4"
+                                orient="auto"
+                            >
+                                <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                            </marker>
                         </React.Fragment>
                     ))}
                 </defs>
             </svg>}
+            <ThemeListener onThemeChange={handleThemeChange} />
         </NodeStyles.Node>
     );
 }

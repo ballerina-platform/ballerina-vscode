@@ -374,6 +374,6 @@ describe("rail ordering", () => {
         const labels = findAgentUsages(scatteredChannels, { filePath: AGENTS_BAL, startLine: 4 })
             .map((usage) => usage.label);
 
-        expect(labels).toEqual(["onAssigned", "onReopened", "POST /chat", "main"]);
+        expect(labels).toEqual(["onAssigned", "onReopened", "Agent Chat", "main"]);
     });
 });
