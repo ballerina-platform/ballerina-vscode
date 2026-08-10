@@ -186,6 +186,10 @@ export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmittin
                     onSubmit={handleOnSubmit}
                     preserveFieldOrder={true}
                     submitText="Create Integration"
+                    // Pre-project: the type editor resolves its file from the visualizer state
+                    // machine (absent here), and a type created in the throwaway staging package
+                    // would never reach the generated integration — so don't offer creation.
+                    allowTypeCreation={false}
                 />
             </FormBody>
         </FormContainer>

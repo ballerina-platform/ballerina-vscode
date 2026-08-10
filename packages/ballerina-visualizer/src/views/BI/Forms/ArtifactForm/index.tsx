@@ -134,6 +134,10 @@ interface ArtifactFormProps {
     recordsOnly?: boolean;
     serverValidationErrors?: ValidationResult[];
     footerActionButton?: boolean;
+    // Hides the type helper's "Create New Type" action. Used by pre-project hosts
+    // (e.g. the Add Integration wizard) where the type editor has no visualizer
+    // state machine to resolve a file path from, so created types have nowhere to go.
+    allowTypeCreation?: boolean;
 }
 
 export function ArtifactForm(props: ArtifactFormProps) {
@@ -175,7 +179,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         secondarySubmitText,
         onSecondarySubmit,
         serverValidationErrors,
-        footerActionButton
+        footerActionButton,
+        allowTypeCreation = true
     } = props;
 
     const { rpcClient } = useRpcContext();
@@ -856,7 +861,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             onChange: onChange,
             changeTypeHelperState: changeHelperPaneState,
             updateImports: handleUpdateImports,
-            onTypeCreate: handleCreateNewType,
+            onTypeCreate: allowTypeCreation ? handleCreateNewType : undefined,
             onCloseCompletions: handleCloseCompletions,
             exprRef: exprRef,
             typeHelperContext: typeHelperContext,
