@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, ReactNode } from "react";
 import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
@@ -167,6 +167,8 @@ interface PanelManagerProps {
     onImportDevantConn?: (devantConn: ConnectionListItem) => void
     onLinkDevantProject?: () => void;
     onRefreshDevantConnections?: () => void;
+    // Extra section rendered inside the "Add Knowledge Base" chooser (WSO2 Cloud Knowledge Bases).
+    knowledgeBaseExtraSection?: ReactNode;
 }
 
 export function PanelManager(props: PanelManagerProps) {
@@ -239,6 +241,7 @@ export function PanelManager(props: PanelManagerProps) {
         onImportDevantConn,
         onLinkDevantProject,
         onRefreshDevantConnections,
+        knowledgeBaseExtraSection,
     } = props;
 
     const findSubPanelComponent = (subPanel: SubPanel) => {
@@ -496,6 +499,7 @@ export function PanelManager(props: PanelManagerProps) {
                         onBack={canGoBack ? onBack : undefined}
                         expandedGroupId={expandedGroupId}
                         onExpandedGroupChange={onExpandedGroupChange}
+                        extraSection={knowledgeBaseExtraSection}
                     />
                 );
 
