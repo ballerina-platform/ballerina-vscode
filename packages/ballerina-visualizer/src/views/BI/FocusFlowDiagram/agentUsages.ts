@@ -96,7 +96,7 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
             position: toPosition(listener.location),
         }));
     return {
-        serviceName: service.absolutePath || service.displayName || service.type,
+        serviceName: serviceName(service),
         documentUri: service.location.filePath,
         position: toPosition(service.location),
         listeners,

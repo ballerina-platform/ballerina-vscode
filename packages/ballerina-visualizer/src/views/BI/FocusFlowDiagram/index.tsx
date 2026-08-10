@@ -293,7 +293,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 if (requestId !== usageRequestIdRef.current) {
                     return;
                 }
-                const usages = findAgentUsages(response?.designModel, {
+                if (!response?.designModel) {
+                    console.error(">>> agent focus: design model unavailable, keeping the previous usages");
+                    return;
+                }
+                const usages = findAgentUsages(response.designModel, {
                     filePath,
                     startLine: pos.startLine,
                     symbol: typeof renderNode.properties?.variable?.value === "string"
@@ -303,10 +307,13 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
                 setCachedUsages(key, usages);
-                if (previous && sameUsages(previous, usages)) {
+                if (previous && JSON.stringify(previous) === JSON.stringify(usages)) {
                     return;
                 }
-                setModel({ ...flow, nodes: [withAgentUsages(renderNode, usages, true)] });
+                setModel({
+                    ...flow,
+                    nodes: [withAgentUsages(renderNode, usages, !previous || !sameUsages(previous, usages))],
+                });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
             }
@@ -687,11 +694,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 setShowProgressIndicator(false);
                 showEditForm.current = false;
                 return;
-                }
+            }
 
-                nodeTemplateRef.current = response.flowNode;
-                showEditForm.current = true;
-            })
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = true;
+        })
             .finally(() => {
                 setShowProgressIndicator(false);
             });

@@ -871,7 +871,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
     };
 
-    const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const showsAddTile = !readOnly && !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
     const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
         - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
