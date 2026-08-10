@@ -224,7 +224,7 @@ public class AgentTriggerGenerationTest {
     public void testInstructionsAreEscapedForTheTemplate() {
         String src = generateForGitHub("Use `code` and ${placeholders} verbatim.");
 
-        Assert.assertTrue(src.contains("Use \\`code\\` and \\${placeholders} verbatim."),
+        Assert.assertTrue(src.contains("Use ${\"`\"}code${\"`\"} and ${\"$\"}{placeholders} verbatim."),
                 "backticks and interpolations should be escaped: " + src);
     }
 

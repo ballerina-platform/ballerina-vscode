@@ -230,7 +230,10 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     private static String escapeTemplate(String instructions) {
         String text = instructions == null || instructions.isBlank() ? DEFAULT_INSTRUCTIONS : instructions.strip();
-        return text.replace("`", "\\`").replace("${", "\\${");
+        // A string template has no backslash escape, so both are escaped as interpolations of
+        // themselves, as AiUtils.replaceBackticksForStringTemplate does. "${" goes first: the
+        // backtick replacement introduces one.
+        return text.replace("${", "${\"$\"}{").replace("`", "${\"`\"}");
     }
 
     private static TriggerUISchemaModel.FunctionModel selectHandler(
