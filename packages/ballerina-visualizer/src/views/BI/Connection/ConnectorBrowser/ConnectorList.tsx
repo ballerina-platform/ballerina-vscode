@@ -97,7 +97,7 @@ const ScrollArea = styled.div`
 `;
 
 const Section = styled.div`
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: ${ThemeColors.SURFACE_DIM};
     border-radius: 5px;
     margin-bottom: 16px;
 `;
@@ -112,8 +112,7 @@ const SectionHeader = styled.div`
     padding: 12px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-radius: 5px 5px 0 0;
-    background: linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02)),
-        ${ThemeColors.SURFACE_DIM};
+    background: ${ThemeColors.SURFACE_DIM};
     box-shadow: 0 -3px 0 3px ${ThemeColors.SURFACE_DIM};
 `;
 
