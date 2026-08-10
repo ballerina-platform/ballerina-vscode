@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
-import { FlowNode, LineRange, NodeProperties, NodePropertyKey } from "@wso2/ballerina-core";
+import { FlowNode, LineRange, NodeKind, NodeProperties, NodePropertyKey } from "@wso2/ballerina-core";
 import { FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { FormHeader } from "../../../../../components/FormHeader";
 import { RelativeLoader } from "../../../../../components/RelativeLoader";
@@ -63,21 +63,40 @@ const START_OF_FILE: LineRange = {
     endLine: { line: 0, offset: 0 },
 };
 
+/** The artifact kinds this form covers — all three are created from a function node template. */
+export type FunctionArtifactKind = "automation" | "workflow" | "durable_agent";
+
+/** LS node kind whose template backs each card kind. */
+const NODE_KIND: Record<FunctionArtifactKind, NodeKind> = {
+    automation: "AUTOMATION",
+    workflow: "WORKFLOW",
+    durable_agent: "DURABLE_AGENT",
+};
+
+const TITLE: Record<FunctionArtifactKind, string> = {
+    automation: "Automation",
+    workflow: "Workflow",
+    durable_agent: "Durable Agentic Workflow",
+};
+
 interface FunctionConfigureFormProps {
     wsClient: BiWsClient;
     projectRoot: string;
-    kind: "automation" | "workflow";
+    kind: FunctionArtifactKind;
     isSubmitting: boolean;
     /** Hands the populated node template up to the wizard root. */
     onSubmit: (flowNode: FlowNode) => void;
 }
 
 /**
- * The Configure step for Automation and Workflow. Fetches the LS node template for the
- * scaffolded project and renders its (few) creation-time fields, mirroring
- * FunctionForm's per-kind field stripping:
+ * The Configure step for Automation, Workflow and Durable Agentic Workflow. Fetches the LS
+ * node template for the scaffolded project and renders its (few) creation-time fields,
+ * mirroring FunctionForm's per-kind field stripping:
  * - AUTOMATION hides functionName/type (the automation is always `main`).
  * - WORKFLOW hides isPublic/type/typeDescription (return type defaults to `error?`).
+ * - DURABLE_AGENT is name-only: the model, instructions and capabilities are configured on
+ *   the agent declaration afterwards. The LS prefills the name (`durableAgenticWorkflow`,
+ *   deduplicated against visible symbols), so this form must not overwrite it.
  */
 export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmitting, onSubmit }: FunctionConfigureFormProps) {
     const [flowNode, setFlowNode] = useState<FlowNode | null>(null);
@@ -85,7 +104,7 @@ export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmittin
     const [loadError, setLoadError] = useState<string | null>(null);
 
     const targetFilePath = joinPath(projectRoot, FUNCTIONS_FILE);
-    const title = kind === "automation" ? "Automation" : "Workflow";
+    const title = TITLE[kind];
 
     useEffect(() => {
         let cancelled = false;
@@ -94,7 +113,7 @@ export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmittin
                 const res = await wsClient.getNodeTemplate({
                     position: { line: 0, offset: 0 },
                     filePath: targetFilePath,
-                    id: { node: kind === "automation" ? "AUTOMATION" : "WORKFLOW" },
+                    id: { node: NODE_KIND[kind] },
                     projectPath: projectRoot,
                 });
                 if (cancelled) {
@@ -108,6 +127,12 @@ export function FunctionConfigureForm({ wsClient, projectRoot, kind, isSubmittin
                     fields = fields.filter(
                         (field) => field.key !== "isPublic" && field.key !== "type" && field.key !== "typeDescription"
                     );
+                }
+                if (kind === "durable_agent") {
+                    // Name-only create form. The description is dropped on top of the shared
+                    // filter above; the template carries no `parameters` at all, since the agent
+                    // is generated as a module-level declaration rather than a function.
+                    fields = fields.filter((field) => field.key !== "functionNameDescription");
                 }
                 setFlowNode(template);
                 setFormFields(fields);

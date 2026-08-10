@@ -189,40 +189,6 @@
     },
     {
       "metadata": {
-        "label": "Workflow",
-        "description": "Workflow orchestration components"
-      },
-      "items": [
-        {
-          "metadata": {
-            "label": "Run Workflow",
-            "description": "Run a new workflow instance"
-          },
-          "codedata": {
-            "node": "WORKFLOW_RUN",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Send Data",
-            "description": "Send data to an existing workflow instance"
-          },
-          "codedata": {
-            "node": "SEND_DATA",
-            "data": {
-              "filePath": "tests/test_function_body.bal"
-            }
-          },
-          "enabled": true
-        }
-      ]
-    },
-    {
-      "metadata": {
         "label": "Statement",
         "description": "Fundamental executable units in a program"
       },

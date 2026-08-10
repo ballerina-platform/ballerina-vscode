@@ -19,25 +19,20 @@
 import React from "react";
 import { AbstractReactFactory, GenerateModelEvent, GenerateWidgetEvent } from "@projectstorm/react-canvas-core";
 import { DiagramEngine } from "@projectstorm/react-diagrams-core";
+import { DurableAgentRunNodeModel } from "./DurableAgentRunNodeModel";
+import { DurableAgentRunNodeWidget } from "./DurableAgentRunNodeWidget";
 import { NodeTypes } from "../../../resources/constants";
-import { WorkflowRunNodeModel } from "./WorkflowRunNodeModel";
-import { WorkflowRunNodeWidget } from "./WorkflowRunNodeWidget";
-import { DiffTooltip } from "../../DiffTooltip";
 
-export class WorkflowRunNodeFactory extends AbstractReactFactory<WorkflowRunNodeModel, DiagramEngine> {
+export class DurableAgentRunNodeFactory extends AbstractReactFactory<DurableAgentRunNodeModel, DiagramEngine> {
     constructor() {
-        super(NodeTypes.WORKFLOW_RUN_NODE);
+        super(NodeTypes.DURABLE_AGENT_RUN_NODE);
     }
 
-    generateModel(event: GenerateModelEvent): WorkflowRunNodeModel {
-        return new WorkflowRunNodeModel(event.initialConfig);
+    generateModel(event: GenerateModelEvent): DurableAgentRunNodeModel {
+        return new DurableAgentRunNodeModel(event.initialConfig);
     }
 
-    generateReactWidget(event: GenerateWidgetEvent<WorkflowRunNodeModel>) {
-        return (
-            <DiffTooltip node={event.model.node}>
-                <WorkflowRunNodeWidget engine={this.engine} model={event.model} />
-            </DiffTooltip>
-        );
+    generateReactWidget(event: GenerateWidgetEvent<DurableAgentRunNodeModel>) {
+        return <DurableAgentRunNodeWidget engine={this.engine} model={event.model} />;
     }
 }

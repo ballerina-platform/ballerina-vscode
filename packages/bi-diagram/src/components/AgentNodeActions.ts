@@ -33,4 +33,15 @@ export interface AgentNodeActions {
     onChatWithAgent?: (node: FlowNode) => void;
     onAddTrigger?: (node: FlowNode) => void;
     onDeleteTrigger?: (usage: AgentUsage, node: FlowNode) => void;
+    onAddActivity?: (node: FlowNode) => void;
+    onAddHumanTask?: (node: FlowNode) => void;
+    onAddEvent?: (node: FlowNode) => void;
+    onEditCapability?: (node: FlowNode, capability: any) => void;
+    onDeleteCapability?: (node: FlowNode, capability: any) => void;
+    onConfigureAgent?: (node: FlowNode) => void;
+    // Durable agentic workflow box: when true the box is a read-only reference (a run()
+    // call site) — capability editing is disabled and clicks navigate to the agent's
+    // own model via onGoToAgent. The declaration canvas leaves this unset.
+    durableAgentReference?: boolean;
+    onGoToAgent?: (node: FlowNode) => void;
 }

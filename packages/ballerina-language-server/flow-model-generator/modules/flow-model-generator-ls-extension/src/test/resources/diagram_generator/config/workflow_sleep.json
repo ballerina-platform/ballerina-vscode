@@ -93,7 +93,7 @@
         "metadata": {
           "label": "Sleep",
           "description": "Pause workflow execution for a specified duration",
-          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.7.0.png"
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
           "node": "SLEEP",
@@ -102,7 +102,7 @@
           "packageName": "workflow",
           "object": "Context",
           "symbol": "sleep",
-          "version": "0.7.0",
+          "version": "0.8.3",
           "lineRange": {
             "fileName": "workflow_sleep.bal",
             "startLine": {
@@ -126,12 +126,12 @@
             "types": [
               {
                 "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "time:Duration",
+                "ballerinaType": "workflow:Duration",
                 "typeMembers": [
                   {
                     "type": "Duration",
-                    "packageInfo": "ballerina:time:2.8.1",
-                    "packageName": "time",
+                    "packageInfo": "ballerina:workflow:0.8.3",
+                    "packageName": "workflow",
                     "kind": "RECORD_TYPE",
                     "selected": true
                   }
@@ -140,7 +140,7 @@
               },
               {
                 "fieldType": "EXPRESSION",
-                "ballerinaType": "time:Duration",
+                "ballerinaType": "workflow:Duration",
                 "selected": false
               }
             ],
@@ -153,9 +153,6 @@
             "codedata": {
               "kind": "REQUIRED",
               "originalName": "duration"
-            },
-            "imports": {
-              "time": "ballerina/time"
             }
           },
           "checkError": {

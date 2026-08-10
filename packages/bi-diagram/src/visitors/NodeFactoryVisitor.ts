@@ -28,7 +28,6 @@ import { IfNodeModel } from "../components/nodes/IfNode/IfNodeModel";
 import { SendDataNodeModel } from "../components/nodes/SendDataNode";
 import { StartNodeModel } from "../components/nodes/StartNode/StartNodeModel";
 import { WaitDataNodeModel } from "../components/nodes/WaitDataNode";
-import { WorkflowRunNodeModel } from "../components/nodes/WorkflowRunNode";
 import { WhileNodeModel } from "../components/nodes/WhileNode";
 import {
     BUTTON_NODE_HEIGHT,
@@ -42,11 +41,18 @@ import {
 } from "../resources/constants";
 import { createNodesLink } from "../utils/diagram";
 import { isEvalTemplateCall } from "@wso2/ballerina-core";
-import { getBranchInLinkId, getBranchLabel, getCustomNodeId, reverseCustomNodeId } from "../utils/node";
+import {
+    getBranchInLinkId,
+    getBranchLabel,
+    getCustomNodeId,
+    isWaitingAgentCall,
+    reverseCustomNodeId,
+} from "../utils/node";
 import { Branch, FlowNode, NodeModel } from "../utils/types";
 import { EndNodeModel } from "../components/nodes/EndNode";
 import { ErrorNodeModel } from "../components/nodes/ErrorNode";
 import { AgentCallNodeModel } from "../components/nodes/AgentCallNode/AgentCallNodeModel";
+import { DurableAgentRunNodeModel } from "../components/nodes/DurableAgentRunNode/DurableAgentRunNodeModel";
 import { EvalNodeModel } from "../components/nodes/EvalNode/EvalNodeModel";
 import { AgentNodeModel } from "../components/nodes/AgentNode/AgentNodeModel";
 import { PromptNodeModel } from "../components/nodes/PromptNode/PromptNodeModel";
@@ -135,13 +141,6 @@ export class NodeFactoryVisitor implements BaseVisitor {
 
     private createCallActivityNode(node: FlowNode): NodeModel {
         const nodeModel = new CallActivityNodeModel(node);
-        this.nodes.push(nodeModel);
-        this.updateNodeLinks(node, nodeModel);
-        return nodeModel;
-    }
-
-    private createWorkflowRunNode(node: FlowNode): NodeModel {
-        const nodeModel = new WorkflowRunNodeModel(node);
         this.nodes.push(nodeModel);
         this.updateNodeLinks(node, nodeModel);
         return nodeModel;
@@ -791,10 +790,13 @@ export class NodeFactoryVisitor implements BaseVisitor {
         }
     }
 
+    // Starting a workflow looks the same wherever it is started from: the statement, the instance
+    // it binds, and an arrow to the workflow being run. The child-workflow start uses this shape,
+    // so the outside-world start uses it too.
     beginVisitWorkflowRun(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         if (node.id) {
-            this.createWorkflowRunNode(node);
+            this.createApiCallNode(node);
             this.addSuggestionsButton(node);
         }
     }
@@ -813,6 +815,72 @@ export class NodeFactoryVisitor implements BaseVisitor {
             this.createWaitDataNode(node);
             this.addSuggestionsButton(node);
         }
+    }
+
+    // A child workflow is still a workflow being run, so it uses the workflow-run node with its
+    // target beside it rather than a generic call box titled with the truncated method name.
+    beginVisitChildWorkflowRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            // Starting a child workflow is an action on the context, so it reads as one: the
+            // statement on the left, the variable it binds in the middle, and an arrow to the
+            // workflow being run.
+            this.createApiCallNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
+    beginVisitChildWorkflowCall(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.beginVisitChildWorkflowRun(node, parent);
+    }
+
+    beginVisitChildWorkflowSendData(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            this.createSendDataNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
+    // Waiting on a child workflow suspends the caller, so it takes the wait shape.
+    beginVisitChildWorkflowWait(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            this.createWaitDataNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
+    // A durable agent's data-event send renders as the workflow send node: same shape, and the
+    // square on the right points at the agent instead of a workflow.
+    beginVisitDurableAgentUpdate(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            this.createSendDataNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
+    // The result reads come in a waiting and a non-waiting form on the same node kind
+    // (waitForDataResult/getDataResult, waitForResult/getResult). Only the waiting form
+    // suspends the caller, so only it gets the wait shape.
+    beginVisitDurableAgentDataResult(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (!node.id) {
+            return;
+        }
+        if (isWaitingAgentCall(node)) {
+            this.createWaitDataNode(node);
+        } else {
+            this.createBaseNode(node);
+        }
+        this.addSuggestionsButton(node);
+    }
+
+    beginVisitDurableAgentResult(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.beginVisitDurableAgentDataResult(node, parent);
     }
 
     beginVisitResourceActionCall(node: FlowNode, parent?: FlowNode): void {
@@ -859,6 +927,41 @@ export class NodeFactoryVisitor implements BaseVisitor {
         const nodeModel = new AgentNodeModel(node, NodeTypes.TYPED_AGENT_NODE);
         this.nodes.push(nodeModel);
         this.updateNodeLinks(node, nodeModel);
+        this.addSuggestionsButton(node);
+    }
+
+    beginVisitDurableAgentRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (!node.id) {
+            return;
+        }
+        const nodeModel = new DurableAgentRunNodeModel(node);
+        this.nodes.push(nodeModel);
+        // The synthetic agent-box copy (metadata.data.agentBox) floats above the chain:
+        // skip updateNodeLinks so it gets no incoming link and does not become the link
+        // source for the following start pill (which would render an edge plus an
+        // add-button between the box and the pill). The pill still becomes lastNodeModel
+        // itself and links downward to the first statement.
+        //
+        // Exception — the agent-only view: there the flow model is just
+        // [Start, agent box], so a start node has already been visited. Link it to the
+        // box with a non-editable edge (no add-button).
+        const nodeData = node.metadata?.data as { agentBox?: boolean; agentDeclarationCanvas?: boolean };
+        const isAgentBox = nodeData?.agentBox === true;
+        // Only the synthetic declaration-canvas copy (agent-only view) gets the non-editable
+        // Start edge — an in-chain `agent.run(...)` statement also carries the agentBox marker
+        // but is a real statement, so its edges keep the add-button. The LS marks the synthetic
+        // copy explicitly; node ids are generated, so they cannot be matched on.
+        const isDeclarationCanvasBox = nodeData?.agentDeclarationCanvas === true;
+        if (!isAgentBox) {
+            this.updateNodeLinks(node, nodeModel);
+        } else if (isDeclarationCanvasBox && this.lastNodeModel instanceof StartNodeModel) {
+            this.updateNodeLinks(node, nodeModel, { showAddButton: false });
+        } else if (this.lastNodeModel) {
+            // Object-model agent box rendered in-chain (an `agent.run(...)` statement inside a
+            // workflow function or resource): keep the normal chain links.
+            this.updateNodeLinks(node, nodeModel);
+        }
         this.addSuggestionsButton(node);
     }
 

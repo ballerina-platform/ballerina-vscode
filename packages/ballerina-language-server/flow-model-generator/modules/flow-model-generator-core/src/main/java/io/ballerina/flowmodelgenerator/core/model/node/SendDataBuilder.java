@@ -190,7 +190,15 @@ public class SendDataBuilder extends FunctionCall {
                 .build();
     }
 
-    private static String toStringLiteral(String value) {
+    /**
+     * Renders a data event name as a string literal. The name correlates with an event declared by
+     * the workflow function, so it must always be a literal even when the form submits the bare
+     * event name. Shared with {@link ChildWorkflowSendDataBuilder}, whose form is the same shape.
+     *
+     * @param value the raw form value
+     * @return the value as a Ballerina string literal
+     */
+    static String toStringLiteral(String value) {
         String trimmed = value == null ? "" : value.trim();
         // Already a string literal: needs a distinct pair of quotes (a lone quote does not qualify)
         if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
@@ -205,7 +213,7 @@ public class SendDataBuilder extends FunctionCall {
      * @param context The template context
      * @return List of options containing workflow function names
      */
-    private List<Option> getAvailableWorkflowFunctions(TemplateContext context) {
+    public static List<Option> getAvailableWorkflowFunctions(TemplateContext context) {
         List<Option> options = new ArrayList<>();
         Package currentPackage = PackageUtil.loadProject(context.workspaceManager(), context.filePath())
                 .currentPackage();

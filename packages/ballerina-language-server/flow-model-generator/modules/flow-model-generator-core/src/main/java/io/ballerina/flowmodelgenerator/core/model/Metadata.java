@@ -41,10 +41,11 @@ import java.util.Map;
  *                     non-empty, the UI union-filters the dropdown by (module, object) across entries
  *                     and renders one Add button per entry. When null/empty, the dropdown lists every
  *                     connection in the project and no Add button is shown.
+ * @param draft        True for diagram-only draft/placeholder nodes with no source backing
  * @since 1.0.0
  */
 public record Metadata(String label, String description, List<String> keywords, String icon, String functionKind,
-                       Map<String, Object> data, List<AllowedConnector> connectors) {
+                       Map<String, Object> data, List<AllowedConnector> connectors, Boolean draft) {
 
     /**
      * A connector that the CONNECTION field accepts, along with the label for its Add-new button.
@@ -64,6 +65,7 @@ public record Metadata(String label, String description, List<String> keywords, 
         private String functionKind;
         private Map<String, Object> data;
         private List<AllowedConnector> connectors;
+        private Boolean draft;
 
         public Builder(T parentBuilder) {
             super(parentBuilder);
@@ -138,8 +140,13 @@ public record Metadata(String label, String description, List<String> keywords, 
             return this;
         }
 
+        public Builder<T> draft(boolean draft) {
+            this.draft = draft;
+            return this;
+        }
+
         public Metadata build() {
-            return new Metadata(label, description, keywords, icon, functionKind, data, connectors);
+            return new Metadata(label, description, keywords, icon, functionKind, data, connectors, draft);
         }
     }
 }

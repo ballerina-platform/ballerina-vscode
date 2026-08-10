@@ -22,7 +22,7 @@ inputs:
   nightly:
     description: >-
       Nightly build. Uses the same derivation as a pre-release —
-      major.(minor-1).<minutes since 2020-01-01 UTC> from the extension '-SNAPSHOT' version, see
+      major.(minor-1).<YYMMDDHH, UTC> from the extension '-SNAPSHOT' version, see
       common/scripts/nightly-version.js — but is a separate input because it selects
       only the version. Packaging is isPreRelease's job. Build callers must pass
       both for a nightly; version-only callers such as schedule.yml may stamp with
@@ -53,21 +53,22 @@ runs:
       id: timestamp
       run: |
         set -euo pipefail
-        # Whole minutes since 2020-01-01 UTC. Must match nightly-version.js's timestamp()
-        # exactly — it is the fallback when no stamp is passed, and the two disagreeing
-        # would give the same build two different versions.
+        # YYMMDDHH, UTC. Must match nightly-version.js's timestamp() exactly — it is
+        # the fallback when no stamp is passed, and the two disagreeing would give
+        # the same build two different versions.
         #
-        # Not a readable 'yymmddHHmm': that is 2607291530 today, over the Marketplace's
-        # int32 component limit (2147483647), so every pre-release would be rejected at
-        # publish time. See nightly-version.js for the decode one-liner.
-        # 1577836800 = 2020-01-01T00:00:00Z. Hardcoded rather than computed with
-        # 'date -d', which is GNU-only and would not run on a macOS runner.
-        timestamp=$(( ( $(date -u '+%s') - 1577836800 ) / 60 ))
+        # Hour-granular rather than minute-granular: a full 'yymmddHHmm' is 10 digits
+        # and exceeds the Marketplace's int32 component limit (2147483647) from 2022
+        # onward, so every pre-release would be rejected at publish time. Dropping
+        # minutes keeps it to 8 digits, safely under the limit. Two builds cut in the
+        # same UTC hour do collide, which is accepted since nightlies only run once a
+        # day in practice. See nightly-version.js for the decode one-liner.
+        timestamp=$(date -u +'%y%m%d%H')
         echo "timestamp=$timestamp" >> $GITHUB_OUTPUT
 
     # Nightlies and pre-releases share one derivation: the extension version names the
     # NEXT release as a snapshot, and both of these are unreleased work heading
-    # toward it, so they are published as major.(minor-1).<minutes since 2020-01-01 UTC> — above every
+    # toward it, so they are published as major.(minor-1).<YYMMDDHH, UTC> — above every
     # release of the previous line, below the release main is heading for. See
     # common/scripts/nightly-version.js for the full rationale.
     #

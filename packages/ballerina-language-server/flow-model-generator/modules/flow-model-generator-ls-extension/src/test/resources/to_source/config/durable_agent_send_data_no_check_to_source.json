@@ -1,0 +1,115 @@
+{
+  "source": "durable_agent_module.bal",
+  "description": "Send Agent Data Event without check binds the token as string|error",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "Send Agent Data Event without waiting and without check binds the token as string|error"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_UPDATE",
+      "org": "ballerina",
+      "module": "workflow",
+      "lineRange": {
+        "fileName": "durable_agent_module.bal",
+        "startLine": {
+          "line": 16,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 16,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "supportAgent",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "agentId": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "instanceId",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "eventName": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "billSubmitted",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "data": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "EXPRESSION",
+        "value": "{amount: 10}",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "variable": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "IDENTIFIER",
+        "value": "eventToken",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": ""
+        },
+        "valueType": "FLAG",
+        "value": false,
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "branches": [],
+    "flags": 0
+  },
+  "output": {
+    "durable_agent_module.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 0
+          },
+          "end": {
+            "line": 16,
+            "character": 0
+          }
+        },
+        "newText": "\nstring|error eventToken = supportAgent.sendData(instanceId, \"billSubmitted\", {amount: 10});"
+      }
+    ]
+  }
+}

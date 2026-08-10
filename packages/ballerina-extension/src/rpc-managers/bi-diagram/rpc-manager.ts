@@ -198,6 +198,7 @@ import {
 } from "vscode";
 import { DebugProtocol } from "vscode-debugprotocol";
 import { extension } from "../../BalExtensionContext";
+import { notifyCurrentWebview } from "../../RPCLayer";
 import { OLD_BACKEND_URL } from "../../features/ai/utils";
 import { fetchWithAuth } from "../../features/ai/utils/ai-client";
 import { getCurrentBIProject } from "../../features/config-generator/configGenerator";
@@ -369,15 +370,18 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
 
             if (model?.errorMsg) {
                 const errorMessage = model.errorMsg;
+                // The LS reports either a message written for the user (a missing field, an
+                // unsupported construct) or one generic sentence for an internal failure, whose
+                // detail travels in the stacktrace for the output channel.
                 console.error(">>> error generating source code from ls", { errorMessage, stacktrace: model.stacktrace });
                 window.showErrorMessage(`Failed to save changes: ${errorMessage}`);
                 return { artifacts: [], error: errorMessage };
             }
 
             if (!model?.textEdits) {
-                const errorMessage = "Failed to save changes: language server returned an empty source update.";
+                const errorMessage = "The language server returned an empty source update.";
                 console.error(">>> invalid source code response from ls", model);
-                window.showErrorMessage(errorMessage);
+                window.showErrorMessage("Failed to save changes: the operation could not be applied. Please try again.");
                 return { artifacts: [], error: errorMessage };
             }
 
@@ -392,6 +396,11 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 { textEdits: model.textEdits, artifactData, description: this.getSourceDescription(params) },
                 params.isHelperPaneChange
             );
+            if (typeof nodeKind === "string" && nodeKind.startsWith("DURABLE_AGENT")) {
+                // Capability edits rewrite the module-level agent declaration; if no artifact
+                // notification fired for it, the webview would never learn the source changed.
+                notifyCurrentWebview();
+            }
             return { artifacts };
         } catch (error) {
             console.log(">>> error fetching source code from ls", error);
@@ -440,6 +449,15 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
                 return { artifactType: DIRECTORY_MAP.WORKFLOW };
             case 'ACTIVITY':
                 return { artifactType: DIRECTORY_MAP.ACTIVITY };
+            // Durable-agent capability nodes rewrite the agent declaration, whose artifact
+            // publishes as a WORKFLOW entry (durable agents list alongside workflows).
+            case 'DURABLE_AGENT':
+            case 'DURABLE_AGENT_RUN':
+            case 'DURABLE_AGENT_ADD_ACTIVITY':
+            case 'DURABLE_AGENT_REGISTER_TOOL':
+            case 'DURABLE_AGENT_REGISTER_EVENT':
+            case 'DURABLE_AGENT_HUMAN_TASK':
+                return { artifactType: DIRECTORY_MAP.WORKFLOW };
             // Add other cases as needed
             default:
                 return undefined;

@@ -64,12 +64,15 @@ const getNodeTitle = (model: EntryNodeModel) => {
     return "";
 };
 
+const isDurableAgentWorkflow = (model: EntryNodeModel) =>
+    model.type === "workflow" && (model.node as CDWorkflow).kind === "DURABLE_AGENT";
+
 const getNodeDescription = (model: EntryNodeModel) => {
     if (model.type === "automation") {
         return "Automation";
     }
     if (model.type === "workflow") {
-        return "Durable Workflow";
+        return isDurableAgentWorkflow(model) ? "Durable Agentic Workflow" : "Durable Workflow";
     }
     // Service
     if ((model.node as CDService).type) {
@@ -259,7 +262,9 @@ export function GeneralServiceWidget({ model, engine }: BaseNodeWidgetProps) {
     const nodeIcon = (() => {
         switch (model.type) {
             case "workflow":
-                return <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
+                return isDurableAgentWorkflow(model)
+                    ? <Icon name="bi-ai-agent" sx={{ fontSize: 24, width: 24, height: 24 }} />
+                    : <Icon name="bi-flowchart" sx={{ fontSize: 24, width: 24, height: 24 }} />;
             case "automation":
                 return <TaskIcon />;
             case "service":

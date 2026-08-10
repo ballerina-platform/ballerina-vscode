@@ -103,6 +103,7 @@ export function ConfigureStep({ wsClient, selection, scaffold, isSubmitting, cac
                         );
                     case "automation":
                     case "workflow":
+                    case "durable_agent":
                         return (
                             <WizardRpcAdapterProvider wsClient={wsClient}>
                                 <FunctionConfigureForm
@@ -113,6 +114,9 @@ export function ConfigureStep({ wsClient, selection, scaffold, isSubmitting, cac
                                     onSubmit={(flowNode) =>
                                         onSubmit({
                                             version: 1,
+                                            // A durable agentic workflow generates through the same
+                                            // function-source path as a workflow; the DURABLE_AGENT
+                                            // node kind on `flowNode.codedata` picks the LS builder.
                                             kind: selection.kind === "automation" ? "AUTOMATION" : "WORKFLOW",
                                             flowNode,
                                         })

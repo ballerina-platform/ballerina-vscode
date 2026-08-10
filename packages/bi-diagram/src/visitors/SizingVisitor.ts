@@ -19,6 +19,8 @@
 import { BaseVisitor } from "@wso2/ballerina-core";
 
 import {
+    AGENT_NODE_TOOL_GAP,
+    AGENT_NODE_TOOL_SECTION_GAP,
     EMPTY_NODE_CONTAINER_WIDTH,
     END_NODE_WIDTH,
     IF_NODE_WIDTH,
@@ -29,6 +31,7 @@ import {
     NODE_GAP_X,
     NODE_GAP_Y,
     NODE_HEIGHT,
+    NODE_PADDING,
     NODE_WIDTH,
     PROMPT_NODE_HEIGHT,
     PROMPT_NODE_WIDTH,
@@ -41,13 +44,13 @@ import {
     NodeTypes,
 } from "../resources/constants";
 import { getEvalNodeContainerHeight } from "../components/nodes/EvalNode/evalNodePresentation";
-import { isEvalTemplateCall } from "@wso2/ballerina-core";
 import {
     AGENT_USAGE_COLUMN_WIDTH,
     getAgentNodeContainerHeight,
     getAgentNodeUsages,
 } from "../components/nodes/AgentWidget/agentNodeLayout";
-import { reverseCustomNodeId } from "../utils/node";
+import { isEvalTemplateCall, NodeMetadata } from "@wso2/ballerina-core";
+import { isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
 
 export class SizingVisitor implements BaseVisitor {
@@ -122,20 +125,16 @@ export class SizingVisitor implements BaseVisitor {
     }
 
     private createWaitDataNode(node: FlowNode): void {
-        const halfCircle = WAIT_DATA_CORE_WIDTH / 2;
-        const leftWidth = halfCircle + WAIT_DATA_ARROW_WIDTH;
-        const containerLeftWidth = leftWidth;
-        const containerRightWidth = halfCircle + WAIT_DATA_DETAILS_GAP + WAIT_DATA_DETAILS_WIDTH;
-        const containerHeight = WAIT_DATA_CORE_HEIGHT;
-        this.setNodeSize(
-            node,
-            leftWidth,
-            halfCircle,
-            containerHeight,
-            containerLeftWidth,
-            containerRightWidth,
-            containerHeight
-        );
+        // The mirror of a send: same body, with the room for the source box and its arrow on the
+        // left instead of the right.
+        const halfNodeWidth = NODE_WIDTH / 2;
+        // The widths are the node's own bounds, not an inner box's: passing the body's half-width
+        // while the container reached further left put the body off the node's centre, and the
+        // links bent sideways to meet it. LABEL_WIDTH keeps the source's name from being clipped.
+        const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT;
+        const containerRightWidth = halfNodeWidth;
+        const containerHeight = NODE_HEIGHT + LABEL_HEIGHT;
+        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
     private createBlockNode(node: Branch): void {
@@ -189,7 +188,11 @@ export class SizingVisitor implements BaseVisitor {
     endVisitEventStart(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         // consider this as a start node
-        const width = Math.round(NODE_WIDTH / 3);
+        // Size the pill to fit its label (e.g. "Configure Agent") instead of clipping it;
+        // ~8px per character at the 14px GilmerMedium label font, plus the pill padding.
+        const label = node.metadata?.label || "Start";
+        const labelWidth = label.length * 8 + NODE_PADDING * 2 + NODE_BORDER_WIDTH * 2;
+        const width = Math.max(Math.round(NODE_WIDTH / 3), Math.min(labelWidth, NODE_WIDTH));
         const height = Math.round(NODE_HEIGHT / 1.5) + NODE_BORDER_WIDTH * 2;
         const halfWidth = width / 2;
         this.setNodeSize(node, halfWidth, halfWidth, height);
@@ -300,7 +303,8 @@ export class SizingVisitor implements BaseVisitor {
 
     endVisitWorkflowRun(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
-        this.createBaseNode(node);
+        // Drawn as an action, so measured as one — same as the child-workflow start.
+        this.createApiCallNode(node);
     }
 
     endVisitActivityCall(node: FlowNode, parent?: FlowNode): void {
@@ -351,6 +355,68 @@ export class SizingVisitor implements BaseVisitor {
         const containerLeftWidth = halfNodeWidth;
         const containerRightWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
         const containerHeight = getAgentNodeContainerHeight(node, NodeTypes.TYPED_AGENT_NODE);
+        this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
+    }
+
+    endVisitDurableAgentRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+
+        // Draft placeholder ("Define Durable Agentic Workflow") renders as a plain dashed box
+        // without the side circle columns, so no side space is reserved.
+        if (node.metadata?.draft) {
+            const halfWidth = NODE_WIDTH / 2;
+            this.setNodeSize(node, halfWidth, halfWidth, NODE_HEIGHT + LABEL_HEIGHT * 2);
+            return;
+        }
+
+        const halfNodeWidth = NODE_WIDTH / 2;
+        const sideColumnWidth = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
+
+        const nodeMetadata = node.metadata.data as NodeMetadata & {
+            tools?: unknown[];
+            activities?: unknown[];
+            humanTasks?: unknown[];
+            events?: unknown[];
+            peers?: unknown[];
+            agentBox?: boolean;
+            agentName?: string;
+        };
+
+        // The in-chain buildAndRun statement ("Build Agent") renders as a compact node like
+        // the other register statements; only the synthetic agent-box copy (agentBox flag)
+        // gets the big visualization with the side circle columns.
+        if (!nodeMetadata?.agentBox) {
+            let height = NODE_HEIGHT + NODE_BORDER_WIDTH * 2;
+            if (nodeMetadata?.agentName || node.metadata?.description) {
+                height += LABEL_HEIGHT;
+            }
+            this.setNodeSize(node, halfNodeWidth, halfNodeWidth, height);
+            return;
+        }
+
+        // Left column: human task and event circles (arrows point into the box).
+        const leftCircles = (nodeMetadata?.humanTasks?.length || 0) + (nodeMetadata?.events?.length || 0);
+        // Right column: the model circle plus AI tool, activity and peer circles — the same set the
+        // widget paints there, so the reserved rows match the painted rows.
+        const rightCircles =
+            1 +
+            (nodeMetadata?.tools?.length || 0) +
+            (nodeMetadata?.activities?.length || 0) +
+            (nodeMetadata?.peers?.length || 0);
+
+        // Reserve left-side space only when left circles exist (the widget skips the left svg otherwise).
+        const containerLeftWidth = halfNodeWidth + (leftCircles > 0 ? sideColumnWidth : 0);
+        // Reserve right-side space for the model circle and capability circles column.
+        const containerRightWidth = halfNodeWidth + sideColumnWidth;
+
+        // Height must fit the taller of the two circle columns; row 0 holds the model circle
+        // (and the first left circle), remaining rows are offset by the tool section gap.
+        const numberOfRows = Math.max(leftCircles, rightCircles);
+        const containerHeight =
+            NODE_HEIGHT +
+            AGENT_NODE_TOOL_SECTION_GAP +
+            AGENT_NODE_TOOL_GAP * 2 +
+            (numberOfRows - 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
     }
 
@@ -512,6 +578,50 @@ export class SizingVisitor implements BaseVisitor {
     endVisitWaitData(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         this.createWaitDataNode(node);
+    }
+
+    // Child workflow nodes reuse the workflow-run/send/wait shapes, so they are measured with them.
+    endVisitChildWorkflowRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        // Measured as the action it is drawn as, so the layout reserves the arrow and the
+        // target square to its right.
+        this.createApiCallNode(node);
+    }
+
+    endVisitChildWorkflowCall(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.endVisitChildWorkflowRun(node, parent);
+    }
+
+    endVisitChildWorkflowSendData(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.createSendDataNode(node);
+    }
+
+    endVisitChildWorkflowWait(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.createWaitDataNode(node);
+    }
+
+    // The durable agent send/wait nodes reuse the workflow shapes, so they have to be measured
+    // the same way — otherwise the widget draws at a size the layout never reserved.
+    endVisitDurableAgentUpdate(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.createSendDataNode(node);
+    }
+
+    endVisitDurableAgentDataResult(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (isWaitingAgentCall(node)) {
+            this.createWaitDataNode(node);
+        } else {
+            this.createBaseNode(node);
+        }
+    }
+
+    endVisitDurableAgentResult(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.endVisitDurableAgentDataResult(node, parent);
     }
 
     endVisitNpFunction(node: FlowNode, parent?: FlowNode): void {
