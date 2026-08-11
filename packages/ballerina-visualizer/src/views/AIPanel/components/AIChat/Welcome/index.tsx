@@ -22,12 +22,16 @@ import { Icon, Typography } from "@wso2/ui-toolkit";
 import React, { useCallback, useState } from "react";
 import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
 import {
+    ACCENT_CORE,
+    ACCENT_FRAME,
     Gloss,
     IconOverlay,
     ORB_COLORS,
     ORB_ENERGY,
     Sphere,
+    orbColors,
 } from "../../../../../components/AgentStatusOrb/shared";
+import { useAgentBuilderMode } from "../../../../../hooks/useAgentBuilderMode";
 
 const WELCOME_ORB_SIZE = 58;
 
@@ -58,7 +62,7 @@ const Content = styled.div`
     align-self: center;
 `;
 
-const WelcomeOrbHalo = styled.div`
+const WelcomeOrbHalo = styled.div<{ accent?: boolean }>`
     position: relative;
     width: 86px;
     height: 86px;
@@ -71,7 +75,10 @@ const WelcomeOrbHalo = styled.div`
         position: absolute;
         inset: -14px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%);
+        background: ${(props: { accent?: boolean }) =>
+            props.accent
+                ? `radial-gradient(circle, color-mix(in srgb, ${ACCENT_FRAME[1]} 30%, transparent), color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 42%, transparent 70%)`
+                : "radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%)"};
         filter: blur(8px);
         pointer-events: none;
     }
@@ -127,15 +134,20 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
     const { rpcClient } = useRpcContext();
     const [webglFailed, setWebglFailed] = useState(false);
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
+    const agentBuilder = useAgentBuilderMode();
 
     return (
         <PanelWrapper>
             <TopSpacer />
             <Content>
-                <WelcomeOrbHalo>
+                <WelcomeOrbHalo accent={agentBuilder}>
                     <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
-                        {webglFailed ? (
-                            <Sphere colors={ORB_COLORS.idle} energy={ORB_ENERGY.idle} />
+                        {webglFailed || agentBuilder ? (
+                            <Sphere
+                                colors={orbColors("idle", agentBuilder)}
+                                energy={ORB_ENERGY.idle}
+                                highlightColor={agentBuilder ? ACCENT_CORE : undefined}
+                            />
                         ) : (
                             <ShaderOrb
                                 colors={ORB_COLORS.idle}
@@ -144,7 +156,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                                 onContextFailed={handleWebglFailed}
                             />
                         )}
-                        <Gloss />
+                        {!agentBuilder && <Gloss />}
                         <IconOverlay>
                             <Icon
                                 name="bi-ai-chat"

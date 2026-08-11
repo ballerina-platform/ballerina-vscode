@@ -49,7 +49,8 @@ import { PlaceholderTagMap } from "../../commandTemplates/data/placeholderTags.c
 import ContextUsageWidget from "../AIChat/compaction/ContextUsageWidget";
 import RunningServicesChip, { RunningServicesPanel } from "./RunningServicesChip";
 import McpToolsChip from "./McpToolsChip";
-import { AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
+import { ACCENT_FRAME, AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
+import { useAgentBuilderMode } from "../../../../hooks/useAgentBuilderMode";
 
 
 // Styled Components
@@ -183,6 +184,7 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         },
         ref
     ) => {
+        const agentBuilder = useAgentBuilderMode();
         const [inputValue, setInputValue] = useState<{
             text: string;
             [key: string]: any;
@@ -699,7 +701,7 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         return (
             <Container ref={containerRef}>
                 <FlexRow>
-                    <AmbientFrame $variant="composer" $state={ambientState}>
+                    <AmbientFrame $variant="composer" $state={ambientState} $colors={agentBuilder ? ACCENT_FRAME : undefined}>
                         <InputArea>
                             <StyledInputComponent
                                 ref={inputRef}
