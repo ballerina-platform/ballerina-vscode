@@ -19,7 +19,6 @@
 import { EVENT_TYPE, MACHINE_VIEW } from "@wso2/ballerina-core";
 import { openView, StateMachine } from "../../stateMachine";
 import { isEmptyPackage } from "../../utils/state-machine-utils";
-import { ProductMode } from "../../utils/config";
 
 /**
  * Agent builder mode: when the window holds a single, still-empty package, land on the Add
@@ -31,7 +30,7 @@ import { ProductMode } from "../../utils/config";
  * to a wizard create that generated a real artifact and opened it.
  */
 export function openAgentBuilderLanding(): boolean {
-    if (StateMachine.productMode() !== ProductMode.AGENT_BUILDER) {
+    if (!StateMachine.isAgentBuilderMode()) {
         return false;
     }
     if (StateMachine.service().getSnapshot().value !== "extensionReady") {
