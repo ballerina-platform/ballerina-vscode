@@ -19,7 +19,6 @@
 import { DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, HistoryEntry, isSamePath, MACHINE_VIEW, ProjectStructure, ProjectStructureArtifactResponse, ProjectStructureResponse, SyntaxTreeResponse, UpdatedArtifactsResponse, VisualizerLocation } from "@wso2/ballerina-core";
 import { NodePosition, STKindChecker, STNode, traversNode } from "@wso2/syntax-tree";
 import { StateMachine, openView } from "../stateMachine";
-import { ProductMode } from "./config";
 import { Uri } from "vscode";
 import { UIDGenerationVisitor } from "./history/uid-generation-visitor";
 import { FindNodeByUidVisitor } from "./history/find-node-by-uid";
@@ -41,11 +40,6 @@ import path from "path";
  * contents by path, so redirecting to one without a path would replace the list with a view
  * that can never finish loading.
  */
-
-export function isEmptyPackage(project: ProjectStructure): boolean {
-    return Object.values(project.directoryMap).every((artifacts) => !artifacts?.length);
-}
-
 export function getSoleIntegration(projectStructure?: ProjectStructureResponse): ProjectStructure | undefined {
     const projects = projectStructure?.projects ?? [];
     if (projects.length !== 1 || projects[0].isLibrary || !projects[0].projectPath) {
@@ -78,25 +72,17 @@ export function resolveSingleIntegrationOverride(
     if (viewLocation.projectPath || !context.workspacePath) {
         return undefined;
     }
-    const namesNoTarget = !viewLocation.view && (!viewLocation.position || "groupId" in viewLocation.position);
-    const isBareNavigation = namesNoTarget && !context.projectPath;
-    const agentBuilderMode = StateMachine.productMode() === ProductMode.AGENT_BUILDER;
+    const isBareNavigation =
+        !viewLocation.view &&
+        !context.projectPath &&
+        (!viewLocation.position || "groupId" in viewLocation.position);
     if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview && !isBareNavigation) {
-        if (!agentBuilderMode || !namesNoTarget) {
-            return undefined;
-        }
-    }
-    const soleIntegration = getSoleIntegration(context.projectStructure);
-    if (!soleIntegration) {
         return undefined;
     }
-    // An integration with nothing in it has no overview worth showing, so agent builder mode
-    // opens the Add Agent view instead — the same one the Agents "+" opens. Re-evaluated per
-    // navigation, so the first artifact created ends the redirect.
-    if (agentBuilderMode && isEmptyPackage(soleIntegration)) {
-        return { view: MACHINE_VIEW.AddAgent, projectPath: soleIntegration.projectPath };
-    }
-    return { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath };
+    const soleIntegration = getSoleIntegration(context.projectStructure);
+    return soleIntegration
+        ? { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath }
+        : undefined;
 }
 
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {

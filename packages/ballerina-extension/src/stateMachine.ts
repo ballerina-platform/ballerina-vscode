@@ -43,7 +43,7 @@ import { extension } from './BalExtensionContext';
 import { AIStateMachine, openAIPanelWithPrompt } from './views/ai-panel/aiMachine';
 import { chatStateStorage } from './views/ai-panel/chatStateStorage';
 import { StateMachinePopup } from './stateMachinePopup';
-import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant, getProductMode, ProductMode } from './utils';
+import { checkIsBallerinaPackage, checkIsBI, fetchScope, getOrgPackageName, UndoRedoManager, getProjectTomlValues, getOrgAndPackageName, checkIsBallerinaWorkspace, isInWI, isInDevant } from './utils';
 import { activateDevantFeatures } from './features/devant/activator';
 import { buildProjectsStructure } from './utils/project-artifacts';
 import { runCommandWithOutput } from './utils/runCommand';
@@ -66,7 +66,6 @@ interface MachineContext extends VisualizerLocation {
     errorCode: string | null;
     dependenciesResolved?: boolean;
     isInDevant: boolean;
-    productMode: ProductMode;
     isViewUpdateTransition?: boolean;
 }
 
@@ -91,8 +90,7 @@ const stateMachine = createMachine<MachineContext>(
             isBISupported: false,
             view: MACHINE_VIEW.PackageOverview,
             dependenciesResolved: false,
-            isInDevant: isInDevant(),
-            productMode: getProductMode()
+            isInDevant: isInDevant()
         },
         on: {
             RESET_TO_EXTENSION_READY: {
@@ -974,7 +972,6 @@ export const StateMachine = {
         const state = stateService.getSnapshot().value;
         return typeof state === 'object' && 'viewActive' in state && state.viewActive === "viewReady";
     },
-    productMode: () => { return stateService.getSnapshot().context.productMode; },
     sendEvent: (eventType: EVENT_TYPE) => { stateService.send({ type: eventType }); },
     updateProjectStructure: (payload: ProjectStructureResponse) => { stateService.send({ type: "UPDATE_PROJECT_STRUCTURE", payload }); },
     updateProjectRootAndInfo: (projectPath: string, projectInfo: ProjectInfo): Promise<void> => {
