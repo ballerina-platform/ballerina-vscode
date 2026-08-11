@@ -79,10 +79,29 @@ export type AmbientFrameVariant = "hero" | "composer";
 interface AmbientFrameProps {
     $state?: AgentRunState;
     $variant?: AmbientFrameVariant;
+    $colors?: [string, string, string];
 }
 
+interface AmbientGlowSpec {
+    outerSize: number;
+    outerStrength: number;
+    innerSize: number;
+    innerStrength: number;
+}
+
+export function ambientGlow(colors: [string, string, string], spec: AmbientGlowSpec): string {
+    const [first, second] = colors;
+    return (
+        `0 0 ${spec.outerSize}px color-mix(in srgb, ${first} ${spec.outerStrength}%, transparent), ` +
+        `0 0 ${spec.innerSize}px color-mix(in srgb, ${second} ${spec.innerStrength}%, transparent)`
+    );
+}
+
+export const HERO_GLOW: AmbientGlowSpec = { outerSize: 18, outerStrength: 25, innerSize: 10, innerStrength: 12 };
+
 function ambientColors(props: AmbientFrameProps): [string, string, string] {
-    return ORB_COLORS[props.$state ?? "idle"];
+    const state = props.$state ?? "idle";
+    return props.$colors && state === "idle" ? props.$colors : ORB_COLORS[state];
 }
 
 /**
@@ -102,14 +121,14 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     background-size: 300% 300%;
     animation: ${ambientGradientShift} 9s ease infinite;
     box-shadow: ${(props: AmbientFrameProps) => {
-        const [first, second] = ambientColors(props);
         const hero = props.$variant === "hero";
         const active = !!props.$state && props.$state !== "idle";
-        const outerStrength = hero ? 25 : active ? 20 : 12;
-        const innerStrength = hero ? 12 : active ? 13 : 7;
-        const outerSize = hero ? 18 : active ? 16 : 12;
-        const innerSize = hero ? 10 : active ? 10 : 8;
-        return `0 0 ${outerSize}px color-mix(in srgb, ${first} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${second} ${innerStrength}%, transparent)`;
+        return ambientGlow(ambientColors(props), {
+            outerSize: hero ? 18 : active ? 16 : 12,
+            outerStrength: hero ? 25 : active ? 20 : 12,
+            innerSize: hero ? 10 : active ? 10 : 8,
+            innerStrength: hero ? 12 : active ? 13 : 7,
+        });
     }};
     transition: box-shadow 0.25s ease;
 
@@ -173,6 +192,7 @@ interface SphereProps {
      * optional let two of them silently render a running orb at idle tempo.
      */
     energy: number;
+    highlightColor?: string;
 }
 
 /**
@@ -194,7 +214,7 @@ export const Sphere = styled.div<SphereProps>`
     justify-content: center;
     background: radial-gradient(
         circle at 32% 28%,
-        rgba(255, 255, 255, 0.55),
+        ${(props: SphereProps) => props.highlightColor ?? "rgba(255, 255, 255, 0.55)"},
         ${(props: SphereProps) => props.colors[0]} 45%,
         ${(props: SphereProps) => props.colors[1]} 100%
     );
