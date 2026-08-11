@@ -18,7 +18,6 @@
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EditableTitle } from "../../../components/EditableTitle";
 import {
     ProjectStructure,
     EVENT_TYPE,
@@ -37,10 +36,10 @@ import { Markdown } from "../../../components/Markdown";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
-import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
+import { PageHeader } from "../components/PageHeader";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
@@ -106,23 +105,6 @@ const EmptyStateContainer = styled.div<{ withHero?: boolean }>`
 const PageLayout = styled.div`
     display: grid;
     grid-template-rows: auto auto;
-`;
-
-const HeaderRow = styled.div<{ isBallerinaWorkspace?: boolean }>`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0 16px 16px;
-    background: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-dropdown-border);
-    margin: ${(props: { isBallerinaWorkspace?: boolean }) => props.isBallerinaWorkspace ? '0 16px 0 16px' : '16px 16px 0 16px'};
-`;
-
-const HeaderControls = styled.div`
-    display: flex;
-    gap: 8px;
-    margin-right: 16px;
-    align-items: center;
 `;
 
 const MainContent = styled.div<{ fullWidth?: boolean }>`
@@ -253,38 +235,6 @@ const ReadmeContent = styled.div`
     code {
         white-space: pre-wrap;
         overflow-wrap: break-word;
-    }
-`;
-
-const TitleContainer = styled.div`
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-`;
-
-const ProjectTitle = styled.h1`
-    font-weight: bold;
-    font-size: 1.5rem;
-    margin-bottom: 0;
-    margin-top: 0;
-    @media (min-width: 768px) {
-        font-size: 1.875rem;
-    }
-`;
-
-const ProjectSubtitle = styled.h2`
-    display: none;
-    font-weight: 200;
-    font-size: 1.5rem;
-    opacity: 0.3;
-    margin-bottom: 0;
-    margin-top: 0;
-    @media (min-width: 640px) {
-        display: block;
-    }
-
-    @media (min-width: 768px) {
-        font-size: 1.875rem;
     }
 `;
 
@@ -1163,22 +1113,13 @@ export function PackageOverview(props: PackageOverviewProps) {
                         validateTitle={validateTitle}
                     />
                 ) : (
-                    <HeaderRow>
-                        <TitleContainer>
-                            <EditableTitle
-                                title={integrationTitle}
-                                onCommit={handleTitleUpdate}
-                                validate={validateTitle}
-                            >
-                                <ProjectTitle>{integrationTitle}</ProjectTitle>
-                            </EditableTitle>
-                            <ProjectSubtitle>{isLibrary ? "Library" : "Integration"}</ProjectSubtitle>
-                        </TitleContainer>
-                        <HeaderControls>
-                            <UndoRedoGroup key={Date.now()} />
-                            {headerActions}
-                        </HeaderControls>
-                    </HeaderRow>
+                    <PageHeader
+                        title={integrationTitle}
+                        subtitle={isLibrary ? "Library" : "Integration"}
+                        actions={headerActions}
+                        onTitleEdit={handleTitleUpdate}
+                        validateTitle={validateTitle}
+                    />
                 )}
                 <MainContent fullWidth={isLibrary}>
                     <LeftContent>
