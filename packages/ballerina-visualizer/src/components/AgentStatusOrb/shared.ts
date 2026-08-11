@@ -59,6 +59,26 @@ export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "error": ["#f87171", "#ef4444", "#fb7185"],
 };
 
+const PRIMARY = "var(--vscode-button-background)";
+
+export const ACCENT_FRAME: [string, string, string] = [
+    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
+    PRIMARY,
+    `color-mix(in srgb, ${PRIMARY} 78%, #000000)`,
+];
+
+export const ACCENT_SPHERE: [string, string, string] = [
+    PRIMARY,
+    `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
+    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
+];
+
+export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
+
+export function orbColors(state: AgentRunState, accent: boolean): [string, string, string] {
+    return accent && state === "idle" ? ACCENT_SPHERE : ORB_COLORS[state];
+}
+
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
 export const ORB_ENERGY: Record<AgentRunState, number> = {
     "idle": 0.35,
@@ -134,9 +154,9 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            const [first, second] = ambientColors(props);
-            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
-        }};
+        const [first, second] = ambientColors(props);
+        return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+    }};
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -232,6 +252,25 @@ export const Sphere = styled.div<SphereProps>`
     @media (prefers-reduced-motion: reduce), (forced-colors: active) {
         animation: none;
         background-size: 100% 100%;
+    }
+`;
+
+const spin = keyframes`
+    to { transform: rotate(360deg); }
+`;
+
+export const SpinArc = styled.div<{ color: string }>`
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: ${(props: { color: string }) => props.color};
+    animation: ${spin} 1.1s linear infinite;
+    pointer-events: none;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        opacity: 0.6;
     }
 `;
 
