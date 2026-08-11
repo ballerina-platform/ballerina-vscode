@@ -19,6 +19,7 @@
 import { DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, HistoryEntry, isSamePath, MACHINE_VIEW, ProjectStructure, ProjectStructureArtifactResponse, ProjectStructureResponse, SyntaxTreeResponse, UpdatedArtifactsResponse, VisualizerLocation } from "@wso2/ballerina-core";
 import { NodePosition, STKindChecker, STNode, traversNode } from "@wso2/syntax-tree";
 import { StateMachine, openView } from "../stateMachine";
+import { ProductMode } from "./config";
 import { Uri } from "vscode";
 import { UIDGenerationVisitor } from "./history/uid-generation-visitor";
 import { FindNodeByUidVisitor } from "./history/find-node-by-uid";
@@ -79,7 +80,7 @@ export function resolveSingleIntegrationOverride(
     }
     const namesNoTarget = !viewLocation.view && (!viewLocation.position || "groupId" in viewLocation.position);
     const isBareNavigation = namesNoTarget && !context.projectPath;
-    const agentBuilderMode = StateMachine.isAgentBuilderMode();
+    const agentBuilderMode = StateMachine.productMode() === ProductMode.AGENT_BUILDER;
     if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview && !isBareNavigation) {
         if (!agentBuilderMode || !namesNoTarget) {
             return undefined;

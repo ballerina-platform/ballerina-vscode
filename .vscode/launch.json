@@ -43,7 +43,7 @@
                 "TRACE_WEB_VIEW_DEV_HOST": "http://localhost:9001",
                 // Normally supplied by the WSO2 Integrator app's own environment; forced on
                 // here so the mode can be exercised from a plain VS Code.
-                "AGENT_BUILDER_MODE": "true"
+                "WSO2_PRODUCT_MODE": "agent-builder"
             },
             "outFiles": [
                 "${workspaceFolder}/packages/ballerina-extension/dist/**/*.js"
