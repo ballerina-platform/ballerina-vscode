@@ -311,16 +311,13 @@ export default function createTests() {
 
             await addArtifact('Automation', 'automation');
             const frame = await getWebviewFrame();
-            // "Create" in the in-project form, "Create Integration" in the wizard's
-            // Configure step — this fixture's project starts empty, so "Add Artifact"
-            // is hidden and addArtifact() falls back to the latter.
+            // "Create" on the artifact form. This fixture's project starts empty, which the
+            // overview handles the same way as a populated one — see addArtifact().
             await submitArtifactCreation(frame);
 
-            // On this empty integration, the wizard generates the artifact into the
-            // existing package and closes back to the (now non-empty) overview rather
-            // than opening the new automation directly — unlike the in-project form's
-            // direct-to-diagram flow. Wait for the refreshed overview's entry node,
-            // then navigate into it.
+            // Submitting the form normally lands straight on the designer's canvas. When it
+            // settles on the overview instead, the automation is there as an entry node, and
+            // clicking that opens the same designer.
             const diagramCanvas = frame.getByTestId('bi-diagram-canvas');
             const automationNode = frame.locator('[data-testid="entry-node-automation"]');
             const landedOnDiagram = await diagramCanvas.waitFor({ timeout: 10000 })

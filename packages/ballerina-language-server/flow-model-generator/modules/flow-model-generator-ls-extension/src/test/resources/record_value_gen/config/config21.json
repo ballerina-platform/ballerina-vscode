@@ -1,0 +1,44 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Ambiguous record|map<string> union value gets an explicit type cast",
+  "typeConstraint": "DestinationConfig|AdvancedConfig",
+  "type": {
+    "typeName": "record",
+    "name": "DestinationConfig",
+    "selected": true,
+    "fields": [
+      {
+        "name": "ashost",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      },
+      {
+        "name": "sysnr",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      },
+      {
+        "name": "user",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "value": "\"\""
+      }
+    ],
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false
+  },
+  "output": "<DestinationConfig> {\n    ashost: \"\",\n    sysnr: \"\",\n    user: \"\"\n}"
+}

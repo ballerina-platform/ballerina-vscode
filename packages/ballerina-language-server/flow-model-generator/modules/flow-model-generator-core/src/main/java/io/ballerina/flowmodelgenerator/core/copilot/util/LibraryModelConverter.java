@@ -103,6 +103,9 @@ public class LibraryModelConverter {
                     // Parse normal resource paths
                     String[] pathParts = parseResourcePath(resourcePath);
 
+                    // Path-param types live in functionData.parameters(), not in the [...] template.
+                    Map<String, ParameterData> params = functionData.parameters();
+
                     // Parse paths array
                     String[] paths = pathParts[1].split("/");
                     for (String path : paths) {
@@ -111,13 +114,16 @@ public class LibraryModelConverter {
                         }
                         // Check if it's a path parameter (starts with [])
                         if (path.startsWith("[") && path.endsWith("]")) {
-                            // Path parameter: extract name and type
-                            String paramContent = path.substring(1, path.length() - 1);
-                            String[] paramParts = paramContent.split(":");
-                            String paramName = paramParts[0].trim();
-                            String paramType = paramParts.length > 1 ? paramParts[1].trim() : "string";
-                            PathSegment pathParam = new PathSegment(paramName, paramType);
-                            pathsList.add(pathParam);
+                            String paramName = path.substring(1, path.length() - 1).trim();
+                            String paramType = "string";
+                            if (params != null) {
+                                ParameterData pd = params.get(paramName);
+                                if (pd != null && pd.kind() == ParameterData.Kind.PATH_PARAM
+                                        && pd.type() != null) {
+                                    paramType = pd.type();
+                                }
+                            }
+                            pathsList.add(new PathSegment(paramName, paramType));
                         } else {
                             // Regular path segment - wrap in StringPath
                             pathsList.add(new StringPath(path));
