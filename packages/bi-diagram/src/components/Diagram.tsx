@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
 import { cloneDeep } from "lodash";
 import { NavigationWrapperCanvasWidget } from "./DiagramNavigationWrapper/NavigationWrapperCanvasWidget";
@@ -143,6 +143,39 @@ export function Diagram(props: DiagramProps) {
     const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
+
+    const centerAgentNode = useCallback(
+        (resetZoom = false) => {
+            const canvas = diagramEngine.getCanvas();
+            if (!canvas) {
+                return false;
+            }
+            const model = diagramEngine.getModel();
+            const agentNode = model
+                .getNodes()
+                .find((node) =>
+                    node.getType() === NodeTypes.AGENT_NODE ||
+                    node.getType() === NodeTypes.AGENT_CALL_NODE ||
+                    node.getType() === NodeTypes.TYPED_AGENT_NODE
+                ) as AgentCallNodeModel | AgentNodeModel | undefined;
+            if (!agentNode) {
+                return false;
+            }
+            if (resetZoom) {
+                model.setZoomLevel(100);
+            }
+            const zoom = model.getZoomLevel() / 100;
+            const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
+            const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
+            const verticalBias = embedded ? 0 : 40;
+            model.setOffset(
+                canvasWidth / 2,
+                canvasHeight / 2 - verticalBias - (agentNode.getY() + cardHeight / 2) * zoom
+            );
+            return true;
+        },
+        [diagramEngine, embedded]
+    );
 
     useEffect(() => {
         if (diagramEngine) {
@@ -310,25 +343,9 @@ export function Diagram(props: DiagramProps) {
         loadDiagramZoomAndPosition(diagramEngine);
 
         if (isSingleAgentNode) {
-            const centerSingleAgentNode = () => {
-                const canvas = diagramEngine.getCanvas();
-                if (!canvas) {
-                    return false;
-                }
-                const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
-                const diagramModel = diagramEngine.getModel();
-                const zoom = diagramModel.getZoomLevel() / 100;
-                const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
-                const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
-                const offsetX = canvasWidth / 2;
-                const offsetY = canvasHeight / 2 - 40 - (agentNode.getY() + cardHeight / 2) * zoom;
-                diagramModel.setOffset(offsetX, offsetY);
-                return true;
-            };
-
-            if (!centerSingleAgentNode()) {
+            if (!centerAgentNode()) {
                 requestAnimationFrame(() => {
-                    if (centerSingleAgentNode()) {
+                    if (centerAgentNode()) {
                         diagramEngine.repaintCanvas();
                     }
                     setCanvasVisible(true);
@@ -422,7 +439,11 @@ export function Diagram(props: DiagramProps) {
 
     const diagramContent = (
         <>
-            <Controls engine={diagramEngine} embedded={embedded} />
+            <Controls
+                engine={diagramEngine}
+                embedded={embedded}
+                onFitToScreen={isAgentFocusView ? () => centerAgentNode(true) : undefined}
+            />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
                     {overlay?.visible && <PopupOverlay onClose={overlay.onClickOverlay} />}

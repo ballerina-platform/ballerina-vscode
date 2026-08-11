@@ -84,14 +84,17 @@ const Button = styled.div<{}>`
 interface ControlsProps {
     engine: DiagramEngine;
     embedded?: boolean;
+    onFitToScreen?: () => boolean;
 }
 
 export function Controls(props: ControlsProps) {
-    const { engine, embedded } = props;
+    const { engine, embedded, onFitToScreen } = props;
 
     const handleZoomToFit = () => {
-        resetDiagramZoomAndPosition();
-        loadDiagramZoomAndPosition(engine);
+        if (!onFitToScreen?.()) {
+            resetDiagramZoomAndPosition();
+            loadDiagramZoomAndPosition(engine);
+        }
         engine.repaintCanvas();
     };
 
