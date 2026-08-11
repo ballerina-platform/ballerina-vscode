@@ -31,6 +31,7 @@ const MACHINE_VIEW = {
     PackageOverview: "Overview",
     WorkspaceOverview: "Workspace Overview",
     ServiceDesigner: "Service Designer",
+    AddAgent: "Add Agent",
 } as unknown as typeof MachineView;
 const DIRECTORY_MAP = { FUNCTION: "FUNCTION" } as unknown as typeof DirectoryMap;
 jest.mock("@wso2/ballerina-core", () => ({
@@ -42,13 +43,16 @@ jest.mock("@wso2/ballerina-core", () => ({
 }));
 
 jest.mock("../stateMachine", () => ({
-    StateMachine: { context: jest.fn() },
+    StateMachine: { context: jest.fn(), productMode: jest.fn() },
     openView: jest.fn(),
 }));
 
+import { StateMachine } from "../stateMachine";
+import { ProductMode } from "../utils/config";
 import { getSoleIntegration, resolveSingleIntegrationOverride } from "../utils/state-machine-utils";
 
 const WORKSPACE_ROOT = "/workspace";
+const productMode = StateMachine.productMode as jest.MockedFunction<typeof StateMachine.productMode>;
 
 function pkg(name: string, isLibrary = false): ProjectStructure {
     return {
@@ -91,6 +95,10 @@ describe("resolveSingleIntegrationOverride", () => {
     const soleIntegration = { workspacePath: WORKSPACE_ROOT, projectStructure: workspaceOf(pkg("orders")) };
     const expected = { view: MACHINE_VIEW.PackageOverview, projectPath: `${WORKSPACE_ROOT}/orders` };
 
+    beforeEach(() => {
+        productMode.mockReturnValue(ProductMode.INTEGRATOR);
+    });
+
     // Both shapes a navigation can take, since the caller cannot tell them apart: the project
     // explorer names the workspace overview outright, other entry points send a bare location
     // and let `findView` resolve it.
@@ -132,5 +140,37 @@ describe("resolveSingleIntegrationOverride", () => {
         expect(
             resolveSingleIntegrationOverride({}, { projectPath: "/standalone", projectStructure: workspaceOf(pkg("standalone")) })
         ).toBeUndefined();
+    });
+
+    it("opens Add Agent for an empty integration in Agent Builder mode", () => {
+        productMode.mockReturnValue(ProductMode.AGENT_BUILDER);
+
+        expect(resolveSingleIntegrationOverride({}, soleIntegration)).toEqual({
+            view: MACHINE_VIEW.AddAgent,
+            projectPath: `${WORKSPACE_ROOT}/orders`,
+        });
+    });
+
+    it("opens the package overview once the Agent Builder integration has an artifact", () => {
+        productMode.mockReturnValue(ProductMode.AGENT_BUILDER);
+        const populatedIntegration = {
+            workspacePath: WORKSPACE_ROOT,
+            projectStructure: workspaceOf({
+                ...pkg("orders"),
+                directoryMap: { [DIRECTORY_MAP.FUNCTION]: [{}] } as ProjectStructure["directoryMap"],
+            }),
+        };
+
+        expect(resolveSingleIntegrationOverride({}, populatedIntegration)).toEqual(expected);
+    });
+
+    it("opens Add Agent from a bare package navigation in Agent Builder mode", () => {
+        productMode.mockReturnValue(ProductMode.AGENT_BUILDER);
+        const packageContext = { ...soleIntegration, projectPath: `${WORKSPACE_ROOT}/orders` };
+
+        expect(resolveSingleIntegrationOverride({}, packageContext)).toEqual({
+            view: MACHINE_VIEW.AddAgent,
+            projectPath: `${WORKSPACE_ROOT}/orders`,
+        });
     });
 });
