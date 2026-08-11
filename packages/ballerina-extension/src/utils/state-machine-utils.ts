@@ -40,6 +40,11 @@ import path from "path";
  * contents by path, so redirecting to one without a path would replace the list with a view
  * that can never finish loading.
  */
+
+export function isEmptyPackage(project: ProjectStructure): boolean {
+    return Object.values(project.directoryMap).every((artifacts) => !artifacts?.length);
+}
+
 export function getSoleIntegration(projectStructure?: ProjectStructureResponse): ProjectStructure | undefined {
     const projects = projectStructure?.projects ?? [];
     if (projects.length !== 1 || projects[0].isLibrary || !projects[0].projectPath) {
@@ -72,17 +77,25 @@ export function resolveSingleIntegrationOverride(
     if (viewLocation.projectPath || !context.workspacePath) {
         return undefined;
     }
-    const isBareNavigation =
-        !viewLocation.view &&
-        !context.projectPath &&
-        (!viewLocation.position || "groupId" in viewLocation.position);
+    const namesNoTarget = !viewLocation.view && (!viewLocation.position || "groupId" in viewLocation.position);
+    const isBareNavigation = namesNoTarget && !context.projectPath;
+    const agentBuilderMode = StateMachine.isAgentBuilderMode();
     if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview && !isBareNavigation) {
-        return undefined;
+        if (!agentBuilderMode || !namesNoTarget) {
+            return undefined;
+        }
     }
     const soleIntegration = getSoleIntegration(context.projectStructure);
-    return soleIntegration
-        ? { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath }
-        : undefined;
+    if (!soleIntegration) {
+        return undefined;
+    }
+    // An integration with nothing in it has no overview worth showing, so agent builder mode
+    // opens the Add Agent view instead — the same one the Agents "+" opens. Re-evaluated per
+    // navigation, so the first artifact created ends the redirect.
+    if (agentBuilderMode && isEmptyPackage(soleIntegration)) {
+        return { view: MACHINE_VIEW.AddAgent, projectPath: soleIntegration.projectPath };
+    }
+    return { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath };
 }
 
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {

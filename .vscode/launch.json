@@ -27,6 +27,31 @@
             "envFile": "${workspaceFolder}/packages/ballerina-extension/.env"
         },
         {
+            "name": "Ballerina Extension (agent builder mode)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/ballerina-extension"
+            ],
+            "env": {
+                "LS_EXTENSIONS_PATH": "",
+                "LSDEBUG": "false",
+                "WEB_VIEW_WATCH_MODE": "true",
+                "WEB_VIEW_DEV_HOST": "http://localhost:9000",
+                "BALLERINA_STAGE_CENTRAL": "false",
+                "TRACE_WEB_VIEW_DEV_HOST": "http://localhost:9001",
+                // Normally supplied by the WSO2 Integrator app's own environment; forced on
+                // here so the mode can be exercised from a plain VS Code.
+                "AGENT_BUILDER_MODE": "true"
+            },
+            "outFiles": [
+                "${workspaceFolder}/packages/ballerina-extension/dist/**/*.js"
+            ],
+            "preLaunchTask": "watch-ballerina",
+            "envFile": "${workspaceFolder}/packages/ballerina-extension/.env"
+        },
+        {
             "name": "Ballerina Extension (no watch)",
             "type": "extensionHost",
             "request": "launch",
