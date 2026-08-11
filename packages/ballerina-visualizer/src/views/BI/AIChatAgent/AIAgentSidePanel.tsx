@@ -940,7 +940,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                 connectionField = buildConnectionSelectField(
                     options.connector.codedata,
                     ballerinaType,
-                    options.connectionName ?? ""
+                    options.connectionName ?? String(connectionProperty?.value ?? "")
                 ) as unknown as FormField;
                 if (connectionIndex >= 0) {
                     nodeParameterFields.splice(connectionIndex, 1);
@@ -1402,9 +1402,6 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
             parameterImports: paramImports,
             connectionName: chosenConnection || undefined,
         };
-        console.log("New Agent Tool:", toolModel);
-
-
         setSubmittingTool(true);
         try {
             await onSubmit(toolModel);

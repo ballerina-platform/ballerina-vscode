@@ -144,7 +144,7 @@ namespace S {
     `;
 
     /** Collapsible group card: a labelled container for fields the user rarely edits. */
-    export const GroupCard = styled.div<{ expanded?: boolean }>`
+    export const GroupCard = styled.div`
         width: 100%;
         border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 4px;
@@ -156,7 +156,7 @@ namespace S {
         }
     `;
 
-    export const GroupHeader = styled.button<{ expanded?: boolean }>`
+    export const GroupHeader = styled.button`
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -177,25 +177,10 @@ namespace S {
         }
     `;
 
-    export const GroupHeaderText = styled.div`
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        flex: 1;
-        min-width: 0;
-    `;
-
     export const GroupTitle = styled.span`
         font-family: var(--vscode-font-family);
         font-size: 13px;
         color: var(--vscode-editor-foreground);
-    `;
-
-    export const GroupDescription = styled.span`
-        font-family: var(--vscode-font-family);
-        font-size: 11px;
-        line-height: 1.4;
-        color: var(--vscode-descriptionForeground);
     `;
 
     export const GroupChevron = styled.span<{ expanded?: boolean }>`
@@ -225,10 +210,9 @@ namespace S {
         display: flex;
         flex-direction: column;
         gap: 20px;
-        padding: 4px 14px 16px;
+        padding: 16px 14px;
         border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         margin-top: -1px;
-        padding-top: 16px;
     `;
 
     export const CheckboxRow = styled.div<{}>`
@@ -648,10 +632,10 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         );
     }
     const sawInitialLoadingRef = useRef(false);
-    if (loadingFields.size > 0) {
-        sawInitialLoadingRef.current = true;
-    }
     useEffect(() => {
+        if (loadingFields.size > 0) {
+            sawInitialLoadingRef.current = true;
+        }
         if (initialLoadSettled || loadingFields.size > 0) {
             return;
         }
@@ -1546,10 +1530,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     };
                     const expanded = expandedGroups[group.id] ?? !(group.defaultCollapsed ?? true);
                     return (
-                        <S.GroupCard key={group.id} expanded={expanded}>
+                        <S.GroupCard key={group.id}>
                             <S.GroupHeader
                                 type="button"
-                                expanded={expanded}
                                 aria-expanded={expanded}
                                 onClick={() => toggleGroup(group.id)}
                             >

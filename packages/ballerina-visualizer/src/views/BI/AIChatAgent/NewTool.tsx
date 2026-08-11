@@ -170,7 +170,6 @@ export function NewTool(props: NewToolProps): JSX.Element {
         setSavingForm(true);
 
         try {
-
             if (flowNode.codedata) {
                 flowNode.codedata.isNew = true;
                 flowNode.codedata.lineRange = {

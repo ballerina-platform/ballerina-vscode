@@ -136,7 +136,7 @@ export async function fetchConnectorActions(
     // Fall back to any module declaring the client: dotted modules (aws.s3) come as one.
     const clientName = codedata.object || "Client";
     const clients: DocsClient[] = modules
-        .filter((module) => !codedata.module || !module.id || module.id === codedata.module)
+        .filter((module) => !module.id || module.id === codedata.module)
         .flatMap((module) => (module.clients ?? []) as DocsClient[]);
     const allClients: DocsClient[] = clients.length
         ? clients
@@ -180,7 +180,7 @@ export async function fetchConnectorActions(
             org: codedata.org,
             module: codedata.module,
             packageName: codedata.packageName ?? codedata.module,
-            object: clientName,
+            object: client.name ?? clientName,
             symbol,
             version: codedata.version,
             ...(resourcePath ? { resourcePath } : {}),

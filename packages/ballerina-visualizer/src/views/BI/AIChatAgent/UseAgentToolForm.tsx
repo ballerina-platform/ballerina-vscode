@@ -109,7 +109,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         [oauthProperties]
     );
 
-    const fields: FormField[] = [
+    const fields = useMemo<FormField[]>(() => [
         ...buildAgentToolFields(
             `${agentVarName}Tool`,
             `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
@@ -132,7 +132,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             advanced: false,
             enabled: true,
         },
-    ];
+    ], [agentVarName, agentLabel, oauthFields, defaultReturnType]);
 
     // Send only an edited value. Passing the prefill back would make the LS skip its own
     // resolution, which is what adds the import for a type from another module.

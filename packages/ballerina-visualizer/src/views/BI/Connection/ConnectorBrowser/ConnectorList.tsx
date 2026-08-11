@@ -247,7 +247,7 @@ const PendingRow = styled.div`
     color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
-interface Section {
+interface ListSection {
     key: string;
     title: string;
     nodes: PanelNode[];
@@ -332,7 +332,7 @@ export function ConnectorList(props: ConnectorListProps) {
 
     const query = searchText.trim().toLowerCase();
 
-    const allConnectorSections = useMemo<Section[]>(
+    const allConnectorSections = useMemo<ListSection[]>(
         () =>
             connectorCategories
                 .map((c) => ({ key: c.title, title: c.title, category: c.title, nodes: nodesOf(c) }))
@@ -350,7 +350,7 @@ export function ConnectorList(props: ConnectorListProps) {
         [allConnectorSections]
     );
 
-    const connectionSections = useMemo<Section[]>(
+    const connectionSections = useMemo<ListSection[]>(
         () =>
             connectionCategories
                 .map((c) => ({
@@ -364,7 +364,7 @@ export function ConnectorList(props: ConnectorListProps) {
         [connectionCategories]
     );
 
-    const sections = useMemo<Section[]>(() => {
+    const sections = useMemo<ListSection[]>(() => {
         if (query) {
             const pool = category
                 ? connectorSections.filter((s) => s.category === category)

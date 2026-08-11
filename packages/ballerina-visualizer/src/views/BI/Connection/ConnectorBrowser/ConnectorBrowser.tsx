@@ -89,6 +89,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
     const [searchText, setSearchText] = useState<string>("");
 
     const [selectedConnector, setSelectedConnector] = useState<AvailableNode>();
+    const [selectedConnectionName, setSelectedConnectionName] = useState<string>();
     const [selectedCategory, setSelectedCategory] = useState<string>("");
     const [actions, setActions] = useState<AvailableNode[]>([]);
     const [loadingActions, setLoadingActions] = useState<boolean>(false);
@@ -104,6 +105,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
     const goToConnectorList = () => {
         setStep(WizardStep.CONNECTOR_LIST);
         setSelectedConnector(undefined);
+        setSelectedConnectionName(undefined);
         setSelectedCategory("");
         setActions([]);
         setActionError("");
@@ -202,6 +204,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
             codedata: first?.codedata,
             enabled: true,
         } as AvailableNode);
+        setSelectedConnectionName(connectionName);
         setSelectedCategory("Connections");
         setActionError("");
         setActions(actionNodes);
@@ -210,6 +213,7 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
 
     const handleSelectConnector = async (connector: AvailableNode, category?: string) => {
         setSelectedConnector(connector);
+        setSelectedConnectionName(undefined);
         setSelectedCategory(category ?? "");
         setActions([]);
         setActionError("");
@@ -294,7 +298,11 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
                             connector={selectedConnector}
                             actions={actions}
                             category={selectedCategory}
-                            onSelect={(action) => onSelect({ action, connector: selectedConnector })}
+                            onSelect={(action) => onSelect({
+                                action,
+                                connector: selectedConnector,
+                                connectionName: selectedConnectionName,
+                            })}
                         />
                     )}
                 </>
