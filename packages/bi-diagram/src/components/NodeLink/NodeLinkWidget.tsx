@@ -76,10 +76,10 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
             ? DIFF_REMOVED_COLOR
             : DIFF_ADDED_COLOR
         : link.disabled
-        ? LINK_DISABLED_COLOR
-        : isHovered && !readOnly
-        ? LINK_HOVERED_COLOR
-        : LINK_COLOR;
+            ? LINK_DISABLED_COLOR
+            : isHovered && !readOnly
+                ? LINK_HOVERED_COLOR
+                : LINK_COLOR;
 
     const addButtonPosition = link.getAddButtonPosition();
 
@@ -271,7 +271,7 @@ export const NodeLinkWidget: React.FC<NodeLinkWidgetProps> = ({ link, engine }) 
                                 visibility: ${shouldHighlight ? "visible" : "hidden"};
                             `}
                         >
-                            {!isUserAuthenticated && <title>You need to be logged into WSO2 Integrator Copilot to access AI features</title>}
+                            {!isUserAuthenticated && <title>You need to be logged into WSO2 Agent Builder to access AI features</title>}
                             <path
                                 fill={ADD_BUTTON_BG_COLOR}
                                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"

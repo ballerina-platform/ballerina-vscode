@@ -976,10 +976,10 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Integrator Copilot mini chat">
+        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Agent Builder mini chat">
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
-                <HeaderTitle>WSO2 Integrator Copilot</HeaderTitle>
+                <HeaderTitle>WSO2 Agent Builder</HeaderTitle>
                 <HeaderButton title="Open full chat" aria-label="Open the full Copilot chat" onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
@@ -1048,7 +1048,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 ? "What should I add here?"
                                 : "What should we work on?"
                     }
-                    aria-label="Message WSO2 Integrator Copilot"
+                    aria-label="Message WSO2 Agent Builder"
                     disabled={runActive}
                 />
                 <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>

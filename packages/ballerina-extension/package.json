@@ -289,7 +289,7 @@
                     "type": "boolean",
                     "default": false,
                     "scope": "window",
-                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integrator Copilot."
+                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Agent Builder."
                 },
                 "ballerina.copilot.skills": {
                     "type": "object",
@@ -650,7 +650,7 @@
             },
             {
                 "command": "ballerina.open.ai.panel",
-                "title": "Open WSO2 Integrator Copilot",
+                "title": "Open WSO2 Agent Builder",
                 "category": "Ballerina",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",
@@ -1149,7 +1149,7 @@
                     "command": "ballerina.open.ai.panel",
                     "group": "navigation@1",
                     "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject)",
-                    "title": "Open WSO2 Integrator Copilot"
+                    "title": "Open WSO2 Agent Builder"
                 },
                 {
                     "command": "BI.project.run",

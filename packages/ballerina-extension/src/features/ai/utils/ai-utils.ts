@@ -450,7 +450,7 @@ export function getErrorMessage(error: unknown): string {
             return "The AI service returned an invalid response. Please try again.";
         }
         if (msg.includes("Unsupported login method")) {
-            return "Please sign in to WSO2 Integrator Copilot to use AI features.";
+            return "Please sign in to WSO2 Agent Builder to use AI features.";
         }
 
         return msg;

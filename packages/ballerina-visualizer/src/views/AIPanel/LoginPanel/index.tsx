@@ -285,7 +285,7 @@ const LoginPanel: React.FC = () => {
                     sx={{ width: 54, height: 54 }}
                     iconSx={{ fontSize: "54px", color: "var(--vscode-foreground)", cursor: "default" }}
                 />
-                <Title>Welcome to WSO2 Integrator Copilot</Title>
+                <Title>Welcome to WSO2 Agent Builder</Title>
                 <Typography
                     variant="body1"
                     sx={{
@@ -313,7 +313,7 @@ const LoginPanel: React.FC = () => {
                 ) : (
                     <InstallingContainer>
                         <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
-                            Install the WSO2 Integrator extension to sign in and use WSO2 Integrator Copilot.
+                            Install the WSO2 Integrator extension to sign in and use WSO2 Agent Builder.
                         </Typography>
                         <InstallButton
                             disabled={isInstallingExtension}

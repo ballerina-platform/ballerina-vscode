@@ -120,7 +120,7 @@ export const logout = async (_isUserLogout: boolean = true) => {
  */
 export async function initiateDevantAuth(): Promise<boolean> {
     if (!isPlatformExtensionAvailable()) {
-        throw new Error('WSO2 Platform extension is not installed. Please install it to use WSO2 Integrator Copilot.');
+        throw new Error('WSO2 Platform extension is not installed. Please install it to use WSO2 Agent Builder.');
     }
 
     // Trigger platform extension login command

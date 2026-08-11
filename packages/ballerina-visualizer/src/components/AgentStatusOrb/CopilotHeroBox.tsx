@@ -178,7 +178,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot chat.` : undefined}
+                aria-label={label ? `WSO2 Agent Builder: ${label}. Open the Copilot chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -219,11 +219,11 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                                 }
                             }}
                             placeholder={placeholder}
-                            aria-label="Message WSO2 Integrator Copilot"
+                            aria-label="Message WSO2 Agent Builder"
                         />
                         <SendButton
-                            title="Send to WSO2 Integrator Copilot"
-                            aria-label="Send to WSO2 Integrator Copilot"
+                            title="Send to WSO2 Agent Builder"
+                            aria-label="Send to WSO2 Agent Builder"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();
