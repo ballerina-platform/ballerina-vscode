@@ -56,12 +56,13 @@ const MainContent = styled.div`
     padding: 16px;
 `;
 
-const Panel = styled.div`
+const Panel = styled.div<{ bordered?: boolean }>`
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    border: 1px solid
+        ${(props: { bordered?: boolean }) => (props.bordered ? ThemeColors.OUTLINE_VARIANT : "transparent")};
     border-radius: 4px;
     overflow: hidden;
 `;
@@ -278,7 +279,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                     validateTitle={validateTitle}
                 />
                 <MainContent>
-                    <Panel>
+                    <Panel bordered={!!selectedAgent}>
                         {agents.length > 0 && (
                             <AgentTabs
                                 agents={agents}

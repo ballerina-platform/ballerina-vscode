@@ -20,10 +20,14 @@ import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
     AWAITING_INPUT_LABEL,
     AmbientFrame,
+    ACCENT_CORE,
+    ACCENT_FRAME,
+    ACCENT_SPHERE,
+    SpinArc,
     HERO_GLOW,
     ambientGlow,
     IconOverlay,
@@ -32,29 +36,13 @@ import {
     Sphere,
     activeStateLabel,
     subscribeAgentRunStatus,
+    useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
 
 const ORB_SIZE = 52;
 
 const CONTENT_WIDTH = 760;
-
-const PRIMARY = "var(--vscode-button-background)";
-
-const ACCENT: [string, string, string] = [
-    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
-    PRIMARY,
-    `color-mix(in srgb, ${PRIMARY} 78%, #000000)`,
-];
-
-/** Ordered body → rim → highlight: `Sphere` paints [0] at 45% and [1] at the edge. */
-const ACCENT_DEEP: [string, string, string] = [
-    PRIMARY,
-    `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
-    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
-];
-
-const ORB_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
 
 const EXAMPLES = [
     {
@@ -112,7 +100,7 @@ const OrbHolder = styled.div`
     height: ${ORB_SIZE}px;
     flex: none;
     border-radius: 50%;
-    box-shadow: ${ambientGlow(ACCENT, HERO_GLOW)};
+    box-shadow: ${ambientGlow(ACCENT_FRAME, HERO_GLOW)};
 `;
 
 const Heading = styled.h2`
@@ -123,12 +111,13 @@ const Heading = styled.h2`
     text-align: center;
 `;
 
-const Subtitle = styled.p`
+const Subtitle = styled.p<{ live?: boolean }>`
     margin: 0;
     max-width: 440px;
     text-align: center;
-    color: var(--vscode-descriptionForeground);
     font-size: 14px;
+    color: ${(props: { live?: boolean }) =>
+        props.live ? "var(--vscode-foreground)" : "var(--vscode-descriptionForeground)"};
 `;
 
 const Composer = styled.div`
@@ -193,16 +182,6 @@ const RoundButton = styled.button`
         opacity: 0.4;
         cursor: default;
     }
-`;
-
-const StatusRow = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--vscode-descriptionForeground);
-    font-size: 13px;
-    min-height: 96px;
-    margin-top: 40px;
 `;
 
 const Cards = styled.div`
@@ -298,6 +277,8 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
 
+    const aiPanelOpen = useAiPanelOpen();
+
     useSuppressAgentStatusOrb();
 
     useEffect(() => {
@@ -309,8 +290,16 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
 
     const state = status?.state ?? "idle";
     const working = state !== "idle";
+    const running = state === "running";
 
-    const orbColors = working ? ORB_COLORS[state] : ACCENT_DEEP;
+    const orbColors = working ? ORB_COLORS[state] : ACCENT_SPHERE;
+    const runHeading =
+        state === "awaiting-input"
+            ? AWAITING_INPUT_LABEL
+            : state === "error"
+                ? "Something went wrong"
+                : "Building your agent";
+    const showOpenCopilot = !aiPanelOpen || state === "awaiting-input" || state === "error";
 
     const openCopilot = () => {
         rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
@@ -334,7 +323,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <Sphere
                     colors={orbColors}
                     energy={ORB_ENERGY[state]}
-                    highlightColor={ORB_CORE}
+                    highlightColor={ACCENT_CORE}
                 />
                 <IconOverlay>
                     <Icon
@@ -343,74 +332,86 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                         iconSx={{ fontSize: "22px", color: "#ffffff" }}
                     />
                 </IconOverlay>
+                {running && <SpinArc color={ACCENT_FRAME[1]} />}
             </OrbHolder>
 
-            <Intro>
-                <Heading>What should your agent do?</Heading>
-                <Subtitle>Copilot builds a working agent from your description.</Subtitle>
-            </Intro>
-
-            <ComposerRow>
-                <ComposerFrame $variant="hero" $state={state} $colors={ACCENT}>
-                    <Composer>
-                        <PromptInput
-                            rows={2}
-                            value={text}
-                            onChange={(event) => setText(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter" && !event.shiftKey) {
-                                    event.preventDefault();
-                                    send(text);
-                                }
-                            }}
-                            placeholder="Describe it in a sentence…"
-                            aria-label="Describe the agent you want to build"
-                        />
-                        <ComposerFooter>
-                            <RoundButton type="button" title="Open Copilot" onClick={openCopilot}>
-                                <Codicon name="add" />
-                            </RoundButton>
-                            <RoundButton
-                                type="button"
-                                title="Send to Copilot"
-                                aria-label="Send to Copilot"
-                                disabled={!text.trim()}
-                                onClick={() => send(text)}
-                            >
-                                <Codicon name="arrow-up" />
-                            </RoundButton>
-                        </ComposerFooter>
-                    </Composer>
-                </ComposerFrame>
-            </ComposerRow>
-
             {working ? (
-                <StatusRow>
-                    <ProgressRing color={ThemeColors.PRIMARY} sx={{ width: 16, height: 16 }} />
-                    {state === "awaiting-input" ? AWAITING_INPUT_LABEL : status ? activeStateLabel(status) : ""}
-                </StatusRow>
+                <>
+                    <Intro>
+                        <Heading>{runHeading}</Heading>
+                        <Subtitle live>{status ? activeStateLabel(status) : "Working on it…"}</Subtitle>
+                    </Intro>
+                    {showOpenCopilot && (
+                        <ScratchLine>
+                            <LinkButton type="button" onClick={openCopilot}>
+                                Open Copilot
+                            </LinkButton>
+                        </ScratchLine>
+                    )}
+                </>
             ) : (
-                <Cards>
-                    {EXAMPLES.map((example) => (
-                        <Card key={example.name} type="button" onClick={() => send(example.prompt)}>
-                            <Icon
-                                name={example.icon}
-                                isCodicon={true}
-                                sx={{ color: "var(--vscode-foreground)" }}
-                                iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
-                            />
-                            <CardText>
-                                <CardName>{example.name}</CardName>
-                                <CardDescription>{example.description}</CardDescription>
-                            </CardText>
-                        </Card>
-                    ))}
-                </Cards>
-            )}
+                <>
+                    <Intro>
+                        <Heading>What should your agent do?</Heading>
+                        <Subtitle>Copilot builds a working agent from your description.</Subtitle>
+                    </Intro>
 
-            <ScratchLine>
-                or <LinkButton type="button" onClick={onCreateFromScratch}>build one from scratch</LinkButton>
-            </ScratchLine>
+                    <ComposerRow>
+                        <ComposerFrame $variant="hero" $state={state} $colors={ACCENT_FRAME}>
+                            <Composer>
+                                <PromptInput
+                                    rows={2}
+                                    value={text}
+                                    onChange={(event) => setText(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter" && !event.shiftKey) {
+                                            event.preventDefault();
+                                            send(text);
+                                        }
+                                    }}
+                                    placeholder="Describe it in a sentence…"
+                                    aria-label="Describe the agent you want to build"
+                                />
+                                <ComposerFooter>
+                                    <RoundButton type="button" title="Open Copilot" onClick={openCopilot}>
+                                        <Codicon name="add" />
+                                    </RoundButton>
+                                    <RoundButton
+                                        type="button"
+                                        title="Send to Copilot"
+                                        aria-label="Send to Copilot"
+                                        disabled={!text.trim()}
+                                        onClick={() => send(text)}
+                                    >
+                                        <Codicon name="arrow-up" />
+                                    </RoundButton>
+                                </ComposerFooter>
+                            </Composer>
+                        </ComposerFrame>
+                    </ComposerRow>
+
+                    <Cards>
+                        {EXAMPLES.map((example) => (
+                            <Card key={example.name} type="button" onClick={() => send(example.prompt)}>
+                                <Icon
+                                    name={example.icon}
+                                    isCodicon={true}
+                                    sx={{ color: "var(--vscode-foreground)" }}
+                                    iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
+                                />
+                                <CardText>
+                                    <CardName>{example.name}</CardName>
+                                    <CardDescription>{example.description}</CardDescription>
+                                </CardText>
+                            </Card>
+                        ))}
+                    </Cards>
+
+                    <ScratchLine>
+                        or <LinkButton type="button" onClick={onCreateFromScratch}>build one from scratch</LinkButton>
+                    </ScratchLine>
+                </>
+            )}
         </Wrap>
     );
 }

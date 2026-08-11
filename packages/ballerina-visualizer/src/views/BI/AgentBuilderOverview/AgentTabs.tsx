@@ -20,8 +20,7 @@ import styled from "@emotion/styled";
 import { ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { Icon, ThemeColors } from "@wso2/ui-toolkit";
 
-/** Matches `getAIColor()` in bi-diagram. */
-const AGENT_ACCENT = "var(--vscode-terminal-ansiBrightCyan)";
+const AGENT_ACCENT = "var(--vscode-button-background)";
 const ICON_SIZE = 18;
 
 const Strip = styled.div`
@@ -96,7 +95,7 @@ export function AgentTabs({ agents, selectedKey, onSelect, onAdd }: AgentTabsPro
                         <Icon
                             name="bi-ai-agent"
                             sx={{ fontSize: ICON_SIZE, width: ICON_SIZE, height: ICON_SIZE }}
-                            iconSx={{ fontSize: ICON_SIZE, color: active ? AGENT_ACCENT : "inherit" }}
+                            iconSx={{ fontSize: ICON_SIZE, color: "inherit" }}
                         />
                         <TabLabel>{agent.name}</TabLabel>
                     </Tab>
