@@ -342,6 +342,12 @@ const MainPanel = () => {
                 } else {
                     switch (value?.view) {
                         case MACHINE_VIEW.PackageOverview: {
+                            if (await rpcClient.getCommonRpcClient().agentBuilderModeEnabled()) {
+                                const { AgentBuilderOverview } = await import("./views/BI/AgentBuilderOverview");
+                                if (isStaleNavigation()) return;
+                                setViewComponent(<AgentBuilderOverview projectPath={value.projectPath} />);
+                                break;
+                            }
                             const { PackageOverview } = await import("./views/BI/PackageOverview");
                             if (isStaleNavigation()) return;
                             setViewComponent(
