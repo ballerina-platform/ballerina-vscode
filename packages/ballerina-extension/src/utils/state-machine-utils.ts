@@ -80,7 +80,7 @@ export function resolveSingleIntegrationOverride(
     }
     const namesNoTarget = !viewLocation.view && (!viewLocation.position || "groupId" in viewLocation.position);
     const isBareNavigation = namesNoTarget && !context.projectPath;
-    const agentBuilderMode = StateMachine.isAgentBuilderMode();
+    const agentBuilderMode = StateMachine.productMode() === ProductMode.AGENT_BUILDER;
     if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview && !isBareNavigation) {
         if (!agentBuilderMode || !namesNoTarget) {
             return undefined;

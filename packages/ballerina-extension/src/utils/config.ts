@@ -246,9 +246,26 @@ export function isInDevant(): boolean {
     return !!process.env.CLOUD_STS_TOKEN;
 }
 
-export function isAgentBuilderMode(): boolean {
-    const value = process.env.AGENT_BUILDER_MODE?.trim().toLowerCase();
-    return value === 'true' || value === '1';
+/**
+ * Which product this extension is running inside. Set by the host app's own environment
+ * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it and
+ * never configures it itself. The enum values are the literal env values — the comparison
+ * in {@link getProductMode} is exact.
+ */
+export enum ProductMode {
+    INTEGRATOR = 'integrator',
+    AGENT_BUILDER = 'agent-builder'
+}
+
+/**
+ * Read once at startup and cached on the state machine context, so callers should read
+ * `StateMachine.productMode()` rather than calling this directly. Anything other than
+ * agent builder is the ordinary Integrator experience.
+ */
+export function getProductMode(): ProductMode {
+    return process.env.WSO2_PRODUCT_MODE === ProductMode.AGENT_BUILDER
+        ? ProductMode.AGENT_BUILDER
+        : ProductMode.INTEGRATOR;
 }
 
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {
