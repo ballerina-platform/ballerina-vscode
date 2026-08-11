@@ -126,6 +126,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+    const [usagesLoading, setUsagesLoading] = useState(false);
     const [breakpointInfo, setBreakpointInfo] = useState<BreakpointInfo>();
     const [showConnectionPanel, setShowConnectionPanel] = useState(false);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
@@ -283,6 +284,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         clearTimeout(usageFetchTimerRef.current);
         const requestId = ++usageRequestIdRef.current;
+        // Block the spinner only when there's nothing cached to show yet.
+        if (!cached) {
+            setUsagesLoading(true);
+        }
         usageFetchTimerRef.current = setTimeout(async () => {
             try {
                 const location = await rpcClient.getVisualizerLocation();
@@ -295,6 +300,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 }
                 if (!response?.designModel) {
                     console.error(">>> agent focus: design model unavailable, keeping the previous usages");
+                    setUsagesLoading(false);
                     return;
                 }
                 const usages = findAgentUsages(response.designModel, {
@@ -307,6 +313,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
                 setCachedUsages(key, usages);
+                setUsagesLoading(false);
                 if (previous && JSON.stringify(previous) === JSON.stringify(usages)) {
                     return;
                 }
@@ -316,6 +323,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
+                if (requestId === usageRequestIdRef.current) {
+                    setUsagesLoading(false);
+                }
             }
         }, 600);
     };
@@ -1192,12 +1202,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container embedded={embedded}>
-                    {!model && (
+                    {(!model || usagesLoading) && (
                         <SpinnerContainer>
                             <ProgressRing color={ThemeColors.PRIMARY} />
                         </SpinnerContainer>
                     )}
-                    {model && <MemoizedDiagram {...diagramProps} />}
+                    {model && !usagesLoading && <MemoizedDiagram {...diagramProps} />}
                 </Container>
             </View>
 

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
 import { cloneDeep } from "lodash";
 import { NavigationWrapperCanvasWidget } from "./DiagramNavigationWrapper/NavigationWrapperCanvasWidget";
@@ -44,8 +44,7 @@ import Controls from "./Controls";
 import { CurrentBreakpointsResponse as BreakpointInfo, JoinProjectPathRequest, JoinProjectPathResponse, traverseFlow, VisualizerLocation } from "@wso2/ballerina-core";
 import { BreakpointVisitor } from "../visitors/BreakpointVisitor";
 import { BaseNodeModel } from "./nodes/BaseNode";
-import { AgentCallNodeModel } from "./nodes/AgentCallNode/AgentCallNodeModel";
-import { AgentNodeModel } from "./nodes/AgentNode/AgentNodeModel";
+import { useAgentFocusFit } from "./nodes/AgentWidget/useAgentFocusFit";
 import { PopupOverlay } from "./PopupOverlay";
 import { AgentNodeActions } from "./AgentNodeActions";
 
@@ -140,42 +139,9 @@ export function Diagram(props: DiagramProps) {
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
     const [diagramModel, setDiagramModel] = useState<DiagramModel | null>(null);
-    const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const [showComponentPanel, setShowComponentPanel] = useState(false);
     const [expandedErrorHandler, setExpandedErrorHandler] = useState<string | undefined>(undefined);
-
-    const centerAgentNode = useCallback(
-        (resetZoom = false) => {
-            const canvas = diagramEngine.getCanvas();
-            if (!canvas) {
-                return false;
-            }
-            const model = diagramEngine.getModel();
-            const agentNode = model
-                .getNodes()
-                .find((node) =>
-                    node.getType() === NodeTypes.AGENT_NODE ||
-                    node.getType() === NodeTypes.AGENT_CALL_NODE ||
-                    node.getType() === NodeTypes.TYPED_AGENT_NODE
-                ) as AgentCallNodeModel | AgentNodeModel | undefined;
-            if (!agentNode) {
-                return false;
-            }
-            if (resetZoom) {
-                model.setZoomLevel(100);
-            }
-            const zoom = model.getZoomLevel() / 100;
-            const cardHeight = agentNode.node.viewState.ch || agentNode.node.viewState.h;
-            const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
-            const verticalBias = embedded ? 0 : 40;
-            model.setOffset(
-                canvasWidth / 2,
-                canvasHeight / 2 - verticalBias - (agentNode.getY() + cardHeight / 2) * zoom
-            );
-            return true;
-        },
-        [diagramEngine, embedded]
-    );
+    const { canvasVisible, fitToContainer, positionAndFit } = useAgentFocusFit(diagramEngine, isAgentFocusView, embedded);
 
     useEffect(() => {
         if (diagramEngine) {
@@ -325,35 +291,13 @@ export function Diagram(props: DiagramProps) {
             diagramEngine.getModel().removeLayer(overlayLayer);
         }
 
-        const isSingleAgentNode =
-            isAgentFocusView && nodes.length === 1 &&
-            (nodes[0].getType() === NodeTypes.AGENT_CALL_NODE ||
-                nodes[0].getType() === NodeTypes.TYPED_AGENT_NODE ||
-                nodes[0].getType() === NodeTypes.AGENT_NODE);
-        if (isSingleAgentNode) {
-            const agentNode = nodes[0] as AgentCallNodeModel | AgentNodeModel;
-            const { lw, y } = agentNode.node.viewState;
-            agentNode.setPosition(-lw, y);
-        }
-
         // Fit only on first render per file; preserve zoom/pan on later updates.
         if (!hasDiagramZoomAndPosition(model.fileName)) {
             resetDiagramZoomAndPosition(model.fileName);
         }
         loadDiagramZoomAndPosition(diagramEngine);
 
-        if (isSingleAgentNode) {
-            if (!centerAgentNode()) {
-                requestAnimationFrame(() => {
-                    if (centerAgentNode()) {
-                        diagramEngine.repaintCanvas();
-                    }
-                    setCanvasVisible(true);
-                });
-            } else {
-                setCanvasVisible(true);
-            }
-        }
+        positionAndFit(nodes);
 
         diagramEngine.repaintCanvas();
         // update the diagram model state
@@ -442,7 +386,7 @@ export function Diagram(props: DiagramProps) {
             <Controls
                 engine={diagramEngine}
                 embedded={embedded}
-                onFitToScreen={isAgentFocusView ? () => centerAgentNode(true) : undefined}
+                onFitToScreen={isAgentFocusView ? () => fitToContainer(true) : undefined}
             />
             {diagramEngine && diagramModel && (
                 <DiagramContextProvider value={context}>
