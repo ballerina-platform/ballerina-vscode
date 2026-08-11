@@ -284,6 +284,10 @@ export class CommonRpcManager implements CommonRPCAPI {
         return extension.ballerinaExtInstance.enabledAdditionalTriggerSearch();
     }
 
+    async agentBuilderModeEnabled(): Promise<boolean> {
+        return extension.ballerinaExtInstance.enabledAgentBuilderMode();
+    }
+
     async runBackgroundTerminalCommand(params: RunExternalCommandRequest): Promise<RunExternalCommandResponse> {
         return new Promise<CommandResponse>(function (resolve) {
             child_process.exec(`${params.command}`, async (err, stdout, stderr) => {

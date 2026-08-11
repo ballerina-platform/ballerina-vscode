@@ -56,6 +56,7 @@ export interface CommonRPCAPI {
     selectFileOrFolderPath: () => Promise<FileOrDirResponse>;
     experimentalEnabled: () => Promise<boolean>;
     additionalTriggerSearchEnabled: () => Promise<boolean>;
+    agentBuilderModeEnabled: () => Promise<boolean>;
     isNPSupported: () => Promise<boolean>;
     getWorkspaceRoot: () => Promise<WorkspaceRootResponse>;
     showErrorMessage: (params: ShowErrorMessageRequest) => void;

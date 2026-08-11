@@ -229,6 +229,14 @@
                         "experimental"
                     ]
                 },
+                "ballerina.agentBuilderMode": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Render the AI Agent Builder home page in place of the integration overview. Temporary flag for Agent Builder development.",
+                    "tags": [
+                        "experimental"
+                    ]
+                },
                 "ballerina.samplesDownloadDirectory": {
                     "type": "string",
                     "default": "",
