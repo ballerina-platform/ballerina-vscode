@@ -47,6 +47,8 @@ import {
     appendToLastEntry,
     upsertComponent,
     upsertRequestCard,
+    upsertThinking,
+    describeThinkingDuration,
     buildRequestCardData,
     buildPlanItem,
     applyPlanApprovalResolution,
@@ -351,5 +353,97 @@ describe("appendToLastEntry", () => {
         expect(out).toHaveLength(2);
         expect(out[0]).toBe(first);
         expect(out[1].items).toHaveLength(2);
+    });
+});
+
+/** Flatten entries and return the item at `index`, narrowed to the thinking variant. */
+function thinkingAt(entries: StreamEntry[], index: number) {
+    const item = entries.flatMap((e) => e.items)[index];
+    if (item?.kind !== "thinking") {
+        throw new Error(`expected a thinking item at ${index}, got ${item?.kind}`);
+    }
+    return item;
+}
+
+describe("upsertThinking", () => {
+    it("start → delta → delta → end merges into one done item with concatenated text", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "", false, 1000);
+        entries = upsertThinking(entries, "r1", "First, ", false, 1500);
+        entries = upsertThinking(entries, "r1", "then.", false, 2000);
+        entries = upsertThinking(entries, "r1", "", true, 4000);
+        expect(entries).toHaveLength(1);
+        expect(entries[0].items).toEqual([
+            { kind: "thinking", id: "r1", text: "First, then.", done: true, startedAt: 1000, endedAt: 4000 },
+        ]);
+    });
+
+    it("both surfaces' identical call sequences serialize byte-identically", () => {
+        // The panel and the mini fold from the same events; the store is
+        // last-writer-wins, so the bytes must match.
+        const fold = () => {
+            let entries: StreamEntry[] = [floating([{ kind: "text", text: "before" }])];
+            entries = upsertThinking(entries, "r1", "", false, 1000);
+            entries = upsertThinking(entries, "r1", "reason", false, 1200);
+            entries = upsertThinking(entries, "r1", "", true, 3000);
+            return serializeStream(entries, "");
+        };
+        expect(fold()).toBe(fold());
+    });
+
+    it("a different id opens a new item instead of merging", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "one", true, 1000);
+        entries = upsertThinking(entries, "r2", "two", false, 2000);
+        expect(kindsOf(entries)).toEqual(["thinking", "thinking"]);
+        expect(thinkingAt(entries, 0).id).toBe("r1");
+        expect(thinkingAt(entries, 1).id).toBe("r2");
+    });
+
+    it("an orphaned delta (no trailing match) appends defensively rather than corrupting", () => {
+        // A tool_call landed after the block opened (interleaved thinking) — the
+        // delta must not merge into it or into an unrelated earlier thinking item.
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "early", true, 1000);
+        entries = appendToLastEntry(entries, { kind: "tool_call", toolCallId: "t1", toolName: "file_read" });
+        entries = upsertThinking(entries, "r1", "late", false, undefined);
+        const items = entries.flatMap((e) => e.items);
+        expect(items.map((i) => i.kind)).toEqual(["thinking", "tool_call", "thinking"]);
+        expect(thinkingAt(entries, 0).text).toBe("early");
+        expect(thinkingAt(entries, 2).text).toBe("late");
+        // The orphan opened from a delta carries no locally-derived timestamp —
+        // stamping one would make the serialized bytes differ per surface.
+        expect(thinkingAt(entries, 2).startedAt).toBeUndefined();
+        expect(serializeStream(entries, "")).not.toContain("startedAt\":2");
+    });
+
+    it("a repeated end keeps the first endedAt (duration is fixed at close time)", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "x", false, 1000);
+        entries = upsertThinking(entries, "r1", "", true, 2000);
+        entries = upsertThinking(entries, "r1", "", true, 9000); // e.g. flush replayed after real end
+        const item = thinkingAt(entries, 0);
+        expect(item.done).toBe(true);
+        expect(item.endedAt).toBe(2000);
+    });
+
+    it("round-trips through serialize/parse", () => {
+        let entries: StreamEntry[] = [];
+        entries = upsertThinking(entries, "r1", "thought", true, 1000);
+        expect(parseStream(serializeStream(entries, ""))).toEqual(entries);
+    });
+});
+
+describe("describeThinkingDuration", () => {
+    it("reports whole seconds, rounding and flooring at 1s", () => {
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 4000 })).toBe("Thought for 3s");
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 1200 })).toBe("Thought for 1s");
+        expect(describeThinkingDuration({ startedAt: 1000, endedAt: 1000 })).toBe("Thought for 1s");
+    });
+
+    it("falls back to a bare label when a block never closed or timestamps are inconsistent", () => {
+        expect(describeThinkingDuration({ startedAt: 1000 })).toBe("Thought");
+        expect(describeThinkingDuration({})).toBe("Thought");
+        expect(describeThinkingDuration({ startedAt: 2000, endedAt: 1000 })).toBe("Thought");
     });
 });

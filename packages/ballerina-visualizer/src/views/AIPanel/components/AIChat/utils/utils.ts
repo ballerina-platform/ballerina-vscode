@@ -36,6 +36,25 @@ export function getOnboardingOpens(): number {
     return parseInt(localStorage.getItem(ONBOARDING_COUNTER_KEY) || "0", 10);
 }
 
+const THINKING_ENABLED_KEY = "copilotThinkingEnabled";
+
+/** Extended-thinking preference. Beta, so default OFF — only an explicit "true" enables it. */
+export function getThinkingPreference(): boolean {
+    try {
+        return localStorage.getItem(THINKING_ENABLED_KEY) === "true";
+    } catch {
+        return false;
+    }
+}
+
+export function setThinkingPreference(enabled: boolean): void {
+    try {
+        localStorage.setItem(THINKING_ENABLED_KEY, enabled ? "true" : "false");
+    } catch {
+        // localStorage unavailable — the send-time read falls back to default ON.
+    }
+}
+
 /**
  * Convert chat history messages from backend format to UI format
  */

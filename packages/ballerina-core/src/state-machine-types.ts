@@ -403,7 +403,37 @@ export type ChatNotify = (
     | MigrationProgressEvent
     | FollowupSuggestionsEvent
     | GenerationStatusEvent
+    | ThinkingStartEvent
+    | ThinkingDeltaEvent
+    | ThinkingEndEvent
 ) & ChatNotifyMeta;
+
+/** An extended-thinking (reasoning) block has opened on the stream. */
+export interface ThinkingStartEvent {
+    type: "thinking_start";
+    /** Reasoning-block id from the AI SDK — correlates deltas/end to their block. */
+    thinkingId: string;
+    /**
+     * Emit-time epoch ms, stamped extension-side so both persisting webviews fold the
+     * same value (byte-identical transcripts) and replayed events keep true durations.
+     */
+    timestamp: number;
+}
+
+/** Incremental reasoning text for an open thinking block. */
+export interface ThinkingDeltaEvent {
+    type: "thinking_delta";
+    thinkingId: string;
+    content: string;
+}
+
+/** A thinking block closed (naturally, or flushed on abort/error/finish). */
+export interface ThinkingEndEvent {
+    type: "thinking_end";
+    thinkingId: string;
+    /** Emit-time epoch ms — see ThinkingStartEvent.timestamp. */
+    timestamp: number;
+}
 
 /** A single clickable follow-up suggestion shown after a completed turn. */
 export interface FollowupSuggestion {

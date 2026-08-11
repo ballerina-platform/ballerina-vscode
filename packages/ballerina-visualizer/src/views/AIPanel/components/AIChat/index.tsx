@@ -89,10 +89,10 @@ import { McpManagerPanel } from "../../McpManagerPanel";
 /** Full-page panels reachable from the chat. The chat itself is the empty stack. */
 export type PanelRoute = "settings" | "mcp" | "skills";
 import WelcomeMessage from "./Welcome";
-import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError } from "./utils/utils";
+import { getOnboardingOpens, incrementOnboardingOpens, convertToUIMessages, isContainsSyntaxError, getThinkingPreference } from "./utils/utils";
 import { applyGenerationStatus, deriveReviewBarState, PanelMessage } from "./utils/reviewBarState";
 import {
-    serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard,
+    serializeStream, parseStream, appendToLastEntry, upsertComponent, upsertRequestCard, upsertThinking,
     buildRequestCardData, buildPlanItem, applyPlanApprovalResolution, appendAbortMarker, applyTaskWriteResult,
     COMPACTION_DISABLED_NOTICE,
 } from "./utils/streamSerialization";
@@ -1266,6 +1266,24 @@ const AIChat: React.FC = () => {
                 return msgs;
             });
 
+        } else if (type === "thinking_start" || type === "thinking_delta" || type === "thinking_end") {
+            const thinkingId = response.thinkingId;
+            const delta = type === "thinking_delta" ? response.content : "";
+            // start/end carry an extension-stamped timestamp so both surfaces fold the same
+            // value and replay keeps true durations; deltas pass none — a locally-derived
+            // time on the orphaned-delta append path would make the persisted bytes differ
+            // between the two surfaces.
+            const timestamp = type === "thinking_delta" ? undefined : response.timestamp;
+            setMessages(prevMessages => {
+                const msgs = [...prevMessages];
+                const targetIndex = ensureAssistantMessage(msgs);
+                const last = msgs[targetIndex];
+                const entries = parseStream(last.content);
+                const updated = upsertThinking(entries, thinkingId, delta, type === "thinking_end", timestamp);
+                msgs[targetIndex] = { ...last, content: serializeStream(updated, last.content) };
+                return msgs;
+            });
+
         } else if (type === "tool_call") {
             const newItem: StreamItem = { kind: "tool_call", toolCallId: response.toolCallId, toolName: response.toolName, toolInput: response.toolInput };
             setMessages(prevMessages => {
@@ -2161,7 +2179,9 @@ const AIChat: React.FC = () => {
         await rpcClient.getAiPanelRpcClient().generateAgent({
             generationId: activeRunGenerationIdRef.current,
             promptSource: 'ai-panel',
-            usecase: useCase, hiddenContext: currentHiddenContext, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled
+            usecase: useCase, hiddenContext: currentHiddenContext, isPlanMode: agentModeRef.current === AgentMode.Plan, codeContext: currentCodeContext, operationType, fileAttachmentContents: fileAttatchments, webSearchEnabled: isWebToolsEnabled,
+            // Read at send time so a SettingsPanel toggle applies to the very next message.
+            thinking: getThinkingPreference(),
         });
     }
 

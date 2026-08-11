@@ -20,10 +20,12 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
 
-import { AIChatView, DangerActionButton, PrimaryActionButton, SuccessActionButton } from "../styles";
+import { AIChatView, DangerActionButton, PrimaryActionButton, SuccessActionButton, ToggleSwitch } from "../styles";
 import { AIMachineEventType, AgentsMdFileInfoDTO, McpServerStatusDTO, SkillEntry } from "@wso2/ballerina-core";
 import { CustomizeRow, CustomizeEntry } from "./CustomizeRow";
+import { ExperimentalTag } from "../components/ExperimentalTag";
 import type { PanelRoute } from "../components/AIChat";
+import { getThinkingPreference, setThinkingPreference } from "../components/AIChat/utils/utils";
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -100,6 +102,14 @@ const SettingLabel = styled.span`
     font-size: 13px;
     color: var(--vscode-foreground);
     font-family: var(--vscode-font-family);
+`;
+
+/** Label plus an inline badge (e.g. the beta tag) on one baseline. */
+const SettingLabelRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 `;
 
 const SettingDescription = styled.span`
@@ -216,6 +226,7 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
     const [mcpServers, setMcpServers] = useState<McpServerStatusDTO[]>([]);
     const [skills, setSkills] = useState<SkillEntry[]>([]);
     const [agentsMdInfo, setAgentsMdInfo] = useState<AgentsMdFileInfoDTO | null>(null);
+    const [thinkingEnabled, setThinkingEnabled] = useState<boolean>(() => getThinkingPreference());
     // TODO(auto-memory): memory UI state temporarily disabled for this release — restore once the memory feature is refined.
     // const [clearing, setClearing] = React.useState<'workspace' | 'all' | null>(null);
     // const [clearError, setClearError] = React.useState<string | null>(null);
@@ -377,6 +388,40 @@ export const SettingsPanel = (props: SettingsPanelProps) => {
                                 Authorize
                             </PrimaryActionButton>
                         )}
+                    </SettingRow>
+                </Section>
+
+                {/* Thinking */}
+                <Section>
+                    <SectionHeader>Thinking</SectionHeader>
+                    <SettingRow>
+                        <SettingInfo>
+                            <SettingLabelRow>
+                                <SettingLabel>Thinking Mode</SettingLabel>
+                                <ExperimentalTag
+                                    size="sm"
+                                    label="Beta"
+                                    tooltip="Thinking Mode is in beta and may change."
+                                />
+                            </SettingLabelRow>
+                            <SettingDescription>
+                                Let the Copilot reason before responding on harder requests.
+                                Enable for complex work; it can feel slower on simple requests.
+                            </SettingDescription>
+                        </SettingInfo>
+                        <ToggleSwitch
+                            type="button"
+                            $on={thinkingEnabled}
+                            role="switch"
+                            aria-checked={thinkingEnabled}
+                            aria-label="Thinking Mode"
+                            title={thinkingEnabled ? "Disable thinking" : "Enable thinking"}
+                            onClick={() => {
+                                const next = !thinkingEnabled;
+                                setThinkingEnabled(next);
+                                setThinkingPreference(next);
+                            }}
+                        />
                     </SettingRow>
                 </Section>
 

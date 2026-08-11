@@ -26,7 +26,8 @@ export type StreamItem =
     | { kind: "ask"; data: Record<string, any> }
     | { kind: "skill_enable"; data: Record<string, any> }
     | { kind: "try_it"; toolCallId?: string; input?: any; output?: any }
-    | { kind: "component"; id?: string; componentType: string; data: Record<string, any> };
+    | { kind: "component"; id?: string; componentType: string; data: Record<string, any> }
+    | { kind: "thinking"; id: string; text: string; done?: boolean; startedAt?: number; endedAt?: number };
 
 export interface StreamEntry {
     /** Empty string = floating entry (no dot, no rail). Non-empty = named task with dot + collapsible events. */

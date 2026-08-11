@@ -284,29 +284,28 @@ export const getProviderCacheControl = async (): Promise<ProviderCacheOptions> =
     }
 };
 
-export type AnthropicEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+// Decision logic lives in the ballerina-core-free leaf module so it is unit-testable;
+// this wrapper only resolves the login method. Types re-exported for callers.
+import {
+    resolveProviderModelOptions,
+    type AnthropicEffort,
+    type LoginMethodValue,
+    type ProviderModelOptions,
+} from "./provider-model-options";
+export type { AnthropicEffort, ProviderModelOptions } from "./provider-model-options";
 
-export type ProviderModelOptions =
-    | { anthropic: { thinking: { type: 'disabled' }; effort?: AnthropicEffort } }
-    | { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
+// Compile-time sync guard: fails when the LoginMethod enum gains a value the leaf's
+// LoginMethodValue union doesn't know, so the thinking gate can't silently ignore it.
+type _AssertLoginMethodsCovered = LoginMethod extends LoginMethodValue ? true : never;
+const _loginMethodsCovered: _AssertLoginMethodsCovered = true;
+void _loginMethodsCovered;
 
-/**
- * Sonnet 5 enables adaptive thinking when `thinking` is omitted, and reasoning shares
- * `maxOutputTokens` with the response — omitting it truncates answers. Bedrock ignores the
- * `anthropic` namespace and reads `providerOptions.bedrock`.
- *
- * On Bedrock the field goes through `additionalModelRequestFields`, not `reasoningConfig`:
- * the provider only serializes `reasoningConfig` when reasoning is enabled or adaptive, so a
- * `disabled` value there is silently dropped. Bedrock also requires reasoning to be off
- * alongside a forced `tool_choice`, which web-tools uses.
- */
-export const getProviderModelOptions = async (effort?: AnthropicEffort): Promise<ProviderModelOptions> => {
+export const getProviderModelOptions = async (
+    effort?: AnthropicEffort,
+    thinkingEnabled: boolean = false,
+): Promise<ProviderModelOptions> => {
     const loginMethod = await getLoginMethod();
-
-    if (loginMethod === LoginMethod.AWS_BEDROCK) {
-        return { bedrock: { additionalModelRequestFields: { thinking: { type: 'disabled' } } } };
-    }
-    return { anthropic: { thinking: { type: 'disabled' }, ...(effort ? { effort } : {}) } };
+    return resolveProviderModelOptions(loginMethod, effort, thinkingEnabled);
 };
 
 function isAnthropicModel(model: LanguageModel): boolean {
