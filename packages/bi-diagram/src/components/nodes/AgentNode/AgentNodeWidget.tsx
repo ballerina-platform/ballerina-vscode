@@ -315,7 +315,7 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE_VARIANT};
