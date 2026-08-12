@@ -62,6 +62,8 @@ public class DurableAgentPeerBuilder extends CallBuilder {
     public static final String DESCRIPTION_KEY = "description";
     public static final String WAIT_KEY = "wait";
     public static final String CALLBACK_CHANNEL_KEY = "callbackChannel";
+    public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
+    public static final String USER_ROLES_KEY = "userRoles";
     private static final String STRING_TYPE = "string";
     private static final String LABEL = "Peer Agent";
     private static final String DESCRIPTION =
@@ -144,6 +146,37 @@ public class DurableAgentPeerBuilder extends CallBuilder {
                 "The declared data event channel the async peer replies on; required when the "
                         + "delegation does not wait",
                 "hotelResults", false);
+
+        // PeerDecl gating, mirroring the tool/activity capability forms: a gated delegation is
+        // held on a review activity before the peer runs.
+        properties().custom()
+                .metadata()
+                    .label("Requires Approval")
+                    .description("Gate this delegation: before the agent delegates to the peer, a review "
+                            + "activity is created and the agent suspends durably until a reviewer "
+                            + "proceeds or rejects.")
+                    .stepOut()
+                .type().fieldType(Property.ValueType.FLAG).ballerinaType("boolean").selected(true).stepOut()
+                .value("false")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(REQUIRES_APPROVAL_KEY);
+        properties().custom()
+                .metadata()
+                    .label("Reviewer Roles")
+                    .description("Role(s) permitted to decide the approval review of this delegation, "
+                            + "e.g. \"support-lead\" or [\"finance\", \"manager\"].")
+                    .stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION)
+                    .ballerinaType("string|string[]").selected(true).stepOut()
+                .placeholder("")
+                .editable(true)
+                .optional(true)
+                .advanced(true)
+                .stepOut()
+                .addProperty(USER_ROLES_KEY);
     }
 
     private void addStringProperty(String key, String label, String doc, String placeholder, boolean required) {
@@ -220,6 +253,9 @@ public class DurableAgentPeerBuilder extends CallBuilder {
                     + "channel its answer arrives on");
         }
 
+        boolean requiresApproval = "true".equalsIgnoreCase(propertyValue(sourceBuilder, REQUIRES_APPROVAL_KEY));
+        String userRoles = propertyValue(sourceBuilder, USER_ROLES_KEY);
+
         // 'wait is a keyword, so the field is written quoted; it is only emitted when it differs
         // from the declaration's default.
         StringBuilder entry = new StringBuilder("{agent: ").append(agent)
@@ -230,6 +266,12 @@ public class DurableAgentPeerBuilder extends CallBuilder {
         if (!waits) {
             entry.append(", 'wait: false");
             entry.append(", callbackChannel: ").append(WorkflowUtil.quoteIfPlain(callbackChannel));
+        }
+        if (requiresApproval) {
+            entry.append(", requiresApproval: true");
+        }
+        if (!userRoles.isBlank()) {
+            entry.append(", userRoles: ").append(WorkflowUtil.quoteIfBareRole(userRoles));
         }
         entry.append("}");
         return WorkflowUtil.upsertAgentCapabilityEntry(sourceBuilder, "peers", entry.toString());
