@@ -211,9 +211,10 @@ const InviteDismiss = styled.button`
 interface OrbStyleProps {
     state: AgentRunState;
     colors: [string, string, string];
+    agentBuilder: boolean;
 }
 
-const OrbButton = styled.button<{ state: AgentRunState }>`
+const OrbButton = styled.button<{ state: AgentRunState; agentBuilder: boolean }>`
     pointer-events: auto;
     position: relative;
     width: ${ORB_SIZE}px;
@@ -224,7 +225,8 @@ const OrbButton = styled.button<{ state: AgentRunState }>`
     cursor: grab;
     outline-offset: 4px;
     touch-action: none;
-    opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.85 : 1)};
+    opacity: ${(props: Pick<OrbStyleProps, "state" | "agentBuilder">) =>
+        !props.agentBuilder && props.state === "idle" ? 0.85 : 1};
     transition: opacity 0.3s ease, transform 0.2s ease;
     &:hover {
         opacity: 1;
@@ -259,7 +261,7 @@ const Halo = styled.div<{ colors: [string, string, string] }>`
     }
 `;
 
-const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState }>`
+const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState; agentBuilder: boolean }>`
     position: absolute;
     inset: -6px;
     border-radius: 50%;
@@ -269,9 +271,11 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     );
     filter: blur(8px);
     opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
-    ${(props: Pick<OrbStyleProps, "state">) =>
+    ${(props: Pick<OrbStyleProps, "state" | "agentBuilder">) =>
         props.state === "running"
-            ? css`animation: ${rotate} 2.8s linear infinite, ${hueCycle} 5s linear infinite;`
+            ? props.agentBuilder
+                ? css`animation: ${rotate} 2.8s linear infinite;`
+                : css`animation: ${rotate} 2.8s linear infinite, ${hueCycle} 5s linear infinite;`
             : props.state === "idle"
                 ? css`animation: ${rotate} 14s linear infinite;`
                 : css`animation: ${rotate} 9s linear infinite;`}
@@ -280,13 +284,11 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     }
 `;
 
-/** Thin brand ring at the sphere's edge — the logo's circle as an accent. */
-const BrandRing = styled.div<{ accent?: boolean }>`
+const BrandRing = styled.div<{ ringColor: string }>`
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1.5px solid ${(props: { accent?: boolean }) =>
-        props.accent ? `color-mix(in srgb, ${ACCENT_FRAME[1]} 55%, transparent)` : "rgba(241, 78, 35, 0.55)"};
+    border: 1.5px solid ${(props: { ringColor: string }) => props.ringColor};
     pointer-events: none;
 `;
 
@@ -365,7 +367,12 @@ export function AgentStatusOrb() {
 
     const state = status.state;
     const colors = orbColors(state, agentBuilder);
-    const cssSphere = webglFailed || (agentBuilder && state === "idle");
+    const cssSphere = agentBuilder || webglFailed;
+    const sphereHighlight = !agentBuilder
+        ? undefined
+        : state === "idle"
+            ? ACCENT_CORE
+            : `color-mix(in srgb, ${colors[0]} 70%, transparent)`;
     const label = state === "idle" ? "Chat with WSO2 Agent Builder" : activeStateLabel(status);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
@@ -514,6 +521,7 @@ export function AgentStatusOrb() {
                 {showLabel && label && <LabelPill onClick={() => setMiniOpen(true)}>{label}</LabelPill>}
                 <OrbButton
                     state={state}
+                    agentBuilder={agentBuilder}
                     onClick={handleClick}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
@@ -522,12 +530,12 @@ export function AgentStatusOrb() {
                     aria-label={label ? `WSO2 Agent Builder: ${label}. Open the Copilot mini chat.` : "Open the WSO2 Agent Builder mini chat"}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
-                    <Aura colors={colors} state={state} />
+                    <Aura colors={colors} state={state} agentBuilder={agentBuilder} />
                     {cssSphere ? (
                         <Sphere
                             colors={colors}
                             energy={ORB_ENERGY[state]}
-                            highlightColor={agentBuilder ? ACCENT_CORE : undefined}
+                            highlightColor={sphereHighlight}
                         />
                     ) : (
                         <ShaderOrb
@@ -538,7 +546,13 @@ export function AgentStatusOrb() {
                         />
                     )}
                     {!agentBuilder && <Gloss />}
-                    <BrandRing accent={agentBuilder} />
+                    <BrandRing
+                        ringColor={
+                            agentBuilder
+                                ? `color-mix(in srgb, ${colors[0]} 55%, transparent)`
+                                : "rgba(241, 78, 35, 0.55)"
+                        }
+                    />
                     {state === "running" && <SpinArc color={agentBuilder ? ACCENT_FRAME[1] : BRAND_ORANGE} />}
                     <IconOverlay>
                         <Icon

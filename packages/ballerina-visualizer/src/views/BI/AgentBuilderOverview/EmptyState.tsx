@@ -31,7 +31,7 @@ import {
     HERO_GLOW,
     ambientGlow,
     IconOverlay,
-    ORB_COLORS,
+    AGENT_BUILDER_ORB_COLORS,
     ORB_ENERGY,
     Sphere,
     activeStateLabel,
@@ -161,7 +161,7 @@ const ComposerFooter = styled.div`
     justify-content: space-between;
 `;
 
-const RoundButton = styled.button`
+const RoundButton = styled.button<{ primary?: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
@@ -170,8 +170,8 @@ const RoundButton = styled.button`
     padding: 0;
     border: none;
     border-radius: 50%;
-    background: transparent;
-    color: var(--vscode-foreground);
+    background: ${(props: { primary?: boolean }) => (props.primary ? "var(--vscode-button-background)" : "transparent")};
+    color: ${(props: { primary?: boolean }) => (props.primary ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)")};
     cursor: pointer;
 
     &:hover:not(:disabled) {
@@ -292,14 +292,17 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const working = state !== "idle";
     const running = state === "running";
 
-    const orbColors = working ? ORB_COLORS[state] : ACCENT_SPHERE;
+    const orbColors = working ? AGENT_BUILDER_ORB_COLORS[state] : ACCENT_SPHERE;
+    const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading =
         state === "awaiting-input"
             ? AWAITING_INPUT_LABEL
             : state === "error"
                 ? "Something went wrong"
-                : "Building your agent";
-    const showOpenCopilot = !aiPanelOpen || state === "awaiting-input" || state === "error";
+                : state === "completed"
+                    ? "Copilot is done"
+                    : "Building your agent";
+    const showOpenCopilot = !aiPanelOpen;
 
     const openCopilot = () => {
         rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
@@ -323,7 +326,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <Sphere
                     colors={orbColors}
                     energy={ORB_ENERGY[state]}
-                    highlightColor={ACCENT_CORE}
+                    highlightColor={orbHighlight}
                 />
                 <IconOverlay>
                     <Icon
@@ -353,7 +356,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <>
                     <Intro>
                         <Heading>What should your agent do?</Heading>
-                        <Subtitle>Copilot builds a working agent from your description.</Subtitle>
+                        <Subtitle>Describe what you want your agent to do, and Agent Builder will create a working agent for you.</Subtitle>
                     </Intro>
 
                     <ComposerRow>
@@ -382,6 +385,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                         aria-label="Send to Copilot"
                                         disabled={!text.trim()}
                                         onClick={() => send(text)}
+                                        primary={true}
                                     >
                                         <Codicon name="arrow-up" />
                                     </RoundButton>

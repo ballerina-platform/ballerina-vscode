@@ -277,6 +277,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                     actions={headerActions}
                     onTitleEdit={handleTitleUpdate}
                     validateTitle={validateTitle}
+                    hideDivider={true}
                 />
                 <MainContent>
                     <Panel bordered={!!selectedAgent}>
@@ -308,8 +309,8 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
                                                 ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
                                                 : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
                                         }
-                                        onUpdate={() => {}}
-                                        onReady={() => {}}
+                                        onUpdate={() => { }}
+                                        onReady={() => { }}
                                     />
                                 </React.Suspense>
                             </CanvasSlot>

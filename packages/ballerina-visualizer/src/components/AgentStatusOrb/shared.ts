@@ -59,6 +59,20 @@ export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "error": ["#f87171", "#ef4444", "#fb7185"],
 };
 
+/** [base, darker-shade, lighter-shade] from one theme color, mirroring ACCENT_SPHERE below. */
+function shadeTriple(base: string): [string, string, string] {
+    return [base, `color-mix(in srgb, ${base} 62%, #000000)`, `color-mix(in srgb, ${base} 72%, #ffffff)`];
+}
+
+/** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
+export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
+    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
+    "running": shadeTriple("var(--vscode-progressBar-background)"),
+    "awaiting-input": shadeTriple("var(--vscode-editorWarning-foreground)"),
+    "completed": shadeTriple("var(--vscode-testing-iconPassed)"),
+    "error": shadeTriple("var(--vscode-editorError-foreground)"),
+};
+
 const PRIMARY = "var(--vscode-button-background)";
 
 export const ACCENT_FRAME: [string, string, string] = [
@@ -75,8 +89,11 @@ export const ACCENT_SPHERE: [string, string, string] = [
 
 export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
 
-export function orbColors(state: AgentRunState, accent: boolean): [string, string, string] {
-    return accent && state === "idle" ? ACCENT_SPHERE : ORB_COLORS[state];
+export function orbColors(state: AgentRunState, agentBuilder: boolean): [string, string, string] {
+    if (!agentBuilder) {
+        return ORB_COLORS[state];
+    }
+    return state === "idle" ? ACCENT_SPHERE : AGENT_BUILDER_ORB_COLORS[state];
 }
 
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
@@ -177,7 +194,7 @@ export const AWAITING_INPUT_LABEL = "Copilot needs your input";
 export function activeStateLabel(status: AgentRunStatus): string {
     switch (status.state) {
         case "completed":
-            return "Done — click to open Copilot";
+            return status.aiPanelOpen ? "Done" : "Done — click to open Copilot";
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":

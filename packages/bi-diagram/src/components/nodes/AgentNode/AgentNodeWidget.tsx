@@ -842,11 +842,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
-    const modelProviderLabel = isDefaultModelProviderExpr(modelProvider?.name)
+    const modelProviderName = isDefaultModelProviderExpr(modelProvider?.name)
         ? DEFAULT_MODEL_PROVIDER_LABEL
-        : (modelProvider?.name?.length ?? 0) > 20
-            ? `${modelProvider!.name.slice(0, 20)}...`
-            : modelProvider?.name;
+        : modelProvider?.name;
+    const modelProviderLabel = (modelProviderName?.length ?? 0) > 20
+        ? `${modelProviderName!.slice(0, 20)}...`
+        : modelProviderName;
     const tools = agentInfo?.tools || [];
 
     const animateUsages = agentInfo?.animateUsages !== false;

@@ -21,15 +21,17 @@ import styled from "@emotion/styled";
 import { EditableTitle } from "../../../components/EditableTitle";
 import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
 
-const HeaderRow = styled.div<{ isBallerinaWorkspace?: boolean }>`
+const HeaderRow = styled.div<{ isBallerinaWorkspace?: boolean; hideDivider?: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 16px 0 16px 16px;
     background: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-dropdown-border);
-    margin: ${(props: { isBallerinaWorkspace?: boolean }) =>
-        props.isBallerinaWorkspace ? "0 16px 0 16px" : "16px 16px 0 16px"};
+    border-bottom: ${(props: { hideDivider?: boolean }) =>
+        props.hideDivider ? "none" : "1px solid var(--vscode-dropdown-border)"
+    };
+    margin: ${(props: { isBallerinaWorkspace?: boolean, hideDivider?: boolean }) =>
+        props.isBallerinaWorkspace ? "0 16px 0 16px" : props.hideDivider ? "16px 12px 0 16px" : "16px 16px 0 16px"};
 `;
 
 const TitleContainer = styled.div`
@@ -85,13 +87,14 @@ interface PageHeaderProps {
     validateTitle?: (value: string) => string;
     isBallerinaWorkspace?: boolean;
     hideUndoRedo?: boolean;
+    hideDivider?: boolean;
 }
 
 export function PageHeader(props: PageHeaderProps) {
-    const { title, subtitle, actions, onTitleEdit, validateTitle, isBallerinaWorkspace, hideUndoRedo } = props;
+    const { title, subtitle, actions, onTitleEdit, validateTitle, isBallerinaWorkspace, hideUndoRedo, hideDivider } = props;
 
     return (
-        <HeaderRow isBallerinaWorkspace={isBallerinaWorkspace}>
+        <HeaderRow isBallerinaWorkspace={isBallerinaWorkspace} hideDivider={hideDivider}>
             <TitleContainer>
                 {onTitleEdit ? (
                     <EditableTitle title={title} onCommit={onTitleEdit} validate={validateTitle}>
