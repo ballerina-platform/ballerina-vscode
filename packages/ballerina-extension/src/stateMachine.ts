@@ -1031,8 +1031,8 @@ export function openView(
     // Two rules can redirect a workspace-overview navigation, both skipped for a caller that
     // means that view literally (Home):
     //
-    //   - a create that just landed on its new integration keeps it, for a few seconds, against
-    //     an incidental navigation arriving behind it;
+    //   - a create that just landed on its new integration keeps it against the one navigation
+    //     arriving behind it (the claim is consumed here, whichever way it resolves);
     //   - a workspace holding a single integration opens on that integration rather than on a
     //     one-item list. Applied to every navigation, not just the first: the project explorer
     //     re-navigates once its tree finishes loading, seconds after startup.

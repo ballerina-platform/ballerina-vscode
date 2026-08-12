@@ -328,10 +328,11 @@ async function generatePendingArtifact(
  * resolves inside a workspace.
  */
 export function openPackageOverview(projectRoot: string): void {
+    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
     // Claimed as well as navigated: the project explorer issues its own Open Overview once its
     // tree finishes loading, which can be after this lands, and would otherwise replace the
-    // integration the user just made with the workspace overview a moment later.
+    // integration the user just made. Claimed AFTER the navigation above, so that navigation
+    // does not consume its own claim.
     claimCreateLanding(projectRoot);
-    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
 }
 

@@ -144,12 +144,9 @@ describe("resolveSingleIntegrationOverride", () => {
 describe("resolveCreateLandingOverride", () => {
     const CREATED = `${WORKSPACE_ROOT}/orders`;
 
-    afterEach(() => {
-        releaseCreateLanding();
-        jest.useRealTimers();
-    });
+    afterEach(releaseCreateLanding);
 
-    it("sends a workspace-overview navigation back to the package a create just landed on", () => {
+    it("sends the navigation after a create back to the package it landed on", () => {
         claimCreateLanding(CREATED);
 
         expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual({
@@ -169,14 +166,13 @@ describe("resolveCreateLandingOverride", () => {
         expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
     });
 
-    // The claim outranks a navigation the window did not ask for. It must not outlive that
-    // window and start redirecting navigations the user made themselves.
-    it("expires, so a later workspace-overview navigation is left alone", () => {
-        jest.useFakeTimers();
+    // The claim exists to outrank the ONE navigation racing the create. Holding it past that
+    // would redirect a workspace overview the user asked for later, which is why it is
+    // consumed on the next navigation whichever way that one resolves.
+    it("is spent by the navigation it answers, not held for the next one", () => {
         claimCreateLanding(CREATED);
 
-        jest.advanceTimersByTime(60_000);
-
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeTruthy();
         expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
     });
 
@@ -184,9 +180,10 @@ describe("resolveCreateLandingOverride", () => {
         ["a package overview", { view: MACHINE_VIEW.PackageOverview, projectPath: `${WORKSPACE_ROOT}/shipping` }],
         ["another view", { view: MACHINE_VIEW.ServiceDesigner }],
         ["a bare navigation", {}],
-    ])("leaves %s alone even while a claim is live", (_label, viewLocation) => {
+    ])("lapses on %s — the window has moved on", (_label, viewLocation) => {
         claimCreateLanding(CREATED);
 
         expect(resolveCreateLandingOverride(viewLocation)).toBeUndefined();
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
     });
 });

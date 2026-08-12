@@ -28,25 +28,19 @@ import { getConstructBodyString } from "./history/util";
 import { extension } from "../BalExtensionContext";
 import path from "path";
 
+/** The package a create landed on, held until the next navigation resolves. */
+let createLanding: string | undefined;
+
 /**
- * How long a create's landing view outranks an incidental workspace-overview navigation.
+ * Marks a package as the view a create just landed on.
  *
- * Bounded by time because there is nothing better to bound it by: the navigation being
- * outranked comes from the project explorer, a different extension issuing its own Open
- * Overview once its tree finishes loading, on a schedule this one cannot observe or
- * coordinate with. Long enough to cover that load, short enough that it cannot affect a
- * navigation the user made themselves.
- */
-const CREATE_LANDING_PRIORITY_MS = 10_000;
-
-let createLanding: { projectPath: string; expiresAt: number } | undefined;
-
-/**
- * Marks a package as the view a create just landed on, so a workspace-overview navigation
- * arriving in the next few seconds shows it instead of replacing it.
+ * The project explorer issues its own Open Overview once its tree finishes loading, which can
+ * be after a create has landed, and would replace the new integration with the workspace
+ * overview. Claim AFTER navigating: {@link resolveCreateLandingOverride} consumes the claim on
+ * the next navigation, and the landing must not consume its own.
  */
 export function claimCreateLanding(projectPath: string): void {
-    createLanding = { projectPath, expiresAt: Date.now() + CREATE_LANDING_PRIORITY_MS };
+    createLanding = projectPath;
 }
 
 /** Drops the claim — for a caller that means the workspace overview literally, i.e. Home. */
@@ -55,18 +49,23 @@ export function releaseCreateLanding(): void {
 }
 
 /**
- * Redirects a workspace-overview navigation back to the package a create just landed on, or
- * undefined when there is no live claim or the navigation is not one.
+ * Redirects the first navigation after a create back to the package it landed on, when that
+ * navigation is to the workspace overview.
+ *
+ * The claim covers the gap between landing and whatever navigates next — not a span of time.
+ * It is consumed either way, so a navigation that is not the workspace overview means the
+ * window has moved on and the claim simply lapses. Nothing after that first navigation can be
+ * mistaken for the one racing the create.
  */
 export function resolveCreateLandingOverride(viewLocation: VisualizerLocation): VisualizerLocation | undefined {
-    if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview || !createLanding) {
+    if (!createLanding) {
         return undefined;
     }
-    if (Date.now() >= createLanding.expiresAt) {
-        createLanding = undefined;
-        return undefined;
-    }
-    return { view: MACHINE_VIEW.PackageOverview, projectPath: createLanding.projectPath };
+    const claimed = createLanding;
+    createLanding = undefined;
+    return viewLocation.view === MACHINE_VIEW.WorkspaceOverview
+        ? { view: MACHINE_VIEW.PackageOverview, projectPath: claimed }
+        : undefined;
 }
 
 /**
