@@ -69,8 +69,8 @@ export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, st
     "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
     "running": shadeTriple("var(--vscode-progressBar-background)"),
     "awaiting-input": shadeTriple("var(--vscode-editorWarning-foreground)"),
-    "completed": shadeTriple("var(--vscode-testing-iconPassed)"),
-    "error": shadeTriple("var(--vscode-editorError-foreground)"),
+    "completed": shadeTriple("var(--vscode-editorGutter-addedBackground)"),
+    "error": shadeTriple("var(--vscode-statusBarItem-errorBackground)"),
 };
 
 const PRIMARY = "var(--vscode-button-background)";
