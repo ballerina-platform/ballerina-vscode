@@ -49,23 +49,31 @@ export function releaseCreateLanding(): void {
 }
 
 /**
- * Redirects the first navigation after a create back to the package it landed on, when that
- * navigation is to the workspace overview.
+ * Redirects a workspace-overview navigation after a create back to the package it landed on.
  *
- * The claim covers the gap between landing and whatever navigates next — not a span of time.
- * It is consumed either way, so a navigation that is not the workspace overview means the
- * window has moved on and the claim simply lapses. Nothing after that first navigation can be
- * mistaken for the one racing the create.
+ * Startup issues more than one navigation, and their order relative to the create varies run to
+ * run: a bare "show the visualizer" arrives either side of the landing, and the workspace
+ * overview follows it. Spending the claim on the first navigation of any kind therefore made the
+ * fix intermittent — the bare one would spend it, leaving the workspace overview to win.
+ *
+ * So only the navigation the claim exists for spends it. A bare navigation resolves against the
+ * context, which the landing has already pointed at the new package, so letting it pass changes
+ * nothing. A navigation naming some other view is the user moving on, and releases the claim so
+ * it cannot affect a workspace overview they ask for later.
  */
 export function resolveCreateLandingOverride(viewLocation: VisualizerLocation): VisualizerLocation | undefined {
     if (!createLanding) {
         return undefined;
     }
-    const claimed = createLanding;
-    createLanding = undefined;
-    return viewLocation.view === MACHINE_VIEW.WorkspaceOverview
-        ? { view: MACHINE_VIEW.PackageOverview, projectPath: claimed }
-        : undefined;
+    if (viewLocation.view === MACHINE_VIEW.WorkspaceOverview) {
+        const claimed = createLanding;
+        createLanding = undefined;
+        return { view: MACHINE_VIEW.PackageOverview, projectPath: claimed };
+    }
+    if (viewLocation.view && viewLocation.view !== MACHINE_VIEW.PackageOverview) {
+        createLanding = undefined;
+    }
+    return undefined;
 }
 
 /**

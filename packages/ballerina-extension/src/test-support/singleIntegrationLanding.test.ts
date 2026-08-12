@@ -143,16 +143,14 @@ describe("resolveSingleIntegrationOverride", () => {
 
 describe("resolveCreateLandingOverride", () => {
     const CREATED = `${WORKSPACE_ROOT}/orders`;
+    const redirected = { view: MACHINE_VIEW.PackageOverview, projectPath: CREATED };
 
     afterEach(releaseCreateLanding);
 
-    it("sends the navigation after a create back to the package it landed on", () => {
+    it("sends a workspace-overview navigation back to the package the create landed on", () => {
         claimCreateLanding(CREATED);
 
-        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual({
-            view: MACHINE_VIEW.PackageOverview,
-            projectPath: CREATED,
-        });
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual(redirected);
     });
 
     it("does nothing without a claim", () => {
@@ -166,24 +164,35 @@ describe("resolveCreateLandingOverride", () => {
         expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
     });
 
-    // The claim exists to outrank the ONE navigation racing the create. Holding it past that
-    // would redirect a workspace overview the user asked for later, which is why it is
-    // consumed on the next navigation whichever way that one resolves.
-    it("is spent by the navigation it answers, not held for the next one", () => {
-        claimCreateLanding(CREATED);
-
-        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeTruthy();
-        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
-    });
-
+    // The regression this rule exists for. Startup fires a bare "show the visualizer" whose
+    // order relative to the create varies run to run; when it landed after the create it used
+    // to spend the claim, and the workspace overview behind it then won. A bare navigation
+    // resolves against the context, which the landing has already pointed at the new package,
+    // so passing it through costs nothing.
     it.each<[string, VisualizerLocation]>([
-        ["a package overview", { view: MACHINE_VIEW.PackageOverview, projectPath: `${WORKSPACE_ROOT}/shipping` }],
-        ["another view", { view: MACHINE_VIEW.ServiceDesigner }],
         ["a bare navigation", {}],
-    ])("lapses on %s — the window has moved on", (_label, viewLocation) => {
+        ["a bare navigation carrying a document", { documentUri: "/workspace/orders/main.bal" }],
+        ["a package overview", { view: MACHINE_VIEW.PackageOverview, projectPath: CREATED }],
+    ])("survives %s, so the workspace overview behind it is still redirected", (_label, viewLocation) => {
         claimCreateLanding(CREATED);
 
         expect(resolveCreateLandingOverride(viewLocation)).toBeUndefined();
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual(redirected);
+    });
+
+    it("is spent by the navigation it answers, not held for the next one", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual(redirected);
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
+    });
+
+    // Anything naming a view of its own is the user moving on, and must not leave a claim
+    // behind to redirect a workspace overview they ask for later.
+    it("is released by a navigation to somewhere else", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.ServiceDesigner })).toBeUndefined();
         expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
     });
 });
