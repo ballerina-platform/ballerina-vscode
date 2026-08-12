@@ -22,8 +22,13 @@ import { keyframes } from "@emotion/react";
 import AIChatInput, { AIChatInputRef, TagOptions } from "../../AIChatInput";
 import { RunningServicesPanel } from "../../AIChatInput/RunningServicesChip";
 import { Input } from "../../AIChatInput/utils/inputUtils";
-import { AgentRunState, AIPanelPrompt, Attachment, SkillEntry, TemplateId, CodeContext } from "@wso2/ballerina-core";
-import { commandTemplates, suggestedCommandTemplates as defaultSuggestedCommandTemplates } from "../../../commandTemplates/data/commandTemplates.const";
+import { AgentRunState, AIPanelPrompt, Attachment, SkillEntry, TemplateId, CodeContext, ProductMode } from "@wso2/ballerina-core";
+import {
+    commandTemplates,
+    suggestedCommandTemplates as defaultSuggestedCommandTemplates,
+    agentBuilderSuggestedCommandTemplates,
+} from "../../../commandTemplates/data/commandTemplates.const";
+import { useProductMode } from "../../../../../hooks/useProductMode";
 import { AttachmentOptions } from "../../AIChatInput/hooks/useAttachments";
 import { getTemplateTextById } from "../../../commandTemplates/utils/utils";
 import CodeContextCard from "../../CodeContextCard";
@@ -272,7 +277,10 @@ const Footer: React.FC<FooterProps> = ({
     skills,
     ambientState,
 }) => {
-    const footerSuggestedCommandTemplates = suggestedCommandTemplates ?? defaultSuggestedCommandTemplates;
+    const productMode = useProductMode();
+    const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
+    const footerSuggestedCommandTemplates =
+        suggestedCommandTemplates ?? (agentBuilder ? agentBuilderSuggestedCommandTemplates : defaultSuggestedCommandTemplates);
 
     return (
         <FooterContainer>
