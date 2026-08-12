@@ -31,6 +31,7 @@ import {
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
+import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { getIntegrationTypes, validateComponentName } from "../PackageOverview/utils";
 import { AgentTabs, agentKey } from "./AgentTabs";
@@ -53,7 +54,7 @@ const MainContent = styled.div`
     min-height: 0;
     display: flex;
     gap: 16px;
-    padding: 16px;
+    padding: 8px 16px 16px;
 `;
 
 const Panel = styled.div<{ bordered?: boolean }>`
@@ -105,6 +106,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
+    const [isInProject, setIsInProject] = useState(false);
     const [selectedKey, setSelectedKey] = useState<string>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
@@ -115,6 +117,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
             .getProjectStructure()
             .then((res) => {
                 const project = res.projects.find((p) => isSamePath(p.projectPath, projectPath));
+                setIsInProject(res.workspaceName !== undefined);
                 if (project) {
                     setProjectStructure(project);
                 }
@@ -262,6 +265,7 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     if (!projectStructure) {
         return (
             <Page>
+                {isInProject && <TopNavigationBar projectPath={projectPath} bordered />}
                 <CenteredSlot>
                     <ProgressRing color={ThemeColors.PRIMARY} />
                 </CenteredSlot>
@@ -272,12 +276,14 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
     return (
         <>
             <Page>
+                {isInProject && <TopNavigationBar projectPath={projectPath} bordered />}
                 <PageHeader
                     title={integrationTitle}
                     actions={headerActions}
                     onTitleEdit={handleTitleUpdate}
                     validateTitle={validateTitle}
                     hideDivider={true}
+                    hasTopNavigationBar={isInProject}
                 />
                 <MainContent>
                     <Panel bordered={!!selectedAgent}>
