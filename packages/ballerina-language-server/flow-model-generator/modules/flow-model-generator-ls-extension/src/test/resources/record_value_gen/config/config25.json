@@ -1,0 +1,33 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Erroneous typeConstraint (unknown type) - no ambiguous error, bare value returned",
+  "typeConstraint": "NoSuchType",
+  "type": {
+    "name": "DestinationConfig",
+    "typeName": "record",
+    "selected": true,
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "fields": [
+      {
+        "name": "ashost",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "sysnr",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      }
+    ]
+  },
+  "output": "{\n    ashost: \"\",\n    sysnr: \"\"\n}"
+}
