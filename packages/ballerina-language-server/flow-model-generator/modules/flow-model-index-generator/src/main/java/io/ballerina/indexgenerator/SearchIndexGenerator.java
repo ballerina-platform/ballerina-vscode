@@ -33,6 +33,7 @@ import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Package;
+import org.ballerinalang.langserver.common.utils.PackageResolver;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -67,6 +68,8 @@ public class SearchIndexGenerator {
     private static final String CONNECTOR_EXCLUDE_JSON = "connector_exclude.json";
 
     public static void main(String[] args) {
+        // No language server here, so choose the resolver explicitly.
+        PackageResolver.initialize(false);
         SearchDatabaseManager.createDatabase();
 
         Gson gson = new Gson();

@@ -18,10 +18,7 @@
 
 package io.ballerina.modelgenerator.commons;
 
-import io.ballerina.centralconnector.CentralAPI;
-import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
@@ -30,6 +27,7 @@ import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
+import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
@@ -43,7 +41,6 @@ import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
@@ -79,12 +76,51 @@ public class PackageUtil {
      * @return {@code true} if offline resolution is forced; {@code false} in production.
      */
     public static boolean isOffline() {
-        return CommonUtil.TEST_OFFLINE;
+        return resolver().isOffline();
     }
 
-    // Owned by BallerinaCompilerApi so this stays loadable on distributions that predate PackageLockingMode.
-    private static BuildOptions balaBuildOptions() {
-        return BallerinaCompilerApi.getInstance().getBalaBuildOptions(CommonUtil.TEST_OFFLINE);
+    private static org.ballerinalang.langserver.common.utils.PackageResolver resolver() {
+        return org.ballerinalang.langserver.common.utils.PackageResolver.get();
+    }
+
+    /**
+     * Loads a standalone {@code .bal} file as a single file project, using this server's resolution mode.
+     *
+     * @param path Path to the standalone Ballerina file.
+     * @return The loaded project.
+     */
+    public static Project loadSingleFileProject(Path path) {
+        return resolver().loadSingleFileProject(path);
+    }
+
+    /**
+     * Loads a package directory as a build project, using this server's resolution mode.
+     *
+     * @param projectRoot Path to the package root.
+     * @return The loaded project.
+     */
+    public static Project loadBuildProject(Path projectRoot) {
+        return resolver().loadBuildProject(projectRoot);
+    }
+
+    /**
+     * Resolves a package's dependency graph, using this server's resolution mode.
+     *
+     * @param pkg The package to resolve.
+     * @return The package resolution.
+     */
+    public static PackageResolution getResolution(Package pkg) {
+        return resolver().resolution(pkg);
+    }
+
+    /**
+     * Pre-resolves a package so a later compilation reuses that resolution. A no-op on a server that resolves
+     * online.
+     *
+     * @param pkg The package to pre-resolve.
+     */
+    public static void preResolve(Package pkg) {
+        resolver().preResolve(pkg);
     }
 
     private static final BuildProject SAMPLE_PROJECT = getSampleProject();
@@ -205,83 +241,11 @@ public class PackageUtil {
      */
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name,
                                                      String version, String repository) {
-        PackageOrg packageOrg = PackageOrg.from(org);
-        PackageName packageName = PackageName.from(name);
-        PackageVersion packageVersion = PackageVersion.from(version);
-        PackageDescriptor packageDescriptor = repository == null
-                ? PackageDescriptor.from(packageOrg, packageName, packageVersion)
-                : PackageDescriptor.from(packageOrg, packageName, packageVersion, repository);
-        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
-
-        Optional<ResolutionResponse> resolutionResponse =
-                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), CommonUtil.TEST_OFFLINE);
-        if (resolutionResponse.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
-        return Optional.ofNullable(balaProject.currentPackage());
-    }
-
-    /**
-     * A response is only usable when it actually {@code RESOLVED} — {@code resolvePackages} can return
-     * a non-empty collection containing an {@code UNRESOLVED} entry (with a {@code null} {@code
-     * resolvedPackage()}) rather than an empty collection, which previously slipped past an {@code
-     * isEmpty()} check and threw a {@code NullPointerException} on {@code resolvedPackage().project()}
-     * — silently swallowed by callers' broad {@code catch (Throwable)}, masquerading as "package not
-     * found".
-     */
-    private static Optional<ResolutionResponse> resolveResponse(PackageResolver packageResolver,
-                                                                 ResolutionRequest resolutionRequest,
-                                                                 boolean offline) {
-        return packageResolver.resolvePackages(Collections.singletonList(resolutionRequest),
-                        ResolutionOptions.builder().setOffline(offline).setSticky(false).build())
-                .stream()
-                .filter(response -> response.resolutionStatus() == ResolutionResponse.ResolutionStatus.RESOLVED)
-                .findFirst();
+        return resolver().resolvePackage(buildProject, org, name, version, repository);
     }
 
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name) {
-        ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)));
-        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
-        Collection<PackageMetadataResponse> packageMetadataResponses = packageResolver.resolvePackageMetadata(
-                Collections.singletonList(resolutionRequest),
-                ResolutionOptions.builder().setOffline(true).build());
-        Optional<PackageMetadataResponse> pkgMetadata = packageMetadataResponses.stream().findFirst();
-        PackageDescriptor packageDescriptor;
-        if (pkgMetadata.isEmpty() ||
-                pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
-            if (CommonUtil.TEST_OFFLINE) {
-                // Not in the local repositories and network fallback is disabled.
-                return Optional.empty();
-            }
-            // If the package metadata is not found locally, fetch the latest version from the central repository
-            CentralAPI centralApi = RemoteCentral.getInstance();
-            String version = centralApi.latestPackageVersion(org, name);
-            packageDescriptor = PackageDescriptor.from(
-                    PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version));
-        } else {
-            packageDescriptor = pkgMetadata.get().resolvedDescriptor();
-        }
-
-        Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
-                Collections.singletonList(ResolutionRequest.from(packageDescriptor)),
-                ResolutionOptions.builder().setOffline(CommonUtil.TEST_OFFLINE).build());
-        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
-        if (resolutionResponse.isEmpty() || resolutionResponse.get().resolvedPackage() == null) {
-            // Offline and the package could not be resolved from the local repositories.
-            return Optional.empty();
-        }
-
-        Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
-        return Optional.ofNullable(balaProject.currentPackage());
+        return resolver().resolvePackage(buildProject, org, name);
     }
 
     /**
@@ -506,13 +470,11 @@ public class PackageUtil {
 
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
-            String version = CommonUtil.TEST_OFFLINE
-                    ? cachedVersion(moduleInfo.org(), moduleInfo.packageName())
-                    : RemoteCentral.getInstance().latestPackageVersion(moduleInfo.org(), moduleInfo.packageName());
+            String version = resolver().latestVersion(SAMPLE_PROJECT, moduleInfo.org(), moduleInfo.packageName());
             // Under TEST_OFFLINE a null version means the package was never provisioned into the build-owned
             // cache. Fail loudly (matching the TEST_OFFLINE contract above) so a missing lock entry is
             // self-diagnosing, rather than silently degrading into an empty model downstream.
-            if (CommonUtil.TEST_OFFLINE && version == null) {
+            if (resolver().isOffline() && version == null) {
                 throw new IllegalStateException(String.format(
                         "Package '%s/%s' is not provisioned in the offline test cache. Add it to "
                         + "build-config/ballerina_dependencies (Ballerina.toml) " + "and regenerate Dependencies.toml.",
