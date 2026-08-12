@@ -29,6 +29,47 @@ import { extension } from "../BalExtensionContext";
 import path from "path";
 
 /**
+ * How long a create's landing view outranks an incidental workspace-overview navigation.
+ *
+ * Bounded by time because there is nothing better to bound it by: the navigation being
+ * outranked comes from the project explorer, a different extension issuing its own Open
+ * Overview once its tree finishes loading, on a schedule this one cannot observe or
+ * coordinate with. Long enough to cover that load, short enough that it cannot affect a
+ * navigation the user made themselves.
+ */
+const CREATE_LANDING_PRIORITY_MS = 10_000;
+
+let createLanding: { projectPath: string; expiresAt: number } | undefined;
+
+/**
+ * Marks a package as the view a create just landed on, so a workspace-overview navigation
+ * arriving in the next few seconds shows it instead of replacing it.
+ */
+export function claimCreateLanding(projectPath: string): void {
+    createLanding = { projectPath, expiresAt: Date.now() + CREATE_LANDING_PRIORITY_MS };
+}
+
+/** Drops the claim — for a caller that means the workspace overview literally, i.e. Home. */
+export function releaseCreateLanding(): void {
+    createLanding = undefined;
+}
+
+/**
+ * Redirects a workspace-overview navigation back to the package a create just landed on, or
+ * undefined when there is no live claim or the navigation is not one.
+ */
+export function resolveCreateLandingOverride(viewLocation: VisualizerLocation): VisualizerLocation | undefined {
+    if (viewLocation.view !== MACHINE_VIEW.WorkspaceOverview || !createLanding) {
+        return undefined;
+    }
+    if (Date.now() >= createLanding.expiresAt) {
+        createLanding = undefined;
+        return undefined;
+    }
+    return { view: MACHINE_VIEW.PackageOverview, projectPath: createLanding.projectPath };
+}
+
+/**
  * The single integration a workspace holds, or undefined when it holds anything else.
  *
  * Cardinality counts packages, not integrations: a workspace pairing one integration with a

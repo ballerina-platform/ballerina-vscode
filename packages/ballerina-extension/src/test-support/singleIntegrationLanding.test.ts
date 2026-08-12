@@ -46,7 +46,13 @@ jest.mock("../stateMachine", () => ({
     openView: jest.fn(),
 }));
 
-import { getSoleIntegration, resolveSingleIntegrationOverride } from "../utils/state-machine-utils";
+import {
+    claimCreateLanding,
+    getSoleIntegration,
+    releaseCreateLanding,
+    resolveCreateLandingOverride,
+    resolveSingleIntegrationOverride,
+} from "../utils/state-machine-utils";
 
 const WORKSPACE_ROOT = "/workspace";
 
@@ -132,5 +138,55 @@ describe("resolveSingleIntegrationOverride", () => {
         expect(
             resolveSingleIntegrationOverride({}, { projectPath: "/standalone", projectStructure: workspaceOf(pkg("standalone")) })
         ).toBeUndefined();
+    });
+});
+
+describe("resolveCreateLandingOverride", () => {
+    const CREATED = `${WORKSPACE_ROOT}/orders`;
+
+    afterEach(() => {
+        releaseCreateLanding();
+        jest.useRealTimers();
+    });
+
+    it("sends a workspace-overview navigation back to the package a create just landed on", () => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toEqual({
+            view: MACHINE_VIEW.PackageOverview,
+            projectPath: CREATED,
+        });
+    });
+
+    it("does nothing without a claim", () => {
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
+    });
+
+    it("does nothing once the claim is released", () => {
+        claimCreateLanding(CREATED);
+        releaseCreateLanding();
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
+    });
+
+    // The claim outranks a navigation the window did not ask for. It must not outlive that
+    // window and start redirecting navigations the user made themselves.
+    it("expires, so a later workspace-overview navigation is left alone", () => {
+        jest.useFakeTimers();
+        claimCreateLanding(CREATED);
+
+        jest.advanceTimersByTime(60_000);
+
+        expect(resolveCreateLandingOverride({ view: MACHINE_VIEW.WorkspaceOverview })).toBeUndefined();
+    });
+
+    it.each<[string, VisualizerLocation]>([
+        ["a package overview", { view: MACHINE_VIEW.PackageOverview, projectPath: `${WORKSPACE_ROOT}/shipping` }],
+        ["another view", { view: MACHINE_VIEW.ServiceDesigner }],
+        ["a bare navigation", {}],
+    ])("leaves %s alone even while a claim is live", (_label, viewLocation) => {
+        claimCreateLanding(CREATED);
+
+        expect(resolveCreateLandingOverride(viewLocation)).toBeUndefined();
     });
 });

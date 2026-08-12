@@ -36,6 +36,8 @@ import {
     getNodeByName,
     getNodeByUid,
     getView,
+    releaseCreateLanding,
+    resolveCreateLandingOverride,
     resolveSingleIntegrationOverride
 } from './utils/state-machine-utils';
 import * as path from 'path';
@@ -1026,19 +1028,27 @@ export function openView(
     }
     extension.hasPullModuleResolved = false;
     extension.hasPullModuleNotification = false;
-    // A workspace holding a single integration opens on that integration rather than a one-item
-    // workspace overview. Applied to every navigation, not just the first: the project explorer
-    // re-navigates once its tree finishes loading, seconds after startup, and a first-navigation
-    // gate would let that second one land back on the workspace overview.
+    // Two rules can redirect a workspace-overview navigation, both skipped for a caller that
+    // means that view literally (Home):
     //
-    // The override REPLACES the location rather than merging into it. The fields a redirected
+    //   - a create that just landed on its new integration keeps it, for a few seconds, against
+    //     an incidental navigation arriving behind it;
+    //   - a workspace holding a single integration opens on that integration rather than on a
+    //     one-item list. Applied to every navigation, not just the first: the project explorer
+    //     re-navigates once its tree finishes loading, seconds after startup.
+    //
+    // An override REPLACES the location rather than merging into it. The fields a redirected
     // navigation carried describe a target that no longer applies, and `identifier` with
     // `artifactType` would survive onto the overview's history entry and send `updateView`
     // hunting for an artifact that this view does not have.
-    const singleIntegrationOverride = options?.exactView
-        ? undefined
-        : resolveSingleIntegrationOverride(viewLocation, StateMachine.context());
-    const location = singleIntegrationOverride ?? viewLocation;
+    let override: VisualizerLocation | undefined;
+    if (options?.exactView) {
+        releaseCreateLanding();
+    } else {
+        override = resolveCreateLandingOverride(viewLocation)
+            ?? resolveSingleIntegrationOverride(viewLocation, StateMachine.context());
+    }
+    const location = override ?? viewLocation;
     const projectPath = location.projectPath || StateMachine.context().projectPath;
     const { orgName, packageName } = getOrgAndPackageName(StateMachine.context().projectInfo, projectPath);
     location.org = orgName;
