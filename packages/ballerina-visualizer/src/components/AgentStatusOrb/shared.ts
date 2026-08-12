@@ -134,7 +134,7 @@ export function ambientGlow(colors: [string, string, string], spec: AmbientGlowS
     );
 }
 
-export const HERO_GLOW: AmbientGlowSpec = { outerSize: 18, outerStrength: 25, innerSize: 10, innerStrength: 12 };
+export const HERO_GLOW: AmbientGlowSpec = { outerSize: 28, outerStrength: 34, innerSize: 14, innerStrength: 20 };
 
 function ambientColors(props: AmbientFrameProps): [string, string, string] {
     const state = props.$state ?? "idle";

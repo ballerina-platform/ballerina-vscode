@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -33,15 +34,17 @@ import {
     IconOverlay,
     AGENT_BUILDER_ORB_COLORS,
     ORB_ENERGY,
+    ORB_SIZE,
     Sphere,
     subscribeAgentRunStatus,
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
 
-const ORB_SIZE = 52;
-
 const CONTENT_WIDTH = 760;
+
+const INPUT_MIN_HEIGHT = 46;
+const INPUT_MAX_HEIGHT = 220;
 
 const EXAMPLES = [
     {
@@ -81,8 +84,12 @@ const Wrap = styled.div`
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: safe center;
     padding: 40px 24px;
+
+    & > * {
+        flex-shrink: 0;
+    }
 `;
 
 const Intro = styled.div`
@@ -93,6 +100,11 @@ const Intro = styled.div`
     margin-top: 8px;
 `;
 
+const auraBreathe = keyframes`
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.15); opacity: 0.7; }
+`;
+
 const OrbHolder = styled.div`
     position: relative;
     width: ${ORB_SIZE}px;
@@ -100,6 +112,29 @@ const OrbHolder = styled.div`
     flex: none;
     border-radius: 50%;
     box-shadow: ${ambientGlow(ACCENT_FRAME, HERO_GLOW)};
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -75%;
+        border-radius: 50%;
+        background: radial-gradient(
+            circle,
+            color-mix(in srgb, ${ACCENT_FRAME[1]} 32%, transparent) 0%,
+            color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 45%,
+            transparent 70%
+        );
+        filter: blur(12px);
+        animation: ${auraBreathe} 5.5s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        &::before {
+            animation: none;
+            opacity: 0.75;
+        }
+    }
 `;
 
 const CopilotName = styled.div`
@@ -155,7 +190,14 @@ const PromptInput = styled.textarea`
     font-family: var(--vscode-font-family);
     font-size: 14px;
     line-height: 1.5;
-    min-height: 46px;
+    min-height: ${INPUT_MIN_HEIGHT}px;
+    max-height: ${INPUT_MAX_HEIGHT}px;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 
     &::placeholder {
         color: var(--vscode-input-placeholderForeground);
@@ -180,6 +222,12 @@ const RoundButton = styled.button<{ primary?: boolean }>`
     background: ${(props: { primary?: boolean }) => (props.primary ? "var(--vscode-button-background)" : "transparent")};
     color: ${(props: { primary?: boolean }) => (props.primary ? "var(--vscode-button-foreground)" : "var(--vscode-foreground)")};
     cursor: pointer;
+
+    & > div {
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+    }
 
     &:hover:not(:disabled) {
         background: var(--vscode-toolbar-hoverBackground);
@@ -283,6 +331,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const aiPanelOpen = useAiPanelOpen();
 
@@ -294,6 +343,15 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
         }
         return subscribeAgentRunStatus(rpcClient, setStatus);
     }, [rpcClient]);
+
+    useLayoutEffect(() => {
+        const input = inputRef.current;
+        if (!input) {
+            return;
+        }
+        input.style.height = "auto";
+        input.style.height = `${Math.min(input.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+    }, [text]);
 
     const state = status?.state ?? "idle";
     const working = state !== "idle";
@@ -343,8 +401,8 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <IconOverlay>
                     <Icon
                         name="bi-ai-chat"
-                        sx={{ width: 22, height: 22 }}
-                        iconSx={{ fontSize: "22px", color: "#ffffff" }}
+                        sx={{ width: 26, height: 26 }}
+                        iconSx={{ fontSize: "26px", color: "#ffffff" }}
                     />
                 </IconOverlay>
                 {running && <SpinArc color={ACCENT_FRAME[1]} />}
@@ -375,6 +433,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                         <ComposerFrame $variant="hero" $state={state} $colors={ACCENT_FRAME}>
                             <Composer>
                                 <PromptInput
+                                    ref={inputRef}
                                     rows={2}
                                     value={text}
                                     onChange={(event) => setText(event.target.value)}
