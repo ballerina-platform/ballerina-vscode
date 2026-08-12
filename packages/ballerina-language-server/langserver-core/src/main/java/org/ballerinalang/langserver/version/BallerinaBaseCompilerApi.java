@@ -40,6 +40,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.ballerinalang.annotation.JavaSPIService;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.ResolutionMode;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.wso2.ballerinalang.compiler.tree.BLangPackage;
 
@@ -115,9 +116,8 @@ public class BallerinaBaseCompilerApi extends BallerinaCompilerApi {
 
     @Override
     public Project loadProject(Path path) {
-        // Tests (ls.test.offline) force offline resolution so this load never pulls from Central; production keeps the
-        // default (online) behaviour.
-        if (CommonUtil.TEST_OFFLINE) {
+        // An offline server never pulls from Central; an online one keeps the default behaviour.
+        if (ResolutionMode.isOffline()) {
             return createProject(path, BuildOptions.builder().setOffline(true).build());
         }
         return ProjectLoader.loadProject(path);

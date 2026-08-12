@@ -77,6 +77,6 @@ public final class CentralClientProvider {
      * @return {@code true} when Central may be contacted.
      */
     public static boolean isCentralAvailable() {
-        return !CommonUtil.TEST_OFFLINE;
+        return !ResolutionMode.isOffline();
     }
 }

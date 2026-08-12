@@ -46,7 +46,7 @@ import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.ResolutionMode;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
@@ -82,12 +82,12 @@ public class PackageUtil {
      * @return {@code true} if offline resolution is forced; {@code false} in production.
      */
     public static boolean isOffline() {
-        return CommonUtil.TEST_OFFLINE;
+        return ResolutionMode.isOffline();
     }
 
     // Owned by BallerinaCompilerApi so this stays loadable on distributions that predate PackageLockingMode.
     private static BuildOptions balaBuildOptions() {
-        return BallerinaCompilerApi.getInstance().getBalaBuildOptions(CommonUtil.TEST_OFFLINE);
+        return BallerinaCompilerApi.getInstance().getBalaBuildOptions(ResolutionMode.isOffline());
     }
 
     /**
@@ -98,7 +98,7 @@ public class PackageUtil {
      * @return The loaded project.
      */
     public static Project loadSingleFileProject(Path path) {
-        return CommonUtil.TEST_OFFLINE
+        return ResolutionMode.isOffline()
                 ? SingleFileProject.load(path, BuildOptions.builder().setOffline(true).build())
                 : SingleFileProject.load(path);
     }
@@ -111,7 +111,7 @@ public class PackageUtil {
      * @return The loaded project.
      */
     public static Project loadBuildProject(Path projectRoot) {
-        return CommonUtil.TEST_OFFLINE
+        return ResolutionMode.isOffline()
                 ? BuildProject.load(projectRoot, BuildOptions.builder().setOffline(true).build())
                 : BuildProject.load(projectRoot);
     }
@@ -123,7 +123,7 @@ public class PackageUtil {
      * @return The package resolution.
      */
     public static PackageResolution getResolution(Package pkg) {
-        return CommonUtil.TEST_OFFLINE
+        return ResolutionMode.isOffline()
                 ? pkg.getResolution(CompilationOptions.builder().setOffline(true).build())
                 : pkg.getResolution();
     }
@@ -136,7 +136,7 @@ public class PackageUtil {
      * @param pkg The package to pre-resolve.
      */
     public static void preResolve(Package pkg) {
-        if (CommonUtil.TEST_OFFLINE) {
+        if (ResolutionMode.isOffline()) {
             pkg.getResolution(CompilationOptions.builder().setOffline(true).build());
         }
     }
@@ -268,7 +268,7 @@ public class PackageUtil {
         PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
 
         Optional<ResolutionResponse> resolutionResponse =
-                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), CommonUtil.TEST_OFFLINE);
+                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), ResolutionMode.isOffline());
         if (resolutionResponse.isEmpty()) {
             return Optional.empty();
         }
@@ -309,7 +309,7 @@ public class PackageUtil {
         PackageDescriptor packageDescriptor;
         if (pkgMetadata.isEmpty() ||
                 pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
-            if (CommonUtil.TEST_OFFLINE) {
+            if (ResolutionMode.isOffline()) {
                 // Not in the local repositories and network fallback is disabled.
                 return Optional.empty();
             }
@@ -324,7 +324,7 @@ public class PackageUtil {
 
         Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
                 Collections.singletonList(ResolutionRequest.from(packageDescriptor)),
-                ResolutionOptions.builder().setOffline(CommonUtil.TEST_OFFLINE).build());
+                ResolutionOptions.builder().setOffline(ResolutionMode.isOffline()).build());
         Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
         if (resolutionResponse.isEmpty() || resolutionResponse.get().resolvedPackage() == null) {
             // Offline and the package could not be resolved from the local repositories.
@@ -560,13 +560,13 @@ public class PackageUtil {
 
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
-            String version = CommonUtil.TEST_OFFLINE
+            String version = ResolutionMode.isOffline()
                     ? cachedVersion(moduleInfo.org(), moduleInfo.packageName())
                     : RemoteCentral.getInstance().latestPackageVersion(moduleInfo.org(), moduleInfo.packageName());
-            // Under TEST_OFFLINE a null version means the package was never provisioned into the build-owned
-            // cache. Fail loudly (matching the TEST_OFFLINE contract above) so a missing lock entry is
+            // When offline a null version means the package was never provisioned into the build-owned
+            // cache. Fail loudly (matching the offline contract above) so a missing lock entry is
             // self-diagnosing, rather than silently degrading into an empty model downstream.
-            if (CommonUtil.TEST_OFFLINE && version == null) {
+            if (ResolutionMode.isOffline() && version == null) {
                 throw new IllegalStateException(String.format(
                         "Package '%s/%s' is not provisioned in the offline test cache. Add it to "
                         + "build-config/ballerina_dependencies (Ballerina.toml) " + "and regenerate Dependencies.toml.",

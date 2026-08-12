@@ -48,7 +48,7 @@ import org.ballerinalang.diagramutil.connector.generator.ConnectorGenerator;
 import org.ballerinalang.diagramutil.connector.models.connector.Connector;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.common.utils.CentralClientProvider;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.ResolutionMode;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
@@ -155,7 +155,7 @@ public class BallerinaConnectorService implements ExtendedLanguageServerService 
         PackageResolver packageResolver = environment.getService(PackageResolver.class);
         Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
                 Collections.singletonList(resolutionRequest),
-                ResolutionOptions.builder().setOffline(CommonUtil.TEST_OFFLINE).build());
+                ResolutionOptions.builder().setOffline(ResolutionMode.isOffline()).build());
         ResolutionResponse resolutionResponse = resolutionResponses.stream().findFirst().orElse(null);
 
         if (resolutionResponse != null && resolutionResponse.resolutionStatus().equals(
