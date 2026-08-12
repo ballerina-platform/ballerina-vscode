@@ -156,15 +156,15 @@ const ActionButton = styled.button<{ variant?: "primary" | "secondary" | "danger
     cursor: pointer;
     border: 1px solid
         ${(props: { variant?: string }) => {
-        switch (props.variant) {
-            case "danger":
-                return "var(--vscode-errorForeground)";
-            case "secondary":
-                return "var(--vscode-button-secondaryBackground)";
-            default:
-                return "var(--vscode-button-background)";
-        }
-    }};
+            switch (props.variant) {
+                case "danger":
+                    return "var(--vscode-errorForeground)";
+                case "secondary":
+                    return "var(--vscode-button-secondaryBackground)";
+                default:
+                    return "var(--vscode-button-background)";
+            }
+        }};
     background-color: ${(props: { variant?: string }) => {
         switch (props.variant) {
             case "danger":
@@ -497,7 +497,7 @@ export function MigrationPanel() {
                         title="Select LLM model"
                     >
                         <option value="copilot">VS Code Copilot</option>
-                        <option value="wso2">WSO2 Agent Builder</option>
+                        <option value="wso2">WSO2 Integrator Copilot</option>
                         <option value="anthropic">Anthropic (API Key)</option>
                     </ModelSelector>
                 </HeaderActions>
@@ -603,7 +603,7 @@ export function MigrationPanel() {
                 ) : (
                     <>
                         <span style={{ opacity: 0.6 }}>
-                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? "WSO2 Agent Builder" : "Anthropic"}
+                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? "WSO2 Integrator Copilot" : "Anthropic"}
                         </span>
                         {messages.length > 0 && (
                             <ActionButton

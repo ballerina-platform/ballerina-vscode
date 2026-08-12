@@ -77,9 +77,9 @@ const WelcomeOrbHalo = styled.div<{ accent?: boolean }>`
         inset: -14px;
         border-radius: 50%;
         background: ${(props: { accent?: boolean }) =>
-        props.accent
-            ? `radial-gradient(circle, color-mix(in srgb, ${ACCENT_FRAME[1]} 30%, transparent), color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 42%, transparent 70%)`
-            : "radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%)"};
+            props.accent
+                ? `radial-gradient(circle, color-mix(in srgb, ${ACCENT_FRAME[1]} 30%, transparent), color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 42%, transparent 70%)`
+                : "radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%)"};
         filter: blur(8px);
         pointer-events: none;
     }
@@ -143,7 +143,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
             <TopSpacer />
             <Content>
                 <WelcomeOrbHalo accent={agentBuilder}>
-                    <WelcomeOrb role="img" aria-label="WSO2 Agent Builder">
+                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
                         {webglFailed || agentBuilder ? (
                             <Sphere
                                 colors={orbColors("idle", agentBuilder)}
@@ -176,7 +176,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         margin: "12px 0",
                     }}
                 >
-                    WSO2 Agent Builder
+                    WSO2 Integrator Copilot
                 </Typography>
                 <Typography
                     variant="body1"

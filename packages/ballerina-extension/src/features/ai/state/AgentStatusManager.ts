@@ -54,7 +54,7 @@ class AgentStatusManager {
             return;
         }
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 98);
-        this.statusBarItem.name = 'WSO2 Agent Builder';
+        this.statusBarItem.name = 'WSO2 Integrator Copilot';
         this.statusBarItem.command = SHARED_COMMANDS.OPEN_AI_PANEL;
         context.subscriptions.push(this.statusBarItem, new vscode.Disposable(() => this.clearResetTimer()));
         this.render();
@@ -196,7 +196,7 @@ class AgentStatusManager {
         const label = truncate(this.status.label, STATUS_BAR_LABEL_MAX);
         switch (this.status.state) {
             case 'running':
-                this.statusBarItem.text = `$(loading~spin) ${label ?? 'WSO2 Agent Builder'}`;
+                this.statusBarItem.text = `$(loading~spin) ${label ?? 'WSO2 Integrator Copilot'}`;
                 this.statusBarItem.backgroundColor = undefined;
                 break;
             case 'awaiting-input':
@@ -213,7 +213,7 @@ class AgentStatusManager {
                 break;
         }
         const tooltip = new vscode.MarkdownString();
-        tooltip.appendMarkdown(`**WSO2 Agent Builder**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
+        tooltip.appendMarkdown(`**WSO2 Integrator Copilot**${this.status.label ? ` — ${this.status.label}` : ''}\n\n`);
         tooltip.appendMarkdown('Click to open the Copilot chat.');
         this.statusBarItem.tooltip = tooltip;
         this.statusBarItem.show();

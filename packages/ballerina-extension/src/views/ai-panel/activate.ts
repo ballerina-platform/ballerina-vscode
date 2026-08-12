@@ -80,7 +80,7 @@ export function activateAiPanel(ballerinaExtInstance: BallerinaExtension) {
     //
     // // Status bar for auto-dream visibility
     // const dreamStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    // dreamStatusBar.tooltip = 'WSO2 Agent Builder memory consolidation';
+    // dreamStatusBar.tooltip = 'WSO2 Integrator Copilot memory consolidation';
     // ballerinaExtInstance.context.subscriptions.push(dreamStatusBar);
     //
     // let dreamHideTimeout: ReturnType<typeof setTimeout> | undefined;

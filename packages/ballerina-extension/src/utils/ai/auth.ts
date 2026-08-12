@@ -202,7 +202,7 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
         throw new Error(response.data?.message || response.data?.reason || `Status ${response.status}`);
     } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
-        vscode.window.showErrorMessage(`WSO2 Agent Builder authentication failed: ${reason}`);
+        vscode.window.showErrorMessage(`WSO2 Integrator Copilot authentication failed: ${reason}`);
         throw error;
     }
 };
@@ -245,7 +245,7 @@ export const clearAuthCredentials = async (): Promise<void> => {
 };
 
 // ==================================
-// WSO2 Agent Builder Auth Utils
+// WSO2 Integrator Copilot Auth Utils
 // ==================================
 export const getLoginMethod = async (): Promise<LoginMethod | undefined> => {
     // Priority 1: Check Anthropic API key from environment
