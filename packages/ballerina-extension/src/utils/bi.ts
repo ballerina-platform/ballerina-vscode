@@ -1421,7 +1421,7 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
             for (let i = 2; ; i++) {
                 packageName = `${basePackageName}_${i}`;
                 if (packageName !== currentPackageName) {
-                    integrationName = `${BASE_INTEGRATION_NAME} ${i}`;
+                    integrationName = `${BASE_INTEGRATION_NAME}_${i}`;
                     break;
                 }
             }
@@ -1437,7 +1437,7 @@ export async function getSuggestedProjectDefaults(isInProject: boolean): Promise
         for (let i = 2; ; i++) {
             const packageName = `${basePackageName}_${i}`;
             if (!fs.existsSync(path.join(workspacePath, packageName))) {
-                return { projectName: BASE_PROJECT_NAME, projectHandle: BASE_PROJECT_NAME.toLowerCase(), integrationName: `${BASE_INTEGRATION_NAME} ${i}`, packageName };
+                return { projectName: BASE_PROJECT_NAME, projectHandle: BASE_PROJECT_NAME.toLowerCase(), integrationName: `${BASE_INTEGRATION_NAME}_${i}`, packageName };
             }
         }
     }
