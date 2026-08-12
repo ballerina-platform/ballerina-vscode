@@ -5,42 +5,55 @@ description: Use when adding, changing or debugging a language-server unit test 
 
 # Ballerina LS Test Writer
 
-Scope: `packages/ballerina-language-server`. These are JVM tests that drive a real
-language server over LSP and compare its JSON response against a checked-in
-expected value.
+These are JVM tests that start a real language server, call one LSP method over it,
+and compare the JSON response against a checked-in expected value.
 
-For anything about the Ballerina package versions fixtures compile against, jump
-to [Fixture dependency versions](#fixture-dependency-versions). That is a
-self-contained sub-topic with its own rules.
+> Scope: work only inside `packages/ballerina-language-server`. Do **not** edit the
+> `submodules/` tree. All paths below are relative to that package.
 
-## How an LS test is shaped
+Changing the Ballerina package versions fixtures compile against is a
+self-contained sub-topic with its own rules — jump to
+[Fixture dependency versions](#fixture-dependency-versions).
 
-Almost every test extends `AbstractLSTest` and is **data-driven**: it does not
-declare its own cases. The base class walks a config directory and feeds every
-`*.json` file in it to a single `test(Path config)` method.
+## 1. How an LS test is shaped
+
+A test is **data-driven**: it does not declare its own cases. The base class walks a
+config directory and feeds every `*.json` in it to a single `test(Path config)`
+method, one TestNG invocation per file.
 
 ```
-<module>/src/test/java/.../XyzTest.java              the test class
+<module>/src/test/java/.../XyzTest.java          the test class - one per LSP method
 <module>/src/test/resources/<resource_dir>/
-    config/       one .json per case  <- the data provider reads this
+    config/       one .json per case  <- the data provider walks this
     source/       .bal fixtures the cases point at
 ```
 
-There are two copies of `AbstractLSTest`. Extend the one your module already
-uses:
+`find_matching_type/config/` holds 11 `.json` files, and the class reports 11 tests.
+That ratio is the whole model: **a case is a file, not a method.**
 
-| module | base class |
-|---|---|
-| model generators (flow, service, architecture, sequence, ...) | `io.ballerina.modelgenerator.commons.AbstractLSTest` |
-| `langserver-core` | `org.ballerinalang.langserver.AbstractLSTest` |
+Two `AbstractLSTest` classes exist, and they are not the same shape. 169 classes
+extend one of them directly:
 
-## Writing a new test
+| base class | used by | what it gives you |
+|---|---|---|
+| `io.ballerina.modelgenerator.commons.AbstractLSTest` | the model generators (flow, service, architecture, sequence, …) — 164 classes | LS lifecycle **plus** the config walker, `getResponse`, `updateConfig`, `compareJsonElements` |
+| `org.ballerinalang.langserver.AbstractLSTest` | `langserver-core` — 5 classes | LS lifecycle and package mocking only; no config walker |
 
-**1. Find the closest existing test and copy its shape.** 169 classes extend
-`AbstractLSTest`; one of them almost certainly already calls the API you care
-about. Do not invent a new shape.
+Everything below describes the model-generator base. In `langserver-core`, extend
+the feature-specific abstract test instead (`CompletionTest`,
+`AbstractCodeActionTest`) — those declare their own `dataProvider()` and
+`getTestResourceDir()`, still over a `config` directory.
 
-**2. Implement the four hooks.**
+If `config/` does not exist, `configDir` falls back to the resource dir itself.
+Prefer the `config/` + `source/` split; it is what every current test uses.
+
+## 2. Writing a new test
+
+**Find the closest existing test and copy its shape.** With 169 classes, one of
+them almost certainly already calls a neighbouring API. Do not invent a new shape.
+
+**Implement the four hooks.** `FindMatchingTypeTest` is the whole pattern in 40
+lines:
 
 ```java
 public class FindMatchingTypeTest extends AbstractLSTest {
@@ -50,15 +63,13 @@ public class FindMatchingTypeTest extends AbstractLSTest {
     public void test(Path config) throws IOException {
         Path configJsonPath = configDir.resolve(config);
         TestConfig testConfig = gson.fromJson(Files.newBufferedReader(configJsonPath), TestConfig.class);
-
         FindTypeRequest request = new FindTypeRequest(getSourcePath(testConfig.filePath()),
                 testConfig.typeMembers(), testConfig.expr());
         JsonObject response = getResponse(request);
-
         if (!response.equals(testConfig.output())) {
-            TestConfig updated = new TestConfig(testConfig.filePath(), testConfig.description(),
+            TestConfig updateConfig = new TestConfig(testConfig.filePath(), testConfig.description(),
                     testConfig.typeMembers(), testConfig.expr(), response);
-//          updateConfig(configJsonPath, updated);          // see "Regenerating a golden"
+//            updateConfig(configJsonPath, updateConfig);      // see section 3
             compareJsonElements(response, testConfig.output());
             Assert.fail(String.format("Failed test: '%s' (%s)", testConfig.description(), configJsonPath));
         }
@@ -67,57 +78,70 @@ public class FindMatchingTypeTest extends AbstractLSTest {
     @Override protected String getResourceDir() { return "find_matching_type"; }   // dir under src/test/resources
     @Override protected Class<? extends AbstractLSTest> clazz() { return FindMatchingTypeTest.class; }
     @Override protected String getApiName() { return "findMatchingType"; }         // the LSP method
-    // getServiceName() defaults to "flowDesignService" - override for another service
+    @Override protected String getServiceName() { return "typesManager"; }         // defaults to "flowDesignService"
 }
 ```
 
-**3. Define the config record.** A nested `record TestConfig(...)` whose fields
-are exactly the JSON keys. Give it a `description` field and fill it in — it is
-what the failure message prints, so it is the only thing a future reader sees
-first.
+`getServiceName()` + `getApiName()` are joined into the request as
+`<service>/<api>`, so only override `getServiceName()` when the API does not live
+on `flowDesignService` — as this one does not.
 
-**4. Add the fixture.** A `.bal` file under `source/`, and one `.json` per case
-under `config/` whose `output` you leave as `{}` initially.
+**Define the config record.** A nested `record TestConfig(...)` whose components are
+exactly the JSON keys. Include a `description` and **fill it in** — it is what the
+failure message prints. Many existing configs leave it out, and their failures read
+`Failed test: 'null' (…/config1.json)`, which tells the next reader nothing.
 
-**5. Generate the expected output** — see below. Never hand-write it.
+**Register the class in the module's `testng.xml`.** The test task runs
+`useTestNG() { suites "src/test/resources/testng.xml" }`, so a class that is not
+listed there silently never runs:
 
-**6. Run just your class:**
+```xml
+<class name="io.ballerina.flowmodelgenerator.extension.typesmanager.FindMatchingTypeTest"/>
+```
+
+**Add the fixture** — a `.bal` under `source/`, and one `.json` per case under
+`config/` with `"output": {}` for now. Then generate the expected value (section 3);
+never hand-write it.
+
+**Run just your class:**
 
 ```bash
 ./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
     --tests "io.ballerina.flowmodelgenerator.extension.typesmanager.FindMatchingTypeTest"
 ```
 
-## Regenerating a golden
+## 3. Regenerating expected output
 
-The committed code keeps the write-back **commented out**, and you uncomment it
-temporarily:
+The write-back is committed **commented out**, and you uncomment it temporarily:
 
 ```java
-//          updateConfig(configJsonPath, updated);
+//            updateConfig(configJsonPath, updateConfig);
 ```
 
 1. Uncomment it.
-2. Run the test. It writes the actual response into the config's `output`.
-3. **Read the diff.** This is the actual review step — you are approving the
-   response as correct, not just making a test green.
-4. Re-comment it before committing.
+2. Run the class. **This run still fails** — the write happens inside the mismatch
+   branch and `Assert.fail` follows it. That is expected.
+3. **Read the diff.** This is the actual review step: you are approving the server's
+   response as correct, not making a test green. `updateConfig` writes the repo's
+   committed JSON formatting, so the diff is only the semantic change.
+4. Re-run to confirm green.
+5. Re-comment before committing.
 
-**A live `updateConfig` call can never fail.** It sits inside the mismatch
-branch, so leaving it uncommented makes the test rewrite its own expectation on
-every run and assert nothing. 158 call sites are correctly commented; 10 are
+**Never commit a live `updateConfig`.** It does not silence the failing run — it
+destroys the expectation, so the *next* run passes unconditionally against whatever
+the server just returned. The test goes red once and green forever after, absorbing
+any regression from then on. 160 call sites are correctly commented; 10 are
 currently live, so do not treat an uncommented one you find as precedent.
 
-## Adding a case to a test that already exists
+## 4. Adding a case to a test that already exists
 
-Drop another `.json` into that `config/` directory. There is no list to
-register it in — the data provider picks up every `.json` that does not start
-with `.`. Reuse an existing `source/` fixture when the scenario allows.
+Drop another `.json` into that `config/` directory. **There is nothing to register**
+— the data provider takes every file that ends in `.json` and does not start with
+`.`. Reuse an existing `source/` fixture when the scenario allows.
 
-## Skipping a case
+## 5. Skipping a case
 
-`skipList()` returns config **filenames**, and the data provider filters them
-out:
+`skipList()` returns config **filenames**, which the data provider filters out:
 
 ```java
 @Override
@@ -126,45 +150,73 @@ protected String[] skipList() {
 }
 ```
 
-Always attach the reason and a link in the javadoc above it. A skip with no
-explanation is indistinguishable from an accident — see
-`GetServiceInitModelTest` for the format to follow.
+Always document the reason in the javadoc above it, one paragraph per entry, with a
+tracking link. A skip with no explanation is indistinguishable from an accident —
+copy the format in `GetServiceInitModelTest`.
 
-## Debugging a failure
+## 6. Debugging a failure
 
-`compareJsonElements` prints the first differing path, which is usually enough.
-Beyond that:
+The console shows only the assertion. **The diff goes to the test's stderr**, so
+either re-run with `-i`:
+
+```bash
+./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
+    --tests "io.ballerina.flowmodelgenerator.extension.typesmanager.FindMatchingTypeTest" -i
+```
+
+or read it out of the report afterwards:
+
+```bash
+grep -o "Value mismatch at '[^']*'" \
+  flow-model-generator/modules/flow-model-generator-ls-extension/build/test-results/test/TEST-*FindMatchingTypeTest.xml
+```
+
+`compareJsonElements` reports **every** difference, not just the first, in three
+shapes — `Value mismatch at '<path>'` with actual/expected, `Key '<path>' is
+missing in the expected/actual JSON`, and `Extra element in actual JSON at
+'<path>[i]'`. The paths are dotted with array indices
+(`recordConfig.fields[0].typeName`), which usually names the cause outright.
+
+Two paths are normalised before comparison, so differences there never surface:
+`filePath` values have `\` folded to `/`, and `icon` URLs have the trailing
+`_<version>.png` stripped. A version drift shows up as a `"version"` or
+`"packageInfo"` mismatch, not as an icon mismatch.
 
 - **A version string in the diff** means a dependency moved. Go to
   [Fixture dependency versions](#fixture-dependency-versions).
 - **`Failed to initialize the compiler plugin in package: ... "ctxData" is null`**
-  is a known flaky compiler-plugin initialisation failure, not your change. It
-  moves between tests run to run. Re-run the class alone before investigating.
-- **A golden that only fails on CI** usually means it was passing locally off a
-  stale `build/extracted-distribution`. `copyStdlibs` copies into that directory
-  without deleting, so old package versions accumulate. Wipe it and re-run:
+  is a known flaky compiler-plugin initialisation failure, not your change. It moves
+  between tests run to run. Re-run the class alone before investigating.
+- **`failed to connect to the docker API at unix:///var/run/docker.sock`** is
+  harmless noise; it prints on fully passing runs too.
+- **A golden that passes locally but fails on CI** usually means the local run was
+  green off a stale distribution. `copyStdlibs` copies into
+  `build/extracted-distribution` without deleting, so old package versions
+  accumulate there. List what you have, then wipe and re-run:
 
   ```bash
-  cd packages/ballerina-language-server
-  find . -type d -name extracted-distribution -o -type d -name 'jballerina-tools-*' | xargs rm -rf
-  rm -rf build/ballerina_dependencies
+  find . -type d \( -name extracted-distribution -o -name 'jballerina-tools-*' \) -prune -print
   ```
+
+  Delete those directories plus `build/ballerina_dependencies`, then re-run the
+  class — the next build re-extracts and re-provisions both.
 
 - **Never run two Gradle builds against this project at once**, and do not edit
   sources while a suite is running. Both silently corrupt the result.
 
-## Tests must not reach the network
+## 7. Tests must not reach Ballerina Central
 
-Test JVMs get `-Dls.test.offline=true` and `BALLERINA_HOME_DIR` pointed at a
-build-owned Ballerina home. The server installs an offline package resolver, so
-resolution comes only from that home.
+Every `Test` task in every module gets `-Dls.test.offline=true` and
+`BALLERINA_HOME_DIR` pointed at the build-owned Ballerina home, and depends on
+`resolveBallerinaDependencies` to populate it first (`build.gradle`, `allprojects`
+block). `PackageUtil.FORCE_OFFLINE` and `RemoteCentral.getInstance()` read that
+property; the latter returns an `OfflineCentral` that refuses every call.
 
-If you add a resolution path, go through `PackageUtil` — do not branch on
-offline-ness yourself, and do not construct a `CentralAPIClient` directly.
+If you add a resolution path, go through `PackageUtil`. Do not branch on
+offline-ness yourself and do not construct a `CentralAPIClient` directly.
 
-To check a run stayed offline, the home is provisioned from a lock file with
-exactly one version per package, so a second version can only come from a
-download:
+To check a run stayed offline: the home is provisioned from a lock with exactly one
+version per package, so a second version can only have been downloaded.
 
 ```bash
 H=build/ballerina_dependencies/home/repositories/central.ballerina.io/bala
@@ -173,43 +225,49 @@ for pkg in "$H"/*/*; do
 done
 ```
 
+Silence means clean.
+
 ## Fixture dependency versions
 
-This covers the versions **test fixtures** compile against — not the
-Java/Gradle dependencies of the LS itself.
+This covers the versions **test fixtures** compile against — not the Java/Gradle
+dependencies of the LS itself.
 
 ### The one rule
 
-**Fixture dependency versions live in `build-config/ballerina_dependencies/`.
-Never change them by editing a `stdlib*Version` pin in `gradle.properties`.**
+**Fixture dependency versions live in `build-config/ballerina_dependencies/`. Never
+change them by editing a `stdlib*Version` pin in `gradle.properties`.**
 
-Those pins do a different job: injecting packages that ship in the full
-Ballerina distribution but not in the minimal `jballerina-tools` distribution
-the tests run on. They are not the version a fixture resolves. Editing one to
-make a test pass has already caused a multi-commit regression.
+Those 29 pins do a different job: injecting packages that ship in the full Ballerina
+distribution but not in the minimal `jballerina-tools` distribution the tests run
+on. They are not the version a fixture resolves. Editing one to make a test pass has
+already caused a multi-commit regression.
 
 ### How the two layers differ
 
 | | `build-config/ballerina_dependencies/` | `gradle.properties` `stdlib*Version` |
 |---|---|---|
 | Purpose | provisions packages into the build-owned Ballerina home the test JVMs read | injects package `bala`s into each module's test distribution |
-| Consumed by | `resolveBallerinaDependencies` → `build/ballerina_dependencies/home` | `ballerinaStdLibs` → `copyStdlibs` → `build/extracted-distribution/.../repo/bala` |
+| Consumed by | `resolveBallerinaDependencies` → `build/ballerina_dependencies/home` | `ballerinaStdLibs` → `copyStdlibs` → `build/extracted-distribution/jballerina-tools-<ver>/repo/bala` |
 | Change it to bump a fixture version? | **yes, here** | **no** |
 
-When the same package exists in both, resolution prefers the **distribution**
-copy. That is why an injected pin can silently override the version the lock
-provisioned.
+When the same package exists in both, resolution prefers the **distribution** copy.
+That is why an injected pin can silently override the version the lock provisioned.
 
 ### Bumping an existing fixture dependency
 
 1. Edit the `[[dependency]]` version in
    `build-config/ballerina_dependencies/Ballerina.toml`.
-2. `cd build-config/ballerina_dependencies && bal build`. That regenerates
-   `Dependencies.toml` in place.
-3. Commit both files.
+2. Regenerate the lock in place:
+
+   ```bash
+   cd build-config/ballerina_dependencies && bal build
+   ```
+
+   Jar-conflict and `provided`-scope warnings in that output are normal.
+3. Commit `Ballerina.toml` and `Dependencies.toml` together.
 
 `lockingMode = "LOCKED"` and `sticky = true` keep the rest of the lock still, so
-only the package you edited and whatever it drags with it will move.
+only the package you named and whatever it drags with it will move.
 
 **Adding a new package** also needs an `import <org>/<pkg> as _;` line in
 `build-config/ballerina_dependencies/main.bal` — the `[[dependency]]` entry only
@@ -217,18 +275,22 @@ constrains a version; the import is what makes it resolve and download.
 
 ### Always read the Dependencies.toml diff
 
-If the lock moved a package you did **not** name, that package had to move so
-the graph stays consistent. Those packages are part of your change, not noise.
+If the lock moved a package you did **not** name, that package had to move so the
+graph stays consistent. Those packages are part of your change, not noise.
 
-For each one, find the tests that refer to it and update them too. Expected
-outputs embed versions literally, in two forms:
+For each one, find the expected outputs that refer to it and regenerate them.
+Versions are embedded literally, in three forms:
 
-- `"version": "<version>"` fields, and `"packageInfo": "<org>:<pkg>:<version>"`
+- `"version": "<version>"`
+- `"packageInfo": "<org>:<pkg>:<version>"`
 - icon URLs — `ballerina_<pkg>_<version>.png`
 
-So grep for the **old** version string before concluding nothing refers to it:
+So grep for the **old** version before concluding nothing refers to it:
 
 ```bash
-grep -rn 'ballerina_workflow_0\.8\.0\|"0\.8\.0"' --include='*.json' \
+grep -rn 'ballerina_http_2\.16\.3\|"2\.16\.3"' --include='*.json' \
   */modules/*/src/test/resources
 ```
+
+Only the first two forms can actually fail a comparison — `icon` versions are
+normalised away (section 6) — but update all three so the fixtures stay honest.
