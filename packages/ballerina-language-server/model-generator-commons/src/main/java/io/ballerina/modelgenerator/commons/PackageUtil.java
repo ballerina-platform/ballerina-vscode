@@ -22,6 +22,7 @@ import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.projects.BuildOptions;
+import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.ModuleName;
@@ -30,11 +31,13 @@ import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.PackageOrg;
+import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
+import io.ballerina.projects.directory.SingleFileProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
 import io.ballerina.projects.environment.PackageResolver;
 import io.ballerina.projects.environment.ResolutionOptions;
@@ -85,6 +88,57 @@ public class PackageUtil {
     // Owned by BallerinaCompilerApi so this stays loadable on distributions that predate PackageLockingMode.
     private static BuildOptions balaBuildOptions() {
         return BallerinaCompilerApi.getInstance().getBalaBuildOptions(CommonUtil.TEST_OFFLINE);
+    }
+
+    /**
+     * Loads a standalone {@code .bal} file as a single file project. Callers get offline resolution automatically when
+     * the language server runs offline, so they never have to branch on it themselves.
+     *
+     * @param path Path to the standalone Ballerina file.
+     * @return The loaded project.
+     */
+    public static Project loadSingleFileProject(Path path) {
+        return CommonUtil.TEST_OFFLINE
+                ? SingleFileProject.load(path, BuildOptions.builder().setOffline(true).build())
+                : SingleFileProject.load(path);
+    }
+
+    /**
+     * Loads a package directory as a build project. Offline counterpart of
+     * {@link #loadSingleFileProject(Path)}.
+     *
+     * @param projectRoot Path to the package root.
+     * @return The loaded project.
+     */
+    public static Project loadBuildProject(Path projectRoot) {
+        return CommonUtil.TEST_OFFLINE
+                ? BuildProject.load(projectRoot, BuildOptions.builder().setOffline(true).build())
+                : BuildProject.load(projectRoot);
+    }
+
+    /**
+     * Resolves a package's dependency graph, offline when the language server runs offline.
+     *
+     * @param pkg The package to resolve.
+     * @return The package resolution.
+     */
+    public static PackageResolution getResolution(Package pkg) {
+        return CommonUtil.TEST_OFFLINE
+                ? pkg.getResolution(CompilationOptions.builder().setOffline(true).build())
+                : pkg.getResolution();
+    }
+
+    /**
+     * Pre-resolves a package so a subsequent compilation reuses that resolution instead of resolving again. A no-op
+     * unless the language server runs offline, where it pins the resolution offline so compiling the package never
+     * reaches Ballerina Central. Production behaviour is unchanged.
+     *
+     * @param pkg The package to pre-resolve.
+     */
+    public static void preResolve(Package pkg) {
+        if (CommonUtil.TEST_OFFLINE) {
+            pkg.getResolution(CompilationOptions.builder().setOffline(true).build());
+        }
     }
 
     private static final BuildProject SAMPLE_PROJECT = getSampleProject();

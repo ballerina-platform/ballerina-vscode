@@ -27,12 +27,9 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.TypeDescriptorNode;
 import io.ballerina.compiler.syntax.tree.UnionTypeDescriptorNode;
 import io.ballerina.modelgenerator.commons.PackageUtil;
-import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectException;
-import io.ballerina.projects.directory.BuildProject;
-import io.ballerina.projects.directory.SingleFileProject;
 import io.ballerina.projects.util.ProjectUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -114,9 +111,7 @@ public final class DataMappingModelConverterUtils {
             Path projectRoot = ProjectUtils.findProjectRoot(filePath);
             if (projectRoot == null) {
                 // Since the project-root cannot be found, the provided file is considered as SingleFileProject.
-                project = PackageUtil.isOffline()
-                        ? SingleFileProject.load(filePath, BuildOptions.builder().setOffline(true).build())
-                        : SingleFileProject.load(filePath);
+                project = PackageUtil.loadSingleFileProject(filePath);
                 Package currentPackage = project.currentPackage();
                 moduleSymbols = PackageUtil.getCompilation(currentPackage)
                         .getSemanticModel(currentPackage.getDefaultModule().moduleId())
@@ -127,9 +122,7 @@ public final class DataMappingModelConverterUtils {
                     }
                 });
             } else {
-                project = PackageUtil.isOffline()
-                        ? BuildProject.load(projectRoot, BuildOptions.builder().setOffline(true).build())
-                        : BuildProject.load(projectRoot);
+                project = PackageUtil.loadBuildProject(projectRoot);
                 Package currentPackage = project.currentPackage();
                 moduleSymbols = PackageUtil.getCompilation(currentPackage)
                         .getSemanticModel(currentPackage.getDefaultModule().moduleId())
