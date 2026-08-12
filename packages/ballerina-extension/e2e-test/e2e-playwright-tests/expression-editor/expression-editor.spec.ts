@@ -76,12 +76,13 @@ export default function createTests() {
             if (!artifactWebView) {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
-            // "Create" on the artifact form.
+            // "Create" in the in-project form, "Create Integration" in the wizard's Configure step.
             await submitArtifactCreation(artifactWebView);
 
-            // Submitting the form normally lands straight on the designer's canvas. When it
-            // settles on the overview instead, the automation is there as an entry node, and
-            // clicking that opens the same designer.
+            // On this empty integration, the wizard generates the artifact into the existing
+            // package and closes back to the (now non-empty) overview rather than opening the
+            // new automation directly — unlike the in-project form's direct-to-diagram flow.
+            // Wait for the refreshed overview's entry node, then navigate into it.
             const diagramCanvas = artifactWebView.getByTestId('bi-diagram-canvas');
             const automationNode = artifactWebView.locator('[data-testid="entry-node-automation"]');
             const landedOnDiagram = await diagramCanvas.waitFor({ timeout: 10000 })

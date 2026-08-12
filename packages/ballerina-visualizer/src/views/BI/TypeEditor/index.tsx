@@ -81,16 +81,11 @@ export const FormTypeEditor = (props: FormTypeEditorProps) => {
     useEffect(() => {
         if (rpcClient) {
             rpcClient.getVisualizerLocation().then((machineView) => {
-                const recordFilePath = machineView?.metadata?.recordFilePath;
-                if (!recordFilePath) {
-                    console.warn(">>> FormTypeEditor: no recordFilePath in the visualizer location; type editor cannot render");
-                    return;
-                }
-                setFilePath(recordFilePath);
+                setFilePath(machineView.metadata.recordFilePath);
                 rpcClient
                     .getBIDiagramRpcClient()
                     .getEndOfFile({
-                        filePath: recordFilePath
+                        filePath: machineView.metadata.recordFilePath
                     })
                     .then((linePosition) => {
                         setTargetLineRange({

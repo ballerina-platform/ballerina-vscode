@@ -49,9 +49,9 @@ export interface AddProjectFormFieldsProps {
 
 /**
  * Screen 1 of the Add-to-project flow: the project itself (convert case only) and
- * the starting point to add. Both are named by `AddComponentFields` — the library on
- * the following screen, alongside its package details; the integration inline, rendered
- * by the parent right after this section and created empty from this same screen.
+ * the starting point to add. Both starting points are named and configured on the
+ * following screen — the integration in the Create Integration wizard, the library
+ * in `AddLibraryFields` — so nothing artifact-specific is collected here.
  */
 export function AddProjectFormFields({
     formData,
@@ -144,14 +144,11 @@ export function AddProjectFormFields({
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
                     />
 
-                    {/* The integration is named by the field the parent renders directly
-                        below this section and created empty from here; only the library
-                        still has a screen of its own. Matches the initial Create flow. */}
-                    {formData.isLibrary && (
-                        <Description>
-                            You'll name and configure your {resourceTypeLabelLower} in the next step.
-                        </Description>
-                    )}
+                    {/* Both starting points are named and configured on the next screen,
+                        matching the initial Create experience. */}
+                    <Description>
+                        You'll name and configure your {resourceTypeLabelLower} in the next step.
+                    </Description>
                 </FormSection>
             )}
         </>

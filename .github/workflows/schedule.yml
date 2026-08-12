@@ -7,12 +7,11 @@ on:
     inputs:
       sourceBranch:
         description: >-
-          Branch to run the nightly pipeline against. Leave blank to auto-select:
-          the latest staging/* branch if one exists, otherwise main — the same
-          resolution the schedule always uses.
+          Branch to run the nightly pipeline against. Defaults to main, which is
+          what the schedule always uses.
         required: false
         type: string
-        default: ''
+        default: main
 
 permissions:
   contents: read
@@ -28,9 +27,8 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────
   # builds/nightly branch — selected source plus a single version commit
   #
-  # Scheduled runs, and manual runs with sourceBranch left blank, reset the branch to the
-  # latest staging/* branch if one exists, otherwise main; an explicit sourceBranch always
-  # wins. It is then force-pushed, so it is never a merge target and never accumulates
+  # Scheduled runs reset the branch to main; manual runs reset it to sourceBranch (main by
+  # default). It is then force-pushed, so it is never a merge target and never accumulates
   # history. `git diff <selected-source> builds/nightly` is always exactly the version bump.
   # Its purpose is to give every nightly VSIX an inspectable commit that pins both the source
   # and the version it was built at.
@@ -63,25 +61,11 @@ jobs:
 
       - name: Reset builds/nightly to the source branch
         env:
-          INPUT_SOURCE_BRANCH: ${{ inputs.sourceBranch }}
+          SOURCE_BRANCH: ${{ inputs.sourceBranch || 'main' }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if [ -n "${INPUT_SOURCE_BRANCH}" ]; then
-            SOURCE_BRANCH="${INPUT_SOURCE_BRANCH}"
-          else
-            # No explicit source given (scheduled run, or manual run left blank): prefer the
-            # latest staging/* branch (e.g. staging/5.14.0) if one exists, so the nightly
-            # pipeline follows the active release staging branch without a workflow edit
-            # each time one is cut. Falls back to main once no staging/* branch remains.
-            latest_staging=$(git ls-remote --heads origin \
-              | awk -F'refs/heads/' '/refs\/heads\/staging\// { print $2 }' \
-              | sort -t/ -k2 -V | tail -n 1)
-            SOURCE_BRANCH="${latest_staging:-main}"
-          fi
-
           # Checkout fetches only the triggering ref, so fetch the requested source
           # explicitly even though the initial checkout uses fetch-depth 0.
           SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"

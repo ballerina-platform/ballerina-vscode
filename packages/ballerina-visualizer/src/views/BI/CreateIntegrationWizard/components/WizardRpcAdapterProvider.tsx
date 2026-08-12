@@ -19,12 +19,6 @@
 import React, { useMemo } from "react";
 import { BallerinaRpcClient, Context } from "@wso2/ballerina-rpc-client";
 import { BiWsClient } from "../../wsManager/WsClient";
-import { FormHostCapabilities, FormHostCapabilitiesContext } from "../../Forms/formHostCapabilities";
-
-// Pre-project, forms must not offer type creation: the type editor resolves its
-// file from the visualizer state machine (absent here), and a type created in the
-// throwaway staging scaffold would never reach the generated integration.
-const WIZARD_FORM_CAPABILITIES: FormHostCapabilities = { typeCreation: false };
 
 /**
  * Wraps a manager stub so an undefined method resolves to `undefined` with a warning
@@ -120,16 +114,9 @@ interface WizardRpcAdapterProviderProps {
     children: React.ReactNode;
 }
 
-/** Mounts the rpc-client React context with the WS-backed adapter so `useRpcContext()` works
- *  pre-project, and restricts form-host capabilities for every form in the wizard. */
+/** Mounts the rpc-client React context with the WS-backed adapter so `useRpcContext()` works pre-project. */
 export function WizardRpcAdapterProvider({ wsClient, children }: WizardRpcAdapterProviderProps) {
     const rpcClient = useMemo(() => createWizardRpcAdapter(wsClient), [wsClient]);
     const value = useMemo(() => ({ rpcClient }), [rpcClient]);
-    return (
-        <Context.Provider value={value}>
-            <FormHostCapabilitiesContext.Provider value={WIZARD_FORM_CAPABILITIES}>
-                {children}
-            </FormHostCapabilitiesContext.Provider>
-        </Context.Provider>
-    );
+    return <Context.Provider value={value}>{children}</Context.Provider>;
 }
