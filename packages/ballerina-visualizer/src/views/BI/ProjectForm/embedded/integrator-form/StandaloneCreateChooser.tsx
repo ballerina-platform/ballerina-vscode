@@ -33,6 +33,8 @@ interface StandaloneCreateChooserProps {
     /** The wizard client (native BI WS) used by the integration route. */
     biWsClient: BiWsClient;
     ballerinaUnavailable?: boolean;
+    /** Agent builder mode words the integration option for what it builds there. */
+    isAgentBuilder?: boolean;
     /** Exit the whole Create flow (back to the welcome view). */
     onBack?: () => void;
 }
@@ -45,7 +47,7 @@ interface StandaloneCreateChooserProps {
  * views used before the project chooser existed (no project context — no
  * workspace is created).
  */
-export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, onBack }: StandaloneCreateChooserProps) {
+export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, isAgentBuilder, onBack }: StandaloneCreateChooserProps) {
     const [screen, setScreen] = useState<Screen>("chooser");
     const [isLibrary, setIsLibrary] = useState(false);
 
@@ -71,6 +73,7 @@ export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, onBa
                 label="Choose your starting point"
                 value={isLibrary}
                 onChange={setIsLibrary}
+                isAgentBuilder={isAgentBuilder}
                 note="Update your Ballerina distribution to 2201.13.0 or above to organize integrations and libraries into a project."
             />
             <FormFooter>

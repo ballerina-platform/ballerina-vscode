@@ -48,12 +48,14 @@ export interface ProjectTypeSelectorProps {
     note?: ReactNode;
     /** Section label above the options. Defaults to "Type". */
     label?: string;
+    /** Agent builder mode names the integration option for what it builds there. */
+    isAgentBuilder?: boolean;
 }
 
-const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
+const getProjectTypeOptions = (isAgentBuilder?: boolean): ProjectTypeOption[] => [
     {
         value: "integration",
-        title: "Create an integration",
+        title: isAgentBuilder ? "Create an agentic integration" : "Create an integration",
         description: "Build APIs, automations, event-driven flows, AI integrations, and more.",
         icon: "circuit-board",
     },
@@ -70,12 +72,14 @@ export function ProjectTypeSelector({
     onChange,
     note,
     label = "Type",
+    isAgentBuilder,
 }: ProjectTypeSelectorProps) {
+    const options = getProjectTypeOptions(isAgentBuilder);
     return (
         <ProjectTypeContainer>
             <ProjectTypeLabel>{label}</ProjectTypeLabel>
             <RadioGroup>
-                {PROJECT_TYPE_OPTIONS.map((option) => {
+                {options.map((option) => {
                     const isLibrary = option.value === "library";
                     const isSelected = value === isLibrary;
 
