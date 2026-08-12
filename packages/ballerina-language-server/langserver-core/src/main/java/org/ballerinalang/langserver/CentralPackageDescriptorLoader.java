@@ -17,16 +17,15 @@ package org.ballerinalang.langserver;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
-import io.ballerina.projects.Settings;
-import io.ballerina.projects.util.ProjectUtils;
 import org.ballerinalang.central.client.CentralAPIClient;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.CentralClientProvider;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.wso2.ballerinalang.util.RepoUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -71,14 +70,12 @@ public class CentralPackageDescriptorLoader {
     }
 
     private List<LSPackageLoader.ModuleInfo> getCentralGraphQLPackages() {
-        // Tests (ls.test.offline) never contact Central; completions resolve from local/distribution packages only.
-        if (CommonUtil.TEST_OFFLINE) {
+        Optional<CentralAPIClient> client = CentralClientProvider.graphQlClient();
+        if (client.isEmpty()) {
             return Collections.emptyList();
         }
         try {
-            Settings settings = RepoUtils.readSettings();
-            CentralAPIClient centralAPIClient = new CentralAPIClient(RepoUtils.getRemoteRepoGraphQLURL(),
-                    ProjectUtils.initializeProxy(settings.getProxy()), ProjectUtils.getAccessTokenOfCLI(settings));
+            CentralAPIClient centralAPIClient = client.get();
             String query = String.format(GET_PACKAGES_QUERY, "ballerinax", 800);
             JsonElement allPackagesResponse = centralAPIClient.getCentralPackagesUsingGraphQL(query, "any",
                     RepoUtils.getBallerinaVersion());

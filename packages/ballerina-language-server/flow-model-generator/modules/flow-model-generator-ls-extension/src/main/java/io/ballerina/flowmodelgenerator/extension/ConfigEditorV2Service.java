@@ -73,7 +73,6 @@ import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
-import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
@@ -752,14 +751,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         try {
             Package packageInstance = module.packageInstance();
             if (packageInstance != null) {
-                // Resolve the dependency package offline ONLY during tests (ls.test.offline) so compiling it to read
-                // its config variables never pulls transitive dependencies from Central; compilation then reuses this
-                // cached resolution. In production we leave the package's own (inherited) resolution untouched, which
-                // matches the original behaviour exactly.
-                if (PackageUtil.isOffline()) {
-                    packageInstance.getResolution(
-                            CompilationOptions.builder().setOffline(true).build());
-                }
+                PackageUtil.preResolve(packageInstance);
                 if (packageInstance.getCompilation() != null) {
                     SemanticModel semanticModel = packageInstance.getCompilation()
                             .getSemanticModel(module.moduleId());
@@ -802,12 +794,8 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
             Package currentPkg, Collection<ModuleDependency> moduleDependencies,
             Toml configTomlValues) {
         Map<String, Map<String, List<FlowNode>>> pkgConfigs = new HashMap<>();
-        // Resolve the dependency graph offline ONLY during tests (ls.test.offline) so config extraction never pulls
-        // from Central; in production use the package's default (no-arg) resolution to match the original behaviour.
         // Resolve once and reuse.
-        PackageResolution resolution = PackageUtil.isOffline()
-                ? currentPkg.getResolution(CompilationOptions.builder().setOffline(true).build())
-                : currentPkg.getResolution();
+        PackageResolution resolution = PackageUtil.getResolution(currentPkg);
         if (resolution == null || resolution.dependencyGraph() == null) {
             return pkgConfigs;
         }

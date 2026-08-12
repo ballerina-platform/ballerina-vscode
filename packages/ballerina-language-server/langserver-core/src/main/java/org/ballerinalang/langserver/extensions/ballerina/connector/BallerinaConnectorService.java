@@ -33,7 +33,6 @@ import io.ballerina.projects.PackageOrg;
 import io.ballerina.projects.PackageVersion;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
-import io.ballerina.projects.Settings;
 import io.ballerina.projects.environment.Environment;
 import io.ballerina.projects.environment.EnvironmentBuilder;
 import io.ballerina.projects.environment.PackageResolver;
@@ -48,7 +47,7 @@ import org.ballerinalang.diagramutil.DiagramUtil;
 import org.ballerinalang.diagramutil.connector.generator.ConnectorGenerator;
 import org.ballerinalang.diagramutil.connector.models.connector.Connector;
 import org.ballerinalang.langserver.LSClientLogger;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.CentralClientProvider;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
@@ -71,8 +70,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static io.ballerina.projects.util.ProjectUtils.getAccessTokenOfCLI;
-import static io.ballerina.projects.util.ProjectUtils.initializeProxy;
 
 /**
  * Implementation of the BallerinaConnectorService.
@@ -106,17 +103,9 @@ public class BallerinaConnectorService implements ExtendedLanguageServerService 
         return CompletableFuture.supplyAsync(() -> {
             BallerinaConnectorListResponse connectorList = new BallerinaConnectorListResponse();
             try {
-                // Tests (ls.test.offline) never contact Central; only local project connectors are returned.
-                if (!CommonUtil.TEST_OFFLINE) {
-                    Settings settings = RepoUtils.readSettings();
-                    CentralAPIClient client = new CentralAPIClient(RepoUtils.getRemoteRepoURL(),
-                            initializeProxy(settings.getProxy()), settings.getProxy().username(),
-                            settings.getProxy().password(), getAccessTokenOfCLI(settings),
-                            settings.getCentral().getConnectTimeout(),
-                            settings.getCentral().getReadTimeout(), settings.getCentral().getWriteTimeout(),
-                            settings.getCentral().getCallTimeout(), settings.getCentral().getMaxRetries());
-
-                    JsonElement connectorSearchResult = client.getConnectors(request.getQueryMap(),
+                Optional<CentralAPIClient> centralClient = CentralClientProvider.restClient();
+                if (centralClient.isPresent()) {
+                    JsonElement connectorSearchResult = centralClient.get().getConnectors(request.getQueryMap(),
                             "any", RepoUtils.getBallerinaVersion());
                     CentralConnectorListResult centralConnectorListResult = new Gson().fromJson(
                             connectorSearchResult.getAsString(), CentralConnectorListResult.class);
@@ -165,7 +154,7 @@ public class BallerinaConnectorService implements ExtendedLanguageServerService 
         PackageResolver packageResolver = environment.getService(PackageResolver.class);
         Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
                 Collections.singletonList(resolutionRequest),
-                ResolutionOptions.builder().setOffline(CommonUtil.TEST_OFFLINE).build());
+                ResolutionOptions.builder().setOffline(resolvesOffline()).build());
         ResolutionResponse resolutionResponse = resolutionResponses.stream().findFirst().orElse(null);
 
         if (resolutionResponse != null && resolutionResponse.resolutionStatus().equals(
@@ -194,21 +183,24 @@ public class BallerinaConnectorService implements ExtendedLanguageServerService 
         });
     }
 
+    /**
+     * Whether this server resolves without Ballerina Central. Wrapped in a method because several methods here take an
+     * {@code org} parameter, which would shadow the package name in a fully qualified reference.
+     *
+     * @return {@code true} when resolution must stay offline.
+     */
+    private static boolean resolvesOffline() {
+        return org.ballerinalang.langserver.common.utils.PackageResolver.get().isOffline();
+    }
+
     private Optional<JsonObject> getConnectorFromCentral(BallerinaConnectorRequest request) {
-        // Tests (ls.test.offline) never contact Central; fall through to local resolution.
-        if (CommonUtil.TEST_OFFLINE) {
+        Optional<CentralAPIClient> centralClient = CentralClientProvider.restClient();
+        if (centralClient.isEmpty()) {
             return Optional.empty();
         }
         JsonObject connector;
         try {
-            Settings settings = RepoUtils.readSettings();
-            CentralAPIClient client = new CentralAPIClient(RepoUtils.getRemoteRepoURL(),
-                    initializeProxy(settings.getProxy()), settings.getProxy().username(),
-                    settings.getProxy().password(),
-                    getAccessTokenOfCLI(settings),
-                    settings.getCentral().getConnectTimeout(),
-                    settings.getCentral().getReadTimeout(), settings.getCentral().getWriteTimeout(),
-                    settings.getCentral().getCallTimeout(), settings.getCentral().getMaxRetries());
+            CentralAPIClient client = centralClient.get();
             if (request.getConnectorId() != null) {
                 // Fetch connector by connector Id.
                 connector = client.getConnector(request.getConnectorId(), "any", RepoUtils.getBallerinaVersion());
