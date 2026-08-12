@@ -1,10 +1,10 @@
 {
   "start": {
-    "line": 36,
+    "line": 37,
     "offset": 0
   },
   "end": {
-    "line": 40,
+    "line": 41,
     "offset": 1
   },
   "source": "durable_agent_box.bal",
@@ -13,7 +13,7 @@
     "fileName": "durable_agent_box.bal",
     "nodes": [
       {
-        "id": "68914",
+        "id": "69906",
         "metadata": {
           "label": "Start",
           "data": {
@@ -28,11 +28,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 36,
+              "line": 37,
               "offset": 43
             },
             "endLine": {
-              "line": 40,
+              "line": 41,
               "offset": 1
             }
           },
@@ -45,7 +45,7 @@
         "flags": 0
       },
       {
-        "id": "68672",
+        "id": "69664",
         "metadata": {
           "label": "Configure Agent",
           "description": "Configure the agent's role, instructions, model and reasoning limit",
@@ -62,101 +62,11 @@
               "path": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
               "type": "Wso2ModelProvider"
             },
-            "activities": [
-              {
-                "name": "lookupBooking",
-                "type": "activity",
-                "lineRange": {
-                  "fileName": "durable_agent_box.bal",
-                  "startLine": {
-                    "line": 23,
-                    "offset": 8
-                  },
-                  "endLine": {
-                    "line": 23,
-                    "offset": 130
-                  }
-                },
-                "values": {
-                  "activity": "lookupBooking",
-                  "requiresApproval": "true",
-                  "retryPolicy": "AutoRetry",
-                  "maxRetries": "2",
-                  "retryDelay": "1.5",
-                  "bindings.api": "deskApi"
-                }
-              }
-            ],
-            "humanTasks": [
-              {
-                "name": "approveItinerary",
-                "type": "humanTask",
-                "lineRange": {
-                  "fileName": "durable_agent_box.bal",
-                  "startLine": {
-                    "line": 29,
-                    "offset": 8
-                  },
-                  "endLine": {
-                    "line": 29,
-                    "offset": 88
-                  }
-                },
-                "values": {
-                  "taskName": "approveItinerary",
-                  "userRoles": "travel-lead",
-                  "title": "Approve the itinerary"
-                }
-              }
-            ],
+            "activities": [],
+            "humanTasks": [],
             "tools": [],
-            "events": [
-              {
-                "name": "hotelResults",
-                "type": "event",
-                "lineRange": {
-                  "fileName": "durable_agent_box.bal",
-                  "startLine": {
-                    "line": 26,
-                    "offset": 8
-                  },
-                  "endLine": {
-                    "line": 26,
-                    "offset": 45
-                  }
-                },
-                "values": {
-                  "name": "hotelResults",
-                  "requestType": "json"
-                }
-              }
-            ],
-            "peers": [
-              {
-                "name": "askHotelDesk",
-                "type": "peer",
-                "lineRange": {
-                  "fileName": "durable_agent_box.bal",
-                  "startLine": {
-                    "line": 32,
-                    "offset": 8
-                  },
-                  "endLine": {
-                    "line": 32,
-                    "offset": 177
-                  }
-                },
-                "values": {
-                  "agent": "hotelAgent",
-                  "name": "askHotelDesk",
-                  "description": "Hotel research",
-                  "wait": "false",
-                  "callbackChannel": "hotelResults",
-                  "requiresApproval": "true",
-                  "userRoles": "\"travel-lead\""
-                }
-              }
-            ],
+            "events": [],
+            "peers": [],
             "declaration": {
               "fileName": "durable_agent_box.bal",
               "startLine": {
@@ -164,7 +74,7 @@
                 "offset": 0
               },
               "endLine": {
-                "line": 34,
+                "line": 35,
                 "offset": 3
               }
             }
@@ -181,11 +91,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 37,
+              "line": 38,
               "offset": 4
             },
             "endLine": {
-              "line": 37,
+              "line": 38,
               "offset": 100
             }
           },
@@ -350,11 +260,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 37,
+                  "line": 38,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 37,
+                  "line": 38,
                   "offset": 21
                 }
               }
@@ -380,19 +290,10 @@
             "codedata": {}
           }
         },
-        "diagnostics": {
-          "hasDiagnostics": true,
-          "diagnostics": [
-            {
-              "severity": "ERROR",
-              "message": "The input argument of run does not match durable agent travelAgent: the agents inputType is string, so the query text itself is the input — declare a data inputType to pass a structured payload"
-            }
-          ]
-        },
         "flags": 1
       },
       {
-        "id": "69682",
+        "id": "70674",
         "metadata": {
           "label": "Send Agent Data Event",
           "description": "Send a data event to a running durable agent and read its answer for that turn",
@@ -413,11 +314,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 38,
+              "line": 39,
               "offset": 4
             },
             "endLine": {
-              "line": 38,
+              "line": 39,
               "offset": 118
             }
           },
@@ -514,11 +415,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 38,
+                  "line": 39,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 38,
+                  "line": 39,
                   "offset": 16
                 }
               }
@@ -549,14 +450,14 @@
           "diagnostics": [
             {
               "severity": "ERROR",
-              "message": "Data-event channel hotelResults of durable agent travelAgent is one-way (no response type is declared), so the send produces no readable turn result: discard the correlation token with _ = ... or declare a response type on the channel"
+              "message": "Durable agent travelAgent declares no data-event channel named hotelResults"
             }
           ]
         },
         "flags": 1
       },
       {
-        "id": "70652",
+        "id": "71644",
         "metadata": {
           "label": "Get Data Event Result",
           "description": "Read the agent's answer for a sent data event by its correlation token",
@@ -577,11 +478,11 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 39,
+              "line": 40,
               "offset": 4
             },
             "endLine": {
-              "line": 39,
+              "line": 40,
               "offset": 96
             }
           },
@@ -677,11 +578,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 39,
+                  "line": 40,
                   "offset": 11
                 },
                 "endLine": {
-                  "line": 39,
+                  "line": 40,
                   "offset": 17
                 }
               }

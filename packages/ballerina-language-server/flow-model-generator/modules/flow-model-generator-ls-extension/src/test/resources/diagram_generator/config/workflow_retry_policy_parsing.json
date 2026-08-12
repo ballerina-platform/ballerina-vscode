@@ -1,30 +1,30 @@
 {
   "start": {
-    "line": 43,
+    "line": 56,
     "offset": 0
   },
   "end": {
-    "line": 47,
+    "line": 61,
     "offset": 1
   },
   "source": "durable_agent_box.bal",
-  "description": "callActivity written with named activityFunction/args arguments hydrates the activity parameters instead of dropping the payload",
+  "description": "retryPolicy parsing robustness: a comma-bearing AutoRetry sub-value parses whole, a sentinel-like identifier round-trips as an opaque policy, and a named childWorkflow argument carries the node symbol",
   "diagram": {
     "fileName": "durable_agent_box.bal",
     "nodes": [
       {
-        "id": "77966",
+        "id": "89746",
         "metadata": {
           "label": "Start",
           "data": {
             "kind": "Workflow",
-            "label": "bookingFlow",
+            "label": "reconcileFlow",
             "isServiceFunction": false,
             "parameters": [
               "workflow:Context ctx",
-              "string bookingId"
+              "string billId"
             ],
-            "return": "json|error"
+            "return": "error?"
           }
         },
         "codedata": {
@@ -32,21 +32,21 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 44,
-              "offset": 80
+              "line": 56,
+              "offset": 75
             },
             "endLine": {
-              "line": 47,
+              "line": 60,
               "offset": 1
             }
           },
-          "sourceCode": "@workflow:Workflow\nfunction bookingFlow(workflow:Context ctx, string bookingId) returns json|error {\n    json booking = check ctx->callActivity(activityFunction = lookupBooking, args = {api: deskApi, bookingId: bookingId});\n    return booking;\n}"
+          "sourceCode": "@workflow:Workflow\nfunction reconcileFlow(workflow:Context ctx, string billId) returns error? {\n    json bill = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {maxRetries: int:max(2, 3), retryDelay: 1.5});\n    json receipt = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = opsNoRetryReviewers);\n    string childId = check ctx->runChildWorkflow(childWorkflow = childFlow, input = billId);\n}"
         },
         "returning": false,
         "flags": 0
       },
       {
-        "id": "76630",
+        "id": "88562",
         "metadata": {
           "label": "lookupBooking",
           "description": "Look up a booking activity",
@@ -63,15 +63,15 @@
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 45,
+              "line": 57,
               "offset": 4
             },
             "endLine": {
-              "line": 45,
-              "offset": 122
+              "line": 57,
+              "offset": 150
             }
           },
-          "sourceCode": "json booking = check ctx->callActivity(activityFunction = lookupBooking, args = {api: deskApi, bookingId: bookingId});",
+          "sourceCode": "json bill = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {maxRetries: int:max(2, 3), retryDelay: 1.5});",
           "inferredReturnType": "T"
         },
         "returning": false,
@@ -145,7 +145,7 @@
                 "selected": true
               }
             ],
-            "value": "bookingId",
+            "value": "billId",
             "placeholder": "string",
             "optional": false,
             "editable": true,
@@ -181,7 +181,7 @@
                 "selected": true
               }
             ],
-            "value": "NoRetry",
+            "value": "AutoRetry",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -313,6 +313,414 @@
                 "selected": true
               }
             ],
+            "value": "int:max(2, 3)",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay between retries in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "1.5",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the retry review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Exponential backoff multiplier"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "2.0",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Maximum delay cap in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "bill",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "durable_agent_box.bal",
+                "startLine": {
+                  "line": 57,
+                  "offset": 9
+                },
+                "endLine": {
+                  "line": 57,
+                  "offset": 13
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "json",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
+          }
+        },
+        "flags": 1
+      },
+      {
+        "id": "89532",
+        "metadata": {
+          "label": "lookupBooking",
+          "description": "Look up a booking activity",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.16.6.png"
+        },
+        "codedata": {
+          "node": "CONNECTION_ACTIVITY_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "lookupBooking",
+          "version": "0.0.0",
+          "lineRange": {
+            "fileName": "durable_agent_box.bal",
+            "startLine": {
+              "line": 58,
+              "offset": 4
+            },
+            "endLine": {
+              "line": 58,
+              "offset": 128
+            }
+          },
+          "sourceCode": "json receipt = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = opsNoRetryReviewers);",
+          "inferredReturnType": "T"
+        },
+        "returning": false,
+        "properties": {
+          "advanced": {
+            "metadata": {
+              "label": "Activity call configurations",
+              "description": "Activity call configurations"
+            },
+            "types": [
+              {
+                "fieldType": "ADVANCE_PARAM_LIST",
+                "selected": false
+              }
+            ],
+            "value": {},
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false
+          },
+          "api": {
+            "metadata": {
+              "label": "api",
+              "description": "Connection to use",
+              "connectors": [
+                {
+                  "codedata": {
+                    "node": "NEW_CONNECTION",
+                    "org": "ballerina",
+                    "module": "http",
+                    "packageName": "http",
+                    "object": "Client",
+                    "symbol": "init",
+                    "version": "2.16.6"
+                  },
+                  "addNewConnectionLabel": "Add new http connection"
+                }
+              ]
+            },
+            "types": [
+              {
+                "fieldType": "CONNECTION",
+                "selected": true
+              }
+            ],
+            "value": "deskApi",
+            "placeholder": "deskApi",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "searchNodesKind": "http"
+            }
+          },
+          "bookingId": {
+            "metadata": {
+              "label": "bookingId",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "TEXT",
+                "ballerinaType": "string",
+                "selected": false
+              },
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string",
+                "selected": true
+              }
+            ],
+            "value": "billId",
+            "placeholder": "string",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "bookingId"
+            }
+          },
+          "retryPolicy": {
+            "metadata": {
+              "label": "Retry Policy",
+              "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
+            },
+            "types": [
+              {
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
+                  {
+                    "label": "No Automatic Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Human Review",
+                    "value": "ManualRetry"
+                  },
+                  {
+                    "label": "opsNoRetryReviewers",
+                    "value": "opsNoRetryReviewers"
+                  }
+                ],
+                "selected": true
+              }
+            ],
+            "value": "opsNoRetryReviewers",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum number of retry attempts"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay between retries in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Exponential backoff multiplier (e.g. 2.0 doubles each delay)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Maximum delay cap in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "opsNoRetryReviewers": {}
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Automatic Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Human Review",
+                "value": "ManualRetry"
+              },
+              {
+                "id": "opsNoRetryReviewers",
+                "content": "opsNoRetryReviewers",
+                "value": "opsNoRetryReviewers"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum number of retry attempts"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
             "value": "3",
             "optional": true,
             "editable": true,
@@ -402,7 +810,7 @@
                 "selected": true
               }
             ],
-            "value": "booking",
+            "value": "receipt",
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -411,11 +819,11 @@
               "lineRange": {
                 "fileName": "durable_agent_box.bal",
                 "startLine": {
-                  "line": 45,
+                  "line": 58,
                   "offset": 9
                 },
                 "endLine": {
-                  "line": 45,
+                  "line": 58,
                   "offset": 16
                 }
               }
@@ -444,47 +852,170 @@
         "flags": 1
       },
       {
-        "id": "77519",
+        "id": "90488",
         "metadata": {
-          "label": "Return",
-          "description": "Value of 'booking'"
+          "label": "Run Child Workflow",
+          "description": "Start a child workflow and continue without waiting for its result",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
-          "node": "RETURN",
+          "node": "CHILD_WORKFLOW_RUN",
+          "org": "ballerina",
+          "module": "workflow",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "childFlow",
+          "version": "0.0.0",
           "lineRange": {
             "fileName": "durable_agent_box.bal",
             "startLine": {
-              "line": 46,
+              "line": 59,
               "offset": 4
             },
             "endLine": {
-              "line": 46,
-              "offset": 19
+              "line": 59,
+              "offset": 92
             }
           },
-          "sourceCode": "return booking;"
+          "sourceCode": "string childId = check ctx->runChildWorkflow(childWorkflow = childFlow, input = billId);"
         },
-        "returning": true,
+        "returning": false,
         "properties": {
-          "expression": {
+          "connection": {
             "metadata": {
-              "label": "Expression",
-              "description": "Return value"
+              "label": "Connection",
+              "description": "Connection to use",
+              "data": {
+                "connectorType": "Default"
+              }
             },
             "types": [
               {
-                "fieldType": "ACTION_OR_EXPRESSION",
+                "fieldType": "EXPRESSION",
                 "selected": true
               }
             ],
-            "value": "booking",
-            "optional": true,
+            "value": "ctx",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": true
+          },
+          "childWorkflow": {
+            "metadata": {
+              "label": "Child Workflow",
+              "description": "The child workflow function (must have `@Workflow`)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "function",
+                "selected": true
+              }
+            ],
+            "value": "childFlow",
+            "placeholder": "",
+            "optional": false,
             "editable": true,
             "advanced": false,
-            "hidden": false
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "childWorkflow"
+            }
+          },
+          "input": {
+            "metadata": {
+              "label": "Input",
+              "description": "Optional input for the child workflow. Must match the child workflow\nfunction's declared input parameter type (any `anydata` subtype)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "anydata",
+                "selected": true
+              }
+            ],
+            "value": "billId",
+            "placeholder": "{}",
+            "optional": true,
+            "editable": true,
+            "advanced": true,
+            "hidden": false,
+            "codedata": {
+              "kind": "DEFAULTABLE",
+              "originalName": "input"
+            },
+            "defaultValue": "{}"
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Trigger error flow"
+            },
+            "types": [
+              {
+                "fieldType": "FLAG",
+                "selected": true
+              }
+            ],
+            "value": true,
+            "optional": false,
+            "editable": true,
+            "advanced": true,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "childId",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "lineRange": {
+                "fileName": "durable_agent_box.bal",
+                "startLine": {
+                  "line": 59,
+                  "offset": 11
+                },
+                "endLine": {
+                  "line": 59,
+                  "offset": 18
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "string",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
           }
         },
-        "flags": 0
+        "flags": 1
       }
     ],
     "connections": [

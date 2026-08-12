@@ -20,11 +20,12 @@ function lookupBooking(http:Client api, string bookingId) returns json|error {
 final workflow:DurableAgent travelAgent = check new ({
     systemPrompt: {role: "Travel assistant", instructions: "Plan trips end to end."},
     model: deskModel,
+    inputType: map<json>,
     activities: [
         {activity: lookupBooking, requiresApproval: true, retryPolicy: {maxRetries: 2, retryDelay: 1.5}, bindings: {api: deskApi}}
     ],
     events: [
-        {name: "hotelResults", request: json}
+        {name: "hotelResults", request: json, response: string}
     ],
     humanTasks: [
         {name: "approveItinerary", roles: "travel-lead", title: "Approve the itinerary"}
@@ -44,4 +45,17 @@ function driveTravelAgent() returns error? {
 function bookingFlow(workflow:Context ctx, string bookingId) returns json|error {
     json booking = check ctx->callActivity(activityFunction = lookupBooking, args = {api: deskApi, bookingId: bookingId});
     return booking;
+}
+
+final workflow:HumanReview opsNoRetryReviewers = "ops";
+
+@workflow:Workflow
+function childFlow(workflow:Context ctx, string id) returns error? {
+}
+
+@workflow:Workflow
+function reconcileFlow(workflow:Context ctx, string billId) returns error? {
+    json bill = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = {maxRetries: int:max(2, 3), retryDelay: 1.5});
+    json receipt = check ctx->callActivity(lookupBooking, {api: deskApi, bookingId: billId}, retryPolicy = opsNoRetryReviewers);
+    string childId = check ctx->runChildWorkflow(childWorkflow = childFlow, input = billId);
 }
