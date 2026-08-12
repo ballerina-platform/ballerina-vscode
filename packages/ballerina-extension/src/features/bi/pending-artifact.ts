@@ -43,34 +43,6 @@ import {
 /** Payload file location inside the scaffolded project (target/ is gitignored by the scaffold). */
 const PENDING_ARTIFACT_RELATIVE_PATH = path.join("target", ".wizard-pending-artifact.json");
 
-let finishingIntegrationCreate = false;
-
-/**
- * Whether a Create Integration submit is being finished right now.
- *
- * Scaffolding a package makes the language server publish artifacts for a package the project
- * structure does not know yet, and `updateProjectArtifacts` answers that by navigating to the
- * workspace overview. During a create that is wrong: the create decides where to land, and the
- * fallback would replace the new integration's overview a moment after it opened.
- */
-export function isFinishingIntegrationCreate(): boolean {
-    return finishingIntegrationCreate;
-}
-
-/**
- * Runs `task` with {@link isFinishingIntegrationCreate} reporting true. Not re-entrant, and
- * does not need to be: the post-reload path runs once per activation, and the in-place path is
- * driven by the wizard webview, which is not open then.
- */
-async function whileFinishingIntegrationCreate<T>(task: () => PromiseLike<T>): Promise<T> {
-    finishingIntegrationCreate = true;
-    try {
-        return await task();
-    } finally {
-        finishingIntegrationCreate = false;
-    }
-}
-
 /** Human-readable labels for progress and error messages, per artifact kind. */
 const ARTIFACT_KIND_LABELS = INTEGRATION_ARTIFACT_LABELS;
 
@@ -128,10 +100,6 @@ export async function schedulePendingIntegration(schedule: PendingIntegrationSch
  * activation; never throws. No progress toast: the startup screen already narrates the wait.
  */
 export async function checkAndRunPendingArtifact(): Promise<void> {
-    return whileFinishingIntegrationCreate(runPendingArtifact);
-}
-
-async function runPendingArtifact(): Promise<void> {
     try {
         const stored = readPendingIntegrationPointer();
         if (!stored) {
@@ -247,10 +215,10 @@ export async function generateArtifactInPlace(
     }
 
     try {
-        const claimedView = await whileFinishingIntegrationCreate(() => window.withProgress(
+        const claimedView = await window.withProgress(
             { location: ProgressLocation.Notification, title: `Generating your ${label}...` },
             () => generatePendingArtifact(payload, packageRoot)
-        ));
+        );
         if (!claimedView) {
             openPackageOverview(packageRoot);
         }

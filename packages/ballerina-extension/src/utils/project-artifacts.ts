@@ -22,7 +22,6 @@ import { openView, StateMachine } from "../stateMachine";
 import { ExtendedLangClient } from "../core/extended-language-client";
 import { ArtifactsUpdated, ArtifactNotificationHandler } from "./project-artifacts-handler";
 import { isLibraryProject } from "./config";
-import { isFinishingIntegrationCreate } from "../features/bi/pending-artifact";
 
 // Tracks projects whose artifacts could not be fetched (e.g., the initial load raced with a
 // missing-module pull and the compilation failed). Used to recover with a full rebuild once
@@ -303,14 +302,7 @@ async function rebuildAndPublishArtifacts(
         const alreadyViewingAddedPackage =
             StateMachine.context().view === MACHINE_VIEW.PackageOverview &&
             untrackedProjectPaths.some((p) => isSamePath(p, StateMachine.context().projectPath));
-        // That check alone only holds once the create flow has already navigated, and it
-        // races the rebuild awaited above: the wizard's post-reload path generates the
-        // artifact BEFORE it navigates, so a notification resolving in that window sees
-        // whatever the window was showing beforehand and sends it to the workspace
-        // overview — which is the flash of the new integration being replaced a moment
-        // after it appeared. While a create is being finished it owns the landing view
-        // outright, whichever order the two happen to complete in.
-        if (untrackedProjectPaths.length > 0 && !alreadyViewingAddedPackage && !isFinishingIntegrationCreate()) {
+        if (untrackedProjectPaths.length > 0 && !alreadyViewingAddedPackage) {
             // Where the fire-and-forget refresh this replaces used to land the window
             // when a package joined the project: the overview is the view guaranteed to
             // be consistent with the rebuilt structure.
