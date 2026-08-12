@@ -347,7 +347,12 @@ const MainPanel = () => {
                             if (await rpcClient.getCommonRpcClient().agentBuilderModeEnabled()) {
                                 const { AgentBuilderOverview } = await import("./views/BI/AgentBuilderOverview");
                                 if (isStaleNavigation()) return;
-                                setViewComponent(<AgentBuilderOverview projectPath={value.projectPath} />);
+                                const agentFocus = value.documentUri && value.position
+                                    ? { path: value.documentUri, startLine: value.position.startLine, requestId: navKey }
+                                    : undefined;
+                                setViewComponent(
+                                    <AgentBuilderOverview projectPath={value.projectPath} agentFocus={agentFocus} />
+                                );
                                 break;
                             }
                             const { PackageOverview } = await import("./views/BI/PackageOverview");

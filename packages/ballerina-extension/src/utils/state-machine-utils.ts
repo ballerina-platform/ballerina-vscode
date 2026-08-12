@@ -482,6 +482,17 @@ function findViewByArtifact(
                     dataMapperDepth: 0
                 };
             case DIRECTORY_MAP.AGENT:
+                if (StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+                    return {
+                        location: {
+                            view: MACHINE_VIEW.PackageOverview,
+                            projectPath,
+                            documentUri: dir.path,
+                            position: dir.position,
+                        },
+                        dataMapperDepth: 0
+                    };
+                }
                 return {
                     location: {
                         view: MACHINE_VIEW.BIDiagram,

@@ -98,11 +98,18 @@ const MenuItemLabel = styled.div`
     min-width: 180px;
 `;
 
-interface AgentBuilderOverviewProps {
-    projectPath: string;
+export interface AgentFocusRequest {
+    path: string;
+    startLine: number;
+    requestId: number;
 }
 
-export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps) {
+interface AgentBuilderOverviewProps {
+    projectPath: string;
+    agentFocus?: AgentFocusRequest;
+}
+
+export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOverviewProps) {
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const [projectStructure, setProjectStructure] = useState<ProjectStructure>();
@@ -149,6 +156,23 @@ export function AgentBuilderOverview({ projectPath }: AgentBuilderOverviewProps)
         () => agents.find((agent) => agentKey(agent) === selectedKey) ?? agents[0],
         [agents, selectedKey]
     );
+
+    const appliedFocusRef = useRef<number>();
+
+    useEffect(() => {
+        if (!agentFocus || appliedFocusRef.current === agentFocus.requestId) {
+            return;
+        }
+        const match = agents.find(
+            (agent) => isSamePath(agent.path, agentFocus.path) && (agent.position?.startLine ?? 0) === agentFocus.startLine
+        );
+        if (!match) {
+            return;
+        }
+        appliedFocusRef.current = agentFocus.requestId;
+        setSelectedKey(agentKey(match));
+        setShowAddAgent(false);
+    }, [agents, agentFocus]);
 
     const integrationTitle = projectStructure?.projectTitle || projectStructure?.projectName;
     const deployableIntegrationTypes = useMemo(() => getIntegrationTypes(projectStructure), [projectStructure]);
