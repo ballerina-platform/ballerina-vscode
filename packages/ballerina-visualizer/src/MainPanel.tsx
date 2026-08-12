@@ -39,6 +39,7 @@ import styled from "@emotion/styled";
 import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
 import { useSuppressAgentStatusOrb, viewHidesAgentStatusOrb } from "./components/AgentStatusOrb/shared";
+import { useTraceAnimationBridge } from "./hooks/useTraceAnimationBridge";
 import { handleRedo, handleUndo } from "./utils/utils";
 import { STKindChecker } from "@wso2/syntax-tree";
 import { URI, Utils } from "vscode-uri";
@@ -211,6 +212,7 @@ const MainPanel = () => {
     const previousNavTargetRef = useRef<string | undefined>(undefined);
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
+    useTraceAnimationBridge();
 
     const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
 
