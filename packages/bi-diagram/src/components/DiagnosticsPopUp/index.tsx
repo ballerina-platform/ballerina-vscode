@@ -257,7 +257,7 @@ export function DiagnosticsPopUp(props: DiagnosticsPopUpProps) {
     };
 
     const disabledFixTooltip = !isUserAuthenticated
-        ? "You need to be logged into WSO2 Integrator Copilot to fix diagnostics"
+        ? "You need to be logged into WSO2 Agent Builder Intelligence to fix diagnostics"
         : !targetRange
             ? "No source location available for diagnostics"
             : diagnosticMessages.length === 0

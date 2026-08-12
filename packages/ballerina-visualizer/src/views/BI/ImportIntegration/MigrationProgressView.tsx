@@ -169,7 +169,7 @@ export function MigrationProgressView({
                                 <RadioInput type="radio" name="ai-enhancement-mode-report" checked={!aiEnhancementEnabled} onChange={() => setAiEnhancementEnabled(false)} />
                                 <RadioContent>
                                     <RadioTitle>Skip for Now, Enhance Later</RadioTitle>
-                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from the WSO2 Integrator Copilot.</RadioDescription>
+                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from the WSO2 Agent Builder Intelligence.</RadioDescription>
                                 </RadioContent>
                             </RadioOption>
                         </RadioGroup>

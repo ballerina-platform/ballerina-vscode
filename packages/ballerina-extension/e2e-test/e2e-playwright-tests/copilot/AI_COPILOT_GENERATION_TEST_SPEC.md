@@ -2,7 +2,7 @@
 
 ## Application Overview
 
-The AI Copilot Generation feature in WSO2 Integrator: BI allows users to generate Ballerina code using AI assistance. Users can generate code from natural language descriptions, create hello world examples, and transform existing code (e.g., change to HTTP service). The generation feature is accessible from the Design section via the "Generate" button and requires users to be logged in to WSO2 Integrator Copilot (either via BI Intel or BYOK).
+The AI Copilot Generation feature in WSO2 Integrator: BI allows users to generate Ballerina code using AI assistance. Users can generate code from natural language descriptions, create hello world examples, and transform existing code (e.g., change to HTTP service). The generation feature is accessible from the Design section via the "Generate" button and requires users to be logged in to WSO2 Agent Builder Intelligence (either via BI Intel or BYOK).
 
 ## UI Elements Identified
 
@@ -48,7 +48,7 @@ The following test IDs should be added for better testability:
 ### 1. Generate Hello world (Description: Generate a hello world)
 
 **Steps:**
-1. Ensure user is logged in to WSO2 Integrator Copilot (BI Intel or BYOK)
+1. Ensure user is logged in to WSO2 Agent Builder Intelligence (BI Intel or BYOK)
 2. Navigate to BI extension view
 3. Verify "Generate" button is visible in Design section
 4. Click on "Generate" button
@@ -83,7 +83,7 @@ The following test IDs should be added for better testability:
 ### 2. Change to Hello world API (Description: Change the existing code to HTTP service)
 
 **Steps:**
-1. Ensure user is logged in to WSO2 Integrator Copilot
+1. Ensure user is logged in to WSO2 Agent Builder Intelligence
 2. Create or open an existing Ballerina file with some code
 3. Navigate to BI extension view
 4. Click on "Generate" button

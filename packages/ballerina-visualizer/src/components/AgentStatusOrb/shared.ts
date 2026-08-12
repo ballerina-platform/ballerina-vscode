@@ -202,7 +202,7 @@ export function activeStateLabel(status: AgentRunStatus): string {
         case "error":
             return status.label ?? "Copilot hit an error";
         default:
-            return "Chat with WSO2 Integrator Copilot";
+            return "Chat with WSO2 Agent Builder Intelligence";
     }
 }
 

@@ -20,7 +20,7 @@ import { ErrorCode } from "@wso2/ballerina-core";
 
 export const NOT_LOGGED_IN: ErrorCode = {
     code: 1,
-    message: "You need to be logged in to use WSO2 Integrator Copilot Features. Please login and try again."
+    message: "You need to be logged in to use WSO2 Agent Builder Intelligence Features. Please login and try again."
 };
 
 export const TIMEOUT: ErrorCode = {

@@ -359,7 +359,7 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
         const action = await window.showInformationMessage(
-            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integrator Copilot'.",
+            "Migration AI enhancement was paused. You can resume it from 'WSO2 Agent Builder Intelligence'.",
             "Open Copilot"
         );
 
@@ -372,7 +372,7 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
         const action = await window.showInformationMessage(
-            "Your migrated project is ready. Open 'WSO2 Integrator Copilot' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
+            "Your migrated project is ready. Open 'WSO2 Agent Builder Intelligence' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
             "Open Copilot"
         );
         if (action === "Open Copilot") {
@@ -576,7 +576,7 @@ interface StageRunnerOpts {
 function shortStageName(name: string): string {
     const stripped = name.replace(/^\[.*?\]\s*/, ""); // remove "[pkgName] " prefix
     if (stripped.includes("Fidelity Check")) { return "Fidelity Check"; }
-    if (stripped.includes("Diagnostics")) {    return "Diagnostics"; }
+    if (stripped.includes("Diagnostics")) { return "Diagnostics"; }
     if (stripped.includes("Test Refinement")) { return "Test Refinement"; }
     if (stripped.includes("Final Validation")) { return "Final Validation"; }
     if (stripped.includes("Workspace Validation")) { return "Workspace Validation"; }
@@ -726,7 +726,7 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
 let _migrationAbortController: AbortController | undefined;
 
 /** Module-level selected model ID (set by the UI's model selector). */
-let _selectedModelId: string = "wso2"; // default to WSO2 Integrator Copilot
+let _selectedModelId: string = "wso2"; // default to WSO2 Agent Builder Intelligence
 
 /**
  * Update the selected model ID from the webview.
@@ -977,7 +977,7 @@ async function ensureAuthenticated(): Promise<boolean> {
     }
 
     // Tell the wizard UI we're signing in
-    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integrator Copilot...\n\n" };
+    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Agent Builder Intelligence...\n\n" };
     sendVisualizerMigrationNotification(signingInMsg);
     _wizardChatEmitter.fire(signingInMsg);
 
@@ -1047,7 +1047,7 @@ export function isAIAuthenticated(): boolean {
 }
 
 /**
- * Triggers the WSO2 Integrator Copilot browser sign-in flow and waits until the user is
+ * Triggers the WSO2 Agent Builder Intelligence browser sign-in flow and waits until the user is
  * authenticated, cancels, or the 2-minute timeout elapses.
  *
  * Unlike `ensureAuthenticated`, this function does NOT emit any messages to a
@@ -1309,7 +1309,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     if (!isAuthenticated) {
         eventHandler({
             type: "error",
-            content: "Please sign in to WSO2 Integrator Copilot to use AI enhancement. Please retry the AI Enhancement step.",
+            content: "Please sign in to WSO2 Agent Builder Intelligence to use AI enhancement. Please retry the AI Enhancement step.",
         });
         return;
     }
