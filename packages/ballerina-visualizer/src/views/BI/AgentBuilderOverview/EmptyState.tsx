@@ -91,7 +91,7 @@ const Intro = styled.div`
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    margin-top: 24px;
+    margin-top: 8px;
 `;
 
 const OrbHolder = styled.div`
@@ -101,6 +101,14 @@ const OrbHolder = styled.div`
     flex: none;
     border-radius: 50%;
     box-shadow: ${ambientGlow(ACCENT_FRAME, HERO_GLOW)};
+`;
+
+const CopilotName = styled.div`
+    margin-top: 20px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 14px;
+    font-weight: 400;
+    text-align: center;
 `;
 
 const Heading = styled.h2`
@@ -300,7 +308,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
             : state === "error"
                 ? "Something went wrong"
                 : state === "completed"
-                    ? "Copilot is done"
+                    ? "WSO2 Agent Builder Intelligence is done"
                     : "Building your agent";
     const showOpenCopilot = !aiPanelOpen;
 
@@ -347,16 +355,16 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                     {showOpenCopilot && (
                         <ScratchLine>
                             <LinkButton type="button" onClick={openCopilot}>
-                                Open Copilot
+                                Open WSO2 Agent Builder Intelligence
                             </LinkButton>
                         </ScratchLine>
                     )}
                 </>
             ) : (
                 <>
+                    <CopilotName>WSO2 Agent Builder Intelligence</CopilotName>
                     <Intro>
                         <Heading>What should your agent do?</Heading>
-                        <Subtitle>Describe what you want your agent to do, and Agent Builder will create a working agent for you.</Subtitle>
                     </Intro>
 
                     <ComposerRow>
@@ -372,17 +380,17 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                             send(text);
                                         }
                                     }}
-                                    placeholder="Describe it in a sentence…"
+                                    placeholder="Describe what you want your agent to do…"
                                     aria-label="Describe the agent you want to build"
                                 />
                                 <ComposerFooter>
-                                    <RoundButton type="button" title="Open Copilot" onClick={openCopilot}>
+                                    <RoundButton type="button" title="Open WSO2 Agent Builder Intelligence" onClick={openCopilot}>
                                         <Codicon name="add" />
                                     </RoundButton>
                                     <RoundButton
                                         type="button"
-                                        title="Send to Copilot"
-                                        aria-label="Send to Copilot"
+                                        title="Send to WSO2 Agent Builder Intelligence"
+                                        aria-label="Send to WSO2 Agent Builder Intelligence"
                                         disabled={!text.trim()}
                                         onClick={() => send(text)}
                                         primary={true}
