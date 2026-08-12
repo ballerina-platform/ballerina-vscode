@@ -35,7 +35,6 @@ import {
     clearPendingIntegrationPointer,
     isPendingPointerFresh,
     PendingIntegrationArtifactPointer,
-    PendingIntegrationLanding,
     readPendingIntegrationPointer,
     writePendingIntegrationPointer,
 } from "./startup-progress";
@@ -92,14 +91,12 @@ export interface PendingIntegrationSchedule {
     isNewProject?: boolean;
     /** Defaults to "integration" on read. */
     componentLabel?: IntegrationComponentLabel;
-    /** Where the reloaded window should land. */
-    landing: PendingIntegrationLanding;
 }
 
 /**
  * Records the create so the reloaded window can finish it. Written even for an empty
- * integration or a library — it is also what lets the new window narrate the create and
- * know where to land. Call right before `openInVSCode(openRoot)`.
+ * integration or a library — it is also what lets the new window narrate the create.
+ * Call right before `openInVSCode(openRoot)`.
  */
 export async function schedulePendingIntegration(schedule: PendingIntegrationSchedule): Promise<void> {
     const { packageRoot, payload } = schedule;
@@ -117,11 +114,9 @@ export async function schedulePendingIntegration(schedule: PendingIntegrationSch
         projectName: schedule.projectName,
         isNewProject: schedule.isNewProject,
         componentLabel: schedule.componentLabel,
-        landing: schedule.landing,
     });
     console.log(
-        `[IntegrationWizard] Scheduled pending ${payload?.kind ?? "empty"} integration for project: ${packageRoot} ` +
-        `(landing=${schedule.landing})`
+        `[IntegrationWizard] Scheduled pending ${payload?.kind ?? "empty"} integration for project: ${packageRoot}`
     );
 }
 
@@ -167,19 +162,17 @@ async function runPendingArtifact(): Promise<void> {
             return;
         }
 
-        const landOnPackageOverview = resolveLandsOnPackage(stored, opensStoredPackage);
-
         // An empty integration has no payload: there is nothing to generate, only
         // the landing view below to open.
         if (!payload) {
-            ensureLandedOnNewIntegration(stored, landOnPackageOverview);
+            ensureLandedOnNewIntegration(stored);
             return;
         }
 
         const label = ARTIFACT_KIND_LABELS[payload.kind];
         if (!label || payload.version !== 1) {
             console.error(`[IntegrationWizard] Unsupported pending artifact payload:`, payload);
-            ensureLandedOnNewIntegration(stored, landOnPackageOverview);
+            ensureLandedOnNewIntegration(stored);
             return;
         }
 
@@ -187,10 +180,10 @@ async function runPendingArtifact(): Promise<void> {
         console.log(
             `[IntegrationWizard] Pending artifact: kind=${payload.kind}, projectRoot=${stored.projectRoot}, ` +
             `opensStoredPackage=${opensStoredPackage}, insideOpenWorkspace=${insideOpenWorkspace}, ` +
-            `addedIntoWorkspace=${addedIntoWorkspace}, landOnPackageOverview=${landOnPackageOverview}`
+            `addedIntoWorkspace=${addedIntoWorkspace}`
         );
         try {
-            await generatePendingArtifact(payload, stored.projectRoot, landOnPackageOverview);
+            await generatePendingArtifact(payload, stored.projectRoot);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             console.error(`[IntegrationWizard] Failed to generate pending ${payload.kind} artifact:`, error);
@@ -201,23 +194,10 @@ async function runPendingArtifact(): Promise<void> {
         }
         // Whatever generation did (navigated, didn't, or failed), never leave the window
         // on the startup screen.
-        ensureLandedOnNewIntegration(stored, landOnPackageOverview);
+        ensureLandedOnNewIntegration(stored);
     } catch (error) {
         console.error("[IntegrationWizard] Unexpected error while checking pending artifact:", error);
     }
-}
-
-/**
- * Whether this create lands on the new package's own overview rather than the project
- * overview. The submit already decided (`landing`); a pointer written by an older build
- * has no such field, so it falls back to the previous rule — package overview only when
- * the package itself is the opened folder.
- */
-function resolveLandsOnPackage(
-    pointer: PendingIntegrationArtifactPointer,
-    opensStoredPackage: boolean
-): boolean {
-    return pointer.landing ? pointer.landing === "package" : opensStoredPackage;
 }
 
 /**
@@ -225,21 +205,14 @@ function resolveLandsOnPackage(
  * nothing has navigated yet (machine still in `extensionReady`), so it stays a no-op on
  * paths that navigate themselves.
  */
-function ensureLandedOnNewIntegration(
-    pointer: PendingIntegrationArtifactPointer,
-    landOnPackageOverview: boolean
-): void {
+function ensureLandedOnNewIntegration(pointer: PendingIntegrationArtifactPointer): void {
     // Read the raw machine value rather than `StateMachine.state()`: the shared
     // `MachineStateValue` type predates the startup states and does not include
     // `extensionReady`, which is exactly the one being tested here.
     if (StateMachine.service().getSnapshot().value !== "extensionReady") {
         return;
     }
-    if (landOnPackageOverview) {
-        openPackageOverview(pointer.projectRoot);
-        return;
-    }
-    openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.WorkspaceOverview });
+    openPackageOverview(pointer.projectRoot);
 }
 
 /** Reads and immediately deletes the payload file; undefined when missing (empty integration) or unreadable. */
@@ -274,8 +247,7 @@ function consumePendingArtifactPayload(projectRoot: string): PendingIntegrationA
  */
 export async function generateArtifactInPlace(
     packageRoot: string,
-    payload: PendingIntegrationArtifactPayload,
-    landOnPackageOverview = false
+    payload: PendingIntegrationArtifactPayload
 ): Promise<void> {
     const label = ARTIFACT_KIND_LABELS[payload.kind];
     if (!label || payload.version !== 1) {
@@ -286,11 +258,11 @@ export async function generateArtifactInPlace(
     try {
         await whileFinishingIntegrationCreate(() => window.withProgress(
             { location: ProgressLocation.Notification, title: `Generating your ${label}...` },
-            () => generatePendingArtifact(payload, packageRoot, landOnPackageOverview)
+            () => generatePendingArtifact(payload, packageRoot)
         ));
-        // A non-silent refresh lands on the workspace overview, which would clobber the
-        // package overview navigated to above.
-        StateMachine.refreshProjectInfo({ silent: landOnPackageOverview });
+        // Silent: a non-silent refresh lands on the workspace overview, which would clobber
+        // the package overview navigated to above.
+        StateMachine.refreshProjectInfo({ silent: true });
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[IntegrationWizard] Failed to generate ${payload.kind} artifact in place:`, error);
@@ -303,14 +275,13 @@ export async function generateArtifactInPlace(
 
 /**
  * Runs the kind-specific generation and navigates to the result. All files target
- * `projectRoot` (the new package). `landOnPackageOverview`: true when the new package is
- * the thing to show (standalone, or added into an existing project); false when the
- * project itself was just created, so the window stays on the project overview.
+ * `projectRoot` (the new package), which is also where the window lands: the integration
+ * the user just created is the thing they came here to see, whether it went into a project
+ * that already existed or one this same submit created.
  */
 async function generatePendingArtifact(
     payload: PendingIntegrationArtifactPayload,
-    projectRoot: string,
-    landOnPackageOverview: boolean
+    projectRoot: string
 ): Promise<void> {
     switch (payload.kind) {
         case "SERVICE": {
@@ -324,9 +295,7 @@ async function generatePendingArtifact(
                 projectPath: projectRoot,
                 serviceInitModel: payload.serviceInitModel,
             });
-            if (landOnPackageOverview) {
-                openPackageOverview(projectRoot);
-            }
+            openPackageOverview(projectRoot);
             return;
         }
         case "AUTOMATION":
@@ -341,9 +310,7 @@ async function generatePendingArtifact(
                 flowNode: payload.flowNode,
                 isFunctionNodeUpdate: true,
             });
-            if (landOnPackageOverview) {
-                openPackageOverview(projectRoot);
-            }
+            openPackageOverview(projectRoot);
             return;
         }
         case "AI_CHAT_AGENT": {
