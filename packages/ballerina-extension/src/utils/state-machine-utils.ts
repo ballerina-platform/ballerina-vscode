@@ -90,13 +90,9 @@ export function resolveSingleIntegrationOverride(
     if (!soleIntegration) {
         return undefined;
     }
-    // An integration with nothing in it has no overview worth showing, so agent builder mode
-    // opens the Add Agent view instead — the same one the Agents "+" opens. Re-evaluated per
-    // navigation, so the first artifact created ends the redirect.
-    if (agentBuilderMode && isEmptyPackage(soleIntegration)) {
-        return { view: MACHINE_VIEW.AddAgent, projectPath: soleIntegration.projectPath };
-    }
-    return { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath };
+    return soleIntegration
+        ? { view: MACHINE_VIEW.PackageOverview, projectPath: soleIntegration.projectPath }
+        : undefined;
 }
 
 export async function getView(documentUri: string, position: NodePosition, projectPath: string): Promise<HistoryEntry> {
