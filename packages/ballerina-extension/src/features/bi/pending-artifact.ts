@@ -43,6 +43,34 @@ import {
 /** Payload file location inside the scaffolded project (target/ is gitignored by the scaffold). */
 const PENDING_ARTIFACT_RELATIVE_PATH = path.join("target", ".wizard-pending-artifact.json");
 
+/**
+ * Depth rather than a boolean: the in-place and post-reload paths can overlap, and the first
+ * one to finish must not clear the flag out from under the other.
+ */
+let integrationCreateDepth = 0;
+
+/**
+ * Whether a Create Integration submit is being finished right now.
+ *
+ * Scaffolding a package makes the language server publish artifacts for a package the project
+ * structure does not know yet, and `updateProjectArtifacts` answers that by navigating to the
+ * workspace overview. During a create that is wrong: the create flow decides where to land, and
+ * the fallback would replace the new integration's overview a moment after it opened.
+ */
+export function isFinishingIntegrationCreate(): boolean {
+    return integrationCreateDepth > 0;
+}
+
+/** Runs `task` with {@link isFinishingIntegrationCreate} reporting true. */
+async function whileFinishingIntegrationCreate<T>(task: () => PromiseLike<T>): Promise<T> {
+    integrationCreateDepth++;
+    try {
+        return await task();
+    } finally {
+        integrationCreateDepth--;
+    }
+}
+
 /** Human-readable labels for progress and error messages, per artifact kind. */
 const ARTIFACT_KIND_LABELS = INTEGRATION_ARTIFACT_LABELS;
 
@@ -104,6 +132,10 @@ export async function schedulePendingIntegration(schedule: PendingIntegrationSch
  * activation; never throws. No progress toast: the startup screen already narrates the wait.
  */
 export async function checkAndRunPendingArtifact(): Promise<void> {
+    return whileFinishingIntegrationCreate(runPendingArtifact);
+}
+
+async function runPendingArtifact(): Promise<void> {
     try {
         const stored = readPendingIntegrationPointer();
         if (!stored) {
@@ -252,10 +284,10 @@ export async function generateArtifactInPlace(
     }
 
     try {
-        await window.withProgress(
+        await whileFinishingIntegrationCreate(() => window.withProgress(
             { location: ProgressLocation.Notification, title: `Generating your ${label}...` },
             () => generatePendingArtifact(payload, packageRoot, landOnPackageOverview)
-        );
+        ));
         // A non-silent refresh lands on the workspace overview, which would clobber the
         // package overview navigated to above.
         StateMachine.refreshProjectInfo({ silent: landOnPackageOverview });
