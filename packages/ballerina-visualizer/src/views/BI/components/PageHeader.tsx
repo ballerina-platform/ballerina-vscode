@@ -87,6 +87,18 @@ const HeaderControls = styled.div`
     gap: 8px;
     align-items: center;
     flex-shrink: 0;
+
+    vscode-button[appearance="icon"] {
+        transition: background-color 150ms ease, color 150ms ease;
+    }
+
+    vscode-button[appearance="icon"]:active {
+        background: var(--vscode-toolbar-activeBackground, rgba(90, 93, 94, 0.5));
+    }
+
+    vscode-button[appearance="icon"]:active::part(control) {
+        background: transparent;
+    }
 `;
 
 interface PageHeaderProps {
