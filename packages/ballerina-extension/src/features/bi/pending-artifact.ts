@@ -165,14 +165,14 @@ async function runPendingArtifact(): Promise<void> {
         // An empty integration has no payload: there is nothing to generate, only
         // the landing view below to open.
         if (!payload) {
-            ensureLandedOnNewIntegration(stored);
+            openPackageOverview(stored.projectRoot);
             return;
         }
 
         const label = ARTIFACT_KIND_LABELS[payload.kind];
         if (!label || payload.version !== 1) {
             console.error(`[IntegrationWizard] Unsupported pending artifact payload:`, payload);
-            ensureLandedOnNewIntegration(stored);
+            openPackageOverview(stored.projectRoot);
             return;
         }
 
@@ -182,8 +182,9 @@ async function runPendingArtifact(): Promise<void> {
             `opensStoredPackage=${opensStoredPackage}, insideOpenWorkspace=${insideOpenWorkspace}, ` +
             `addedIntoWorkspace=${addedIntoWorkspace}`
         );
+        let claimedView = false;
         try {
-            await generatePendingArtifact(payload, stored.projectRoot);
+            claimedView = await generatePendingArtifact(payload, stored.projectRoot);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             console.error(`[IntegrationWizard] Failed to generate pending ${payload.kind} artifact:`, error);
@@ -192,27 +193,16 @@ async function runPendingArtifact(): Promise<void> {
                 `Your integration was created; you can add the artifact from the Artifacts panel.`
             );
         }
-        // Whatever generation did (navigated, didn't, or failed), never leave the window
-        // on the startup screen.
-        ensureLandedOnNewIntegration(stored);
+        // Unconditional, and it has to be: this runs after awaiting generation, and the
+        // project explorer's own startup navigation lands during that await. Standing down
+        // because something had already navigated is what left the window on the workspace
+        // overview — a create is the last word on where a create ends up.
+        if (!claimedView) {
+            openPackageOverview(stored.projectRoot);
+        }
     } catch (error) {
         console.error("[IntegrationWizard] Unexpected error while checking pending artifact:", error);
     }
-}
-
-/**
- * Guarantees the window lands on a real view after a wizard create. Acts only when
- * nothing has navigated yet (machine still in `extensionReady`), so it stays a no-op on
- * paths that navigate themselves.
- */
-function ensureLandedOnNewIntegration(pointer: PendingIntegrationArtifactPointer): void {
-    // Read the raw machine value rather than `StateMachine.state()`: the shared
-    // `MachineStateValue` type predates the startup states and does not include
-    // `extensionReady`, which is exactly the one being tested here.
-    if (StateMachine.service().getSnapshot().value !== "extensionReady") {
-        return;
-    }
-    openPackageOverview(pointer.projectRoot);
 }
 
 /** Reads and immediately deletes the payload file; undefined when missing (empty integration) or unreadable. */
@@ -256,10 +246,13 @@ export async function generateArtifactInPlace(
     }
 
     try {
-        await whileFinishingIntegrationCreate(() => window.withProgress(
+        const claimedView = await whileFinishingIntegrationCreate(() => window.withProgress(
             { location: ProgressLocation.Notification, title: `Generating your ${label}...` },
             () => generatePendingArtifact(payload, packageRoot)
         ));
+        if (!claimedView) {
+            openPackageOverview(packageRoot);
+        }
         // Silent: a non-silent refresh lands on the workspace overview, which would clobber
         // the package overview navigated to above.
         StateMachine.refreshProjectInfo({ silent: true });
@@ -274,15 +267,18 @@ export async function generateArtifactInPlace(
 }
 
 /**
- * Runs the kind-specific generation and navigates to the result. All files target
- * `projectRoot` (the new package), which is also where the window lands: the integration
- * the user just created is the thing they came here to see, whether it went into a project
- * that already existed or one this same submit created.
+ * Runs the kind-specific generation. All files target `projectRoot` (the new package).
+ *
+ * Returns whether generation claimed the view for a destination of its own, in which case the
+ * caller leaves it alone. Only the agent does that — it hands off to a wizard rather than
+ * finishing here. Everything else leaves the caller to land on the new integration, which is
+ * the thing the user came to see whether it went into a project that already existed or one
+ * this same submit created.
  */
 async function generatePendingArtifact(
     payload: PendingIntegrationArtifactPayload,
     projectRoot: string
-): Promise<void> {
+): Promise<boolean> {
     switch (payload.kind) {
         case "SERVICE": {
             if (!payload.serviceInitModel) {
@@ -295,8 +291,7 @@ async function generatePendingArtifact(
                 projectPath: projectRoot,
                 serviceInitModel: payload.serviceInitModel,
             });
-            openPackageOverview(projectRoot);
-            return;
+            return false;
         }
         case "AUTOMATION":
         case "WORKFLOW": {
@@ -310,8 +305,7 @@ async function generatePendingArtifact(
                 flowNode: payload.flowNode,
                 isFunctionNodeUpdate: true,
             });
-            openPackageOverview(projectRoot);
-            return;
+            return false;
         }
         case "AI_CHAT_AGENT": {
             // Pragmatic v1: the agent's multi-RPC orchestration stays webview-side —
@@ -321,7 +315,7 @@ async function generatePendingArtifact(
                 view: MACHINE_VIEW.AIChatAgentWizard,
                 identifier: payload.aiAgent?.name,
             });
-            return;
+            return true;
         }
         default:
             throw new Error(`Unsupported artifact kind: ${(payload as PendingIntegrationArtifactPayload).kind}`);
