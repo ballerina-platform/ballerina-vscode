@@ -43,31 +43,31 @@ import {
 /** Payload file location inside the scaffolded project (target/ is gitignored by the scaffold). */
 const PENDING_ARTIFACT_RELATIVE_PATH = path.join("target", ".wizard-pending-artifact.json");
 
-/**
- * Depth rather than a boolean: the in-place and post-reload paths can overlap, and the first
- * one to finish must not clear the flag out from under the other.
- */
-let integrationCreateDepth = 0;
+let finishingIntegrationCreate = false;
 
 /**
  * Whether a Create Integration submit is being finished right now.
  *
  * Scaffolding a package makes the language server publish artifacts for a package the project
  * structure does not know yet, and `updateProjectArtifacts` answers that by navigating to the
- * workspace overview. During a create that is wrong: the create flow decides where to land, and
- * the fallback would replace the new integration's overview a moment after it opened.
+ * workspace overview. During a create that is wrong: the create decides where to land, and the
+ * fallback would replace the new integration's overview a moment after it opened.
  */
 export function isFinishingIntegrationCreate(): boolean {
-    return integrationCreateDepth > 0;
+    return finishingIntegrationCreate;
 }
 
-/** Runs `task` with {@link isFinishingIntegrationCreate} reporting true. */
+/**
+ * Runs `task` with {@link isFinishingIntegrationCreate} reporting true. Not re-entrant, and
+ * does not need to be: the post-reload path runs once per activation, and the in-place path is
+ * driven by the wizard webview, which is not open then.
+ */
 async function whileFinishingIntegrationCreate<T>(task: () => PromiseLike<T>): Promise<T> {
-    integrationCreateDepth++;
+    finishingIntegrationCreate = true;
     try {
         return await task();
     } finally {
-        integrationCreateDepth--;
+        finishingIntegrationCreate = false;
     }
 }
 
