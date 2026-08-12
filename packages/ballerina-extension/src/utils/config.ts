@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath } from '@wso2/ballerina-core';
+import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath, ProductMode } from '@wso2/ballerina-core';
+export { ProductMode } from '@wso2/ballerina-core';
 import { BallerinaExtension } from '../core';
 import { WorkspaceConfiguration, workspace, Uri, RelativePattern, extensions } from 'vscode';
 import * as fs from 'fs';
@@ -244,17 +245,6 @@ export function isICPSupported(): boolean {
 
 export function isInDevant(): boolean {
     return !!process.env.CLOUD_STS_TOKEN;
-}
-
-/**
- * Which product this extension is running inside. Set by the host app's own environment
- * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it and
- * never configures it itself. The enum values are the literal env values — the comparison
- * in {@link getProductMode} is exact.
- */
-export enum ProductMode {
-    INTEGRATOR = 'integrator',
-    AGENT_BUILDER = 'agent-builder'
 }
 
 /**

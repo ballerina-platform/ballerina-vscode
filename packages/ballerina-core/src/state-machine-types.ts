@@ -25,6 +25,15 @@ import { DIRECTORY_MAP, ProjectStructureArtifactResponse, ProjectStructureRespon
 import { SCOPE, ArtifactData, DataMapperMetadata } from "./interfaces/shared-types";
 import { DiagnosticEntry, DocumentationGeneratorIntermediaryState, SourceFile, CodeContext, FileAttatchment, SkillEnableStage } from "./rpc-types/ai-panel/interfaces";
 
+/**
+ * Which product the extension is running inside. Set by the host app's own environment
+ * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it.
+ */
+export enum ProductMode {
+    INTEGRATOR = 'integrator',
+    AGENT_BUILDER = 'agent-builder'
+}
+
 export type MachineStateValue =
     | 'initialize'
     | 'lsError'

@@ -50,7 +50,8 @@ import ContextUsageWidget from "../AIChat/compaction/ContextUsageWidget";
 import RunningServicesChip, { RunningServicesPanel } from "./RunningServicesChip";
 import McpToolsChip from "./McpToolsChip";
 import { ACCENT_FRAME, AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
-import { useAgentBuilderMode } from "../../../../hooks/useAgentBuilderMode";
+import { useProductMode } from "../../../../hooks/useProductMode";
+import { ProductMode } from "@wso2/ballerina-core";
 
 
 // Styled Components
@@ -184,7 +185,8 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         },
         ref
     ) => {
-        const agentBuilder = useAgentBuilderMode();
+        const productMode = useProductMode();
+        const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
         const [inputValue, setInputValue] = useState<{
             text: string;
             [key: string]: any;

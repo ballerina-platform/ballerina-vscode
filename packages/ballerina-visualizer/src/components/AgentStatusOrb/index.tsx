@@ -20,10 +20,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { css, keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, AgentRunState } from "@wso2/ballerina-core";
+import { AgentRunStatus, AgentRunState, ProductMode } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
-import { useAgentBuilderMode } from "../../hooks/useAgentBuilderMode";
+import { useProductMode } from "../../hooks/useProductMode";
 import { MiniChat } from "./MiniChat";
 import {
     Anchor,
@@ -294,7 +294,8 @@ const BrandRing = styled.div<{ ringColor: string }>`
 
 /** Brighter arc traveling the ring while the agent runs. */
 export function AgentStatusOrb() {
-    const agentBuilder = useAgentBuilderMode();
+    const productMode = useProductMode();
+    const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const statusRef = useRef<AgentRunStatus | null>(null);

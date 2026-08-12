@@ -31,7 +31,8 @@ import {
     Sphere,
     orbColors,
 } from "../../../../../components/AgentStatusOrb/shared";
-import { useAgentBuilderMode } from "../../../../../hooks/useAgentBuilderMode";
+import { useProductMode } from "../../../../../hooks/useProductMode";
+import { ProductMode } from "@wso2/ballerina-core";
 
 const WELCOME_ORB_SIZE = 58;
 
@@ -134,7 +135,8 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
     const { rpcClient } = useRpcContext();
     const [webglFailed, setWebglFailed] = useState(false);
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
-    const agentBuilder = useAgentBuilderMode();
+    const productMode = useProductMode();
+    const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
 
     return (
         <PanelWrapper>

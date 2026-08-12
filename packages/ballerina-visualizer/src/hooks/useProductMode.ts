@@ -18,14 +18,15 @@
 
 import { useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { ProductMode } from "@wso2/ballerina-core";
 
 /** One fetch per webview; the setting needs a reload to change. */
-let cached: boolean | undefined;
-let inFlight: Promise<boolean> | undefined;
+let cached: ProductMode | undefined;
+let inFlight: Promise<ProductMode> | undefined;
 
-export function useAgentBuilderMode(): boolean {
+export function useProductMode(): ProductMode {
     const { rpcClient } = useRpcContext();
-    const [enabled, setEnabled] = useState(cached ?? false);
+    const [mode, setMode] = useState<ProductMode>(cached ?? ProductMode.INTEGRATOR);
 
     useEffect(() => {
         if (cached !== undefined || !rpcClient) {
@@ -35,17 +36,18 @@ export function useAgentBuilderMode(): boolean {
         inFlight ??= rpcClient
             .getCommonRpcClient()
             .agentBuilderModeEnabled()
-            .then((value) => {
-                cached = value;
-                return value;
+            .then((isEnabled) => {
+                const result = isEnabled ? ProductMode.AGENT_BUILDER : ProductMode.INTEGRATOR;
+                cached = result;
+                return result;
             })
             .catch(() => {
-                cached = false;
-                return false;
+                cached = ProductMode.INTEGRATOR;
+                return ProductMode.INTEGRATOR;
             });
-        inFlight.then((value) => {
+        inFlight.then((result) => {
             if (active) {
-                setEnabled(value);
+                setMode(result);
             }
         });
         return () => {
@@ -53,5 +55,5 @@ export function useAgentBuilderMode(): boolean {
         };
     }, [rpcClient]);
 
-    return enabled;
+    return mode;
 }

@@ -285,7 +285,8 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async agentBuilderModeEnabled(): Promise<boolean> {
-        return extension.ballerinaExtInstance.enabledAgentBuilderMode();
+        const { ProductMode } = await import("../../utils/config");
+        return StateMachine.productMode() === ProductMode.AGENT_BUILDER;
     }
 
     async runBackgroundTerminalCommand(params: RunExternalCommandRequest): Promise<RunExternalCommandResponse> {
