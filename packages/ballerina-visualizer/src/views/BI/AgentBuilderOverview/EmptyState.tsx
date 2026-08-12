@@ -34,7 +34,6 @@ import {
     AGENT_BUILDER_ORB_COLORS,
     ORB_ENERGY,
     Sphere,
-    activeStateLabel,
     subscribeAgentRunStatus,
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
@@ -308,8 +307,10 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
             : state === "error"
                 ? "Something went wrong"
                 : state === "completed"
-                    ? "WSO2 Agent Builder Intelligence is done"
+                    ? "All done"
                     : "Building your agent";
+    const runDetail =
+        state === "completed" ? undefined : status?.label ?? (running ? "Working on it…" : undefined);
     const showOpenCopilot = !aiPanelOpen;
 
     const openCopilot = () => {
@@ -323,7 +324,10 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
             return;
         }
         rpcClient?.getCommonRpcClient().executeCommand({
-            commands: [SHARED_COMMANDS.OPEN_AI_PANEL, { type: "text", text: trimmed, planMode: false, autoSubmit: true }],
+            commands: [
+                SHARED_COMMANDS.OPEN_AI_PANEL,
+                { type: "text", text: trimmed, planMode: false, autoSubmit: true, newThread: true },
+            ],
         });
         setText("");
     };
@@ -350,7 +354,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <>
                     <Intro>
                         <Heading>{runHeading}</Heading>
-                        <Subtitle live>{status ? activeStateLabel(status) : "Working on it…"}</Subtitle>
+                        {runDetail && <Subtitle live>{runDetail}</Subtitle>}
                     </Intro>
                     {showOpenCopilot && (
                         <ScratchLine>

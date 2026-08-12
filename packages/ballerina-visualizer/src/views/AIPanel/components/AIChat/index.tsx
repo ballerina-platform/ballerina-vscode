@@ -536,6 +536,10 @@ const AIChat: React.FC = () => {
                                     }
                                     activeScaffoldKeyRef.current = key;
                                 }
+                                if (defaultPrompt.newThread) {
+                                    await reconnectSettledRef.current;
+                                    await handleClearChat();
+                                }
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
                                     attachments: [],
