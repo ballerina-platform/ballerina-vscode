@@ -35,7 +35,9 @@ export default function createTests() {
 
             logStep('Clicking on the "Get Started" button in the Integrator side bar');
             const getStartedButton = workbenchPage.getByRole('button', { name: 'Get Started' }).first();
-            await getStartedButton.waitFor({ timeout: 10000 });
+            // The sidebar can still be settling right after the activity-bar
+            // switch under CI load, so give this more room than a bare 10s.
+            await getStartedButton.waitFor({ timeout: 30000 });
             await getStartedButton.click();
 
             logStep('Waiting for the Welcome webview to load');
