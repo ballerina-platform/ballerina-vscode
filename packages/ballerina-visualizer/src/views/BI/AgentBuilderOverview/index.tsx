@@ -90,6 +90,16 @@ const CenteredSlot = styled.div`
     padding: 24px;
 `;
 
+const TracingState = styled.div`
+    display: inline-grid;
+    justify-items: start;
+
+    > div {
+        grid-area: 1 / 1;
+        transition: opacity 150ms ease;
+    }
+`;
+
 const MenuItemLabel = styled.div`
     display: flex;
     align-items: center;
@@ -117,6 +127,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const [selectedKey, setSelectedKey] = useState<string>();
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
+    const [isTracingEnabled, setIsTracingEnabled] = useState(false);
+    const togglingTracingRef = useRef(false);
 
     const fetchContext = useCallback(() => {
         rpcClient
@@ -201,6 +213,42 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.BI_RUN_PROJECT] });
     };
 
+    const checkTracingStatus = useCallback(async () => {
+        try {
+            const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
+            setIsTracingEnabled(status.enabled);
+        } catch (error) {
+            setIsTracingEnabled(false);
+        }
+    }, [rpcClient, projectPath]);
+
+    useEffect(() => {
+        checkTracingStatus();
+    }, [checkTracingStatus]);
+
+    const checkTracingStatusRef = useRef(checkTracingStatus);
+    checkTracingStatusRef.current = checkTracingStatus;
+
+    useEffect(() => {
+        rpcClient.getAgentChatRpcClient().onTracingStatusChanged(() => {
+            checkTracingStatusRef.current();
+        });
+    }, [rpcClient]);
+
+    const handleToggleTracing = async () => {
+        if (togglingTracingRef.current) {
+            return;
+        }
+        togglingTracingRef.current = true;
+        try {
+            const command = isTracingEnabled ? "ballerina.disableTracing" : "ballerina.enableTracing";
+            await rpcClient.getCommonRpcClient().executeCommand({ commands: [command] });
+            await checkTracingStatus();
+        } finally {
+            togglingTracingRef.current = false;
+        }
+    };
+
     const deployMenuItems = useMemo(() => {
         const items = [
             {
@@ -250,6 +298,19 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
             <Button appearance="icon" onClick={handleConfigure} buttonSx={{ padding: "4px 8px" }}>
                 <Icon name="bi-settings" sx={{ marginRight: 5, fontSize: "16px", width: "16px" }} />
                 Configure
+            </Button>
+            <Button
+                appearance="icon"
+                onClick={handleToggleTracing}
+                tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
+                buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
+            >
+                <Codicon name="telescope" sx={{ marginRight: 5 }} />
+                Tracing:&nbsp;
+                <TracingState>
+                    <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
+                    <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
+                </TracingState>
             </Button>
             <Button appearance="icon" onClick={handleRun} buttonSx={{ padding: "4px 8px" }}>
                 <Codicon name="play" sx={{ marginRight: 5 }} /> Run
