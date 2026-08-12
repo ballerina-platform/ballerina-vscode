@@ -16,13 +16,15 @@
  * under the License.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramEngine, NodeModel } from "@projectstorm/react-diagrams";
+import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, isSingleAgentFocusNode, positionAgentFocusNode } from "./agentFocusFit";
 
 /** Owns the agent-focus-view's center-and-fit behavior: initial placement, manual fit-to-screen, and resize. */
 export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView: boolean, embedded: boolean) {
     const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
+    const nodeObserverRef = useRef<ResizeObserver>();
 
     const fitToContainer = useCallback(
         (animate: boolean) => {
@@ -43,28 +45,65 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             } else {
                 diagramEngine.getModel().setZoomLevel(target.targetZoomPct);
                 diagramEngine.getModel().setOffset(target.targetOffsetX, target.targetOffsetY);
+                diagramEngine.repaintCanvas();
             }
             return true;
         },
         [diagramEngine, embedded]
     );
 
-    // Animate only if a later redraw happens after the diagram is already visible.
+    /** Re-centers when the node's own footprint changes, e.g. the usage rail arriving from a later fetch. */
+    const watchNodeSize = useCallback(
+        (agentNode: BaseAgentNodeModel | undefined) => {
+            nodeObserverRef.current?.disconnect();
+            nodeObserverRef.current = undefined;
+            if (!agentNode) {
+                return;
+            }
+            let element: Element;
+            try {
+                element = diagramEngine.getNodeElement(agentNode);
+            } catch {
+                return;
+            }
+            let lastSize: { width: number; height: number } | undefined;
+            const observer = new ResizeObserver((entries) => {
+                // contentRect is the untransformed layout size, so canvas zoom never trips this.
+                const { width, height } = entries[0].contentRect;
+                const previous = lastSize;
+                lastSize = { width, height };
+                if (!previous) {
+                    return; // the report ResizeObserver fires on observe()
+                }
+                if (Math.abs(previous.width - width) < 1 && Math.abs(previous.height - height) < 1) {
+                    return;
+                }
+                fitToContainer(false);
+            });
+            observer.observe(element);
+            nodeObserverRef.current = observer;
+        },
+        [diagramEngine, fitToContainer]
+    );
+
+    useEffect(() => () => nodeObserverRef.current?.disconnect(), []);
+
     const positionAndFit = useCallback(
         (nodes: NodeModel[]) => {
             if (!isAgentFocusView || !isSingleAgentFocusNode(nodes)) {
                 return;
             }
-            positionAgentFocusNode(findAgentFocusNode(nodes));
-            const alreadyVisible = canvasVisible;
-            fitToContainer(alreadyVisible);
+            const agentNode = findAgentFocusNode(nodes);
+            positionAgentFocusNode(agentNode);
+            // Measured after paint: before it, the node still reports its previous size.
             requestAnimationFrame(() => {
-                fitToContainer(alreadyVisible);
+                fitToContainer(false);
                 diagramEngine.repaintCanvas();
                 setCanvasVisible(true);
+                watchNodeSize(agentNode);
             });
         },
-        [isAgentFocusView, canvasVisible, fitToContainer, diagramEngine]
+        [isAgentFocusView, fitToContainer, diagramEngine, watchNodeSize]
     );
 
     // Re-fits when its container is resized (e.g. Copilot panel opening).
@@ -102,7 +141,8 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                     lastFitSize = { width, height };
-                    fitToContainer(true);
+                    // Animate only while the user is watching; the panel also resizes on blur.
+                    fitToContainer(document.hasFocus());
                 }, 120);
             });
             observer.observe(canvas);

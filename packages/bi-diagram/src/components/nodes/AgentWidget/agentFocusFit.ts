@@ -21,9 +21,10 @@ import { DiagramEngine, DiagramModel, NodeModel } from "@projectstorm/react-diag
 import { NodeTypes } from "../../../resources/constants";
 import { BaseAgentNodeModel } from "../BaseAgentNodeModel";
 
-export const AGENT_FOCUS_MIN_ZOOM = 65;
+export const AGENT_FOCUS_MIN_ZOOM = 25;
 export const AGENT_FOCUS_FIT_PADDING = 5;
 export const AGENT_FOCUS_FIT_ANIMATION_MS = 300;
+const MIN_FITTABLE_CANVAS = 50;
 
 function isAgentFocusType(node: NodeModel): boolean {
     const type = node.getType();
@@ -43,13 +44,44 @@ export function positionAgentFocusNode(node: BaseAgentNodeModel): void {
     node.setPosition(-lw, y);
 }
 
+/** The horizontal span the node actually paints — the reserved box is wider and not symmetric. */
+function measureAgentNodeInkX(nodeElement: Element): { left: number; right: number } | null {
+    const row = nodeElement.querySelector("[data-testid='agent-node'],[data-testid='typed-agent-node']") ?? nodeElement;
+    let left = Infinity;
+    let right = -Infinity;
+    for (const child of Array.from(row.children)) {
+        const rect = child.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+            continue;
+        }
+        if (child instanceof SVGSVGElement) {
+            try {
+                const bbox = child.getBBox();
+                const viewBox = child.viewBox.baseVal;
+                if (bbox.width > 0 && viewBox && viewBox.width > 0) {
+                    const scale = rect.width / viewBox.width;
+                    const inkLeft = rect.left + (bbox.x - viewBox.x) * scale;
+                    left = Math.min(left, inkLeft);
+                    right = Math.max(right, inkLeft + bbox.width * scale);
+                    continue;
+                }
+            } catch {
+                // fall back to the layout box
+            }
+        }
+        left = Math.min(left, rect.left);
+        right = Math.max(right, rect.right);
+    }
+    return left === Infinity ? null : { left, right };
+}
+
 export interface AgentFocusFitTarget {
     targetZoomPct: number;
     targetOffsetX: number;
     targetOffsetY: number;
 }
 
-/** Fits the agent node's live rendered footprint into the canvas, capped at 100% zoom, and centers it. */
+/** Fits the agent node's painted width into the canvas, capped at 100% zoom, and centers it. */
 export function computeAgentFocusFit(
     canvas: HTMLElement,
     diagramEngine: DiagramEngine,
@@ -67,12 +99,21 @@ export function computeAgentFocusFit(
     const currentZoom = model.getZoomLevel() / 100;
     const nodeRect = nodeElement.getBoundingClientRect();
     const topLeft = diagramEngine.getRelativeMousePoint({ clientX: nodeRect.left, clientY: nodeRect.top });
-    const contentWidth = nodeRect.width / currentZoom;
     const contentHeight = nodeRect.height / currentZoom;
-    const contentCenterX = topLeft.x + contentWidth / 2;
     const contentCenterY = topLeft.y + contentHeight / 2;
 
+    const ink = measureAgentNodeInkX(nodeElement);
+    const contentWidth = (ink ? ink.right - ink.left : nodeRect.width) / currentZoom;
+    const inkLeftX = ink
+        ? diagramEngine.getRelativeMousePoint({ clientX: ink.left, clientY: nodeRect.top }).x
+        : topLeft.x;
+    const contentCenterX = inkLeftX + contentWidth / 2;
+
     const { width: canvasWidth, height: canvasHeight } = canvas.getBoundingClientRect();
+
+    if (canvasWidth < MIN_FITTABLE_CANVAS || canvasHeight < MIN_FITTABLE_CANVAS) {
+        return null;
+    }
 
     const fitZoomPct = ((canvasWidth - AGENT_FOCUS_FIT_PADDING * 2) / contentWidth) * 100;
     const targetZoomPct = Math.min(100, Math.max(AGENT_FOCUS_MIN_ZOOM, fitZoomPct));

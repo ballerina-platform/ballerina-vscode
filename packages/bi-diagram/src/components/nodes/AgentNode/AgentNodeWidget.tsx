@@ -872,11 +872,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
     };
 
-    const showsAddTile = !readOnly && !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
     const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
         - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
-    const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
+    const onAddTriggerClick = () => {
+        if (readOnly) {
+            return;
+        }
+        agentNode?.onAddTrigger?.(model.node);
+    };
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
@@ -1621,7 +1626,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <title>{tool.name}</title>
                             </text>
 
-                            {!readOnly && !toolsReadOnly && (
+                            {!toolsReadOnly && (
                                 <>
                                     <foreignObject
                                         x="60"
@@ -1750,7 +1755,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </Menu>
                 </Popover>}
 
-                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && (
+                {!toolsReadOnly && agentNode?.onAddTool && (
                     <EdgeAddButton
                         testId="agent-add-tool"
                         anchorX={NODE_EDGE_RIGHT_X}
