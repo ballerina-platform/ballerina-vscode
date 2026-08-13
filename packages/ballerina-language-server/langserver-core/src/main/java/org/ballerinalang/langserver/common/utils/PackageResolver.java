@@ -137,6 +137,14 @@ public abstract class PackageResolver {
     public abstract Project loadBuildProject(Path projectRoot);
 
     /**
+     * Loads a bala as a project, using this server's resolution mode.
+     *
+     * @param balaPath Path to the bala.
+     * @return The loaded project.
+     */
+    public abstract Project loadBalaProject(Path balaPath);
+
+    /**
      * Resolves a package's dependency graph.
      *
      * @param pkg The package.
@@ -169,10 +177,20 @@ public abstract class PackageResolver {
      * @return The package it contains, if any.
      */
     protected final Optional<Package> loadBala(Path balaPath) {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath, balaBuildOptions());
+        BalaProject balaProject = BalaProject.loadProject(balaEnvironment(), balaPath, balaBuildOptions());
         return Optional.ofNullable(balaProject.currentPackage());
+    }
+
+    /**
+     * An environment for reading a bala that caches compilation to a temporary directory, so reading one never writes
+     * into the real compilation cache.
+     *
+     * @return The environment builder.
+     */
+    protected static ProjectEnvironmentBuilder balaEnvironment() {
+        ProjectEnvironmentBuilder builder = ProjectEnvironmentBuilder.getDefaultBuilder();
+        builder.addCompilationCacheFactory(TempDirCompilationCache::from);
+        return builder;
     }
 
     /**

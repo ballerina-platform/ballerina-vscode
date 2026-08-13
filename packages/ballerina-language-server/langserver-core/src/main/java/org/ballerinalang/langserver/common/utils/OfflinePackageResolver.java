@@ -24,6 +24,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.BuildProject;
+import io.ballerina.projects.directory.ProjectLoader;
 import io.ballerina.projects.directory.SingleFileProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
 import io.ballerina.projects.environment.ResolutionRequest;
@@ -91,6 +92,12 @@ final class OfflinePackageResolver extends PackageResolver {
     @Override
     public Project loadBuildProject(Path projectRoot) {
         return BuildProject.load(projectRoot, BuildOptions.builder().setOffline(true).build());
+    }
+
+    @Override
+    public Project loadBalaProject(Path balaPath) {
+        return ProjectLoader.loadProject(balaPath, balaEnvironment(),
+                BuildOptions.builder().setOffline(true).build());
     }
 
     @Override

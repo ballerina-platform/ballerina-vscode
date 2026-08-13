@@ -190,7 +190,7 @@ public class PullModuleExecutor implements LSCommandExecutor {
                 .thenRunAsync(() -> {
                     CompilationOptions.CompilationOptionsBuilder optionsBuilder = CompilationOptions.builder();
                     // Production resolves online so missing modules are pulled from Central; tests
-                    // (ls.test.offline) resolve only from the build-provisioned Ballerina home.
+                    // resolve only from the build-provisioned Ballerina home.
                     optionsBuilder.setOffline(PackageResolver.get().isOffline()).setSticky(sticky);
                     CompilationOptions options = optionsBuilder.build();
 

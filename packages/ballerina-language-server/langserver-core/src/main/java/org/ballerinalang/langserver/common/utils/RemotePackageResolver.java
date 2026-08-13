@@ -25,6 +25,7 @@ import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageResolution;
 import io.ballerina.projects.Project;
 import io.ballerina.projects.directory.BuildProject;
+import io.ballerina.projects.directory.ProjectLoader;
 import io.ballerina.projects.directory.SingleFileProject;
 import io.ballerina.projects.environment.PackageMetadataResponse;
 import io.ballerina.projects.environment.ResolutionOptions;
@@ -91,6 +92,11 @@ final class RemotePackageResolver extends PackageResolver {
     @Override
     public Project loadBuildProject(Path projectRoot) {
         return BuildProject.load(projectRoot);
+    }
+
+    @Override
+    public Project loadBalaProject(Path balaPath) {
+        return ProjectLoader.loadProject(balaPath, balaEnvironment());
     }
 
     @Override

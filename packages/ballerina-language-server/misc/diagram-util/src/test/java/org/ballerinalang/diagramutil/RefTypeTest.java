@@ -23,11 +23,10 @@ import com.google.gson.JsonParser;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
-import io.ballerina.projects.BuildOptions;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.directory.ProjectLoader;
 import org.ballerinalang.diagramutil.connector.models.connector.ReferenceType;
 import org.ballerinalang.diagramutil.connector.models.connector.reftypes.RefType;
 import org.testng.Assert;
@@ -68,7 +67,7 @@ public class RefTypeTest {
 
 
         // Tests must never pull from Central; resolve only from the build-provisioned Ballerina home.
-        Project project = ProjectLoader.loadProject(inputFile, BuildOptions.builder().setOffline(true).build());
+        Project project = PackageUtil.loadProject(inputFile);
         Optional<ModuleId> optionalModuleId = project.currentPackage().moduleIds().stream().findFirst();
         if (optionalModuleId.isEmpty()) {
             Assert.fail("Failed to retrieve the module ID");

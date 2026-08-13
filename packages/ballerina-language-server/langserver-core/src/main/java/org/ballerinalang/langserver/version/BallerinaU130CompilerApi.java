@@ -35,6 +35,7 @@ import io.ballerina.projects.environment.PackageLockingMode;
 import io.ballerina.projects.util.ProjectPaths;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import org.ballerinalang.annotation.JavaSPIService;
+import org.ballerinalang.langserver.common.utils.PackageResolver;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -105,6 +106,9 @@ public class BallerinaU130CompilerApi extends BallerinaU123CompilerApi {
 
     @Override
     public Project loadProject(Path path) {
+        if (PackageResolver.get().isOffline()) {
+            return ProjectLoader.load(path, BuildOptions.builder().setOffline(true).build()).project();
+        }
         return ProjectLoader.load(path).project();
     }
 

@@ -94,6 +94,17 @@ public class PackageUtil {
     }
 
     /**
+     * Loads a project from a path, letting the distribution decide whether it is a single file, a package or a bala,
+     * and using this server's resolution mode. Callers never choose between an online and an offline load.
+     *
+     * @param path Path to the file or package root.
+     * @return The loaded project.
+     */
+    public static Project loadProject(Path path) {
+        return BallerinaCompilerApi.getInstance().loadProject(path);
+    }
+
+    /**
      * Loads a package directory as a build project, using this server's resolution mode.
      *
      * @param projectRoot Path to the package root.
@@ -101,6 +112,16 @@ public class PackageUtil {
      */
     public static Project loadBuildProject(Path projectRoot) {
         return resolver().loadBuildProject(projectRoot);
+    }
+
+    /**
+     * Loads a bala as a project, using this server's resolution mode.
+     *
+     * @param balaPath Path to the bala.
+     * @return The loaded project.
+     */
+    public static Project loadBalaProject(Path balaPath) {
+        return resolver().loadBalaProject(balaPath);
     }
 
     /**
@@ -471,8 +492,8 @@ public class PackageUtil {
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
             String version = resolver().latestVersion(SAMPLE_PROJECT, moduleInfo.org(), moduleInfo.packageName());
-            // Under TEST_OFFLINE a null version means the package was never provisioned into the build-owned
-            // cache. Fail loudly (matching the TEST_OFFLINE contract above) so a missing lock entry is
+            // On an offline server a null version means the package was never provisioned into the
+            // build-owned cache. Fail loudly so a missing lock entry is
             // self-diagnosing, rather than silently degrading into an empty model downstream.
             if (resolver().isOffline() && version == null) {
                 throw new IllegalStateException(String.format(
