@@ -28,6 +28,7 @@ import { RelativeLoader } from "../../../../components/RelativeLoader";
 import { fetchConnectorActions, normalizeConnectorSearchCategories } from "./connectorActions";
 import { ConnectorActionList } from "./ConnectorActionList";
 import { ConnectorList } from "./ConnectorList";
+import { CONTENT_HEIGHT } from "./styles";
 import { NEW_CONNECTION } from "../../../../constants";
 
 export enum WizardStep {
@@ -65,7 +66,7 @@ const LoaderWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    height: calc(100vh - 56px);
+    height: ${CONTENT_HEIGHT};
 `;
 
 export function ConnectorBrowser(props: ConnectorBrowserProps) {

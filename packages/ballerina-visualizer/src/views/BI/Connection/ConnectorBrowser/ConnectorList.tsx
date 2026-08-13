@@ -20,14 +20,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { Codicon, ProgressRing, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
+import { Container, EmptyState, RowChevron, RowText } from "./styles";
 
 const POPULAR_CATEGORY = "Popular";
-
-const Container = styled.div`
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 56px);
-`;
 
 const HeaderArea = styled.div`
     display: flex;
@@ -197,10 +192,6 @@ const RowIcon = styled.div`
     }
 `;
 
-const RowText = styled.div`
-    min-width: 0;
-`;
-
 const RowLabel = styled.div`
     font-size: 13px;
     font-weight: 500;
@@ -219,21 +210,6 @@ const RowDescription = styled.div`
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
-`;
-
-const RowChevron = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 2px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    opacity: 0.7;
-`;
-
-const EmptyState = styled.div`
-    padding: 32px 16px;
-    text-align: center;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
 `;
 
 const PendingRow = styled.div`

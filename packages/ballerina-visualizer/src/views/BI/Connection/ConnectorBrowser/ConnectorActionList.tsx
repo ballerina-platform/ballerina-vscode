@@ -25,15 +25,10 @@ import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon, NodeIcon } from "@wso2/bi-diagram";
 import { MarkdownDescription } from "@wso2/ballerina-side-panel";
 import { actionDisplayLabel, formatResourceSignature } from "./connectorActions";
+import { Container, EmptyState, RowChevron, RowText } from "./styles";
 
 const isResourceAction = (action: AvailableNode): boolean =>
     action.codedata?.node === "RESOURCE_ACTION_CALL" && Boolean(action.codedata?.resourcePath);
-
-const Container = styled.div`
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 56px);
-`;
 
 const HeaderArea = styled.div`
     display: flex;
@@ -228,13 +223,9 @@ const RowBadge = styled.span`
     }
 `;
 
-const RowText = styled.div`
-    min-width: 0;
-`;
-
 const RowLabel = styled.div`
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
     color: ${ThemeColors.ON_SURFACE};
     margin-bottom: 4px;
 `;
@@ -256,22 +247,6 @@ const RowSignature = styled.div`
     line-height: 1.4;
     color: var(--vscode-descriptionForeground);
     word-break: break-word;
-`;
-
-const RowChevron = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 3px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    opacity: 0.7;
-`;
-
-const EmptyState = styled.div`
-    padding: 24px 4px;
-    font-size: 13px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    text-align: center;
 `;
 
 interface ConnectorActionListProps {
