@@ -67,6 +67,10 @@ on:
         required: false
       APPINSIGHTS_INSTRUMENTATION_KEY:
         required: false
+      CODECOV_TOKEN:
+        # Optional: language server coverage uploads fall back to Codecov's
+        # tokenless flow for public repositories when this is not set.
+        required: false
 
 jobs:
   Build_Stage:
@@ -324,3 +328,4 @@ jobs:
           cache-branch: ${{ github.base_ref || github.ref_name }}
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
