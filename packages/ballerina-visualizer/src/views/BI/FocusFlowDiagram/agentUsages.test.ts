@@ -345,6 +345,48 @@ describe("findAgentUsages trigger payload", () => {
         expect(telegramRows.map((usage) => usage.label)).toEqual(["onMessage"]);
     });
 
+    it("opens the helper holding the agent call, not the handler that offloads to it", () => {
+        expect(usagesOf("onMessage")).toMatchObject({
+            documentUri: TRIGGERS_BAL,
+            position: { startLine: 52, endLine: 53 },
+        });
+    });
+
+    it("stays on the handler when it is the only function reaching the agent", () => {
+        expect(usagesOf("onMessages")?.position).toMatchObject({ startLine: 12, endLine: 13 });
+    });
+
+    it("stays on the handlers when a merged service leaves the helper ambiguous", () => {
+        const merged = {
+            ...triggerModel,
+            services: (triggerModel.services ?? []).map((service) =>
+                service.type === "telegram:TelegramService"
+                    ? {
+                          ...service,
+                          remoteFunctions: [
+                              ...service.remoteFunctions,
+                              { name: "onEdited", location: { filePath: TRIGGERS_BAL, ...range(60) },
+                                  connections: [AGENT_UUID] },
+                          ],
+                          functions: [
+                              ...service.functions,
+                              { name: "replyToEditedMessage", location: { filePath: TRIGGERS_BAL, ...range(70) },
+                                  connections: [AGENT_UUID] },
+                          ],
+                      }
+                    : service
+            ),
+        } as unknown as CDModel;
+
+        const rows = findAgentUsages(merged, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .filter((usage) => usage.type === "telegram:TelegramService");
+
+        expect(rows.map((usage) => [usage.label, usage.position.startLine])).toEqual([
+            ["onMessage", 48],
+            ["onEdited", 60],
+        ]);
+    });
+
     it("offers nothing to delete when the channel list could not be read", () => {
         const usages = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages.every((usage) => usage.trigger === undefined)).toBe(true);
