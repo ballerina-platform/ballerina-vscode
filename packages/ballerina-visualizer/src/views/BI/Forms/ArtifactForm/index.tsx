@@ -131,6 +131,7 @@ interface ArtifactFormProps {
     secondarySubmitText?: string;
     onSecondarySubmit?: (data: FormValues, formImports?: FormImports, importsCodedata?: CodeData) => void;
     groups?: FieldGroup[];
+    opensPrefilled?: boolean;
     onCreateNode?: (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => void;
     customDiagnosticFilter?: (diagnostics: Diagnostic[]) => Diagnostic[];
     onValidityChange?: (isValid: boolean) => void;
@@ -173,6 +174,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
         onChange,
         hideSaveButton,
         groups,
+        opensPrefilled,
         onCreateNode,
         customDiagnosticFilter,
         onValidityChange,
@@ -1124,6 +1126,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     onChange={handleFieldChange}
                     hideSaveButton={hideSaveButton}
                     groups={groups}
+                    opensPrefilled={opensPrefilled}
                     onCreateNode={onCreateNode}
                     footerActionButton={footerActionButton}
                     onValidityChange={onValidityChange}

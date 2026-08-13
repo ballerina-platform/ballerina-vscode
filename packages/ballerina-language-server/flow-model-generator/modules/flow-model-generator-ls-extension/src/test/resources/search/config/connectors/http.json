@@ -386,7 +386,7 @@
     },
     {
       "metadata": {
-        "label": "commercetools Carts",
+        "label": "commercetools Carts & Orders",
         "description": "This is a generated connector for [Commercetools API v1](https://docs.commercetools.com/api/) OpenAPI specification. \nThe commercetools Platform HTTP API offers an interface for programmatic access to operations related to carts, orders and shopping lists.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.cartsordershoppinglists_1.4.1.png",
         "data": {

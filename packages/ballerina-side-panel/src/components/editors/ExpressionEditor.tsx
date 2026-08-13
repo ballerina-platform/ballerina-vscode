@@ -139,7 +139,8 @@ export namespace S {
     export const HeaderContainer = styled.div({
         display: 'flex',
         alignItems: 'flex-end',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        minHeight: '26px'
     });
 
     export const Header = styled.div({

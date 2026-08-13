@@ -207,6 +207,7 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             targetLineRange={ZERO_LINE_RANGE}
             fields={fields}
             groups={groups}
+            opensPrefilled
             recordTypeFields={recordTypeFields}
             onSubmit={handleSubmit}
             submitText={submitText}

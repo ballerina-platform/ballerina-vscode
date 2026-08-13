@@ -566,7 +566,7 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
                         onChange={setIncludeContext}
                         label="Pass agent context"
                         description={"Adds ai:Context ctx as the first parameter so the generated tools can "
-                            + "access the invoking agent's context"}
+                            + "access the invoking agent's context."}
                     />
                 ),
                 index: 0,

@@ -438,6 +438,11 @@ export interface FormProps {
     preserveOrder?: boolean;
     /** Collapsible sections; fields opt in via `FormField.group`. Rendered in this order. */
     groups?: FieldGroup[];
+    /**
+     * Fields are ready at mount. Gates loading to the initial resolve, so a later editor mount
+     * cannot blank the form, and skips autofocus on a prefilled first field.
+     */
+    opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
@@ -501,6 +506,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         formImports,
         preserveOrder = false,
         groups,
+        opensPrefilled = false,
         bottomFields = [],
         handleSelectedTypeChange,
         scopeFieldAddon,
@@ -620,8 +626,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             return next;
         });
     }, []);
-    // Initial resolution only. Prefilled editors register on mount, so without this gate
-    // any later mount (expanding a card) blanks the form and drops focus.
+    // `opensPrefilled` only. Prefilled editors register on mount, so without this gate any later
+    // mount (expanding a card) blanks the form and drops focus.
     const [initialLoadSettled, setInitialLoadSettled] = useState(false);
     // Editors register one commit after first paint, so assume busy up front when there is
     // something to resolve. Otherwise the form paints, blanks, then paints again.
@@ -633,6 +639,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }
     const sawInitialLoadingRef = useRef(false);
     useEffect(() => {
+        if (!opensPrefilled) {
+            return;
+        }
         if (loadingFields.size > 0) {
             sawInitialLoadingRef.current = true;
         }
@@ -647,10 +656,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         // Nothing registered; settle next tick so editors mounting this commit still count.
         const timer = setTimeout(() => setInitialLoadSettled(true), 0);
         return () => clearTimeout(timer);
-    }, [loadingFields.size, initialLoadSettled]);
+    }, [loadingFields.size, initialLoadSettled, opensPrefilled]);
 
-    const isFormLoading =
-        !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current);
+    const isFormLoading = opensPrefilled
+        ? !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current)
+        : loadingFields.size > 0;
 
     // Bubble loading state up to the parent form when this is a nested form
     useEffect(() => {
@@ -1021,11 +1031,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         (field) => field.editable !== false && getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
     );
 
-    // Autofocus selects the text, so skip it when prefilled.
+    // Autofocus selects the text, so `opensPrefilled` callers skip it when prefilled.
     const firstEditableFieldValue = formFields[firstEditableFieldIndex]?.value;
     const autoFocusFirstField =
         firstEditableFieldIndex >= 0 &&
-        (firstEditableFieldValue === undefined || firstEditableFieldValue === "");
+        (!opensPrefilled || firstEditableFieldValue === undefined || firstEditableFieldValue === "");
 
     const isValid = useMemo(() => {
         let hasDiagnostics: boolean = false;
