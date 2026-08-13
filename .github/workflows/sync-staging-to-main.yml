@@ -1,0 +1,108 @@
+name: Sync Staging Branches with Main
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sync-staging-to-main
+  cancel-in-progress: false
+
+jobs:
+  sync-staging:
+    if: github.repository == 'ballerina-platform/ballerina-vscode'
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      # A deterministic temp branch per staging branch (no timestamp) is reused night
+      # over night: force-pushing it just updates the existing open PR's diff instead
+      # of a new PR piling up alongside yesterday's unmerged one.
+      - name: Sync each staging branch into main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          stagingBranches=$(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/staging/*' | sed 's|^origin/||')
+
+          if [ -z "$stagingBranches" ]; then
+            echo "::notice::No staging/* branches found; nothing to sync."
+            exit 0
+          fi
+
+          failed=0
+          for stagingBranch in $stagingBranches; do
+            set +e
+            (
+              set -euo pipefail
+
+              tempBranch="sync/main-${stagingBranch//\//-}"
+
+              echo "::group::Syncing $stagingBranch via $tempBranch"
+
+              existingPr=$(gh pr list -H "$tempBranch" -B main --state open --json url --jq '.[0].url // empty')
+
+              if [ -n "$existingPr" ] && git show-ref --verify --quiet "refs/remotes/origin/$tempBranch"; then
+                # Merge instead of reset so conflict-resolution work already pushed to the
+                # open sync PR survives, rather than being force-pushed away every run.
+                git checkout -B "$tempBranch" "origin/$tempBranch"
+                if ! git merge --no-edit "origin/$stagingBranch"; then
+                  git merge --abort || true
+                  # Self-heals even if the abort above failed, so a bad state can't survive into the next iteration.
+                  git reset --hard
+                  git clean -fd
+                  echo "::warning::Merge conflict syncing $stagingBranch into $tempBranch; skipping (resolve manually on the sync branch)."
+                  echo "::endgroup::"
+                  exit 0
+                fi
+              else
+                git checkout -B "$tempBranch" "origin/$stagingBranch"
+              fi
+
+              if git diff --quiet "origin/main" "$tempBranch" --; then
+                if [ -n "$existingPr" ]; then
+                  gh pr close "$existingPr" --comment "Closing: \`$stagingBranch\` has no changes left to sync into \`main\`." || true
+                  echo "::notice::$stagingBranch has nothing new for main; closed stale PR $existingPr."
+                else
+                  echo "::notice::$stagingBranch has nothing new for main; skipping."
+                fi
+                echo "::endgroup::"
+                exit 0
+              fi
+
+              git push --force-with-lease origin "$tempBranch"
+
+              if [ -n "$existingPr" ]; then
+                echo "::notice::Reusing existing sync PR: $existingPr"
+              else
+                pr=$(gh pr create -B main -H "$tempBranch" \
+                  --title "Sync ${stagingBranch} into main" \
+                  --body "Nightly sync of \`${stagingBranch}\` into \`main\`. Automated PR — updated in place each night this runs.")
+                echo "::notice::Opened sync PR: $pr"
+              fi
+
+              echo "::endgroup::"
+            )
+            status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::Sync failed for $stagingBranch"
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
