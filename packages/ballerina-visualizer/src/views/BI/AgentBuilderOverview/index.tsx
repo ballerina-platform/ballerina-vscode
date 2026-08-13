@@ -299,51 +299,55 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                 <Icon name="bi-settings" sx={{ marginRight: 5, fontSize: "16px", width: "16px" }} />
                 Configure
             </Button>
-            <Button
-                appearance="icon"
-                onClick={handleToggleTracing}
-                tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
-                buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
-            >
-                <Codicon name="telescope" sx={{ marginRight: 5 }} />
-                Tracing:&nbsp;
-                <TracingState>
-                    <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
-                    <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
-                </TracingState>
-            </Button>
-            <Button appearance="icon" onClick={handleRun} buttonSx={{ padding: "4px 8px" }}>
-                <Codicon name="play" sx={{ marginRight: 5 }} /> Run
-            </Button>
-            <Button
-                appearance="icon"
-                onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
-                    setDeployAnchor(e.currentTarget as HTMLElement)
-                }
-                buttonSx={{ padding: "4px 8px" }}
-            >
-                <Codicon name="cloud-upload" sx={{ marginRight: 5 }} /> Deploy
-                <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
-            </Button>
-            <Popover
-                open={Boolean(deployAnchor)}
-                anchorEl={deployAnchor}
-                handleClose={() => setDeployAnchor(null)}
-                sx={{ padding: 0, borderRadius: 4 }}
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                transformOrigin={{ vertical: "top", horizontal: "right" }}
-            >
-                <Menu>
-                    {deployMenuItems.map((item) => (
-                        <MenuItem
-                            key={item.id}
-                            item={item.disabled ? { ...item, onClick: () => undefined } : item}
-                            sx={item.disabled ? { opacity: 0.5 } : undefined}
-                            onClick={() => setDeployAnchor(null)}
-                        />
-                    ))}
-                </Menu>
-            </Popover>
+            {agents.length > 0 && (
+                <>
+                    <Button
+                        appearance="icon"
+                        onClick={handleToggleTracing}
+                        tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
+                        buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
+                    >
+                        <Codicon name="telescope" sx={{ marginRight: 5 }} />
+                        Tracing:&nbsp;
+                        <TracingState>
+                            <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
+                            <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
+                        </TracingState>
+                    </Button>
+                    <Button appearance="icon" onClick={handleRun} buttonSx={{ padding: "4px 8px" }}>
+                        <Codicon name="play" sx={{ marginRight: 5 }} /> Run
+                    </Button>
+                    <Button
+                        appearance="icon"
+                        onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
+                            setDeployAnchor(e.currentTarget as HTMLElement)
+                        }
+                        buttonSx={{ padding: "4px 8px" }}
+                    >
+                        <Codicon name="cloud-upload" sx={{ marginRight: 5 }} /> Deploy
+                        <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
+                    </Button>
+                    <Popover
+                        open={Boolean(deployAnchor)}
+                        anchorEl={deployAnchor}
+                        handleClose={() => setDeployAnchor(null)}
+                        sx={{ padding: 0, borderRadius: 4 }}
+                        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                        transformOrigin={{ vertical: "top", horizontal: "right" }}
+                    >
+                        <Menu>
+                            {deployMenuItems.map((item) => (
+                                <MenuItem
+                                    key={item.id}
+                                    item={item.disabled ? { ...item, onClick: () => undefined } : item}
+                                    sx={item.disabled ? { opacity: 0.5 } : undefined}
+                                    onClick={() => setDeployAnchor(null)}
+                                />
+                            ))}
+                        </Menu>
+                    </Popover>
+                </>
+            )}
         </>
     );
 
