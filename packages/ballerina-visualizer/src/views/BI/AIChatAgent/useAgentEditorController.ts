@@ -19,10 +19,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { AgentUsage, CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
+import { AgentUsage, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { findFunctionByName } from "../FlowDiagram/utils";
+import { findClassByName, findFunctionByName } from "../FlowDiagram/utils";
 import {
     findFlowNode,
     findFlowNodeByModuleVarName,
@@ -217,6 +217,7 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             return;
         }
 
+        const className = mcpVariable.properties?.toolKitName?.value as string | undefined;
         const mcpVariableFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
             segments: [mcpVariable.codedata.lineRange.fileName],
         })).filePath;
@@ -225,27 +226,23 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
             flowNode: mcpVariable,
         });
 
-        if (mcpVariable.properties?.type?.value === "ai:McpToolKit") {
+        if (mcpVariable.properties?.type?.value === "ai:McpToolKit" || !className) {
             return;
         }
-        const classDefinition = mcpVariable.codedata?.data?.mcpClassDefinition as CodeData | undefined;
-        const classLineRange = classDefinition?.lineRange;
-        if (!classLineRange) {
+        const project = await rpcClient.getBIDiagramRpcClient().getProjectComponents();
+        const classInfo: any = project?.components ? findClassByName(project.components, className) : null;
+        if (!classInfo) {
             return;
         }
-
-        const classFilePath = (await rpcClient.getVisualizerRpcClient().joinProjectPath({
-            segments: [classLineRange.fileName],
-        })).filePath;
         await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
-            filePath: classFilePath,
+            filePath: classInfo.filePath,
             component: {
                 name: "CLASS",
-                filePath: classFilePath,
-                startLine: classLineRange.startLine.line,
-                startColumn: classLineRange.startLine.offset,
-                endLine: classLineRange.endLine.line,
-                endColumn: classLineRange.endLine.offset,
+                filePath: classInfo.filePath,
+                startLine: classInfo.startLine,
+                startColumn: classInfo.startColumn,
+                endLine: classInfo.endLine,
+                endColumn: classInfo.endColumn,
             },
         });
     }, [rpcClient]);

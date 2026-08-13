@@ -17,7 +17,7 @@
  */
 
 import { CDModel } from "@wso2/ballerina-core";
-import { findAgentUsages } from "./agentUsages";
+import { findAgentUsages, findListenerPosition } from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
 const MODEL_UUID = "56125554-ece7-d97c-cf7c-f67f55d014fe";
@@ -310,6 +310,28 @@ describe("findAgentUsages trigger payload", () => {
 
     it("leaves a listener alone while another service is still attached to it", () => {
         expect(usagesOf("onMessage")?.trigger?.listeners).toEqual([]);
+    });
+
+    it("re-resolves a listener that moved after the service was deleted", () => {
+        const shifted = {
+            ...triggerModel,
+            listeners: triggerModel.listeners.map((listener) =>
+                listener.symbol === "whatsappListener"
+                    ? { ...listener, location: { filePath: TRIGGERS_BAL, ...range(2) } }
+                    : listener
+            ),
+        } as unknown as CDModel;
+        expect(findListenerPosition(shifted, "whatsappListener", TRIGGERS_BAL)).toEqual({
+            startLine: 2,
+            startColumn: 0,
+            endLine: 3,
+            endColumn: 1,
+        });
+    });
+
+    it("skips a listener that is already gone", () => {
+        expect(findListenerPosition(triggerModel, "whatsappListener", "/proj/other.bal")).toBeUndefined();
+        expect(findListenerPosition(triggerModel, "goneListener", TRIGGERS_BAL)).toBeUndefined();
     });
 
     it("leaves an entry point the user wrote themselves un-deletable", () => {

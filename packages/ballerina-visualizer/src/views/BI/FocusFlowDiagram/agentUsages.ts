@@ -159,6 +159,13 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
     return usages;
 }
 
+export function findListenerPosition(model: CDModel, symbol: string, filePath: string): NodePosition | undefined {
+    const listener = (model?.listeners ?? []).find(
+        (candidate) => candidate.symbol === symbol && samePath(candidate.location?.filePath ?? "", filePath)
+    );
+    return listener ? toPosition(listener.location) : undefined;
+}
+
 export type AgentRef = {
     filePath: string;
     startLine: number;

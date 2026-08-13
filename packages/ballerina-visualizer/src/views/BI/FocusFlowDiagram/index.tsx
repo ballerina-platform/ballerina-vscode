@@ -54,7 +54,7 @@ import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgen
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
-import { findAgentUsages, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+import { findAgentUsages, findListenerPosition, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
 
 const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
     a.length === b.length &&
@@ -350,27 +350,30 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         setShowProgressIndicator(true);
         try {
-            const targets = [
-                { name: trigger.serviceName, documentUri: trigger.documentUri, position: trigger.position },
-                ...trigger.listeners.map((listener) => ({
-                    name: listener.symbol,
-                    documentUri: listener.documentUri,
-                    position: listener.position,
-                })),
-            ];
-            targets.sort((a, b) => b.position.startLine - a.position.startLine);
-            for (const target of targets) {
-                await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
-                    filePath: target.documentUri,
+            const deleteComponent = (name: string, documentUri: string, position: NodePosition) =>
+                rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+                    filePath: documentUri,
                     component: {
-                        name: target.name,
-                        filePath: target.documentUri,
-                        startLine: target.position.startLine,
-                        startColumn: target.position.startColumn,
-                        endLine: target.position.endLine,
-                        endColumn: target.position.endColumn,
+                        name,
+                        filePath: documentUri,
+                        startLine: position.startLine,
+                        startColumn: position.startColumn,
+                        endLine: position.endLine,
+                        endColumn: position.endColumn,
                     },
                 });
+
+            await deleteComponent(trigger.serviceName, trigger.documentUri, trigger.position);
+            for (const listener of trigger.listeners) {
+                const location = await rpcClient.getVisualizerLocation();
+                const response = await rpcClient
+                    .getBIDiagramRpcClient()
+                    .getDesignModel({ projectPath: location?.projectPath });
+                const position = findListenerPosition(response?.designModel, listener.symbol, listener.documentUri);
+                if (!position) {
+                    continue;
+                }
+                await deleteComponent(listener.symbol, listener.documentUri, position);
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
