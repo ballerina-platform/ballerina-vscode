@@ -1451,7 +1451,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1c6"
+                    "fontCharacter": "\\f1d0"
                 }
             },
             "distro-file-submodule": {
