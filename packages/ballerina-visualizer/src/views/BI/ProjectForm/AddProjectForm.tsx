@@ -26,7 +26,8 @@ import { useCreateFlowCopy } from "./useCreateFlowCopy";
 import { AddProjectFormData } from "./types";
 import { isFormValidAddProject, joinPath, sanitizeOrgHandle, sanitizePackageName, splitPath } from "./utils";
 import { useRealtimeProjectPathValidation } from "../CreateIntegrationWizard/hooks/useRealtimeProjectPathValidation";
-import { ValidateProjectFormErrorField } from "@wso2/ballerina-core";
+import { ProductMode, ValidateProjectFormErrorField } from "@wso2/ballerina-core";
+import { useProductMode } from "../../../hooks/useProductMode";
 import { ProjectContext } from "../CreateIntegrationWizard/types";
 import { BiWsClientProvider } from "../wsManager/WsClientContext";
 import { CreateFlowShell } from "./embedded/integrator-form/shared/CreateFlowShell";
@@ -94,6 +95,9 @@ export function AddProjectForm() {
     const [packageNameValidationError, setPackageNameValidationError] = useState<string | null>(null);
     const [projectNameValidationError, setProjectNameValidationError] = useState<string | null>(null);
     const copy = useCreateFlowCopy();
+    // The artifact type is not a choice in Agent Builder, so the wizard collapses to
+    // its Name step and creates the empty integration from there.
+    const isAgentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
     const isConvert = !isInProject;
     const isConvertAndAdd = isConvert && addNewAfterConvert;
@@ -370,7 +374,7 @@ export function AddProjectForm() {
     if (screen === "integration") {
         return (
             <CreateFlowShell
-                title="New Integration"
+                title={`New ${copy.integrationLabel}`}
                 subtitle={startingPointSubtitle}
                 onBack={() => setScreen("chooser")}
                 bodyFill
@@ -388,6 +392,8 @@ export function AddProjectForm() {
                             embedded
                             showHeader={false}
                             projectContext={integrationProjectContext}
+                            nameOnly={isAgentBuilder}
+                            nameLabel={isAgentBuilder ? copy.integrationNameLabel : undefined}
                         />
                     </React.Suspense>
                 </BiWsClientProvider>

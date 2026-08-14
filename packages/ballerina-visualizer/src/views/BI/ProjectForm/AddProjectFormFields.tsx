@@ -26,9 +26,11 @@ import {
     FormSectionCaption,
     InlineToggle,
 } from "./styles";
+import { ProductMode } from "@wso2/ballerina-core";
 import { ProjectTypeSelector } from "./components";
 import { projectTypeOptions } from "./copy";
 import { useCreateFlowCopy } from "./useCreateFlowCopy";
+import { useProductMode } from "../../../hooks/useProductMode";
 import { AddProjectFormData } from "./types";
 import { sanitizeProjectHandle } from "./utils";
 
@@ -70,6 +72,9 @@ export function AddProjectFormFields({
     const copy = useCreateFlowCopy();
     const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
+    // Agent Builder's integration wizard collapses to its Name step; a library still
+    // configures on the next screen.
+    const namesOnlyNextStep = useProductMode() === ProductMode.AGENT_BUILDER && !formData.isLibrary;
     const showIntegrationFields = isInProject || addNewAfterConvert;
 
     const handleProjectName = (value: string) => {
@@ -149,9 +154,12 @@ export function AddProjectFormFields({
                     />
 
                     {/* Both starting points are named and configured on the next screen,
-                        matching the initial Create experience. */}
+                        matching the initial Create experience — except an Agent Builder
+                        integration, which is only named there. */}
                     <Description>
-                        You'll name and configure your {resourceTypeLabelLower} in the next step.
+                        {namesOnlyNextStep
+                            ? `You'll name your ${resourceTypeLabelLower} in the next step.`
+                            : `You'll name and configure your ${resourceTypeLabelLower} in the next step.`}
                     </Description>
                 </FormSection>
             )}

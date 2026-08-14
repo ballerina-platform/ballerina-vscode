@@ -69,11 +69,13 @@ export const BackButtonSlot = styled.div`
 /** Fills the remaining height below the stepper. Its content — the scroll area
  *  plus the pinned footer — is laid out as a flex column so only the scroll
  *  area moves. */
-export const StepBody = styled.div`
+/** `spaced` replaces the top bar's spacing for the steps that render without it. */
+export const StepBody = styled.div<{ spaced?: boolean }>`
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    padding-top: ${({ spaced }: { spaced?: boolean }) => (spaced ? "24px" : "0")};
 `;
 
 /** Pinned block above the scroll area (e.g. the integration name + the type
