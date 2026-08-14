@@ -31,6 +31,7 @@ import {
     SpinArc,
     HERO_GLOW,
     ambientGlow,
+    frameTriple,
     IconOverlay,
     AGENT_BUILDER_ORB_COLORS,
     ORB_ENERGY,
@@ -45,6 +46,9 @@ const CONTENT_WIDTH = 760;
 
 const INPUT_MIN_HEIGHT = 46;
 const INPUT_MAX_HEIGHT = 220;
+
+const EXIT_MS = 680;
+const RUN_START_TIMEOUT_MS = 10000;
 
 const EXAMPLES = [
     {
@@ -105,36 +109,116 @@ const auraBreathe = keyframes`
     50% { transform: scale(1.15); opacity: 0.7; }
 `;
 
-const OrbHolder = styled.div`
+const ACTIVE_GLOW = { outerSize: 40, outerStrength: 48, innerSize: 20, innerStrength: 30 };
+
+interface OrbHolderProps {
+    $active?: boolean;
+    $colors: [string, string, string];
+}
+
+const OrbHolder = styled.div<OrbHolderProps>`
     position: relative;
     width: ${ORB_SIZE}px;
     height: ${ORB_SIZE}px;
     flex: none;
     border-radius: 50%;
-    box-shadow: ${ambientGlow(ACCENT_FRAME, HERO_GLOW)};
+    box-shadow: ${(props: OrbHolderProps) =>
+        ambientGlow(props.$colors, props.$active ? ACTIVE_GLOW : HERO_GLOW)};
+    transform: scale(${(props: OrbHolderProps) => (props.$active ? 1.12 : 1)});
+    transition: transform 620ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 620ms ease;
 
     &::before {
         content: "";
         position: absolute;
         inset: -75%;
         border-radius: 50%;
-        background: radial-gradient(
+        background: ${(props: OrbHolderProps) => `radial-gradient(
             circle,
-            color-mix(in srgb, ${ACCENT_FRAME[1]} 32%, transparent) 0%,
-            color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 45%,
+            color-mix(in srgb, ${props.$colors[1]} 32%, transparent) 0%,
+            color-mix(in srgb, ${props.$colors[0]} 12%, transparent) 45%,
             transparent 70%
-        );
+        )`};
         filter: blur(12px);
-        animation: ${auraBreathe} 5.5s ease-in-out infinite;
+        animation: ${auraBreathe} ${(props: OrbHolderProps) => (props.$active ? "2.6s" : "5.5s")} ease-in-out
+            infinite;
         pointer-events: none;
     }
 
     @media (prefers-reduced-motion: reduce) {
+        transition: none;
+
         &::before {
             animation: none;
             opacity: 0.75;
         }
     }
+`;
+
+const riseIn = keyframes`
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+`;
+
+// grid-template-rows is animatable where height: auto is not, so the collapse
+// glides and the centred orb rides down with it.
+const IdleBlock = styled.div<{ $out?: boolean }>`
+    display: grid;
+    grid-template-rows: ${(props: { $out?: boolean }) => (props.$out ? "0fr" : "1fr")};
+    width: 100%;
+    transition: grid-template-rows 620ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+`;
+
+const ExitGroup = styled.div<{ $out?: boolean; $delay?: number }>`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    opacity: ${(props: { $out?: boolean }) => (props.$out ? 0 : 1)};
+    transform: translateY(${(props: { $out?: boolean }) => (props.$out ? "-6px" : "0")});
+    transition: opacity 300ms ease, transform 300ms ease;
+    transition-delay: ${(props: { $delay?: number }) => props.$delay ?? 0}ms;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+`;
+
+const RunBlock = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: ${riseIn} 560ms 280ms both cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+`;
+
+const PromptEcho = styled.p`
+    margin: 14px 0 0;
+    max-width: 520px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 `;
 
 const CopilotName = styled.div`
@@ -356,8 +440,11 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
+    const [submittedPrompt, setSubmittedPrompt] = useState<string>();
+    const [idleMounted, setIdleMounted] = useState(true);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const focusOnTextRef = useRef(false);
+    const runStartedRef = useRef(false);
 
     const aiPanelOpen = useAiPanelOpen();
 
@@ -387,8 +474,38 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const state = status?.state ?? "idle";
     const working = state !== "idle";
     const running = state === "running";
+    // The transition starts on click, not when the extension reports the run —
+    // opening the panel and starting it takes long enough to read as a dead beat.
+    const showRun = working || submittedPrompt !== undefined;
+
+    useEffect(() => {
+        if (working) {
+            runStartedRef.current = true;
+            return;
+        }
+        if (submittedPrompt === undefined) {
+            return;
+        }
+        if (runStartedRef.current) {
+            runStartedRef.current = false;
+            setSubmittedPrompt(undefined);
+            return;
+        }
+        const timer = setTimeout(() => setSubmittedPrompt(undefined), RUN_START_TIMEOUT_MS);
+        return () => clearTimeout(timer);
+    }, [working, submittedPrompt]);
+
+    useEffect(() => {
+        if (!showRun) {
+            setIdleMounted(true);
+            return;
+        }
+        const timer = setTimeout(() => setIdleMounted(false), EXIT_MS);
+        return () => clearTimeout(timer);
+    }, [showRun]);
 
     const orbColors = working ? AGENT_BUILDER_ORB_COLORS[state] : ACCENT_SPHERE;
+    const orbGlow = frameTriple(orbColors[0]);
     const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading =
         state === "awaiting-input"
@@ -418,6 +535,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 { type: "text", text: trimmed, planMode: false, autoSubmit: true, newThread: true },
             ],
         });
+        setSubmittedPrompt(trimmed);
         setText("");
     };
 
@@ -428,7 +546,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
 
     return (
         <Wrap>
-            <OrbHolder>
+            <OrbHolder $active={showRun} $colors={orbGlow}>
                 <Sphere
                     colors={orbColors}
                     energy={ORB_ENERGY[state]}
@@ -441,15 +559,16 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                         iconSx={{ fontSize: "26px", color: "#ffffff" }}
                     />
                 </IconOverlay>
-                {running && <SpinArc color={ACCENT_FRAME[1]} />}
+                {(running || (showRun && !working)) && <SpinArc color={orbGlow[1]} />}
             </OrbHolder>
 
-            {working ? (
-                <>
+            {showRun && (
+                <RunBlock>
                     <Intro>
                         <Heading>{runHeading}</Heading>
                         {runDetail && <Subtitle live>{runDetail}</Subtitle>}
                     </Intro>
+                    {submittedPrompt && <PromptEcho>{submittedPrompt}</PromptEcho>}
                     {showOpenCopilot && (
                         <ScratchLine>
                             <LinkButton type="button" onClick={openCopilot}>
@@ -457,77 +576,99 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                             </LinkButton>
                         </ScratchLine>
                     )}
-                </>
-            ) : (
-                <>
-                    <CopilotName>WSO2 Agent Builder Intelligence</CopilotName>
-                    <Intro>
-                        <Heading>What should your agent do?</Heading>
-                    </Intro>
+                </RunBlock>
+            )}
 
-                    <ComposerRow>
-                        <ComposerFrame $variant="hero" $state={state} $colors={ACCENT_FRAME}>
-                            <Composer>
-                                <PromptInput
-                                    ref={inputRef}
-                                    rows={2}
-                                    value={text}
-                                    onChange={(event) => setText(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter" && !event.shiftKey) {
-                                            event.preventDefault();
-                                            send(text);
-                                        }
-                                    }}
-                                    placeholder="Describe what you want your agent to do…"
-                                    aria-label="Describe the agent you want to build"
-                                />
-                                <ComposerFooter>
-                                    <RoundButton type="button" title="Open WSO2 Agent Builder Intelligence" onClick={openCopilot}>
-                                        <Codicon name="add" />
-                                    </RoundButton>
-                                    <RoundButton
-                                        type="button"
-                                        title="Send to WSO2 Agent Builder Intelligence"
-                                        aria-label="Send to WSO2 Agent Builder Intelligence"
-                                        disabled={!text.trim()}
-                                        onClick={() => send(text)}
-                                        primary={true}
-                                    >
-                                        <Codicon name="arrow-up" />
-                                    </RoundButton>
-                                </ComposerFooter>
-                            </Composer>
-                        </ComposerFrame>
-                    </ComposerRow>
+            {idleMounted && (
+                <IdleBlock $out={showRun}>
+                    <div>
+                        <ExitGroup $out={showRun}>
+                            <CopilotName>WSO2 Agent Builder Intelligence</CopilotName>
+                            <Intro>
+                                <Heading>What should your agent do?</Heading>
+                            </Intro>
+                        </ExitGroup>
 
-                    <ExamplesBlock>
-                        <ExamplesLabel>Examples</ExamplesLabel>
-                        <Cards>
-                            {EXAMPLES.map((example) => (
-                                <Card key={example.name} type="button" onClick={() => fillExample(example.prompt)}>
-                                    <Icon
-                                        name={example.icon}
-                                        isCodicon={true}
-                                        sx={{ color: "var(--vscode-foreground)" }}
-                                        iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
-                                    />
-                                    <CardText>
-                                        <CardName>{example.name}</CardName>
-                                        <CardDescription>{example.description}</CardDescription>
-                                    </CardText>
-                                </Card>
-                            ))}
-                        </Cards>
-                    </ExamplesBlock>
+                        <ExitGroup $out={showRun} $delay={110}>
+                            <ComposerRow>
+                                <ComposerFrame $variant="hero" $state={state} $agentBuilder $colors={ACCENT_FRAME}>
+                                    <Composer>
+                                        <PromptInput
+                                            ref={inputRef}
+                                            rows={2}
+                                            value={text}
+                                            onChange={(event) => setText(event.target.value)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" && !event.shiftKey) {
+                                                    event.preventDefault();
+                                                    send(text);
+                                                }
+                                            }}
+                                            placeholder="Describe what you want your agent to do…"
+                                            aria-label="Describe the agent you want to build"
+                                        />
+                                        <ComposerFooter>
+                                            <RoundButton
+                                                type="button"
+                                                title="Open WSO2 Agent Builder Intelligence"
+                                                onClick={openCopilot}
+                                            >
+                                                <Codicon name="add" />
+                                            </RoundButton>
+                                            <RoundButton
+                                                type="button"
+                                                title="Send to WSO2 Agent Builder Intelligence"
+                                                aria-label="Send to WSO2 Agent Builder Intelligence"
+                                                disabled={!text.trim()}
+                                                onClick={() => send(text)}
+                                                primary={true}
+                                            >
+                                                <Codicon name="arrow-up" />
+                                            </RoundButton>
+                                        </ComposerFooter>
+                                    </Composer>
+                                </ComposerFrame>
+                            </ComposerRow>
+                        </ExitGroup>
 
-                    <ManualRow>
-                        or
-                        <Button appearance="secondary" onClick={onCreateFromScratch} buttonSx={MANUAL_BUTTON_SX}>
-                            Add an agent manually
-                        </Button>
-                    </ManualRow>
-                </>
+                        <ExitGroup $out={showRun}>
+                            <ExamplesBlock>
+                                <ExamplesLabel>Examples</ExamplesLabel>
+                                <Cards>
+                                    {EXAMPLES.map((example) => (
+                                        <Card
+                                            key={example.name}
+                                            type="button"
+                                            onClick={() => fillExample(example.prompt)}
+                                        >
+                                            <Icon
+                                                name={example.icon}
+                                                isCodicon={true}
+                                                sx={{ color: "var(--vscode-foreground)" }}
+                                                iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
+                                            />
+                                            <CardText>
+                                                <CardName>{example.name}</CardName>
+                                                <CardDescription>{example.description}</CardDescription>
+                                            </CardText>
+                                        </Card>
+                                    ))}
+                                </Cards>
+                            </ExamplesBlock>
+
+                            <ManualRow>
+                                or
+                                <Button
+                                    appearance="secondary"
+                                    onClick={onCreateFromScratch}
+                                    buttonSx={MANUAL_BUTTON_SX}
+                                >
+                                    Add an agent manually
+                                </Button>
+                            </ManualRow>
+                        </ExitGroup>
+                    </div>
+                </IdleBlock>
             )}
         </Wrap>
     );
