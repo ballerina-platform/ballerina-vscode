@@ -22,6 +22,7 @@ import { Button, ProgressRing, ThemeColors, Typography } from "@wso2/ui-toolkit"
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AddProjectFormFields } from "./AddProjectFormFields";
 import { AddLibraryFields } from "./AddLibraryFields";
+import { useCreateFlowCopy } from "./useCreateFlowCopy";
 import { AddProjectFormData } from "./types";
 import { isFormValidAddProject, joinPath, sanitizeOrgHandle, sanitizePackageName, splitPath } from "./utils";
 import { useRealtimeProjectPathValidation } from "../CreateIntegrationWizard/hooks/useRealtimeProjectPathValidation";
@@ -92,7 +93,8 @@ export function AddProjectForm() {
     const [pathValidationError, setPathValidationError] = useState<string | null>(null);
     const [packageNameValidationError, setPackageNameValidationError] = useState<string | null>(null);
     const [projectNameValidationError, setProjectNameValidationError] = useState<string | null>(null);
-    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
+    const copy = useCreateFlowCopy();
+    const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
     const isConvert = !isInProject;
     const isConvertAndAdd = isConvert && addNewAfterConvert;
     // Whether a starting point (integration/library) is being added (vs a plain convert).
@@ -454,8 +456,8 @@ export function AddProjectForm() {
             ? `Convert to Project & Add New ${resourceTypeLabel}`
             : "Convert to Project";
     const chooserSubtitle = isInProject
-        ? "Add an integration or library to your project."
-        : "Organize your current integration inside a project.";
+        ? `Add an ${copy.integrationNoun} or library to your project.`
+        : `Organize your current ${copy.integrationNoun} inside a project.`;
 
     return (
         <CreateFlowShell title={chooserTitle} subtitle={chooserSubtitle} onBack={goBack} fill>

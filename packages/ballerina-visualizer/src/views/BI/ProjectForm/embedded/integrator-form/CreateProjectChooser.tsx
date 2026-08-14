@@ -42,6 +42,7 @@ import {
     TakenNames,
 } from "../../hooks/resolveAvailableDirectoryName";
 import { LibraryCreationView } from "./LibraryCreationView";
+import { getCreateFlowCopy, projectTypeOptions } from "../../copy";
 import { ProjectTypeSelector } from "../../components";
 import { CreatingIntegrationView } from "../../../CreateIntegrationWizard/components/CreatingIntegrationView";
 import { ProjectContext } from "../../../CreateIntegrationWizard/types";
@@ -179,6 +180,8 @@ interface CreateProjectChooserProps {
      * is held back, because the answer decides which flow the user is routed into.
      */
     workspaceSupportPending?: boolean;
+    /** Agent Builder wording: what is created here is an agentic integration. */
+    isAgentBuilder?: boolean;
     /** Exit the whole Create flow (back to the welcome view). */
     onBack?: () => void;
 }
@@ -196,9 +199,11 @@ export function CreateProjectChooser({
     biWsClient,
     ballerinaUnavailable,
     workspaceSupportPending,
+    isAgentBuilder,
     onBack,
 }: CreateProjectChooserProps) {
     const { wsClient } = useVisualizerContext();
+    const copy = getCreateFlowCopy(isAgentBuilder);
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
     const projectNameTouchedRef = useRef(false);
@@ -457,7 +462,7 @@ export function CreateProjectChooser({
         }
     };
 
-    const startingPointNoun = isLibrary ? "library" : "integration";
+    const startingPointNoun = isLibrary ? "library" : copy.integrationNoun;
 
     /** The resolved project the integration / library is created into. */
     const projectContext: ProjectContext = {
@@ -534,13 +539,13 @@ export function CreateProjectChooser({
                 },
             });
         } catch (error) {
-            console.error("Failed to create the integration:", error);
+            console.error(`Failed to create the ${copy.integrationNoun}:`, error);
             setIsCreating(false);
             // Lead with the operation, append the reason only when there is one — a bare
             // transport/filesystem message leaves the user to infer what failed. The raw
             // error is on the console above, which is where the detail is useful.
             const reason = error instanceof Error ? error.message : "";
-            setCreateError(`Failed to create the integration.${reason ? ` ${reason}` : ""}`);
+            setCreateError(`Failed to create the ${copy.integrationNoun}.${reason ? ` ${reason}` : ""}`);
         } finally {
             setIsValidating(false);
         }
@@ -576,7 +581,7 @@ export function CreateProjectChooser({
     return (
         <CreateFlowShell
             title="Create"
-            subtitle="A project helps you organize your integrations and libraries."
+            subtitle={`A project helps you organize your ${copy.integrationNounPlural} and libraries.`}
             onBack={onBack}
         >
             <Section>
@@ -637,7 +642,8 @@ export function CreateProjectChooser({
                     label="Choose your starting point"
                     value={isLibrary}
                     onChange={setIsLibrary}
-                    note="This is just your starting point. You can add more integrations and libraries to the project later."
+                    options={projectTypeOptions(copy)}
+                    note={`This is just your starting point. You can add more ${copy.integrationNounPlural} and libraries to the project later.`}
                 />
             </Section>
 
@@ -650,8 +656,8 @@ export function CreateProjectChooser({
                         <TextField
                             onTextChange={handleIntegrationNameChange}
                             value={integrationName}
-                            label="Integration name"
-                            placeholder="Enter an integration name"
+                            label={copy.integrationNameLabel}
+                            placeholder={copy.integrationNamePlaceholder}
                             required={true}
                             errorMsg={integrationNameError || ""}
                         />
@@ -686,7 +692,7 @@ export function CreateProjectChooser({
                         onClick={isLibrary ? handleNext : handleCreateIntegration}
                         appearance="primary"
                     >
-                        {isLibrary ? "Next" : isValidating ? "Validating..." : "Create Integration"}
+                        {isLibrary ? "Next" : isValidating ? "Validating..." : copy.createButtonLabel}
                     </Button>
                 </span>
             </FormFooter>

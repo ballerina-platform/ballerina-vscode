@@ -27,6 +27,8 @@ import {
     InlineToggle,
 } from "./styles";
 import { ProjectTypeSelector } from "./components";
+import { projectTypeOptions } from "./copy";
+import { useCreateFlowCopy } from "./useCreateFlowCopy";
 import { AddProjectFormData } from "./types";
 import { sanitizeProjectHandle } from "./utils";
 
@@ -65,7 +67,8 @@ export function AddProjectFormFields({
     onConvertPathSelect,
     convertPathError,
 }: AddProjectFormFieldsProps) {
-    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
+    const copy = useCreateFlowCopy();
+    const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
     const showIntegrationFields = isInProject || addNewAfterConvert;
 
@@ -86,7 +89,7 @@ export function AddProjectFormFields({
                     <FormSectionHeader>
                         <FormSectionTitle>Project</FormSectionTitle>
                         <FormSectionCaption>
-                            Your current integration becomes the first member of this project.
+                            Your current {copy.integrationNoun} becomes the first member of this project.
                         </FormSectionCaption>
                     </FormSectionHeader>
 
@@ -114,13 +117,13 @@ export function AddProjectFormFields({
                             errorMsg={convertPathError || undefined}
                         />
                         <Description>
-                            The project folder is created here and your current integration is moved into it.
+                            The project folder is created here and your current {copy.integrationNoun} is moved into it.
                         </Description>
                     </FieldGroup>
 
                     <InlineToggle>
                         <CheckBox
-                            label="Also add a new integration or library"
+                            label={`Also add a new ${copy.integrationNoun} or library`}
                             checked={addNewAfterConvert}
                             onChange={onAddNewAfterConvertChange}
                         />
@@ -142,6 +145,7 @@ export function AddProjectFormFields({
                     <ProjectTypeSelector
                         value={formData.isLibrary}
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
+                        options={projectTypeOptions(copy)}
                     />
 
                     {/* Both starting points are named and configured on the next screen,

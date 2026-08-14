@@ -48,9 +48,11 @@ export interface ProjectTypeSelectorProps {
     note?: ReactNode;
     /** Section label above the options. Defaults to "Type". */
     label?: string;
+    /** Overrides the option titles/descriptions (Agent Builder words them differently). */
+    options?: ProjectTypeOption[];
 }
 
-const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
+export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
     {
         value: "integration",
         title: "Create an integration",
@@ -70,12 +72,13 @@ export function ProjectTypeSelector({
     onChange,
     note,
     label = "Type",
+    options = PROJECT_TYPE_OPTIONS,
 }: ProjectTypeSelectorProps) {
     return (
         <ProjectTypeContainer>
             <ProjectTypeLabel>{label}</ProjectTypeLabel>
             <RadioGroup>
-                {PROJECT_TYPE_OPTIONS.map((option) => {
+                {options.map((option) => {
                     const isLibrary = option.value === "library";
                     const isSelected = value === isLibrary;
 

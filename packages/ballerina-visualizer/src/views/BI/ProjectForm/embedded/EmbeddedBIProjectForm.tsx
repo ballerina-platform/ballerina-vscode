@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ProductMode } from "@wso2/ballerina-core";
 import { ProgressIndicator, Typography } from "@wso2/ui-toolkit";
 import { WsClientProvider, WiBridgeClient } from "./integrator-form/context/WsClientContext";
 import { CloudContextProvider } from "./integrator-form/providers";
@@ -50,6 +51,12 @@ export interface EmbeddedBIProjectFormProps {
     ballerinaUnavailable?: boolean;
     /** The variant to render. Defaults to `integration`. */
     mode?: EmbeddedFormMode;
+    /**
+     * The embedding host's product flavor, which decides the Create flow's wording
+     * (Agent Builder says "agentic integration"). Absent — an older host that does
+     * not pass it — reads as the Integrator.
+     */
+    productMode?: ProductMode;
     /** Back navigation for the self-chromed `project`/`library` variants. */
     onBack?: () => void;
 }
@@ -79,8 +86,9 @@ type WizardSupport = "probing" | "supported" | "unsupported";
  * capabilities and renders the Create Integration wizard, falling back
  * to the legacy single-step form against an older extension.
  */
-export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, mode = "integration", onBack }: EmbeddedBIProjectFormProps) {
+export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, mode = "integration", productMode, onBack }: EmbeddedBIProjectFormProps) {
     const queryClient = useMemo(() => new QueryClient(), []);
+    const isAgentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const [rpcClient, setRpcClient] = useState<WiBridgeClient | null>(null);
     const [biWsClient, setBiWsClient] = useState<BiWsClient | null>(null);
     const [wizardSupport, setWizardSupport] = useState<WizardSupport>("probing");
@@ -240,6 +248,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                             <StandaloneCreateChooser
                                 biWsClient={biWsClient}
                                 ballerinaUnavailable={ballerinaUnavailable}
+                                isAgentBuilder={isAgentBuilder}
                                 onBack={onBack}
                             />
                         ) : (
@@ -247,6 +256,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                                 biWsClient={biWsClient}
                                 ballerinaUnavailable={ballerinaUnavailable}
                                 workspaceSupportPending={workspaceSupported === undefined}
+                                isAgentBuilder={isAgentBuilder}
                                 onBack={onBack}
                             />
                         )}
