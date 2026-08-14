@@ -1,1 +1,162 @@
-[]
+[
+  {
+    "metadata": {
+      "label": "Customer Support Agent",
+      "description": "Answers customer questions, looks up order and account details, and escalates to a human when it cannot resolve the request."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.customer.support",
+      "packageName": "ai.customer.support",
+      "object": "SupportAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Order Tracking Agent",
+      "description": "Resolves order status, delivery estimates and returns against your order management system."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.order.tracking",
+      "packageName": "ai.order.tracking",
+      "object": "OrderTrackingAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "IT Helpdesk Agent",
+      "description": "Triages IT tickets, walks users through common fixes, and raises a ticket when the issue needs an engineer."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.it.helpdesk",
+      "packageName": "ai.it.helpdesk",
+      "object": "HelpdeskAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Document Q&A Agent",
+      "description": "Answers questions over your indexed documents with citations back to the source passage."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.document.qa",
+      "packageName": "ai.document.qa",
+      "object": "DocumentQaAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Sales Lead Qualifier",
+      "description": "Scores inbound leads against your qualification criteria and writes the result back to the CRM."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.sales.lead",
+      "packageName": "ai.sales.lead",
+      "object": "LeadQualifierAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Invoice Processing Agent",
+      "description": "Extracts line items and totals from incoming invoices, validates them against purchase orders, and flags mismatches."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.invoice.processing",
+      "packageName": "ai.invoice.processing",
+      "object": "InvoiceAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "HR Onboarding Agent",
+      "description": "Guides new hires through onboarding tasks, answers policy questions, and tracks outstanding paperwork."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.hr.onboarding",
+      "packageName": "ai.hr.onboarding",
+      "object": "OnboardingAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Meeting Scheduler Agent",
+      "description": "Finds a slot that works for every attendee, books the meeting, and sends the invitations."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.meeting.scheduler",
+      "packageName": "ai.meeting.scheduler",
+      "object": "SchedulerAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Inventory Restock Agent",
+      "description": "Watches stock levels across warehouses, forecasts shortfalls, and raises purchase orders with the right supplier."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.inventory.restock",
+      "packageName": "ai.inventory.restock",
+      "object": "RestockAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  },
+  {
+    "metadata": {
+      "label": "Contract Review Agent",
+      "description": "Reads incoming contracts, surfaces clauses that deviate from your standard terms, and summarises the risk for legal."
+    },
+    "codedata": {
+      "node": "TYPED_AGENT",
+      "org": "ballerinax",
+      "module": "ai.contract.review",
+      "packageName": "ai.contract.review",
+      "object": "ContractReviewAgent",
+      "symbol": "init",
+      "version": "1.0.0"
+    },
+    "enabled": true
+  }
+]
