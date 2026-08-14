@@ -31,7 +31,7 @@ const HeaderRow = styled.div<HeaderRowProps>`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0 16px 16px;
+    padding: ${(props: HeaderRowProps) => props.hideDivider ? "20px 0 20px 8px" : "16px 0 16px 16px"};
     background: var(--vscode-editor-background);
     border-bottom: ${(props: HeaderRowProps) =>
         props.hideDivider ? "none" : "1px solid var(--vscode-dropdown-border)"
@@ -59,6 +59,7 @@ const ProjectTitle = styled.h1`
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
     @media (min-width: 768px) {
         font-size: 1.875rem;
     }

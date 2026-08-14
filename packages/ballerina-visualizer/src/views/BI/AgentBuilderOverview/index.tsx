@@ -127,6 +127,23 @@ const TracingState = styled.div`
     }
 `;
 
+// Below this the labels are dropped and the header actions become icon-only.
+const COMPACT_HEADER_WIDTH = 800;
+
+function useCompactHeader() {
+    const [compact, setCompact] = useState(false);
+
+    useEffect(() => {
+        const query = window.matchMedia(`(max-width: ${COMPACT_HEADER_WIDTH - 1}px)`);
+        const update = () => setCompact(query.matches);
+        update();
+        query.addEventListener("change", update);
+        return () => query.removeEventListener("change", update);
+    }, []);
+
+    return compact;
+}
+
 const MenuItemLabel = styled.div`
     display: flex;
     align-items: center;
@@ -159,6 +176,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     // Only true once the empty state has actually been on screen, so opening a
     // project that already has an agent never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
+    const compactHeader = useCompactHeader();
     const togglingTracingRef = useRef(false);
     const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const sawEmptyRef = useRef(false);
@@ -366,9 +384,17 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
 
     const headerActions = (
         <>
-            <Button appearance="icon" onClick={handleConfigure} buttonSx={{ padding: "4px 8px" }}>
-                <Icon name="bi-settings" sx={{ marginRight: 5, fontSize: "16px", width: "16px" }} />
-                Configure
+            <Button
+                appearance="icon"
+                onClick={handleConfigure}
+                tooltip={compactHeader ? "Configure" : undefined}
+                buttonSx={{ padding: "4px 8px" }}
+            >
+                <Icon
+                    name="bi-settings"
+                    sx={{ marginRight: compactHeader ? 0 : 5, fontSize: "16px", width: "16px" }}
+                />
+                {!compactHeader && "Configure"}
             </Button>
             {agents.length > 0 && (
                 <>
@@ -378,24 +404,36 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                         tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
                         buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
                     >
-                        <Codicon name="telescope" sx={{ marginRight: 5 }} />
-                        Tracing:&nbsp;
-                        <TracingState>
-                            <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
-                            <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
-                        </TracingState>
+                        <Codicon name="telescope" sx={{ marginRight: compactHeader ? 0 : 5 }} />
+                        {!compactHeader && (
+                            <>
+                                Tracing:&nbsp;
+                                <TracingState>
+                                    <div style={{ opacity: isTracingEnabled ? 1 : 0 }}>On</div>
+                                    <div style={{ opacity: isTracingEnabled ? 0 : 1 }}>Off</div>
+                                </TracingState>
+                            </>
+                        )}
                     </Button>
-                    <Button appearance="icon" onClick={handleRun} buttonSx={{ padding: "4px 8px" }}>
-                        <Codicon name="play" sx={{ marginRight: 5 }} /> Run
+                    <Button
+                        appearance="icon"
+                        onClick={handleRun}
+                        tooltip={compactHeader ? "Run" : undefined}
+                        buttonSx={{ padding: "4px 8px" }}
+                    >
+                        <Codicon name="play" sx={{ marginRight: compactHeader ? 0 : 5 }} />
+                        {!compactHeader && " Run"}
                     </Button>
                     <Button
                         appearance="icon"
                         onClick={(e: React.MouseEvent<HTMLElement | SVGSVGElement>) =>
                             setDeployAnchor(e.currentTarget as HTMLElement)
                         }
+                        tooltip={compactHeader ? "Deploy" : undefined}
                         buttonSx={{ padding: "4px 8px" }}
                     >
-                        <Codicon name="cloud-upload" sx={{ marginRight: 5 }} /> Deploy
+                        <Codicon name="cloud-upload" sx={{ marginRight: compactHeader ? 0 : 5 }} />
+                        {!compactHeader && " Deploy"}
                         <Codicon name="chevron-down" sx={{ marginLeft: 4, fontSize: 12 }} />
                     </Button>
                     <Popover
