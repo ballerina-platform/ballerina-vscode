@@ -66,6 +66,7 @@ import {
     formatJSONLikeString,
     updateFormFieldWithImports,
     hasIncompleteRequiredFormFields,
+    groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
     hasRequiredParameters,
@@ -181,6 +182,14 @@ namespace S {
         font-family: var(--vscode-font-family);
         font-size: 13px;
         color: var(--vscode-editor-foreground);
+    `;
+
+    export const GroupIssueIcon = styled.span`
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        margin-left: auto;
+        color: ${ThemeColors.ERROR};
     `;
 
     export const GroupChevron = styled.span<{ expanded?: boolean }>`
@@ -1100,6 +1109,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const hasBlockingLiveErrors = diagnosticsStore.hasBlockingErrors();
     const isLiveValidating = diagnosticsStore.isAnyValidating();
 
+    const hasFieldLiveError = (fieldKey: string): boolean => {
+        const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
+        return [...fieldDiagnostics.client, ...fieldDiagnostics.ls, ...fieldDiagnostics.compiler]
+            .some((diagnostic) => diagnostic.severity === "ERROR");
+    };
+
     // Call onValidityChange when form validity changes
     useEffect(() => {
         if (onValidityChange) {
@@ -1539,6 +1554,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         );
                     };
                     const expanded = expandedGroups[group.id] ?? !(group.defaultCollapsed ?? true);
+                    const showIssueIcon = !expanded && groupHasBlockingIssue({
+                        groupFields,
+                        errors,
+                        values: watchedValues,
+                        hasFieldError: hasFieldLiveError,
+                    });
                     return (
                         <S.GroupCard key={group.id}>
                             <S.GroupHeader
@@ -1547,6 +1568,14 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                 onClick={() => toggleGroup(group.id)}
                             >
                                 <S.GroupTitle>{group.label}</S.GroupTitle>
+                                {showIssueIcon && (
+                                    <S.GroupIssueIcon
+                                        title="This section has a required or invalid field"
+                                        aria-label="This section has a required or invalid field"
+                                    >
+                                        <Codicon name="warning" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
+                                    </S.GroupIssueIcon>
+                                )}
                                 <S.GroupChevron expanded={expanded}>
                                     <Codicon name="chevron-down" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
                                 </S.GroupChevron>
