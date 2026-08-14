@@ -64,22 +64,43 @@ function shadeTriple(base: string): [string, string, string] {
     return [base, `color-mix(in srgb, ${base} 62%, #000000)`, `color-mix(in srgb, ${base} 72%, #ffffff)`];
 }
 
+/**
+ * One base color per state, so the orb and the composer frame cannot drift apart —
+ * they shade the same base two different ways (`shadeTriple` / `frameTriple`).
+ */
+const STATE_BASE = {
+    "running": "var(--vscode-progressBar-background)",
+    "awaiting-input": "var(--vscode-editorWarning-foreground)",
+    "completed": "var(--vscode-editorGutter-addedBackground)",
+    "error": "var(--vscode-statusBarItem-errorBackground)",
+} as const;
+
 /** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
 export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
-    "running": shadeTriple("var(--vscode-progressBar-background)"),
-    "awaiting-input": shadeTriple("var(--vscode-editorWarning-foreground)"),
-    "completed": shadeTriple("var(--vscode-editorGutter-addedBackground)"),
-    "error": shadeTriple("var(--vscode-statusBarItem-errorBackground)"),
+    "running": shadeTriple(STATE_BASE.running),
+    "awaiting-input": shadeTriple(STATE_BASE["awaiting-input"]),
+    "completed": shadeTriple(STATE_BASE.completed),
+    "error": shadeTriple(STATE_BASE.error),
 };
 
 const PRIMARY = "var(--vscode-button-background)";
 
-export const ACCENT_FRAME: [string, string, string] = [
-    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
-    PRIMARY,
-    `color-mix(in srgb, ${PRIMARY} 78%, #000000)`,
-];
+/** [lighter, base, darker] — the frame reads brightest at its leading edge, unlike a sphere. */
+export function frameTriple(base: string): [string, string, string] {
+    return [`color-mix(in srgb, ${base} 72%, #ffffff)`, base, `color-mix(in srgb, ${base} 78%, #000000)`];
+}
+
+export const ACCENT_FRAME: [string, string, string] = frameTriple(PRIMARY);
+
+/** Frame counterpart of AGENT_BUILDER_ORB_COLORS — same bases, frame-shaped. */
+export const AGENT_BUILDER_FRAME_COLORS: Record<AgentRunState, [string, string, string]> = {
+    "idle": ACCENT_FRAME,
+    "running": frameTriple(STATE_BASE.running),
+    "awaiting-input": frameTriple(STATE_BASE["awaiting-input"]),
+    "completed": frameTriple(STATE_BASE.completed),
+    "error": frameTriple(STATE_BASE.error),
+};
 
 export const ACCENT_SPHERE: [string, string, string] = [
     PRIMARY,
@@ -117,6 +138,7 @@ interface AmbientFrameProps {
     $state?: AgentRunState;
     $variant?: AmbientFrameVariant;
     $colors?: [string, string, string];
+    $agentBuilder?: boolean;
 }
 
 interface AmbientGlowSpec {
@@ -138,7 +160,11 @@ export const HERO_GLOW: AmbientGlowSpec = { outerSize: 28, outerStrength: 34, in
 
 function ambientColors(props: AmbientFrameProps): [string, string, string] {
     const state = props.$state ?? "idle";
-    return props.$colors && state === "idle" ? props.$colors : ORB_COLORS[state];
+    if (state === "idle") {
+        return props.$colors ?? ORB_COLORS.idle;
+    }
+    // Agent Builder tracks the orb's palette; Integrator keeps its own per-state colors.
+    return props.$agentBuilder ? AGENT_BUILDER_FRAME_COLORS[state] : ORB_COLORS[state];
 }
 
 /**

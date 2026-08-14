@@ -33,7 +33,7 @@ import { AttachmentOptions } from "../../AIChatInput/hooks/useAttachments";
 import { getTemplateTextById } from "../../../commandTemplates/utils/utils";
 import CodeContextCard from "../../CodeContextCard";
 import { AgentMode } from "../../AIChatInput/ModeToggle";
-import { Gloss, ORB_COLORS, ORB_ENERGY, Sphere } from "../../../../../components/AgentStatusOrb/shared";
+import { Gloss, ORB_ENERGY, Sphere, orbColors } from "../../../../../components/AgentStatusOrb/shared";
 
 export const FooterContainer = styled.footer({
     padding: "20px 20px 12px",
@@ -171,12 +171,13 @@ function useStickyLabel(value: string, minVisibleMs = MIN_LABEL_VISIBLE_MS): str
  */
 const LoadingIndicator: React.FC<{ label: string }> = React.memo(({ label }) => {
     const shownLabel = useStickyLabel(label);
+    const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
     return (
         // aria-live sits on the stable container: the label itself remounts on
         // every change, and a replaced node is not announced.
         <LoadingIndicatorContainer aria-live="polite">
             <LoadingOrb aria-hidden="true">
-                <Sphere colors={ORB_COLORS.running} energy={ORB_ENERGY.running} />
+                <Sphere colors={orbColors("running", agentBuilder)} energy={ORB_ENERGY.running} />
                 <Gloss />
             </LoadingOrb>
             {/* Keyed so a changed label remounts and replays the enter animation. */}

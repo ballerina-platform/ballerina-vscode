@@ -703,7 +703,7 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         return (
             <Container ref={containerRef}>
                 <FlexRow>
-                    <AmbientFrame $variant="composer" $state={ambientState} $colors={agentBuilder ? ACCENT_FRAME : undefined}>
+                    <AmbientFrame $variant="composer" $state={ambientState} $agentBuilder={agentBuilder} $colors={agentBuilder ? ACCENT_FRAME : undefined}>
                         <InputArea>
                             <StyledInputComponent
                                 ref={inputRef}
