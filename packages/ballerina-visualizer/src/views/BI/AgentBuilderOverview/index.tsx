@@ -66,6 +66,33 @@ const Panel = styled.div<{ bordered?: boolean }>`
         ${(props: { bordered?: boolean }) => (props.bordered ? ThemeColors.OUTLINE_VARIANT : "transparent")};
     border-radius: 4px;
     overflow: hidden;
+    transition: border-color 500ms ease;
+`;
+
+const CROSSFADE_MS = 520;
+// onReady fires when the model lands; the diagram still has a layout/fit pass to run.
+const READY_SETTLE_MS = 180;
+const READY_FALLBACK_MS = 2500;
+
+const Stage = styled.div`
+    display: grid;
+    flex: 1;
+    min-height: 0;
+`;
+
+const Layer = styled.div<{ $show?: boolean }>`
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    opacity: ${(props: { $show?: boolean }) => (props.$show ? 1 : 0)};
+    transform: ${(props: { $show?: boolean }) => (props.$show ? "none" : "scale(0.99)")};
+    pointer-events: ${(props: { $show?: boolean }) => (props.$show ? "auto" : "none")};
+    transition: opacity 500ms ease, transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
 `;
 
 /** The focus diagram wraps itself in a 100vh `View`. */
@@ -128,7 +155,13 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [isTracingEnabled, setIsTracingEnabled] = useState(false);
+    const [canvasReady, setCanvasReady] = useState(false);
+    // Only true once the empty state has actually been on screen, so opening a
+    // project that already has an agent never flashes it.
+    const [emptyMounted, setEmptyMounted] = useState(false);
     const togglingTracingRef = useRef(false);
+    const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const sawEmptyRef = useRef(false);
 
     const fetchContext = useCallback(() => {
         rpcClient
@@ -185,6 +218,44 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         setSelectedKey(agentKey(match));
         setShowAddAgent(false);
     }, [agents, agentFocus]);
+
+    // The fade belongs to the agent arriving while the empty state is on screen.
+    // Navigating to a project that already has one shows the canvas outright, and
+    // this must not count the render before projectStructure resolves.
+    if (projectStructure && !selectedAgent) {
+        sawEmptyRef.current = true;
+    }
+    const canvasVisible = canvasReady || !sawEmptyRef.current;
+
+    const handleCanvasReady = useCallback(() => {
+        clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = setTimeout(() => setCanvasReady(true), READY_SETTLE_MS);
+    }, []);
+
+    useEffect(() => {
+        if (!projectStructure) {
+            return;
+        }
+        if (!selectedAgent) {
+            clearTimeout(revealTimerRef.current);
+            setCanvasReady(false);
+            setEmptyMounted(true);
+            return;
+        }
+        if (!sawEmptyRef.current) {
+            return;
+        }
+        const fallback = setTimeout(() => setCanvasReady(true), READY_FALLBACK_MS);
+        return () => clearTimeout(fallback);
+    }, [projectStructure, selectedAgent]);
+
+    useEffect(() => {
+        if (!canvasVisible) {
+            return;
+        }
+        const timer = setTimeout(() => setEmptyMounted(false), CROSSFADE_MS);
+        return () => clearTimeout(timer);
+    }, [canvasVisible]);
 
     const integrationTitle = projectStructure?.projectTitle || projectStructure?.projectName;
     const deployableIntegrationTypes = useMemo(() => getIntegrationTypes(projectStructure), [projectStructure]);
@@ -375,43 +446,48 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                     hasTopNavigationBar={isInProject}
                 />
                 <MainContent>
-                    <Panel bordered={!!selectedAgent}>
-                        {agents.length > 0 && (
-                            <AgentTabs
-                                agents={agents}
-                                selectedKey={selectedAgent ? agentKey(selectedAgent) : ""}
-                                onSelect={(agent) => setSelectedKey(agentKey(agent))}
-                                onAdd={() => setShowAddAgent(true)}
-                            />
-                        )}
-                        {selectedAgent ? (
-                            <CanvasSlot>
-                                <React.Suspense
-                                    fallback={
-                                        <CenteredSlot>
-                                            <ProgressRing color={ThemeColors.PRIMARY} />
-                                        </CenteredSlot>
-                                    }
-                                >
-                                    <LazyFocusFlowDiagram
-                                        key={agentKey(selectedAgent)}
-                                        embedded={true}
-                                        projectPath={projectPath}
-                                        filePath={selectedAgent.path}
-                                        position={selectedAgent.position}
-                                        view={
-                                            selectedAgent.moduleName === "ai"
-                                                ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
-                                                : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
-                                        }
-                                        onUpdate={() => { }}
-                                        onReady={() => { }}
+                    <Panel bordered={canvasVisible}>
+                        <Stage>
+                            {selectedAgent && (
+                                <Layer $show={canvasVisible}>
+                                    <AgentTabs
+                                        agents={agents}
+                                        selectedKey={agentKey(selectedAgent)}
+                                        onSelect={(agent) => setSelectedKey(agentKey(agent))}
+                                        onAdd={() => setShowAddAgent(true)}
                                     />
-                                </React.Suspense>
-                            </CanvasSlot>
-                        ) : (
-                            <EmptyState onCreateFromScratch={() => setShowAddAgent(true)} />
-                        )}
+                                    <CanvasSlot>
+                                        <React.Suspense
+                                            fallback={
+                                                <CenteredSlot>
+                                                    <ProgressRing color={ThemeColors.PRIMARY} />
+                                                </CenteredSlot>
+                                            }
+                                        >
+                                            <LazyFocusFlowDiagram
+                                                key={agentKey(selectedAgent)}
+                                                embedded={true}
+                                                projectPath={projectPath}
+                                                filePath={selectedAgent.path}
+                                                position={selectedAgent.position}
+                                                view={
+                                                    selectedAgent.moduleName === "ai"
+                                                        ? FOCUS_FLOW_DIAGRAM_VIEW.AGENT
+                                                        : FOCUS_FLOW_DIAGRAM_VIEW.TYPED_AGENT
+                                                }
+                                                onUpdate={() => { }}
+                                                onReady={handleCanvasReady}
+                                            />
+                                        </React.Suspense>
+                                    </CanvasSlot>
+                                </Layer>
+                            )}
+                            {(!selectedAgent || emptyMounted) && (
+                                <Layer $show={!canvasVisible}>
+                                    <EmptyState onCreateFromScratch={() => setShowAddAgent(true)} />
+                                </Layer>
+                            )}
+                        </Stage>
                     </Panel>
                 </MainContent>
             </Page>
