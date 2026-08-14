@@ -16,12 +16,12 @@
  * under the License.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
     AWAITING_INPUT_LABEL,
     AmbientFrame,
@@ -239,13 +239,22 @@ const RoundButton = styled.button<{ primary?: boolean }>`
     }
 `;
 
+const ExamplesBlock = styled.div`
+    width: 100%;
+    max-width: ${CONTENT_WIDTH}px;
+    margin-top: 40px;
+`;
+
+const ExamplesLabel = styled.div`
+    margin-bottom: 10px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+`;
+
 const Cards = styled.div`
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
-    width: 100%;
-    max-width: ${CONTENT_WIDTH}px;
-    margin-top: 40px;
 
     @media (max-width: 900px) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -304,6 +313,22 @@ const ScratchLine = styled.p`
     font-size: 13px;
 `;
 
+// vscode-button puts padding on its inner .control, reachable only through these tokens.
+const MANUAL_BUTTON_SX = {
+    "--button-padding-vertical": "6px",
+    "--button-padding-horizontal": "14px",
+    borderRadius: "6px",
+} as CSSProperties;
+
+const ManualRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 28px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+`;
+
 const LinkButton = styled.button`
     padding: 0;
     border: 0;
@@ -332,6 +357,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const focusOnTextRef = useRef(false);
 
     const aiPanelOpen = useAiPanelOpen();
 
@@ -351,6 +377,11 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
         }
         input.style.height = "auto";
         input.style.height = `${Math.min(input.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+        if (focusOnTextRef.current) {
+            focusOnTextRef.current = false;
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
     }, [text]);
 
     const state = status?.state ?? "idle";
@@ -388,6 +419,11 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
             ],
         });
         setText("");
+    };
+
+    const fillExample = (prompt: string) => {
+        focusOnTextRef.current = true;
+        setText(prompt);
     };
 
     return (
@@ -465,26 +501,32 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                         </ComposerFrame>
                     </ComposerRow>
 
-                    <Cards>
-                        {EXAMPLES.map((example) => (
-                            <Card key={example.name} type="button" onClick={() => send(example.prompt)}>
-                                <Icon
-                                    name={example.icon}
-                                    isCodicon={true}
-                                    sx={{ color: "var(--vscode-foreground)" }}
-                                    iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
-                                />
-                                <CardText>
-                                    <CardName>{example.name}</CardName>
-                                    <CardDescription>{example.description}</CardDescription>
-                                </CardText>
-                            </Card>
-                        ))}
-                    </Cards>
+                    <ExamplesBlock>
+                        <ExamplesLabel>Examples</ExamplesLabel>
+                        <Cards>
+                            {EXAMPLES.map((example) => (
+                                <Card key={example.name} type="button" onClick={() => fillExample(example.prompt)}>
+                                    <Icon
+                                        name={example.icon}
+                                        isCodicon={true}
+                                        sx={{ color: "var(--vscode-foreground)" }}
+                                        iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
+                                    />
+                                    <CardText>
+                                        <CardName>{example.name}</CardName>
+                                        <CardDescription>{example.description}</CardDescription>
+                                    </CardText>
+                                </Card>
+                            ))}
+                        </Cards>
+                    </ExamplesBlock>
 
-                    <ScratchLine>
-                        or <LinkButton type="button" onClick={onCreateFromScratch}>build one from scratch</LinkButton>
-                    </ScratchLine>
+                    <ManualRow>
+                        or
+                        <Button appearance="secondary" onClick={onCreateFromScratch} buttonSx={MANUAL_BUTTON_SX}>
+                            Add an agent manually
+                        </Button>
+                    </ManualRow>
                 </>
             )}
         </Wrap>
