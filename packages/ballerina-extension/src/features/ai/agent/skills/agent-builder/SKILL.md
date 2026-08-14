@@ -78,6 +78,22 @@ the agent's `tools` array. The function MUST be `isolated`, every parameter MUST
 The doc comment is the tool description the model sees at runtime, so always write it — a `#`
 description line, a `# + <param> - ...` line per parameter, and `# + return - ...`.
 
+Declare each parameter with the type the tool actually needs — `int`, `decimal`, `boolean`, an enum,
+a record — not `string`. The runtime converts the model's arguments to the declared types, so a
+parameter typed `string` and then parsed inside the body moves that conversion from the framework
+into the tool, where a value the model formats slightly differently (`"#42"`, `"42 "`, `"forty-two"`)
+becomes a runtime error instead of being coerced or rejected up front.
+
+```ballerina
+# + issueNumber - the number of the issue to label
+isolated function <toolName>(int issueNumber) returns string|error {
+```
+
+Not `string issueNumber` followed by `int issueNumberValue = check int:fromString(issueNumber);`.
+
+A narrow type is also a better description than prose: prefer an enum of the accepted values over a
+`string` parameter whose doc comment lists them.
+
 ```ballerina
 # <what the tool does, one line>
 # + <param> - <what the parameter is>
@@ -152,6 +168,28 @@ Not `isolated function <toolName>(decimal a, decimal b) returns decimal => a + b
 
 The one exception is a genuine data-mapper transform function, where `=>` is required — see the
 `data-map` skill.
+
+## Never write an `init` function
+
+A module-level function named `init` does not compile in a package that declares an `ai:Agent`. It
+fails with `uninitialized variable '<agent>Agent'` on the agent declaration itself, even when the
+`init` body is empty, and the error does not mention `init` — so it reads as a problem with the
+agent.
+
+Put one-time startup work — ingesting documents into a knowledge base, seeding a cache, warming a
+connection — in `main`:
+
+```ballerina
+public function main() returns error? {
+    check <setupFunction>();
+}
+```
+
+`main` runs after every module-level variable is initialised and before any request is served, so
+the agent and its knowledge base are ready by the time the first message arrives. A service package
+keeps running after `main` returns.
+
+Never call the setup function from a module-level variable declaration just to get it to run.
 
 ## Chat trigger
 
