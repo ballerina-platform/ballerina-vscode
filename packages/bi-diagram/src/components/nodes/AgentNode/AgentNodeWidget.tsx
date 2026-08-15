@@ -50,6 +50,7 @@ import {
     NodeMetadata,
     isDefaultModelProviderExpr,
     resolveBrandIcon,
+    resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
 } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
@@ -443,16 +444,11 @@ const usageFadeIn = (delay: number) => css`
     animation-delay: ${delay}ms;
 `;
 
-const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
-    ai: { glyph: "comment-discussion", isCodicon: true },
-    automation: { glyph: "bi-task" },
-};
-
 function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
     const { usage, codedata } = props;
     const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
 
-    const typeGlyph = modulePart ? USAGE_TYPE_GLYPH[modulePart] : undefined;
+    const typeGlyph = resolveEntryTypeGlyph(modulePart);
     if (typeGlyph) {
         return (
             <Icon
