@@ -22,7 +22,7 @@ import { Button, ProgressRing, ThemeColors, Typography } from "@wso2/ui-toolkit"
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AddProjectFormFields } from "./AddProjectFormFields";
 import { AddLibraryFields } from "./AddLibraryFields";
-import { useCreateFlowCopy } from "./useCreateFlowCopy";
+import { useProductTerms } from "./useProductTerms";
 import { AddProjectFormData } from "./types";
 import { isFormValidAddProject, joinPath, sanitizeOrgHandle, sanitizePackageName, splitPath } from "./utils";
 import { useRealtimeProjectPathValidation } from "../CreateIntegrationWizard/hooks/useRealtimeProjectPathValidation";
@@ -94,11 +94,11 @@ export function AddProjectForm() {
     const [pathValidationError, setPathValidationError] = useState<string | null>(null);
     const [packageNameValidationError, setPackageNameValidationError] = useState<string | null>(null);
     const [projectNameValidationError, setProjectNameValidationError] = useState<string | null>(null);
-    const copy = useCreateFlowCopy();
+    const terms = useProductTerms();
     // The artifact type is not a choice in Agent Builder, so the wizard collapses to
     // its Name step and creates the empty integration from there.
     const isAgentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
-    const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
+    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
     const isConvert = !isInProject;
     const isConvertAndAdd = isConvert && addNewAfterConvert;
     // Whether a starting point (integration/library) is being added (vs a plain convert).
@@ -374,7 +374,7 @@ export function AddProjectForm() {
     if (screen === "integration") {
         return (
             <CreateFlowShell
-                title={`New ${copy.integrationLabel}`}
+                title={`New ${terms.integrationLabel}`}
                 subtitle={startingPointSubtitle}
                 onBack={() => setScreen("chooser")}
                 bodyFill
@@ -393,7 +393,7 @@ export function AddProjectForm() {
                             showHeader={false}
                             projectContext={integrationProjectContext}
                             nameOnly={isAgentBuilder}
-                            nameLabel={isAgentBuilder ? copy.integrationNameLabel : undefined}
+                            nameLabel={isAgentBuilder ? terms.integrationNameLabel : undefined}
                         />
                     </React.Suspense>
                 </BiWsClientProvider>
@@ -462,8 +462,8 @@ export function AddProjectForm() {
             ? `Convert to Project & Add New ${resourceTypeLabel}`
             : "Convert to Project";
     const chooserSubtitle = isInProject
-        ? `Add an ${copy.integrationNoun} or library to your project.`
-        : `Organize your current ${copy.integrationNoun} inside a project.`;
+        ? `Add an ${terms.integrationNoun} or library to your project.`
+        : `Organize your current ${terms.integrationNoun} inside a project.`;
 
     return (
         <CreateFlowShell title={chooserTitle} subtitle={chooserSubtitle} onBack={goBack} fill>

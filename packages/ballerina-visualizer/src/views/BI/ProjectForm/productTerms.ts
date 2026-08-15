@@ -24,7 +24,7 @@ import { PROJECT_TYPE_OPTIONS, ProjectTypeOption } from "./components";
  * an agentic integration. Sentences that only need the noun interpolate
  * `integrationNoun`/`integrationNounPlural` at the call site.
  */
-export interface CreateFlowCopy {
+export interface ProductTerms {
     integrationNoun: string;
     integrationNounPlural: string;
     /** Title-cased, for headings ("Add New Agentic Integration"). */
@@ -32,13 +32,13 @@ export interface CreateFlowCopy {
     integrationNameLabel: string;
     integrationNamePlaceholder: string;
     createButtonLabel: string;
-    /** Starting-point option copy. Unset fields keep the shared defaults. */
+    /** Starting-point option wording. Unset fields keep the shared defaults. */
     integrationOptionTitle?: string;
     integrationOptionDescription?: string;
     libraryOptionDescription?: string;
 }
 
-const INTEGRATOR_COPY: CreateFlowCopy = {
+const INTEGRATOR_TERMS: ProductTerms = {
     integrationNoun: "integration",
     integrationNounPlural: "integrations",
     integrationLabel: "Integration",
@@ -47,7 +47,7 @@ const INTEGRATOR_COPY: CreateFlowCopy = {
     createButtonLabel: "Create Integration",
 };
 
-const AGENT_BUILDER_COPY: CreateFlowCopy = {
+const AGENT_BUILDER_TERMS: ProductTerms = {
     integrationNoun: "agentic integration",
     integrationNounPlural: "agentic integrations",
     integrationLabel: "Agentic Integration",
@@ -60,19 +60,19 @@ const AGENT_BUILDER_COPY: CreateFlowCopy = {
         "Build reusable components and utilities that can be shared across agentic integrations.",
 };
 
-export function getCreateFlowCopy(isAgentBuilder: boolean | undefined): CreateFlowCopy {
-    return isAgentBuilder ? AGENT_BUILDER_COPY : INTEGRATOR_COPY;
+export function getProductTerms(isAgentBuilder: boolean | undefined): ProductTerms {
+    return isAgentBuilder ? AGENT_BUILDER_TERMS : INTEGRATOR_TERMS;
 }
 
 /** The starting-point options with this flavor's wording applied. */
-export function projectTypeOptions(copy: CreateFlowCopy): ProjectTypeOption[] {
+export function projectTypeOptions(terms: ProductTerms): ProjectTypeOption[] {
     return PROJECT_TYPE_OPTIONS.map((option) =>
         option.value === "library"
-            ? { ...option, description: copy.libraryOptionDescription ?? option.description }
+            ? { ...option, description: terms.libraryOptionDescription ?? option.description }
             : {
                 ...option,
-                title: copy.integrationOptionTitle ?? option.title,
-                description: copy.integrationOptionDescription ?? option.description,
+                title: terms.integrationOptionTitle ?? option.title,
+                description: terms.integrationOptionDescription ?? option.description,
             }
     );
 }

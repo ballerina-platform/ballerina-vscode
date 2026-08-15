@@ -22,7 +22,7 @@ import { CreateFlowShell } from "./shared/CreateFlowShell";
 import { FormFooter } from "./shared/FormPageLayout";
 import { ProjectTypeSelector } from "../../components";
 import { LibraryCreationView } from "./LibraryCreationView";
-import { getCreateFlowCopy, projectTypeOptions } from "../../copy";
+import { getProductTerms, projectTypeOptions } from "../../productTerms";
 import { CreateIntegrationWizard } from "../../../CreateIntegrationWizard";
 import { BiWsClient } from "../../../wsManager/WsClient";
 import { BiWsClientProvider } from "../../../wsManager/WsClientContext";
@@ -56,7 +56,7 @@ export function StandaloneCreateChooser({
 }: StandaloneCreateChooserProps) {
     const [screen, setScreen] = useState<Screen>("chooser");
     const [isLibrary, setIsLibrary] = useState(false);
-    const copy = getCreateFlowCopy(isAgentBuilder);
+    const terms = getProductTerms(isAgentBuilder);
 
     if (screen === "integration") {
         return (
@@ -73,15 +73,15 @@ export function StandaloneCreateChooser({
     return (
         <CreateFlowShell
             title="Create"
-            subtitle={`Your connected Ballerina distribution doesn't support projects — you can still create a standalone ${copy.integrationNoun} or library.`}
+            subtitle={`Your connected Ballerina distribution doesn't support projects — you can still create a standalone ${terms.integrationNoun} or library.`}
             onBack={onBack}
         >
             <ProjectTypeSelector
                 label="Choose your starting point"
                 value={isLibrary}
                 onChange={setIsLibrary}
-                options={projectTypeOptions(copy)}
-                note={`Update your Ballerina distribution to 2201.13.0 or above to organize ${copy.integrationNounPlural} and libraries into a project.`}
+                options={projectTypeOptions(terms)}
+                note={`Update your Ballerina distribution to 2201.13.0 or above to organize ${terms.integrationNounPlural} and libraries into a project.`}
             />
             <FormFooter>
                 <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>

@@ -18,13 +18,13 @@
 
 import { ProductMode } from "@wso2/ballerina-core";
 import { useProductMode } from "../../../hooks/useProductMode";
-import { CreateFlowCopy, getCreateFlowCopy } from "./copy";
+import { ProductTerms, getProductTerms } from "./productTerms";
 
 /**
- * The Create/Add flow copy for the flavor this webview runs in. For the forms
- * federated into the Integrator webview the mode arrives as a prop instead —
- * there is no `rpcClient` there — so those call `getCreateFlowCopy` directly.
+ * The wording for the flavor this webview runs in. For the forms federated into
+ * the Integrator webview the mode arrives as a prop instead — there is no
+ * `rpcClient` there — so those call `getProductTerms` directly.
  */
-export function useCreateFlowCopy(): CreateFlowCopy {
-    return getCreateFlowCopy(useProductMode() === ProductMode.AGENT_BUILDER);
+export function useProductTerms(): ProductTerms {
+    return getProductTerms(useProductMode() === ProductMode.AGENT_BUILDER);
 }

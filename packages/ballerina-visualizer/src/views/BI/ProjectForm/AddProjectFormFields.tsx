@@ -28,8 +28,8 @@ import {
 } from "./styles";
 import { ProductMode } from "@wso2/ballerina-core";
 import { ProjectTypeSelector } from "./components";
-import { projectTypeOptions } from "./copy";
-import { useCreateFlowCopy } from "./useCreateFlowCopy";
+import { projectTypeOptions } from "./productTerms";
+import { useProductTerms } from "./useProductTerms";
 import { useProductMode } from "../../../hooks/useProductMode";
 import { AddProjectFormData } from "./types";
 import { sanitizeProjectHandle } from "./utils";
@@ -69,8 +69,8 @@ export function AddProjectFormFields({
     onConvertPathSelect,
     convertPathError,
 }: AddProjectFormFieldsProps) {
-    const copy = useCreateFlowCopy();
-    const resourceTypeLabel = formData.isLibrary ? "Library" : copy.integrationLabel;
+    const terms = useProductTerms();
+    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
     // Agent Builder's integration wizard collapses to its Name step; a library still
     // configures on the next screen.
@@ -94,7 +94,7 @@ export function AddProjectFormFields({
                     <FormSectionHeader>
                         <FormSectionTitle>Project</FormSectionTitle>
                         <FormSectionCaption>
-                            Your current {copy.integrationNoun} becomes the first member of this project.
+                            Your current {terms.integrationNoun} becomes the first member of this project.
                         </FormSectionCaption>
                     </FormSectionHeader>
 
@@ -122,13 +122,13 @@ export function AddProjectFormFields({
                             errorMsg={convertPathError || undefined}
                         />
                         <Description>
-                            The project folder is created here and your current {copy.integrationNoun} is moved into it.
+                            The project folder is created here and your current {terms.integrationNoun} is moved into it.
                         </Description>
                     </FieldGroup>
 
                     <InlineToggle>
                         <CheckBox
-                            label={`Also add a new ${copy.integrationNoun} or library`}
+                            label={`Also add a new ${terms.integrationNoun} or library`}
                             checked={addNewAfterConvert}
                             onChange={onAddNewAfterConvertChange}
                         />
@@ -150,7 +150,7 @@ export function AddProjectFormFields({
                     <ProjectTypeSelector
                         value={formData.isLibrary}
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
-                        options={projectTypeOptions(copy)}
+                        options={projectTypeOptions(terms)}
                     />
 
                     {/* Both starting points are named and configured on the next screen,
