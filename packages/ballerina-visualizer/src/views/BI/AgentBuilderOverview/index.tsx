@@ -55,7 +55,7 @@ const MainContent = styled.div`
     min-height: 0;
     display: flex;
     gap: 16px;
-    padding: 8px 16px 16px;
+    padding: 0 16px 16px;
 `;
 
 const Panel = styled.div<{ bordered?: boolean }>`
@@ -79,6 +79,7 @@ const Stage = styled.div`
     display: grid;
     flex: 1;
     min-height: 0;
+    min-width: 0;
 `;
 
 const Layer = styled.div<{ $show?: boolean }>`
@@ -86,6 +87,7 @@ const Layer = styled.div<{ $show?: boolean }>`
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     opacity: ${(props: { $show?: boolean }) => (props.$show ? 1 : 0)};
     transform: ${(props: { $show?: boolean }) => (props.$show ? "none" : "scale(0.99)")};
     pointer-events: ${(props: { $show?: boolean }) => (props.$show ? "auto" : "none")};
