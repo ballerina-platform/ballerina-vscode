@@ -417,8 +417,8 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const serviceIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(serviceIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
-            entryValue.iconLight = serviceIcon?.light;
-            entryValue.iconDark = serviceIcon?.dark;
+            entryValue.iconLight = serviceIcon?.light ?? serviceIcon?.url;
+            entryValue.iconDark = serviceIcon?.dark ?? serviceIcon?.url;
             entryValue.kind = serviceIcon?.kind;
             if (artifact.module === "ai") {
                 entryValue.resources = [];
@@ -450,8 +450,8 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const listenerIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(listenerIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
-            entryValue.iconLight = listenerIcon?.light;
-            entryValue.iconDark = listenerIcon?.dark;
+            entryValue.iconLight = listenerIcon?.light ?? listenerIcon?.url;
+            entryValue.iconDark = listenerIcon?.dark ?? listenerIcon?.url;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
