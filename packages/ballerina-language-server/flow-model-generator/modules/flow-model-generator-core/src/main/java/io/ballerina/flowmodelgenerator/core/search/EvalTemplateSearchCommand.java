@@ -93,7 +93,7 @@ public class EvalTemplateSearchCommand extends SearchCommand {
             return List.of();
         }
         return List.of(new Category(new Metadata("Evaluation Templates",
-                "Prebuilt AI evaluation functions", null, null, null, null, null), templates));
+                "Prebuilt AI evaluation functions", null, null, null, null, null, null), templates));
     }
 
     private boolean matches(TemplateInfo info, String functionName, String filter) {
@@ -110,7 +110,7 @@ public class EvalTemplateSearchCommand extends SearchCommand {
                         "needsEvalset", info.needsEvalset));
         Metadata metadata = new Metadata(info.label, info.description, List.of(info.kind,
                 info.needsEvalset ? "Uses evalset" : "No evalset"), null, null,
-                Map.of("kind", info.kind, "needsEvalset", info.needsEvalset), null);
+                Map.of("kind", info.kind, "needsEvalset", info.needsEvalset), null, null);
         return new AvailableNode(metadata, codedata, true);
     }
 

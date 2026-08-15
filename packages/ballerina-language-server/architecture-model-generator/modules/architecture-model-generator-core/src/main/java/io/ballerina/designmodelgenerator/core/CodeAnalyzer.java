@@ -128,6 +128,11 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final String HUMAN_TASK_NAME_ARG = "taskName";
     private static final String CALL_ACTIVITY_FN_ARG = "activityFunction";
     private static final String CALL_ACTIVITY_ARGS_ARG = "args";
+    // A durable agent is driven by methods on the agent object rather than by module functions,
+    // so its method and argument names are named here alongside the workflow ones.
+    private static final String AGENT_SEND_DATA_METHOD = "sendData";
+    private static final String AGENT_SEND_DATA_NAME_ARG = "eventName";
+    private static final String AGENT_RUN_METHOD = "run";
     private static final int SEND_DATA_NAME_ARG_INDEX = 2;
     private static final Map<String, String> BUILTIN_ACTIVITY_LABELS = Map.of(
             Constants.Workflow.BUILTIN_REST_FUNCTION, Constants.Workflow.BUILTIN_REST_LABEL,
@@ -406,6 +411,7 @@ public class CodeAnalyzer extends NodeVisitor {
         if (this.currentFunctionModel != null) {
             String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
             this.currentFunctionModel.dependentObjFuncs.add(methodName);
+            handleDurableAgentCall(methodCallExpressionNode);
         }
 
         if (isAiMethodCall(methodCallExpressionNode.expression())) {
@@ -413,6 +419,49 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         methodCallExpressionNode.arguments().forEach(arg -> arg.accept(this));
+    }
+
+    /**
+     * Draws the trigger edge for durable agent driver calls: any method call on a module-level
+     * {@code workflow:DurableAgent} variable ({@code agent.run(...)}, {@code agent.sendData(...)},
+     * {@code agent.waitForResult(...)}, ...) connects the caller to the agent's overview node,
+     * exactly like {@code workflow:run} does for workflow functions.
+     *
+     * @param methodCallExpressionNode the method call to inspect
+     */
+    private void handleDurableAgentCall(MethodCallExpressionNode methodCallExpressionNode) {
+        Optional<Symbol> targetSymbol = semanticModel.symbol(methodCallExpressionNode.expression());
+        if (targetSymbol.isEmpty() || targetSymbol.get().getName().isEmpty()) {
+            return;
+        }
+        Workflow agent = intermediateModel.workflowMap.get(targetSymbol.get().getName().get());
+        if (agent == null || !Workflow.KIND_DURABLE_AGENT.equals(agent.getKind())) {
+            return;
+        }
+        // The lookup above is keyed by name alone, so a local variable shadowing a module-level
+        // agent hits the same entry. Confirm the call target itself is the agent object, otherwise
+        // an unrelated `<name>.run(...)` would draw a trigger edge into the agent.
+        if (!WorkflowUtil.isDurableAgentVariable(targetSymbol.get())) {
+            return;
+        }
+        // agent.sendData(id, "channel", data): correlate with the declared event channel so the
+        // overview draws the edge into the channel's in-port, like workflow:sendData does.
+        String methodName = methodCallExpressionNode.methodName().toSourceCode().trim();
+        if (AGENT_SEND_DATA_METHOD.equals(methodName)) {
+            String eventName = getStringArgValue(methodCallExpressionNode.arguments(), 1, AGENT_SEND_DATA_NAME_ARG);
+            if (eventName != null && agent.getEvent(eventName).isPresent()) {
+                this.currentFunctionModel.addSentEvent(agent.getUuid(), eventName);
+            } else {
+                this.currentFunctionModel.invalidWorkflowSendData.add(agent.getUuid());
+            }
+            return;
+        }
+        if (!AGENT_RUN_METHOD.equals(methodName)) {
+            // Read-only interactions (getResult/waitForResult/waitForDataResult/...) draw no
+            // edge: like regular workflows, only run and data-event sends connect on the overview.
+            return;
+        }
+        this.currentFunctionModel.workflows.add(agent.getUuid());
     }
 
     @Override

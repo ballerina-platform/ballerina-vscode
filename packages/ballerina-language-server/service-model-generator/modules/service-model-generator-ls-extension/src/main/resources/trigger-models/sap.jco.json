@@ -763,11 +763,11 @@
           "ballerinaType": "jco:GenericServiceType",
           "options": [
             {
-              "label": "IDocService",
+              "label": "SAP JCo IDoc Service",
               "value": "jco:IDocService"
             },
             {
-              "label": "RfcService",
+              "label": "SAP JCo RFC Service",
               "value": "jco:RfcService"
             }
           ]
@@ -792,7 +792,7 @@
   "serviceTypes": [
     {
       "metadata": {
-        "label": "IDocService",
+        "label": "SAP JCo IDoc Service",
         "description": "Handles IDocs pushed from an SAP system."
       },
       "name": "jco:IDocService",
@@ -998,7 +998,7 @@
     },
     {
       "metadata": {
-        "label": "RfcService",
+        "label": "SAP JCo RFC Service",
         "description": "Handles inbound RFC calls from an SAP system. SAP invokes the service as if it were a registered RFC function module."
       },
       "name": "jco:RfcService",

@@ -21,7 +21,7 @@ import { EVENT_TYPE, MACHINE_VIEW } from '@wso2/ballerina-core';
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
-import { ARTIFACT_CATEGORY_META, WORKFLOW_CARD } from '../components/artifactCards';
+import { ARTIFACT_CATEGORY_META, DURABLE_AGENT_CARD, WORKFLOW_CARD } from '../components/artifactCards';
 import { cardMatchesSearch } from './componentListUtils';
 
 const CATEGORY = ARTIFACT_CATEGORY_META.workflow;
@@ -38,7 +38,20 @@ export function WorkflowPanel({ searchQuery }: { searchQuery?: string }) {
         });
     };
 
-    if (!cardMatchesSearch(WORKFLOW_CARD.displayName, searchQuery)) {
+    const handleDurableAgentClick = () => {
+        rpcClient.getVisualizerRpcClient().openView({
+            type: EVENT_TYPE.OPEN_VIEW,
+            location: {
+                view: MACHINE_VIEW.BIDurableAgentForm,
+            },
+        });
+    };
+
+    // The panel offers two authoring models, so each card is matched on its own title the way the
+    // AI integration panel does it; the panel drops out only when neither matches.
+    const workflowMatches = cardMatchesSearch(WORKFLOW_CARD.displayName, searchQuery);
+    const durableAgentMatches = cardMatchesSearch(DURABLE_AGENT_CARD.displayName, searchQuery);
+    if (!workflowMatches && !durableAgentMatches) {
         return null;
     }
 
@@ -49,13 +62,24 @@ export function WorkflowPanel({ searchQuery }: { searchQuery?: string }) {
                 <BodyText>{CATEGORY.description}</BodyText>
             </TitleWrapper>
             <CardGrid>
-                <ButtonCard
-                    id={WORKFLOW_CARD.id}
-                    icon={WORKFLOW_CARD.icon}
-                    title={WORKFLOW_CARD.displayName}
-                    onClick={handleClick}
-                    tooltip={WORKFLOW_CARD.tooltip}
-                />
+                {workflowMatches && (
+                    <ButtonCard
+                        id={WORKFLOW_CARD.id}
+                        icon={WORKFLOW_CARD.icon}
+                        title={WORKFLOW_CARD.displayName}
+                        onClick={handleClick}
+                        tooltip={WORKFLOW_CARD.tooltip}
+                    />
+                )}
+                {durableAgentMatches && (
+                    <ButtonCard
+                        id={DURABLE_AGENT_CARD.id}
+                        icon={DURABLE_AGENT_CARD.icon}
+                        title={DURABLE_AGENT_CARD.displayName}
+                        onClick={handleDurableAgentClick}
+                        tooltip={DURABLE_AGENT_CARD.tooltip}
+                    />
+                )}
             </CardGrid>
         </PanelViewMore>
     );

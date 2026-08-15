@@ -14,43 +14,165 @@
       "items": [
         {
           "metadata": {
-            "label": "Call Activity",
-            "description": "Call a workflow activity function"
+            "label": "Steps",
+            "description": "Durable steps executed by this workflow",
+            "keywords": [
+              "Activity",
+              "Human Task",
+              "Sleep",
+              "Data",
+              "Workflow"
+            ]
           },
-          "codedata": {
-            "node": "ACTIVITY_CALL"
-          },
-          "enabled": true
+          "items": [
+            {
+              "metadata": {
+                "label": "Call Activity",
+                "description": "Call a workflow activity function"
+              },
+              "codedata": {
+                "node": "ACTIVITY_CALL"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Await Human Task",
+                "description": "Create a human task and wait for a human to complete it"
+              },
+              "codedata": {
+                "node": "HUMAN_TASK"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Await Data Event",
+                "description": "Wait for a data event from outside the workflow"
+              },
+              "codedata": {
+                "node": "WAIT_DATA"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Sleep",
+                "description": "Pause workflow execution for a specified duration"
+              },
+              "codedata": {
+                "node": "SLEEP"
+              },
+              "enabled": true
+            }
+          ]
         },
         {
           "metadata": {
-            "label": "Await Human Task",
-            "description": "Create a human task and wait for a human to complete it"
+            "label": "Child Workflows",
+            "description": "Compose child workflows from this workflow",
+            "keywords": [
+              "Child",
+              "Workflow",
+              "Composition"
+            ]
           },
-          "codedata": {
-            "node": "HUMAN_TASK"
-          },
-          "enabled": true
+          "items": [
+            {
+              "metadata": {
+                "label": "Run Child Workflow",
+                "description": "Start a child workflow and continue without waiting for its result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_RUN"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Call Child Workflow",
+                "description": "Run a child workflow and durably wait for its result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_CALL"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Wait for Child Workflow",
+                "description": "Durably wait for a started child workflow's result"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_WAIT"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Send Data to Child Workflow",
+                "description": "Send a data event to a running child workflow"
+              },
+              "codedata": {
+                "node": "CHILD_WORKFLOW_SEND_DATA"
+              },
+              "enabled": true
+            }
+          ]
         },
         {
           "metadata": {
-            "label": "Await Data",
-            "description": "Wait for workflow data to be received"
+            "label": "Workflow Functions",
+            "description": "Utility functions of the workflow context",
+            "keywords": [
+              "Utility",
+              "Workflow",
+              "Time",
+              "Replay"
+            ]
           },
-          "codedata": {
-            "node": "WAIT_DATA"
-          },
-          "enabled": true
-        },
-        {
-          "metadata": {
-            "label": "Sleep",
-            "description": "Pause workflow execution for a specified duration"
-          },
-          "codedata": {
-            "node": "SLEEP"
-          },
-          "enabled": true
+          "items": [
+            {
+              "metadata": {
+                "label": "Current Time",
+                "description": "Deterministic current time, safe to use inside workflow logic"
+              },
+              "codedata": {
+                "node": "WORKFLOW_CURRENT_TIME"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Is Replaying",
+                "description": "Whether the workflow is currently replaying recorded history"
+              },
+              "codedata": {
+                "node": "WORKFLOW_IS_REPLAYING"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Get Workflow ID",
+                "description": "The unique ID of this workflow instance"
+              },
+              "codedata": {
+                "node": "WORKFLOW_GET_ID"
+              },
+              "enabled": true
+            },
+            {
+              "metadata": {
+                "label": "Get Workflow Type",
+                "description": "The type name of this workflow"
+              },
+              "codedata": {
+                "node": "WORKFLOW_GET_TYPE"
+              },
+              "enabled": true
+            }
+          ]
         }
       ]
     },

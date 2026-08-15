@@ -29,7 +29,7 @@ import { DIRECTORY_MAP } from "@wso2/ballerina-core";
  */
 
 /** The artifact kinds the Create Integration wizard can create. */
-export type ArtifactKind = "automation" | "workflow" | "ai-agent" | "service";
+export type ArtifactKind = "automation" | "workflow" | "durable_agent" | "ai-agent" | "service";
 
 /** A selectable artifact card, rendered as a `ButtonCard` on both surfaces. */
 export interface ArtifactCard {
@@ -128,6 +128,15 @@ export const WORKFLOW_CARD: ArtifactCard = {
     displayName: "Durable Workflow",
     icon: <Icon name="bi-flowchart" />,
     tooltip: "Long-running workflow logic with events, timers, human tasks, and crash recovery."
+};
+
+export const DURABLE_AGENT_CARD: ArtifactCard = {
+    id: "durable-agent",
+    // It produces a workflow artifact like the card above; only the authoring model differs.
+    kind: "durable_agent",
+    displayName: "Durable Agentic Workflow",
+    icon: <Icon name="bi-ai-agent" />,
+    tooltip: "Agentic long-running workflow logic with events, timers, human tasks, and crash recovery."
 };
 
 export const AI_CHAT_AGENT_CARD: ArtifactCard = {

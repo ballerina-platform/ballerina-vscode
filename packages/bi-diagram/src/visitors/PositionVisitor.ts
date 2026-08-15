@@ -173,6 +173,25 @@ export class PositionVisitor implements BaseVisitor {
         }
     }
 
+    beginVisitDurableAgentRun(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (!node.viewState.y) {
+            node.viewState.y = this.lastNodeY;
+        }
+        this.lastNodeY += node.viewState.h + NODE_GAP_Y;
+
+        if (!node.viewState.x) {
+            // The synthetic agent-box node is the first node in the flow, so it has no
+            // previous top node to derive a center from; fall back to the diagram center.
+            // lw already accounts for the left circle column, so subtracting it puts the
+            // agent box itself — not the composite widget — on the chain axis.
+            const centerX = parent?.viewState
+                ? getTopNodeCenter(node, parent, this.diagramCenterX)
+                : this.diagramCenterX;
+            node.viewState.x = centerX - node.viewState.lw;
+        }
+    }
+
     beginVisitEmpty(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         // add empty node end of the block

@@ -65,6 +65,10 @@ public class SourceGenerator {
         SourceBuilder sourceBuilder = new SourceBuilder(flowNode, workspaceManager, filePath, lsClientLogger);
         Map<Path, List<TextEdit>> textEdits =
                 NodeBuilder.getNodeFromKind(flowNode.codedata().node()).toSource(sourceBuilder);
+        if (textEdits == null) {
+            throw new IllegalStateException("The operation produced no source edits; "
+                    + "the diagram may be out of date — refresh and try again");
+        }
         addNewLine(textEdits);
         return gson.toJsonTree(textEdits);
     }

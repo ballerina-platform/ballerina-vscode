@@ -974,6 +974,10 @@ export type SearchQueryParams = {
     orgName?: string;
     includeAvailableFunctions?: string;
     filterByCurrentOrg?: boolean;
+    /** ACTIVITY_CALL search: "true" hides the prebuilt (builtin) activities. */
+    excludeBuiltins?: string;
+    /** ACTIVITY_CALL search: node kind stamped on result items (e.g. DURABLE_AGENT_ADD_ACTIVITY). */
+    nodeKind?: string;
     source?: string;
 }
 

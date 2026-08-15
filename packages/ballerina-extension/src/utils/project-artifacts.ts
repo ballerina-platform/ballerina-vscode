@@ -240,6 +240,12 @@ async function traverseComponents(artifacts: Artifacts, projectPath: string, res
     response.directoryMap[DIRECTORY_MAP.LISTENER].push(...await getComponents(artifacts[ARTIFACT_TYPE.Listeners], projectPath, DIRECTORY_MAP.LISTENER, "http-service"));
     response.directoryMap[DIRECTORY_MAP.FUNCTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Functions], projectPath, DIRECTORY_MAP.FUNCTION, "function"));
     response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.WORKFLOW, "workflow"));
+    // Durable agentic workflows (workflow:DurableAgent declarations) list right after the
+    // durable workflows in the same explorer section, distinguished only by the agent icon.
+    // The WSO2 Integrator shell's explorer renders a section's children only when the entry
+    // type matches the section, so the entries present as WORKFLOW; position-based click
+    // routing still opens the agent model.
+    response.directoryMap[DIRECTORY_MAP.WORKFLOW].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.DURABLE_AGENT, "bi-ai-agent"));
     response.directoryMap[DIRECTORY_MAP.ACTIVITY].push(...await getComponents(artifacts[ARTIFACT_TYPE.Workflows], projectPath, DIRECTORY_MAP.ACTIVITY, "task"));
     response.directoryMap[DIRECTORY_MAP.DATA_MAPPER].push(...await getComponents(artifacts[ARTIFACT_TYPE.DataMappers], projectPath, DIRECTORY_MAP.DATA_MAPPER, "dataMapper"));
     response.directoryMap[DIRECTORY_MAP.CONNECTION].push(...await getComponents(artifacts[ARTIFACT_TYPE.Connections], projectPath, DIRECTORY_MAP.CONNECTION, "connection"));
@@ -384,7 +390,11 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
         name: artifact.name,
         path: targetFile,
         moduleName: artifact.module,
-        type: artifact.type,
+        // The WSO2 Integrator shell's explorer renders a section's children only when the
+        // entry type matches the section, so durable agents present as WORKFLOW entries in
+        // the same list, distinguished only by the agent icon; position-based click routing
+        // still opens the agent model.
+        type: artifact.type === DIRECTORY_MAP.DURABLE_AGENT ? DIRECTORY_MAP.WORKFLOW : artifact.type,
         icon: artifact.module ? `bi-${artifact.module}` : icon,
         context: artifact.name === "automation" ? "main" : artifact.name,
         resources: [],
@@ -524,6 +534,9 @@ function getDirectoryMapKeyAndIcon(artifact: BaseArtifact, artifactCategoryKey: 
             if (artifact.type === DIRECTORY_MAP.ACTIVITY) {
                 return { mapKey: DIRECTORY_MAP.ACTIVITY, icon: "task" };
             }
+            if (artifact.type === DIRECTORY_MAP.DURABLE_AGENT) {
+                return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "bi-ai-agent" };
+            }
             return { mapKey: DIRECTORY_MAP.WORKFLOW, icon: "workflow" };
         case ARTIFACT_TYPE.DataMappers:
             return { mapKey: DIRECTORY_MAP.DATA_MAPPER, icon: "dataMapper" };
@@ -559,8 +572,16 @@ function processDeletion(artifact: BaseArtifact, artifactCategoryKey: string, pr
         try {
             const projectPath = activeProjectPath;
             const project = projectStructure.projects.find(project => isSamePath(project.projectPath, projectPath));
-            project.directoryMap[mapping.mapKey] =
-                project.directoryMap[mapping.mapKey]?.filter(value => value.id !== artifact.id) ?? [];
+            // Deletion notifications carry only the artifact id (no type), so a category that fans out
+            // into multiple directory map keys cannot be disambiguated here. Sweep every key the
+            // category can produce; ids are unique within a category, so this is safe.
+            const mapKeys = artifactCategoryKey === ARTIFACT_TYPE.Workflows
+                ? [DIRECTORY_MAP.WORKFLOW, DIRECTORY_MAP.ACTIVITY]
+                : [mapping.mapKey];
+            for (const mapKey of mapKeys) {
+                project.directoryMap[mapKey] =
+                    project.directoryMap[mapKey]?.filter(value => value.id !== artifact.id) ?? [];
+            }
         } catch (error) {
             //TODO: Hack: Properly fix for the workspace scenario
             console.error(`Error processing deletion for artifact ${artifact.id} in category ${artifactCategoryKey}:`, error);

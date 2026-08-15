@@ -35,7 +35,8 @@ import {
     getNodeByIndex,
     getNodeByName,
     getNodeByUid,
-    getView
+    getView,
+    resolveSingleIntegrationOverride
 } from './utils/state-machine-utils';
 import * as path from 'path';
 import { extension } from './BalExtensionContext';
@@ -1003,18 +1004,46 @@ export const StateMachine = {
     },
 };
 
-export function openView(type: EVENT_TYPE, viewLocation: VisualizerLocation, resetHistory = false) {
+export interface OpenViewOptions {
+    /**
+     * Take `viewLocation.view` literally, skipping the single-integration redirect in
+     * {@link openView}. For callers whose whole purpose is to reach the workspace overview —
+     * Home being the one — since redirecting them to the integration overview would land on
+     * the page the user is already looking at and make the control appear dead.
+     */
+    exactView?: boolean;
+}
+
+export function openView(
+    type: EVENT_TYPE,
+    viewLocation: VisualizerLocation,
+    resetHistory = false,
+    options?: OpenViewOptions
+) {
     if (resetHistory) {
         StateMachine.setReadyMode();
         history?.clear();
     }
     extension.hasPullModuleResolved = false;
     extension.hasPullModuleNotification = false;
-    const projectPath = viewLocation.projectPath || StateMachine.context().projectPath;
+    // A workspace holding a single integration opens on that integration rather than a one-item
+    // workspace overview. Applied to every navigation, not just the first: the project explorer
+    // re-navigates once its tree finishes loading, seconds after startup, and a first-navigation
+    // gate would let that second one land back on the workspace overview.
+    //
+    // The override REPLACES the location rather than merging into it. The fields a redirected
+    // navigation carried describe a target that no longer applies, and `identifier` with
+    // `artifactType` would survive onto the overview's history entry and send `updateView`
+    // hunting for an artifact that this view does not have.
+    const singleIntegrationOverride = options?.exactView
+        ? undefined
+        : resolveSingleIntegrationOverride(viewLocation, StateMachine.context());
+    const location = singleIntegrationOverride ?? viewLocation;
+    const projectPath = location.projectPath || StateMachine.context().projectPath;
     const { orgName, packageName } = getOrgAndPackageName(StateMachine.context().projectInfo, projectPath);
-    viewLocation.org = orgName;
-    viewLocation.package = packageName;
-    stateService.send({ type: type, viewLocation: viewLocation });
+    location.org = orgName;
+    location.package = packageName;
+    stateService.send({ type: type, viewLocation: location });
 }
 
 export function updateView(refreshTreeView?: boolean, updatedIdentifier?: string) {

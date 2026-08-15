@@ -172,7 +172,7 @@
             "character": 0
           }
         },
-        "newText": "\ncheck context->callActivity(activity:sendEmail, {connection: smtpClient, to: \"user@example.com\", subject: \"Order update\", body: \"Your order has shipped.\"}, retryPolicy = workflow:ManualRetry);"
+        "newText": "\ncheck context->callActivity(activity:sendEmail, {connection: smtpClient, to: \"user@example.com\", subject: \"Order update\", body: \"Your order has shipped.\"}, retryPolicy = []);"
       }
     ]
   }

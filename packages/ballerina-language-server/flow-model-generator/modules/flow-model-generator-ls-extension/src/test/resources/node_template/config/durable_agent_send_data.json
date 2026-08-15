@@ -1,0 +1,168 @@
+{
+  "source": "durable_agent_module.bal",
+  "position": {
+    "line": 16,
+    "offset": 0
+  },
+  "description": "Send Agent Data Event node template",
+  "codedata": {
+    "node": "DURABLE_AGENT_UPDATE",
+    "org": "ballerina",
+    "module": "workflow"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "Send Agent Data Event",
+      "description": "Send a data event to a running durable agent and read its answer for that turn"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_UPDATE",
+      "org": "ballerina",
+      "module": "workflow",
+      "symbol": "sendData",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "agent": {
+        "metadata": {
+          "label": "Durable Agentic Workflow",
+          "description": "The durable agent to send the data event to"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "supportAgent",
+                "value": "supportAgent"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "agentId": {
+        "metadata": {
+          "label": "Instance Id",
+          "description": "The running agent's instance ID (returned by `run`)"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "eventName": {
+        "metadata": {
+          "label": "Data Event",
+          "description": "An event channel declared in the agent's `events`. New channels are declared on the durable agent itself (Add Data Event on the agent diagram), not here"
+        },
+        "types": [
+          {
+            "fieldType": "SINGLE_SELECT",
+            "options": [
+              {
+                "label": "customerMessage",
+                "value": "customerMessage"
+              },
+              {
+                "label": "billSubmitted",
+                "value": "billSubmitted"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "customerMessage",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "data": {
+        "metadata": {
+          "label": "Data",
+          "description": "The data payload sent on the channel; must match its request type"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "anydata",
+            "selected": false
+          }
+        ],
+        "value": "",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED"
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "eventToken",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Trigger error flow"
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "selected": true
+          }
+        ],
+        "value": true,
+        "optional": false,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  }
+}

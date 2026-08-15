@@ -806,6 +806,24 @@ const MainPanel = () => {
                             );
                             break;
                         }
+                        case MACHINE_VIEW.BIDurableAgentForm: {
+                            const { FunctionForm } = await import("./views/BI/FunctionForm");
+                            // Durable agent declarations live in workflow.bal alongside the
+                            // workflow artifacts, not in functions.bal.
+                            const workflowFile = value.documentUri
+                                ?? (await rpcClient.getVisualizerRpcClient().joinProjectPath({ segments: ['workflow.bal'] })).filePath;
+                            if (isStaleNavigation()) return;
+                            setViewComponent(
+                                <FunctionForm
+                                    key={remountKey}
+                                    projectPath={value.projectPath}
+                                    filePath={workflowFile}
+                                    functionName={value?.identifier}
+                                    isDurableAgent={true}
+                                />
+                            );
+                            break;
+                        }
                         case MACHINE_VIEW.BITestFunctionForm: {
                             const { TestFunctionForm } = await import("./views/BI/TestFunctionForm");
                             if (isStaleNavigation()) return;

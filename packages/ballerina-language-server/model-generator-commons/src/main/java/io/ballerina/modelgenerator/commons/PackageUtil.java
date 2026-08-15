@@ -42,6 +42,7 @@ import io.ballerina.projects.environment.ResolutionOptions;
 import io.ballerina.projects.environment.ResolutionRequest;
 import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
+import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -206,7 +207,13 @@ public class PackageUtil {
      */
     public static Optional<Package> getModulePackage(BuildProject buildProject, String org, String name,
                                                      String version) {
-        return getModulePackage(buildProject, org, name, version, null);
+        Optional<Package> resolved = getModulePackage(buildProject, org, name, version, null);
+        if (resolved.isPresent()) {
+            return resolved;
+        }
+        // Unreleased versions (e.g. an in-development ballerina/workflow build) are not on
+        // central; fall back to the local repository, where such builds are published.
+        return getModulePackage(buildProject, org, name, version, ProjectConstants.LOCAL_REPOSITORY_NAME);
     }
 
     /**
@@ -223,10 +230,10 @@ public class PackageUtil {
         PackageDescriptor packageDescriptor = repository == null
                 ? PackageDescriptor.from(packageOrg, packageName, packageVersion)
                 : PackageDescriptor.from(packageOrg, packageName, packageVersion, repository);
-        ResolutionRequest resolutionRequest = ResolutionRequest.from(packageDescriptor);
         PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
 
-        Optional<ResolutionResponse> resolutionResponse = resolveResponse(packageResolver, resolutionRequest, false);
+        Optional<ResolutionResponse> resolutionResponse =
+                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), false);
         if (resolutionResponse.isEmpty()) {
             return Optional.empty();
         }

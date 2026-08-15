@@ -376,7 +376,8 @@ public class AiUtils {
                 original.metadata().functionKind(),
                 original.metadata().data(),
                 original.metadata().connectors()
-        );
+        ,
+                null);
 
         return new Property(
                 updatedMetadata,

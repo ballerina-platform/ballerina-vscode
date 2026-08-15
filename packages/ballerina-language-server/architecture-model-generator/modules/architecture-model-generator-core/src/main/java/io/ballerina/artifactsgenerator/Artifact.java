@@ -85,6 +85,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry(Type.AGENT_DEFINITION.name(), CATEGORY_AGENT_DEFINITIONS),
             Map.entry(Type.VARIABLE.name(), CATEGORY_VARIABLES),
             Map.entry(Type.WORKFLOW.name(), CATEGORY_WORKFLOWS),
+            Map.entry(Type.DURABLE_AGENT.name(), CATEGORY_WORKFLOWS),
             Map.entry(Type.ACTIVITY.name(), CATEGORY_WORKFLOWS));
 
     private static final Map<String, String> entryPointMap = Map.ofEntries(
@@ -117,6 +118,12 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry("business", "Whatsapp Event Integration"),
             Map.entry("chat", "Google Chat Event Integration"),
             Map.entry("telegram", "Telegram Event Integration")
+    );
+
+    private static final Map<String, Map<String, String>> serviceTypeMap = Map.of(
+            "sap.jco", Map.of(
+                    "jco:IDocService", "SAP JCo IDoc Service",
+                    "jco:RfcService", "SAP JCo RFC Service")
     );
 
     /**
@@ -163,6 +170,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
         AGENT_DEFINITION,
         VARIABLE,
         WORKFLOW,
+        DURABLE_AGENT,
         ACTIVITY
     }
 
@@ -288,11 +296,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceName(String name) {
-            if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = name;
-            } else {
-                this.name = entryPointMap.get(module);
-            }
+            this.name = resolveServiceName(module, name);
             return this;
         }
 
@@ -343,5 +347,13 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     visibility == null ? null : visibility.getValue(), icon,
                     module, new HashMap<>(children), metadata == null ? null : new HashMap<>(metadata));
         }
+    }
+
+    public static String resolveServiceName(String module, String name) {
+        if (module == null) {
+            return name;
+        }
+        String serviceTypeName = serviceTypeMap.getOrDefault(module, Collections.emptyMap()).get(name);
+        return serviceTypeName != null ? serviceTypeName : entryPointMap.getOrDefault(module, name);
     }
 }

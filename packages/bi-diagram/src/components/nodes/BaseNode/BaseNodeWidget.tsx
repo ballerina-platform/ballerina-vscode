@@ -477,7 +477,18 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
             <NodeStyles.TopPortWidget port={model.getPort("in")!} engine={engine} />
             <NodeStyles.Row>
                 <NodeStyles.Icon onClick={handleOnClick}>
-                    <NodeIcon type={model.node.codedata.node} size={24} />
+                    <div style={{ position: "relative", display: "flex" }}>
+                        <NodeIcon type={model.node.codedata.node} size={24} />
+                        {/* A configured timeout on a data-event wait or human task is a deadline:
+                            surface it with a small clock badge, as on the agent canvas. */}
+                        {(model.node.codedata.node === "WAIT_DATA" || model.node.codedata.node === "HUMAN_TASK") &&
+                            !!(model.node.properties as any)?.timeout?.value && (
+                                <Icon
+                                    name="bi-clock"
+                                    sx={{ fontSize: "11px", position: "absolute", right: "-5px", bottom: "-3px" }}
+                                />
+                            )}
+                    </div>
                     {/* {model.node.properties.variable?.value && (
                         <NodeStyles.Description>{model.node.properties.variable.value}</NodeStyles.Description>
                     )} */}

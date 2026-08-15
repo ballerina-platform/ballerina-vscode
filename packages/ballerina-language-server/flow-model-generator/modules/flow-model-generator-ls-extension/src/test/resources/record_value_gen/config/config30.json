@@ -1,0 +1,120 @@
+{
+  "filePath": "workspace_proj/consumer/config.bal",
+  "description": "Cross-package type (defined in typespkg, value generated in consumer): nested ambiguity cast carries the module prefix typespkg:",
+  "codedata": {
+    "org": "wso2",
+    "module": "typespkg",
+    "version": "0.1.0",
+    "packageName": "typespkg"
+  },
+  "type": {
+    "name": "Conn",
+    "typeName": "record",
+    "selected": true,
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "fields": [
+      {
+        "name": "name1",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "person",
+        "typeName": "union",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "members": [
+          {
+            "name": "Person",
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": true,
+            "typeInfo": {
+              "name": "Person",
+              "orgName": "wso2",
+              "moduleName": "typespkg",
+              "version": "0.3.0"
+            },
+            "fields": [
+              {
+                "name": "name1",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": true
+              },
+              {
+                "name": "name2",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": true
+              },
+              {
+                "name": "isMale",
+                "typeName": "boolean",
+                "optional": true,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ]
+          },
+          {
+            "name": "Man",
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false,
+            "typeInfo": {
+              "name": "Man",
+              "orgName": "wso2",
+              "moduleName": "typespkg",
+              "version": "0.3.0"
+            },
+            "fields": [
+              {
+                "name": "name1",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "name2",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "isMarried",
+                "typeName": "boolean",
+                "optional": true,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "{\n    name1: \"\",\n    person: <typespkg:Person> {\n        name1: \"\",\n        name2: \"\"\n    }\n}"
+}
