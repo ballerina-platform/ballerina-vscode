@@ -285,6 +285,9 @@ export interface WizardCapabilitiesResponse {
      *  the user to the standalone flow; await {@link WorkspaceSupportResponse}
      *  (the `getWorkspaceSupport` RPC) for the settled answer instead. */
     isWorkspaceSupported?: boolean;
+    /** Whether the host runs in agent builder mode, so the embedded form can word itself for
+     *  it. `undefined` from a host predating this field, which reads the same as false. */
+    isAgentBuilder?: boolean;
 }
 
 /** Settled answer to "does this distribution support projects/workspaces?".

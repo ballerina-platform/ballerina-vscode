@@ -1,0 +1,84 @@
+{
+  "filePath": "proj",
+  "description": "Type-casted value resolves to the matching union member (cast is unwrapped)",
+  "typeMembers": [
+    {
+      "type": "ClientSocketConfig",
+      "packageInfo": "ballerina:http:2.14.0",
+      "packageName": "http",
+      "kind": "RECORD_TYPE",
+      "selected": false
+    }
+  ],
+  "expr": "<http:ClientSocketConfig>{keepAlive: true}",
+  "output": {
+    "recordConfig": {
+      "fields": [
+        {
+          "name": "connectTimeOut",
+          "typeName": "decimal",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Connect timeout of the channel in seconds. If the Channel does not support connect operation,\nthis property is not used at all, and therefore will be ignored.",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "receiveBufferSize",
+          "typeName": "int",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Sets the SO_RCVBUF option to the specified value for this Socket.",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "sendBufferSize",
+          "typeName": "int",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Sets the SO_SNDBUF option to the specified value for this Socket.",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "tcpNoDelay",
+          "typeName": "boolean",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Enable/disable TCP_NODELAY (disable/enable Nagle's algorithm).",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "socketReuse",
+          "typeName": "boolean",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Enable/disable the SO_REUSEADDR socket option.",
+          "isRestType": false,
+          "selected": false
+        },
+        {
+          "name": "keepAlive",
+          "typeName": "boolean",
+          "optional": false,
+          "defaultable": true,
+          "documentation": "Enable/disable SO_KEEPALIVE.",
+          "isRestType": false,
+          "value": "true",
+          "selected": true
+        }
+      ],
+      "hasRestType": false,
+      "name": "ClientSocketConfig",
+      "typeName": "record",
+      "optional": false,
+      "defaultable": false,
+      "documentation": "Provides settings related to client socket configuration.\n",
+      "isRestType": false,
+      "selected": true
+    },
+    "typeName": "ClientSocketConfig"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "filePath": "proj/types.bal",
+  "description": "Ambiguous nested union field gets the cast on the selected member, not the outer type",
+  "typeConstraint": "MyType",
+  "codedata": {
+    "org": "org",
+    "module": "source",
+    "version": "0.3.0",
+    "packageName": "source"
+  },
+  "type": {
+    "name": "MyType",
+    "typeName": "record",
+    "selected": true,
+    "hasRestType": false,
+    "optional": false,
+    "defaultable": false,
+    "isRestType": false,
+    "fields": [
+      {
+        "name": "name1",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "name2",
+        "typeName": "string",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true
+      },
+      {
+        "name": "person",
+        "typeName": "union",
+        "optional": false,
+        "defaultable": false,
+        "isRestType": false,
+        "selected": true,
+        "members": [
+          {
+            "name": "Person",
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": false,
+            "typeInfo": {
+              "name": "Person",
+              "orgName": "org",
+              "moduleName": "source",
+              "version": "0.3.0"
+            },
+            "fields": [
+              {
+                "name": "name1",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "name2",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              },
+              {
+                "name": "isMale",
+                "typeName": "boolean",
+                "optional": true,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ]
+          },
+          {
+            "name": "Man",
+            "typeName": "record",
+            "optional": false,
+            "defaultable": false,
+            "isRestType": false,
+            "selected": true,
+            "typeInfo": {
+              "name": "Man",
+              "orgName": "org",
+              "moduleName": "source",
+              "version": "0.3.0"
+            },
+            "fields": [
+              {
+                "name": "name1",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": true
+              },
+              {
+                "name": "name2",
+                "typeName": "string",
+                "optional": false,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": true
+              },
+              {
+                "name": "isMarried",
+                "typeName": "boolean",
+                "optional": true,
+                "defaultable": false,
+                "isRestType": false,
+                "selected": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "output": "{\n    name1: \"\",\n    name2: \"\",\n    person: <Man> {\n        name1: \"\",\n        name2: \"\"\n    }\n}"
+}

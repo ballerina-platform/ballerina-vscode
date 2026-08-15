@@ -179,6 +179,8 @@ interface CreateProjectChooserProps {
      * is held back, because the answer decides which flow the user is routed into.
      */
     workspaceSupportPending?: boolean;
+    /** Agent builder mode words the integration option for what it builds there. */
+    isAgentBuilder?: boolean;
     /** Exit the whole Create flow (back to the welcome view). */
     onBack?: () => void;
 }
@@ -196,6 +198,7 @@ export function CreateProjectChooser({
     biWsClient,
     ballerinaUnavailable,
     workspaceSupportPending,
+    isAgentBuilder,
     onBack,
 }: CreateProjectChooserProps) {
     const { wsClient } = useVisualizerContext();
@@ -576,7 +579,7 @@ export function CreateProjectChooser({
     return (
         <CreateFlowShell
             title="Create"
-            subtitle="A project helps you organize your integrations and libraries."
+            subtitle={`A project helps you organize your ${isAgentBuilder ? "agentic " : ""}integrations and libraries.`}
             onBack={onBack}
         >
             <Section>
@@ -637,6 +640,7 @@ export function CreateProjectChooser({
                     label="Choose your starting point"
                     value={isLibrary}
                     onChange={setIsLibrary}
+                    isAgentBuilder={isAgentBuilder}
                     note="This is just your starting point. You can add more integrations and libraries to the project later."
                 />
             </Section>
@@ -650,8 +654,8 @@ export function CreateProjectChooser({
                         <TextField
                             onTextChange={handleIntegrationNameChange}
                             value={integrationName}
-                            label="Integration name"
-                            placeholder="Enter an integration name"
+                            label={isAgentBuilder ? "Agentic integration name" : "Integration name"}
+                            placeholder={isAgentBuilder ? "Enter an agentic integration name" : "Enter an integration name"}
                             required={true}
                             errorMsg={integrationNameError || ""}
                         />
@@ -686,7 +690,7 @@ export function CreateProjectChooser({
                         onClick={isLibrary ? handleNext : handleCreateIntegration}
                         appearance="primary"
                     >
-                        {isLibrary ? "Next" : isValidating ? "Validating..." : "Create Integration"}
+                        {isLibrary ? "Next" : isValidating ? "Validating..." : isAgentBuilder ? "Create Agentic Integration" : "Create Integration"}
                     </Button>
                 </span>
             </FormFooter>

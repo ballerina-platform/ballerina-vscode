@@ -39,6 +39,7 @@ import {
 } from "../../utils/bi";
 import { generateArtifactInPlace, openPackageOverview, schedulePendingIntegration } from "./pending-artifact";
 import { extension } from "../../BalExtensionContext";
+import { ProductMode } from "../../utils/config";
 import { StateMachine } from "../../stateMachine";
 
 /**
@@ -186,6 +187,7 @@ export function getWizardCapabilities(): WizardCapabilitiesResponse {
         threeStepWizard: true,
         version: WIZARD_CAPABILITIES_VERSION,
         isWorkspaceSupported: ballerinaExt.featureSupportResolved ? ballerinaExt.isWorkspaceSupported : undefined,
+        isAgentBuilder: StateMachine.productMode() === ProductMode.AGENT_BUILDER,
     };
 }
 

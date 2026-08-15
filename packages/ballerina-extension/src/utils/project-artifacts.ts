@@ -572,8 +572,16 @@ function processDeletion(artifact: BaseArtifact, artifactCategoryKey: string, pr
         try {
             const projectPath = activeProjectPath;
             const project = projectStructure.projects.find(project => isSamePath(project.projectPath, projectPath));
-            project.directoryMap[mapping.mapKey] =
-                project.directoryMap[mapping.mapKey]?.filter(value => value.id !== artifact.id) ?? [];
+            // Deletion notifications carry only the artifact id (no type), so a category that fans out
+            // into multiple directory map keys cannot be disambiguated here. Sweep every key the
+            // category can produce; ids are unique within a category, so this is safe.
+            const mapKeys = artifactCategoryKey === ARTIFACT_TYPE.Workflows
+                ? [DIRECTORY_MAP.WORKFLOW, DIRECTORY_MAP.ACTIVITY]
+                : [mapping.mapKey];
+            for (const mapKey of mapKeys) {
+                project.directoryMap[mapKey] =
+                    project.directoryMap[mapKey]?.filter(value => value.id !== artifact.id) ?? [];
+            }
         } catch (error) {
             //TODO: Hack: Properly fix for the workspace scenario
             console.error(`Error processing deletion for artifact ${artifact.id} in category ${artifactCategoryKey}:`, error);
