@@ -51,11 +51,29 @@ const INPUT_MAX_HEIGHT = 220;
 const EXIT_MS = 680;
 const RUN_START_TIMEOUT_MS = 10000;
 
-const EXAMPLES = [
+interface Example {
+    name: string;
+    description: string;
+    icon: string;
+    isCodicon?: boolean;
+    prompt: string;
+}
+
+interface EmptyStateCopy {
+    heading: string;
+    placeholder: string;
+    inputLabel: string;
+    manualLabel: string;
+    examples: Example[];
+    hiddenContext: string;
+}
+
+const EXAMPLES: Example[] = [
     {
         name: "Customer Support",
         description: "Answers questions from your product docs",
         icon: "comment-discussion",
+        isCodicon: true,
         prompt:
             "Create a customer support agent that answers product questions from a knowledge base built from Markdown documentation files, and says so when the answer is not in the docs.",
     },
@@ -63,6 +81,7 @@ const EXAMPLES = [
         name: "Issue Triager",
         description: "Triages new GitHub issues by priority",
         icon: "issues",
+        isCodicon: true,
         prompt:
             "Create an issue triage agent that adds a priority label to newly opened GitHub issues and posts a short summary as a comment. Add a GitHub trigger for issue events.",
     },
@@ -70,6 +89,7 @@ const EXAMPLES = [
         name: "Helpdesk Responder",
         description: "Replies to incoming WhatsApp messages",
         icon: "device-mobile",
+        isCodicon: true,
         prompt:
             "Create a helpdesk agent that replies to incoming WhatsApp messages and answers common account and billing questions, telling the customer a human will follow up whenever it cannot answer confidently. Add a WhatsApp trigger for it.",
     },
@@ -77,10 +97,63 @@ const EXAMPLES = [
         name: "Sales Assistant",
         description: "Looks up CRM records from Slack",
         icon: "organization",
+        isCodicon: true,
         prompt:
             "Create a sales assistant agent that answers questions asked in Slack by looking up account and opportunity records in Salesforce as a tool, and replies in the same thread. Add a Slack trigger for it.",
     },
 ];
+
+const LIBRARY_EXAMPLES: Example[] = [
+    {
+        name: "Reusable Agent",
+        description: "An agent other integrations can run",
+        icon: "bi-ai-agent",
+        prompt:
+            "Create a reusable agent definition for a customer support agent that answers product questions from Markdown documentation files, so other integrations in this project can run it.",
+    },
+    {
+        name: "Shared Tools",
+        description: "Agent tools any agent can call",
+        icon: "bi-function",
+        prompt:
+            "Add reusable agent tools that look up an account and its open opportunities in Salesforce, so agents in other packages can call them.",
+    },
+    {
+        name: "Shared Types",
+        description: "Records used across agents",
+        icon: "bi-type",
+        prompt:
+            "Define shared record types for a support ticket and a customer profile, and a data mapper that turns a support ticket into a short summary record.",
+    },
+    {
+        name: "Shared Connection",
+        description: "One configured client, reused",
+        icon: "bi-connection",
+        prompt:
+            "Add a shared Salesforce connection that reads its credentials from configurable variables, so every agent in this project connects the same way.",
+    },
+];
+
+const AGENT_COPY: EmptyStateCopy = {
+    heading: "What should your agent do?",
+    placeholder: "Describe what you want your agent to do…",
+    inputLabel: "Describe the agent you want to build",
+    manualLabel: "Add an agent manually",
+    examples: EXAMPLES,
+    hiddenContext: "The target package is an agentic integration, which can carry its own triggers and services.",
+};
+
+const LIBRARY_COPY: EmptyStateCopy = {
+    heading: "What should this library provide?",
+    placeholder: "Describe what you want this library to provide…",
+    inputLabel: "Describe the library you want to build",
+    manualLabel: "Add a library artifact manually",
+    examples: LIBRARY_EXAMPLES,
+    hiddenContext:
+        "The target package is a Ballerina library. It has no runnable entry point, so do not add listeners, " +
+        "chat triggers or services to it. Build reusable, publicly visible artifacts instead — agent definitions, " +
+        "agent tools, types and data mappers — for other packages in the project to import.",
+};
 
 const Wrap = styled.div`
     flex: 1;
@@ -435,9 +508,11 @@ const LinkButton = styled.button`
 
 interface EmptyStateProps {
     onCreateFromScratch: () => void;
+    isLibrary?: boolean;
 }
 
-export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
+export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) {
+    const copy = isLibrary ? LIBRARY_COPY : AGENT_COPY;
     const assistantName = useAssistantName();
     const productMode = useProductMode();
     const { rpcClient } = useRpcContext();
@@ -535,7 +610,14 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
         rpcClient?.getCommonRpcClient().executeCommand({
             commands: [
                 SHARED_COMMANDS.OPEN_AI_PANEL,
-                { type: "text", text: trimmed, planMode: false, autoSubmit: true, newThread: true },
+                {
+                    type: "text",
+                    text: trimmed,
+                    planMode: false,
+                    autoSubmit: true,
+                    newThread: true,
+                    hiddenContext: copy.hiddenContext,
+                },
             ],
         });
         setSubmittedPrompt(trimmed);
@@ -588,7 +670,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                         <ExitGroup $out={showRun}>
                             <CopilotName>{assistantName}</CopilotName>
                             <Intro>
-                                <Heading>What should your agent do?</Heading>
+                                <Heading>{copy.heading}</Heading>
                             </Intro>
                         </ExitGroup>
 
@@ -607,8 +689,8 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                                     send(text);
                                                 }
                                             }}
-                                            placeholder="Describe what you want your agent to do…"
-                                            aria-label="Describe the agent you want to build"
+                                            placeholder={copy.placeholder}
+                                            aria-label={copy.inputLabel}
                                         />
                                         <ComposerFooter>
                                             <RoundButton
@@ -638,7 +720,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                             <ExamplesBlock>
                                 <ExamplesLabel>Examples</ExamplesLabel>
                                 <Cards>
-                                    {EXAMPLES.map((example) => (
+                                    {copy.examples.map((example) => (
                                         <Card
                                             key={example.name}
                                             type="button"
@@ -646,7 +728,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                         >
                                             <Icon
                                                 name={example.icon}
-                                                isCodicon={true}
+                                                isCodicon={example.isCodicon}
                                                 sx={{ color: "var(--vscode-foreground)" }}
                                                 iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
                                             />
@@ -666,7 +748,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                     onClick={onCreateFromScratch}
                                     buttonSx={MANUAL_BUTTON_SX}
                                 >
-                                    Add an agent manually
+                                    {copy.manualLabel}
                                 </Button>
                             </ManualRow>
                         </ExitGroup>

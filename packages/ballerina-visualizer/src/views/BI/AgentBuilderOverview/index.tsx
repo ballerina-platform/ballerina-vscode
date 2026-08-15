@@ -41,6 +41,7 @@ const LazyFocusFlowDiagram = React.lazy(() =>
     import("../FocusFlowDiagram").then((m) => ({ default: m.BIFocusFlowDiagram }))
 );
 const LazyAddAgentPopup = React.lazy(() => import("../AIChatAgent/AddAgentPopup"));
+const LazyAddLibraryArtifactPopup = React.lazy(() => import("./AddLibraryArtifactPopup"));
 
 const Page = styled.div`
     display: flex;
@@ -170,6 +171,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const [isInProject, setIsInProject] = useState(false);
     const [selectedKey, setSelectedKey] = useState<string>();
     const [showAddAgent, setShowAddAgent] = useState(false);
+    const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
     const [isTracingEnabled, setIsTracingEnabled] = useState(false);
     const [canvasReady, setCanvasReady] = useState(false);
@@ -214,6 +216,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         () => projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [],
         [projectStructure]
     );
+
+    const isLibrary = projectStructure?.isLibrary ?? false;
 
     const selectedAgent = useMemo(
         () => agents.find((agent) => agentKey(agent) === selectedKey) ?? agents[0],
@@ -522,7 +526,12 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                             )}
                             {(!selectedAgent || emptyMounted) && (
                                 <Layer $show={!canvasVisible}>
-                                    <EmptyState onCreateFromScratch={() => setShowAddAgent(true)} />
+                                    <EmptyState
+                                        isLibrary={isLibrary}
+                                        onCreateFromScratch={() =>
+                                            isLibrary ? setShowAddLibraryArtifact(true) : setShowAddAgent(true)
+                                        }
+                                    />
                                 </Layer>
                             )}
                         </Stage>
@@ -537,6 +546,11 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                         onClose={() => setShowAddAgent(false)}
                         onNavigateToOverview={() => setShowAddAgent(false)}
                     />
+                </React.Suspense>
+            )}
+            {showAddLibraryArtifact && (
+                <React.Suspense fallback={null}>
+                    <LazyAddLibraryArtifactPopup onClose={() => setShowAddLibraryArtifact(false)} />
                 </React.Suspense>
             )}
         </>
