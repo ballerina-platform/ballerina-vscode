@@ -88,7 +88,6 @@ type WizardSupport = "probing" | "supported" | "unsupported";
  */
 export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, mode = "integration", productMode, onBack }: EmbeddedBIProjectFormProps) {
     const queryClient = useMemo(() => new QueryClient(), []);
-    const isAgentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const [rpcClient, setRpcClient] = useState<WiBridgeClient | null>(null);
     const [biWsClient, setBiWsClient] = useState<BiWsClient | null>(null);
     const [wizardSupport, setWizardSupport] = useState<WizardSupport>("probing");
@@ -97,6 +96,9 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
     // probe before the distribution version is known, so the form can render immediately).
     // Only `create` mode reads this; the other modes never probe it.
     const [workspaceSupported, setWorkspaceSupported] = useState<boolean | undefined>(undefined);
+    // Seeded from the host's prop, then confirmed by the capability handshake, which is
+    // authoritative because the extension owns the product mode.
+    const [isAgentBuilder, setIsAgentBuilder] = useState(productMode === ProductMode.AGENT_BUILDER);
 
     useEffect(() => {
         let cancelled = false;
@@ -131,6 +133,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                         if (!cancelled && capabilities?.threeStepWizard) {
                             setBiWsClient(wizardClient);
                             setWizardSupport("supported");
+                            setIsAgentBuilder(!!capabilities.isAgentBuilder);
                             wizardOk = true;
                             if (capabilities.isWorkspaceSupported !== undefined) {
                                 setWorkspaceSupported(capabilities.isWorkspaceSupported);
