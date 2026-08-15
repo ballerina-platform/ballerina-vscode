@@ -27,6 +27,8 @@ import { URI } from "vscode-uri";
 import { getTestFunctionGroups } from "../../utils/test-discovery";
 
 let groups: string[] = [];
+const fileChangeTimers = new Map<string, NodeJS.Timeout>();
+const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 export async function discoverTestFunctionsInProject(ballerinaExtInstance: BallerinaExtension,
     testController: TestController) {
@@ -201,8 +203,9 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
         return;
     }
 
+    // discoverInFile needs the native file path; uri.path is "/c:/..." on Windows, which Path.of() rejects.
     const request: TestsDiscoveryRequest = {
-        projectPath: uri.path
+        projectPath: uri.fsPath
     };
     const response: TestsDiscoveryResponse = await ballerinaExtInstance.langClient?.getFileTestFunctions(request);
     if (!response || !response.result) {
@@ -212,6 +215,20 @@ export async function handleFileChange(ballerinaExtInstance: BallerinaExtension,
     await handleFileDelete(uri, testController);
     createTests(response, testController, isWorkspace ? targetProjectPath : undefined);
     setGroupsContext();
+}
+
+export function debouncedHandleFileChange(ballerinaExtInstance: BallerinaExtension,
+    uri: Uri, testController: TestController) {
+    const key = uri.fsPath;
+    const existing = fileChangeTimers.get(key);
+    if (existing) {
+        clearTimeout(existing);
+    }
+    fileChangeTimers.set(key, setTimeout(() => {
+        fileChangeTimers.delete(key);
+        handleFileChange(ballerinaExtInstance, uri, testController)
+            .catch((error) => console.error('Failed to refresh tests for', key, error));
+    }, FILE_CHANGE_DEBOUNCE_MS));
 }
 
 export async function handleFileDelete(uri: Uri, testController: TestController) {

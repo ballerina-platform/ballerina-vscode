@@ -22,7 +22,8 @@ import { BallerinaExtension } from "../../core";
 import { runHandler } from "./runner";
 import { activateEditBiTest } from "./commands";
 import { createNewEvalset, createNewThread, deleteEvalset, deleteThread } from "./evalset-commands";
-import { discoverTestFunctionsInProject, handleFileChange as handleTestFileUpdate, handleFileDelete as handleTestFileDelete } from "./discover";
+import { discoverTestFunctionsInProject, debouncedHandleFileChange, handleFileDelete as handleTestFileDelete } from "./discover";
+import { extension } from "../../BalExtensionContext";
 import { getCurrentBallerinaProject, getWorkspaceRoot } from "../../utils/project-utils";
 import { checkIsBallerinaPackage, checkIsBallerinaWorkspace } from "../../utils";
 import { hasMultipleBallerinaPackages } from "../../utils/config";
@@ -36,6 +37,13 @@ import { EvaluationHistoryWebview } from '../../views/evaluation-history/webview
 export let testController: TestController;
 
 export const EVALUATION_GROUP = 'evaluations';
+
+export function refreshTestsForFile(filePath: string) {
+    if (!testController) {
+        return;
+    }
+    debouncedHandleFileChange(extension.ballerinaExtInstance, Uri.file(filePath), testController);
+}
 
 export async function activate(ballerinaExtInstance: BallerinaExtension) {
     // Register command to open evalset viewer
@@ -144,8 +152,8 @@ export async function activate(ballerinaExtInstance: BallerinaExtension) {
     const fileWatcher = workspace.createFileSystemWatcher('**/tests/**/*.bal');
 
     // Handle file creation, modification, and deletion
-    fileWatcher.onDidCreate(async (uri) => await handleTestFileUpdate(ballerinaExtInstance, uri, testController));
-    fileWatcher.onDidChange(async (uri) => await handleTestFileUpdate(ballerinaExtInstance, uri, testController));
+    fileWatcher.onDidCreate((uri) => debouncedHandleFileChange(ballerinaExtInstance, uri, testController));
+    fileWatcher.onDidChange((uri) => debouncedHandleFileChange(ballerinaExtInstance, uri, testController));
     fileWatcher.onDidDelete((uri) => handleTestFileDelete(uri, testController));
 
     // Initial test discovery

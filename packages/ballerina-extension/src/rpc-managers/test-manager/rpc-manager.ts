@@ -54,6 +54,7 @@ import * as path from 'path';
 import { EvaluationReportWebview } from "../../views/evaluation-report/webview";
 import { getDiffStat, getDiffFull, objectExists, restoreToCheckpoint } from "../../utils/git-utils";
 import { getTestFunctionNames } from "../../utils/test-discovery";
+import { refreshTestsForFile } from "../../features/test-explorer/activator";
 
 export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
 
@@ -72,6 +73,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
+                refreshTestsForFile(targetFile);
                 resolve(result);
             } catch (error) {
                 console.log(error);
@@ -91,6 +93,7 @@ export class TestServiceManagerRpcManager implements TestManagerServiceAPI {
                 const result: SourceUpdateResponse = {
                     artifacts: artifacts
                 };
+                refreshTestsForFile(targetFile);
                 resolve(result);
             } catch (error) {
                 console.log(error);
