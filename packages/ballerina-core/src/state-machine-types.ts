@@ -34,6 +34,24 @@ export enum ProductMode {
     AGENT_BUILDER = 'agent-builder'
 }
 
+const ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: 'WSO2 Integrator Copilot',
+    [ProductMode.AGENT_BUILDER]: 'WSO2 Agent Builder Intelligence'
+};
+
+export function assistantName(mode: ProductMode): string {
+    return ASSISTANT_NAMES[mode];
+}
+
+const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: 'Copilot',
+    [ProductMode.AGENT_BUILDER]: 'Agent Builder Intelligence'
+};
+
+export function shortAssistantName(mode: ProductMode): string {
+    return SHORT_ASSISTANT_NAMES[mode];
+}
+
 export type MachineStateValue =
     | 'initialize'
     | 'lsError'

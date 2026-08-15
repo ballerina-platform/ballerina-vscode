@@ -23,6 +23,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import React from "react";
 import { Banner } from "../../../components/Banner";
+import { useAssistantName, useShortAssistantName } from "../../../hooks/useProductMode";
 
 const PanelWrapper = styled.div`
     display: flex;
@@ -241,6 +242,8 @@ const InstallButton = styled.button`
 
 const LoginPanel: React.FC = () => {
     const { rpcClient } = useRpcContext();
+    const assistantName = useAssistantName();
+    const shortName = useShortAssistantName();
 
     const { data: isPlatformAvailable, refetch: refetchPlatformAvailability } = useQuery({
         queryKey: ["platform-availability"],
@@ -285,7 +288,7 @@ const LoginPanel: React.FC = () => {
                     sx={{ width: 54, height: 54 }}
                     iconSx={{ fontSize: "54px", color: "var(--vscode-foreground)", cursor: "default" }}
                 />
-                <Title>Welcome to WSO2 Agent Builder Intelligence</Title>
+                <Title>Welcome to {assistantName}</Title>
                 <Typography
                     variant="body1"
                     sx={{
@@ -313,7 +316,7 @@ const LoginPanel: React.FC = () => {
                 ) : (
                     <InstallingContainer>
                         <Typography variant="body2" sx={{ textAlign: "center", color: "var(--vscode-descriptionForeground)" }}>
-                            Install the WSO2 Integrator extension to sign in and use WSO2 Agent Builder Intelligence.
+                            Install the WSO2 Integrator extension to sign in and use {assistantName}.
                         </Typography>
                         <InstallButton
                             disabled={isInstallingExtension}
@@ -338,7 +341,7 @@ const LoginPanel: React.FC = () => {
                     </ProviderLogoWrapper>
                     <ProviderInfo>
                         <ProviderName>Anthropic API Key</ProviderName>
-                        <ProviderDesc>Use your Anthropic API key to power Copilot</ProviderDesc>
+                        <ProviderDesc>Use your Anthropic API key to power {shortName}</ProviderDesc>
                     </ProviderInfo>
                     <ChevronIcon>›</ChevronIcon>
                 </ProviderCard>

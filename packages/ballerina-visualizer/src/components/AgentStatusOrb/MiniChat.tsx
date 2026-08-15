@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { AgentRunStatus, ChatNotify, GetRunStatusResponse, UIChatMessage } from "@wso2/ballerina-core";
+import { AgentRunStatus, ChatNotify, GetRunStatusResponse, UIChatMessage, shortAssistantName } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import MarkdownRenderer from "../../views/AIPanel/components/MarkdownRenderer";
 import CodeContextCard from "../../views/AIPanel/components/CodeContextCard";
@@ -44,6 +44,7 @@ import {
     ORB_SIZE,
     subscribeAgentRunStatus,
     subscribeCopilotChatNotify,
+    awaitingInputLabel,
 } from "./shared";
 import {
     buildFullChatHandoffPrompt,
@@ -51,6 +52,7 @@ import {
     createMiniChatPrompt,
     MiniChatPrompt,
 } from "./promptHandoff";
+import { useAssistantName, useProductMode } from "../../hooks/useProductMode";
 
 /**
  * Minimized Copilot chat — a compact overlay opened by clicking the floating
@@ -692,6 +694,9 @@ interface MiniChatProps {
 
 export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) {
     const { rpcClient } = useRpcContext();
+    const assistantName = useAssistantName();
+    const productMode = useProductMode();
+    const shortName = shortAssistantName(productMode);
     // The transcript, in the persisted store's own shape (ground truth).
     const [msgs, setMsgs] = useState<MiniMsg[]>([]);
     // Transient run signals (stop/error/review) that aren't part of the store.
@@ -976,11 +981,11 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
     const transcript = renderTranscript(msgs, streaming);
 
     return (
-        <Panel style={panelPosition(anchor)} role="dialog" aria-label="WSO2 Agent Builder Intelligence mini chat">
+        <Panel style={panelPosition(anchor)} role="dialog" aria-label={`${assistantName} mini chat`}>
             <Header>
                 <Icon name="bi-ai-chat" sx={{ width: 16, height: 16, flex: "none" }} iconSx={{ fontSize: "16px" }} />
-                <HeaderTitle>WSO2 Agent Builder Intelligence</HeaderTitle>
-                <HeaderButton title="Open full chat" aria-label="Open the full Copilot chat" onClick={openFullChat}>
+                <HeaderTitle>{assistantName}</HeaderTitle>
+                <HeaderButton title="Open full chat" aria-label={`Open the full ${shortName} chat`} onClick={openFullChat}>
                     <Codicon name="screen-full" />
                 </HeaderButton>
                 <HeaderButton title="Close" aria-label="Close the mini chat" onClick={onClose}>
@@ -1020,7 +1025,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
             {awaitingInput && (
                 <EscalationBanner>
                     <Codicon name="warning" />
-                    <span style={{ flex: 1 }}>Copilot needs your input</span>
+                    <span style={{ flex: 1 }}>{awaitingInputLabel(productMode)}</span>
                     <BannerButton onClick={openFullChat}>Open full chat</BannerButton>
                 </EscalationBanner>
             )}
@@ -1048,7 +1053,7 @@ export function MiniChat({ anchor, onClose, takeInitialPrompt }: MiniChatProps) 
                                 ? "What should I add here?"
                                 : "What should we work on?"
                     }
-                    aria-label="Message WSO2 Agent Builder Intelligence"
+                    aria-label={`Message ${assistantName}`}
                     disabled={runActive}
                 />
                 <SendButton title="Send" aria-label="Send message" onClick={send} disabled={runActive || !input.trim()}>

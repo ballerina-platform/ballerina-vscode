@@ -19,7 +19,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 
@@ -215,20 +215,23 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 `;
 
 /** User-facing label for a non-idle run state, shared by the orb and the hero box. */
-export const AWAITING_INPUT_LABEL = "Copilot needs your input";
+export function awaitingInputLabel(mode: ProductMode): string {
+    return `${shortAssistantName(mode)} needs your input`;
+}
 
-export function activeStateLabel(status: AgentRunStatus): string {
+export function activeStateLabel(status: AgentRunStatus, mode: ProductMode): string {
+    const shortName = shortAssistantName(mode);
     switch (status.state) {
         case "completed":
-            return status.aiPanelOpen ? "Done" : "Done — click to open Copilot";
+            return status.aiPanelOpen ? "Done" : `Done — click to open ${shortName}`;
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
-            return status.label ?? AWAITING_INPUT_LABEL;
+            return status.label ?? awaitingInputLabel(mode);
         case "error":
-            return status.label ?? "Copilot hit an error";
+            return status.label ?? `${shortName} hit an error`;
         default:
-            return "Chat with WSO2 Agent Builder Intelligence";
+            return `Chat with ${assistantName(mode)}`;
     }
 }
 

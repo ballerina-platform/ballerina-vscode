@@ -21,13 +21,14 @@ import * as path from "path";
 import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } from "../../utils/webview-utils";
 import { extension } from "../../BalExtensionContext";
 import { RPCLayer } from "../../RPCLayer";
+import { aiAssistantName } from "../../utils/config";
 
 /**
  * Standalone Migration Enhancement Panel.
  *
- * Decoupled from the AI Chat (WSO2 Agent Builder Intelligence) panel so that users can choose any
+ * Decoupled from the AI Chat panel so that users can choose any
  * LLM model through the VS Code Language Model API or direct provider keys,
- * without requiring WSO2 Agent Builder Intelligence authentication.
+ * without requiring AI assistant authentication.
  */
 export class MigrationPanelWebview {
     public static currentPanel: MigrationPanelWebview | undefined;

@@ -89,7 +89,7 @@ interface EmptyNodeWidgetProps {
 
 export function EmptyNodeWidget(props: EmptyNodeWidgetProps) {
     const { node, engine } = props;
-    const { onAddNode, onAddNodePrompt, readOnly, isUserAuthenticated } = useDiagramContext();
+    const { onAddNode, onAddNodePrompt, readOnly, isUserAuthenticated, aiAssistantName } = useDiagramContext();
 
     const [isHovered, setIsHovered] = useState(false);
     const [isCommentButtonHovered, setIsCommentButtonHovered] = useState(false);
@@ -225,7 +225,7 @@ export function EmptyNodeWidget(props: EmptyNodeWidgetProps) {
                                 cursor: ${isUserAuthenticated ? "pointer" : "not-allowed"};
                             `}
                         >
-                            {!isUserAuthenticated && <title>You need to be logged into WSO2 Agent Builder Intelligence to access AI features</title>}
+                            {!isUserAuthenticated && <title>You need to be logged into {aiAssistantName} to access AI features</title>}
                             <path
                                 fill={ADD_BUTTON_BG_COLOR}
                                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"

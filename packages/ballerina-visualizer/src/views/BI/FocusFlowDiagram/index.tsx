@@ -80,6 +80,7 @@ import { SidePanelView } from "../FlowDiagram/PanelManager";
 import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 
 const Container = styled.div<{ embedded?: boolean }>`
@@ -1021,6 +1022,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
     };
 
+    const assistantName = useAssistantName();
+
     const memoizedDiagramProps = useMemo(
         () => ({
             model: flowModel,
@@ -1047,8 +1050,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             aiNodes: {
                 onModelSelect: handleOnEditNPFunctionModel,
             },
+            aiAssistantName: assistantName,
         }),
-        [flowModel, projectPath, breakpointInfo, filteredCompletions, createHelperPane, handleGetExpressionTokens]
+        [flowModel, projectPath, breakpointInfo, filteredCompletions, createHelperPane, handleGetExpressionTokens, assistantName]
     );
 
     const noop = () => { };
@@ -1074,9 +1078,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 onClickOverlay: handleOverlayClick,
             },
             agentNode: agentEditor.diagramCallbacks,
+            aiAssistantName: assistantName,
         }),
         [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType]
+            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType, assistantName]
     );
 
     const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;

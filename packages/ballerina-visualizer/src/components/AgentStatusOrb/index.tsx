@@ -23,7 +23,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { AgentRunStatus, AgentRunState, ProductMode } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
-import { useProductMode } from "../../hooks/useProductMode";
+import { useAssistantName, useProductMode, useShortAssistantName } from "../../hooks/useProductMode";
 import { MiniChat } from "./MiniChat";
 import {
     Anchor,
@@ -295,6 +295,8 @@ const BrandRing = styled.div<{ ringColor: string }>`
 /** Brighter arc traveling the ring while the agent runs. */
 export function AgentStatusOrb() {
     const productMode = useProductMode();
+    const assistantName = useAssistantName();
+    const shortName = useShortAssistantName();
     const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
@@ -374,7 +376,7 @@ export function AgentStatusOrb() {
         : state === "idle"
             ? ACCENT_CORE
             : `color-mix(in srgb, ${colors[0]} 70%, transparent)`;
-    const label = state === "idle" ? "Chat with WSO2 Agent Builder Intelligence" : activeStateLabel(status);
+    const label = state === "idle" ? `Chat with ${assistantName}` : activeStateLabel(status, productMode);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
     // invitation input; dismissing only collapses it into the orb — hovering
@@ -512,7 +514,7 @@ export function AgentStatusOrb() {
                                 }
                             }}
                             placeholder="How can I help?"
-                            aria-label="Message WSO2 Agent Builder Intelligence"
+                            aria-label={`Message ${assistantName}`}
                         />
                         <InviteDismiss title="Hide" aria-label="Hide the copilot prompt" onClick={() => setInviteDismissed(true)}>
                             ✕
@@ -527,8 +529,8 @@ export function AgentStatusOrb() {
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
-                    title={label ? `WSO2 Agent Builder Intelligence — ${label}` : "WSO2 Agent Builder Intelligence"}
-                    aria-label={label ? `WSO2 Agent Builder Intelligence: ${label}. Open the Copilot mini chat.` : "Open the WSO2 Agent Builder Intelligence mini chat"}
+                    title={label ? `${assistantName} — ${label}` : assistantName}
+                    aria-label={label ? `${assistantName}: ${label}. Open the ${shortName} mini chat.` : `Open the ${assistantName} mini chat`}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
                     <Aura colors={colors} state={state} agentBuilder={agentBuilder} />

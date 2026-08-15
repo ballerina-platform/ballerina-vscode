@@ -95,7 +95,7 @@ export interface DiagnosticsPopUpProps {
 
 export function DiagnosticsPopUp(props: DiagnosticsPopUpProps) {
     const { node, engine } = props;
-    const { onAddNodePrompt, isUserAuthenticated, readOnly } = useDiagramContext();
+    const { onAddNodePrompt, isUserAuthenticated, readOnly, aiAssistantName } = useDiagramContext();
 
     const [popupPos, setPopupPos] = useState<{ top: number; left: number } | null>(null);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -257,7 +257,7 @@ export function DiagnosticsPopUp(props: DiagnosticsPopUpProps) {
     };
 
     const disabledFixTooltip = !isUserAuthenticated
-        ? "You need to be logged into WSO2 Agent Builder Intelligence to fix diagnostics"
+        ? `You need to be logged into ${aiAssistantName} to fix diagnostics`
         : !targetRange
             ? "No source location available for diagnostics"
             : diagnosticMessages.length === 0

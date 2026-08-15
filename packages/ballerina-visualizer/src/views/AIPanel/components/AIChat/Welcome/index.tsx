@@ -31,7 +31,7 @@ import {
     Sphere,
     orbColors,
 } from "../../../../../components/AgentStatusOrb/shared";
-import { useProductMode } from "../../../../../hooks/useProductMode";
+import { useAssistantName, useProductMode } from "../../../../../hooks/useProductMode";
 import { ProductMode } from "@wso2/ballerina-core";
 
 const WELCOME_ORB_SIZE = 58;
@@ -137,13 +137,14 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
     const handleWebglFailed = useCallback(() => setWebglFailed(true), []);
     const productMode = useProductMode();
     const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
+    const assistantName = useAssistantName();
 
     return (
         <PanelWrapper>
             <TopSpacer />
             <Content>
                 <WelcomeOrbHalo accent={agentBuilder}>
-                    <WelcomeOrb role="img" aria-label="WSO2 Agent Builder Intelligence">
+                    <WelcomeOrb role="img" aria-label={assistantName}>
                         {webglFailed || agentBuilder ? (
                             <Sphere
                                 colors={orbColors("idle", agentBuilder)}
@@ -176,7 +177,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         margin: "12px 0",
                     }}
                 >
-                    WSO2 Agent Builder Intelligence
+                    {assistantName}
                 </Typography>
                 <Typography
                     variant="body1"

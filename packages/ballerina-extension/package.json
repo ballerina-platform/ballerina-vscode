@@ -281,7 +281,7 @@
                     "type": "boolean",
                     "default": false,
                     "scope": "window",
-                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Agent Builder Intelligence."
+                    "description": "Enable Model Context Protocol (MCP) tool support in the AI assistant."
                 },
                 "ballerina.copilot.skills": {
                     "type": "object",
@@ -642,7 +642,7 @@
             },
             {
                 "command": "ballerina.open.ai.panel",
-                "title": "Open WSO2 Agent Builder Intelligence",
+                "title": "Open AI Assistant",
                 "category": "Ballerina",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",

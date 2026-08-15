@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ProductMode } from "@wso2/ballerina-core";
+import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 
 /** One fetch per webview; the setting needs a reload to change. */
 let cached: ProductMode | undefined;
@@ -56,4 +56,12 @@ export function useProductMode(): ProductMode {
     }, [rpcClient]);
 
     return mode;
+}
+
+export function useAssistantName(): string {
+    return assistantName(useProductMode());
+}
+
+export function useShortAssistantName(): string {
+    return shortAssistantName(useProductMode());
 }

@@ -22,6 +22,7 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import styled from "@emotion/styled";
 import MarkdownRenderer from "../AIPanel/components/MarkdownRenderer";
 import MigrationEnhancementBanner from "../AIPanel/components/MigrationEnhancementBanner";
+import { useAssistantName } from "../../hooks/useProductMode";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -271,6 +272,7 @@ const ModeCardDesc = styled.div`
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function MigrationPanel() {
+    const assistantName = useAssistantName();
     const { rpcClient } = useRpcContext();
     const messageEndRef = useRef<HTMLDivElement>(null);
     // Guard to ensure migrationPanelReady is only called once per mount
@@ -497,7 +499,7 @@ export function MigrationPanel() {
                         title="Select LLM model"
                     >
                         <option value="copilot">VS Code Copilot</option>
-                        <option value="wso2">WSO2 Agent Builder Intelligence</option>
+                        <option value="wso2">{assistantName}</option>
                         <option value="anthropic">Anthropic (API Key)</option>
                     </ModelSelector>
                 </HeaderActions>
@@ -603,7 +605,7 @@ export function MigrationPanel() {
                 ) : (
                     <>
                         <span style={{ opacity: 0.6 }}>
-                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? "WSO2 Agent Builder Intelligence" : "Anthropic"}
+                            Model: {selectedModel === "copilot" ? "VS Code Copilot" : selectedModel === "wso2" ? assistantName : "Anthropic"}
                         </span>
                         {messages.length > 0 && (
                             <ActionButton

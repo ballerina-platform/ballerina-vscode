@@ -19,6 +19,7 @@
 import React, { useState } from "react";
 import styled from "@emotion/styled";
 import { Button } from "@wso2/ui-toolkit";
+import { useShortAssistantName } from "../../../../hooks/useProductMode";
 
 const QUOTA_CONTACT_EMAIL = "support@wso2.com";
 const NOTE_MAX_LENGTH = 2000;
@@ -131,6 +132,7 @@ interface QuotaRequestDialogProps {
 }
 
 const QuotaRequestDialog: React.FC<QuotaRequestDialogProps> = ({ submitting, error, onCancel, onSubmit }) => {
+    const shortName = useShortAssistantName();
     const [note, setNote] = useState("");
 
     return (
@@ -142,7 +144,7 @@ const QuotaRequestDialog: React.FC<QuotaRequestDialogProps> = ({ submitting, err
                 aria-describedby="quota-request-desc"
             >
                 <Title id="quota-request-title">Request additional quota</Title>
-                <Text id="quota-request-desc">Let the team know you'd like more Integrator Copilot quota this week.</Text>
+                <Text id="quota-request-desc">Let the team know you'd like more {shortName} quota this week.</Text>
                 <TextArea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}

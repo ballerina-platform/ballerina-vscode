@@ -26,6 +26,7 @@ import {
     BI_COMMANDS,
     DIRECTORY_MAP,
     isSamePath,
+    shortAssistantName,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown } from "@wso2/ui-toolkit";
@@ -43,7 +44,8 @@ import { PageHeader } from "../components/PageHeader";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
-import { AWAITING_INPUT_LABEL, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
+import { awaitingInputLabel, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
+import { useProductMode } from "../../../hooks/useProductMode";
 
 /** Only reachable from an empty integration, and it pulls in the whole wizard +
  *  artifact form tree — so keep it out of the overview's own chunk. */
@@ -787,6 +789,8 @@ interface PackageOverviewProps {
 }
 
 export function PackageOverview(props: PackageOverviewProps) {
+    const productMode = useProductMode();
+    const shortName = shortAssistantName(productMode);
     const { projectPath, isInDevant, isICPSupported } = props;
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
@@ -1181,7 +1185,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                         sx={{ color: "var(--vscode-descriptionForeground)" }}
                                                     >
                                                         {agentWorking
-                                                            ? (awaitingInput ? AWAITING_INPUT_LABEL : "Copilot is working…")
+                                                            ? (awaitingInput ? awaitingInputLabel(productMode) : `${shortName} is working…`)
                                                             : showHero
                                                                 ? "Describe what you want to build, or add an artifact to get started"
                                                                 : "Add an artifact to get started"}
@@ -1199,7 +1203,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                     appearance="primary"
                                                     onClick={() => setShowAddIntegration(true)}
                                                     disabled={agentWorking}
-                                                    tooltip={agentWorking ? "Available once Copilot finishes" : undefined}
+                                                    tooltip={agentWorking ? `Available once ${shortName} finishes` : undefined}
                                                 >
                                                     <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration
                                                 </Button>

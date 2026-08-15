@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath, ProductMode } from '@wso2/ballerina-core';
+import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath, ProductMode, assistantName, shortAssistantName } from '@wso2/ballerina-core';
 export { ProductMode } from '@wso2/ballerina-core';
 import { BallerinaExtension } from '../core';
 import { WorkspaceConfiguration, workspace, Uri, RelativePattern, extensions } from 'vscode';
@@ -256,6 +256,14 @@ export function getProductMode(): ProductMode {
     return process.env.WSO2_PRODUCT_MODE === ProductMode.AGENT_BUILDER
         ? ProductMode.AGENT_BUILDER
         : ProductMode.INTEGRATOR;
+}
+
+export function aiAssistantName(): string {
+    return assistantName(getProductMode());
+}
+
+export function aiAssistantShortName(): string {
+    return shortAssistantName(getProductMode());
 }
 
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {

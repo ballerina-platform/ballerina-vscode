@@ -86,6 +86,7 @@ import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 const Container = styled.div`
     width: 100%;
@@ -168,6 +169,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const visualizerLocationRef = useRef<VisualizerLocation>();
     const [entrypointContext, setEntrypointContext] = useState<{ serviceName?: string; functionName?: string }>();
     const [isUserAuthenticated, setIsUserAuthenticated] = useState<boolean>(false);
+    const assistantName = useAssistantName();
     const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
     // Navigation stack for back navigation
     const [navigationStack, setNavigationStack] = useState<NavigationStackItem[]>([]);
@@ -3989,6 +3991,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 onClickOverlay: handleOnCloseSidePanel,
             },
             isUserAuthenticated,
+            aiAssistantName: assistantName,
             entrypointContext,
         }),
         [
@@ -4004,6 +4007,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             selectedNodeId,
             rpcClient,
             isUserAuthenticated,
+            assistantName,
             entrypointContext,
             showSidePanel,
         ]

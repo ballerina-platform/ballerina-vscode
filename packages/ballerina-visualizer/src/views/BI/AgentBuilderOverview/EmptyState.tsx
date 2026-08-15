@@ -23,7 +23,7 @@ import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
-    AWAITING_INPUT_LABEL,
+    awaitingInputLabel,
     AmbientFrame,
     ACCENT_CORE,
     ACCENT_FRAME,
@@ -41,6 +41,7 @@ import {
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
+import { useProductMode, useAssistantName } from "../../../hooks/useProductMode";
 
 const CONTENT_WIDTH = 760;
 
@@ -437,6 +438,8 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
+    const assistantName = useAssistantName();
+    const productMode = useProductMode();
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
@@ -509,7 +512,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
     const orbHighlight = working ? `color-mix(in srgb, ${orbColors[0]} 70%, transparent)` : ACCENT_CORE;
     const runHeading =
         state === "awaiting-input"
-            ? AWAITING_INPUT_LABEL
+            ? awaitingInputLabel(productMode)
             : state === "error"
                 ? "Something went wrong"
                 : state === "completed"
@@ -572,7 +575,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                     {showOpenCopilot && (
                         <ScratchLine>
                             <LinkButton type="button" onClick={openCopilot}>
-                                Open WSO2 Agent Builder Intelligence
+                                Open {assistantName}
                             </LinkButton>
                         </ScratchLine>
                     )}
@@ -583,7 +586,7 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                 <IdleBlock $out={showRun}>
                     <div>
                         <ExitGroup $out={showRun}>
-                            <CopilotName>WSO2 Agent Builder Intelligence</CopilotName>
+                            <CopilotName>{assistantName}</CopilotName>
                             <Intro>
                                 <Heading>What should your agent do?</Heading>
                             </Intro>
@@ -610,15 +613,15 @@ export function EmptyState({ onCreateFromScratch }: EmptyStateProps) {
                                         <ComposerFooter>
                                             <RoundButton
                                                 type="button"
-                                                title="Open WSO2 Agent Builder Intelligence"
+                                                title={`Open ${assistantName}`}
                                                 onClick={openCopilot}
                                             >
                                                 <Codicon name="add" />
                                             </RoundButton>
                                             <RoundButton
                                                 type="button"
-                                                title="Send to WSO2 Agent Builder Intelligence"
-                                                aria-label="Send to WSO2 Agent Builder Intelligence"
+                                                title={`Send to ${assistantName}`}
+                                                aria-label={`Send to ${assistantName}`}
                                                 disabled={!text.trim()}
                                                 onClick={() => send(text)}
                                                 primary={true}

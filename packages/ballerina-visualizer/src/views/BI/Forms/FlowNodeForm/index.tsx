@@ -125,6 +125,7 @@ import { ConnectionKind, useCreateNode } from "../../../../components/Connection
 import { getFilteredTypesByKind } from "../../TypeEditor/utils";
 import { useModalStack } from "../../../../Context";
 import { getArraySubFormFieldFromTypes, stringToRawArrayElements, stringToRawObjectEntries } from "@wso2/ballerina-side-panel/lib/components/editors/utils";
+import { useAssistantName } from "../../../../hooks/useProductMode";
 
 interface FlowNodeTypeEditorState {
     isOpen: boolean;
@@ -294,6 +295,7 @@ export const BreadcrumbSeparator = styled.span`
 `;
 
 export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProps>(function FlowNodeForm(props: FlowNodeFormProps, ref: React.ForwardedRef<FormExpressionEditorRef>) {
+    const assistantName = useAssistantName();
     const {
         fileName,
         node,
@@ -822,7 +824,7 @@ export const FlowNodeForm = forwardRef<FormExpressionEditorRef, FlowNodeFormProp
     );
 
     const formDiagnosticsFixTooltip = !isAiUserAuthenticated
-        ? "You need to be logged into WSO2 Agent Builder Intelligence to fix diagnostics"
+        ? `You need to be logged into ${assistantName} to fix diagnostics`
         : !diagnosticsTargetRange
             ? "No source location available for diagnostics"
             : formDiagnostics.length === 0

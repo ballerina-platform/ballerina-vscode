@@ -18,6 +18,7 @@
 
 import { ModelMessage } from "ai";
 import { ANCHOR_ACTIONS } from "./anchors";
+import { aiAssistantName } from "../../../../utils/config";
 
 /** How the turn these suggestions belong to ended. */
 export type FollowupSituation = "completed" | "aborted" | "error" | "usage_limit";
@@ -79,7 +80,7 @@ function buildSystemPrompt(situation: FollowupSituation): string {
     const framing = situation === "aborted" ? ABORTED_FRAMING
         : situation === "error" ? ERROR_FRAMING
             : COMPLETED_FRAMING;
-    return `You help users of the WSO2 Agent Builder Intelligence decide what to do next.
+    return `You help users of the ${aiAssistantName()} decide what to do next.
 
 ${framing}
 
