@@ -678,7 +678,8 @@ public class TestManagerService implements ExtendedLanguageServerService {
 
         // If changed, add edit to update it
         if (!currentFilePath.equals(newEvalSetFile)) {
-            edits.add(new TextEdit(Utils.toRange(filePathRange.get()), "\"" + newEvalSetFile.replace('\\', '/') + "\""));
+            edits.add(new TextEdit(Utils.toRange(filePathRange.get()),
+                    "\"" + newEvalSetFile.replace('\\', '/') + "\""));
         }
     }
 
