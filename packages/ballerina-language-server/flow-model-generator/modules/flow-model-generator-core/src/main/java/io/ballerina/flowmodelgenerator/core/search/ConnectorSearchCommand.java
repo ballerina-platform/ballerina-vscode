@@ -36,6 +36,7 @@ import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.node.NewConnectionBuilder;
 import io.ballerina.flowmodelgenerator.core.utils.CentralSearchUtil;
+import io.ballerina.flowmodelgenerator.core.utils.ConnectorCategoryResolver;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -63,13 +64,11 @@ import java.util.Set;
 public class ConnectorSearchCommand extends SearchCommand {
 
     private static final String CONNECTORS_LANDING_JSON = "connectors_landing.json";
-    private static final String GROUPED_CONNECTORS_LANDING_JSON = "grouped_connectors_landing.json";
     private static final String AGENT_SUPPORT_CONNECTORS_JSON = "agent_support_connectors.json";
 
     private static final String CONNECTOR_SET_KEY = "connectorSet";
     private static final String GROUPED_CONNECTOR_SET = "GROUPED";
 
-    private static final int GROUPED_CATEGORY_LIMIT = 1000;
     private static final Type CONNECTION_CATEGORY_LIST_TYPE = new TypeToken<Map<String, List<String>>>() { }.getType();
     private static final Type AGENT_SUPPORT_CONNECTORS_LIST_TYPE = new TypeToken<Set<String>>() { }.getType();
 
@@ -78,11 +77,6 @@ public class ConnectorSearchCommand extends SearchCommand {
     public static final String IS_AGENT_SUPPORT = "isAgentSupport";
     private static final Set<String> BLACKLISTED_CONNECTOR_NAME_PATTERNS = Set.of("ModelProvider");
     private static final Set<String> ALLOWED_ORGANIZATIONS = Set.of("ballerina", "ballerinax", "wso2");
-
-    private static final String OTHER_CATEGORY = "Other";
-    private static final int ALL_CONNECTORS_LIMIT = 2000;
-    private static final String CLIENT_SUFFIX = "Client";
-    private static final Set<String> EXCLUDED_MODULE_PREFIXES = Set.of("health.", "ai.");
 
     private static boolean isBlacklisted(String connectorName) {
         return BLACKLISTED_CONNECTOR_NAME_PATTERNS.stream().anyMatch(connectorName::contains);
@@ -165,53 +159,26 @@ public class ConnectorSearchCommand extends SearchCommand {
 
     @Override
     protected Map<String, List<SearchResult>> fetchPopularItems() {
-        Map<String, List<String>> categories = LocalIndexCentral.getInstance().readJsonResource(
-                groupedConnectorSet ? GROUPED_CONNECTORS_LANDING_JSON : CONNECTORS_LANDING_JSON,
-                CONNECTION_CATEGORY_LIST_TYPE);
-        int categoryLimit = groupedConnectorSet ? GROUPED_CATEGORY_LIMIT : limit;
-        int categoryOffset = groupedConnectorSet ? 0 : offset;
+        if (groupedConnectorSet) {
+            return fetchGroupedItems();
+        }
+        Map<String, List<String>> categories = LocalIndexCentral.getInstance()
+                .readJsonResource(CONNECTORS_LANDING_JSON, CONNECTION_CATEGORY_LIST_TYPE);
 
-        Set<String> listed = new HashSet<>();
         Map<String, List<SearchResult>> defaultView = new LinkedHashMap<>();
         for (Map.Entry<String, List<String>> category : categories.entrySet()) {
             List<String> packageList = category.getValue();
-            List<SearchResult> searchResults =
-                    dbManager.searchConnectorsByPackage(packageList, categoryLimit, categoryOffset);
+            List<SearchResult> searchResults = dbManager.searchConnectorsByPackage(packageList, limit, offset);
             SearchResult.sortByPackageListOrder(searchResults, packageList);
-            List<SearchResult> filteredResults = searchResults.stream()
+            defaultView.put(category.getKey(), searchResults.stream()
                     .filter(result -> !isBlacklisted(result.name()))
-                    .toList();
-            filteredResults.forEach(result -> listed.add(connectorKey(result)));
-            defaultView.put(category.getKey(), filteredResults);
-        }
-
-        if (groupedConnectorSet) {
-            appendUncategorizedConnectors(defaultView, listed);
+                    .toList());
         }
         return defaultView;
     }
 
-    private static String connectorKey(SearchResult result) {
-        return result.packageInfo().moduleName() + ":" + result.name();
-    }
-    
-    private void appendUncategorizedConnectors(Map<String, List<SearchResult>> defaultView, Set<String> listed) {
-        List<SearchResult> uncategorized = dbManager
-                .searchConnectors("", ALL_CONNECTORS_LIMIT, 0, ALLOWED_ORGANIZATIONS,
-                        BLACKLISTED_CONNECTOR_NAME_PATTERNS)
-                .stream()
-                .filter(result -> !listed.contains(connectorKey(result)))
-                .filter(result -> result.name().endsWith(CLIENT_SUFFIX))
-                .filter(result -> EXCLUDED_MODULE_PREFIXES.stream()
-                        .noneMatch(prefix -> result.packageInfo().moduleName().startsWith(prefix)))
-                .sorted(Comparator.comparing(result -> result.packageInfo().moduleName()))
-                .toList();
-        if (uncategorized.isEmpty()) {
-            return;
-        }
-        List<SearchResult> merged = new ArrayList<>(defaultView.getOrDefault(OTHER_CATEGORY, List.of()));
-        merged.addAll(uncategorized);
-        defaultView.put(OTHER_CATEGORY, merged);
+    private Map<String, List<SearchResult>> fetchGroupedItems() {
+        return ConnectorCategoryResolver.group(dbManager.listConnectors(ALLOWED_ORGANIZATIONS));
     }
 
     private static AvailableNode generateAvailableNode(SearchResult searchResult) {
