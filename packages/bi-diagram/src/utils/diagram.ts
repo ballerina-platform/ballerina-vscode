@@ -15,7 +15,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import createEngine, { DiagramEngine, DiagramModel } from "@projectstorm/react-diagrams";
+import createEngine, { DiagramEngine, DiagramModel, PathFindingLinkFactory } from "@projectstorm/react-diagrams";
 import { BaseNodeFactory } from "../components/nodes/BaseNode";
 import { NodePortFactory, NodePortModel } from "../components/NodePort";
 import { NodeLinkFactory, NodeLinkModel, NodeLinkModelOptions } from "../components/NodeLink";
@@ -48,6 +48,11 @@ export function generateEngine(): DiagramEngine {
         registerDefaultZoomCanvasAction: false,
         registerDefaultPanAndZoomCanvasAction: false,
     });
+
+    engine
+        .getLinkFactories()
+        .getFactory<PathFindingLinkFactory>(PathFindingLinkFactory.NAME)
+        .listener.deregister();
 
     engine.getPortFactories().registerFactory(new NodePortFactory());
     engine.getLinkFactories().registerFactory(new NodeLinkFactory());
