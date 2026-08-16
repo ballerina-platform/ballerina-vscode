@@ -252,7 +252,6 @@ namespace S {
         z-index: 10;
         width: 100%;
         padding: 16px 0 0;
-        background: var(--vscode-editor-background);
         border-top: 1px solid var(--vscode-panel-border);
     `;
 

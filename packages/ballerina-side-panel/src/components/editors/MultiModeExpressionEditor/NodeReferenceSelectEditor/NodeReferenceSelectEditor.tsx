@@ -17,12 +17,30 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { CodeData, SearchNodesQuery, SearchNodesTypeConstraint } from "@wso2/ballerina-core";
-import { Codicon, LinkButton } from "@wso2/ui-toolkit";
+import { Button, Codicon, LinkButton, ThemeColors } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
+
+const EmptyPrompt = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px;
+    border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 4px;
+    background-color: ${ThemeColors.SURFACE_DIM};
+`;
+
+const EmptyPromptText = styled.div`
+    text-align: center;
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+`;
 
 function humanizeKind(kind: string): string {
     return kind
@@ -157,10 +175,40 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const createNewLabel = !showCreateNew
         ? ""
         : agentCodeData?.object
-        ? agentCodeData.object
-        : creationCodeData?.module && creationCodeData?.object
-        ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
-        : humanizeKind(searchNodesKind);
+            ? agentCodeData.object
+            : creationCodeData?.module && creationCodeData?.object
+                ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
+                : humanizeKind(searchNodesKind);
+
+    const creationName = agentCodeData?.object
+        ?? (creationCodeData?.module ? humanizeKind(creationCodeData.module.split(".").pop() ?? "") : "");
+    const isAgentReference = !!agentCodeData;
+    const qualifier = creationName ? `${creationName} ` : "";
+    const emptyTitle = isAgentReference
+        ? `No ${creationName || "agent"} in this project`
+        : `No ${qualifier}connection in this project`;
+    const emptyAction = isAgentReference
+        ? `Create ${creationName || "Agent"}`
+        : `Create ${qualifier}Connection`;
+    const showEmptyPrompt = showCreateNew && !loading && !field.optional && selectItems.length === 0;
+
+    const handleCreateNode = () => onCreateNode(
+        searchNodesKind,
+        (varName) => onChange(varName, varName?.length),
+        creationCodeData
+    );
+
+    if (showEmptyPrompt) {
+        return (
+            <EmptyPrompt>
+                <EmptyPromptText>{emptyTitle}</EmptyPromptText>
+                <Button appearance="primary" onClick={handleCreateNode}>
+                    <Codicon name="add" sx={{ marginRight: 6 }} />
+                    {emptyAction}
+                </Button>
+            </EmptyPrompt>
+        );
+    }
 
     return (
         <>
@@ -175,11 +223,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             />
             {showCreateNew && (
                 <LinkButton
-                    onClick={() => onCreateNode(
-                        searchNodesKind,
-                        (varName) => onChange(varName, varName?.length),
-                        creationCodeData
-                    )}
+                    onClick={handleCreateNode}
                     sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
                 >
                     <Codicon name="add" />
