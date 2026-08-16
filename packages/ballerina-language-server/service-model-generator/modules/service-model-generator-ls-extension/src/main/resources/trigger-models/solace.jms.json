@@ -6,7 +6,7 @@
   "orgName": "ballerinax",
   "packageName": "solace.jms",
   "moduleName": "solace.jms",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "solace.jms",
   "icon": "icon.png",
   "kind": "event",
@@ -588,7 +588,7 @@
                           "typeMembers": [
                             {
                               "type": "SecureSocket",
-                              "packageInfo": "ballerinax:solace.jms:0.1.0",
+                              "packageInfo": "ballerinax:solace.jms:1.0.0",
                               "packageName": "solace.jms",
                               "kind": "RECORD_TYPE",
                               "selected": false
@@ -683,7 +683,7 @@
                           "typeMembers": [
                             {
                               "type": "RetryConfiguration",
-                              "packageInfo": "ballerinax:solace.jms:0.1.0",
+                              "packageInfo": "ballerinax:solace.jms:1.0.0",
                               "packageName": "solace.jms",
                               "kind": "RECORD_TYPE",
                               "selected": false
@@ -1007,7 +1007,7 @@
       "value": "\"AUTO_ACKNOWLEDGE\"",
       "enabled": true,
       "editable": true,
-      "optional": true,
+      "optional": false,
       "advanced": false,
       "codedata": {
         "type": "SERVICE_ANNOTATION",

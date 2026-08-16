@@ -19,8 +19,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { CodeData, SearchNodesQuery, SearchNodesTypeConstraint } from "@wso2/ballerina-core";
-import { Button, Codicon, LinkButton, ThemeColors } from "@wso2/ui-toolkit";
+import {
+    AllowedConnector,
+    AvailableNode,
+    Category,
+    CodeData,
+    Item,
+    SearchNodesQuery,
+    SearchNodesTypeConstraint,
+} from "@wso2/ballerina-core";
+import { Button, Codicon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
@@ -58,6 +66,27 @@ interface NodeReferenceSelectEditorProps {
     nodeReferenceFilters?: NodeReferenceFilter[];
 }
 
+const AddButtons = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+`;
+
+// Recursively flatten search categories (which may nest Categories within their
+// items) down to AvailableNodes.
+const flattenAvailableNodes = (items: Item[] | undefined): AvailableNode[] => {
+    const out: AvailableNode[] = [];
+    for (const item of items ?? []) {
+        if ((item as Category).items) {
+            out.push(...flattenAvailableNodes((item as Category).items));
+        } else if ((item as AvailableNode).codedata) {
+            out.push(item as AvailableNode);
+        }
+    }
+    return out;
+};
+
 function ensureValueInItems(
     items: NodeReferenceSelectItem[],
     value: string,
@@ -81,7 +110,8 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     value, field, onChange, nodeReferenceFilters,
 }) => {
     const { rpcClient } = useRpcContext();
-    const { targetLineRange, fileName, onCreateNode } = useFormContext();
+    const { targetLineRange, fileName, onCreateNode, onRequestCreateConnection } = useFormContext();
+    const [loadingConnectorKey, setLoadingConnectorKey] = useState<string | null>(null);
 
     const searchNodesKind = field.codedata?.searchNodesKind;
     const targetType = field.codedata?.targetType as SearchNodesTypeConstraint | undefined;
@@ -169,7 +199,58 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
         fetchItems(true);
     }, [value]);
 
-    const showCreateNew = !!onCreateNode && !!searchNodesKind && field.editable && !field.actionCallback;
+    // A field carries at most one way to create the referenced node: explicit connector
+    // actions from the LS (`metadata.connectors`, e.g. "Add new HTTP connection") win over
+    // the generic "Create New <kind>" link derived from `searchNodesKind`.
+    const connectors: AllowedConnector[] = field.metadata?.connectors ?? [];
+    const showConnectorActions = connectors.length > 0;
+    const showCreateNew = !showConnectorActions && !!onCreateNode && !!searchNodesKind && field.editable && !field.actionCallback;
+
+    const connectorKey = (c: AllowedConnector, i: number) =>
+        `${c.codedata?.module}-${c.codedata?.object}-${i}`;
+
+    const resolveAvailableNode = async (codedata: CodeData, label: string): Promise<AvailableNode> => {
+        const fallback: AvailableNode = {
+            codedata,
+            metadata: { label },
+            enabled: true,
+        } as AvailableNode;
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().search({
+                position: targetLineRange
+                    ? { startLine: targetLineRange.startLine, endLine: targetLineRange.endLine }
+                    : undefined,
+                filePath: fileName,
+                queryMap: { q: codedata.module ?? "", limit: 60 },
+                searchKind: "CONNECTOR",
+            });
+            const all = flattenAvailableNodes(response.categories as Item[]);
+            const match = all.find((n) =>
+                n.codedata?.org === codedata.org &&
+                n.codedata?.module === codedata.module &&
+                n.codedata?.object === codedata.object
+            );
+            return match ?? fallback;
+        } catch (err) {
+            console.error(">>> Connector lookup failed for inline create", err);
+            return fallback;
+        }
+    };
+
+    const handleAddNewConnectorClick = async (c: AllowedConnector, key: string) => {
+        if (!onRequestCreateConnection || !c.codedata) return;
+        setLoadingConnectorKey(key);
+        try {
+            const selectedConnector = await resolveAvailableNode(c.codedata as CodeData, c.addNewConnectionLabel);
+            onRequestCreateConnection({
+                selectedConnector,
+                onSaved: (variableName: string) => onChange(variableName, variableName?.length),
+            });
+        } finally {
+            setLoadingConnectorKey(null);
+        }
+    };
+
     const agentCodeData = field.codedata?.data?.agent as CodeData | undefined;
     const creationCodeData = agentCodeData ?? (field.codedata?.data?.connection as CodeData | undefined);
     const createNewLabel = !showCreateNew
@@ -221,6 +302,24 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                 loading={loading}
                 onChange={(val) => onChange(val, val?.length)}
             />
+            {showConnectorActions && (
+                <AddButtons>
+                    {connectors.map((c, i) => {
+                        const key = connectorKey(c, i);
+                        const isLoading = loadingConnectorKey === key;
+                        return (
+                            <LinkButton
+                                key={key}
+                                onClick={() => !isLoading && handleAddNewConnectorClick(c, key)}
+                                sx={{ padding: "4px 6px", margin: 0, fontSize: "13px", opacity: isLoading ? 0.7 : 1 }}
+                            >
+                                {isLoading ? <ProgressRing sx={{ width: 12, height: 12 }} /> : <Codicon name="add" />}
+                                {c.addNewConnectionLabel}
+                            </LinkButton>
+                        );
+                    })}
+                </AddButtons>
+            )}
             {showCreateNew && (
                 <LinkButton
                     onClick={handleCreateNode}
