@@ -56,7 +56,7 @@ const ScrollButton = styled.button<{ $side: "left" | "right" }>`
     border: none;
     cursor: pointer;
     z-index: 1;
-    color: var(--vscode-descriptionForeground);
+    color: var(--vscode-foreground);
     background-color: var(--vscode-editorWidget-background);
 
     &:hover {
@@ -128,14 +128,14 @@ const TabLabel = styled.span`
 `;
 
 const AddTab = styled(Tab)`
-    color: var(--vscode-descriptionForeground);
+    color: var(--vscode-foreground);
     gap: 6px;
     padding: 0 12px 0 10px;
     border-left: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
 
 const PickerButton = styled(Tab)`
-    color: var(--vscode-descriptionForeground);
+    color: var(--vscode-foreground);
     padding: 0 14px;
     border-left: 1px solid ${ThemeColors.OUTLINE_VARIANT};
 `;
