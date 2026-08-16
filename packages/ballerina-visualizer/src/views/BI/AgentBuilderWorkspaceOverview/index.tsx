@@ -278,13 +278,23 @@ const MenuItemLabel = styled.div`
     min-width: 180px;
 `;
 
+const AI_MODULE = "ai";
 const MAX_AGENT_PILLS = 2;
 const MAX_TRIGGER_ICONS = 4;
 const TRIGGER_ICON_SIZE = 16;
 
+function moduleKey(artifact: ProjectStructureArtifactResponse) {
+    return (artifact.moduleName ?? artifact.type ?? artifact.id).replace(/^trigger\./, "");
+}
+
+function isAgentInternal(artifact: ProjectStructureArtifactResponse) {
+    const module = artifact.moduleName ?? "";
+    return module === AI_MODULE || module.startsWith(`${AI_MODULE}.`);
+}
+
 function triggerLabel(trigger: ProjectStructureArtifactResponse) {
-    const module = (trigger.moduleName ?? trigger.type ?? "").replace(/^trigger\./, "");
-    if (module === "ai") {
+    const module = moduleKey(trigger);
+    if (module === AI_MODULE) {
         return "Chat";
     }
     return module ? module.charAt(0).toUpperCase() + module.slice(1) : trigger.name;
@@ -316,19 +326,40 @@ function TriggerGlyph({ trigger }: { trigger: ProjectStructureArtifactResponse }
     return imageUrl ? <ImageWithFallback imageUrl={imageUrl} fallbackEl={glyph} size={TRIGGER_ICON_SIZE} /> : glyph;
 }
 
-function TriggerIcons({ triggers }: { triggers: ProjectStructureArtifactResponse[] }) {
-    if (triggers.length === 0) {
+function byModule(artifacts: ProjectStructureArtifactResponse[]) {
+    return Array.from(new Map(artifacts.map((artifact) => [moduleKey(artifact), artifact])).values());
+}
+
+function integrationTooltip(triggers: ProjectStructureArtifactResponse[], connections: ProjectStructureArtifactResponse[]) {
+    const parts: string[] = [];
+    if (triggers.length > 0) {
+        parts.push(`Triggered by ${byModule(triggers).map(triggerLabel).join(", ")}`);
+    }
+    if (connections.length > 0) {
+        parts.push(`Connects to ${byModule(connections).map(triggerLabel).join(", ")}`);
+    }
+    return parts.join(" · ");
+}
+
+function IntegrationIcons({
+    triggers,
+    connections,
+}: {
+    triggers: ProjectStructureArtifactResponse[];
+    connections: ProjectStructureArtifactResponse[];
+}) {
+    const all = byModule([...triggers, ...connections]);
+    if (all.length === 0) {
         return null;
     }
-    const shown = triggers.slice(0, MAX_TRIGGER_ICONS);
-    const overflow = triggers.length - shown.length;
-    const names = triggers.map(triggerLabel);
+    const shown = all.slice(0, MAX_TRIGGER_ICONS);
+    const overflow = all.length - shown.length;
 
     return (
-        <TriggerRow title={`Triggered by ${names.join(", ")}`}>
-            {shown.map((trigger) => (
-                <TriggerSlot key={trigger.id}>
-                    <TriggerGlyph trigger={trigger} />
+        <TriggerRow title={integrationTooltip(triggers, connections)}>
+            {shown.map((artifact) => (
+                <TriggerSlot key={artifact.id}>
+                    <TriggerGlyph trigger={artifact} />
                 </TriggerSlot>
             ))}
             {overflow > 0 && <MoreCount>+{overflow}</MoreCount>}
@@ -388,13 +419,9 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
                 allAgents,
                 shownAgents: allAgents.slice(0, MAX_AGENT_PILLS),
                 hiddenAgentCount: Math.max(0, allAgents.length - MAX_AGENT_PILLS),
-                triggers: Array.from(
-                    new Map(
-                        (project.directoryMap[DIRECTORY_MAP.SERVICE] ?? []).map((service) => [
-                            service.moduleName ?? service.type ?? service.id,
-                            service,
-                        ])
-                    ).values()
+                triggers: project.directoryMap[DIRECTORY_MAP.SERVICE] ?? [],
+                connections: (project.directoryMap[DIRECTORY_MAP.CONNECTION] ?? []).filter(
+                    (connection) => !isAgentInternal(connection)
                 ),
             };
         });
@@ -652,7 +679,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
                                     {!item.isLibrary && item.allAgents.length === 0 && (
                                         <MutedNote>No agents yet</MutedNote>
                                     )}
-                                    <TriggerIcons triggers={item.triggers} />
+                                    <IntegrationIcons triggers={item.triggers} connections={item.connections} />
                                 </PillRow>
                             </Card>
                         ))}

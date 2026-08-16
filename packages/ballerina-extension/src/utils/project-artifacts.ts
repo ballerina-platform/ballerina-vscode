@@ -456,6 +456,9 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             break;
         case DIRECTORY_MAP.CONNECTION:
             entryValue.icon = icon;
+            const connectionIcon = toIconDescriptor(artifact.icon);
+            entryValue.iconLight = connectionIcon?.light ?? connectionIcon?.url;
+            entryValue.iconDark = connectionIcon?.dark ?? connectionIcon?.url;
             break;
         case DIRECTORY_MAP.AGENT:
             entryValue.icon = icon;
