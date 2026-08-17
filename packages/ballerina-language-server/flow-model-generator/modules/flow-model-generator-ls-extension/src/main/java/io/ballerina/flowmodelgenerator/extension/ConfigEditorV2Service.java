@@ -752,7 +752,7 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
         try {
             Package packageInstance = module.packageInstance();
             if (packageInstance != null) {
-// Resolve the dependency package offline ONLY during tests (ls.test.offline) so compiling it to read
+                // Resolve the dependency package offline ONLY during tests (ls.test.offline) so compiling it to read
                 // its config variables never pulls transitive dependencies from Central; compilation then reuses this
                 // cached resolution. In production we leave the package's own (inherited) resolution untouched, which
                 // matches the original behaviour exactly.
