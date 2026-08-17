@@ -21,6 +21,8 @@ package org.ballerinalang.langserver.workspace.workspacemanager;
 /**
  * Enumerates workspace locking modes.
  *
+ * <p>This is kept separate to handle backward-compatible changes with {@code PackageLockingMode}.
+ *
  * @since 1.7.0
  */
 public enum LockingMode {
