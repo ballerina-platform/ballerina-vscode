@@ -237,6 +237,7 @@ export interface BaseType {
     pattern?: string; // regex pattern for validation (e.g., for TEXT fields)
     patternErrorMessage?: string; // custom error message when pattern validation fails
     validations?: ValidationRule[]; // connector-shipped rules scoped to this type member (generalises pattern/patternErrorMessage)
+    extensions?: string[];
 }
 
 export interface EnumOptions {
