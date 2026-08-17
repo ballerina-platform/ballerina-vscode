@@ -251,6 +251,14 @@ interface CodeData extends PayloadCodeDataHints, AnnotationCodeDataHints {
     path?: string;
     valueQualifier?: string;
     nameEditable?: boolean;
+    driverDependency?: DriverDependency;
+}
+
+interface DriverDependency {
+    groupId?: string;
+    artifactId?: string;
+    version?: string;
+    scope?: string;
 }
 
 export type ValidationSeverity = "ERROR" | "WARNING";

@@ -68,6 +68,8 @@ under the License.
             <class name="io.ballerina.servicemodelgenerator.extension.connector.ExistingListenerResolverTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtilTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.connector.LocalDependencyEditUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.PlatformDependencyEditUtilTest"/>
+            <class name="io.ballerina.servicemodelgenerator.extension.connector.DriverDependencyFieldTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.ValidationEngineTest"/>
             <class name="io.ballerina.servicemodelgenerator.extension.validation.LsRuleValidatorsTest"/>
         </classes>

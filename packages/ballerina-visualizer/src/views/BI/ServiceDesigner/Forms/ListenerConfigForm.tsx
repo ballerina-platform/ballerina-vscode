@@ -231,7 +231,8 @@ function convertConfig(listener: ListenerModel): FormField[] {
             diagnostics: [],
             items: expression.items,
             placeholder: expression.placeholder,
-            lineRange: expression?.codedata?.lineRange
+            lineRange: expression?.codedata?.lineRange,
+            codedata: expression?.codedata
         }
         formFields.push(formField);
     }
