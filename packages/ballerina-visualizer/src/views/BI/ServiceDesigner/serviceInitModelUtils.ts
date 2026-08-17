@@ -81,6 +81,7 @@ export function mapPropertiesToFormFields(properties: { [key: string]: PropertyM
             placeholder: property.placeholder,
             addNewButton: property.addNewButton,
             lineRange: property?.codedata?.lineRange,
+            codedata: property?.codedata,
             advanceProps: !dynamicFormFields ? mapPropertiesToFormFields(property.properties) : undefined,
             dynamicFormFields,
             groupName: property?.metadata?.groupName,
@@ -284,8 +285,8 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
             val.value = data[val.key];
         }
 
-        if (val.type === "CONDITIONAL_FIELDS") {
-            val.advanceProps.forEach(subField => {
+        if (val.type === "CONDITIONAL_FIELDS" || val.type === "GROUP_SECTION") {
+            val.advanceProps?.forEach(subField => {
                 const subProperty = model.properties[val.key]?.properties?.[subField.key];
                 if (subProperty) {
                     if (data[subField.key] !== undefined) {
