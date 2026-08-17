@@ -20,16 +20,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { Codicon, ProgressRing, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
-import { Container, EmptyState, RowChevron, RowText } from "./styles";
+import {
+    Container,
+    EmptyState,
+    HeaderArea as BaseHeaderArea,
+    Row as BaseRow,
+    RowChevron,
+    RowDescription as BaseRowDescription,
+    RowIcon,
+    RowLabel as BaseRowLabel,
+    RowText,
+    ScrollArea as BaseScrollArea,
+    Tag,
+} from "./styles";
 
 const POPULAR_CATEGORY = "Popular";
 
-const HeaderArea = styled.div`
-    display: flex;
-    flex-direction: column;
+const HeaderArea = styled(BaseHeaderArea)`
     gap: 8px;
-    padding: 16px 16px 8px;
-    flex-shrink: 0;
+    padding-bottom: 8px;
 `;
 
 const Description = styled.div`
@@ -67,28 +76,8 @@ const CategorySelect = styled.select`
     }
 `;
 
-const ScrollArea = styled.div`
-    flex: 1;
-    overflow-y: auto;
-    scrollbar-gutter: stable;
+const ScrollArea = styled(BaseScrollArea)`
     margin-top: 12px;
-    padding: 0 16px 16px;
-    &::-webkit-scrollbar {
-        width: 10px;
-    }
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-        background: transparent;
-        border-radius: 5px;
-        border: 3px solid transparent;
-        background-clip: content-box;
-    }
-    &:hover::-webkit-scrollbar-thumb {
-        background: ${ThemeColors.OUTLINE_VARIANT};
-        background-clip: content-box;
-    }
 `;
 
 const Section = styled.div`
@@ -120,16 +109,6 @@ const SectionTitle = styled.div`
     text-overflow: ellipsis;
 `;
 
-const SectionTag = styled.div`
-    flex-shrink: 0;
-    padding: 1px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-`;
-
 const SectionCount = styled.div`
     margin-left: auto;
     font-size: 11px;
@@ -137,32 +116,11 @@ const SectionCount = styled.div`
     flex-shrink: 0;
 `;
 
-const Row = styled.button`
-    display: grid;
+const Row = styled(BaseRow)`
     grid-template-columns: 22px minmax(0, 1fr) 12px;
     gap: 12px;
-    align-items: start;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 12px;
     border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
     border-bottom: none;
-    background: transparent;
-    color: ${ThemeColors.ON_SURFACE};
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-
-    &:hover,
-    &[data-active="true"] {
-        background-color: ${ThemeColors.PRIMARY_CONTAINER};
-    }
-
-    &:focus-visible {
-        outline: 1px solid ${ThemeColors.PRIMARY};
-        outline-offset: -1px;
-    }
 
     &:first-of-type {
         border-top: none;
@@ -174,42 +132,15 @@ const Row = styled.button`
     }
 `;
 
-const RowIcon = styled.div`
-    width: 22px;
-    height: 22px;
-    margin-top: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    & > *,
-    & svg,
-    & img {
-        width: 20px !important;
-        height: 20px !important;
-        font-size: 20px !important;
-        object-fit: contain;
-    }
-`;
-
-const RowLabel = styled.div`
-    font-size: 13px;
-    font-weight: 500;
-    color: ${ThemeColors.ON_SURFACE};
+const RowLabel = styled(BaseRowLabel)`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 `;
 
-const RowDescription = styled.div`
+const RowDescription = styled(BaseRowDescription)`
     margin-top: 2px;
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--vscode-descriptionForeground);
-    display: -webkit-box;
     -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
 `;
 
 const PendingRow = styled.div`
@@ -456,7 +387,7 @@ export function ConnectorList(props: ConnectorListProps) {
                         <Section key={section.key}>
                             <SectionHeader>
                                 <SectionTitle>{section.title}</SectionTitle>
-                                {section.tag && <SectionTag>{section.tag}</SectionTag>}
+                                {section.tag && <Tag>{section.tag}</Tag>}
                                 {!section.pending && <SectionCount>{section.nodes.length}</SectionCount>}
                             </SectionHeader>
                             {section.nodes.map((node) => {
@@ -470,7 +401,9 @@ export function ConnectorList(props: ConnectorListProps) {
                                         title={node.description || node.label}
                                         onClick={() => handleSelect(node, section.category)}
                                     >
-                                        <RowIcon>{node.icon ?? <Codicon name="package" />}</RowIcon>
+                                        <RowIcon box={22} icon={20} offset={1}>
+                                            {node.icon ?? <Codicon name="package" />}
+                                        </RowIcon>
                                         <RowText>
                                             <RowLabel>{node.label}</RowLabel>
                                             {node.description && (

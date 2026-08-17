@@ -18,18 +18,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
-import { ArtifactData, FlowNode, getPrimaryInputType, NodePosition, Property, RecordTypeField }
-    from "@wso2/ballerina-core";
+import { ArtifactData, FlowNode, NodePosition, Property, RecordTypeField } from "@wso2/ballerina-core";
 import { FieldGroup, FormField, FormValues } from "@wso2/ballerina-side-panel";
 import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { ImplementationBadge } from "../../../components/ImplementationBadge";
-import { convertNodePropertyToFormField } from "../../../utils/bi";
-import { INCLUDE_CONTEXT_KEY, OAUTH_GROUP, RESULT_TYPE_GROUP, buildIncludeContextField } from "./toolForm";
+import { INCLUDE_CONTEXT_KEY, RESULT_TYPE_GROUP, buildIncludeContextField, buildToolFormGroups } from "./toolForm";
 import { addToolToAgentNode, AgentToolHostClass, buildAgentCallToolNode, fetchAgentRunReturnType, fetchOAuthConfigProperties, refreshAgentNodeLineRange, resolveAgentNodePosition, ZERO_LINE_RANGE } from "./utils";
-import { buildAgentToolFields, stripCodeFencesInline } from "./formUtils";
+import { buildAgentToolFields, buildOAuthFields, extractRecordTypeFieldsFromEntries, stripCodeFencesInline }
+    from "./formUtils";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -77,35 +76,10 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         })();
     }, [agentNode]);
 
-    const oauthFields = useMemo<FormField[]>(
-        () => oauthProperties.map(({ key, property }) => ({
-            ...convertNodePropertyToFormField(key, property),
-            group: OAUTH_GROUP,
-            advanced: false,
-        })),
-        [oauthProperties]
-    );
-
-    const groups = useMemo<FieldGroup[]>(
-        () => [
-            ...(oauthFields.length > 0
-                ? [{ id: OAUTH_GROUP, label: "OAuth Client Configuration", defaultCollapsed: true }]
-                : []),
-            { id: RESULT_TYPE_GROUP, label: "Result Type", defaultCollapsed: true },
-        ],
-        [oauthFields]
-    );
+    const oauthFields = useMemo<FormField[]>(() => buildOAuthFields(oauthProperties), [oauthProperties]);
 
     const recordTypeFields = useMemo<RecordTypeField[]>(
-        () => oauthProperties
-            .filter(({ property }) => getPrimaryInputType(property?.types)?.typeMembers
-                ?.some((member) => member.kind === "RECORD_TYPE"))
-            .map(({ key, property }) => ({
-                key,
-                property,
-                recordTypeMembers: getPrimaryInputType(property?.types)?.typeMembers
-                    .filter((member) => member.kind === "RECORD_TYPE"),
-            })),
+        () => extractRecordTypeFieldsFromEntries(oauthProperties),
         [oauthProperties]
     );
 
@@ -114,8 +88,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             `${agentVarName}Tool`,
             `Delegates a query to ${agentLabel === "Agent" ? "the generic agent" : agentLabel}.`
         ),
-        // No inputs card on this form — the delegated call's only input is the query — so the
-        // context flag sits with the fields instead.
         buildIncludeContextField() as FormField,
         ...oauthFields,
         {
@@ -134,8 +106,8 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
         },
     ], [agentVarName, agentLabel, oauthFields, defaultReturnType]);
 
-    // Send only an edited value. Passing the prefill back would make the LS skip its own
-    // resolution, which is what adds the import for a type from another module.
+    const groups = useMemo<FieldGroup[]>(() => buildToolFormGroups(fields), [fields]);
+
     const overriddenReturnType = (submitted: string): string =>
         submitted.trim() === defaultReturnType.trim() ? "" : submitted;
 
@@ -152,7 +124,6 @@ export function UseAgentToolForm(props: UseAgentToolFormProps): JSX.Element {
             const toolNode = buildAgentCallToolNode(toolName, agentVarName, data[INCLUDE_CONTEXT_KEY] === true,
                 description, hostClass, agentReceiver, overriddenReturnType(String(data["returnType"] ?? "")));
 
-            // Same shape the connection tool form uses: codedata.data.auth.
             const authConfig: Record<string, string> = {};
             for (const { key } of oauthProperties) {
                 const value = data[key];

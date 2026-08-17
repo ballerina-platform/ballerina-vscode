@@ -21,10 +21,11 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Category as PanelCategory, Node as PanelNode } from "@wso2/ballerina-side-panel";
 import { AvailableNode, BISearchRequest, Item, LinePosition } from "@wso2/ballerina-core";
-import { Button, ThemeColors } from "@wso2/ui-toolkit";
+import { Button } from "@wso2/ui-toolkit";
 
 import { convertBICategoriesToSidePanelCategories } from "../../../../utils/bi";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { Banner } from "../../../../components/Banner";
 import { fetchConnectorActions, normalizeConnectorSearchCategories } from "./connectorActions";
 import { ConnectorActionList } from "./ConnectorActionList";
 import { ConnectorList } from "./ConnectorList";
@@ -52,15 +53,6 @@ interface ConnectorBrowserProps {
     description?: string;
     noActionsHint?: string;
 }
-
-const ErrorNotice = styled.div`
-    margin: 12px 0;
-    padding: 10px 12px;
-    border: 1px solid ${ThemeColors.ERROR};
-    border-radius: 4px;
-    font-size: 13px;
-    color: var(--vscode-foreground);
-`;
 
 const LoaderWrapper = styled.div`
     display: flex;
@@ -240,7 +232,6 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
         }
     };
 
-    // Connector list only; the action list has its own renderer.
     const handleListSelect = (nodeId: string, metadata?: any) => {
         const node = (metadata as { node: AvailableNode })?.node;
         if (!node) {
@@ -250,7 +241,6 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
             void handleSelectConnector(node, (metadata as { category?: string })?.category);
             return;
         }
-        // Already bound to its connection, so no connection step is needed.
         const connectionName = node.codedata?.parentSymbol;
         if (connectionName) {
             onSelect({ action: node, connectionName });
@@ -288,11 +278,16 @@ export function ConnectorBrowser(props: ConnectorBrowserProps) {
                             <RelativeLoader message="Loading actions..." />
                         </LoaderWrapper>
                     ) : actionError ? (
-                        <div style={{ padding: "0 16px" }}>
-                            <ErrorNotice>{actionError}</ErrorNotice>
-                            <Button appearance="secondary" onClick={goToConnectorList}>
-                                Back to connectors
-                            </Button>
+                        <div style={{ padding: "12px 16px" }}>
+                            <Banner
+                                variant="error"
+                                message={actionError}
+                                actions={
+                                    <Button appearance="secondary" onClick={goToConnectorList}>
+                                        Back to connectors
+                                    </Button>
+                                }
+                            />
                         </div>
                     ) : (
                         <ConnectorActionList

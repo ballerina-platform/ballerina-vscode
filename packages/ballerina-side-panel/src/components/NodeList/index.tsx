@@ -455,7 +455,6 @@ export function NodeList(props: NodeListProps) {
                 });
             }
 
-            // Force expanded: used when the category is the whole point of the view.
             if (alwaysExpandedCategories) {
                 alwaysExpandedCategories.forEach((cat) => {
                     mergedState[cat] = true;

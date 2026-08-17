@@ -20,7 +20,6 @@ import { AvailableNode, Category, CodeData, Item, NodeKind } from "@wso2/balleri
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import { formatMethodName } from "@wso2/ballerina-side-panel";
 
-// Local, not from src/constants: that pulls in the ballerina-core barrel and breaks tests.
 const REMOTE_ACTION_CALL: NodeKind = "REMOTE_ACTION_CALL";
 const RESOURCE_ACTION_CALL: NodeKind = "RESOURCE_ACTION_CALL";
 
@@ -35,7 +34,6 @@ export function actionDisplayLabel(label: string | undefined): string {
     return IDENTIFIER.test(text) ? formatActionLabel(text) : text;
 }
 
-// The parts of `docsData.modules[].clients[]` we use.
 interface DocsMethod {
     name?: string;
     description?: string;
@@ -53,43 +51,29 @@ interface DocsClient {
 const stripMarkup = (value: string): string =>
     value.replace(/<[^>]*>/g, "").replace(/```[\s\S]*?```/g, "").replace(/\s+/g, " ").trim();
 
-/** First sentence only; the rest stays in `description`. */
 export function firstSentence(value: string): string {
     const text = (value || "").trim();
     const end = text.search(/\.(\s|$)/);
     return end === -1 ? text : text.slice(0, end + 1);
 }
 
-/** Mirrors `ParamUtils.REST_RESOURCE_PATH` in the LS. */
 export const REST_RESOURCE_PATH = "/path/to/subdirectory";
 
-/** Shown instead of the LS placeholder, which reads like a real endpoint. */
 const REST_PATH_DISPLAY = "/[path...]";
 
-/** Never show the LS's rest-path placeholder to the user. */
 export function displayResourcePath(resourcePath: string | undefined): string {
     return resourcePath === REST_RESOURCE_PATH ? REST_PATH_DISPLAY : (resourcePath || "");
 }
 
-/** `get` + `/users/[userId]/drafts` -> "GET /users/[userId]/drafts". */
 export function formatResourceSignature(accessor: string, resourcePath: string): string {
     return `${(accessor || "").toUpperCase()} ${displayResourcePath(resourcePath)}`.trim();
 }
 
-/**
- * Docs path -> the template `FunctionDataBuilder.buildResourcePathTemplate` produces, which
- * `getNodeTemplate` compares by string equality.
- *
- *   `users/[string userId]/drafts`  ->  `/users/[userId]/drafts`
- *   `[PathParamType ...path]`       ->  `/path/to/subdirectory`
- *   `.`                             ->  `/`
- */
 export function toResourcePathTemplate(docsPath: string): string {
     const path = (docsPath || "").trim();
     if (!path || path === ".") {
         return "/";
     }
-    // A lone rest parameter.
     if (/^\[[^\]]*\.\.\.[^\]]*\]$/.test(path)) {
         return REST_RESOURCE_PATH;
     }
@@ -102,21 +86,15 @@ export function toResourcePathTemplate(docsPath: string): string {
             rendered.push(segment);
             continue;
         }
-        // A rest parameter adds no segment.
         if (param[1].includes("...")) {
             continue;
         }
-        // `string userId` -> `userId`.
         const name = param[1].trim().split(/\s+/).pop() ?? "";
         rendered.push(`[${name}]`);
     }
     return rendered.length > 0 ? `/${rendered.join("/")}` : "/";
 }
 
-/**
- * Build the `AvailableNode` list for a connector's actions.
- * @throws when the docs cannot be fetched (unpublished package, offline).
- */
 export async function fetchConnectorActions(
     rpcClient: BallerinaRpcClient,
     connector: AvailableNode
@@ -133,7 +111,6 @@ export async function fetchConnectorActions(
     });
 
     const modules = response?.docsData?.modules ?? [];
-    // Fall back to any module declaring the client: dotted modules (aws.s3) come as one.
     const clientName = codedata.object || "Client";
     const clients: DocsClient[] = modules
         .filter((module) => !module.id || module.id === codedata.module)
@@ -155,14 +132,12 @@ export async function fetchConnectorActions(
             return;
         }
         const isResource = node === RESOURCE_ACTION_CALL;
-        // Resource methods have no `name`; `codedata.symbol` holds the accessor.
         const symbol = (isResource ? method.accessor : method.name)?.trim();
         const docsPath = method.resourcePath?.trim();
         if (!symbol || (isResource && !docsPath)) {
             return;
         }
         const resourcePath = isResource ? toResourcePathTemplate(docsPath) : docsPath;
-        // symbol is the accessor here, so GET and POST on one path stay distinct.
         const key = `${node}:${symbol}:${resourcePath ?? ""}`;
         if (seen.has(key)) {
             return;
@@ -170,7 +145,6 @@ export async function fetchConnectorActions(
         seen.add(key);
 
         const description = stripMarkup(method.description ?? "");
-        // No symbol to humanise; the LS labels resource actions by their description too.
         const label = isResource
             ? firstSentence(description) || formatResourceSignature(symbol, resourcePath)
             : formatActionLabel(symbol);
@@ -204,7 +178,6 @@ export async function fetchConnectorActions(
     return actions;
 }
 
-/** A search with `q` returns a flat node list in `categories`; wrap it. Drops empty categories. */
 export function normalizeConnectorSearchCategories(
     categories: Item[] | undefined,
     searchResultLabel = "Search Results"
@@ -227,17 +200,11 @@ export function normalizeConnectorSearchCategories(
     return grouped;
 }
 
-/**
- * A type-filtered connection dropdown plus a "Create New …" link, shaped the way
- * NodeReferenceSelectEditor expects (see enrichClientConnectionField).
- */
 export function buildConnectionSelectField(
     connectorCodeData: CodeData,
     ballerinaType: string | undefined,
     value: string
 ): Record<string, unknown> {
-    // `exact`: a Redis client must never be offered for an HTTP action. No version — the LS
-    // compares it literally, and the project's resolved patch rarely matches Central's latest.
     const targetType = connectorCodeData.module && connectorCodeData.object
         ? {
             relation: "exact",
@@ -259,7 +226,6 @@ export function buildConnectionSelectField(
         hidden: false,
         advanced: false,
         value: value ?? "",
-        // A connection is picked from the list; a raw expression is not a useful alternative.
         hideModeSwitcher: true,
         types: [
             { fieldType: "ACTION_EXPRESSION", ballerinaType, selected: true },
@@ -270,7 +236,6 @@ export function buildConnectionSelectField(
             originalName: "connection",
             searchNodesKind: "NEW_CONNECTION",
             ...(targetType && { targetType }),
-            // Drives the "Create New …" link.
             data: { connection: connectorCodeData },
         },
     };

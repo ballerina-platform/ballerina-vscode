@@ -86,12 +86,9 @@ export type FormField = {
     };
 };
 
-/** A collapsible section of fields, declared by the form host. */
 export type FieldGroup = {
-    /** Matches `FormField.group`. */
     id: string;
     label: string;
-    /** Pass false when the group holds a required empty field, so Save can't fail unseen. */
     defaultCollapsed?: boolean;
 };
 

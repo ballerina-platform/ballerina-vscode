@@ -144,7 +144,6 @@ namespace S {
         border-top: ${({ topBorder }) => (topBorder ? `1px solid ${ThemeColors.OUTLINE_VARIANT}` : "none")};
     `;
 
-    /** Collapsible group card: a labelled container for fields the user rarely edits. */
     export const GroupCard = styled.div`
         width: 100%;
         border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
@@ -444,12 +443,7 @@ export interface FormProps {
     // its `propertyPath` resolves to; anything unresolvable falls back to the form-level banner.
     serverValidationErrors?: ValidationResult[];
     preserveOrder?: boolean;
-    /** Collapsible sections; fields opt in via `FormField.group`. Rendered in this order. */
     groups?: FieldGroup[];
-    /**
-     * Fields are ready at mount. Gates loading to the initial resolve, so a later editor mount
-     * cannot blank the form, and skips autofocus on a prefilled first field.
-     */
     opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
@@ -592,7 +586,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }, [serverValidationErrors, setError]);
 
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
-    // Per-mount; seeded from each group's default.
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const toggleGroup = (groupId: string) =>
         setExpandedGroups((prev) => {
@@ -634,11 +627,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             return next;
         });
     }, []);
-    // `opensPrefilled` only. Prefilled editors register on mount, so without this gate any later
-    // mount (expanding a card) blanks the form and drops focus.
     const [initialLoadSettled, setInitialLoadSettled] = useState(false);
-    // Editors register one commit after first paint, so assume busy up front when there is
-    // something to resolve. Otherwise the form paints, blanks, then paints again.
     const expectsInitialLoadRef = useRef<boolean | null>(null);
     if (expectsInitialLoadRef.current === null) {
         expectsInitialLoadRef.current = (props.formFields ?? []).some(
@@ -657,11 +646,9 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             return;
         }
         if (sawInitialLoadingRef.current) {
-            // busy -> idle: done
             setInitialLoadSettled(true);
             return;
         }
-        // Nothing registered; settle next tick so editors mounting this commit still count.
         const timer = setTimeout(() => setInitialLoadSettled(true), 0);
         return () => clearTimeout(timer);
     }, [loadingFields.size, initialLoadSettled, opensPrefilled]);
@@ -982,14 +969,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
     // has advance fields
     const groupIds = useMemo(() => new Set((groups ?? []).map((group) => group.id)), [groups]);
-    /** True when the field belongs to a declared group, so it renders in that card only. */
     const isGroupedField = (field: FormField) => Boolean(field.group && groupIds.has(field.group));
     const hasAdvanceFields =
         formFields.some((field) => field.advanced && field.enabled && !field.hidden && !isGroupedField(field))
         || advancedChoiceFields.length > 0
         || injectedComponents?.some((component) => component.advanced) === true;
-    // A declared group wins over the bottom-field path, which would otherwise pull type
-    // fields out of their card.
     const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
@@ -1039,7 +1023,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         (field) => field.editable !== false && getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
     );
 
-    // Autofocus selects the text, so `opensPrefilled` callers skip it when prefilled.
     const firstEditableFieldValue = formFields[firstEditableFieldIndex]?.value;
     const autoFocusFirstField =
         firstEditableFieldIndex >= 0 &&
@@ -1336,7 +1319,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                     const fieldsToRender = [...formFields]
                         .sort((a, b) => (b.groupNo ?? 0) - (a.groupNo ?? 0))
                         .filter((field) => field.type !== "VIEW")
-                        // Grouped fields render in their own card below.
                         .filter((field) => !isGroupedField(field));
 
                     const renderedComponents: React.ReactNode[] = [];
@@ -1579,7 +1561,6 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     <Codicon name="chevron-down" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
                                 </S.GroupChevron>
                             </S.GroupHeader>
-                            {/* Hidden, not unmounted: remounting prefilled editors re-triggers the form spinner. */}
                             <S.GroupBody style={{ display: expanded ? "flex" : "none" }}>
                                 {groupFields.map(renderGroupField)}
                             </S.GroupBody>

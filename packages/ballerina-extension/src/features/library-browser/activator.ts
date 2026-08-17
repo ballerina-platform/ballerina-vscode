@@ -157,7 +157,6 @@ export function getLibraryData(orgName: string, moduleName: string, version: str
             res.on('end',function(){
                 if (res.statusCode !== 200) {
                     debug(`Failed to fetch the library data for ${orgName}:${moduleName}`);
-                    // Must settle: returning here left callers hanging.
                     return reject(new Error(`Failed to fetch library data for ${orgName}/${moduleName}:${version} (status ${res.statusCode})`));
                 }
                 try {

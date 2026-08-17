@@ -18,18 +18,12 @@
 
 import { REST_RESOURCE_PATH } from "../Connection/ConnectorBrowser/connectorActions";
 
-/** Collapsible sections of the tool form. */
 export const TOOL_INPUT_GROUP = "toolInputs";
 export const RESULT_TYPE_GROUP = "resultType";
 export const OAUTH_GROUP = "oauthConfig";
 
 export const INCLUDE_CONTEXT_KEY = "includeContext";
 
-/**
- * `ai:Context ctx` becomes the tool's first parameter, so this belongs with the inputs — pass no
- * group for a form with no inputs card. A real FLAG field rather than an injected checkbox, so the
- * value arrives through the form and can sit inside a card.
- */
 export function buildIncludeContextField(group?: string): Record<string, unknown> {
     return {
         key: INCLUDE_CONTEXT_KEY,
@@ -61,10 +55,6 @@ export interface ToolFormGroup {
     defaultCollapsed: boolean;
 }
 
-/**
- * Collapsible sections for the fields present. Inputs collapse since mappings default to
- * identity — except SQL queries, which are blanked, so hiding them would break Save.
- */
 export function buildToolFormGroups(fields: GroupableField[]): ToolFormGroup[] {
     const visibleIn = (group: string) =>
         fields.filter((field) => field.group === group && !field.hidden);
@@ -74,7 +64,6 @@ export function buildToolFormGroups(fields: GroupableField[]): ToolFormGroup[] {
         (field) => field.optional === false && (field.value === undefined || field.value === "")
     );
 
-    // Ordered by how often each is opened, most first.
     const groups: ToolFormGroup[] = [];
     if (inputFields.length > 0) {
         groups.push({
@@ -92,20 +81,12 @@ export function buildToolFormGroups(fields: GroupableField[]): ToolFormGroup[] {
     return groups;
 }
 
-/**
- * A resource action's symbol is only its accessor, so seed from the last named segment too.
- *
- *   `post` + `/users/[userId]/labels`      -> `postLabels`
- *   `get`  + `/users/[userId]/labels/[id]` -> `getLabels`
- */
 export function resourceToolNameSeed(accessor: string, resourcePath: string): string {
     const path = (resourcePath || "").trim();
-    // The rest-path placeholder is not a real endpoint.
     if (!path || path === "/" || path === REST_RESOURCE_PATH) {
         return accessor || "";
     }
 
-    // Skip parameters and segments `suggestToolName` would strip to nothing.
     const named = path
         .split("/")
         .filter((segment) => segment && !segment.startsWith("[") && /[a-zA-Z0-9]/.test(segment));
@@ -117,12 +98,8 @@ export function resourceToolNameSeed(accessor: string, resourcePath: string): st
     return `${accessor}${last.charAt(0).toUpperCase()}${last.slice(1)}`;
 }
 
-const BALLERINA_RESERVED_TOOL_NAMES = new Set(["function", "type", "class", "service", "resource", "remote", "client"]);
-
-/** `append` -> `appendTool`, with a numeric suffix when taken. */
 export function suggestToolName(symbol: string, taken: Iterable<string>): string {
     const existing = new Set(taken);
-    // Camel-case across separators: `get-range` -> `getRange`, not `getrange`.
     const words = (symbol || "").split(/[^a-zA-Z0-9]+/).filter(Boolean);
     const cleaned = words
         .map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
@@ -137,9 +114,6 @@ export function suggestToolName(symbol: string, taken: Iterable<string>): string
     if (!base.toLowerCase().endsWith("tool")) {
         base = `${base}Tool`;
     }
-    if (BALLERINA_RESERVED_TOOL_NAMES.has(base)) {
-        base = `${base}Tool`;
-    }
     if (!existing.has(base)) {
         return base;
     }
@@ -150,7 +124,6 @@ export function suggestToolName(symbol: string, taken: Iterable<string>): string
     return `${base}${suffix}`;
 }
 
-/** Names already used by the agent's tools, so a suggestion never collides. */
 export function getExistingToolNames(agentNode: { properties?: Record<string, any> } | undefined): string[] {
     const raw = agentNode?.properties?.tools?.value;
     if (Array.isArray(raw)) {

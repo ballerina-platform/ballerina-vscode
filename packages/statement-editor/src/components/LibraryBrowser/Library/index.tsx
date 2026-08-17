@@ -51,7 +51,6 @@ export function Library(props: LibraryProps) {
                 libraryBrowsingHandler(response);
             }
         } catch (error) {
-            // Central can fail (offline, unpublished). Don't leave the browser spinning.
             // tslint:disable-next-line: no-console
             console.error("Failed to fetch library data", { orgName, moduleName: id, version, error });
         } finally {

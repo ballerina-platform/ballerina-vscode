@@ -83,7 +83,6 @@ const OptionDescription = styled.div`
     line-height: 1.4;
 `;
 
-/** Card titles, reused by the panel header so the two cannot drift apart. */
 export const TOOL_OPTION_LABELS = {
     CONNECTION: "Use Connection",
     FUNCTION: "Use Function",
@@ -94,7 +93,6 @@ export const TOOL_OPTION_LABELS = {
 
 export const ADD_TOOL_TITLE = "Add Tool";
 
-/** Panel header for a chosen option, e.g. "Add Tool - Use Connection". */
 export const addToolTitle = (option: keyof typeof TOOL_OPTION_LABELS): string =>
     `${ADD_TOOL_TITLE} - ${TOOL_OPTION_LABELS[option]}`;
 

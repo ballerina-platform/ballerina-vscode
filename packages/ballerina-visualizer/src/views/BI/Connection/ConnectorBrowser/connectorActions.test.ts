@@ -52,8 +52,6 @@ const docsWith = (client: Record<string, unknown>, moduleId = "redis") => ({
     docsData: { modules: [{ id: moduleId, clients: [{ name: "Client", ...client }] }] },
 });
 
-// Must equal FunctionDataBuilder.buildResourcePathTemplate, which getNodeTemplate compares by
-// string equality — a mismatch fails with "Function symbol not found".
 describe("toResourcePathTemplate", () => {
     it.each([
         ["users/[string userId]/drafts", "/users/[userId]/drafts"],
@@ -61,7 +59,6 @@ describe("toResourcePathTemplate", () => {
         ["users/[string userId]/messages/[string messageId]/attachments/[string id]",
             "/users/[userId]/messages/[messageId]/attachments/[id]"],
         ["users/[string userId]/profile", "/users/[userId]/profile"],
-        // Already-normalised input is left alone.
         ["/users/[userId]/drafts", "/users/[userId]/drafts"],
     ])("normalises %s", (docsPath, expected) => {
         expect(toResourcePathTemplate(docsPath)).toBe(expected);
@@ -137,7 +134,6 @@ describe("fetchConnectorActions", () => {
         expect(actions).toHaveLength(1);
         expect(actions[0].metadata.label).toBe("Append");
         expect(actions[0].metadata.description).toBe("Append a value to a key.");
-        // The shape getNodeTemplate needs with no connection present.
         expect(actions[0].codedata).toMatchObject({
             node: "REMOTE_ACTION_CALL",
             org: "ballerinax",
@@ -148,7 +144,6 @@ describe("fetchConnectorActions", () => {
         });
     });
 
-    // Real payloads give resource methods an empty `name` — identity is accessor + resourcePath.
     it("maps resource methods to RESOURCE_ACTION_CALL and keeps the resource path", async () => {
         const rpcClient = makeRpcClient(
             docsWith({
@@ -167,9 +162,7 @@ describe("fetchConnectorActions", () => {
 
         expect(actions).toHaveLength(1);
         expect(actions[0].codedata.node).toBe("RESOURCE_ACTION_CALL");
-        // Normalised to the LS's template form, not the docs form.
         expect(actions[0].codedata.resourcePath).toBe("/users/[userId]/drafts");
-        // The accessor is what codedata.symbol holds for a resource action.
         expect(actions[0].codedata.symbol).toBe("get");
     });
 
@@ -190,7 +183,6 @@ describe("fetchConnectorActions", () => {
 
         const actions = await fetchConnectorActions(rpcClient, REDIS_CONNECTOR);
 
-        // First sentence only; the rest stays in description for the tooltip.
         expect(actions[0].metadata.label).toBe("Immediately and permanently deletes the specified draft.");
         expect(actions[0].metadata.description).toContain("Does not simply trash it.");
     });
@@ -286,7 +278,6 @@ describe("fetchConnectorActions", () => {
     });
 
     it("falls back to any module's client for dotted modules", async () => {
-        // aws.s3 docs come back under a single module whose id may not match exactly.
         const rpcClient = makeRpcClient(docsWith({ remoteMethods: [{ name: "listBuckets" }] }, "s3"));
 
         const actions = await fetchConnectorActions(rpcClient, {
@@ -295,7 +286,6 @@ describe("fetchConnectorActions", () => {
         } as AvailableNode);
 
         expect(actions.map((action) => action.codedata.symbol)).toEqual(["listBuckets"]);
-        // Codedata must keep the real module, not the docs module id.
         expect(actions[0].codedata.module).toBe("aws.s3");
     });
 
@@ -386,7 +376,6 @@ describe("buildConnectionSelectField", () => {
         expect(field.codedata.searchNodesKind).toBe("NEW_CONNECTION");
     });
 
-    // What keeps a Redis client out of an HTTP action's dropdown.
     it("constrains candidates to the connector's exact client type", () => {
         const field = buildConnectionSelectField(httpConnector as any, "http:Client", "") as any;
         expect(field.codedata.targetType).toEqual({
@@ -398,8 +387,6 @@ describe("buildConnectionSelectField", () => {
         });
     });
 
-    // The LS compares the version literally, so Central's latest would exclude a connection
-    // built against the patch the project actually resolved.
     it("omits the version from the type constraint", () => {
         const field = buildConnectionSelectField(httpConnector as any, "http:Client", "") as any;
         expect(field.codedata.targetType).not.toHaveProperty("version");

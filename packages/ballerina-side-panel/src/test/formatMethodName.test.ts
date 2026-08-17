@@ -16,9 +16,6 @@
  * under the License.
  */
 
-// Owns the labels rendered by GroupList and the connector browser, so the two callers sit in
-// different packages. Kept next to the source rather than in the consumer's suite.
-
 import { formatMethodName } from "../utils/formatMethodName";
 
 describe("formatMethodName", () => {

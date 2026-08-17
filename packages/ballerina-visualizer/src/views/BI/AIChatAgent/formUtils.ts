@@ -16,8 +16,11 @@
  * under the License.
  */
 
-import { ValueTypeConstraint, ToolParameters, getPrimaryInputType } from "@wso2/ballerina-core";
+import { NodeProperties, Property, RecordTypeField, ToolParameters, ValueTypeConstraint, getPrimaryInputType }
+    from "@wso2/ballerina-core";
 import { FormField, Parameter } from "@wso2/ballerina-side-panel";
+import { convertNodePropertyToFormField } from "../../../utils/bi";
+import { OAUTH_GROUP } from "./toolForm";
 
 const SQL_PARAMETERIZED_TYPES = ["sql:ParameterizedQuery", "sql:ParameterizedCallQuery"];
 const isSqlParameterizedField = (field: FormField): boolean =>
@@ -320,4 +323,32 @@ export function buildAgentToolFields(nameValue: string, descriptionValue: string
             enabled: true,
         },
     ];
+}
+
+export type PropertyEntry = { key: string; property: Property };
+
+export function buildOAuthFields(entries: PropertyEntry[]): FormField[] {
+    return entries.map(({ key, property }) => ({
+        ...convertNodePropertyToFormField(key, property),
+        group: OAUTH_GROUP,
+        advanced: false,
+    }));
+}
+
+export function extractRecordTypeFieldsFromEntries(entries: PropertyEntry[]): RecordTypeField[] {
+    return entries
+        .filter(({ property }) => getPrimaryInputType(property?.types)?.typeMembers
+            ?.some(member => member.kind === "RECORD_TYPE"))
+        .map(({ key, property }) => ({
+            key,
+            property,
+            recordTypeMembers: getPrimaryInputType(property?.types)?.typeMembers
+                .filter(member => member.kind === "RECORD_TYPE"),
+        }));
+}
+
+export function extractRecordTypeFields(properties: NodeProperties): RecordTypeField[] {
+    return extractRecordTypeFieldsFromEntries(
+        Object.entries(properties).map(([key, property]) => ({ key, property }))
+    );
 }

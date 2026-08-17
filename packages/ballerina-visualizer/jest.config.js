@@ -25,9 +25,6 @@ module.exports = {
         ...base.moduleNameMapper,
         // Local file mock (keeps existing behavior for this package).
         '\\.(svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$': '<rootDir>/src/test/fileMock.js',
-        // connectorActions.ts is the only tested module importing a value from this package, and
-        // the real barrel pulls in the whole editor tree. A test needing anything else from it
-        // must widen this to a mock module that re-exports each import it relies on.
         '^@wso2/ballerina-side-panel$': '<rootDir>/../ballerina-side-panel/src/utils/formatMethodName.ts',
     },
     // These unit tests mock @wso2/ballerina-core and use the pre-built CJS libs,

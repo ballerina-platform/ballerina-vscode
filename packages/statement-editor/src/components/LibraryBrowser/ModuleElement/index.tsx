@@ -73,7 +73,6 @@ export function ModuleElement(props: ModuleElementProps) {
                     version: moduleVersion
                 });
             } catch (error) {
-                // Central can fail (offline, unpublished); insert the bare name.
                 // tslint:disable-next-line: no-console
                 console.error("Failed to fetch library data", { moduleOrgName, moduleId, moduleVersion, error });
             }

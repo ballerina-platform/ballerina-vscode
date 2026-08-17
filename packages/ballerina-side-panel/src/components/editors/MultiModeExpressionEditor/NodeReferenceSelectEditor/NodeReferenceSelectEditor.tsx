@@ -168,7 +168,6 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                 applyNodeReferenceFilter([...staticItems, ...items]), value, searchNodesKind
             );
             setSelectItems(resolved);
-            // Fetched items arrive after the mount-time staticItems preselect.
             if (!value && resolved.length > 0) {
                 onChange(resolved[0].value, resolved[0].value.length);
             }

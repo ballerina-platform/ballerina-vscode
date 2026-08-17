@@ -47,7 +47,6 @@ export function toCamelCase(name: string): string {
     const words = name.trim().split(/[\s_]+/).filter(Boolean);
     if (words.length === 0) return "";
     const firstWord = words[0];
-    // Lowercase leading acronyms: "HR" -> "hr", "HTMLParser" -> "htmlParser"
     const leadingUpper = firstWord.match(/^[A-Z]+/);
     let lowerFirst: string;
     if (leadingUpper && leadingUpper[0].length === firstWord.length) {
@@ -62,7 +61,6 @@ export function toCamelCase(name: string): string {
 
 export function toBaseName(name: string): string {
     const camel = toCamelCase(name);
-    // Strip known suffixes to avoid e.g. "salesAgentAgent"
     const lower = camel.toLowerCase();
     for (const suffix of KNOWN_AGENT_NAME_SUFFIXES) {
         if (lower.endsWith(suffix) && lower.length > suffix.length) {
@@ -76,8 +74,6 @@ export interface CreatedBuiltInAgent {
     agentVarName: string;
     modelVarName: string;
     baseName: string;
-    // True when the shared WSO2 default model provider was used. The caller is responsible for
-    // invoking configureDefaultModelProvider() at the point that fits its flow.
     usedDefaultModelProvider: boolean;
 }
 
@@ -243,10 +239,6 @@ export const fetchOAuthConfigProperties = async (
     }
 };
 
-/**
- * The agent's own `run` return type, for prefilling Result Type. `string` for a dependently-typed
- * agent, the baked type for a fixed-typed one.
- */
 export const fetchAgentRunReturnType = async (
     rpcClient: BallerinaRpcClient,
     filePath: string,

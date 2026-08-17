@@ -105,7 +105,6 @@ export function shouldRunExternalFormValidation({
     return formStateIsValid && Object.keys(errors ?? {}).length === 0 && !hasIncompleteRequiredFields;
 }
 
-/** Whether a collapsed group is what is keeping Save disabled, so its header can show it. */
 export function groupHasBlockingIssue({
     groupFields,
     errors,

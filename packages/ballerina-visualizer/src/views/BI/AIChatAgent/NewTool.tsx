@@ -19,9 +19,10 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { EVENT_TYPE, FlowNode, Property } from "@wso2/ballerina-core";
-import { Button, ThemeColors } from "@wso2/ui-toolkit";
+import { Button } from "@wso2/ui-toolkit";
 import { NodePosition } from "@wso2/syntax-tree";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { Banner } from "../../../components/Banner";
 import { AIAgentSidePanel, ExtendedAgentToolRequest } from "./AIAgentSidePanel";
 import { RelativeLoader } from "../../../components/RelativeLoader";
 import { addToolToAgentNode, buildAgentToolNode, refreshAgentNodeLineRange, resolveAgentNodePosition, updateFlowNodePropertyValuesWithKeys } from "./utils";
@@ -33,19 +34,6 @@ const LoaderContainer = styled.div`
     justify-content: center;
     align-items: center;
     height: 100%;
-`;
-
-const ErrorNotice = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    margin: 12px 16px;
-    padding: 12px;
-    border: 1px solid ${ThemeColors.ERROR};
-    border-radius: 4px;
-    font-size: 13px;
-    color: var(--vscode-foreground);
 `;
 
 export enum NewToolSelectionMode {
@@ -167,6 +155,7 @@ export function NewTool(props: NewToolProps): JSX.Element {
             connection = data.connectionName || data.selectedCodeData.parentSymbol || "";
         }
 
+        setError("");
         setSavingForm(true);
 
         try {
@@ -235,10 +224,15 @@ export function NewTool(props: NewToolProps): JSX.Element {
     return (
         <>
             {error && (
-                <ErrorNotice>
-                    <span>{error}</span>
-                    <Button appearance="secondary" onClick={() => setError("")}>Dismiss</Button>
-                </ErrorNotice>
+                <div style={{ margin: "12px 16px" }}>
+                    <Banner
+                        variant="error"
+                        message={error}
+                        actions={
+                            <Button appearance="secondary" onClick={() => setError("")}>Dismiss</Button>
+                        }
+                    />
+                </div>
             )}
             {ready && !savingForm && (
                 mode === NewToolSelectionMode.CUSTOM_TOOL ? (

@@ -321,7 +321,6 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
-    // Wrapped: a bare setState would treat the handler as an updater.
     const setBackHandler = useCallback(
         (handler: (() => void) | null) => setBackOverride(() => handler),
         []
@@ -329,14 +328,12 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
 
     const back = () => {
         if (backOverride) {
-            // Self-clears: the view reports its next step through onViewChange.
             backOverride();
             return;
         }
         setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");
     };
 
-    // Leaving a view drops any step handler it had registered.
     const openView = useCallback((next: AgentEditorView) => {
         setBackOverride(null);
         setView(next);

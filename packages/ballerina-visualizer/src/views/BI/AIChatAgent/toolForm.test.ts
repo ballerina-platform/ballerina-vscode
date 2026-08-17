@@ -46,8 +46,6 @@ describe("resourceToolNameSeed", () => {
         expect(get).not.toBe(post);
     });
 
-    // Edge cases where there is no usable segment — fall back to the accessor rather than
-    // inventing a misleading name.
     it.each([
         ["a rest-path placeholder", "post", "/path/to/subdirectory", "post"],
         ["a dot resource path", "get", "/", "get"],
@@ -59,7 +57,6 @@ describe("resourceToolNameSeed", () => {
     });
 
     it("survives segments that are not bare identifiers", () => {
-        // suggestToolName strips the punctuation; the seed only has to preserve the words.
         expect(suggestToolName(resourceToolNameSeed("get", "/v1.0/user-profile"), [])).toBe("getUserProfileTool");
         expect(suggestToolName(resourceToolNameSeed("get", "/users/'limit"), [])).toBe("getLimitTool");
     });
@@ -85,7 +82,6 @@ describe("buildToolFormGroups", () => {
         expect(inputs.defaultCollapsed).toBe(true);
     });
 
-    // SQL queries are blanked on purpose; hiding one would make Save fail unseen.
     it("opens inputs expanded when a required mapping is empty", () => {
         const [inputs] = buildToolFormGroups([input(), input({ value: "" })]);
         expect(inputs.defaultCollapsed).toBe(false);
@@ -139,7 +135,6 @@ describe("buildIncludeContextField", () => {
         expect(field.group).toBe(TOOL_INPUT_GROUP);
     });
 
-    // A single type keeps EditorFactory on the checkbox rather than the expression editor.
     it("declares exactly one type", () => {
         expect(buildIncludeContextField(TOOL_INPUT_GROUP).types).toEqual([{ fieldType: "FLAG", selected: true }]);
     });

@@ -16,8 +16,6 @@
  * under the License.
  */
 
-// One row per action with its description; NodeList's chip grid has nowhere to put one.
-
 import { useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { AvailableNode } from "@wso2/ballerina-core";
@@ -25,18 +23,22 @@ import { Codicon, SearchBox, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { ConnectorIcon, NodeIcon } from "@wso2/bi-diagram";
 import { MarkdownDescription } from "@wso2/ballerina-side-panel";
 import { actionDisplayLabel, formatResourceSignature } from "./connectorActions";
-import { Container, EmptyState, RowChevron, RowText } from "./styles";
+import {
+    Container,
+    EmptyState,
+    HeaderArea,
+    Row as BaseRow,
+    RowChevron,
+    RowDescription,
+    RowIcon,
+    RowLabel as BaseRowLabel,
+    RowText,
+    ScrollArea,
+    Tag,
+} from "./styles";
 
 const isResourceAction = (action: AvailableNode): boolean =>
     action.codedata?.node === "RESOURCE_ACTION_CALL" && Boolean(action.codedata?.resourcePath);
-
-const HeaderArea = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px 16px 12px;
-    flex-shrink: 0;
-`;
 
 const InfoCard = styled.div`
     display: flex;
@@ -66,7 +68,6 @@ const InfoIcon = styled.div`
         font-size: 22px;
     }
 
-    /* Descendant, not child: ConnectorIcon wraps its svg, which would otherwise size freely. */
     & svg,
     & img {
         width: 22px;
@@ -98,16 +99,6 @@ const InfoName = styled.div`
     white-space: nowrap;
 `;
 
-const CategoryTag = styled.div`
-    flex-shrink: 0;
-    padding: 1px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    background-color: ${ThemeColors.SURFACE_CONTAINER};
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-`;
-
 const InfoDescription = styled(MarkdownDescription)`
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
@@ -125,13 +116,6 @@ const InfoDescription = styled(MarkdownDescription)`
     }
 `;
 
-const ScrollArea = styled.div`
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 16px 16px;
-    scrollbar-gutter: stable;
-`;
-
 const RowList = styled.div`
     display: flex;
     flex-direction: column;
@@ -140,67 +124,19 @@ const RowList = styled.div`
     overflow: hidden;
 `;
 
-const Row = styled.button`
-    display: grid;
+const Row = styled(BaseRow)`
     grid-template-columns: 20px minmax(0, 1fr) 12px;
     gap: 16px;
-    align-items: start;
-    width: 100%;
-    padding: 12px;
     border: none;
     border-bottom: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    background: transparent;
-    color: ${ThemeColors.ON_SURFACE};
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
 
     &:last-of-type {
         border-bottom: none;
     }
 
-    &:hover {
-        background-color: ${ThemeColors.PRIMARY_CONTAINER};
-    }
-
-    /* The badge punches out of the icon, so it has to track the row background. */
     &:hover .action-badge,
     &:focus-visible .action-badge {
         background-color: ${ThemeColors.PRIMARY_CONTAINER};
-    }
-
-    &:focus-visible {
-        outline: 1px solid ${ThemeColors.PRIMARY};
-        outline-offset: -1px;
-    }
-`;
-
-// Descendant selectors: ConnectorIcon nests its svg and CallIcon ignores its size prop.
-const RowIcon = styled.div`
-    position: relative;
-    width: 20px;
-    height: 20px;
-    margin-top: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    & > *:not(.action-badge) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        font-size: 18px;
-    }
-
-    & > *:not(.action-badge) svg,
-    & > *:not(.action-badge) img,
-    & > svg,
-    & > img {
-        width: 18px;
-        height: 18px;
-        object-fit: contain;
     }
 `;
 
@@ -223,24 +159,10 @@ const RowBadge = styled.span`
     }
 `;
 
-const RowLabel = styled.div`
-    font-size: 13px;
-    font-weight: 500;
-    color: ${ThemeColors.ON_SURFACE};
+const RowLabel = styled(BaseRowLabel)`
     margin-bottom: 4px;
 `;
 
-const RowDescription = styled.div`
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--vscode-descriptionForeground);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-`;
-
-/** Resource actions are labelled by what they do, so the signature goes underneath. */
 const RowSignature = styled.div`
     font-family: var(--vscode-editor-font-family);
     font-size: 11px;
@@ -252,7 +174,6 @@ const RowSignature = styled.div`
 interface ConnectorActionListProps {
     connector: AvailableNode;
     actions: AvailableNode[];
-    /** The connector list category it came from, e.g. "Network". */
     category?: string;
     onSelect: (action: AvailableNode) => void;
 }
@@ -271,7 +192,6 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
                 .toLowerCase();
             const description = action.metadata?.description?.toLowerCase() ?? "";
             const symbol = action.codedata?.symbol?.toLowerCase() ?? "";
-            // So "drafts" finds a resource action by its path.
             const resourcePath = action.codedata?.resourcePath?.toLowerCase() ?? "";
             return (
                 label.includes(query) ||
@@ -298,7 +218,7 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
                     <InfoContent>
                         <InfoTitleRow>
                             <InfoName>{connector.metadata?.label ?? "Connector"}</InfoName>
-                            {category && <CategoryTag>{category}</CategoryTag>}
+                            {category && <Tag>{category}</Tag>}
                         </InfoTitleRow>
                         {connector.metadata?.description && (
                             <InfoDescription description={connector.metadata.description} />
@@ -328,7 +248,7 @@ export function ConnectorActionList(props: ConnectorActionListProps) {
                                 onClick={() => onSelect(action)}
                                 title={action.metadata?.description || undefined}
                             >
-                                <RowIcon>
+                                <RowIcon box={20} icon={18} offset={2}>
                                     {action.metadata?.icon ? (
                                         <ConnectorIcon url={action.metadata.icon} />
                                     ) : (
