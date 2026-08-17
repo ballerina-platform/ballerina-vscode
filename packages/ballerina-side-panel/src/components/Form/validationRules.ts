@@ -595,10 +595,12 @@ export interface AsyncRuleContext {
 
 const normalisePath = (path: string): string => path.replace(/\\/g, "/").replace(/^\.\//, "");
 
+const ASYNC_RULE_IDS = ["vscode.validate.file.exists", "vscode.validate.path.in.project"];
+
 /** Whether the active type member carries any rule this module handles — lets callers skip the round trip. */
 export function hasAsyncClientRules(field: FormField, activeFieldType?: string): boolean {
     return resolveActiveValidations(field, activeFieldType)
-        .some((rule) => rule?.rule === "vscode.validate.file.exists");
+        .some((rule) => !!rule?.rule && ASYNC_RULE_IDS.includes(rule.rule));
 }
 
 /**
@@ -611,9 +613,12 @@ export async function evaluateAsyncClientRules(
     value: unknown,
     context: AsyncRuleContext
 ): Promise<ClientValidationFailure[]> {
-    const rules = resolveActiveValidations(field, context.activeFieldType)
+    const fileExistsRules = resolveActiveValidations(field, context.activeFieldType)
         .filter((rule) => rule?.rule === "vscode.validate.file.exists");
-    if (rules.length === 0 || isExemptFromValidation(field) || !context.listWorkspaceFiles) {
+    const pathInProjectRules = resolveActiveValidations(field, context.activeFieldType)
+        .filter((rule) => rule?.rule === "vscode.validate.path.in.project");
+    if ((fileExistsRules.length === 0 && pathInProjectRules.length === 0)
+            || isExemptFromValidation(field) || !context.listWorkspaceFiles) {
         return [];
     }
 
@@ -623,22 +628,25 @@ export async function evaluateAsyncClientRules(
         return [];
     }
 
+    let workspaceRoot: string;
     let files: WorkspaceFile[];
     try {
-        files = (await context.listWorkspaceFiles()).files ?? [];
+        const listing = await context.listWorkspaceFiles();
+        workspaceRoot = listing.workspaceRoot ?? "";
+        files = listing.files ?? [];
     } catch (error) {
-        console.warn("[validation] Could not list workspace files — skipping file.exists", error);
+        console.warn("[validation] Could not list workspace files — skipping path validations", error);
         return [];
     }
 
     const target = normalisePath(raw);
+    const failures: ClientValidationFailure[] = [];
+
     const exists = files.some((file) =>
         normalisePath(file.path) === target
         || normalisePath(file.relativePath) === target
         || normalisePath(file.path).endsWith(`/${target}`));
-
-    const failures: ClientValidationFailure[] = [];
-    for (const rule of rules) {
+    for (const rule of fileExistsRules) {
         const args = rule.args ?? {};
         if (!exists) {
             failures.push({
@@ -658,5 +666,22 @@ export async function evaluateAsyncClientRules(
             });
         }
     }
+
+    if (pathInProjectRules.length > 0) {
+        const normalisedRoot = normalisePath(workspaceRoot);
+        const withinProject = normalisedRoot !== ""
+            && (target === normalisedRoot || target.startsWith(`${normalisedRoot}/`));
+        if (!withinProject) {
+            for (const rule of pathInProjectRules) {
+                failures.push({
+                    rule: rule.rule,
+                    message: interpolateMessage(rule.message ?? "{label} must be inside the current project",
+                        rule.args ?? {}, field, value),
+                    severity: severityOf(rule),
+                });
+            }
+        }
+    }
+
     return failures;
 }
