@@ -267,12 +267,6 @@ jobs:
           gradle-version: ${{ matrix.version }}
           package-user: ${{ github.actor }}
           package-pat: ${{ secrets.GITHUB_TOKEN }}
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          # This job checks out matrix.branch, not the ref the schedule fired on, so
-          # the coverage upload must be attributed explicitly. These nightly runs are
-          # what give each tracked branch — main included — a Codecov baseline for PRs
-          # to compare against.
-          codecov-branch: ${{ matrix.branch }}
 
   ls-windows-build:
     name: LS Windows build (${{ matrix.branch }})
