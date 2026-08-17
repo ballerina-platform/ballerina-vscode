@@ -67,7 +67,7 @@ import javax.annotation.Nonnull;
  *
  * <p>Handles stable snapshot queries and manages the lifecycle of per-project
  * CompilationPipeline instances in response to workspace and document events.
- * Implements a circuit breaker pattern per ADR-033 to prevent recovery loops on transient failures.
+ * Implements a circuit breaker pattern to prevent recovery loops on transient failures.
  *
  * @since 1.7.0
  */
@@ -579,7 +579,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
     /**
      * Determines whether a cancelled wait should stop retrying instead of re-fetching and re-awaiting
      * the current in-progress snapshot. A cancellation is only worth retrying while the pipeline can
-     * still make forward progress: once its circuit breaker has opened (ADR-033 recovery exhausted) or
+     * still make forward progress: once its circuit breaker has opened after recovery is exhausted or
      * the key has been evicted (WM-E2), every future compile attempt for this key fails or is
      * unreachable, so retrying would busy-loop with no chance of ever observing a published result.
      *

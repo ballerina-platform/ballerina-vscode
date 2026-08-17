@@ -19,8 +19,7 @@
 package org.ballerinalang.langserver.workspace.resourcemonitor;
 
 /**
- * Event record published when heap pressure is detected by the Resource Monitor
- * (ADR-041, RM-E1: HeapPressureDetected).
+ * Event record published when heap pressure is detected by the Resource Monitor.
  *
  * <p>This event is published to the shared-kernel event bus when JVM heap usage
  * crosses a configured threshold. Consumers include Workspace Manager

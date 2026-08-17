@@ -48,7 +48,7 @@ import javax.annotation.Nonnull;
  * locking. A single maintainer thread updates the root via {@link AtomicReference#set(Object)}
  * after constructing a new immutable snapshot.</p>
  *
- * <p>Implements the ADR-048 trie-based URI resolution design.</p>
+ * <p>Uses a trie-based URI resolution design.</p>
  *
  * @since 1.7.0
  */

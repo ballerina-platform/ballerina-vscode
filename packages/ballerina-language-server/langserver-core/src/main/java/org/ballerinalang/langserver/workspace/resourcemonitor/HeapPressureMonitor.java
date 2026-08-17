@@ -35,7 +35,7 @@ import javax.annotation.Nonnull;
 
 /**
  * Polls old-generation heap usage and publishes graduated {@link HeapPressureDetected} events
- * when pressure level transitions occur (ADR-041).
+ * when pressure level transitions occur.
  *
  * <p>Thresholds (escalation): WARNING ≥ 70%, CRITICAL ≥ 80%, EMERGENCY ≥ 90%.<br>
  * Hysteresis (de-escalation): WARNING clears at &lt; 60%, CRITICAL at &lt; 70%, EMERGENCY at &lt; 80%.

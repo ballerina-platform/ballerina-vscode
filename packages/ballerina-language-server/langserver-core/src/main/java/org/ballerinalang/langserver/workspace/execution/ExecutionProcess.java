@@ -38,8 +38,7 @@ import javax.annotation.Nonnull;
  * Aggregate root representing a single process execution.
  * Manages process lifecycle, FSM state transitions, and structured transition events.
  *
- * <p>Implements the shutdown sequence: TERM (wait grace), then KILL if still alive,
- * per ADR-033.</p>
+ * <p>Implements the shutdown sequence: TERM (wait grace), then KILL if still alive.</p>
  *
  * @since 1.7.0
  */

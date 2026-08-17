@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 
-// CHECKSTYLE OFF: Unknown tag 'adr'.
 /**
  * Compilation unit of work binding a package descriptor, content version, and cancellation token.
  *
@@ -36,7 +35,6 @@ import javax.annotation.Nonnull;
  *
  * @since 1.7.0
  */
-// CHECKSTYLE ON
 public final class CompileTask {
     private final PackageDescriptor descriptor;
     private final String sourceRootIdentifier;

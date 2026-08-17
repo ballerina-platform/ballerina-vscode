@@ -22,7 +22,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Cooperative cancellation flag for compilation tasks (ADR-018).
+ * Cooperative cancellation flag for compilation tasks.
  *
  * <p>Thread-safe, one-shot: once cancelled, stays cancelled.
  *

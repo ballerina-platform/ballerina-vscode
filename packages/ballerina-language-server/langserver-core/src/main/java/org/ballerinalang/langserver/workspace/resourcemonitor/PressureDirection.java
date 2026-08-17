@@ -19,7 +19,7 @@
 package org.ballerinalang.langserver.workspace.resourcemonitor;
 
 /**
- * Direction of a heap pressure level transition (ADR-041 §4).
+ * Direction of a heap pressure level transition.
  *
  * <p>{@code RISING} indicates escalation (heap usage crossed a threshold upward);
  * {@code FALLING} indicates recovery (heap usage dropped below a hysteresis clear point).

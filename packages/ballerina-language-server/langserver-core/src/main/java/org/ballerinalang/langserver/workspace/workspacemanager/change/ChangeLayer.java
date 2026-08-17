@@ -21,7 +21,7 @@ package org.ballerinalang.langserver.workspace.workspacemanager.change;
 /**
  * Enumerates the three parallel overlay layers for document changes.
  * <p>
- * Maps to URI schemes per ADR-040:
+ * Maps to URI schemes:
  * <ul>
  *   <li>EDITOR - file:// URIs (user edits via editor)</li>
  *   <li>AI    - ai:// URIs (AI-generated edits)</li>

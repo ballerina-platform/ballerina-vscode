@@ -20,7 +20,7 @@ package org.ballerinalang.langserver.workspace.resourcemonitor;
 
 /**
  * Enum representing graduated heap pressure levels for the Resource Monitor
- * bounded context (ADR-041).
+ * bounded context.
  *
  * <p>Levels are ordered from lowest to highest pressure:
  * NORMAL (0%) &lt; WARNING (70%) &lt; CRITICAL (80%) &lt; EMERGENCY (90%)

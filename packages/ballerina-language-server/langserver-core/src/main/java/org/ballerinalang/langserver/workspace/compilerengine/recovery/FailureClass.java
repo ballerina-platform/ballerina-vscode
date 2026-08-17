@@ -19,7 +19,7 @@
 package org.ballerinalang.langserver.workspace.compilerengine.recovery;
 
 /**
- * Classifies compilation failures per ADR-033.
+ * Classifies compilation failures.
  *
  * <ul>
  *   <li>{@link #TRANSIENT} — retryable system errors (e.g., I/O timeouts)</li>

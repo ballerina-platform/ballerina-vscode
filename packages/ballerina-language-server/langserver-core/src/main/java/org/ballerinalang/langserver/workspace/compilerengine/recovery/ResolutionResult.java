@@ -25,7 +25,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 /**
- * Captures pre-compilation resolution diagnostics per ADR-008.
+ * Captures pre-compilation resolution diagnostics.
  *
  * @param descriptor the package descriptor that was resolved
  * @param diagnostics immutable list of resolution diagnostics

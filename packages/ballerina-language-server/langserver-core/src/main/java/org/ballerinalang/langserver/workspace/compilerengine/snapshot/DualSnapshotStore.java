@@ -35,7 +35,6 @@ import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
-// CHECKSTYLE OFF: Unknown tag 'adr'.
 /**
  * Thread-safe per-package store for stable and in-progress snapshots.
  *
@@ -49,8 +48,6 @@ import javax.annotation.Nonnull;
  * <p>Implements the "Last Known Good" stale model serving requirement
  * by providing access to the previously-stable snapshot while a new compilation is in progress.</p>
  *
- * @adr ADR-014-structured-error-handling
- *
  * <p>An optional eviction listener receives the {@link CompilationKey} of each
 ...
  * LRU-evicted snapshot, allowing callers to coordinate cross-context cleanup
@@ -59,7 +56,6 @@ import javax.annotation.Nonnull;
  *
  * @since 1.7.0
  */
-// CHECKSTYLE ON
 public class DualSnapshotStore {
     private static final ContentVersion INITIAL_CONTENT_VERSION = new ContentVersion(0);
     private static final int DEFAULT_MAX_STABLE_SNAPSHOTS = 16;

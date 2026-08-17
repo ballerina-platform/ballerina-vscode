@@ -68,7 +68,7 @@ import javax.annotation.Nonnull;
 /**
  * Pure facade implementation that delegates all WorkspaceManager methods to bounded context services.
  * No domain logic, no conditionals, max 5 lines per method.
- * All URI schemes are handled directly without proxy routing (ADR-040).
+ * All URI schemes are handled directly without proxy routing.
  *
  * @since 1.7.0
  */

@@ -48,7 +48,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
 /**
- * Per-project compilation orchestrator with debounce, LIFO cancellation, and event emission (ADR-007/008/018).
+ * Per-project compilation orchestrator with debounce, LIFO cancellation, and event emission.
  *
  * @since 1.7.0
  */
@@ -179,7 +179,7 @@ public class CompilationPipeline implements AutoCloseable {
     }
 
     /**
-     * Requests compilation for the given content version. Debounces at 150ms (ADR-008).
+     * Requests compilation for the given content version. Debounces at 150ms.
      *
      * @param contentVersion the version to compile
      */

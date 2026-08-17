@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Per-URI, per-layer delta queue for document changes (ADR-047).
+ * Per-URI, per-layer delta queue for document changes.
  *
  * <p>Accumulates pending {@link BufferedChange} events that the ChangeApplier has not yet
  * processed. Tracks overlay layers per document — the existence of an EDITOR overlay IS the
@@ -251,7 +251,7 @@ public class ChangeBuffer {
 
     /**
      * Returns {@code true} if the given URI has an active EDITOR layer (i.e., document is open).
-     * The EDITOR layer key presence — not queue emptiness — determines open state per ADR-047 §6.
+     * The EDITOR layer key presence — not queue emptiness — determines open state.
      *
      * <p>Note: after {@link #drain(DocumentUri, ChangeLayer)} the queue is replaced with an empty
      * queue (the key remains), so a recently-drained EDITOR layer still counts as open. After

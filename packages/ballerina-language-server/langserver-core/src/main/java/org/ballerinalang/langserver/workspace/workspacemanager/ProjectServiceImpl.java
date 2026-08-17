@@ -77,7 +77,7 @@ import javax.annotation.Nonnull;
  * <ul>
  *   <li>Compiler project caching via {@link UriResolver}</li>
  *   <li>Workspace-only lifecycle metadata via internal state maps</li>
- *   <li>URI resolution via {@link UriResolver} (lock-free trie cache per ADR-048)</li>
+ *   <li>URI resolution via the lock-free trie cache in {@link UriResolver}</li>
  *   <li>Heap pressure monitoring via {@link HeapPressureLevel} event subscriptions</li>
  *   <li>Domain event publishing and subscription via {@link EventSyncPubSubHolder}</li>
  * </ul>

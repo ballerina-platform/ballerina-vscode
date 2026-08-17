@@ -31,8 +31,8 @@ import javax.annotation.Nonnull;
  * Aggregate root representing a single Ballerina project in the workspace.
  * Tracks the project's kind, health state, and active/background tier.
  *
- * <p>Health state transitions are governed by the FSM defined in ADR-014 and ADR-033.
- * Kind transitions are restricted per ADR-024.</p>
+ * <p>Health state transitions are governed by a finite-state machine.
+ * Kind transitions are restricted.</p>
  *
  * <p>All state mutations (health transitions, kind transitions, source-change notification)
  * are serialised through a single {@code fsmLock}, preventing races between concurrent
@@ -48,7 +48,7 @@ public final class Project {
     private final ReentrantLock fsmLock = new ReentrantLock();
     /**
      * Internal immutable snapshot of health state, bundling the FSM state and the
-     * guard flag used to protect the COMPILATION_CRASHED → RECOVERING arc (ADR-033).
+     * guard flag used to protect the COMPILATION_CRASHED → RECOVERING arc.
      *
      * @param state current project health state
      * @param sourceChangedSinceLastCrash whether source changed after the last crash
@@ -166,7 +166,7 @@ public final class Project {
     /**
      * Signals that the source has changed, enabling the
      * {@link ProjectHealthState#COMPILATION_CRASHED} → {@link ProjectHealthState#RECOVERING} arc
-     * (ADR-033: programmatic recovery without a source change is prohibited).
+     * Programmatic recovery without a source change is prohibited.
      */
     public void notifySourceChanged() {
         fsmLock.lock();
@@ -184,7 +184,7 @@ public final class Project {
 
     /**
      * Transitions the project kind to {@code target}.
-     * Only {@code SINGLE_FILE ↔ BUILD} is allowed (ADR-024).
+     * Only {@code SINGLE_FILE ↔ BUILD} is allowed.
      *
      * @param target desired project kind
      * @return event payload describing the kind transition
@@ -284,7 +284,7 @@ public final class Project {
     // -------------------------------------------------------------------------
 
     /**
-     * Validates a health-state transition against the FSM table (ADR-014, ADR-033).
+     * Validates a health-state transition against the finite-state machine table.
      * Self-transitions are always invalid.
      *
      * @param from   current state
@@ -314,7 +314,7 @@ public final class Project {
     }
 
     /**
-     * Validates a kind transition against ADR-024.
+     * Validates a kind transition.
      * Only {@code SINGLE_FILE ↔ BUILD} is allowed; self-transitions are rejected.
      *
      * @param from current kind

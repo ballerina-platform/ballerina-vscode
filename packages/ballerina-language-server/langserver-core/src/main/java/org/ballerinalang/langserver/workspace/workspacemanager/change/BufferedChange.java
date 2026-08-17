@@ -25,7 +25,7 @@ import javax.annotation.Nonnull;
 /**
  * Immutable wrapper for a text document change event with layer and version metadata.
  * <p>
- * This record is a simple data carrier used by the overlay-based change buffer (ADR-047).
+ * This record is a simple data carrier used by the overlay-based change buffer.
  * It wraps the LSP {@link TextDocumentContentChangeEvent} with the source
  * {@link ChangeLayer} and the associated {@link ContentVersion}.
  *
