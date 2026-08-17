@@ -1,5 +1,0 @@
-allprojects {
-    tasks.withType(Test) {
-        jvmArgs '-XX:StartFlightRecording=filename=recording.jfr,settings=profile'
-    }
-}
