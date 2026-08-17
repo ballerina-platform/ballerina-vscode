@@ -28,9 +28,12 @@ coverage:
   # where the language server actually sits.
   range: "30...80"
   status:
+    # Codecov posts an unscoped 'default' status for each type whether or not it is
+    # configured. Both are off here: with a single uploading package they would only
+    # duplicate the flagged statuses below under a name that does not say what it
+    # measures. Add a second flag's statuses here when another package starts uploading.
     project:
-      default:
-        informational: true
+      default: off
       language-server:
         flags:
           - language-server
@@ -39,7 +42,11 @@ coverage:
         threshold: 1%
         informational: true
     patch:
-      default:
+      default: off
+      language-server:
+        flags:
+          - language-server
+        target: auto
         informational: true
 
 flags:
