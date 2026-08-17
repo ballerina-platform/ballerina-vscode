@@ -31,10 +31,9 @@ import { ProgressWrap } from "./utils";
 const KB_TAG = "knowledge-base-as-service";
 const isKnowledgeBase = (item: MarketplaceItem) => item.tags?.includes(KB_TAG) ?? false;
 
-// Omit the version so the LS resolves the latest from Central.
 const CLOUD_KB_CODEDATA: AvailableNode["codedata"] = {
     node: "KNOWLEDGE_BASE",
-    org: "sumudunissanka",
+    org: "ballerinax",
     module: "ai.wso2.integration",
     packageName: "ai.wso2.integration",
     object: "CloudKnowledgeBase",
