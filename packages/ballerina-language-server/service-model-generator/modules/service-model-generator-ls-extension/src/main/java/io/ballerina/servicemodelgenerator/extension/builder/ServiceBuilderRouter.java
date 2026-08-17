@@ -57,7 +57,6 @@ import static io.ballerina.servicemodelgenerator.extension.util.Constants.AI;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.GRAPHQL;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.MCP;
-import static io.ballerina.servicemodelgenerator.extension.util.Constants.SOLACE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TCP;
 
 /**
