@@ -34,9 +34,11 @@ import io.ballerina.projects.Project;
  * @param document          the Ballerina document
  * @param isLocalRepository whether the connector was picked from a Ballerina local-repository search
  *                          result rather than Central (see {@code ServiceModelRequest.isLocalRepository})
+ * @param agentName         the agent variable this trigger is created for, or {@code null}
+ * @param agentOrgName      the publishing org of that agent, deciding {@code .run} vs {@code ->run}
  * @since 1.3.0
  */
 public record GetServiceInitModelContext(String orgName, String packageName, String moduleName, String version,
                                          Project project, SemanticModel semanticModel, Document document,
-                                         boolean isLocalRepository) {
+                                         boolean isLocalRepository, String agentName, String agentOrgName) {
 }

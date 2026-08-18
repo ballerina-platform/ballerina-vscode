@@ -31,21 +31,29 @@ package io.ballerina.servicemodelgenerator.extension.model.request;
  *                          came from, so this must be supplied explicitly rather than inferred (a
  *                          brand-new local connector has no {@code Ballerina.toml} entry yet to infer it
  *                          from). Defaults to {@code false} for every existing/older client.
+ * @param agentName         the agent variable this trigger is created for, or {@code null}
+ * @param agentOrgName      the publishing org of that agent; absent defaults to {@code ballerina}
  */
 public record ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
-                                  String listenerName, String version, boolean isLocalRepository) {
+                                  String listenerName, String version, boolean isLocalRepository,
+                                  String agentName, String agentOrgName) {
+
+    public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
+                               String listenerName, String version, boolean isLocalRepository) {
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, isLocalRepository, null, null);
+    }
 
     public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                String listenerName, String version) {
-        this(filePath, orgName, pkgName, moduleName, listenerName, version, false);
+        this(filePath, orgName, pkgName, moduleName, listenerName, version, false, null, null);
     }
 
     public ServiceModelRequest(String filePath, String orgName, String moduleName, String listenerName) {
-        this(filePath, orgName, moduleName, moduleName, listenerName, null, false);
+        this(filePath, orgName, moduleName, moduleName, listenerName, null, false, null, null);
     }
 
     public ServiceModelRequest(String filePath, String orgName, String pkgName, String moduleName,
                                String listenerName) {
-        this(filePath, orgName, pkgName, moduleName, listenerName, null, false);
+        this(filePath, orgName, pkgName, moduleName, listenerName, null, false, null, null);
     }
 }
