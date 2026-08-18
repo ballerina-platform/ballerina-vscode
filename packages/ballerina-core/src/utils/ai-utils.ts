@@ -23,3 +23,5 @@ export const GET_DEFAULT_EMBEDDING_PROVIDER = "getDefaultEmbeddingProvider";
 export const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
 
 export const isDefaultModelProviderExpr = (value: unknown): boolean => value === DEFAULT_MODEL_PROVIDER_EXPR;
+
+export const DEFAULT_MODEL_PROVIDER_LABEL = "Default WSO2 Model Provider";

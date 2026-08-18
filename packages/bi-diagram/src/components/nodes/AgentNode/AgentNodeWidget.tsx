@@ -21,8 +21,9 @@ import styled from "@emotion/styled";
 import { DiagramEngine, PortWidget } from "@projectstorm/react-diagrams-core";
 import { AgentNodeModel } from "./AgentNodeModel";
 import {
-    AGENT_NODE_ADD_TOOL_BUTTON_WIDTH,
+    ADD_TILE_LABEL_COLOR,
     AGENT_NODE_TOOL_GAP,
+    AGENT_NODE_USAGE_GAP,
     AGENT_NODE_TOOL_SECTION_GAP,
     DRAFT_NODE_BORDER_WIDTH,
     LABEL_HEIGHT,
@@ -37,18 +38,32 @@ import {
 import { Button, Icon, Item, Menu, MenuItem, Popover, ThemeColors, getAIModuleIcon, DefaultLlmIcon } from "@wso2/ui-toolkit";
 import { MoreVertIcon } from "../../../resources/icons";
 import { FlowNode, ToolData } from "../../../utils/types";
-import NodeIcon from "../../NodeIcon";
+import NodeIcon, { ThemeListener } from "../../NodeIcon";
 import ConnectorIcon from "../../ConnectorIcon";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
 import { nodeHasError } from "../../../utils/node";
 import { css } from "@emotion/react";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
-import { NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
+import {
+    AgentUsage,
+    DEFAULT_MODEL_PROVIDER_LABEL,
+    NodeMetadata,
+    isDefaultModelProviderExpr,
+    resolveBrandIcon,
+    resolveKindDefaultIcon,
+} from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 
-import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
-import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
+import { flowDashAnimation, sanitizeAgentData, sanitizeId, usageRowFadeIn } from "../agentNodeUtils";
+import {
+    AGENT_USAGE_COLUMN_WIDTH,
+    AGENT_USAGE_ROW_PITCH,
+    getAgentNodeContainerHeight,
+    getAgentNodeUsages,
+    getVisibleAgentUsages,
+} from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
+import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -300,10 +315,10 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 4px;
         background-color: transparent;
-        color: ${ThemeColors.ON_SURFACE};
+        color: ${ThemeColors.ON_SURFACE_VARIANT};
         font-size: 14px;
         font-family: "GilmerRegular";
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
@@ -311,6 +326,8 @@ export namespace NodeStyles {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
             props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
+            color: ${(props: { readOnly: boolean }) =>
+            props.readOnly ? ThemeColors.ON_SURFACE_VARIANT : ThemeColors.SECONDARY};
         }
     `;
 
@@ -408,6 +425,145 @@ type AgentNodePresentation = {
     toolsReadOnly: boolean;
 };
 
+const USAGE_TEXT_RIGHT_X = 190;
+const USAGE_LABEL_CHAR_WIDTH = 7.4;
+const USAGE_SERVICE_CHAR_WIDTH = 7.2;
+const USAGE_MENU_SIZE = 24;
+const NODE_EDGE_LEFT_X = 300;
+const NODE_EDGE_RIGHT_X = 0;
+const EDGE_ADD_DOT_R = 3;
+const EDGE_ADD_LINE_END = 22;
+const EDGE_ADD_PLUS_CX = 31;
+const EDGE_ADD_PLUS_R = 9;
+const EDGE_ADD_LABEL_GAP = 8;
+const EDGE_ADD_HIT_WIDTH = 170;
+
+const usageFadeIn = (delay: number) => css`
+    animation: ${usageRowFadeIn} 260ms ease-out both;
+    animation-delay: ${delay}ms;
+`;
+
+const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
+    ai: { glyph: "comment-discussion", isCodicon: true },
+    automation: { glyph: "bi-task" },
+};
+
+function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
+    const { usage, codedata } = props;
+    const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
+
+    const typeGlyph = modulePart ? USAGE_TYPE_GLYPH[modulePart] : undefined;
+    if (typeGlyph) {
+        return (
+            <Icon
+                name={typeGlyph.glyph}
+                isCodicon={typeGlyph.isCodicon}
+                sx={{ fontSize: 22, width: 22, height: 22 }}
+                iconSx={{ fontSize: "22px" }}
+            />
+        );
+    }
+
+    const brand = resolveBrandIcon(modulePart);
+    if (brand) {
+        return <Icon name={brand.glyph} sx={{ fontSize: 24, width: 24, height: 24, ...(brand.color ? { color: brand.color } : {}) }} />;
+    }
+    if (usage.icon) {
+        return (
+            <ConnectorIcon
+                url={usage.icon}
+                style={{ width: 24, height: 24, fontSize: 24 }}
+                fallbackIcon={<Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />}
+                codedata={codedata}
+            />
+        );
+    }
+    return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />;
+}
+
+function EdgeAddButton(props: {
+    anchorX: number; y: number; side: "left" | "right"; label: string; title: string; testId: string;
+    animationDelay?: number; onClick: () => void;
+}) {
+    const { anchorX, y, side, label, title, testId, animationDelay, onClick } = props;
+    const dir = side === "right" ? 1 : -1;
+    const plusCx = dir * EDGE_ADD_PLUS_CX;
+    const labelX = dir * (EDGE_ADD_PLUS_CX + EDGE_ADD_PLUS_R + EDGE_ADD_LABEL_GAP);
+    return (
+        <g
+            data-testid={testId}
+            transform={`translate(${anchorX}, ${y})`}
+            onClick={onClick}
+            css={css`
+                cursor: pointer;
+                > g {
+                    ${animationDelay === undefined ? "" : usageFadeIn(animationDelay)}
+                }
+                &:hover .edge-add-stroke {
+                    stroke: ${ThemeColors.SECONDARY};
+                }
+                &:hover text {
+                    fill: ${ThemeColors.SECONDARY};
+                }
+            `}
+        >
+            <g>
+                <rect
+                    x={side === "right" ? -EDGE_ADD_DOT_R : EDGE_ADD_DOT_R - EDGE_ADD_HIT_WIDTH}
+                    y={-15}
+                    width={EDGE_ADD_HIT_WIDTH}
+                    height="30"
+                    fill="transparent"
+                    style={{ pointerEvents: "all" }}
+                />
+                <circle
+                    className="edge-add-stroke"
+                    cx="0"
+                    cy="0"
+                    r={EDGE_ADD_DOT_R}
+                    fill={ThemeColors.SURFACE_DIM}
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <line
+                    className="edge-add-stroke"
+                    x1={dir * (EDGE_ADD_DOT_R + 1)}
+                    y1="0"
+                    x2={dir * EDGE_ADD_LINE_END}
+                    y2="0"
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <circle
+                    className="edge-add-stroke"
+                    cx={plusCx}
+                    cy="0"
+                    r={EDGE_ADD_PLUS_R}
+                    fill={ThemeColors.SURFACE_DIM}
+                    stroke={ThemeColors.ON_SURFACE}
+                    strokeWidth={1.5}
+                />
+                <line className="edge-add-stroke" x1={plusCx - 4} y1="0" x2={plusCx + 4} y2="0"
+                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                <line className="edge-add-stroke" x1={plusCx} y1="-4" x2={plusCx} y2="4"
+                    stroke={ThemeColors.ON_SURFACE} strokeWidth={1.5} strokeLinecap="round" />
+                <text
+                    x={labelX}
+                    y="0"
+                    textAnchor={side === "right" ? "start" : "end"}
+                    fill={ADD_TILE_LABEL_COLOR}
+                    fontSize="13px"
+                    fontFamily="GilmerMedium"
+                    dominantBaseline="middle"
+                >
+                    {label}
+                    <title>{title}</title>
+                </text>
+            </g>
+        </g>
+    );
+}
+
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
     const isTypeDefinition = variant === "typedAgent";
     return {
@@ -423,19 +579,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const controller = useAgentNodeController(model);
     const {
         onNodeSelect, goToSource, onDeleteNode, removeBreakpoint, addBreakpoint, agentNode, readOnly,
-        entrypointContext, goToAgentDefinition, getAgentDefinitionLocation,
+        goToAgentDefinition, getAgentDefinitionLocation, openView,
     } = controller.context;
     const { traceAnimation, isSelected, isBoxHovered, setIsBoxHovered, agentIdHovered, setAgentIdHovered, anchorEl,
         setAnchorEl, menuButtonElement, setMenuButtonElement, isMenuOpen, aiColor, syncPulseAnimation,
-        boxSyncPulseAnimation } = controller;
+        boxSyncPulseAnimation, handleThemeChange } = controller;
 
     const [canViewDefinition, setCanViewDefinition] = useState(false);
     const [toolAnchorEl, setToolAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [selectedTool, setSelectedTool] = useState<ToolData | null>(null);
     const [memoryMenuAnchorEl, setMemoryMenuAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
     const [memoryMenuButtonElement, setMemoryMenuButtonElement] = useState<HTMLElement | null>(null);
+    const [usageAnchorEl, setUsageAnchorEl] = useState<HTMLElement | SVGSVGElement>(null);
+    const [selectedUsage, setSelectedUsage] = useState<AgentUsage | null>(null);
     const isToolMenuOpen = Boolean(toolAnchorEl);
     const isMemoryMenuOpen = Boolean(memoryMenuAnchorEl);
+    const isUsageMenuOpen = Boolean(usageAnchorEl);
     useEffect(() => {
         let active = true;
         if (variant !== "typedAgent" || !getAgentDefinitionLocation || !model.node.codedata?.object) {
@@ -574,6 +733,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         handleToolMenuClose();
     };
 
+    const handleUsageMenuClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>, usage: AgentUsage) => {
+        event.stopPropagation();
+        setUsageAnchorEl(event.currentTarget);
+        setSelectedUsage(usage);
+    };
+
+    const handleUsageMenuClose = () => {
+        setUsageAnchorEl(null);
+        setSelectedUsage(null);
+    };
+
+    const onDeleteTrigger = (usage: AgentUsage) => {
+        agentNode?.onDeleteTrigger?.(usage, model.node);
+        handleUsageMenuClose();
+    };
+
     const onAddBreakpoint = () => {
         addBreakpoint && addBreakpoint(model.node);
         setAnchorEl(null);
@@ -667,62 +842,56 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
+    const modelProviderLabel = isDefaultModelProviderExpr(modelProvider?.name)
+        ? DEFAULT_MODEL_PROVIDER_LABEL
+        : (modelProvider?.name?.length ?? 0) > 20
+            ? `${modelProvider!.name.slice(0, 20)}...`
+            : modelProvider?.name;
     const tools = agentInfo?.tools || [];
+
+    const animateUsages = agentInfo?.animateUsages !== false;
+    const allUsages = getAgentNodeUsages(model.node);
+    const usages = getVisibleAgentUsages(model.node);
+    const hiddenUsageCount = allUsages.length - usages.length;
+
+    const onUsageClick = (usage: AgentUsage) => {
+        openView?.({ documentUri: usage.documentUri, position: usage.position });
+    };
+
+    const canDeleteTrigger = (usage: AgentUsage) =>
+        !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
+
+    const usageMenuX = (usage: AgentUsage) => {
+        const chars = (text: string, limit: number) =>
+            Math.min(text.length, limit) + (text.length > limit ? 3 : 0);
+        const labelWidth = chars(usage.label, 20) * USAGE_LABEL_CHAR_WIDTH;
+        const serviceWidth = usage.serviceLabel
+            ? chars(usage.serviceLabel, 24) * USAGE_SERVICE_CHAR_WIDTH
+            : 0;
+        return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
+    };
+
+    const showsAddTile = !readOnly && !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
+    const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
+        - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
+    const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
     const description = agentInfo?.description;
     const isPrebuilt = isTypeDefinition && Boolean(model.node.codedata?.org);
     const modelPropertyKey = agentInfo?.modelProvider?.propertyKey ?? "model";
-    const nodeToolNames = tools.map((t: ToolData) => t.name).sort();
-    const nodeRole = sanitizedAgent?.role || '';
-    const nodeInstructions = sanitizedAgent?.instructions || '';
 
-    const isTraceMatch = !isTypeDefinition && traceAnimation && (() => {
-        if (entrypointContext) {
-            const traceService = traceAnimation.entrypointServiceName ?? '';
-            const traceFunction = traceAnimation.entrypointFunctionName ?? '';
-            const ctxService = entrypointContext.serviceName ?? '';
-            const ctxFunction = entrypointContext.functionName ?? '';
-            if (traceService !== ctxService || traceFunction !== ctxFunction) {
-                return false;
-            }
-        }
-
-        const sysInstr = traceAnimation.systemInstructions;
-        if (sysInstr) {
-            const extractedRole = sysInstr.match(/(?:^|\n)#\s*Role[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions|$)/i)?.[1]?.trim();
-            const extractedInstructions = sysInstr.match(/(?:^|\n)#\s*Instructions[ \t]*\r?\n([\s\S]*?)(?=\r?\n#\s*Instructions for Tool Validation Failure Handling|$)/i)?.[1]?.trim();
-
-            const roleMatch = nodeRole != null && extractedRole === nodeRole.trim();
-            const cleanedInstructions = extractedInstructions
-                ?.replace(/\n#\s*Instructions for Tool Validation Failure Handling[^\n]*\n[\s\S]*$/, '')
-                ?.trim();
-            const instrMatch = nodeInstructions != null && cleanedInstructions === nodeInstructions.trim();
-
-            if (nodeRole != null && nodeInstructions != null) {
-                return roleMatch && instrMatch;
-            }
-        }
-        const hasToolOverlap =
-            traceAnimation.activeAgentToolNames.some(t => nodeToolNames.includes(t)) ||
-            traceAnimation.entries.some(e =>
-                e.type === 'execute_tool' && e.toolName && nodeToolNames.includes(e.toolName)
-            );
-        if (hasToolOverlap) return true;
-        return false;
-    })();
-    const matchedEntries = isTraceMatch ? traceAnimation.entries : [];
-
-    const chatEntry = matchedEntries.find(e => e.type === 'chat');
-    const toolEntries = matchedEntries.filter(e => e.type === 'execute_tool');
-
-    const activeToolNames = toolEntries.filter(e => e.phase === 'active').map(e => e.toolName);
-    const isAnyToolActive = activeToolNames.length > 0;
-
-    const isModelActive = chatEntry?.phase === 'active' && !isAnyToolActive;
-
-    const isAgentNodeActive = isModelActive || isAnyToolActive;
+    const { isModelActive, activeToolNames, isAgentNodeActive, activeEntrypoint } = getAgentTraceState({
+        traceAnimation,
+        tools,
+        systemPrompt: agentInfo?.systemPrompt,
+        enabled: !isTypeDefinition,
+        requireEntrypointMatch: false,
+    });
+    const isUsageActive = (usage: AgentUsage) =>
+        isAgentNodeActive && matchesUsageEntrypoint(usage, activeEntrypoint);
 
     let containerHeight = getAgentNodeContainerHeight(model.node,
         isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE);
@@ -732,6 +901,260 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
 
     return (
         <NodeStyles.Node data-testid={isTypeDefinition ? "typed-agent-node" : "agent-node"} readOnly={readOnly}>
+            {(usages.length > 0 || showsAddTile) && <svg
+                data-testid="agent-usage-column"
+                width={AGENT_USAGE_COLUMN_WIDTH + 10}
+                height={model.node.viewState?.ch}
+                viewBox={`0 0 300 ${containerHeight}`}
+                style={{ marginRight: "-10px", position: "relative", zIndex: 1 }}
+            >
+                {usages.map((usage: AgentUsage, index: number) => {
+                    const isRowActive = isUsageActive(usage);
+                    return (
+                    <g
+                        key={`${usage.documentUri}-${usage.label}-${index}`}
+                        data-testid="agent-usage-row"
+                        transform={`translate(0, ${index * AGENT_USAGE_ROW_PITCH})`}
+                        onClick={() => onUsageClick(usage)}
+                        onContextMenu={(event) => {
+                            if (canDeleteTrigger(usage)) {
+                                event.preventDefault();
+                                handleUsageMenuClick(event as any, usage);
+                            }
+                        }}
+                        css={css`
+                            cursor: pointer;
+                            > g {
+                                ${animateUsages ? usageFadeIn(index * 70) : ""}
+                            }
+                            &:hover rect:first-of-type {
+                                stroke: ${ThemeColors.SECONDARY};
+                            }
+                            &:hover text {
+                                fill: ${ThemeColors.SECONDARY};
+                            }
+                            &:hover .usage-menu-button {
+                                opacity: 1;
+                                visibility: visible;
+                            }
+                        `}
+                    >
+                        <g>
+                            {/* Square marks an inbound caller; tools and the model stay circles. */}
+                            <rect
+                                x="198"
+                                y="2"
+                                width="44"
+                                height="44"
+                                rx="10"
+                                fill={ThemeColors.SURFACE_DIM}
+                                stroke={ThemeColors.OUTLINE_VARIANT}
+                                strokeWidth={1.5}
+                                css={css`
+                                transition: stroke 0.4s ease-out;
+                            `}
+                            />
+                            <rect
+                                x="198"
+                                y="2"
+                                width="44"
+                                height="44"
+                                rx="10"
+                                fill="none"
+                                stroke={aiColor}
+                                strokeWidth={2.5}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isRowActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    transform-origin: 220px 24px;
+                                    transform: scale(1.03);
+                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                                `}
+                            />
+                            <foreignObject
+                                x="208"
+                                y="12"
+                                width="44"
+                                height="44"
+                                fill={ThemeColors.ON_SURFACE}
+                                style={{ pointerEvents: "none" }}
+                            >
+                                <UsageIcon usage={usage} codedata={model.node?.codedata} />
+                            </foreignObject>
+
+                            <text
+                                x={USAGE_TEXT_RIGHT_X}
+                                y="20"
+                                textAnchor="end"
+                                fill={ThemeColors.ON_SURFACE}
+                                fontSize="14px"
+                                fontFamily="GilmerRegular"
+                                dominantBaseline="middle"
+                            >
+                                {usage.label.length > 20 ? `${usage.label.slice(0, 20)}...` : usage.label}
+                                <title>{[usage.label, usage.serviceLabel, usage.typeLabel].filter(Boolean).join(" — ")}</title>
+                            </text>
+                            {usage.serviceLabel && (
+                                <text
+                                    x={USAGE_TEXT_RIGHT_X}
+                                    y="36"
+                                    textAnchor="end"
+                                    fill={ThemeColors.ON_SURFACE_VARIANT}
+                                    fontSize="12px"
+                                    fontFamily="monospace"
+                                    dominantBaseline="middle"
+                                >
+                                    {usage.serviceLabel.length > 24
+                                        ? `${usage.serviceLabel.slice(0, 24)}...`
+                                        : usage.serviceLabel}
+                                </text>
+                            )}
+
+                            <line
+                                x1="243"
+                                y1="25"
+                                x2="300"
+                                y2="25"
+                                style={{
+                                    stroke: ThemeColors.ON_SURFACE,
+                                    strokeWidth: 1.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-usage)`,
+                                    opacity: isRowActive ? 0 : 1,
+                                    transition: "opacity 0.4s ease-out",
+                                }}
+                            />
+                            <line
+                                x1="243"
+                                y1="25"
+                                x2="300"
+                                y2="25"
+                                style={{
+                                    stroke: aiColor,
+                                    strokeWidth: 2.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-usage-active)`,
+                                    strokeDasharray: "6 6",
+                                }}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isRowActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    animation: ${flowDashAnimation} 1s linear infinite;
+                                `}
+                            />
+
+                            {canDeleteTrigger(usage) && (
+                                <foreignObject
+                                    x={usageMenuX(usage)}
+                                    y="12"
+                                    width={USAGE_MENU_SIZE}
+                                    height={USAGE_MENU_SIZE}
+                                    className="usage-menu-button"
+                                    data-testid="agent-usage-menu"
+                                    css={css`
+                                    opacity: 0;
+                                    visibility: hidden;
+                                    transition: opacity 0.2s ease-in-out;
+                                    pointer-events: all;
+                                `}
+                                >
+                                    <NodeStyles.MenuButton
+                                        appearance="icon"
+                                        onClick={(e) => handleUsageMenuClick(e, usage)}
+                                        css={css`
+                                        padding: 2px;
+                                        height: ${USAGE_MENU_SIZE}px;
+                                        width: ${USAGE_MENU_SIZE}px;
+                                        min-width: ${USAGE_MENU_SIZE}px;
+                                    `}
+                                    >
+                                        <MoreVertIcon />
+                                    </NodeStyles.MenuButton>
+                                </foreignObject>
+                            )}
+                        </g>
+                    </g>
+                    );
+                })}
+
+                {hiddenUsageCount > 0 && (
+                    <text
+                        x="242"
+                        y={usages.length * AGENT_USAGE_ROW_PITCH + 24}
+                        textAnchor="end"
+                        fill={ThemeColors.ON_SURFACE_VARIANT}
+                        fontSize="12px"
+                        fontFamily="GilmerRegular"
+                        dominantBaseline="middle"
+                        css={css`
+                            ${animateUsages ? usageFadeIn(usages.length * 70) : ""}
+                        `}
+                    >
+                        {`+${hiddenUsageCount} more`}
+                    </text>
+                )}
+
+                <Popover
+                    open={isUsageMenuOpen}
+                    anchorEl={usageAnchorEl}
+                    handleClose={handleUsageMenuClose}
+                    sx={{ padding: 0, borderRadius: 0 }}
+                >
+                    <Menu>
+                        {selectedUsage && (
+                            <MenuItem
+                                key="delete-trigger"
+                                item={{
+                                    id: "deleteTrigger",
+                                    label: "Delete Trigger",
+                                    onClick: () => onDeleteTrigger(selectedUsage),
+                                }}
+                            />
+                        )}
+                    </Menu>
+                </Popover>
+
+                {showsAddTile && (
+                    <EdgeAddButton
+                        key={addTileRow}
+                        testId="agent-add-trigger"
+                        anchorX={NODE_EDGE_LEFT_X}
+                        y={addTileY + 24}
+                        side="left"
+                        label="Add Trigger"
+                        title="Connect this agent to a chat channel or event source that will call it"
+                        animationDelay={animateUsages ? addTileRow * 70 : undefined}
+                        onClick={onAddTriggerClick}
+                    />
+                )}
+
+                <defs>
+                    <marker
+                        id={`${model.node.id}-arrow-head-usage`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                    </marker>
+
+                    <marker
+                        id={`${model.node.id}-arrow-head-usage-active`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                    </marker>
+                </defs>
+            </svg>}
+
             <NodeStyles.Box
                 disabled={disabled}
                 hovered={isBoxHovered}
@@ -745,6 +1168,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                 onContextMenu={!readOnly ? handleOnContextMenu : undefined}
                 title="Configure Agent"
             >
+                <div
+                    css={css`
+                        position: absolute;
+                        top: -1px; left: -1px; right: -1px; bottom: -1px;
+                        border-radius: 10px;
+                        border: 2px solid ${aiColor};
+                        opacity: ${isAgentNodeActive ? 1 : 0};
+                        transition: opacity 0.4s ease-out;
+                        animation: ${boxSyncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        pointer-events: none;
+                        z-index: 1;
+                    `}
+                />
                 {hasBreakpoint && (
                     <div
                         data-testid={isActiveBreakpoint ? "breakpoint-indicator-diagram-active" : "breakpoint-indicator-diagram"}
@@ -994,6 +1430,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     >
                         <title>{"Configure Model Provider"}</title>
                     </circle>
+                    <circle
+                        cx="80"
+                        cy="24"
+                        r="22"
+                        fill="none"
+                        stroke={aiColor}
+                        strokeWidth={2.5}
+                        css={css`
+                            pointer-events: none;
+                            opacity: ${isModelActive ? 1 : 0};
+                            transition: opacity 0.4s ease-out;
+                            transform-origin: 80px 24px;
+                            transform: scale(1.03);
+                            animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
+                        `}
+                    />
                     <foreignObject
                         x="68"
                         y="12"
@@ -1007,6 +1459,28 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             : getAIModuleIcon(modelProvider?.type) ?? (nodeModelIconUrl ? <img src={nodeModelIconUrl} style={{ width: 24, height: 24 }} /> : <DefaultLlmIcon />)}
                     </foreignObject>
 
+                    {modelProvider?.name && (
+                        <text
+                            x="110"
+                            y="28"
+                            textAnchor="start"
+                            fill={ThemeColors.ON_SURFACE}
+                            fontSize="14px"
+                            fontFamily="GilmerRegular"
+                            dominantBaseline="middle"
+                            onClick={onModelEditClick}
+                            css={css`
+                                cursor: ${readOnly ? "default" : "pointer"};
+                                &:hover {
+                                    fill: ${readOnly ? ThemeColors.ON_SURFACE : ThemeColors.SECONDARY};
+                                }
+                            `}
+                        >
+                            {modelProviderLabel}
+                            <title>{modelProviderLabel}</title>
+                        </text>
+                    )}
+
                     <line
                         x1="0"
                         y1="25"
@@ -1017,11 +1491,32 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             strokeWidth: 1.5,
                             markerEnd: `url(#${model.node.id}-arrow-head)`,
                             markerStart: `url(#${model.node.id}-diamond-start)`,
+                            opacity: isModelActive ? 0 : 1,
+                            transition: "opacity 0.4s ease-out",
                         }}
+                    />
+                    <line
+                        x1="0"
+                        y1="25"
+                        x2="57"
+                        y2="25"
+                        style={{
+                            stroke: aiColor,
+                            strokeWidth: 2.5,
+                            markerEnd: `url(#${model.node.id}-arrow-head-active)`,
+                            strokeDasharray: "6 6",
+                        }}
+                        css={css`
+                            pointer-events: none;
+                            opacity: ${isModelActive ? 1 : 0};
+                            transition: opacity 0.4s ease-out;
+                            animation: ${flowDashAnimation} 1s linear infinite;
+                        `}
                     />
                 </g>}
 
                 {tools.map((tool: ToolData, index: number) => {
+                    const isToolActive = activeToolNames.includes(tool.name);
                     return (
                         <g
                             key={index}
@@ -1070,6 +1565,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 opacity={disabled ? 0.7 : 1}
                                 css={css`
                                     transition: stroke 0.4s ease-out;
+                                `}
+                            />
+                            <circle
+                                cx="80"
+                                cy="24"
+                                r="22"
+                                fill="none"
+                                stroke={aiColor}
+                                strokeWidth={2.5}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isToolActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    transform-origin: 80px 24px;
+                                    transform: scale(1.03);
+                                    animation: ${syncPulseAnimation} 1.5s ease-in-out infinite alternate;
                                 `}
                             />
                             <foreignObject
@@ -1169,7 +1680,27 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     strokeWidth: 1.5,
                                     markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)})`,
                                     strokeDasharray: "6 6",
+                                    opacity: isToolActive ? 0 : 1,
+                                    transition: "opacity 0.4s ease-out",
                                 }}
+                            />
+                            <line
+                                x1="0"
+                                y1="25"
+                                x2="57"
+                                y2="25"
+                                style={{
+                                    stroke: aiColor,
+                                    strokeWidth: 2.5,
+                                    markerEnd: `url(#${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active)`,
+                                    strokeDasharray: "6 6",
+                                }}
+                                css={css`
+                                    pointer-events: none;
+                                    opacity: ${isToolActive ? 1 : 0};
+                                    transition: opacity 0.4s ease-out;
+                                    animation: ${flowDashAnimation} 1s linear infinite;
+                                `}
                             />
 
                             {!toolsReadOnly && <foreignObject
@@ -1218,63 +1749,19 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </Menu>
                 </Popover>}
 
-                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && <g
-                    transform={`translate(-11, ${tools.length > 0
-                        ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                        : NODE_HEIGHT + AGENT_NODE_TOOL_SECTION_GAP
-                        })`}
-                    onClick={onAddToolClick}
-                    style={{ cursor: "pointer" }}
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        css={css`
-                            cursor: ${readOnly ? "not-allowed" : "pointer"};
-                            &:hover path:last-of-type {
-                                fill: ${ThemeColors.SECONDARY};
-                            }
-                            &:hover + .custom-tooltip {
-                                opacity: 1;
-                                visibility: visible;
-                            }
-                        `}
-                    >
-                        <title>Add New Tool / MCP Server</title>
-                        <path
-                            fill={ThemeColors.SURFACE_BRIGHT}
-                            d="M12 0C5 0 0 5 0 12s5 12 12 12 12-5 12-12S19 0 12 0z"
-                        />
-                        <path
-                            fill={ThemeColors.ON_SURFACE}
-                            d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8m4-9h-3V8a1 1 0 0 0-2 0v3H8a1 1 0 0 0 0 2h3v3a1 1 0 0 0 2 0v-3h3a1 1 0 0 0 0-2"
-                        />
-                    </svg>
-
-                    <foreignObject x="25" y="-10" width="100" height="30" style={{ pointerEvents: "none" }}>
-                        <div
-                            className="custom-tooltip"
-                            css={css`
-                                background-color: ${ThemeColors.SURFACE_BRIGHT};
-                                color: ${ThemeColors.ON_SURFACE};
-                                padding: 4px 8px;
-                                border-radius: 4px;
-                                font-size: 12px;
-                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-                                opacity: 0;
-                                visibility: hidden;
-                                transition: opacity 0.2s ease-in-out;
-                                pointer-events: none;
-                                white-space: nowrap;
-                                font-family: "GilmerRegular";
-                            `}
-                        >
-                            Add New Tool / MCP Server
-                        </div>
-                    </foreignObject>
-                </g>}
+                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && (
+                    <EdgeAddButton
+                        testId="agent-add-tool"
+                        anchorX={NODE_EDGE_RIGHT_X}
+                        y={(tools.length > 0
+                            ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
+                            : containerHeight - NODE_HEIGHT - AGENT_NODE_TOOL_GAP) + 24}
+                        side="right"
+                        label="Add Tool"
+                        title="Add a tool or MCP server for this agent to call"
+                        onClick={onAddToolClick}
+                    />
+                )}
 
                 <defs>
                     <marker
@@ -1287,6 +1774,18 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         orient="auto"
                     >
                         <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
+                    </marker>
+
+                    <marker
+                        id={`${model.node.id}-arrow-head-active`}
+                        markerWidth="4"
+                        markerHeight="4"
+                        refX="3"
+                        refY="2"
+                        viewBox="0 0 4 4"
+                        orient="auto"
+                    >
+                        <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
                     </marker>
 
                     <marker
@@ -1320,10 +1819,23 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             >
                                 <polygon points="0,4 0,0 4,2" fill={ThemeColors.ON_SURFACE}></polygon>
                             </marker>
+
+                            <marker
+                                id={`${model.node.id}-arrow-head-tool-${sanitizeId(tool.name)}-active`}
+                                markerWidth="4"
+                                markerHeight="4"
+                                refX="3"
+                                refY="2"
+                                viewBox="0 0 4 4"
+                                orient="auto"
+                            >
+                                <polygon points="0,4 0,0 4,2" fill={aiColor}></polygon>
+                            </marker>
                         </React.Fragment>
                     ))}
                 </defs>
             </svg>}
+            <ThemeListener onThemeChange={handleThemeChange} />
         </NodeStyles.Node>
     );
 }
