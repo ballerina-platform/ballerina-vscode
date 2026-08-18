@@ -26,7 +26,7 @@ import { WebViewOptions, getComposerWebViewOptions, getLibraryWebViewContent } f
 import { extension } from "../../BalExtensionContext";
 import { StateMachine, undoRedoManager, updateView } from "../../stateMachine";
 import { LANGUAGE } from "../../core";
-import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy } from "@wso2/ballerina-core";
+import { MACHINE_VIEW, isPathInside, getIntegrationCreationCopy, ProductMode } from "@wso2/ballerina-core";
 import { refreshDataMapper } from "../../rpc-managers/data-mapper/utils";
 import { AiPanelWebview } from "../ai-panel/webview";
 import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager";
@@ -60,6 +60,7 @@ export class VisualizerWebview {
     public static readonly viewType = "ballerina.visualizer";
     public static readonly ballerinaTitle = "Ballerina Visualizer";
     public static readonly biTitle = "WSO2 Integrator";
+    public static readonly agentBuilderTitle = "WSO2 Agent Builder";
     private _panel: vscode.WebviewPanel | undefined;
     private _disposables: vscode.Disposable[] = [];
     private _pendingProjectInfoRefresh = false;
@@ -194,6 +195,9 @@ export class VisualizerWebview {
     }
 
     public static get webviewTitle(): string {
+        if (StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+            return VisualizerWebview.agentBuilderTitle;
+        }
         const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
         return biExtension ? VisualizerWebview.biTitle : VisualizerWebview.ballerinaTitle;
     }
@@ -233,13 +237,12 @@ export class VisualizerWebview {
         // Check if devant.editor extension is active
         const isDevantEditor = vscode.commands.executeCommand('getContext', 'devant.editor') !== undefined;
 
-        const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
         // After a wizard submit this HTML is the first frame post-reload, so it continues
         // the wizard's "Creating <name>" screen (also handed to the React app below).
         const startupProgress = getStartupIntegrationProgress(
             StateMachine.context().workspacePath || StateMachine.context().projectPath
         );
-        const productTitle = biExtension ? VisualizerWebview.biTitle : VisualizerWebview.ballerinaTitle;
+        const productTitle = VisualizerWebview.webviewTitle;
         const creationCopy = startupProgress && getIntegrationCreationCopy(startupProgress);
         const title = creationCopy ? escapeHtml(creationCopy.title) : productTitle;
         const subtitle = creationCopy

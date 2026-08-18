@@ -86,6 +86,21 @@ export const findFunctionByName = (components: BallerinaProjectComponents, funct
     return null;
 };
 
+export const findClassByName = (components: BallerinaProjectComponents, className: string) => {
+    for (const pkg of components.packages) {
+        for (const module of pkg.modules) {
+            const foundClass = module.classes.find((cls: any) => cls.name === className);
+            if (foundClass) {
+                const pkgUri = URI.parse(pkg.filePath);
+                const joinedUri = Utils.joinPath(pkgUri, foundClass.filePath);
+                foundClass.filePath = joinedUri.fsPath;
+                return foundClass;
+            }
+        }
+    }
+    return null;
+};
+
 export const getNodeTemplateForConnection = async (
     nodeId: string,
     metadata: any,

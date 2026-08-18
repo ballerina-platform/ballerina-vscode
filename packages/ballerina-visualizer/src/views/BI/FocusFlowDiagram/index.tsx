@@ -54,7 +54,7 @@ import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgen
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
-import { findAgentUsages, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+import { findAgentUsages, findListenerPosition, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
 
 const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
     a.length === b.length &&
@@ -80,6 +80,7 @@ import { SidePanelView } from "../FlowDiagram/PanelManager";
 import { PanelOverlayProvider } from "../FlowDiagram/context/PanelOverlayContext";
 import { PanelOverlayRenderer } from "../FlowDiagram/PanelOverlayRenderer";
 import { createPromptHelperPane } from "./utils";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 
 const Container = styled.div<{ embedded?: boolean }>`
@@ -126,6 +127,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [model, setModel] = useState<Flow>();
     const [suggestedModel, setSuggestedModel] = useState<Flow>();
     const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+    const [usagesLoading, setUsagesLoading] = useState(false);
     const [breakpointInfo, setBreakpointInfo] = useState<BreakpointInfo>();
     const [showConnectionPanel, setShowConnectionPanel] = useState(false);
     const [selectedConnectionKind, setSelectedConnectionKind] = useState<ConnectionKind>();
@@ -283,6 +285,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         clearTimeout(usageFetchTimerRef.current);
         const requestId = ++usageRequestIdRef.current;
+        // Block the spinner only when there's nothing cached to show yet.
+        if (!cached) {
+            setUsagesLoading(true);
+        }
         usageFetchTimerRef.current = setTimeout(async () => {
             try {
                 const location = await rpcClient.getVisualizerLocation();
@@ -295,6 +301,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 }
                 if (!response?.designModel) {
                     console.error(">>> agent focus: design model unavailable, keeping the previous usages");
+                    setUsagesLoading(false);
                     return;
                 }
                 const usages = findAgentUsages(response.designModel, {
@@ -307,6 +314,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
                 setCachedUsages(key, usages);
+                setUsagesLoading(false);
                 if (previous && JSON.stringify(previous) === JSON.stringify(usages)) {
                     return;
                 }
@@ -316,6 +324,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 });
             } catch (error) {
                 console.error(">>> agent focus: failed to load agent usages", error);
+                if (requestId === usageRequestIdRef.current) {
+                    setUsagesLoading(false);
+                }
             }
         }, 600);
     };
@@ -340,27 +351,30 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
         setShowProgressIndicator(true);
         try {
-            const targets = [
-                { name: trigger.serviceName, documentUri: trigger.documentUri, position: trigger.position },
-                ...trigger.listeners.map((listener) => ({
-                    name: listener.symbol,
-                    documentUri: listener.documentUri,
-                    position: listener.position,
-                })),
-            ];
-            targets.sort((a, b) => b.position.startLine - a.position.startLine);
-            for (const target of targets) {
-                await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
-                    filePath: target.documentUri,
+            const deleteComponent = (name: string, documentUri: string, position: NodePosition) =>
+                rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+                    filePath: documentUri,
                     component: {
-                        name: target.name,
-                        filePath: target.documentUri,
-                        startLine: target.position.startLine,
-                        startColumn: target.position.startColumn,
-                        endLine: target.position.endLine,
-                        endColumn: target.position.endColumn,
+                        name,
+                        filePath: documentUri,
+                        startLine: position.startLine,
+                        startColumn: position.startColumn,
+                        endLine: position.endLine,
+                        endColumn: position.endColumn,
                     },
                 });
+
+            await deleteComponent(trigger.serviceName, trigger.documentUri, trigger.position);
+            for (const listener of trigger.listeners) {
+                const location = await rpcClient.getVisualizerLocation();
+                const response = await rpcClient
+                    .getBIDiagramRpcClient()
+                    .getDesignModel({ projectPath: location?.projectPath });
+                const position = findListenerPosition(response?.designModel, listener.symbol, listener.documentUri);
+                if (!position) {
+                    continue;
+                }
+                await deleteComponent(listener.symbol, listener.documentUri, position);
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
@@ -1008,6 +1022,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         }
     };
 
+    const assistantName = useAssistantName();
+
     const memoizedDiagramProps = useMemo(
         () => ({
             model: flowModel,
@@ -1034,8 +1050,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             aiNodes: {
                 onModelSelect: handleOnEditNPFunctionModel,
             },
+            aiAssistantName: assistantName,
         }),
-        [flowModel, projectPath, breakpointInfo, filteredCompletions, createHelperPane, handleGetExpressionTokens]
+        [flowModel, projectPath, breakpointInfo, filteredCompletions, createHelperPane, handleGetExpressionTokens, assistantName]
     );
 
     const noop = () => { };
@@ -1061,9 +1078,10 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 onClickOverlay: handleOverlayClick,
             },
             agentNode: agentEditor.diagramCallbacks,
+            aiAssistantName: assistantName,
         }),
         [flowModel, projectPath, breakpointInfo, showProgressIndicator, embedded, isAgentPanelOpen,
-            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType]
+            showConnectionPanel, agentPanel, agentEditor.diagramCallbacks, isAgentType, assistantName]
     );
 
     const diagramProps = isAgentType || isAgent ? agentFocusDiagramProps : memoizedDiagramProps;
@@ -1192,12 +1210,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     <ProgressIndicator color={ThemeColors.PRIMARY} />
                 )}
                 <Container embedded={embedded}>
-                    {!model && (
+                    {(!model || usagesLoading) && (
                         <SpinnerContainer>
                             <ProgressRing color={ThemeColors.PRIMARY} />
                         </SpinnerContainer>
                     )}
-                    {model && <MemoizedDiagram {...diagramProps} />}
+                    {model && !usagesLoading && <MemoizedDiagram {...diagramProps} />}
                 </Container>
             </View>
 

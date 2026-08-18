@@ -83,6 +83,14 @@ interface CreateIntegrationWizardProps {
     /** Fired after the artifact was added to `existingPackagePath`, so the host can
      *  dismiss the wizard and return to the view it was opened from. */
     onArtifactAdded?: () => void;
+    /**
+     * Collapse to the Name step: no Type/Configure, and its single primary action
+     * creates the empty integration. Agent Builder uses this — the artifact type is
+     * not a choice there, and the agent is built from the canvas afterwards.
+     */
+    nameOnly?: boolean;
+    /** Overrides the name field's label, for hosts that call the artifact something else. */
+    nameLabel?: string;
 }
 
 /**
@@ -98,6 +106,8 @@ export function CreateIntegrationWizard({
     embedded = false,
     existingPackagePath,
     onArtifactAdded,
+    nameOnly = false,
+    nameLabel,
 }: CreateIntegrationWizardProps) {
     const { wsClient, onBack } = useBiWsContext();
     // The package exists and keeps its name/location, so name/path/creation logic is inert.
@@ -566,6 +576,10 @@ export function CreateIntegrationWizard({
         void handleCreateIntegration(artifact);
     };
 
+    const showBackButton = step > firstStep || !!onBackToChooser;
+    // Without the stepper the bar is empty unless it carries the back button.
+    const showTopBar = !nameOnly || showBackButton;
+
     // Nothing is interactive once submit is in flight (and the window may reload), so show a
     // dedicated progress screen — the extension's startup screen continues the same layout.
     if (isSubmitting) {
@@ -607,8 +621,9 @@ export function CreateIntegrationWizard({
                     </HeaderText>
                 </HeaderRow>
             )}
+            {showTopBar && (
             <WizardTopBar>
-                {(step > firstStep || onBackToChooser) && (
+                {showBackButton && (
                     <BackButtonSlot>
                         <IconButton
                             type="button"
@@ -625,14 +640,18 @@ export function CreateIntegrationWizard({
                         </IconButton>
                     </BackButtonSlot>
                 )}
-                <Stepper
-                    alignment="center"
-                    // The existing-package mode has no Name step, so drop it from the rail too.
-                    steps={isExistingPackage ? WIZARD_STEPS.slice(1) : WIZARD_STEPS}
-                    currentStep={step - firstStep}
-                />
+                {/* A single step has no progress to report. */}
+                {!nameOnly && (
+                    <Stepper
+                        alignment="center"
+                        // The existing-package mode has no Name step, so drop it from the rail too.
+                        steps={isExistingPackage ? WIZARD_STEPS.slice(1) : WIZARD_STEPS}
+                        currentStep={step - firstStep}
+                    />
+                )}
             </WizardTopBar>
-            <StepBody>
+            )}
+            <StepBody spaced={!showTopBar}>
                 {step === TYPE_STEP && (
                     <StepPinnedHeader>
                         <StepSectionLabel>Select the type of integration to build</StepSectionLabel>
@@ -652,6 +671,7 @@ export function CreateIntegrationWizard({
                             onPathChange={handlePathChange}
                             onBrowse={handleBrowse}
                             hidePath={embedded}
+                            nameLabel={nameLabel}
                         />
                     )}
                     {step === TYPE_STEP && (
@@ -684,17 +704,28 @@ export function CreateIntegrationWizard({
                     shared footer only applies to the Name and Type steps. */}
                 {step !== CONFIGURE_STEP && (
                     <WizardFooter
-                        primaryLabel="Next"
-                        onPrimary={step === NAME_STEP ? handleContinueToType : handleContinueToConfigure}
+                        primaryLabel={nameOnly ? "Create" : "Next"}
+                        onPrimary={
+                            nameOnly
+                                ? () => handleCreateIntegration()
+                                : step === NAME_STEP
+                                    ? handleContinueToType
+                                    : handleContinueToConfigure
+                        }
                         primaryDisabled={
                             isSubmitting ||
                             !!nameError ||
                             (!embedded && !!pathError) ||
-                            (step === TYPE_STEP && !selection)
+                            (!nameOnly && step === TYPE_STEP && !selection)
                         }
                         // The package already exists and is empty — only Next applies.
                         // Only offered on the Name step; the Type step requires a selection.
-                        skipLabel={!isExistingPackage && step === NAME_STEP ? "Create Empty Integration" : undefined}
+                        // `nameOnly`'s primary action already creates the empty integration.
+                        skipLabel={
+                            !isExistingPackage && !nameOnly && step === NAME_STEP
+                                ? "Create Empty Integration"
+                                : undefined
+                        }
                         onSkip={() => handleCreateIntegration()}
                         skipDisabled={isSubmitting || !!nameError || (!embedded && !!pathError)}
                     />

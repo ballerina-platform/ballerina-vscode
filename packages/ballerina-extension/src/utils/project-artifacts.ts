@@ -417,8 +417,8 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const serviceIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(serviceIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(serviceIcon, artifact.module);
-            entryValue.iconLight = serviceIcon?.light;
-            entryValue.iconDark = serviceIcon?.dark;
+            entryValue.iconLight = serviceIcon?.light ?? serviceIcon?.url;
+            entryValue.iconDark = serviceIcon?.dark ?? serviceIcon?.url;
             entryValue.kind = serviceIcon?.kind;
             if (artifact.module === "ai") {
                 entryValue.resources = [];
@@ -450,12 +450,15 @@ async function getEntryValue(artifact: BaseArtifact, projectPath: string, icon: 
             const listenerIcon = toIconDescriptor(artifact.icon);
             entryValue.icon = resolveEntryGlyph(listenerIcon, artifact.module);
             entryValue.iconColor = resolveEntryColor(listenerIcon, artifact.module);
-            entryValue.iconLight = listenerIcon?.light;
-            entryValue.iconDark = listenerIcon?.dark;
+            entryValue.iconLight = listenerIcon?.light ?? listenerIcon?.url;
+            entryValue.iconDark = listenerIcon?.dark ?? listenerIcon?.url;
             entryValue.kind = listenerIcon?.kind;
             break;
         case DIRECTORY_MAP.CONNECTION:
             entryValue.icon = icon;
+            const connectionIcon = toIconDescriptor(artifact.icon);
+            entryValue.iconLight = connectionIcon?.light ?? connectionIcon?.url;
+            entryValue.iconDark = connectionIcon?.dark ?? connectionIcon?.url;
             break;
         case DIRECTORY_MAP.AGENT:
             entryValue.icon = icon;
@@ -572,16 +575,8 @@ function processDeletion(artifact: BaseArtifact, artifactCategoryKey: string, pr
         try {
             const projectPath = activeProjectPath;
             const project = projectStructure.projects.find(project => isSamePath(project.projectPath, projectPath));
-            // Deletion notifications carry only the artifact id (no type), so a category that fans out
-            // into multiple directory map keys cannot be disambiguated here. Sweep every key the
-            // category can produce; ids are unique within a category, so this is safe.
-            const mapKeys = artifactCategoryKey === ARTIFACT_TYPE.Workflows
-                ? [DIRECTORY_MAP.WORKFLOW, DIRECTORY_MAP.ACTIVITY]
-                : [mapping.mapKey];
-            for (const mapKey of mapKeys) {
-                project.directoryMap[mapKey] =
-                    project.directoryMap[mapKey]?.filter(value => value.id !== artifact.id) ?? [];
-            }
+            project.directoryMap[mapping.mapKey] =
+                project.directoryMap[mapping.mapKey]?.filter(value => value.id !== artifact.id) ?? [];
         } catch (error) {
             //TODO: Hack: Properly fix for the workspace scenario
             console.error(`Error processing deletion for artifact ${artifact.id} in category ${artifactCategoryKey}:`, error);

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { ReactNode, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     EVENT_TYPE,
     LineRange,
@@ -80,7 +80,6 @@ import { EditorContext, StackItem } from "@wso2/type-editor";
 import DynamicModal from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
 import { deserializeForDiagnosticsAPI } from "../form-utils";
-import { FormHostCapabilitiesContext } from "../formHostCapabilities";
 
 interface ArtifactTypeEditorState {
     isOpen: boolean;
@@ -180,10 +179,6 @@ export function ArtifactForm(props: ArtifactFormProps) {
     } = props;
 
     const { rpcClient } = useRpcContext();
-    // Hosts (e.g. the pre-project Add Integration wizard) can restrict what forms
-    // mounted beneath them may offer; unrestricted when no provider is present.
-    const hostCapabilities = useContext(FormHostCapabilitiesContext);
-    const allowTypeCreation = hostCapabilities?.typeCreation ?? true;
 
 
 
@@ -861,7 +856,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
             onChange: onChange,
             changeTypeHelperState: changeHelperPaneState,
             updateImports: handleUpdateImports,
-            onTypeCreate: allowTypeCreation ? handleCreateNewType : undefined,
+            onTypeCreate: handleCreateNewType,
             onCloseCompletions: handleCloseCompletions,
             exprRef: exprRef,
             typeHelperContext: typeHelperContext,

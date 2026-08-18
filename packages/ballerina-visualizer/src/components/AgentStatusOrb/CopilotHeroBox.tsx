@@ -19,7 +19,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { SHARED_COMMANDS, AgentRunStatus } from "@wso2/ballerina-core";
+import { SHARED_COMMANDS, AgentRunStatus, shortAssistantName } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
 import {
@@ -34,6 +34,7 @@ import {
     useSuppressAgentStatusOrb,
     subscribeAgentRunStatus,
 } from "./shared";
+import { useProductMode, useAssistantName } from "../../hooks/useProductMode";
 
 /**
  * Inline "ask the Copilot" prompt box in the package overview's design panel,
@@ -124,6 +125,9 @@ const SendButton = styled.button`
 `;
 
 export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
+    const assistantName = useAssistantName();
+    const productMode = useProductMode();
+    const shortName = shortAssistantName(productMode);
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
@@ -147,7 +151,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
     const state = status?.state ?? "idle";
     const active = state !== "idle";
     const colors = ORB_COLORS[state];
-    const label = active && status ? activeStateLabel(status) : null;
+    const label = active && status ? activeStateLabel(status, productMode) : null;
 
     const openCopilot = () => {
         rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
@@ -178,7 +182,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot chat.` : undefined}
+                aria-label={label ? `${assistantName}: ${label}. Open the ${shortName} chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -204,7 +208,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                     <>
                         <StatusText>{label}</StatusText>
                         <OpenHint>
-                            Open Copilot <Codicon name="arrow-right" />
+                            Open {shortName} <Codicon name="arrow-right" />
                         </OpenHint>
                     </>
                 ) : (
@@ -219,11 +223,11 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                                 }
                             }}
                             placeholder={placeholder}
-                            aria-label="Message WSO2 Integrator Copilot"
+                            aria-label={`Message ${assistantName}`}
                         />
                         <SendButton
-                            title="Send to WSO2 Integrator Copilot"
-                            aria-label="Send to WSO2 Integrator Copilot"
+                            title={`Send to ${assistantName}`}
+                            aria-label={`Send to ${assistantName}`}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();

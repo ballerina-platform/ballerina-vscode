@@ -103,6 +103,14 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     };
 }
 
+function agentCallSite(service: CDService, uuid: string, entryPoints: number): CDLocation | undefined {
+    if (entryPoints !== 1) {
+        return undefined;
+    }
+    const helpers = (service.functions ?? []).filter((fn) => fn.connections?.includes(uuid));
+    return helpers.length === 1 ? helpers[0].location : undefined;
+}
+
 function usagesForService(service: CDService, uuid: string, trigger?: AgentUsageTrigger): AgentUsage[] {
     const label = serviceLabel(service);
     const name = serviceName(service);
@@ -143,6 +151,12 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
         }
     }
 
+    const callSite = agentCallSite(service, uuid, usages.length);
+    if (callSite) {
+        usages[0].documentUri = callSite.filePath;
+        usages[0].position = toPosition(callSite);
+    }
+
     if (usages.length === 0) {
         usages.push({
             label,
@@ -157,6 +171,13 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
     }
 
     return usages;
+}
+
+export function findListenerPosition(model: CDModel, symbol: string, filePath: string): NodePosition | undefined {
+    const listener = (model?.listeners ?? []).find(
+        (candidate) => candidate.symbol === symbol && samePath(candidate.location?.filePath ?? "", filePath)
+    );
+    return listener ? toPosition(listener.location) : undefined;
 }
 
 export type AgentRef = {

@@ -49,7 +49,9 @@ import { PlaceholderTagMap } from "../../commandTemplates/data/placeholderTags.c
 import ContextUsageWidget from "../AIChat/compaction/ContextUsageWidget";
 import RunningServicesChip, { RunningServicesPanel } from "./RunningServicesChip";
 import McpToolsChip from "./McpToolsChip";
-import { AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
+import { ACCENT_FRAME, AmbientFrame } from "../../../../components/AgentStatusOrb/shared";
+import { useProductMode } from "../../../../hooks/useProductMode";
+import { ProductMode } from "@wso2/ballerina-core";
 
 
 // Styled Components
@@ -183,6 +185,8 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         },
         ref
     ) => {
+        const productMode = useProductMode();
+        const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
         const [inputValue, setInputValue] = useState<{
             text: string;
             [key: string]: any;
@@ -699,7 +703,7 @@ const AIChatInput = forwardRef<AIChatInputRef, AIChatInputProps>(
         return (
             <Container ref={containerRef}>
                 <FlexRow>
-                    <AmbientFrame $variant="composer" $state={ambientState}>
+                    <AmbientFrame $variant="composer" $state={ambientState} $agentBuilder={agentBuilder} $colors={agentBuilder ? ACCENT_FRAME : undefined}>
                         <InputArea>
                             <StyledInputComponent
                                 ref={inputRef}

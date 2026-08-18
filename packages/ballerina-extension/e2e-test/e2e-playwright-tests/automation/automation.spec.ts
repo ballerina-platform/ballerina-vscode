@@ -67,8 +67,8 @@ export default function createTests() {
     }, async () => {
         initTest(true, true, undefined, undefined, AUTOMATION_CREATION_PROJECT_TEMPLATE);
         test('Create Automation', async () => {
-            // 1. Click the "Add Artifact" button, which the overview offers whether the
-            //    integration is empty or already has artifacts
+            // 1. Click on the "Add Artifact" button (or, on this empty integration,
+            //    "Add Integration", which reopens the creation wizard's artifact picker)
             // 2. Verify the Artifacts menu is displayed
             // 3. Under "Automation" section, click on "Automation" option
             await addArtifact('Automation', 'automation');
@@ -78,9 +78,9 @@ export default function createTests() {
                 throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
             }
 
-            // 4. Verify the "Create Automation" form is displayed. Its heading is composed
-            // from artifact metadata, so the optional "New" is matched rather than pinned to
-            // one spelling.
+            // 4. Verify the "Create Automation" form is displayed. On an empty
+            // integration this is the creation wizard's Configure step ("Create
+            // Automation"); elsewhere it's the in-project form ("Create New Automation").
             const createForm = artifactWebView.getByRole('heading', { name: /Create( New)? Automation/i });
             await createForm.waitFor({ timeout: 10000 });
 
@@ -100,13 +100,15 @@ export default function createTests() {
                 }
             }
 
-            // 8. Click the form's "Create" button.
+            // 8. Click on the submit button ("Create" in the in-project form,
+            // "Create Integration" in the creation wizard's Configure step).
             await submitArtifactCreation(artifactWebView);
 
             // 9. Verify the Automation is created and the automation designer view is displayed.
-            // Submitting the form normally lands straight on the designer's canvas. When it
-            // settles on the overview instead, the automation is there as an entry node, and
-            // clicking that opens the same designer.
+            // On this empty integration, the wizard generates the artifact into the existing
+            // package and closes back to the (now non-empty) overview rather than opening the
+            // new automation directly — unlike the in-project form's direct-to-diagram flow.
+            // Wait for the refreshed overview's entry node, then navigate into it.
             const diagramCanvas = artifactWebView.locator('#bi-diagram-canvas');
             const automationNode = artifactWebView.locator('[data-testid="entry-node-automation"]');
             const landedOnDiagram = await diagramCanvas.waitFor({ state: 'visible', timeout: 10000 })

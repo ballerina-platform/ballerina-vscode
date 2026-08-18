@@ -16,20 +16,15 @@
  * under the License.
  */
 
-import { createContext } from "react";
+import { ProductMode } from "@wso2/ballerina-core";
+import { useProductMode } from "../../../hooks/useProductMode";
+import { ProductTerms, getProductTerms } from "./productTerms";
 
 /**
- * Capabilities a form host can restrict for every form mounted beneath it.
- * Absent (no provider) means an unrestricted host.
+ * The wording for the flavor this webview runs in. For the forms federated into
+ * the Integrator webview the mode arrives as a prop instead — there is no
+ * `rpcClient` there — so those call `getProductTerms` directly.
  */
-export interface FormHostCapabilities {
-    /**
-     * Whether the type helper may offer creating new types. Pre-project hosts
-     * (the Add Integration wizard) disable this: the type editor has no
-     * visualizer state machine to resolve a file from, and a type created in
-     * the throwaway staging scaffold would not reach the generated integration.
-     */
-    typeCreation: boolean;
+export function useProductTerms(): ProductTerms {
+    return getProductTerms(useProductMode() === ProductMode.AGENT_BUILDER);
 }
-
-export const FormHostCapabilitiesContext = createContext<FormHostCapabilities | undefined>(undefined);

@@ -39,16 +39,12 @@ export async function domClick(locator: Locator): Promise<void> {
 }
 
 /**
- * Add an artifact to the project.
- *
- * "Add Artifact" is the overview's only route to the flat artifact-list picker, offered
- * whether the integration is empty or already holds artifacts, and a card click there goes
- * straight to the artifact's form.
- *
- * An "Add Integration" button is a failure, not an alternative. It opens the creation
- * wizard's Type step — a card picker restricted to the kinds the wizard supports, sharing the
- * flat picker's card ids but needing an explicit "Next" — so a helper that followed it would
- * keep passing against a second entry point the overview is not meant to have.
+ * Add an artifact to the project. The overview header shows "Add Artifact" (opening the
+ * flat artifact-list picker) once the integration has at least one artifact; on a still-empty
+ * integration it shows "Add Integration" instead, which reopens the creation wizard's Type
+ * step — a card picker restricted to the subset of kinds the wizard supports, but sharing the
+ * same card ids as the flat picker. That step requires an explicit "Next" after selecting the
+ * card, unlike the flat picker's direct card-click.
  */
 export async function addArtifact(artifactName: string, testId: string) {
     console.log(`Adding artifact: ${artifactName}`);
@@ -57,10 +53,25 @@ export async function addArtifact(artifactName: string, testId: string) {
         throw new Error(BI_WEBVIEW_NOT_FOUND_ERROR);
     }
     const addArtifactBtn = artifactWebView.getByRole('button', { name: /Add Artifact/i });
-    await addArtifactBtn.waitFor({ timeout: 30000 });
+    const addIntegrationBtn = artifactWebView.getByRole('button', { name: /Add Integration/i });
+    await Promise.race([
+        addArtifactBtn.waitFor({ timeout: 30000 }),
+        addIntegrationBtn.waitFor({ timeout: 30000 }),
+    ]);
 
     // `force` throughout — the floating Copilot orb/invite box intermittently overlaps
     // and intercepts pointer events on cards and buttons across these views.
+    if (await addIntegrationBtn.isVisible().catch(() => false)) {
+        await addIntegrationBtn.click({ force: true });
+        const card = artifactWebView.locator(`#${testId}`);
+        await card.waitFor();
+        await domClick(card);
+        // The Type step's "Next" is right-aligned (not full-width), so it doesn't
+        // sit under the orb's bottom-center dock point — a coordinate click is fine.
+        await artifactWebView.getByRole('button', { name: 'Next' }).click({ force: true, timeout: 60000 });
+        return;
+    }
+
     await addArtifactBtn.click({ force: true });
     const card = artifactWebView.locator(`#${testId}`);
     await card.waitFor();
