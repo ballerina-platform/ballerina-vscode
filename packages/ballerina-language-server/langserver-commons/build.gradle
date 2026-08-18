@@ -38,6 +38,7 @@ dependencies {
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:${eclipseLsp4jVersion}"
     implementation "org.ballerinalang:toml-parser:${ballerinaLangVersion}"
     implementation "com.github.zafarkhaja:java-semver:${javaSemverVersion}"
+    implementation "com.google.code.findbugs:jsr305:${findbugsJsr305Version}"
 
     testImplementation "org.testng:testng:${testngVersion}"
 }
@@ -59,4 +60,3 @@ compileJava {
         classpath = files()
     }
 }
-

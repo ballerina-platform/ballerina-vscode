@@ -57,6 +57,7 @@ import io.ballerina.flowmodelgenerator.core.utils.TypeTransformer;
 import io.ballerina.flowmodelgenerator.core.utils.TypeUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Project;
@@ -216,7 +217,7 @@ public class TypesManager {
         LinePosition exprStart = LinePosition.from(line, offset);
         LinePosition exprEnd = LinePosition.from(line, offset + expression.length());
         SemanticModel semanticModel =
-                proj.currentPackage().getCompilation().getSemanticModel(modifiedDoc.module().moduleId());
+                PackageUtil.getCompilation(proj.currentPackage()).getSemanticModel(modifiedDoc.module().moduleId());
         Optional<TypeSymbol> optTypeSymbol = semanticModel.typeOf(LineRange.from(fileName, exprStart, exprEnd));
         if (optTypeSymbol.isEmpty()) {
             return null;

@@ -23,6 +23,7 @@ module io.ballerina.language.server.core {
     exports org.ballerinalang.langserver.config;
     exports org.ballerinalang.langserver.telemetry;
     exports org.ballerinalang.langserver.util;
+    exports org.ballerinalang.langserver.workspace;
     exports org.ballerinalang.langserver.codeaction to io.ballerina.datamapper;
     exports org.ballerinalang.langserver.apispec;
     requires io.ballerina.diagram.util;
@@ -45,4 +46,5 @@ module io.ballerina.language.server.core {
     requires io.ballerina.central.client;
     requires io.ballerina.centralconnector;
     requires java.management;
+    requires java.logging;
 }

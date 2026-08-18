@@ -58,6 +58,7 @@ import ReactMarkdown from "react-markdown";
 import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
+import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -875,6 +876,8 @@ export function AgentCallNodeWidget(props: AgentCallNodeWidgetProps) {
                                     )}
                                 </div>
                             </foreignObject>
+
+                            {tool.requiresApproval && <ApprovalBadge background={NODE_BG_COLOR} />}
 
                             <text
                                 x="110"

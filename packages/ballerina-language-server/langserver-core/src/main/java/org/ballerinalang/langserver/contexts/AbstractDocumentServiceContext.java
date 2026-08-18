@@ -33,6 +33,7 @@ import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LSOperation;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
+import org.ballerinalang.langserver.workspace.WorkspaceManagerFacadeImpl;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 
@@ -80,7 +81,7 @@ public class AbstractDocumentServiceContext implements DocumentServiceContext {
                                    LanguageServerContext serverContext) {
         this.operation = operation;
         this.fileUri = fileUri;
-        this.workspaceManager = wsManager;
+        this.workspaceManager = scopedWorkspaceManager(wsManager, fileUri);
         this.languageServerContext = serverContext;
         Optional<Path> optFilePath = PathUtil.getPathFromURI(this.fileUri);
         if (optFilePath.isEmpty()) {
@@ -99,6 +100,13 @@ public class AbstractDocumentServiceContext implements DocumentServiceContext {
         if (!ON_DEBUG_MODE) {
             this.cancelChecker = cancelChecker;
         }
+    }
+
+    private WorkspaceManager scopedWorkspaceManager(WorkspaceManager wsManager, String uri) {
+        if (wsManager instanceof WorkspaceManagerFacadeImpl facade) {
+            return facade.forDocumentUri(uri);
+        }
+        return wsManager;
     }
 
     /**

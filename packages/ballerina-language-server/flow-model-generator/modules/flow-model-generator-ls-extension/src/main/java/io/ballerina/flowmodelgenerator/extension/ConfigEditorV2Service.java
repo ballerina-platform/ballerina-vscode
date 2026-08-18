@@ -748,21 +748,19 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
      * @return An {@link Optional} containing the {@link SemanticModel}, or empty if unavailable.
      */
     private static Optional<SemanticModel> getSemanticModel(Module module) {
-        try {
-            Package packageInstance = module.packageInstance();
-            if (packageInstance != null) {
-                PackageUtil.preResolve(packageInstance);
-                if (packageInstance.getCompilation() != null) {
-                    SemanticModel semanticModel = packageInstance.getCompilation()
-                            .getSemanticModel(module.moduleId());
-                    return Optional.ofNullable(semanticModel);
-                }
-            }
-        } catch (RuntimeException e) {
-            // getSemanticModel() can throw an Error if the module is an imported module without a semantic model.
+    try {
+        Package packageInstance = module.packageInstance();
+        if (packageInstance != null) {
+            PackageUtil.preResolve(packageInstance);
+            SemanticModel semanticModel = PackageUtil.getCompilation(packageInstance)
+                    .getSemanticModel(module.moduleId());
+            return Optional.ofNullable(semanticModel);
         }
-        return Optional.empty();
+    } catch (RuntimeException e) {
+        // getSemanticModel() can throw an Error if the module is an imported module without a semantic model.
     }
+    return Optional.empty();
+}
 
     /**
      * Extracts configuration variables from the dependencies of the current package.

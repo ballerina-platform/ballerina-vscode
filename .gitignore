@@ -19,8 +19,6 @@ out/
 **/resources/jslibs
 !resources/jslibs/font/DroidSansMono.ttf
 **/resources/font-wso2-vscode
-# Grammar copy populated by ballerina-extension's prebuild step
-packages/ballerina-extension/grammar/ballerina-grammar/
 coverage/
 .vscode-test/
 test-resources/

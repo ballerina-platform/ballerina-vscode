@@ -42,6 +42,7 @@ import io.ballerina.projects.repos.TempDirCompilationCache;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
+import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -55,10 +56,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Utility class that contains methods to perform package-related operations.
@@ -150,10 +148,7 @@ public class PackageUtil {
     private static final String MODULE_PULLING_FAILED_MESSAGE = "Failed to pull the module: %s";
     private static final String MODULE_PULLING_SUCCESS_MESSAGE = "Successfully pulled the module: %s";
 
-    // Concurrent map to store locks for each project
-    private static final ConcurrentHashMap<Path, ReentrantLock> PROJECT_LOCKS = new ConcurrentHashMap<>();
-
-    /**
+/**
      * Resolves the version of a package available in the local repositories (offline),
      * i.e. the version the build has provisioned. Returns null if not cached.
      */
@@ -174,6 +169,7 @@ public class PackageUtil {
         }
         return null;
     }
+
 
     public static BuildProject getSampleProject() {
         // Obtain the Ballerina distribution path
@@ -316,11 +312,11 @@ public class PackageUtil {
     }
 
     private static Path getPath(Path path) {
-        return Objects.requireNonNull(path, "Path cannot be null");
+        return path;
     }
 
     private static Path getParentPath(Path path) {
-        return Objects.requireNonNull(path, "Path cannot be null").getParent();
+        return path.getParent();
     }
 
     /**
@@ -362,7 +358,7 @@ public class PackageUtil {
                     descriptor.name().value().equals(packageName) &&
                     descriptor.version().value().toString().equals(version)) {
                 ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-                if (Objects.nonNull(modulePartName) && !modulePartName.isEmpty()
+                if (modulePartName != null && !modulePartName.isEmpty()
                         && !packageName.equals(modulePartName)) {
                     ModuleName subModuleName = ModuleName.from(PackageName.from(packageName), modulePartName);
                     Module module = currentPackage.module(subModuleName);
@@ -542,14 +538,7 @@ public class PackageUtil {
      * @return The compilation of the project
      */
     public static PackageCompilation getCompilation(Package balPackage) {
-        Path id = balPackage.project().sourceRoot();
-        ReentrantLock lock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return balPackage.getCompilation();
-        } finally {
-            lock.unlock();
-        }
+        return CompilerCompilationGuard.getCompilation(balPackage);
     }
 
     public static PackageCompilation getCompilation(Project project) {

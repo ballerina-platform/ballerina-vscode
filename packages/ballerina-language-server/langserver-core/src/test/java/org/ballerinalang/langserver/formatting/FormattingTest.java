@@ -19,7 +19,11 @@ import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
+import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentFormattingParams;
+import org.eclipse.lsp4j.FileChangeType;
+import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
@@ -104,6 +108,79 @@ public class FormattingTest {
         actual = actual.replaceAll("\\r\\n", "\n");
         TestUtil.closeDocument(this.serviceEndpoint, inputFilePath);
         Assert.assertEquals(actual, expected);
+    }
+
+    @Test(description = "test formatting before and after extending the document via "
+            + "textDocument/didChange, textDocument/didSave and workspace/didChangeWatchedFiles")
+    public void formatTestSuiteAfterDidChange() throws IOException {
+        Path inputProjectDir = formattingDirectory.resolve("didChangeProject");
+        Path inputFilePath = inputProjectDir.resolve("main.bal");
+        Path additionFilePath = inputProjectDir.resolve("addition.bal");
+        Path expectedInitialFilePath = inputProjectDir.resolve("expectedInitial.bal");
+        Path expectedFilePath = inputProjectDir.resolve("expectedMain.bal");
+
+        String expectedInitial = new String(Files.readAllBytes(expectedInitialFilePath))
+                .replaceAll("\\r\\n", "\n");
+
+        // The on-disk file represents the previously formatted text. The client then sends a
+        // didChange with additional content before requesting formatting. The formatting response
+        // must use this latest didChange content, not the previous on-disk content.
+        String additionContent = new String(Files.readAllBytes(additionFilePath));
+        String changedContent = expectedInitial.replace("\n}", "\n" + additionContent + "}");
+        TestUtil.didChangeDocument(this.serviceEndpoint, inputFilePath, changedContent);
+        this.didSaveDocument(inputFilePath);
+        this.didChangeWatchedFile(inputFilePath);
+
+        String expected = new String(Files.readAllBytes(expectedFilePath)).replaceAll("\\r\\n", "\n");
+        String actual = this.formatAndGetNewText(inputFilePath);
+        TestUtil.closeDocument(this.serviceEndpoint, inputFilePath);
+        Assert.assertEquals(actual, expected,
+                "Formatting must reflect the in-memory content extended via textDocument/didChange.");
+    }
+
+    /**
+     * Invokes textDocument/formatting on the given file and returns the resulting newText, with
+     * CRLF line endings normalized to LF for stable comparisons.
+     *
+     * @param filePath File to format; must already be opened on the service endpoint
+     * @return Formatted source as newText
+     */
+    private String formatAndGetNewText(Path filePath) {
+        DocumentFormattingParams documentFormattingParams = new DocumentFormattingParams();
+        TextDocumentIdentifier textDocumentIdentifier = new TextDocumentIdentifier();
+        textDocumentIdentifier.setUri(Path.of(filePath.toString()).toUri().toString());
+        documentFormattingParams.setTextDocument(textDocumentIdentifier);
+        documentFormattingParams.setOptions(new FormattingOptions());
+
+        String result = TestUtil.getFormattingResponse(documentFormattingParams, this.serviceEndpoint);
+        Gson gson = new Gson();
+        ResponseMessage responseMessage = gson.fromJson(result, ResponseMessage.class);
+        String actual =
+                (String) ((LinkedTreeMap<?, ?>) ((List<?>) responseMessage.getResult()).get(0)).get("newText");
+        return actual.replaceAll("\\r\\n", "\n");
+    }
+
+    /**
+     * Sends textDocument/didSave for the given file.
+     *
+     * @param filePath Saved file path
+     */
+    private void didSaveDocument(Path filePath) {
+        TextDocumentIdentifier textDocumentIdentifier = new TextDocumentIdentifier();
+        textDocumentIdentifier.setUri(Path.of(filePath.toString()).toUri().toString());
+        DidSaveTextDocumentParams params = new DidSaveTextDocumentParams(textDocumentIdentifier);
+        this.serviceEndpoint.notify("textDocument/didSave", params);
+    }
+
+    /**
+     * Sends workspace/didChangeWatchedFiles with a Changed event for the given file.
+     *
+     * @param filePath Changed file path
+     */
+    private void didChangeWatchedFile(Path filePath) {
+        FileEvent fileEvent = new FileEvent(filePath.toUri().toString(), FileChangeType.Changed);
+        DidChangeWatchedFilesParams params = new DidChangeWatchedFilesParams(List.of(fileEvent));
+        TestUtil.didChangeWatchedFiles(this.serviceEndpoint, params);
     }
 
     @AfterClass

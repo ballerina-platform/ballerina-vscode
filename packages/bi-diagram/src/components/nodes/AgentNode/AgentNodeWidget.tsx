@@ -49,6 +49,7 @@ import ReactMarkdown from "react-markdown";
 import { flowDashAnimation, sanitizeAgentData, sanitizeId } from "../agentNodeUtils";
 import { getAgentNodeContainerHeight } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
+import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -1158,6 +1159,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     </foreignObject>
                                 </>
                             )}
+
+                            {/* Rendered after the hover-detection overlay above (it spans the same corner
+                                with pointer-events: all) so the badge paints on top and still gets hover. */}
+                            {tool.requiresApproval && <ApprovalBadge background={ThemeColors.SURFACE_DIM} />}
 
                             <line
                                 x1="0"

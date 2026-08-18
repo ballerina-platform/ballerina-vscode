@@ -65,9 +65,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * A utility to handle renaming related operations.
@@ -229,7 +232,7 @@ public final class RenameUtil {
     public static WorkspaceEdit rename(RenameContext context) {
         Map<String, ChangeAnnotation> changeAnnotationMap = new HashMap<>();
         WorkspaceEdit workspaceEdit = new WorkspaceEdit();
-        Map<String, List<TextEdit>> changes = getChanges(context);
+        Map<String, List<TextEdit>> changes = deduplicate(getChanges(context));
         if (context.getHonorsChangeAnnotations() && SyntaxInfo.isKeyword(context.getParams().getNewName())) {
             changeAnnotationMap.put(RenameChangeAnnotation.QUOTED_KEYWORD.getID(),
                     RenameChangeAnnotation.QUOTED_KEYWORD.getChangeAnnotation());
@@ -248,6 +251,31 @@ public final class RenameUtil {
             workspaceEdit.setChanges(changes);
         }
         return workspaceEdit;
+    }
+
+    private static Map<String, List<TextEdit>> deduplicate(Map<String, List<TextEdit>> changes) {
+        Map<String, List<TextEdit>> deduplicated = new LinkedHashMap<>();
+        changes.forEach((uri, edits) -> {
+            Set<String> seen = new HashSet<>();
+            List<TextEdit> uniqueEdits = new ArrayList<>();
+            edits.forEach(edit -> {
+                String key = editKey(edit);
+                if (seen.add(key)) {
+                    uniqueEdits.add(edit);
+                }
+            });
+            deduplicated.put(uri, uniqueEdits);
+        });
+        return deduplicated;
+    }
+
+    private static String editKey(TextEdit edit) {
+        Range range = edit.getRange();
+        String annotationId = edit instanceof AnnotatedTextEdit annotatedTextEdit
+                ? annotatedTextEdit.getAnnotationId() : "";
+        return range.getStart().getLine() + ":" + range.getStart().getCharacter() + ":"
+                + range.getEnd().getLine() + ":" + range.getEnd().getCharacter() + ":"
+                + edit.getNewText() + ":" + annotationId;
     }
 
     private static boolean onImportPrefixNode(ReferencesContext context, NonTerminalNode node) {

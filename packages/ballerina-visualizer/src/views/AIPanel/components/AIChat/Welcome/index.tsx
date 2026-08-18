@@ -90,6 +90,10 @@ const WelcomeOrb = styled.div`
     flex: none;
 `;
 
+const SerifI = styled.span`
+    font-family: Georgia, "Times New Roman", serif;
+`;
+
 const GuideChip = styled.div`
     margin: 42px auto 0;
     padding: 8px 16px;
@@ -133,7 +137,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
             <TopSpacer />
             <Content>
                 <WelcomeOrbHalo>
-                    <WelcomeOrb role="img" aria-label="WSO2 Integrator Copilot">
+                    <WelcomeOrb role="img" aria-label="WSO2 Integration Intelligence">
                         {webglFailed ? (
                             <Sphere colors={ORB_COLORS.idle} energy={ORB_ENERGY.idle} />
                         ) : (
@@ -162,7 +166,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         margin: "12px 0",
                     }}
                 >
-                    WSO2 Integrator Copilot
+                    WSO2 Integration Intelligence
                 </Typography>
                 <Typography
                     variant="body1"
@@ -173,7 +177,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         marginTop: "16px",
                     }}
                 >
-                    I can help you build, update, and understand your integration. Tell me what you’d like to do.
+                    Hi, this is WSO2 Integration Intelligence (<SerifI>WII</SerifI>). You can call me Wii. I’m built to be an expert in integration. Let’s do integration together.
                 </Typography>
                 <Typography
                     variant="body1"

@@ -771,11 +771,11 @@
               "ballerinaType": "jco:GenericServiceType",
               "options": [
                 {
-                  "label": "IDocService",
+                  "label": "SAP JCo IDoc Service",
                   "value": "jco:IDocService"
                 },
                 {
-                  "label": "RfcService",
+                  "label": "SAP JCo RFC Service",
                   "value": "jco:RfcService"
                 }
               ],

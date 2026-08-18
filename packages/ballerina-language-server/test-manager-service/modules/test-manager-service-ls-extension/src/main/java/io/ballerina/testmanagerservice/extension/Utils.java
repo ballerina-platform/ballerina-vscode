@@ -20,6 +20,7 @@ package io.ballerina.testmanagerservice.extension;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.syntax.tree.AnnotationNode;
 import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
@@ -116,7 +117,10 @@ public class Utils {
 
     public static Annotation getAnnotationModel(AnnotationNode annotationNode, SemanticModel semanticModel,
                                                 ModulePartNode modulePartNode) {
-        AnnotationSymbol annotationSymbol = (AnnotationSymbol) semanticModel.symbol(annotationNode).get();
+        Optional<Symbol> symbol = semanticModel.symbol(annotationNode);
+        if (symbol.isEmpty() || !(symbol.get() instanceof AnnotationSymbol annotationSymbol)) {
+            return null;
+        }
         String annotName = annotationSymbol.getName().orElse("");
         if (annotName.isEmpty()) {
             return null;
