@@ -168,7 +168,7 @@ public class ServiceBuilderRouter {
                 project, semanticModel, document, request.isLocalRepository(),
                 request.agentName(), request.agentOrgName());
         ServiceNodeBuilder serviceBuilder;
-        if (AgentTriggerServiceBuilder.handles(request.moduleName(), request.agentName())) {
+        if (AgentTriggerServiceBuilder.handles(request)) {
             serviceBuilder = new AgentTriggerServiceBuilder();
         } else if (useSchemaDrivenPath(request.orgName(), request.moduleName(), request.version(),
                 request.isLocalRepository())) {

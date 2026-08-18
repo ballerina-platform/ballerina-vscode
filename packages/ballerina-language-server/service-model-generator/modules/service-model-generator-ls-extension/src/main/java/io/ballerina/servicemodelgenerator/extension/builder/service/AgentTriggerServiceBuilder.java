@@ -35,6 +35,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.AddServiceInitModelContext;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
 import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
 import io.ballerina.tools.text.LineRange;
@@ -62,14 +63,21 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     private static final String BALLERINA_ORG = "ballerina";
     private static final String INDENT = "    ";
 
-    public static boolean handles(String moduleName, String agentName) {
-        return agentName != null && !agentName.isBlank() && AgentTriggerChannels.supports(moduleName);
+    public static boolean handles(ServiceModelRequest request) {
+        return request != null && handles(request.orgName(), request.moduleName(), request.version(),
+                request.isLocalRepository(), request.agentName());
     }
 
     public static boolean handles(ServiceInitModel initModel) {
-        return initModel != null
-                && handles(initModel.getModuleName(), flattenFormValues(initModel.getProperties())
-                        .get(AGENT_NAME_PROPERTY));
+        return initModel != null && handles(initModel.getOrgName(), initModel.getModuleName(),
+                initModel.getVersion(), initModel.isLocalRepository(),
+                flattenFormValues(initModel.getProperties()).get(AGENT_NAME_PROPERTY));
+    }
+
+    private static boolean handles(String orgName, String moduleName, String version, boolean isLocalRepository,
+                                   String agentName) {
+        return agentName != null && !agentName.isBlank()
+                && AgentTriggerChannels.forModule(orgName, moduleName, version, isLocalRepository).isPresent();
     }
 
     @Override
@@ -79,7 +87,8 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
 
     @Override
     public ServiceInitModel getServiceInitModel(GetServiceInitModelContext context) {
-        Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(context.moduleName());
+        Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(context.orgName(),
+                context.moduleName(), context.version(), context.isLocalRepository());
         ServiceInitModel initModel = channel.flatMap(c -> c.initModel(context))
                 .orElseGet(() -> super.getServiceInitModel(context));
         if (initModel == null) {
@@ -102,7 +111,8 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
     @Override
     public Map<String, List<TextEdit>> addServiceInitSource(AddServiceInitModelContext context) {
         ServiceInitModel filledModel = context.serviceInitModel();
-        Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(filledModel.getModuleName());
+        Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(filledModel.getOrgName(),
+                filledModel.getModuleName(), filledModel.getVersion(), filledModel.isLocalRepository());
         Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
                 .getSchemaDrivenTriggerModel(filledModel.getOrgName(), filledModel.getModuleName(),
                         filledModel.getVersion(), filledModel.isLocalRepository());
@@ -175,11 +185,15 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .filter(FunctionBodyBlockNode.class::isInstance)
                 .map(FunctionBodyBlockNode.class::cast)
                 .findFirst();
-        if (body.isEmpty() || body.get().toSourceCode().contains(binding.offload())) {
-            return List.of();
-        }
         LineRange lastMember = members.isEmpty() ? service.openBraceToken().lineRange()
                 : members.get(members.size() - 1).lineRange();
+        if (body.isEmpty()) {
+            return List.of(new TextEdit(Utils.toRange(lastMember.endLine()),
+                    TWO_NEW_LINES + binding.handler() + TWO_NEW_LINES + binding.replyMethod()));
+        }
+        if (body.get().toSourceCode().contains(binding.offload())) {
+            return List.of();
+        }
         return List.of(
                 new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
                         INDENT + binding.offload() + NEW_LINE + INDENT),

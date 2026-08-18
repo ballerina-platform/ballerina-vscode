@@ -48,6 +48,8 @@ import java.util.Map;
 public class AgentTriggerGenerationTest {
 
     private static final String AGENT_NAME_PROPERTY = "agentName";
+    private static final String SERVICE_TYPE_PROPERTY = "serviceType";
+    private static final String HANDLER_PROPERTY = "agentEventHandler";
     private final Gson gson = new Gson();
 
     private ServiceInitModel initForm(String moduleName) {
@@ -58,6 +60,12 @@ public class AgentTriggerGenerationTest {
 
     private TriggerUISchemaModel triggerModel(String moduleName) {
         return TriggerModelReader.getInstance().getBundledTriggerModel(moduleName).orElseThrow();
+    }
+
+    private AgentTriggerChannel channel(String moduleName) {
+        String orgName = TriggerModelReader.getInstance().getBundledTriggerModel(moduleName)
+                .map(TriggerUISchemaModel::orgName).orElse(null);
+        return AgentTriggerChannels.forModule(orgName, moduleName).orElseThrow();
     }
 
     private ModulePartNode rootOf(String source) {
@@ -93,7 +101,7 @@ public class AgentTriggerGenerationTest {
         }
         channelValues.forEach((key, value) -> form.addProperty(key, new Value.ValueBuilder()
                 .enabled(true).editable(true).value(value).build()));
-        AgentTriggerChannel channel = AgentTriggerChannels.forModule(moduleName).orElseThrow();
+        AgentTriggerChannel channel = channel(moduleName);
         return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(moduleName), channel,
                 rootOf("\n"), "main.bal"));
     }
@@ -173,17 +181,35 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForGitHubEvent(String serviceType, String handlerName) {
-        ServiceInitModel form = initForm(GITHUB);
-        AgentTriggerChannel channel = AgentTriggerChannels.forModule(GITHUB).orElseThrow();
-        channel.customizeInitModel(form, triggerModel(GITHUB));
+        return generateForEvent(GITHUB, "triageAgent", serviceType, handlerName, false);
+    }
+
+    private String generateForEvent(String moduleName, String agentVarName, String serviceType,
+                                    String handlerName, boolean selectChannel) {
+        ServiceInitModel form = initForm(moduleName);
+        AgentTriggerChannel channel = channel(moduleName);
+        channel.customizeInitModel(form, triggerModel(moduleName));
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
-                .enabled(true).editable(false).value("triageAgent").build());
+                .enabled(true).editable(false).value(agentVarName).build());
         form.addProperty("instructions", new Value.ValueBuilder()
                 .enabled(true).editable(true).value(INSTRUCTIONS).build());
-        form.getProperties().get("serviceType").getProperties().get(serviceType)
-                .getProperties().get("agentEventHandler").setValue(handlerName);
-        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(GITHUB), channel,
+        selectEvent(form, serviceType, handlerName, selectChannel);
+        return render(AgentTriggerServiceBuilder.buildEdits(form, triggerModel(moduleName), channel,
                 rootOf("\n"), "main.bal"));
+    }
+
+    private void selectEvent(ServiceInitModel form, String serviceType, String handlerName,
+                             boolean selectChannel) {
+        Value descriptor = form.getProperties().get(SERVICE_TYPE_PROPERTY);
+        if (descriptor == null || descriptor.getProperties() == null
+                || !descriptor.getProperties().containsKey(serviceType)) {
+            form.getProperties().get(HANDLER_PROPERTY).setValue(handlerName);
+            return;
+        }
+        if (selectChannel) {
+            descriptor.setValue(serviceType);
+        }
+        descriptor.getProperties().get(serviceType).getProperties().get(HANDLER_PROPERTY).setValue(handlerName);
     }
 
     @Test
@@ -340,7 +366,7 @@ public class AgentTriggerGenerationTest {
         Assert.assertNotNull(resolved, "the builder resolves the schema off the init form's own identity; "
                 + "a miss here silently leaves the form without its event choice");
 
-        AgentTriggerChannels.forModule(GITHUB).orElseThrow().customizeInitModel(form, resolved);
+        channel(GITHUB).customizeInitModel(form, resolved);
         Value descriptor = form.getProperties().get("serviceType");
         Assert.assertNotNull(descriptor.getProperties(),
                 "the event channel dropdown reached the wizard without its per-channel events");
@@ -353,7 +379,7 @@ public class AgentTriggerGenerationTest {
     @Test
     public void testEachEventChannelOffersItsOwnEvents() {
         ServiceInitModel form = initForm(GITHUB);
-        AgentTriggerChannels.forModule(GITHUB).orElseThrow().customizeInitModel(form, triggerModel(GITHUB));
+        channel(GITHUB).customizeInitModel(form, triggerModel(GITHUB));
 
         Value descriptor = form.getProperties().get("serviceType");
         Map<String, Value> perChannel = descriptor.getProperties();
@@ -377,21 +403,25 @@ public class AgentTriggerGenerationTest {
     }
 
     private String mergeIntoExisting(String serviceType, String handlerName, String existingSource) {
-        ServiceInitModel form = initForm(GITHUB);
-        AgentTriggerChannel channel = AgentTriggerChannels.forModule(GITHUB).orElseThrow();
-        channel.customizeInitModel(form, triggerModel(GITHUB));
+        return mergeIntoExisting(GITHUB, "triageAgent", serviceType, handlerName, "githubListener", existingSource);
+    }
+
+    private String mergeIntoExisting(String moduleName, String agentVarName, String serviceType,
+                                     String handlerName, String listenerVarName, String existingSource) {
+        ServiceInitModel form = initForm(moduleName);
+        AgentTriggerChannel channel = channel(moduleName);
+        channel.customizeInitModel(form, triggerModel(moduleName));
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
-                .enabled(true).editable(false).value("triageAgent").build());
+                .enabled(true).editable(false).value(agentVarName).build());
         form.addProperty("instructions", new Value.ValueBuilder()
                 .enabled(true).editable(true).value(INSTRUCTIONS).build());
-        form.getProperties().get("serviceType").setValue(serviceType);
-        form.getProperties().get("serviceType").getProperties().get(serviceType)
-                .getProperties().get("agentEventHandler").setValue(handlerName);
-        form.getProperties().get("listener").getChoices().forEach(choice -> choice.setEnabled(false));
-        Value existingBranch = form.getProperties().get("listener").getChoices().get(1);
+        selectEvent(form, serviceType, handlerName, true);
+        List<Value> choices = form.getProperties().get("listener").getChoices();
+        choices.forEach(choice -> choice.setEnabled(false));
+        Value existingBranch = choices.get(1);
         existingBranch.setEnabled(true);
-        existingBranch.getProperties().get("existingListener").setValue("githubListener");
-        return applyEdits(existingSource, AgentTriggerServiceBuilder.buildEdits(form, triggerModel(GITHUB),
+        existingBranch.getProperties().get("existingListener").setValue(listenerVarName);
+        return applyEdits(existingSource, AgentTriggerServiceBuilder.buildEdits(form, triggerModel(moduleName),
                 channel, rootOf(existingSource), "main.bal"));
     }
 
@@ -500,7 +530,7 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForAgentChat(String basePath, String existingSource) {
-        AgentTriggerChannel channel = AgentTriggerChannels.forModule("ai").orElseThrow();
+        AgentTriggerChannel channel = channel("ai");
         ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "ai", "ai",
                 "1.0.0", null, null, null, false, "mathTutorAgent", null)).orElseThrow();
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
@@ -572,5 +602,121 @@ public class AgentTriggerGenerationTest {
         Assert.assertFalse(src.contains("start "), "no agent bound -> no reply strand: " + src);
         Assert.assertFalse(src.contains("whatsappClient"), "no agent bound -> no reply client: " + src);
         Assert.assertFalse(src.contains(".run("), "no agent bound -> no agent call: " + src);
+    }
+
+    @Test
+    public void testACatalogOnlyConnectorReachesTheAgent() {
+        String src = generateForEvent("kafka", "streamAgent", "Service", "onConsumerRecord", true);
+
+        Assert.assertTrue(src.contains("service kafka:Service on kafkaListener"),
+                "a connector with a single service type should still name it: " + src);
+        Assert.assertTrue(src.contains("remote function onConsumerRecord(kafka:AnydataConsumerRecord[] records)"),
+                "the payload type is composed from the schema's binding template, not left as anydata: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnConsumerRecord(records);"),
+                "the handler should offload rather than block the consumer: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnConsumerRecord(kafka:AnydataConsumerRecord[] records)"),
+                "the reply method should take the handler's own parameters: " + src);
+    }
+
+    @Test
+    public void testACatalogHandlerNobodyChoseIsNotEmitted() {
+        String src = generateForEvent("kafka", "streamAgent", "Service", "onConsumerRecord", true);
+
+        Assert.assertEquals(src.split("remote function ", -1).length - 1, 1,
+                "a catalog handler is opt-in, so emitting the siblings would turn on behaviour "
+                        + "the connector deliberately leaves off: " + src);
+        Assert.assertFalse(src.contains("onError"), "onError was not chosen: " + src);
+    }
+
+    @Test
+    public void testABrokerServiceKeepsItsQueueBinding() {
+        String src = generateForEvent("rabbitmq", "orderAgent", "Service", "onMessage", true);
+
+        Assert.assertTrue(src.contains("@rabbitmq:ServiceConfig"),
+                "a broker binds its queue through a service annotation; without it the service "
+                        + "compiles and consumes nothing: " + src);
+        Assert.assertTrue(src.contains("queueName"), "the queue the form asked for should reach the source: " + src);
+        Assert.assertTrue(src.indexOf("@rabbitmq:ServiceConfig") < src.indexOf("service rabbitmq:Service"),
+                "an annotation attaches above the declaration it annotates: " + src);
+    }
+
+    @Test
+    public void testChangeDataCapturePreselectsACreate() {
+        ServiceInitModel form = initForm("mysql");
+        channel("mysql").customizeInitModel(form, triggerModel("mysql"));
+
+        Value handler = form.getProperties().get(HANDLER_PROPERTY);
+        Assert.assertNotNull(handler, "a connector with one service type has no channel dropdown to nest "
+                + "the event choice under, so it belongs on the form itself");
+        Assert.assertEquals(handler.getValue(), "onCreate",
+                "onRead fires once per pre-existing row of the initial snapshot -- an agent run per row "
+                        + "of the table, on the first start");
+        Assert.assertEquals(handler.getTypes().getFirst().options().stream().map(Option::value).toList(),
+                List.of("onRead", "onCreate", "onUpdate", "onDelete", "onError"),
+                "only the default moves; every event stays on offer");
+    }
+
+    @Test
+    public void testEveryPayloadTheHandlerCarriesReachesThePrompt() {
+        String src = generateForEvent("mysql", "auditAgent", "cdc:Service", "onUpdate", true);
+
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnUpdate(before, after);"),
+                "a row update hands over both versions of the row: " + src);
+        Assert.assertTrue(src.contains("${before.toJsonString()}") && src.contains("${after.toJsonString()}"),
+                "a prompt built from the first parameter alone would silently drop half the event: " + src);
+    }
+
+    @Test
+    public void testAListenerSuppliedHandleIsPassedOnButNotPrompted() {
+        String src = generateForEvent("solace", "queueAgent", "Service", "onMessage", true);
+
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnMessage(message, caller);"),
+                "the reply method has to be callable with what the handler was given: " + src);
+        Assert.assertTrue(src.contains("function runAgentOnMessage(solace:Message message, solace:Caller caller)"),
+                "a caller the listener supplies stays in the signature: " + src);
+        Assert.assertFalse(src.contains("${caller"),
+                "a caller carries no event, so there is nothing in it for the agent to read: " + src);
+    }
+
+    @Test
+    public void testAPayloadThatIsNotAnydataIsRenderedAsText() {
+        String src = generateForEvent("sap.jco", "idocAgent", "jco:IDocService", "onReceive", true);
+
+        Assert.assertTrue(src.contains("${iDoc.toString()}"),
+                "xml is not anydata, so toJsonString would not compile: " + src);
+    }
+
+    @Test
+    public void testAnEventSourceIsOfferedToAnAgentWithoutBeingRegistered() {
+        Assert.assertEquals(AgentTriggerChannels.kindOf("kafka", "event"), "EVENT",
+                "every event source is served by the generic channel; naming them one by one is what "
+                        + "kept the picker to a curated few");
+        Assert.assertEquals(AgentTriggerChannels.kindOf("whatsapp.business", "event"), "CHAT",
+                "a chat channel owns its reply path, so it keeps its own implementation");
+    }
+
+    @Test
+    public void testAConnectorThatIsNotAnEventSourceIsNotOffered() {
+        Assert.assertNull(AgentTriggerChannels.kindOf("ftp", "file"),
+                "file integration is a separate surface and has not been taken on");
+        Assert.assertTrue(AgentTriggerChannels.forModule("ballerina", "ftp").isEmpty(),
+                "the listing and the builder must agree on what is offerable");
+    }
+
+    @Test
+    public void testASecondEventJoinsACatalogOnlyServiceAsANewHandler() {
+        String existing = generateForEvent("mysql", "auditAgent", "cdc:Service", "onCreate", true);
+        String src = mergeIntoExisting("mysql", "auditAgent", "cdc:Service", "onDelete", "mysqlCdcListener",
+                existing);
+
+        Assert.assertTrue(src.contains("remote function onDelete("),
+                "a connector that emits no empty siblings has nothing to splice into, so the second "
+                        + "event has to arrive as a whole handler: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnDelete("),
+                "the added handler should offload like the first: " + src);
+        Assert.assertTrue(src.contains("_ = start self.runAgentOnCreate("),
+                "the event already wired must survive: " + src);
+        Assert.assertEquals(src.split("service cdc:Service", -1).length - 1, 1,
+                "a second service on the same listener fails to start: " + src);
     }
 }

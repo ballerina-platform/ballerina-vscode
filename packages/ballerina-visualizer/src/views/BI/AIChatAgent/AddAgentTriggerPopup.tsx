@@ -16,20 +16,18 @@
  * under the License.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { AgentTriggerKind, ServiceModel, TriggerModelsResponse, deriveBasePath } from '@wso2/ballerina-core';
-import { Codicon, Icon, SearchBox, ThemeColors } from '@wso2/ui-toolkit';
+import { Codicon, Icon, SearchBox } from '@wso2/ui-toolkit';
 
 import { useVisualizerContext } from '../../../Context';
-import { CardGrid, ClearSearchButton, EmptyState, PanelViewMore, Title, TitleWrapper } from '../ComponentListView/styles';
-import { cardMatchesSearch } from '../ComponentListView/componentListUtils';
+import { CardGrid, PanelViewMore, Title, TitleWrapper } from '../ComponentListView/styles';
 import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getEntryNodeIcon } from '../ComponentListView/EventIntegrationPanel';
-import { getFileIntegrationIcon } from '../ComponentListView/FileIntegrationPanel';
-import { INTEGRATION_API_CARDS } from '../components/artifactCards';
+import { cardMatchesSearch, isBetaModule } from '../ComponentListView/componentListUtils';
+import { useCentralTriggerSearch } from '../ComponentListView/useCentralTriggerSearch';
 import {
     BackButton,
     CloseButton,
@@ -41,32 +39,6 @@ import {
 } from '../Connection/styles';
 import { PopupModal, PopupModalStep, PopupModalStepDirection } from '../../../components/PopupModal';
 import { ServiceCreationView } from '../ServiceDesigner/ServiceCreationView';
-
-const SectionList = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-`;
-
-const SectionHeading = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-`;
-
-const ComingSoonBadge = styled.span`
-    padding: 1px 8px;
-    border-radius: 999px;
-    border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
-    color: ${ThemeColors.ON_SURFACE_VARIANT};
-    font-size: 11px;
-    font-weight: 500;
-`;
-
-const ComingSoonGrid = styled(CardGrid)`
-    opacity: 0.6;
-    pointer-events: none;
-`;
 
 export interface AddAgentTriggerPopupProps {
     agentName: string;
@@ -89,18 +61,7 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
     },
 ];
 
-const COMING_SOON_SECTIONS: { key: string; title: string; description: string }[] = [
-    {
-        key: "api",
-        title: "APIs",
-        description: "Reach the agent over an API endpoint.",
-    },
-    {
-        key: "file",
-        title: "File Sources",
-        description: "The agent runs when a file lands in a watched location.",
-    },
-];
+type CentralChannel = ServiceModel & { isLocalRepository?: boolean };
 
 const channelDefaults = (channel: ServiceModel, agentName: string) =>
     channel.moduleName === "ai" && agentName ? { basePath: deriveBasePath(agentName) } : undefined;
@@ -125,7 +86,8 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     const [isLoading, setIsLoading] = useState(cacheTriggers.local.length === 0);
     const [channel, setChannel] = useState<ServiceModel>(null);
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
-    const [searchQuery, setSearchQuery] = useState("");
+    const [query, setQuery] = useState("");
+    const central = useCentralTriggerSearch(query);
 
     const showChannel = (next: ServiceModel, to: PopupModalStepDirection) => {
         setDirection(to);
@@ -166,38 +128,23 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                 ...section,
                 channels: (triggers.local ?? [])
                     .filter((trigger) => trigger.agentTriggerKind === section.kind
-                        && cardMatchesSearch(trigger.name, searchQuery, trigger.moduleName))
+                        && cardMatchesSearch(trigger.name, query, trigger.moduleName))
                     .sort((a, b) => a.name.localeCompare(b.name)),
             }))
             .filter((section) => section.channels.length > 0),
-        [triggers, searchQuery]
+        [triggers, query]
     );
 
-    const comingSoon = useMemo(
-        () => {
-            const cards: Record<string, { id: string; name: string; icon: React.ReactNode }[]> = {
-                api: INTEGRATION_API_CARDS.map((card) => ({
-                    id: card.id,
-                    name: card.displayName,
-                    icon: card.icon,
-                })),
-                file: (triggers.local ?? [])
-                    .filter((trigger) => trigger.type === "file")
-                    .map((trigger) => ({
-                        id: trigger.moduleName,
-                        name: trigger.name,
-                        icon: getFileIntegrationIcon(trigger),
-                    })),
-            };
-            return COMING_SOON_SECTIONS
-                .map((section) => ({
-                    ...section,
-                    cards: (cards[section.key] ?? []).filter((card) => cardMatchesSearch(card.name, searchQuery)),
-                }))
-                .filter((section) => section.cards.length > 0);
-        },
-        [triggers, searchQuery]
+    const installed = useMemo(
+        () => new Set((triggers.local ?? []).map((t) => `${t.orgName}/${t.packageName}`)),
+        [triggers]
     );
+    const fromCentral = useMemo(
+        () => [...central.results, ...central.localRepositoryResults.map((t) => ({ ...t, isLocalRepository: true }))]
+            .filter((t) => !installed.has(`${t.orgName}/${t.packageName}`)),
+        [central.results, central.localRepositoryResults, installed]
+    );
+    const showCentral = central.enabled && query.trim().length > 0;
 
     return (
         <PopupModal onClose={onClose} expanded dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
@@ -231,75 +178,79 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                 packageName={channel.packageName}
                                 moduleName={channel.moduleName}
                                 version={channel.version}
+                                isLocalRepository={(channel as CentralChannel).isLocalRepository}
                                 agentName={agentName}
                                 agentOrgName={agentOrgName}
                                 defaultValues={channelDefaults(channel, agentName)}
                             />
                         ) : (
                             <>
+                                {isLoading && <RelativeLoader />}
                                 {!isLoading && (
                                     <SearchBox
-                                        value={searchQuery}
-                                        placeholder="Search triggers"
-                                        iconPosition="start"
-                                        autoFocus
-                                        onChange={setSearchQuery}
-                                        sx={{ width: "100%" }}
+                                        value={query}
+                                        placeholder="Search channels"
+                                        iconPosition="end"
+                                        onChange={setQuery}
+                                        sx={{ width: "100%", marginBottom: "16px" }}
                                     />
                                 )}
-                                {isLoading && <RelativeLoader />}
-                                {!isLoading && sections.length === 0 && comingSoon.length === 0 && !searchQuery.trim() && (
-                                    <BodyText>No channels are available in this project.</BodyText>
+                                {!isLoading && sections.length === 0 && !showCentral && (
+                                    <BodyText>
+                                        {query.trim()
+                                            ? `No channel matches "${query}".`
+                                            : "No channels are available in this project."}
+                                    </BodyText>
                                 )}
-                                {!isLoading && sections.length === 0 && comingSoon.length === 0 && searchQuery.trim() && (
-                                    <EmptyState>
-                                        <span>No channels match &ldquo;{searchQuery.trim()}&rdquo;.</span>
-                                        <ClearSearchButton onClick={() => setSearchQuery("")}>Clear search</ClearSearchButton>
-                                    </EmptyState>
+                                {sections.map((section) => (
+                                    <PanelViewMore key={section.kind}>
+                                        <TitleWrapper>
+                                            <Title variant="h2">{section.title}</Title>
+                                            <BodyText>{section.description}</BodyText>
+                                        </TitleWrapper>
+                                        <CardGrid>
+                                            {section.channels.map((option) => (
+                                                <ButtonCard
+                                                    id={`agent-trigger-${option.moduleName.replace(/\./g, '-')}`}
+                                                    key={option.id}
+                                                    title={option.name}
+                                                    icon={channelIcon(option)}
+                                                    isBeta={isBetaModule(option.moduleName)}
+                                                    onClick={() => showChannel(option, "forward")}
+                                                />
+                                            ))}
+                                        </CardGrid>
+                                    </PanelViewMore>
+                                ))}
+                                {showCentral && (
+                                    <PanelViewMore key="central">
+                                        <TitleWrapper>
+                                            <Title variant="h2">More on Ballerina Central</Title>
+                                            <BodyText>
+                                                Event sources published on Ballerina Central. The package is
+                                                pulled when you pick one.
+                                            </BodyText>
+                                        </TitleWrapper>
+                                        <CardGrid>
+                                            {central.searching && <RelativeLoader />}
+                                            {!central.searching && fromCentral.length === 0 && (
+                                                <BodyText>
+                                                    No matching integrations found on Ballerina Central.
+                                                </BodyText>
+                                            )}
+                                            {!central.searching && fromCentral.map((option) => (
+                                                <ButtonCard
+                                                    id={`agent-trigger-central-${option.moduleName.replace(/\./g, '-')}`}
+                                                    key={`central/${option.orgName}/${option.packageName}`}
+                                                    title={option.name}
+                                                    icon={channelIcon(option)}
+                                                    isBeta={isBetaModule(option.moduleName)}
+                                                    onClick={() => showChannel(option, "forward")}
+                                                />
+                                            ))}
+                                        </CardGrid>
+                                    </PanelViewMore>
                                 )}
-                                <SectionList>
-                                    {sections.map((section) => (
-                                        <PanelViewMore key={section.kind}>
-                                            <TitleWrapper>
-                                                <Title variant="h2">{section.title}</Title>
-                                                <BodyText>{section.description}</BodyText>
-                                            </TitleWrapper>
-                                            <CardGrid>
-                                                {section.channels.map((option) => (
-                                                    <ButtonCard
-                                                        id={`agent-trigger-${option.moduleName.replace(/\./g, '-')}`}
-                                                        key={option.id}
-                                                        title={option.name}
-                                                        icon={channelIcon(option)}
-                                                        onClick={() => showChannel(option, "forward")}
-                                                    />
-                                                ))}
-                                            </CardGrid>
-                                        </PanelViewMore>
-                                    ))}
-                                    {!isLoading && comingSoon.map((section) => (
-                                        <PanelViewMore key={section.key}>
-                                            <TitleWrapper>
-                                                <SectionHeading>
-                                                    <Title variant="h2">{section.title}</Title>
-                                                    <ComingSoonBadge>Coming soon</ComingSoonBadge>
-                                                </SectionHeading>
-                                                <BodyText>{section.description}</BodyText>
-                                            </TitleWrapper>
-                                            <ComingSoonGrid>
-                                                {section.cards.map((card) => (
-                                                    <ButtonCard
-                                                        key={card.id}
-                                                        title={card.name}
-                                                        icon={card.icon}
-                                                        onClick={() => undefined}
-                                                        disabled
-                                                    />
-                                                ))}
-                                            </ComingSoonGrid>
-                                        </PanelViewMore>
-                                    ))}
-                                </SectionList>
                             </>
                         )}
                     </PopupContent>

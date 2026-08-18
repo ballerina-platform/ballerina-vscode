@@ -67,7 +67,7 @@ function serviceTypeLabel(type?: string): string | undefined {
         return undefined;
     }
     const modulePart = type.includes(":") ? type.split(":")[0] : type;
-    return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart} Service`;
+    return SERVICE_TYPE_LABELS[modulePart] ?? `${modulePart.charAt(0).toUpperCase()}${modulePart.slice(1)} Service`;
 }
 
 function resourcePath(path: string): string {

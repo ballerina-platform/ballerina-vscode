@@ -22,6 +22,7 @@ import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -69,6 +70,15 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
     /** The service base path, or empty when the channel ships no base-path field. */
     public String basePath() {
         return SchemaDrivenSourceGenerator.resolveBasePath(initForm);
+    }
+
+    public List<String> serviceAnnotations() {
+        return SchemaDrivenSourceGenerator.buildServiceAnnotations(initForm, emitAlias);
+    }
+
+    public List<SchemaDrivenSourceGenerator.HandlerParameter> parametersOf(
+            TriggerUISchemaModel.FunctionModel handler) {
+        return SchemaDrivenSourceGenerator.emittedParameters(handler, initForm.getModuleName(), emitAlias);
     }
 
     public String qualify(String typeText) {
