@@ -84,11 +84,11 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     const { cacheTriggers, setCacheTriggers } = useVisualizerContext();
     const [triggers, setTriggers] = useState<TriggerModelsResponse>(cacheTriggers);
     const [isLoading, setIsLoading] = useState(cacheTriggers.local.length === 0);
-    const [channel, setChannel] = useState<ServiceModel>(null);
+    const [channel, setChannel] = useState<CentralChannel>(null);
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
     const [query, setQuery] = useState("");
 
-    const showChannel = (next: ServiceModel, to: PopupModalStepDirection) => {
+    const showChannel = (next: CentralChannel, to: PopupModalStepDirection) => {
         setDirection(to);
         setChannel(next);
     };
@@ -166,7 +166,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                 packageName={channel.packageName}
                                 moduleName={channel.moduleName}
                                 version={channel.version}
-                                isLocalRepository={(channel as CentralChannel).isLocalRepository}
+                                isLocalRepository={channel.isLocalRepository}
                                 agentName={agentName}
                                 agentOrgName={agentOrgName}
                                 defaultValues={channelDefaults(channel, agentName)}
