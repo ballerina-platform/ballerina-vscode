@@ -1122,7 +1122,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         y={addTileY + 24}
                         side="left"
                         label="Add Trigger"
-                        title="Connect this agent to a channel such as WhatsApp or Telegram"
+                        title="Connect this agent to a chat channel or event source that will call it"
                         animationDelay={animateUsages ? addTileRow * 70 : undefined}
                         onClick={onAddTriggerClick}
                     />

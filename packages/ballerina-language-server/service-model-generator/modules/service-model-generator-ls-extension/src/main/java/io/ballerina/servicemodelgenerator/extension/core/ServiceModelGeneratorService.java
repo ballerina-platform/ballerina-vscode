@@ -1264,7 +1264,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         // so a deterministic hash of moduleName is a safe, stable substitute.
         int id = model.moduleName().hashCode();
         return new TriggerBasicInfo(id, label, model.orgName(), model.packageName(), model.moduleName(),
-                model.version(), model.kind(), label, "", protocol, icon);
+                model.version(), model.kind(), label, "", protocol, icon,
+                AgentTriggerChannels.kindOf(model.moduleName(), model.kind()));
     }
 
     /** The legacy sqlite-index lookup (seeded from {@code service_artifacts.json}), reached only when
@@ -1312,7 +1313,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 .map(original -> new TriggerBasicInfo(original.id(), triggerProperty.triggerName(), original.orgName(),
                         original.packageName(), original.moduleName(), original.version(), original.type(),
                         original.displayName(), original.documentation(), original.listenerProtocol(),
-                        original.icon()));
+                        original.icon(), original.agentTriggerKind()));
     }
 
     /** Builds {@link TriggerBasicInfo} straight from a self-describing {@link TriggerProperty} entry. */
@@ -1324,6 +1325,6 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 triggerProperty.version());
         return new TriggerBasicInfo(id, label, triggerProperty.orgName(), triggerProperty.packageName(),
                 triggerProperty.name(), triggerProperty.version(), triggerProperty.kind(), label, "",
-                protocol, icon, AgentTriggerChannels.kindOf(triggerProperty.name()));
+                protocol, icon, AgentTriggerChannels.kindOf(triggerProperty.name(), triggerProperty.kind()));
     }
 }

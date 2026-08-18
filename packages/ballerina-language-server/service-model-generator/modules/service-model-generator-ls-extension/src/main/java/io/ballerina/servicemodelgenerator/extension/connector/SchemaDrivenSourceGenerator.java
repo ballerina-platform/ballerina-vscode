@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.argName;
 import static io.ballerina.servicemodelgenerator.extension.connector.ValueTreeUtils.fieldName;
@@ -242,6 +243,10 @@ public final class SchemaDrivenSourceGenerator {
      * Fields are grouped by annotation identity ({@code moduleName}/{@code originalName}) and merged
      * into one {@code @module:Name {...}} attachment.
      */
+    public static List<String> buildServiceAnnotations(ServiceInitModel filledInitForm, String emitAlias) {
+        return buildServiceAnnotations(filledInitForm, getProtocol(filledInitForm.getModuleName()), emitAlias);
+    }
+
     private static List<String> buildServiceAnnotations(ServiceInitModel filledInitForm, String selfPrefix,
                                                         String emitAlias) {
         Map<String, AnnotationFields> byAnnotation = new LinkedHashMap<>();
@@ -617,14 +622,23 @@ public final class SchemaDrivenSourceGenerator {
         };
     }
 
-    private static String buildParameterList(TriggerUISchemaModel.FunctionModel function, String selfPrefix,
-                                             String emitAlias) {
+    public record HandlerParameter(String type, String name, boolean carries) {
+    }
+
+    public static List<HandlerParameter> emittedParameters(TriggerUISchemaModel.FunctionModel function,
+                                                           String moduleName, String emitAlias) {
+        return composeParameters(function, getProtocol(moduleName), emitAlias);
+    }
+
+    private static List<HandlerParameter> composeParameters(TriggerUISchemaModel.FunctionModel function,
+                                                            String selfPrefix, String emitAlias) {
         if (function.parameters() == null) {
-            return "";
+            return List.of();
         }
-        List<String> params = new ArrayList<>();
+        List<HandlerParameter> params = new ArrayList<>();
         for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
-            if (FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()))) {
+            boolean flag = FIELD_TYPE_FLAG.equals(PayloadComposer.selectedFieldType(parameter.type()));
+            if (flag) {
                 if (!isFlagOn(parameter)) {
                     continue;
                 }
@@ -634,10 +648,17 @@ public final class SchemaDrivenSourceGenerator {
             String type = rewritePrefix(PayloadComposer.effectiveType(parameter.type()), selfPrefix, emitAlias);
             String name = paramName(parameter);
             if (!type.isEmpty() && !name.isEmpty()) {
-                params.add(type + SPACE + name);
+                params.add(new HandlerParameter(type, name, !flag));
             }
         }
-        return String.join(", ", params);
+        return params;
+    }
+
+    private static String buildParameterList(TriggerUISchemaModel.FunctionModel function, String selfPrefix,
+                                             String emitAlias) {
+        return composeParameters(function, selfPrefix, emitAlias).stream()
+                .map(parameter -> parameter.type() + SPACE + parameter.name())
+                .collect(Collectors.joining(", "));
     }
 
     private static boolean isFlagOn(TriggerUISchemaModel.Parameter parameter) {

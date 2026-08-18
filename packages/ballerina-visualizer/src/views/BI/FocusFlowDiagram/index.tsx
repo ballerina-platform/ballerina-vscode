@@ -332,7 +332,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             message: `Delete the ${usage.typeLabel ?? "trigger"} ${trigger.serviceName}?`,
             detail: listenerNames.length > 0
                 ? `Its listener ${listenerNames.join(", ")} will be removed too — nothing else uses it.`
-                : "Its reply client and reply logic go with it.",
+                : "The service owns everything it needs to call the agent, so that goes with it.",
             items: ["Delete"],
         });
         if (confirmed !== "Delete") {

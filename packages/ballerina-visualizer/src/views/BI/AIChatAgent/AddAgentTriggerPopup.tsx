@@ -18,7 +18,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { AgentTriggerKind, ServiceModel, TriggerModelsResponse, deriveBasePath } from '@wso2/ballerina-core';
-import { Codicon, Icon } from '@wso2/ui-toolkit';
+import { Codicon, Icon, SearchBox } from '@wso2/ui-toolkit';
 
 import { useVisualizerContext } from '../../../Context';
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from '../ComponentListView/styles';
@@ -26,6 +26,8 @@ import { BodyText } from '../../styles';
 import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getEntryNodeIcon } from '../ComponentListView/EventIntegrationPanel';
+import { cardMatchesSearch, isBetaModule } from '../ComponentListView/componentListUtils';
+import { useCentralTriggerSearch } from '../ComponentListView/useCentralTriggerSearch';
 import {
     BackButton,
     CloseButton,
@@ -59,6 +61,8 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
     },
 ];
 
+type CentralChannel = ServiceModel & { isLocalRepository?: boolean };
+
 const channelDefaults = (channel: ServiceModel, agentName: string) =>
     channel.moduleName === "ai" && agentName ? { basePath: deriveBasePath(agentName) } : undefined;
 
@@ -82,6 +86,8 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     const [isLoading, setIsLoading] = useState(cacheTriggers.local.length === 0);
     const [channel, setChannel] = useState<ServiceModel>(null);
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
+    const [query, setQuery] = useState("");
+    const central = useCentralTriggerSearch(query);
 
     const showChannel = (next: ServiceModel, to: PopupModalStepDirection) => {
         setDirection(to);
@@ -121,12 +127,24 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
             .map((section) => ({
                 ...section,
                 channels: (triggers.local ?? [])
-                    .filter((trigger) => trigger.agentTriggerKind === section.kind)
+                    .filter((trigger) => trigger.agentTriggerKind === section.kind
+                        && cardMatchesSearch(trigger.name, query, trigger.moduleName))
                     .sort((a, b) => a.name.localeCompare(b.name)),
             }))
             .filter((section) => section.channels.length > 0),
+        [triggers, query]
+    );
+
+    const installed = useMemo(
+        () => new Set((triggers.local ?? []).map((t) => `${t.orgName}/${t.packageName}`)),
         [triggers]
     );
+    const fromCentral = useMemo(
+        () => [...central.results, ...central.localRepositoryResults.map((t) => ({ ...t, isLocalRepository: true }))]
+            .filter((t) => !installed.has(`${t.orgName}/${t.packageName}`)),
+        [central.results, central.localRepositoryResults, installed]
+    );
+    const showCentral = central.enabled && query.trim().length > 0;
 
     return (
         <PopupModal onClose={onClose} expanded dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
@@ -160,6 +178,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                 packageName={channel.packageName}
                                 moduleName={channel.moduleName}
                                 version={channel.version}
+                                isLocalRepository={(channel as CentralChannel).isLocalRepository}
                                 agentName={agentName}
                                 agentOrgName={agentOrgName}
                                 defaultValues={channelDefaults(channel, agentName)}
@@ -167,8 +186,21 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                         ) : (
                             <>
                                 {isLoading && <RelativeLoader />}
-                                {!isLoading && sections.length === 0 && (
-                                    <BodyText>No channels are available in this project.</BodyText>
+                                {!isLoading && (
+                                    <SearchBox
+                                        value={query}
+                                        placeholder="Search channels"
+                                        iconPosition="end"
+                                        onChange={setQuery}
+                                        sx={{ width: "100%", marginBottom: "16px" }}
+                                    />
+                                )}
+                                {!isLoading && sections.length === 0 && !showCentral && (
+                                    <BodyText>
+                                        {query.trim()
+                                            ? `No channel matches "${query}".`
+                                            : "No channels are available in this project."}
+                                    </BodyText>
                                 )}
                                 {sections.map((section) => (
                                     <PanelViewMore key={section.kind}>
@@ -183,12 +215,42 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                                     key={option.id}
                                                     title={option.name}
                                                     icon={channelIcon(option)}
+                                                    isBeta={isBetaModule(option.moduleName)}
                                                     onClick={() => showChannel(option, "forward")}
                                                 />
                                             ))}
                                         </CardGrid>
                                     </PanelViewMore>
                                 ))}
+                                {showCentral && (
+                                    <PanelViewMore key="central">
+                                        <TitleWrapper>
+                                            <Title variant="h2">More on Ballerina Central</Title>
+                                            <BodyText>
+                                                Event sources published on Ballerina Central. The package is
+                                                pulled when you pick one.
+                                            </BodyText>
+                                        </TitleWrapper>
+                                        <CardGrid>
+                                            {central.searching && <RelativeLoader />}
+                                            {!central.searching && fromCentral.length === 0 && (
+                                                <BodyText>
+                                                    No matching integrations found on Ballerina Central.
+                                                </BodyText>
+                                            )}
+                                            {!central.searching && fromCentral.map((option) => (
+                                                <ButtonCard
+                                                    id={`agent-trigger-central-${option.moduleName.replace(/\./g, '-')}`}
+                                                    key={`central/${option.orgName}/${option.packageName}`}
+                                                    title={option.name}
+                                                    icon={channelIcon(option)}
+                                                    isBeta={isBetaModule(option.moduleName)}
+                                                    onClick={() => showChannel(option, "forward")}
+                                                />
+                                            ))}
+                                        </CardGrid>
+                                    </PanelViewMore>
+                                )}
                             </>
                         )}
                     </PopupContent>

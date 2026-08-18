@@ -18,6 +18,8 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -29,36 +31,39 @@ import java.util.Optional;
  */
 public final class AgentTriggerChannels {
 
-    private static final String GITHUB_MODULE = "trigger.github";
-    private static final String SHOPIFY_MODULE = "trigger.shopify";
-    private static final String HUBSPOT_MODULE = "trigger.hubspot";
-    private static final String SALESFORCE_MODULE = "salesforce";
-    private static final String TWILIO_MODULE = "trigger.twilio";
+    private static final String EVENT_TRIGGER_KIND = "event";
 
-    private static final Map<String, AgentTriggerChannel> BY_MODULE = new LinkedHashMap<>() {{
+    private static final Map<String, AgentTriggerChannel> BESPOKE = new LinkedHashMap<>() {{
             put(AiChatChannel.MODULE_NAME, new AiChatChannel());
             put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
             put(TelegramChannel.MODULE_NAME, new TelegramChannel());
             put(GoogleChatChannel.MODULE_NAME, new GoogleChatChannel());
-            put(GITHUB_MODULE, new EventAgentTriggerChannel(GITHUB_MODULE));
-            put(SHOPIFY_MODULE, new EventAgentTriggerChannel(SHOPIFY_MODULE));
-            put(HUBSPOT_MODULE, new EventAgentTriggerChannel(HUBSPOT_MODULE));
-            put(SALESFORCE_MODULE, new EventAgentTriggerChannel(SALESFORCE_MODULE));
-            put(TWILIO_MODULE, new EventAgentTriggerChannel(TWILIO_MODULE));
         }};
 
     private AgentTriggerChannels() {
     }
 
-    public static Optional<AgentTriggerChannel> forModule(String moduleName) {
-        return moduleName == null ? Optional.empty() : Optional.ofNullable(BY_MODULE.get(moduleName));
+    public static Optional<AgentTriggerChannel> forModule(String orgName, String moduleName) {
+        return forModule(orgName, moduleName, null, false);
     }
 
-    public static boolean supports(String moduleName) {
-        return forModule(moduleName).isPresent();
+    public static Optional<AgentTriggerChannel> forModule(String orgName, String moduleName, String version,
+                                                          boolean isLocalRepository) {
+        AgentTriggerChannel bespoke = moduleName == null ? null : BESPOKE.get(moduleName);
+        if (bespoke != null) {
+            return Optional.of(bespoke);
+        }
+        return TriggerModelReader.getInstance()
+                .getSchemaDrivenTriggerModel(orgName, moduleName, version, isLocalRepository)
+                .filter(model -> EVENT_TRIGGER_KIND.equals(model.kind()))
+                .map(model -> new EventAgentTriggerChannel(moduleName));
     }
 
-    public static String kindOf(String moduleName) {
-        return forModule(moduleName).map(channel -> channel.kind().name()).orElse(null);
+    public static String kindOf(String moduleName, String triggerKind) {
+        AgentTriggerChannel bespoke = moduleName == null ? null : BESPOKE.get(moduleName);
+        if (bespoke != null) {
+            return bespoke.kind().name();
+        }
+        return EVENT_TRIGGER_KIND.equals(triggerKind) ? AgentTriggerKind.EVENT.name() : null;
     }
 }
