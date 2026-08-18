@@ -36,8 +36,8 @@ let createLanding: string | undefined;
  *
  * The project explorer issues its own Open Overview once its tree finishes loading, which can
  * be after a create has landed, and would replace the new integration with the workspace
- * overview. Claim AFTER navigating: {@link resolveCreateLandingOverride} consumes the claim on
- * the next navigation, and the landing must not consume its own.
+ * overview. Claim AFTER navigating: {@link resolveCreateLandingOverride} spends the claim on the
+ * next workspace-overview navigation, and the landing must not spend its own.
  */
 export function claimCreateLanding(projectPath: string): void {
     createLanding = projectPath;
@@ -61,8 +61,15 @@ export function releaseCreateLanding(): void {
  * nothing. A navigation naming some other view is the user moving on, and releases the claim so
  * it cannot affect a workspace overview they ask for later.
  */
-export function resolveCreateLandingOverride(viewLocation: VisualizerLocation): VisualizerLocation | undefined {
-    if (!createLanding) {
+export function resolveCreateLandingOverride(
+    viewLocation: VisualizerLocation,
+    deliverable: boolean
+): VisualizerLocation | undefined {
+    // `OPEN_VIEW` is handled only in `extensionReady` and `viewActive.viewReady`, so a navigation
+    // sent mid-load is dropped. Spending the claim on one that never happens would leave the next
+    // workspace overview unopposed, so a navigation that will not be delivered is not an event
+    // this claim has any business reacting to.
+    if (!createLanding || !deliverable) {
         return undefined;
     }
     if (viewLocation.view === MACHINE_VIEW.WorkspaceOverview) {
@@ -70,7 +77,14 @@ export function resolveCreateLandingOverride(viewLocation: VisualizerLocation): 
         createLanding = undefined;
         return { view: MACHINE_VIEW.PackageOverview, projectPath: claimed };
     }
-    if (viewLocation.view && viewLocation.view !== MACHINE_VIEW.PackageOverview) {
+    // Only the claimed package's own overview leaves the claim standing. Any other view — including
+    // a different package's overview, reachable from the config generator, Try It, the doc command
+    // and the BI diagram manager — is the user somewhere else, and must not leave a claim behind to
+    // redirect them back here.
+    const staysOnClaimedPackage =
+        viewLocation.view === MACHINE_VIEW.PackageOverview &&
+        (!viewLocation.projectPath || isSamePath(viewLocation.projectPath, createLanding));
+    if (viewLocation.view && !staysOnClaimedPackage) {
         createLanding = undefined;
     }
     return undefined;

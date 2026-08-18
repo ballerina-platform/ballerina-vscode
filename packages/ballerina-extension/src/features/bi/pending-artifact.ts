@@ -28,7 +28,7 @@ import {
     MACHINE_VIEW,
     PendingIntegrationArtifactPayload,
 } from "@wso2/ballerina-core";
-import { openView, StateMachine } from "../../stateMachine";
+import { openView, StateMachine, whenNavigationDeliverable } from "../../stateMachine";
 import { claimCreateLanding } from "../../utils/state-machine-utils";
 import { ServiceDesignerRpcManager } from "../../rpc-managers/service-designer/rpc-manager";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
@@ -105,7 +105,14 @@ export async function schedulePendingIntegration(schedule: PendingIntegrationSch
  * function's own `alreadyViewingAddedPackage` check. A claim planted there would be one nothing
  * ever spends, and the project explorer's Show Overview would walk into it.
  */
-function landOnNewIntegrationAfterReload(projectRoot: string): void {
+async function landOnNewIntegrationAfterReload(projectRoot: string): Promise<void> {
+    // Awaited because the machine handles `OPEN_VIEW` only in `extensionReady` and
+    // `viewActive.viewReady`. Generation is asynchronous, so by the time it returns the machine may
+    // be mid-load, where the landing would be dropped without trace and the window would silently
+    // stay wherever startup left it. The deleted `extensionReady` guard used to make delivery
+    // certain as a side effect of when it allowed the landing at all; this replaces that half of
+    // its job, `claimedView` having replaced the other.
+    await whenNavigationDeliverable();
     openPackageOverview(projectRoot);
     claimCreateLanding(projectRoot);
 }
@@ -151,14 +158,14 @@ export async function checkAndRunPendingArtifact(): Promise<void> {
         // An empty integration has no payload: there is nothing to generate, only
         // the landing view below to open.
         if (!payload) {
-            landOnNewIntegrationAfterReload(stored.projectRoot);
+            await landOnNewIntegrationAfterReload(stored.projectRoot);
             return;
         }
 
         const label = ARTIFACT_KIND_LABELS[payload.kind];
         if (!label || payload.version !== 1) {
             console.error(`[IntegrationWizard] Unsupported pending artifact payload:`, payload);
-            landOnNewIntegrationAfterReload(stored.projectRoot);
+            await landOnNewIntegrationAfterReload(stored.projectRoot);
             return;
         }
 
@@ -184,7 +191,7 @@ export async function checkAndRunPendingArtifact(): Promise<void> {
         // because something had already navigated is what left the window on the workspace
         // overview — a create is the last word on where a create ends up.
         if (!claimedView) {
-            landOnNewIntegrationAfterReload(stored.projectRoot);
+            await landOnNewIntegrationAfterReload(stored.projectRoot);
         }
     } catch (error) {
         console.error("[IntegrationWizard] Unexpected error while checking pending artifact:", error);
