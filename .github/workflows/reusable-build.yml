@@ -87,18 +87,17 @@ jobs:
           fetch-depth: 2
           submodules: recursive
 
+      # Skipped for release builds: they ship the whole branch, so there is no
+      # meaningful baseline to diff against, and fetching one pulled in the
+      # submodule commits main references — which fails once any is unreachable.
       - name: Analyze diff
+        if: ${{ !inputs.isReleaseBuild }}
         shell: bash
         id: diff
         run: |
           echo "hasBalDiff=false" >> $GITHUB_OUTPUT
 
-          if [[ ${{ inputs.isReleaseBuild }} = 'true' ]]; then
-            git fetch origin main
-            CHANGED_DIRS=$(git diff --name-only HEAD..refs/remotes/origin/main | grep -E "^/*" || true)
-          else
-            CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
-          fi
+          CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
 
           echo "$CHANGED_DIRS"
 
@@ -110,6 +109,7 @@ jobs:
           fi
 
       - name: Set test matrix
+        if: ${{ !inputs.isReleaseBuild }}
         shell: bash
         id: testMatrix
         run: |
@@ -155,7 +155,7 @@ jobs:
     needs: Build_Stage
     if: false
     # Re-enable once unit tests are stable in CI:
-    # if: ${{ inputs.runTests || (inputs.isReleaseBuild && inputs.ballerina) || needs.Build_Stage.outputs.runBalExtTests == 'true' || endsWith(github.base_ref, '.x') }}
+    # if: ${{ inputs.runTests || endsWith(github.base_ref, '.x') }}
     timeout-minutes: 45
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
     steps:
