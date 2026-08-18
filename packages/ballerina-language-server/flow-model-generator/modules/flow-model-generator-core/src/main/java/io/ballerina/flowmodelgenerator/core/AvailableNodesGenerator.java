@@ -18,6 +18,8 @@
 
 package io.ballerina.flowmodelgenerator.core;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -108,6 +110,18 @@ public class AvailableNodesGenerator {
     private static final String BALLERINAX = "ballerinax";
     private static final String TEST_MODULE_PREFIX = "test";
     private static final String TEST_CONFIG_ANNOTATION = "Config";
+
+    /**
+     * Which workflow artifacts each package declares, keyed by the package instance.
+     *
+     * <p>Weak keys make Caffeine compare by identity, which is what gives this its invalidation:
+     * every edit rebuilds the package ({@code Package.Modifier} hands the project a new instance),
+     * so a changed source is always a new key and the scan reruns. A superseded package is only
+     * held here weakly, so it is collected with the entry rather than kept alive by it. The size
+     * bound is a backstop for the handful of packages a session has open at once.
+     */
+    private static final Cache<Package, WorkflowArtifacts> WORKFLOW_ARTIFACTS_CACHE =
+            Caffeine.newBuilder().weakKeys().maximumSize(16).build();
 
     public AvailableNodesGenerator(SemanticModel semanticModel, Document document, Package pkg, Path filePath) {
         this.rootBuilder = new Category.Builder(null).name(Category.Name.ROOT);
@@ -449,28 +463,45 @@ public class AvailableNodesGenerator {
      * Whether the package declares workflow functions and durable agents, scanned across every
      * module rather than the default one alone — a multi-module package whose workflows live
      * outside the default module would otherwise lose the whole Workflow category. Both answers
-     * come from one pass, memoized for the lifetime of this generator (one palette open).
+     * come from one pass, memoized on this generator and, behind it, on the package itself.
+     *
+     * <p>The scan walks every module symbol, so its cost grows with the package. That is fine
+     * once per package version and wasteful once per palette open, which is what a
+     * generator-lifetime memo alone would give — a generator is built fresh for every request.
+     * {@link #WORKFLOW_ARTIFACTS_CACHE} carries the answer across opens instead, for as long as
+     * the package it was computed from is the current one.
      *
      * @return the artifacts the package declares
      */
     private WorkflowArtifacts workflowArtifacts() {
-        if (this.workflowArtifacts != null) {
-            return this.workflowArtifacts;
+        if (this.workflowArtifacts == null) {
+            this.workflowArtifacts =
+                    WORKFLOW_ARTIFACTS_CACHE.get(this.pkg, AvailableNodesGenerator::scanWorkflowArtifacts);
         }
+        return this.workflowArtifacts;
+    }
+
+    /**
+     * Scans every module of the package for a {@code @workflow:Workflow} function and a
+     * module-level {@code workflow:DurableAgent}, resolving both against the semantic model so an
+     * aliased import prefix cannot change the answer.
+     *
+     * @param pkg the package to scan
+     * @return the artifacts the package declares
+     */
+    private static WorkflowArtifacts scanWorkflowArtifacts(Package pkg) {
         boolean hasWorkflows = false;
         boolean hasDurableAgents = false;
-        for (Module module : this.pkg.modules()) {
+        for (Module module : pkg.modules()) {
             for (Symbol symbol : module.getCompilation().getSemanticModel().moduleSymbols()) {
                 hasWorkflows = hasWorkflows || WorkflowUtil.isWorkflowFunction(symbol);
                 hasDurableAgents = hasDurableAgents || WorkflowUtil.isDurableAgentVariable(symbol);
                 if (hasWorkflows && hasDurableAgents) {
-                    this.workflowArtifacts = new WorkflowArtifacts(true, true);
-                    return this.workflowArtifacts;
+                    return new WorkflowArtifacts(true, true);
                 }
             }
         }
-        this.workflowArtifacts = new WorkflowArtifacts(hasWorkflows, hasDurableAgents);
-        return this.workflowArtifacts;
+        return new WorkflowArtifacts(hasWorkflows, hasDurableAgents);
     }
 
     private List<Item> getAiNodes(boolean disableBallerinaAiNodes) {

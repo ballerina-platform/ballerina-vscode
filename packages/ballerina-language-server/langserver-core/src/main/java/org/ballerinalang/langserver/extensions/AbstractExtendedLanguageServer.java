@@ -22,9 +22,10 @@ import org.ballerinalang.langserver.LSClientLogger;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.service.spi.ExtendedLanguageServerService;
+import org.ballerinalang.langserver.commons.workspace.UnifiedWorkspaceManagerProxy;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
-import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManagerProxy;
-import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManagerProxyImpl;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceManagerProxy;
+import org.ballerinalang.langserver.workspace.WorkspaceManagerFacadeFactory;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod;
@@ -50,10 +51,12 @@ public abstract class AbstractExtendedLanguageServer implements LanguageServer, 
     private Map<String, JsonRpcMethod> supportedMethods;
     private final Multimap<String, Endpoint> extensionServices = LinkedListMultimap.create();
     protected final LanguageServerContext serverContext;
-    protected BallerinaWorkspaceManagerProxy workspaceManagerProxy;
+    protected WorkspaceManager workspaceManager;
+    private WorkspaceManagerProxy workspaceManagerProxy;
 
     public AbstractExtendedLanguageServer(LanguageServerContext serverContext) {
-        this.workspaceManagerProxy = new BallerinaWorkspaceManagerProxyImpl(serverContext);
+        this.workspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
+        this.workspaceManagerProxy = new UnifiedWorkspaceManagerProxy(this.workspaceManager);
         this.serverContext = serverContext;
         ServiceLoader<ExtendedLanguageServerService> serviceLoader = ServiceLoader.load(
                 ExtendedLanguageServerService.class);
@@ -125,7 +128,11 @@ public abstract class AbstractExtendedLanguageServer implements LanguageServer, 
     }
 
     public WorkspaceManager getWorkspaceManager() {
-        return this.workspaceManagerProxy.get();
+        return this.workspaceManager;
+    }
+
+    protected WorkspaceManagerProxy getWorkspaceManagerProxy() {
+        return this.workspaceManagerProxy;
     }
 
     public LanguageServerContext getServerContext() {

@@ -111,8 +111,10 @@ import static io.ballerina.runtime.api.constants.RuntimeConstants.MODULE_INIT_CL
 /**
  * Contains a set of utility methods to manage projects.
  *
+ * @deprecated As of 1.7.0, use the unified workspace manager facade instead.
  * @since 1.0.0
  */
+@Deprecated(since = "1.7.0", forRemoval = true)
 public class BallerinaWorkspaceManager implements WorkspaceManager {
 
     // workspace run related constants

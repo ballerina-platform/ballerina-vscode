@@ -19,9 +19,13 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
 import {
+    AvailableNode,
+    BISearchRequest,
+    Category,
     DIRECTORY_MAP,
     FlowNode,
     FunctionModel,
+    LinePosition,
     LineRange,
     NodeProperties,
     Property,
@@ -36,6 +40,13 @@ import { RelativeLoader } from "../../../components/RelativeLoader";
 import { convertConfig, convertNodePropertyToFormField, getImportsForProperty } from "../../../utils/bi";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentToolHostClass, fetchOAuthConfigProperties } from "./utils";
+import {
+    buildApprovalToolData,
+    buildRequiresApprovalField,
+    collectLocalFunctionNames,
+    createRequiresApprovalField,
+    ExistingApprovalConfig,
+} from "./formUtils";
 import {
     convertParameterToParamValue,
     convertSchemaToFormFields,
@@ -173,6 +184,66 @@ function toAuthSource(key: string, value: unknown, isExpression: boolean): strin
     return JSON.stringify(text);
 }
 
+// Parse an existing `requiresApproval: <boolean|identifier>` field out of an @ai:AgentTool
+// annotation, to prefill the "Requires Approval" control when editing a custom tool that already
+// has the gate set.
+function parseRequiresApproval(annotationValue: string): ExistingApprovalConfig | undefined {
+    const match = /\brequiresApproval\b\s*:\s*([^,}]+)/.exec(annotationValue);
+    if (!match) return undefined;
+    const raw = match[1].trim();
+    if (raw === "true") return {};
+    if (raw === "false") return undefined;
+    return { functionName: raw };
+}
+
+// Ensure the function the tool currently references is always a selectable candidate, even if the
+// module-function fetch didn't surface it. Edit forms use a strict (no-create) picker, so without
+// this a referenced-but-unlisted function would be silently dropped on save.
+function withExistingCandidate(candidates: string[], existing?: ExistingApprovalConfig): string[] {
+    const name = existing?.functionName;
+    return name && !candidates.includes(name) ? [...candidates, name] : candidates;
+}
+
+// Insert, replace, or remove a scalar `key: value` field (no nested braces, unlike auth's record
+// value) inside an @ai:AgentTool annotation string. Mirrors the auth block's matchBraced-based
+// upsert in spirit, but auth's value is itself a `{ ... }` record while requiresApproval's value is
+// a bare boolean or identifier, so a brace-unaware match up to the next comma/close-brace suffices.
+function upsertScalarAnnotationField(annotationStr: string, key: string, source: string | undefined): string {
+    const match = new RegExp(`\\b${key}\\b\\s*:\\s*[^,}]+`).exec(annotationStr);
+    if (match) {
+        let s = match.index;
+        let e = match.index + match[0].length;
+        if (source) {
+            return annotationStr.slice(0, s) + `${key}: ${source}` + annotationStr.slice(e);
+        }
+        const lead = annotationStr.slice(0, s).match(/,\s*$/);
+        // `\s*` after the comma also swallows the removed field's now-blank line (its trailing
+        // newline + the next field's leading indentation), so removal doesn't leave an empty line.
+        const trail = annotationStr.slice(e).match(/^\s*,\s*/);
+        if (lead) s -= lead[0].length;
+        else if (trail) e += trail[0].length;
+        return (annotationStr.slice(0, s) + annotationStr.slice(e))
+            .replace(/@ai:AgentTool\s*\{\s*\}/, "@ai:AgentTool");
+    }
+    if (!source) {
+        return annotationStr;
+    }
+    if (annotationStr.match(/@ai:AgentTool\s*\{/)) {
+        return annotationStr.replace(/@ai:AgentTool\s*\{/, `@ai:AgentTool {\n    ${key}: ${source},`);
+    }
+    return annotationStr.replace(/@ai:AgentTool/, `@ai:AgentTool {\n    ${key}: ${source}\n}`);
+}
+
+// Compute the `requiresApproval` annotation-value source from the form's checkbox + picker state,
+// or undefined when the gate is off (signalling removal to upsertScalarAnnotationField / callers
+// that build the annotation from scratch).
+function resolveApprovalSource(data: FormValues): string | undefined {
+    const checked = data["requiresApproval"] === true || data["requiresApproval"] === "true";
+    if (!checked) return undefined;
+    const approvalFn = typeof data["approvalFunction"] === "string" ? data["approvalFunction"].trim() : "";
+    return approvalFn || "true";
+}
+
 function findAgentToolAnnotation(model: FunctionModel): { key: string; value: string } | undefined {
     const props = (model?.properties ?? {}) as Record<string, any>;
     for (const [key, prop] of Object.entries(props)) {
@@ -194,9 +265,45 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     const oauthPropertiesRef = useRef<{ key: string; property: Property }[]>([]);
+    // Names of existing module functions offered in the approval-predicate picker. Only consulted
+    // on tool creation (see handleSubmit) to decide whether a free-typed name should scaffold a new
+    // predicate stub; edits reference the typed name as-is (see the module doc comment on
+    // upsertScalarAnnotationField's callers) since annotation-string surgery has no code-gen path.
+    const compatibleApprovalFunctionsRef = useRef<string[]>([]);
 
     const isEdit = Boolean(editContext);
     const isClassEdit = Boolean(editContext?.inClass);
+
+    // Fetch the project's own module-level functions (excluding the tool's own function, when
+    // editing one) as approval-predicate candidates. Shared shape with the function/connection
+    // tool-creation forms; see formUtils.collectLocalFunctionNames for the filtering rules.
+    // Returns `null` (rather than `[]`) when the fetch itself fails, distinguishing "search failed"
+    // from "no eligible functions" — see formUtils.buildRequiresApprovalField for why the create
+    // flow (below) needs that distinction. The edit flows fold `null` back to `[]` immediately since
+    // their strict pick-list (allowCreate=false) plus prefilled existing value is already safe either
+    // way: there's no free-typed "create a new predicate" path for a fetch failure to corrupt.
+    const fetchCompatibleApprovalFunctions = async (
+        position: LinePosition, excludeName?: string
+    ): Promise<string[] | null> => {
+        try {
+            const request: BISearchRequest = {
+                position: { startLine: position, endLine: position },
+                filePath,
+                queryMap: undefined,
+                searchKind: "FUNCTION",
+            };
+            const response = await rpcClient.getBIDiagramRpcClient().search(request);
+            const names = new Set<string>();
+            collectLocalFunctionNames((response?.categories ?? []) as (Category | AvailableNode)[], names);
+            if (excludeName) {
+                names.delete(excludeName);
+            }
+            return Array.from(names);
+        } catch (error) {
+            console.error(">>> Error fetching compatible approval functions", error);
+            return null;
+        }
+    };
 
     const applyToolFieldDocs = (field: FormField) => {
         if (field.key === "functionName") {
@@ -326,13 +433,14 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     ?? targetLineRange?.startLine ?? { line: 0, offset: 0 };
 
                 if (editContext && !editContext.inClass) {
-                    const [res, oauthProperties] = await Promise.all([
+                    const [res, oauthProperties, approvalCandidates] = await Promise.all([
                         rpcClient.getBIDiagramRpcClient().getFunctionNode({
                             functionName: editContext.functionName,
                             fileName,
                             projectPath,
                         }),
                         fetchOAuthConfigProperties(rpcClient, filePath, oauthStartLine),
+                        fetchCompatibleApprovalFunctions(oauthStartLine, editContext.functionName),
                     ]);
                     if (cancelled) return;
                     const node = res.functionDefinition as FlowNode;
@@ -352,34 +460,60 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                     });
 
                     oauthPropertiesRef.current = oauthProperties;
+                    const existingApproval = parseRequiresApproval(annotationValue);
+                    // A failed fetch folds to [] here (not the create flow's hide-the-picker
+                    // fallback): allowCreate=false plus the prefilled existing value below already
+                    // keep this safe — there's no free-typed "create a new predicate" path to corrupt.
+                    const approvalItems = withExistingCandidate(approvalCandidates ?? [], existingApproval);
+                    compatibleApprovalFunctionsRef.current = approvalItems;
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
+                    // Edit restricts the picker to existing functions (allowCreate=false): this path
+                    // rewrites the annotation source directly and never reaches AgentToolBuilder, so a
+                    // free-typed new name would leave `requiresApproval: <name>` with no such function.
+                    const requiresApprovalField = buildRequiresApprovalField(
+                        createRequiresApprovalField(existingApproval, false), approvalItems
+                    );
 
                     setToolNode(node);
-                    setFields([...baseFields, ...oauthFields]);
+                    setFields([...baseFields, requiresApprovalField, ...oauthFields]);
                     setRecordTypeFields(oauthRecordFields);
                     setFormRange(node.codedata?.lineRange as LineRange);
                     return;
                 }
 
                 if (editContext && editContext.inClass && editContext.lineRange) {
-                    const [modelResp, oauthProperties] = await Promise.all([
+                    const [modelResp, oauthProperties, approvalCandidates] = await Promise.all([
                         rpcClient.getServiceDesignerRpcClient().getFunctionFromSource({
                             filePath,
                             codedata: { lineRange: editContext.lineRange as any },
                         }),
                         fetchOAuthConfigProperties(rpcClient, filePath, oauthStartLine),
+                        fetchCompatibleApprovalFunctions(oauthStartLine),
                     ]);
                     if (cancelled) return;
                     const model = modelResp.function;
 
                     oauthPropertiesRef.current = oauthProperties;
                     const annotationValue = findAgentToolAnnotation(model)?.value ?? "";
+                    const existingApproval = parseRequiresApproval(annotationValue);
+                    // Same fold-to-[] rationale as the top-level edit branch above.
+                    const approvalItems = withExistingCandidate(
+                        (approvalCandidates ?? []).filter((name) => name !== String(model.name.value)),
+                        existingApproval
+                    );
+                    compatibleApprovalFunctionsRef.current = approvalItems;
                     const existingConfig = parseAuth(annotationValue, oauthProperties.map(({ key }) => key));
                     const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, existingConfig);
+                    // Edit restricts the picker to existing functions (allowCreate=false) — see the
+                    // top-level edit branch; the class-edit save likewise rebuilds annotation text
+                    // directly rather than going through AgentToolBuilder's predicate scaffolding.
+                    const requiresApprovalField = buildRequiresApprovalField(
+                        createRequiresApprovalField(existingApproval, false), approvalItems
+                    );
 
                     setFunctionModel(model);
-                    setFields([...buildClassToolFields(model), ...oauthFields]);
+                    setFields([...buildClassToolFields(model), requiresApprovalField, ...oauthFields]);
                     setRecordTypeFields(oauthRecordFields);
                     setFormRange(editContext.lineRange);
                     return;
@@ -387,13 +521,14 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
 
                 const insertionPosition = targetLineRange?.startLine
                     ?? await rpcClient.getBIDiagramRpcClient().getEndOfFile({ filePath });
-                const [templateResponse, oauthProperties] = await Promise.all([
+                const [templateResponse, oauthProperties, approvalCandidates] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                         position: insertionPosition,
                         filePath,
                         id: { node: "AGENT_TOOL" },
                     }),
                     fetchOAuthConfigProperties(rpcClient, filePath, oauthStartLine),
+                    fetchCompatibleApprovalFunctions(insertionPosition),
                 ]);
                 if (cancelled) return;
 
@@ -419,10 +554,15 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 baseFields.forEach(applyToolFieldDocs);
 
                 oauthPropertiesRef.current = oauthProperties;
+                compatibleApprovalFunctionsRef.current = approvalCandidates ?? [];
                 const { oauthFields, oauthRecordFields } = buildOAuthFields(oauthProperties, {});
+                // Unlike the edit branches above, this is a create flow (allowCreate=true): on a
+                // failed fetch, propagate null through so buildRequiresApprovalField falls back to
+                // the plain checkbox rather than offering a free-typed picker over an empty list.
+                const requiresApprovalField = buildRequiresApprovalField(createRequiresApprovalField(), approvalCandidates);
 
                 setToolNode(node);
-                setFields([...baseFields, ...oauthFields]);
+                setFields([...baseFields, requiresApprovalField, ...oauthFields]);
                 setRecordTypeFields(oauthRecordFields);
                 if (!targetLineRange && !cancelled) {
                     setFormRange({ startLine: insertionPosition, endLine: insertionPosition });
@@ -473,8 +613,16 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                         expressionKeys.add(key);
                     }
                 }
+                // Compose every annotation field the form knows about (auth, requiresApproval) rather
+                // than assuming auth is the only one — otherwise saving without touching the approval
+                // gate would silently drop it, since this rebuilds the annotation value from scratch.
+                const fragments: string[] = [];
                 const authFragment = buildAuthAnnotation(rawAuth, expressionKeys);
-                (updatedModel.properties as any)[annotation.key].value = authFragment ? `{\n    ${authFragment}\n}` : "";
+                if (authFragment) fragments.push(authFragment);
+                const approvalSource = resolveApprovalSource(data);
+                if (approvalSource) fragments.push(`requiresApproval: ${approvalSource}`);
+                (updatedModel.properties as any)[annotation.key].value = fragments.length > 0
+                    ? `{\n    ${fragments.join(",\n    ")}\n}` : "";
             }
 
             const lineRange = functionModel.codedata?.lineRange ?? editContext?.lineRange;
@@ -546,9 +694,14 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                 const source = toAuthSource(key, value, isExpression);
                 if (source) auth[key] = source;
             }
+            // Mirrors AIAgentSidePanel's function/connection tool-creation paths: rides along in
+            // codedata.data and is rendered into the @ai:AgentTool annotation by the language server
+            // (AgentToolBuilder.emitAnnotation / appendApprovalPredicate). Only consulted on create —
+            // isEdit rewrites the already-existing annotation text directly below instead.
             updatedNode.codedata.data = {
                 ...updatedNode.codedata.data,
                 ...(Object.keys(auth).length > 0 ? { auth: JSON.stringify(auth) } : {}),
+                ...buildApprovalToolData(data, compatibleApprovalFunctionsRef.current),
             };
 
             let response;
@@ -579,6 +732,13 @@ export function AgentToolForm(props: AgentToolFormProps): JSX.Element {
                                     `@ai:AgentTool {\n    ${configBlock}\n}`);
                             }
                         }
+                        // Edits reference an existing function only (the edit picker is a strict
+                        // pick-list — allowCreate=false), so no predicate scaffolding is needed: this
+                        // path rewrites already-generated source text directly and never reaches
+                        // AgentToolBuilder's codegen where a new predicate stub would be emitted.
+                        annotationStr = upsertScalarAnnotationField(
+                            annotationStr, "requiresApproval", resolveApprovalSource(data)
+                        );
                         properties.annotations.value = annotationStr.replace(/\s+$/, "\n");
                     }
                 }

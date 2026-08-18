@@ -178,7 +178,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot chat.` : undefined}
+                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Open the WSO2 Integration Intelligence chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -204,7 +204,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                     <>
                         <StatusText>{label}</StatusText>
                         <OpenHint>
-                            Open Copilot <Codicon name="arrow-right" />
+                            Open WSO2 Integration Intelligence <Codicon name="arrow-right" />
                         </OpenHint>
                     </>
                 ) : (
@@ -219,11 +219,11 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                                 }
                             }}
                             placeholder={placeholder}
-                            aria-label="Message WSO2 Integrator Copilot"
+                            aria-label="Message WSO2 Integration Intelligence"
                         />
                         <SendButton
-                            title="Send to WSO2 Integrator Copilot"
-                            aria-label="Send to WSO2 Integrator Copilot"
+                            title="Send to WSO2 Integration Intelligence"
+                            aria-label="Send to WSO2 Integration Intelligence"
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();

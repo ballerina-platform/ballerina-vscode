@@ -36,10 +36,8 @@ import java.util.concurrent.TimeUnit;
  * @since 1.0.0
  */
 public class Debouncer {
-
     // Time unit for the delay
     private static final TimeUnit TIME_UNIT = TimeUnit.MILLISECONDS;
-
     // Map to hold scheduled tasks
     private final ConcurrentHashMap<String, ScheduledTaskHolder<?>> delayedMap;
 
@@ -60,6 +58,8 @@ public class Debouncer {
         String key = request.getKey();
         CompletableFuture<T> promise = new CompletableFuture<>();
 
+        ScheduledTaskHolder<T> holder = new ScheduledTaskHolder<>(promise);
+
         // Schedule the task to run after the specified delay.
         Future<?> scheduledFuture = scheduler.schedule(() -> {
             try {
@@ -71,16 +71,15 @@ public class Debouncer {
                 if (promise.isCompletedExceptionally()) {
                     request.revertDocument();
                 }
-                delayedMap.remove(key);
+                delayedMap.remove(key, holder);
             }
         }, delay, TIME_UNIT);
+        holder.setFuture(scheduledFuture);
 
         // Replace any existing scheduled task with the new one.
         @SuppressWarnings("unchecked")
-        ScheduledTaskHolder<T> prev = (ScheduledTaskHolder<T>) delayedMap.put(key,
-                new ScheduledTaskHolder<>(promise, scheduledFuture));
-        if (prev != null) {
-            prev.future().cancel(true);
+        ScheduledTaskHolder<T> prev = (ScheduledTaskHolder<T>) delayedMap.put(key, holder);
+        if (prev != null && prev.cancelPending()) {
             prev.promise().completeExceptionally(new CancellationException("Debounced by a new request"));
         }
         return promise;
@@ -96,12 +95,32 @@ public class Debouncer {
     }
 
     /**
-     * Holder for scheduled task information.
+     * Mutable holder that lets a task remove only its own map entry while its Future is assigned after scheduling.
+     * It prevents a superseded task's cleanup from removing a newer pending task's entry from the map.
+     * Otherwise, the newer task cannot be cancelled and multiple tasks may run for the same key.
      *
-     * @param <T>     the type of result promised by the CompletableFuture.
-     * @param promise the CompletableFuture that will eventually complete with the result of the scheduled task.
-     * @param future  the Future representing the scheduled task, allowing for control over task execution.
+     * @param <T> the type of result promised by the CompletableFuture.
      */
-    private record ScheduledTaskHolder<T>(CompletableFuture<T> promise, Future<?> future) {
+    private static final class ScheduledTaskHolder<T> {
+
+        private final CompletableFuture<T> promise;
+        private volatile Future<?> future;
+
+        private ScheduledTaskHolder(CompletableFuture<T> promise) {
+            this.promise = promise;
+        }
+
+        private CompletableFuture<T> promise() {
+            return promise;
+        }
+
+        private void setFuture(Future<?> future) {
+            this.future = future;
+        }
+
+        private boolean cancelPending() {
+            Future<?> currentFuture = future;
+            return currentFuture != null && currentFuture.cancel(false);
+        }
     }
 }

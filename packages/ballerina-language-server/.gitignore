@@ -48,5 +48,18 @@ target/
 # macOS metadata files
 .DS_Store
 .claude
+.codex
+.opencode
 .tasks/
 CLAUDE.md
+
+# Rewrite specific stuff
+.agents
+architecture
+tasks
+licence_header.txt
+scripts
+AGENTS.md
+CLAUDE.md
+ARCHITECTURE.md
+.worktrees

@@ -25,12 +25,12 @@ import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.command.spi.LSCommandExecutor;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.config.LSClientConfigHolder;
 import org.ballerinalang.langserver.contexts.ContextBuilder;
 import org.ballerinalang.langserver.diagnostic.DiagnosticsHelper;
 import org.ballerinalang.langserver.exception.UserErrorException;
 import org.ballerinalang.langserver.telemetry.TelemetryUtil;
-import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManagerProxy;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -46,19 +46,18 @@ import java.util.concurrent.CompletableFuture;
  * Workspace service implementation for Ballerina.
  */
 public class BallerinaWorkspaceService implements WorkspaceService {
-
     private final BallerinaLanguageServer languageServer;
     private final LSClientConfigHolder configHolder;
     private LSClientCapabilities clientCapabilities;
-    private final BallerinaWorkspaceManagerProxy workspaceManagerProxy;
+    private final WorkspaceManager workspaceManager;
     private final LanguageServerContext serverContext;
     private final LSClientLogger clientLogger;
 
     BallerinaWorkspaceService(BallerinaLanguageServer languageServer,
-                              BallerinaWorkspaceManagerProxy workspaceManagerProxy,
+                              WorkspaceManager workspaceManager,
                               LanguageServerContext serverContext) {
         this.languageServer = languageServer;
-        this.workspaceManagerProxy = workspaceManagerProxy;
+        this.workspaceManager = workspaceManager;
         this.serverContext = serverContext;
         this.configHolder = LSClientConfigHolder.getInstance(this.serverContext);
         this.clientLogger = LSClientLogger.getInstance(this.serverContext);
@@ -84,13 +83,13 @@ public class BallerinaWorkspaceService implements WorkspaceService {
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
         try {
-            List<Path> paths = this.workspaceManagerProxy.get().didChangeWatched(params);
+            List<Path> paths = this.workspaceManager.didChangeWatched(params);
             LSClientCapabilities lsClientCapabilities = this.serverContext.get(LSClientCapabilities.class);
             // Don't publish diagnostics on lightweight mode
             if (!lsClientCapabilities.getInitializationOptions().isEnableLightWeightMode()) {
                 DidChangeWatchedFilesContext context =
                         ContextBuilder.buildDidChangeWatchedFilesContext(
-                                this.workspaceManagerProxy.get(),
+                                this.workspaceManager,
                                 this.serverContext);
                 DiagnosticsHelper diagnosticsHelper = DiagnosticsHelper.getInstance(this.serverContext);
                 // project roots are the reloaded project roots. Hence we re-publish the diagnostics.
@@ -110,7 +109,7 @@ public class BallerinaWorkspaceService implements WorkspaceService {
             List<CommandArgument> commandArguments = params.getArguments().stream()
                     .map(CommandArgument::from)
                     .toList();
-            ExecuteCommandContext context = ContextBuilder.buildExecuteCommandContext(this.workspaceManagerProxy.get(),
+            ExecuteCommandContext context = ContextBuilder.buildExecuteCommandContext(this.workspaceManager,
                     this.serverContext,
                     commandArguments,
                     this.clientCapabilities,

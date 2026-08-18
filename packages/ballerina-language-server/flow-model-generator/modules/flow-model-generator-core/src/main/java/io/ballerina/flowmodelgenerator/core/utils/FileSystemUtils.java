@@ -126,30 +126,32 @@ public class FileSystemUtils {
     /**
      * Creates a file at the specified path if it does not already exist in the workspace.
      * <p>
-     * This method first attempts to load the project containing the specified file. If the project loads successfully,
-     * it means the file already exists. If a ProjectException is thrown, it indicates the file does not exist, and the
-     * method creates it.
+     * This method checks the physical file first because workspace implementations may report a missing source file
+     * using different exception types while resolving the containing project.
      *
      * @param workspaceManager The workspace manager to use for project loading and file operations
      * @param filePath         The path where the file should be created if it doesn't exist
      * @throws RuntimeException If an error occurs during project loading or file creation
      */
     public static void createFileIfNotExists(WorkspaceManager workspaceManager, Path filePath) {
-        try {
-            workspaceManager.loadProject(filePath);
-        } catch (WorkspaceDocumentException | EventSyncException e) {
-            throw new RuntimeException(e);
-        } catch (ProjectException e) {
-            // Create a new file as it does not exist
+        if (!Files.exists(filePath)) {
             try {
                 Files.createFile(filePath);
                 CREATED_FILES.add(filePath);
                 FileEvent fileEvent = new FileEvent(filePath.toUri().toString(), FileChangeType.Created);
                 workspaceManager.didChangeWatched(filePath, fileEvent);
+                return;
             } catch (IOException | WorkspaceDocumentException fileCreationException) {
                 throw new RuntimeException("Error occurred while creating the file: " + filePath,
                         fileCreationException);
             }
+        }
+        try {
+            workspaceManager.loadProject(filePath);
+        } catch (WorkspaceDocumentException | EventSyncException e) {
+            throw new RuntimeException(e);
+        } catch (ProjectException e) {
+            throw new RuntimeException(e);
         }
     }
 

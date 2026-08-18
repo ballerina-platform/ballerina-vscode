@@ -604,19 +604,24 @@ export interface AgentToolHostClass {
 export function buildAgentToolNode(wrappedNode: FlowNode, toolName: string, description: string, connection: string,
     toolParameters?: ToolParameters, hostClass?: AgentToolHostClass, includeContext = false): FlowNode {
     const auth = wrappedNode.codedata.data?.auth;
+    const requiresApproval = wrappedNode.codedata.data?.requiresApproval;
+    const generateApprovalFunction = wrappedNode.codedata.data?.generateApprovalFunction;
     const data: AgentToolData = {
         node: wrappedNode,
         connection,
         description,
         includeContext,
         ...(typeof auth === "string" ? { auth } : {}),
+        ...(requiresApproval !== undefined ? { requiresApproval } : {}),
+        ...(generateApprovalFunction !== undefined ? { generateApprovalFunction } : {}),
         ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
     };
     return createAgentToolNode(toolName, data, toolParameters ? { parameters: toolParameters } : {});
 }
 
 export function buildAgentCallToolNode(toolName: string, agentVarName: string, includeContext: boolean,
-    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string): FlowNode {
+    description: string, hostClass?: AgentToolHostClass, agentReceiver?: string,
+    approvalData?: { requiresApproval?: string; generateApprovalFunction?: string }): FlowNode {
     const data: AgentToolData = {
         toolKind: "AGENT_CALL",
         agentVarName,
@@ -624,6 +629,7 @@ export function buildAgentCallToolNode(toolName: string, agentVarName: string, i
         description,
         ...(agentReceiver ? { agentReceiver } : {}),
         ...(hostClass ? { hostClassName: hostClass.className, filePath: hostClass.filePath } : {}),
+        ...(approvalData ?? {}),
     };
     return createAgentToolNode(toolName, data);
 }

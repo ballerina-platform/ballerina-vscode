@@ -7,35 +7,43 @@
  * (e.g. 5.14.0-SNAPSHOT). A nightly is unreleased work heading toward that version,
  * so it is published as:
  *
- *     major.(minor - 1).<minutes since 2020-01-01 UTC>    5.14.0-SNAPSHOT -> 5.13.3458370
+ *     major.(minor - 1).<YYMMDDHH, UTC>    5.14.0-SNAPSHOT -> 5.13.26080512
+ *                                          (Aug 5 2026, 12:00 UTC)
  *
  * The minor is decremented so a nightly sorts *above* every real release of the
- * previous line (5.13.4 < 5.13.3458370) and *below* the release main is heading
- * for (5.13.3458370 < 5.14.0). Publishing it as 5.14.x instead would make the
+ * previous line (5.13.4 < 5.13.26080512) and *below* the release main is heading
+ * for (5.13.26080512 < 5.14.0). Publishing it as 5.14.x instead would make the
  * nightly outrank the eventual 5.14.0 release, and VS Code would never update off
  * it. The timestamp lands in the patch position rather than being appended so the
  * result is a plain three-part version, with no leading-zero semver trap.
  *
- * WHY MINUTES-SINCE-EPOCH AND NOT A READABLE 'yymmddHHmm':
- * VS Code Marketplace version components are int32, max 2147483647. A yymmddHHmm
- * stamp is 2607291530 for this very date — over the limit — and every value the
- * scheme can produce from 2022 onward exceeds it, so 'vsce publish' would reject
- * every pre-release. Minutes since 2020-01-01 is 7 digits (~3.4M), three orders of
- * magnitude clear of the limit, still monotonic and still minute-granular. It stays
- * under int32 until the year 6099, which is long enough.
+ * WHY HOUR-GRANULAR AND NOT MINUTE-GRANULAR:
+ * VS Code Marketplace version components are int32, max 2147483647. A readable
+ * yymmddHHmm stamp (10 digits, e.g. 2608051230) exceeds that limit from 2022
+ * onward, so 'vsce publish' would reject every pre-release. Dropping minutes gives
+ * an 8-digit yymmddHH stamp (max ~99123123), comfortably under the int32 limit. The
+ * scheme's actual expiry is the year 2100, not int32: 'YY' wraps to "00" and the
+ * non-zero-leading-digit guard in deriveNightlyVersion() below rejects the resulting
+ * stamp outright rather than silently publishing a version that decodes wrong.
+ *
+ * The tradeoff: two builds cut within the same UTC hour collide on an identical
+ * patch number. In practice this is hit not by the once-a-day schedule but by a
+ * manual re-run after a transient failure — the second 'vsce publish' rejects the
+ * now-duplicate version and the job fails red with an error that doesn't obviously
+ * point back to this scheme. Recovery is to wait for the next UTC hour and re-run.
  *
  * Decode one with:
- *     node -e 'console.log(new Date(Date.UTC(2020,0,1) + <stamp>*60000).toISOString())'
+ *     node -e 'const s="<stamp>"; console.log(`20${s.slice(0,2)}-${s.slice(2,4)}-${s.slice(4,6)} ${s.slice(6,8)}:00 UTC`)'
  *
- * Pre-releases use this same derivation. The stamp is minute-granular, so a nightly
- * and a pre-release collide only if they are cut within the same minute.
+ * Pre-releases use this same derivation. The stamp is hour-granular, so a nightly
+ * and a pre-release collide only if they are cut within the same UTC hour.
  *
- * Usage: node common/scripts/nightly-version.js [--timestamp <minutes>]
+ * Usage: node common/scripts/nightly-version.js [--timestamp <YYMMDDHH>]
  *
  * Exit codes:
  * - 0: version printed on stdout
  * - 1: the extension version is not a 'major.minor.patch-SNAPSHOT' with a positive even minor,
- *      or the stamp is not a positive integer below int32
+ *      or the stamp is not exactly 8 decimal digits with a non-zero leading digit
  */
 
 const fs = require('fs');
@@ -44,35 +52,37 @@ const path = require('path');
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const SNAPSHOT_VERSION = /^(\d+)\.(\d+)\.\d+-SNAPSHOT$/;
 
-/** Version components must fit in a signed 32-bit int or the Marketplace rejects them. */
-const MAX_VERSION_COMPONENT = 2147483647;
-
-/** Epoch for the patch stamp. Fixed forever — moving it would renumber every nightly. */
-const STAMP_EPOCH_UTC = Date.UTC(2020, 0, 1);
-
 /**
- * Whole minutes since 2020-01-01 UTC. Mirrors the shell in updateVersion/action.yml,
- * which computes the same value from `date -u +%s` — the two must agree.
+ * YYMMDDHH, UTC. Mirrors the shell in updateVersion/action.yml, which computes the
+ * same value via `date -u +'%y%m%d%H'` — the two must agree.
  */
 function timestamp(now) {
-  return String(Math.floor((now.getTime() - STAMP_EPOCH_UTC) / 60000));
+  const pad = (n) => String(n).padStart(2, '0');
+  return (
+    pad(now.getUTCFullYear() % 100) +
+    pad(now.getUTCMonth() + 1) +
+    pad(now.getUTCDate()) +
+    pad(now.getUTCHours())
+  );
 }
 
 /**
  * Derive an odd-minor nightly version from the next even-minor release snapshot.
  */
 function deriveNightlyVersion(extensionVersion, stamp) {
-  if (typeof stamp !== 'string' || !/^(0|[1-9]\d*)$/.test(stamp)) {
+  // Exactly 8 digits, leading digit non-zero: a stamp is either the computed YYMMDDHH
+  // or a hand-typed '--timestamp' override, and a typo that is still a valid integer
+  // (an extra or dropped digit) would publish a version that outranks every genuine
+  // nightly, permanently, since Marketplace versions cannot be withdrawn. The
+  // non-zero leading digit is what makes the scheme expire in the year 2100 loudly:
+  // 'YY' wraps to "00" then, producing a stamp this regex rejects outright rather
+  // than one that silently decodes to the wrong date. An 8-digit stamp also maxes
+  // out at 99999999, always under the Marketplace's int32 version-component limit
+  // (2147483647), so no separate range check is needed.
+  if (typeof stamp !== 'string' || !/^[1-9]\d{7}$/.test(stamp)) {
     throw new Error(
-      `Invalid nightly timestamp "${stamp}": expected decimal digits ` +
-      `(minutes since 2020-01-01 UTC).`
-    );
-  }
-
-  if (Number(stamp) > MAX_VERSION_COMPONENT) {
-    throw new Error(
-      `Invalid nightly timestamp "${stamp}": exceeds the maximum version component ` +
-      `${MAX_VERSION_COMPONENT} (int32), which the VS Code Marketplace rejects.`
+      `Invalid nightly timestamp "${stamp}": expected exactly 8 decimal digits with a ` +
+      `non-zero leading digit (YYMMDDHH, UTC).`
     );
   }
 
@@ -82,7 +92,7 @@ function deriveNightlyVersion(extensionVersion, stamp) {
       `The extension package.json version is "${extensionVersion}", which is not a snapshot.\n` +
       `main must always carry the next release as 'major.minor.patch-SNAPSHOT' ` +
       `(e.g. 5.14.0-SNAPSHOT); the nightly version is derived from it as ` +
-      `major.(minor-1).<minutes since 2020-01-01 UTC>.`
+      `major.(minor-1).<YYMMDDHH, UTC>.`
     );
   }
 
@@ -134,4 +144,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { deriveNightlyVersion, timestamp, MAX_VERSION_COMPONENT };
+module.exports = { deriveNightlyVersion, timestamp };

@@ -317,7 +317,6 @@ import { debug, handlePullModuleProgress } from "../utils";
 import { CMP_LS_CLIENT_COMPLETIONS, CMP_LS_CLIENT_DIAGNOSTICS, getMessageObject, sendTelemetryEvent, TM_EVENT_LANG_CLIENT } from "../features/telemetry";
 import { DefinitionParams, InitializeParams, InitializeResult, Location, LocationLink, TextDocumentPositionParams } from 'vscode-languageserver-protocol';
 import { updateProjectArtifacts } from "../utils/project-artifacts";
-import { whenSourceUpdatesSettle } from "../utils/source-update-barrier";
 import { RPCLayer } from "../../src/RPCLayer";
 import { VisualizerWebview } from "../../src/views/visualizer/webview";
 
@@ -1192,13 +1191,6 @@ export class ExtendedLangClient extends LanguageClient implements ExtendedLangCl
     // <------------ BI APIS START --------------->
 
     async getFlowModel(params: BIFlowModelRequest): Promise<BIFlowModelResponse> {
-        // Callers turn this model's line ranges into positions they replay to the LS later — the
-        // diagram's "+" insertion targets above all — so the model must not be built from a file
-        // caught mid-write. `updateSourceCode` applies the LS text edits unformatted first and
-        // formats in a second document version; a read landing in between yields positions that
-        // no longer point where they did once the file is formatted. Gated here rather than per
-        // caller so every path (BI diagram, data mapper, anything added later) is covered.
-        await whenSourceUpdatesSettle();
         return this.sendRequest<BIFlowModelResponse>(EXTENDED_APIS.BI_FLOW_MODEL, params);
     }
 

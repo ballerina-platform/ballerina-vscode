@@ -35,7 +35,6 @@ import io.ballerina.projects.Project;
 import io.ballerina.projects.ProjectEnvironmentBuilder;
 import io.ballerina.projects.bala.BalaProject;
 import io.ballerina.projects.directory.BuildProject;
-import io.ballerina.projects.environment.PackageLockingMode;
 import io.ballerina.projects.environment.PackageMetadataResponse;
 import io.ballerina.projects.environment.PackageResolver;
 import io.ballerina.projects.environment.ResolutionOptions;
@@ -44,7 +43,9 @@ import io.ballerina.projects.environment.ResolutionResponse;
 import io.ballerina.projects.repos.TempDirCompilationCache;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.LSClientLogger;
+import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
+import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -58,10 +59,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Utility class that contains methods to perform package-related operations.
@@ -72,13 +70,6 @@ public class PackageUtil {
 
     private static final String BALLERINA_HOME_PROPERTY = "ballerina.home";
 
-    // Test-only switch (set by the Gradle test tasks via -Dls.test.offline=true). When
-    // enabled, package resolution never contacts Ballerina Central: packages resolve
-    // only from the local repositories the build pre-populates, "latest version"
-    // lookups use the cached version instead of the remote one, and versions that are
-    // not cached fail visibly. Absent in production, so production stays online.
-    private static final boolean FORCE_OFFLINE = Boolean.getBoolean("ls.test.offline");
-
     /**
      * Whether resolution is forced offline (test runs). When true, callers must avoid contacting Ballerina Central
      * (e.g. live catalog/keyword lookups) so behaviour is deterministic and reproducible from the build-owned home.
@@ -86,24 +77,12 @@ public class PackageUtil {
      * @return {@code true} if offline resolution is forced; {@code false} in production.
      */
     public static boolean isOffline() {
-        return FORCE_OFFLINE;
+        return CommonUtil.TEST_OFFLINE;
     }
 
-    /**
-     * Build options for loading a resolved bala, branched by mode:
-     * <ul>
-     *   <li><b>Tests</b> ({@code FORCE_OFFLINE}): resolve offline with SOFT locking, so a bala's baked transitive
-     *       versions re-resolve to the locked/available versions in the cache instead of demanding the exact baked
-     *       version (which is often not provisioned).</li>
-     *   <li><b>Production</b>: replicate the original two-argument {@code BalaProject.loadProject} behaviour
-     *       ({@code sticky = true}), so production is unchanged.</li>
-     * </ul>
-     */
+    // Owned by BallerinaCompilerApi so this stays loadable on distributions that predate PackageLockingMode.
     private static BuildOptions balaBuildOptions() {
-        if (FORCE_OFFLINE) {
-            return BuildOptions.builder().setOffline(true).setLockingMode(PackageLockingMode.SOFT).build();
-        }
-        return BuildOptions.builder().setSticky(true).build();
+        return BallerinaCompilerApi.getInstance().getBalaBuildOptions(CommonUtil.TEST_OFFLINE);
     }
 
     private static final BuildProject SAMPLE_PROJECT = getSampleProject();
@@ -112,10 +91,7 @@ public class PackageUtil {
     private static final String MODULE_PULLING_FAILED_MESSAGE = "Failed to pull the module: %s";
     private static final String MODULE_PULLING_SUCCESS_MESSAGE = "Successfully pulled the module: %s";
 
-    // Concurrent map to store locks for each project
-    private static final ConcurrentHashMap<Path, ReentrantLock> PROJECT_LOCKS = new ConcurrentHashMap<>();
-
-    /**
+/**
      * Resolves the version of a package available in the local repositories (offline),
      * i.e. the version the build has provisioned. Returns null if not cached.
      */
@@ -136,6 +112,7 @@ public class PackageUtil {
         }
         return null;
     }
+
 
     public static BuildProject getSampleProject() {
         // Obtain the Ballerina distribution path
@@ -233,7 +210,7 @@ public class PackageUtil {
         PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
 
         Optional<ResolutionResponse> resolutionResponse =
-                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), false);
+                resolveResponse(packageResolver, ResolutionRequest.from(packageDescriptor), CommonUtil.TEST_OFFLINE);
         if (resolutionResponse.isEmpty()) {
             return Optional.empty();
         }
@@ -274,7 +251,7 @@ public class PackageUtil {
         PackageDescriptor packageDescriptor;
         if (pkgMetadata.isEmpty() ||
                 pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
-            if (FORCE_OFFLINE) {
+            if (CommonUtil.TEST_OFFLINE) {
                 // Not in the local repositories and network fallback is disabled.
                 return Optional.empty();
             }
@@ -289,7 +266,7 @@ public class PackageUtil {
 
         Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
                 Collections.singletonList(ResolutionRequest.from(packageDescriptor)),
-                ResolutionOptions.builder().setOffline(FORCE_OFFLINE).build());
+                ResolutionOptions.builder().setOffline(CommonUtil.TEST_OFFLINE).build());
         Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
         if (resolutionResponse.isEmpty() || resolutionResponse.get().resolvedPackage() == null) {
             // Offline and the package could not be resolved from the local repositories.
@@ -350,11 +327,11 @@ public class PackageUtil {
     }
 
     private static Path getPath(Path path) {
-        return Objects.requireNonNull(path, "Path cannot be null");
+        return path;
     }
 
     private static Path getParentPath(Path path) {
-        return Objects.requireNonNull(path, "Path cannot be null").getParent();
+        return path.getParent();
     }
 
     /**
@@ -396,7 +373,7 @@ public class PackageUtil {
                     descriptor.name().value().equals(packageName) &&
                     descriptor.version().value().toString().equals(version)) {
                 ModuleId moduleId = currentPackage.getDefaultModule().moduleId();
-                if (Objects.nonNull(modulePartName) && !modulePartName.isEmpty()
+                if (modulePartName != null && !modulePartName.isEmpty()
                         && !packageName.equals(modulePartName)) {
                     ModuleName subModuleName = ModuleName.from(PackageName.from(packageName), modulePartName);
                     Module module = currentPackage.module(subModuleName);
@@ -525,13 +502,13 @@ public class PackageUtil {
 
     public static ModuleInfo fetchVersionIfNotExists(ModuleInfo moduleInfo) {
         if (moduleInfo.version() == null) {
-            String version = FORCE_OFFLINE
+            String version = CommonUtil.TEST_OFFLINE
                     ? cachedVersion(moduleInfo.org(), moduleInfo.packageName())
                     : RemoteCentral.getInstance().latestPackageVersion(moduleInfo.org(), moduleInfo.packageName());
-            // Under FORCE_OFFLINE a null version means the package was never provisioned into the build-owned
-            // cache. Fail loudly (matching the FORCE_OFFLINE contract above) so a missing lock entry is
+            // Under TEST_OFFLINE a null version means the package was never provisioned into the build-owned
+            // cache. Fail loudly (matching the TEST_OFFLINE contract above) so a missing lock entry is
             // self-diagnosing, rather than silently degrading into an empty model downstream.
-            if (FORCE_OFFLINE && version == null) {
+            if (CommonUtil.TEST_OFFLINE && version == null) {
                 throw new IllegalStateException(String.format(
                         "Package '%s/%s' is not provisioned in the offline test cache. Add it to "
                         + "build-config/ballerina_dependencies (Ballerina.toml) " + "and regenerate Dependencies.toml.",
@@ -578,14 +555,7 @@ public class PackageUtil {
      * @return The compilation of the project
      */
     public static PackageCompilation getCompilation(Package balPackage) {
-        Path id = balPackage.project().sourceRoot();
-        ReentrantLock lock = PROJECT_LOCKS.computeIfAbsent(id, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return balPackage.getCompilation();
-        } finally {
-            lock.unlock();
-        }
+        return CompilerCompilationGuard.getCompilation(balPackage);
     }
 
     public static PackageCompilation getCompilation(Project project) {

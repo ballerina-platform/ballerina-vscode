@@ -1,26 +1,24 @@
 /*
- * Copyright (c) 2021, WSO2 Inc. (http://wso2.com) All Rights Reserved.
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  WSO2 LLC. licenses this file to you under the Apache License,
+ *  Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
  */
+
 package org.ballerinalang.langserver.workspace;
 
 import io.ballerina.projects.BuildOptions;
-import io.ballerina.projects.Project;
-import org.ballerinalang.langserver.LSContextOperation;
-import org.ballerinalang.langserver.common.utils.CommonUtil;
-import org.ballerinalang.langserver.common.utils.PathUtil;
-import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
@@ -28,181 +26,212 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 
+import java.net.URI;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+
+import javax.annotation.Nonnull;
 
 /**
- * Ballerina workspace manager proxy implementation.
- * This proxy maintains two workspace managers, one for the expr file scheme based documents and the default manager
- * for the file scheme based documents.
+ * Scheme-based routing proxy for workspace managers.
+ * Routes requests to the appropriate WorkspaceManager based on DocumentUri scheme.
+ * Preserves DocumentUri at proxy boundary, strips scheme before facade dispatch.
  *
- * @since 1.0.0
+ * @deprecated As of 1.7.0, use the unified workspace manager facade instead.
+ * @since 1.7.0
  */
-public class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceManagerProxy {
-    private final WorkspaceManager baseWorkspaceManager;
-    private final ClonedWorkspace clonedWorkspaceManager;
-    private final AIWorkspace aiWorkspaceManager;
+@Deprecated(since = "1.7.0", forRemoval = true)
+public final class BallerinaWorkspaceManagerProxyImpl implements BallerinaWorkspaceManagerProxy {
 
-    public BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext) {
-        this.baseWorkspaceManager = new BallerinaWorkspaceManager(serverContext);
-        this.clonedWorkspaceManager = new ClonedWorkspace(serverContext);
-        this.aiWorkspaceManager = new AIWorkspace(serverContext);
+    private final WorkspaceManager fileWorkspaceManager;
+    private final WorkspaceManager exprWorkspaceManager;
+    private final WorkspaceManager aiWorkspaceManager;
+
+    /**
+     * Creates a new proxy with workspace managers for each URI scheme.
+     * This constructor is used for testing and advanced use cases.
+     *
+     * @param fileWorkspaceManager     manager for file:// URIs
+     * @param exprWorkspaceManager     manager for expr:// URIs
+     * @param aiWorkspaceManager       manager for ai:// URIs
+     */
+    public BallerinaWorkspaceManagerProxyImpl(
+            @Nonnull WorkspaceManager fileWorkspaceManager,
+            @Nonnull WorkspaceManager exprWorkspaceManager,
+            @Nonnull WorkspaceManager aiWorkspaceManager) {
+        this.fileWorkspaceManager = fileWorkspaceManager;
+        this.exprWorkspaceManager = exprWorkspaceManager;
+        this.aiWorkspaceManager = aiWorkspaceManager;
     }
-    
+
+    /**
+     * Creates a new proxy using the provided LanguageServerContext.
+     * This constructor creates the appropriate workspace managers internally.
+     *
+     * @param serverContext the language server context
+     */
+    public BallerinaWorkspaceManagerProxyImpl(LanguageServerContext serverContext) {
+        this.fileWorkspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
+        this.exprWorkspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
+        this.aiWorkspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
+    }
+
     @Override
     public WorkspaceManager get() {
-        return this.baseWorkspaceManager;
+        return fileWorkspaceManager;
     }
 
     @Override
     public WorkspaceManager get(String fileUri) {
-        String scheme = PathUtil.getEncodedURIPath(fileUri).getScheme();
-        if (scheme == null) {
-            return this.baseWorkspaceManager;
+        if (fileUri == null || fileUri.isEmpty()) {
+            return fileWorkspaceManager;
         }
-        if (scheme.equals(CommonUtil.AI_SCHEME)) {
-            return this.aiWorkspaceManager;
-        } else if (scheme.equals(CommonUtil.EXPR_SCHEME)) {
-            return this.clonedWorkspaceManager;
-        }
-        return this.baseWorkspaceManager;
+
+        String scheme = extractScheme(fileUri);
+        return switch (scheme) {
+            case "expr" -> exprWorkspaceManager;
+            case "ai" -> aiWorkspaceManager;
+            default -> fileWorkspaceManager;
+        };
     }
 
     @Override
-    public void didOpen(DidOpenTextDocumentParams params) throws WorkspaceDocumentException {
+    public void didOpen(@Nonnull DidOpenTextDocumentParams params) throws WorkspaceDocumentException {
         String uri = params.getTextDocument().getUri();
-        Optional<Path> path = PathUtil.getPathFromURI(uri);
-        if (path.isEmpty()) {
-            return;
-        }
-        if (this.isExprScheme(uri)) {
-            Optional<Project> project = this.baseWorkspaceManager.project(path.get());
-            project.ifPresent(this.clonedWorkspaceManager::open);
-        } else if (this.isAIScheme(uri)) {
-            this.aiWorkspaceManager.didOpen(path.get(), params);
-        } else {
-            this.baseWorkspaceManager.didOpen(path.get(), params);
+        WorkspaceManager manager = get(uri);
 
-            // Send didOpen if the project is already opened in the cloned workspace
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
-            if (project.isPresent()) {
-                this.clonedWorkspaceManager.didOpen(path.get(), params);
-            }
-        }
+        Path path = extractPath(uri);
+        manager.didOpen(path, params);
     }
 
     @Override
-    public void didChange(DidChangeTextDocumentParams params) throws WorkspaceDocumentException {
+    public void didChange(@Nonnull DidChangeTextDocumentParams params) throws WorkspaceDocumentException {
         String uri = params.getTextDocument().getUri();
-        Optional<Path> path = PathUtil.getPathFromURI(uri);
-        if (path.isEmpty()) {
-            return;
-        }
-        if (this.isExprScheme(uri)) {
-            this.clonedWorkspaceManager.didChange(path.get(), params);
-        } else if (this.isAIScheme(uri)) {
-            this.aiWorkspaceManager.didChange(path.get(), params);
-        } else {
-            this.baseWorkspaceManager.didChange(path.get(), params);
+        WorkspaceManager manager = get(uri);
 
-            // Send didChange if the project is already opened in the cloned workspace
-            Optional<Project> project = this.clonedWorkspaceManager.project(path.get());
-            if (project.isPresent()) {
-                this.clonedWorkspaceManager.didChange(path.get(), params);
-            }
-        }
+        Path path = extractPath(uri);
+        manager.didChange(path, params);
     }
 
     @Override
-    public void didClose(DidCloseTextDocumentParams params) {
+    public void didClose(@Nonnull DidCloseTextDocumentParams params) {
         String uri = params.getTextDocument().getUri();
-        Optional<Path> path = PathUtil.getPathFromURI(uri);
-        if (path.isEmpty()) {
-            return;
-        }
-        if (this.isExprScheme(uri)) {
-            this.clonedWorkspaceManager.didClose(path.get(), params);
-        } else if (this.isAIScheme(uri)) {
-            this.aiWorkspaceManager.didClose(path.get(), params);
-        } else {
-            this.baseWorkspaceManager.didClose(path.get(), params);
-        }
+        WorkspaceManager manager = get(uri);
+
+        Path path = extractPath(uri);
+        manager.didClose(path, params);
     }
 
-    private static class ClonedWorkspace extends BallerinaWorkspaceManager {
-        public ClonedWorkspace(LanguageServerContext serverContext) {
-            super(serverContext);
-        }
-
-        public void open(Project project) {
-            BallerinaCompilerApi compilerApi = BallerinaCompilerApi.getInstance();
-            Optional<Project> workspaceProject = compilerApi.getWorkspaceProject(project);
-            if (workspaceProject.isPresent()) {
-                Project workspaceProjectDuplicate = workspaceProject.get().duplicate();
-                List<Project> workspacePackages = compilerApi.getWorkspaceProjectsInOrder(workspaceProjectDuplicate);
-                for (Project workspacePackage : workspacePackages) {
-                    Path packageRoot = workspacePackage.sourceRoot();
-                    sourceRootToProject.put(packageRoot, ProjectContext.from(workspacePackage));
-                }
-                return;
-            }
-
-            this.sourceRootToProject.put(project.sourceRoot(), ProjectContext.from(project.duplicate()));
-        }
-
-        @Override
-        public void didClose(Path filePath, DidCloseTextDocumentParams params) {
-            Optional<Project> project = project(filePath);
-            if (project.isEmpty()) {
-                return;
-            }
-            Path projectRoot = project.get().sourceRoot();
-            sourceRootToProject.remove(projectRoot);
-            this.clientLogger.logTrace("Operation '" + LSContextOperation.TXT_DID_CLOSE.getName() +
-                    "' {project: '" + projectRoot.toUri().toString() +
-                    "' kind: '" + project.get().kind().name().toLowerCase(Locale.getDefault()) +
-                    "'} removed");
-        }
-
-        @Override
-        public String uriScheme() {
-            return CommonUtil.EXPR_SCHEME;
-        }
+    /**
+     * Sets the build options for all workspace managers.
+     * This is a temporary compatibility method.
+     *
+     * @param buildOptions the build options to set
+     */
+    public void setBuildOptions(BuildOptions buildOptions) {
+        // WorkspaceManagerFacadeImpl manages build options internally.
     }
 
-    private static class AIWorkspace extends ClonedWorkspace {
+    /**
+     * Enables or disables last-close project eviction for legacy workspace managers.
+     * WorkspaceManagerFacadeImpl manages project lifecycle internally.
+     *
+     * @param enabled whether last-close eviction should be enabled
+     */
+    public void setEvictProjectOnLastClose(boolean enabled) {
+        setEvictProjectOnLastClose(fileWorkspaceManager, enabled);
+        setEvictProjectOnLastClose(exprWorkspaceManager, enabled);
+        setEvictProjectOnLastClose(aiWorkspaceManager, enabled);
+    }
 
-        public AIWorkspace(LanguageServerContext serverContext) {
-            super(serverContext);
-        }
-
-        @Override
-        public String uriScheme() {
-            return CommonUtil.AI_SCHEME;
+    private static void setEvictProjectOnLastClose(WorkspaceManager manager, boolean enabled) {
+        if (manager instanceof BallerinaWorkspaceManager ballerinaWorkspaceManager) {
+            ballerinaWorkspaceManager.setEvictProjectOnLastClose(enabled);
         }
     }
 
     /**
-     * Sets the build options for both base and cloned workspace managers.
-     *
-     * @param buildOptions The build options to be set
+     * Extracts the scheme from a URI string.
+     * Returns empty string if no scheme found.
      */
-    public void setBuildOptions(BuildOptions buildOptions) {
-        ((BallerinaWorkspaceManager) this.baseWorkspaceManager).setBuildOptions(buildOptions);
-        this.clonedWorkspaceManager.setBuildOptions(buildOptions);
+    private String extractScheme(String uri) {
+        int colonIndex = uri.indexOf(':');
+        if (colonIndex == -1) {
+            return "";
+        }
+        // Check that colon is part of scheme (preceded by valid scheme chars)
+        for (int i = 0; i < colonIndex; i++) {
+            char c = uri.charAt(i);
+            if (!isValidSchemeChar(c)) {
+                return "";
+            }
+        }
+        return uri.substring(0, colonIndex);
     }
 
-    public void setEvictProjectOnLastClose(boolean enabled) {
-        ((BallerinaWorkspaceManager) this.baseWorkspaceManager).setEvictProjectOnLastClose(enabled);
+    /**
+     * Checks if a character is valid in a URI scheme.
+     * Per RFC 3986: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+     */
+    private boolean isValidSchemeChar(char c) {
+        return (c >= 'a' && c <= 'z') ||
+               (c >= 'A' && c <= 'Z') ||
+               (c >= '0' && c <= '9') ||
+               c == '+' || c == '-' || c == '.';
     }
 
-    private boolean isExprScheme(String uri) {
-        return PathUtil.getEncodedURIPath(uri).getScheme().equals(CommonUtil.EXPR_SCHEME);
+    /**
+     * Extracts the path from a URI string, stripping the scheme.
+     * For file:// URIs, returns the file system path.
+     * For other schemes, returns a path based on the URI's path component.
+     */
+    private Path extractPath(String uri) {
+        try {
+            URI parsedUri = URI.create(uri);
+            String scheme = parsedUri.getScheme();
+
+            if ("file".equals(scheme)) {
+                // For file URIs, use the standard Path conversion
+                return java.nio.file.Paths.get(parsedUri);
+            } else {
+                 // For non-file URIs (expr://, ai://),
+                 // extract the path component
+                String path = parsedUri.getPath();
+                if (path == null || path.isEmpty()) {
+                    path = parsedUri.getSchemeSpecificPart();
+                }
+                if (path == null || path.isEmpty()) {
+                    path = uri.substring(uri.indexOf(':') + 1);
+                }
+                return java.nio.file.Paths.get(stripWindowsDriveRootSlash(path));
+            }
+        } catch (RuntimeException e) {
+            // Fallback: strip scheme prefix and treat remainder as path
+            int colonIndex = uri.indexOf(':');
+            if (colonIndex != -1) {
+                String afterScheme = uri.substring(colonIndex + 1);
+                // Strip :// or : prefix
+                if (afterScheme.startsWith("//")) {
+                    afterScheme = afterScheme.substring(2);
+                }
+                return java.nio.file.Paths.get(stripWindowsDriveRootSlash(afterScheme));
+            }
+            return java.nio.file.Paths.get(stripWindowsDriveRootSlash(uri));
+        }
     }
 
-    private boolean isAIScheme(String uri) {
-        return PathUtil.getEncodedURIPath(uri).getScheme().equals(CommonUtil.AI_SCHEME);
+    /**
+     * Strips the leading {@code /} that a decoded URI path carries before a Windows drive
+     * letter (e.g. {@code /D:/workspace} from {@code expr:///D:/workspace}), which
+     * {@link java.nio.file.Paths#get(String, String...)} cannot parse on Windows.
+     */
+    private static String stripWindowsDriveRootSlash(String path) {
+        if (path.length() >= 4
+                && path.charAt(0) == '/'
+                && Character.isLetter(path.charAt(1))
+                && path.charAt(2) == ':'
+                && path.charAt(3) == '/') {
+            return path.substring(1);
+        }
+        return path;
     }
 }

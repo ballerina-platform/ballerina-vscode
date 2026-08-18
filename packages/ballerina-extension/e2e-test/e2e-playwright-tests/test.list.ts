@@ -203,7 +203,7 @@ test.describe('Ballerina E2E Group 4', { tag: '@group4' }, async () => {
     test.describe.skip(inlineDataMapper); // Failing due to a issue
 
     // <----Diagram Test---->
-//     test.describe(diagram);
+    test.describe(diagram);
 
     // <----Test Explorer Test---->
     test.describe(testExplorer);

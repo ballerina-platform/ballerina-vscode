@@ -61,7 +61,7 @@ type TypeHelperProps = {
     onChange: (newType: string, newCursorPosition: number) => void;
     changeTypeHelperState: (isOpen: boolean) => void;
     updateImports: (key: string, imports: { [key: string]: string }, codedata?: CodeData) => void;
-    onTypeCreate: (typeName: string) => void;
+    onTypeCreate?: (typeName: string) => void;
     onCloseCompletions?: () => void;
     typeHelperContext?: TypeHelperContext;
     recordsOnly?: boolean;
@@ -261,7 +261,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
 
     const handleTypeCreate = (typeName?: string) => {
         changeTypeHelperState(false);
-        onTypeCreate(typeName || 'MyType');
+        onTypeCreate?.(typeName || 'MyType');
     };
 
     return (
@@ -285,7 +285,7 @@ const TypeHelperEl = (props: TypeHelperProps) => {
                 onSearchTypeBrowser={handleSearchTypeBrowser}
                 onTypeItemClick={handleTypeItemClick}
                 onClose={handleTypeHelperClose}
-                onTypeCreate={recordsOnly ? undefined : handleTypeCreate}
+                onTypeCreate={recordsOnly || !onTypeCreate ? undefined : handleTypeCreate}
                 onCloseCompletions={onCloseCompletions}
                 exprRef={exprRef}
             />

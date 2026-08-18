@@ -18,7 +18,6 @@ package org.ballerinalang.langserver;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.command.LSCommandExecutorProvidersHolder;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
@@ -104,8 +103,8 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
 
     private BallerinaLanguageServer(LanguageServerContext serverContext) {
         super(serverContext);
-        this.textService = new BallerinaTextDocumentService(this, workspaceManagerProxy, this.serverContext);
-        this.workspaceService = new BallerinaWorkspaceService(this, workspaceManagerProxy, this.serverContext);
+        this.textService = new BallerinaTextDocumentService(this, workspaceManager, this.serverContext);
+        this.workspaceService = new BallerinaWorkspaceService(this, workspaceManager, this.serverContext);
         this.notebookService = new BallerinaNotebookDocumentService(this.serverContext);
     }
 
@@ -114,7 +113,8 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
     }
 
     public void setEvictProjectOnLastClose(boolean enabled) {
-        if (workspaceManagerProxy instanceof BallerinaWorkspaceManagerProxyImpl ballerinaWorkspaceManagerProxy) {
+        if (getWorkspaceManagerProxy()
+                instanceof BallerinaWorkspaceManagerProxyImpl ballerinaWorkspaceManagerProxy) {
             ballerinaWorkspaceManagerProxy.setEvictProjectOnLastClose(enabled);
         }
     }
@@ -149,17 +149,6 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
         //Checks for instances in which the LS needs to be initiated in lightweight mode
         if (capabilities.getInitializationOptions().isEnableLightWeightMode()) {
             return CompletableFuture.supplyAsync(() -> res);
-        }
-
-        // Compile the project with the experimental flag if the client has it enabled
-        if (capabilities.getExperimentalCapabilities().isExperimentalLanguageFeaturesEnabled() &&
-                workspaceManagerProxy instanceof BallerinaWorkspaceManagerProxyImpl ballerinaWorkspaceManagerProxy) {
-            BuildOptions buildOptions = BuildOptions.builder()
-                    .setOffline(CommonUtil.COMPILE_OFFLINE)
-                    .setSticky(false)
-                    .setExperimental(true)
-                    .build();
-            ballerinaWorkspaceManagerProxy.setBuildOptions(buildOptions);
         }
 
         final SignatureHelpOptions signatureHelpOptions = new SignatureHelpOptions(Arrays.asList("(", ","));
@@ -379,6 +368,13 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
         shutdown = 0;
         for (ExtendedLanguageServerService service : extendedServices) {
             service.shutdown();
+        }
+        if (workspaceManager instanceof AutoCloseable closeableWorkspaceManager) {
+            try {
+                closeableWorkspaceManager.close();
+            } catch (Exception ignored) {
+                // Shutdown is best-effort; individual services already swallow close-time sink failures.
+            }
         }
         return CompletableFuture.supplyAsync(Object::new);
     }

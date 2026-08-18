@@ -23,7 +23,6 @@ import { Uri } from 'vscode';
 import { ArtifactData, EVENT_TYPE, MACHINE_VIEW, ProjectStructureArtifactResponse, STModification, TextEdit } from '@wso2/ballerina-core';
 import { openView, StateMachine, undoRedoManager } from '../stateMachine';
 import { ArtifactsUpdated, ArtifactNotificationHandler } from './project-artifacts-handler';
-import { beginSourceUpdate, SourceUpdateHandle } from './source-update-barrier';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import * as path from 'path';
 import { notifyCurrentWebview } from '../RPCLayer';
@@ -50,23 +49,6 @@ export interface UpdateSourceCodeRequest {
 }
 
 export async function updateSourceCode(updateSourceCodeRequest: UpdateSourceCodeRequest, isChangeFromHelperPane?: boolean): Promise<ProjectStructureArtifactResponse[]> {
-    // Held across the raw edit, the format, and the wait in between, so readers that gate on
-    // `whenSourceUpdatesSettle` never see the unformatted intermediate document. The write
-    // releases it as soon as the file is formatted; this is the net for the paths that return
-    // or throw before reaching that point.
-    const update = beginSourceUpdate();
-    try {
-        return await applySourceCodeUpdate(updateSourceCodeRequest, update, isChangeFromHelperPane);
-    } finally {
-        update.done();
-    }
-}
-
-async function applySourceCodeUpdate(
-    updateSourceCodeRequest: UpdateSourceCodeRequest,
-    update: SourceUpdateHandle,
-    isChangeFromHelperPane?: boolean
-): Promise<ProjectStructureArtifactResponse[]> {
     const skipUndoRedoStack = updateSourceCodeRequest.artifactData?.artifactType === "CONFIGURABLE";
     // Capture the current undo/redo manager instance for the whole operation. The
     // module-level `undoRedoManager` is reassigned to a fresh instance when the
@@ -240,15 +222,6 @@ async function applySourceCodeUpdate(
             }
 
             await workspace.applyEdit(formattedWorkspaceEdit);
-
-            // The document has reached its final shape, so readers gated on the barrier can go.
-            // Everything below is bookkeeping — dependency resolution, then waiting out the
-            // recompile for the artifact notification — and holding them through a compile they
-            // no longer need would delay a diagram refresh for seconds. Safe to release before
-            // the LS has caught up: the client sends `didChange` from the change event that
-            // `applyEdit` awaits, so it is on the wire ahead of any request a released reader
-            // sends (no `didChange` middleware or sync delay is configured, see core/extension).
-            update.done();
 
             // Handle missing dependencies after all changes are applied
             if (updateSourceCodeRequest.resolveMissingDependencies) {

@@ -92,7 +92,6 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isAiModule;
  * @since 1.0.0
  */
 public class AgentsGenerator {
-
     public static final String MODEL = "ModelProvider";
     public static final String TOOL_ANNOTATION = "AgentTool";
     public static final String MEMORY = "Memory";
@@ -107,7 +106,6 @@ public class AgentsGenerator {
     private static final List<String> HTTP_REMOTE_METHOD_SKIP_LIST = List.of("get", "put", "post", "head",
             "delete", "patch", "options");
     private static final String OPENAI_MODEL_PROVIDER = "OpenAiModelProvider";
-
     public AgentsGenerator() {
         this.gson = new Gson();
         this.semanticModel = null;
