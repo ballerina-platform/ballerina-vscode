@@ -57,11 +57,6 @@ public class AiChatChannel implements AgentTriggerChannel {
             """;
 
     @Override
-    public String moduleName() {
-        return MODULE_NAME;
-    }
-
-    @Override
     public AgentTriggerKind kind() {
         return AgentTriggerKind.CHAT;
     }
@@ -109,9 +104,7 @@ public class AiChatChannel implements AgentTriggerChannel {
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return SERVICE_BLOCK
-                .replace("{{alias}}", context.emitAlias())
-                .replace("{{listener}}", context.listenerVarName())
+        return context.fill(SERVICE_BLOCK)
                 .replace("{{basePath}}", escapePath(basePath(context)))
                 .replace("{{agentRun}}", context.agentRun("request.message", "request.sessionId"));
     }

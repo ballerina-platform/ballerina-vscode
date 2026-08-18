@@ -55,6 +55,11 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         return agentVarName + (BALLERINA_ORG.equals(agentOrgName) ? "." : "->") + "run";
     }
 
+    /** Fills the placeholders every channel template shares. */
+    public String fill(String template) {
+        return template.replace("{{alias}}", emitAlias).replace("{{listener}}", listenerVarName);
+    }
+
     public String formValue(String key) {
         return formValues.getOrDefault(key, "");
     }

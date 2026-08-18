@@ -83,11 +83,6 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     @Override
-    public String moduleName() {
-        return moduleName;
-    }
-
-    @Override
     public AgentTriggerKind kind() {
         return AgentTriggerKind.EVENT;
     }
@@ -194,8 +189,9 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         if (handlers.isEmpty()) {
             return Optional.empty();
         }
+        TriggerUISchemaModel.ServiceTypeModel serviceType = context.serviceType();
         TriggerUISchemaModel.FunctionModel primary = selectHandler(handlers, context.formValue(HANDLER),
-                serviceTypeName(context));
+                serviceType == null ? "" : serviceType.name());
         String replyMethodName = REPLY_METHOD_PREFIX + capitalize(primary.name());
         List<HandlerParameter> parameters = context.parametersOf(primary);
         String arguments = parameters.stream().map(HandlerParameter::name).collect(Collectors.joining(", "));
@@ -218,10 +214,6 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     private static List<TriggerUISchemaModel.FunctionModel> handlers(AgentTriggerContext context) {
         return handlersOf(context.serviceType());
-    }
-
-    private static String serviceTypeName(AgentTriggerContext context) {
-        return context.serviceType() == null ? "" : context.serviceType().name();
     }
 
     @Override
@@ -313,19 +305,17 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
 
     private static TriggerUISchemaModel.FunctionModel selectHandler(
             List<TriggerUISchemaModel.FunctionModel> handlers, String selected, String serviceTypeName) {
-        return handlers.stream()
-                .filter(handler -> handler.name() != null && handler.name().equals(selected))
-                .findFirst()
-                .orElseGet(() -> preferredHandler(handlers, serviceTypeName));
+        return byName(handlers, selected).orElseGet(() -> preferredHandler(handlers, serviceTypeName));
     }
 
     private static TriggerUISchemaModel.FunctionModel preferredHandler(
             List<TriggerUISchemaModel.FunctionModel> handlers, String serviceTypeName) {
-        String preferred = PREFERRED_HANDLER.get(serviceTypeName);
-        return handlers.stream()
-                .filter(handler -> handler.name() != null && handler.name().equals(preferred))
-                .findFirst()
-                .orElseGet(handlers::getFirst);
+        return byName(handlers, PREFERRED_HANDLER.get(serviceTypeName)).orElseGet(handlers::getFirst);
+    }
+
+    private static Optional<TriggerUISchemaModel.FunctionModel> byName(
+            List<TriggerUISchemaModel.FunctionModel> handlers, String name) {
+        return handlers.stream().filter(handler -> handler.name() != null && handler.name().equals(name)).findFirst();
     }
 
     private static String capitalize(String name) {

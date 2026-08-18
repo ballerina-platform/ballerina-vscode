@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,6 +58,11 @@ public final class AgentTriggerChannels {
                 .getSchemaDrivenTriggerModel(orgName, moduleName, version, isLocalRepository)
                 .filter(model -> EVENT_TRIGGER_KIND.equals(model.kind()))
                 .map(model -> new EventAgentTriggerChannel(moduleName));
+    }
+
+    /** Stamps a listed trigger with how it calls an agent, from the scalars the row already holds. */
+    public static TriggerBasicInfo withAgentKind(TriggerBasicInfo trigger) {
+        return trigger.withAgentTriggerKind(kindOf(trigger.moduleName(), trigger.type()));
     }
 
     public static String kindOf(String moduleName, String triggerKind) {

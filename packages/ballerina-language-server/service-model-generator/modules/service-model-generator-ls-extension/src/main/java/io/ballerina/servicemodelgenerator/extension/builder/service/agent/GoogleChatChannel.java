@@ -64,20 +64,13 @@ public class GoogleChatChannel implements AgentTriggerChannel {
             """;
 
     @Override
-    public String moduleName() {
-        return MODULE_NAME;
-    }
-
-    @Override
     public AgentTriggerKind kind() {
         return AgentTriggerKind.CHAT;
     }
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return SERVICE_BLOCK
-                .replace("{{alias}}", context.emitAlias())
-                .replace("{{listener}}", context.listenerVarName())
+        return context.fill(SERVICE_BLOCK)
                 .replace("{{agentRun}}",
                         context.agentRun("text", "\"googlechat:\" + (event.space?.name ?: \"unknown\")"));
     }
