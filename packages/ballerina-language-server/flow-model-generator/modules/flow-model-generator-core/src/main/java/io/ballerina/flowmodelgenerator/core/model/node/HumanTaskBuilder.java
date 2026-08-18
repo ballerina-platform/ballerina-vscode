@@ -79,6 +79,12 @@ public class HumanTaskBuilder extends CallBuilder {
     public static final String TITLE_KEY = "title";
     public static final String DESCRIPTION_KEY = "description";
     public static final String TIMEOUT_KEY = "timeout";
+    /**
+     * {@code awaitHumanTask(stepId = ...)} — the step's identity in the workflow graph, set by the
+     * compiler when a call omits it. Not a form field; see
+     * {@link #relabelHumanTaskFormProperties(Map)}.
+     */
+    public static final String STEP_ID_KEY = "stepId";
 
     // Form field labels.
     private static final String TASK_NAME_LABEL = "Task Name";
@@ -311,6 +317,14 @@ public class HumanTaskBuilder extends CallBuilder {
      * @param properties the live property map to relabel in place
      */
     public static void relabelHumanTaskFormProperties(Map<String, Property> properties) {
+        // `stepId` identifies this step in the workflow's graph. It is optional and the compiler
+        // generates one when a call omits it, so nothing needs it in the form — and offering it here
+        // would put an identity among the task's business fields, with no advanced group to hold it.
+        // Drop it until this form gains one; Call Activity already shows it under its advanced
+        // configurations. Both render paths (the node template and CodeAnalyzer's source re-read) go
+        // through here, so removing it once keeps the two forms identical.
+        properties.remove(STEP_ID_KEY);
+
         relabel(properties, TASK_NAME_KEY, TASK_NAME_LABEL, TASK_NAME_DOC);
         relabel(properties, USER_ROLES_KEY, USER_ROLES_LABEL, USER_ROLES_DOC);
         relabel(properties, PAYLOAD_KEY, PAYLOAD_LABEL, PAYLOAD_DOC);
