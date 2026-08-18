@@ -35,7 +35,6 @@ import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import {
     clearPendingIntegrationPointer,
     isPendingPointerFresh,
-    PendingIntegrationArtifactPointer,
     readPendingIntegrationPointer,
     writePendingIntegrationPointer,
 } from "./startup-progress";
@@ -94,6 +93,24 @@ export async function schedulePendingIntegration(schedule: PendingIntegrationSch
 }
 
 /**
+ * The post-reload landing: claims as well as navigates.
+ *
+ * Startup issues navigations of its own whose order relative to this one varies run to run, so
+ * a workspace overview arriving behind it would otherwise replace the new integration. Claimed
+ * AFTER navigating, so this navigation does not spend its own claim.
+ *
+ * The in-place path deliberately uses {@link openPackageOverview} instead. It runs in a settled
+ * window with no startup navigation to race, and the one navigation that can follow it — the
+ * untracked-package fallback in `updateProjectArtifacts` — is already covered there by that
+ * function's own `alreadyViewingAddedPackage` check. A claim planted there would be one nothing
+ * ever spends, and the project explorer's Show Overview would walk into it.
+ */
+function landOnNewIntegrationAfterReload(projectRoot: string): void {
+    openPackageOverview(projectRoot);
+    claimCreateLanding(projectRoot);
+}
+
+/**
  * Finishes a wizard submit that spanned the last folder reload: generates the configured
  * first artifact and lands on the new integration. Consume-immediately — the pointer and
  * payload file are cleared BEFORE generation, so a failure can never loop. Safe on every
@@ -134,14 +151,14 @@ export async function checkAndRunPendingArtifact(): Promise<void> {
         // An empty integration has no payload: there is nothing to generate, only
         // the landing view below to open.
         if (!payload) {
-            openPackageOverview(stored.projectRoot);
+            landOnNewIntegrationAfterReload(stored.projectRoot);
             return;
         }
 
         const label = ARTIFACT_KIND_LABELS[payload.kind];
         if (!label || payload.version !== 1) {
             console.error(`[IntegrationWizard] Unsupported pending artifact payload:`, payload);
-            openPackageOverview(stored.projectRoot);
+            landOnNewIntegrationAfterReload(stored.projectRoot);
             return;
         }
 
@@ -167,7 +184,7 @@ export async function checkAndRunPendingArtifact(): Promise<void> {
         // because something had already navigated is what left the window on the workspace
         // overview — a create is the last word on where a create ends up.
         if (!claimedView) {
-            openPackageOverview(stored.projectRoot);
+            landOnNewIntegrationAfterReload(stored.projectRoot);
         }
     } catch (error) {
         console.error("[IntegrationWizard] Unexpected error while checking pending artifact:", error);
@@ -297,10 +314,5 @@ async function generatePendingArtifact(
  */
 export function openPackageOverview(projectRoot: string): void {
     openView(EVENT_TYPE.OPEN_VIEW, { view: MACHINE_VIEW.PackageOverview, projectPath: projectRoot });
-    // Claimed as well as navigated: the project explorer issues its own Open Overview once its
-    // tree finishes loading, which can be after this lands, and would otherwise replace the
-    // integration the user just made. Claimed AFTER the navigation above, so that navigation
-    // does not consume its own claim.
-    claimCreateLanding(projectRoot);
 }
 
