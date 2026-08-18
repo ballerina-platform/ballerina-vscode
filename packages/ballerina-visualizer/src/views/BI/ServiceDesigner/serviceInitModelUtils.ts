@@ -17,7 +17,7 @@
  */
 
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { getPrimaryInputType, Property, PropertyModel, RecordTypeField, ServiceInitModel } from "@wso2/ballerina-core";
+import { getPrimaryInputType, isDropDownType, Property, PropertyModel, RecordTypeField, ServiceInitModel } from "@wso2/ballerina-core";
 import { getImportsForProperty } from "../../../utils/bi";
 import { sanitizedHttpPath, normalizeValueToArray } from "./utils";
 
@@ -47,10 +47,15 @@ export function mapPropertiesToFormFields(properties: { [key: string]: PropertyM
             items = property.items;
         }
 
+        const primaryInputType = getPrimaryInputType(property.types);
+        const itemOptions = primaryInputType && isDropDownType(primaryInputType)
+            ? primaryInputType.options
+            : undefined;
+
         // For SINGLE_SELECT with nested per-option properties, build dynamicFormFields
         // Each key in properties maps to a dropdown option whose inner properties become FormField[]
         let dynamicFormFields: { [key: string]: FormField[] } | undefined = undefined;
-        if (fieldType === "SINGLE_SELECT" && property.properties && property.items) {
+        if (fieldType === "SINGLE_SELECT" && property.properties && (property.items || itemOptions)) {
             dynamicFormFields = {};
             for (const optionKey in property.properties) {
                 const optionValue = property.properties[optionKey];
@@ -77,6 +82,7 @@ export function mapPropertiesToFormFields(properties: { [key: string]: PropertyM
             hidden: property.hidden,
             diagnostics: [],
             items,
+            itemOptions: itemOptions?.map((option) => ({ id: option.value, content: option.label, value: option.value })),
             choices: property.choices,
             placeholder: property.placeholder,
             addNewButton: property.addNewButton,
@@ -215,9 +221,14 @@ export function updateChoiceInModel(properties: { [key: string]: PropertyModel }
     if (properties[fieldKey]) {
         const property = properties[fieldKey];
         if (getPrimaryInputType(property.types)?.fieldType === "CHOICE" && property.choices) {
+            const selected = Number(value);
+            const moved = property.choices.some((choice, index) => Boolean(choice.enabled) !== (selected === index));
             property.value = value as string;
+            if (!moved) {
+                return false;
+            }
             property.choices.forEach((choice, index) => {
-                choice.enabled = (Number(value) === index);
+                choice.enabled = (selected === index);
             });
             return true;
         }
@@ -282,6 +293,18 @@ export function applyFormValuesToModel(formFields: FormField[], model: ServiceIn
             })
         } else if (data[val.key] !== undefined) {
             val.value = data[val.key];
+        }
+
+        if (val.dynamicFormFields) {
+            const selected = data[val.key] as string;
+            const branch = model.properties[val.key]?.properties?.[selected];
+            (val.dynamicFormFields[selected] ?? []).forEach(subField => {
+                const subProperty = branch?.properties?.[subField.key];
+                if (subProperty && data[subField.key] !== undefined) {
+                    subProperty.value = data[subField.key];
+                    processPropertyRecursively(subProperty, data, subField.key);
+                }
+            });
         }
 
         if (val.type === "CONDITIONAL_FIELDS") {

@@ -19,7 +19,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { AgentNodeActions } from "@wso2/bi-diagram";
-import { CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
+import { AgentUsage, CodeData, EVENT_TYPE, FlowNode, MACHINE_VIEW, NodeMetadata, NodePosition, ProjectStructureArtifactResponse, ToolData }
     from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { findFunctionByName } from "../FlowDiagram/utils";
@@ -44,6 +44,8 @@ export interface AgentEditorHost {
     onSelectionChange?(node?: FlowNode): void;
     onLoadingChange?(loading: boolean): void;
     onChat?(node: FlowNode): void;
+    onAddTrigger?(node: FlowNode): void;
+    onDeleteTrigger?(usage: AgentUsage, node: FlowNode): void;
     onAgentCreated?(): void;
     resolveAgentNode?(node: FlowNode): FlowNode;
 }
@@ -311,6 +313,8 @@ export function useAgentEditorController(host: AgentEditorHost): AgentEditorCont
         onSelectMemoryManager: (node) => void selectMemory(resolve(node)),
         onDeleteMemoryManager: (node) => void deleteMemory(resolve(node)),
         onChatWithAgent: host.onChat && ((node) => host.onChat(resolve(node))),
+        onAddTrigger: host.onAddTrigger && ((node) => host.onAddTrigger(resolve(node))),
+        onDeleteTrigger: host.onDeleteTrigger && ((usage, node) => host.onDeleteTrigger(usage, resolve(node))),
     }), [activate, deleteMemory, deleteTool, host, openTool, resolve, selectMemory]);
 
     const back = () => setView(view === "NEW_TOOL_AGENT_FORM" ? "NEW_TOOL_AGENT" : "ADD_TOOL");

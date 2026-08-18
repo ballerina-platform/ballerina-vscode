@@ -642,7 +642,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         }
 
         if (isAgentFocus) {
-            return null;
+            return tracingButton;
         }
 
         if (isResource && serviceType === "http") {

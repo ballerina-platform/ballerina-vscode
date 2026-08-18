@@ -150,6 +150,34 @@ export type AgentNodeInfo = {
     tools?: ToolData[];
     modelProvider?: AgentModelProviderInfo;
     memory?: AgentMemoryInfo;
+    usages?: AgentUsage[];
+    animateUsages?: boolean;
+};
+
+export type AgentUsage = {
+    label: string; // "POST /chat" or the function name
+    serviceLabel?: string; // "/mathService"
+    serviceName?: string; // raw path, matched against a trace's entrypoint
+    functionName?: string; // raw path or remote function name, matched against a trace's entrypoint
+    type?: string; // "http:Service", "automation", ...
+    typeLabel?: string; // "GraphQL Service", "AI Chat Service", ...
+    icon?: string;
+    documentUri: string;
+    position: NodePosition;
+    trigger?: AgentUsageTrigger;
+};
+
+export type AgentUsageTrigger = {
+    serviceName: string;
+    documentUri: string;
+    position: NodePosition;
+    listeners: AgentUsageTriggerListener[];
+};
+
+export type AgentUsageTriggerListener = {
+    symbol: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentModelProviderInfo = {

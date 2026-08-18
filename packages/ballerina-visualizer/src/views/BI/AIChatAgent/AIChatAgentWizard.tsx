@@ -18,7 +18,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cloneDeep } from 'lodash';
-import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, isDefaultModelProviderExpr } from '@wso2/ballerina-core';
+import { CDModel, EVENT_TYPE, FlowNode, LineRange, Property, deriveBasePath, isDefaultModelProviderExpr, toKebabCase } from '@wso2/ballerina-core';
 import { Button, View, ViewContent } from '@wso2/ui-toolkit';
 import styled from '@emotion/styled';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
@@ -59,20 +59,6 @@ export interface AIChatAgentWizardProps {
 const AI_CHAT_AGENT_LISTENER = "chatAgentListener";
 const AGENT_FILE_NAME = "agents.bal";
 const BASE_PATH_KEY = "basePath";
-
-function toKebabCase(varName: string): string {
-    return varName
-        .replace(/_/g, '-')
-        .replace(/([a-z])([A-Z])/g, '$1-$2')
-        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
-        .replace(/([a-zA-Z])(\d)/g, '$1-$2')
-        .replace(/(\d)([a-zA-Z])/g, '$1-$2')
-        .toLowerCase();
-}
-
-function deriveBasePath(agentVarName: string): string {
-    return "/" + toKebabCase(agentVarName);
-}
 
 export function AIChatAgentWizard(props: AIChatAgentWizardProps) {
     const { rpcClient } = useRpcContext();

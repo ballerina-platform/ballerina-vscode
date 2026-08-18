@@ -43,6 +43,7 @@ import {
     UpdatedArtifactsResponse,
     NodePosition,
     NodeMetadata,
+    AgentUsage,
     FOCUS_FLOW_DIAGRAM_VIEW,
     FocusFlowDiagramView
 } from "@wso2/ballerina-core";
@@ -51,8 +52,16 @@ import { ConnectionConfig, ConnectionCreator, ConnectionSelectionList } from "..
 import { FlowNodeForm } from "../Forms/FlowNodeForm";
 import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
-import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAgentChat } from "../AIChatAgent/utils";
-import { buildAgentRenderNode } from "./agent";
+import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
+import { buildAgentRenderNode, withAgentUsages } from "./agent";
+import { findAgentUsages, getAgentTriggerProtocols, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+
+const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
+    a.length === b.length &&
+    a.every((usage, i) =>
+        usage.label === b[i].label &&
+        usage.serviceLabel === b[i].serviceLabel &&
+        usage.documentUri === b[i].documentUri);
 import { AgentPromptDisplay } from "./AgentPromptDisplay";
 
 import {
@@ -108,6 +117,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const [agentPanel, setAgentPanel] = useState<AgentPanel>("NONE");
     const suppressAgentTypeReloadRef = useRef(false);
     const suppressAgentReloadRef = useRef(false);
+    const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const usageRequestIdRef = useRef(0);
+    const usagesDirtyRef = useRef(true);
     const [agentFormKey, setAgentFormKey] = useState(0);
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
@@ -150,6 +162,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     useEffect(() => {
         const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> on project content updated", state);
+            usagesDirtyRef.current = true;
             if (isAgent) {
                 debouncedGetAgentModel();
                 return;
@@ -162,6 +175,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         });
         rpcClient.onParentPopupSubmitted((parent: ParentPopupData) => {
             console.log(">>> on parent popup submitted", parent);
+            if (!parent?.recentIdentifier && !parent?.artifactType) {
+                return;
+            }
             if (isAgent) {
                 debouncedGetAgentModel();
                 return;
@@ -259,6 +275,105 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     };
 
 
+    const loadAgentUsages = (renderNode: FlowNode, flow: Flow, pos: NodePosition, projectKey: string) => {
+        const key = usageCacheKey(projectKey, filePath, pos.startLine);
+        const cached = getCachedUsages(key);
+        if (!usagesDirtyRef.current && cached) {
+            return;
+        }
+        clearTimeout(usageFetchTimerRef.current);
+        const requestId = ++usageRequestIdRef.current;
+        usageFetchTimerRef.current = setTimeout(async () => {
+            try {
+                const location = await rpcClient.getVisualizerLocation();
+                const [response, triggerProtocols] = await Promise.all([
+                    rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }),
+                    getAgentTriggerProtocols(rpcClient),
+                ]);
+                if (requestId !== usageRequestIdRef.current) {
+                    return;
+                }
+                if (!response?.designModel) {
+                    console.error(">>> agent focus: design model unavailable, keeping the previous usages");
+                    return;
+                }
+                const usages = findAgentUsages(response.designModel, {
+                    filePath,
+                    startLine: pos.startLine,
+                    symbol: typeof renderNode.properties?.variable?.value === "string"
+                        ? renderNode.properties.variable.value.trim()
+                        : undefined,
+                }, triggerProtocols);
+                usagesDirtyRef.current = false;
+                const previous = getCachedUsages(key);
+                setCachedUsages(key, usages);
+                if (previous && JSON.stringify(previous) === JSON.stringify(usages)) {
+                    return;
+                }
+                setModel({
+                    ...flow,
+                    nodes: [withAgentUsages(renderNode, usages, !previous || !sameUsages(previous, usages))],
+                });
+            } catch (error) {
+                console.error(">>> agent focus: failed to load agent usages", error);
+            }
+        }, 600);
+    };
+
+    useEffect(() => () => clearTimeout(usageFetchTimerRef.current), []);
+
+    const deleteAgentTrigger = async (usage: AgentUsage) => {
+        const trigger = usage.trigger;
+        if (!trigger) {
+            return;
+        }
+        const listenerNames = trigger.listeners.map((listener) => listener.symbol);
+        const confirmed = await rpcClient.getCommonRpcClient().showInformationModal({
+            message: `Delete the ${usage.typeLabel ?? "trigger"} ${trigger.serviceName}?`,
+            detail: listenerNames.length > 0
+                ? `Its listener ${listenerNames.join(", ")} will be removed too — nothing else uses it.`
+                : "The service owns everything it needs to call the agent, so that goes with it.",
+            items: ["Delete"],
+        });
+        if (confirmed !== "Delete") {
+            return;
+        }
+        setShowProgressIndicator(true);
+        try {
+            const targets = [
+                { name: trigger.serviceName, documentUri: trigger.documentUri, position: trigger.position },
+                ...trigger.listeners.map((listener) => ({
+                    name: listener.symbol,
+                    documentUri: listener.documentUri,
+                    position: listener.position,
+                })),
+            ];
+            targets.sort((a, b) => b.position.startLine - a.position.startLine);
+            for (const target of targets) {
+                await rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+                    filePath: target.documentUri,
+                    component: {
+                        name: target.name,
+                        filePath: target.documentUri,
+                        startLine: target.position.startLine,
+                        startColumn: target.position.startColumn,
+                        endLine: target.position.endLine,
+                        endColumn: target.position.endColumn,
+                    },
+                });
+            }
+            await rpcClient.getAIAgentRpcClient().fixMissingImports();
+            usagesDirtyRef.current = true;
+        } catch (error) {
+            console.error(">>> agent focus: failed to delete trigger", error);
+            rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Failed to delete the trigger. The deletion may be partially applied.",
+            });
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
     const getAgentFocusModel = async (kind: "AGENT" | "TYPED_AGENT", posOverride?: NodePosition) => {
         const suppressRef = kind === "AGENT" ? suppressAgentReloadRef : suppressAgentTypeReloadRef;
         const logLabel = kind === "AGENT" ? "agent focus" : "agent-type focus";
@@ -294,8 +409,12 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             setAgentFormKey((key) => key + 1);
 
             const connections = fetchedFlow?.connections || [];
+            const projectKey = location?.projectPath ?? projectPath ?? "";
+            const cachedUsages = kind === "AGENT"
+                ? getCachedUsages(usageCacheKey(projectKey, filePath, pos.startLine))
+                : undefined;
             const renderNode: FlowNode = kind === "AGENT"
-                ? buildAgentRenderNode(agentDecl, connections)
+                ? withAgentUsages(buildAgentRenderNode(agentDecl, connections), cachedUsages ?? [], false)
                 : {
                     ...agentDecl,
                     id: agentDecl.id || "agent-type-focus-node",
@@ -305,6 +424,9 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 };
             const flow: Flow = { fileName: filePath, nodes: [renderNode], connections };
             setModel(flow);
+            if (kind === "AGENT") {
+                loadAgentUsages(renderNode, flow, pos, projectKey);
+            }
 
             const breakpointResponse = await rpcClient.getBIDiagramRpcClient().getBreakpointInfo();
             setBreakpointInfo(breakpointResponse);
@@ -572,11 +694,11 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                 setShowProgressIndicator(false);
                 showEditForm.current = false;
                 return;
-                }
+            }
 
-                nodeTemplateRef.current = response.flowNode;
-                showEditForm.current = true;
-            })
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = true;
+        })
             .finally(() => {
                 setShowProgressIndicator(false);
             });
@@ -871,6 +993,8 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onAgentCreated: () => { (isAgentType ? suppressAgentTypeReloadRef : suppressAgentReloadRef).current = true; },
         resolveAgentNode: (node) => agentDeclRef.current ?? node,
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
+        onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
+        onDeleteTrigger: (usage) => void deleteAgentTrigger(usage),
     });
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";

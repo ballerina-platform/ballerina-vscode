@@ -468,6 +468,26 @@ export const startAgentChat = (node: FlowNode, filePath: string, rpcClient: Ball
     rpcClient.getBIDiagramRpcClient().startInlineAgentChat({ agentVarName, filePath, agentNode: node });
 };
 
+export const startAddAgentTrigger = (node: FlowNode, rpcClient: BallerinaRpcClient) => {
+    const properties = node.properties as Record<string, { value?: unknown }> | undefined;
+    const holder = isAgentDeclarationNode(node.codedata?.node)
+        ? properties?.variable
+        : properties?.connection;
+    const agentVarName = typeof holder?.value === "string" ? holder.value.trim() : "";
+    if (!agentVarName) {
+        console.error("Cannot add an agent trigger: missing agent variable name");
+        return;
+    }
+    void rpcClient.getVisualizerRpcClient().openView({
+        type: EVENT_TYPE.OPEN_VIEW,
+        isPopup: true,
+        location: {
+            view: MACHINE_VIEW.BIAddAgentTrigger,
+            artifactInfo: { agentName: agentVarName, agentOrgName: node.codedata?.org },
+        },
+    });
+};
+
 export const resolveAgentDefinitionLocation = async (
     instanceNode: FlowNode,
     rpcClient: BallerinaRpcClient

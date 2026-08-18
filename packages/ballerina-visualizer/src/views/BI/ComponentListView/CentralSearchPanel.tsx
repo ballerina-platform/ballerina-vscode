@@ -15,10 +15,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 import { EVENT_TYPE, MACHINE_VIEW, ServiceModel, TriggerModelsResponse } from '@wso2/ballerina-core';
-import debounce from 'lodash.debounce';
 
 import { CardGrid, PanelViewMore, Title, TitleWrapper } from './styles';
 import { BodyText } from '../../styles';
@@ -26,6 +25,7 @@ import ButtonCard from '../../../components/ButtonCard';
 import { isBetaModule } from './componentListUtils';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getEntryNodeIcon } from './EventIntegrationPanel';
+import { useCentralTriggerSearch } from './useCentralTriggerSearch';
 
 interface CentralSearchPanelProps {
     /** The page-level search query; the panel is expected to be rendered only when non-empty. */
@@ -33,8 +33,6 @@ interface CentralSearchPanelProps {
     /** Locally available triggers, used to hide Central results already installed. */
     triggers: TriggerModelsResponse;
 }
-
-const SEARCH_DEBOUNCE_MS = 700;
 
 /**
  * "More on Ballerina Central" — the remote half of the artifact gallery's page-level search.
@@ -44,71 +42,9 @@ const SEARCH_DEBOUNCE_MS = 700;
  */
 export function CentralSearchPanel(props: CentralSearchPanelProps) {
     const { rpcClient } = useRpcContext();
-    const [searching, setSearching] = useState<boolean>(true);
-    const [results, setResults] = useState<ServiceModel[]>([]);
-    const [localRepositoryResults, setLocalRepositoryResults] = useState<ServiceModel[]>([]);
-    const [additionalTriggerSearchEnabled, setAdditionalTriggerSearchEnabled] = useState<boolean>(false);
+    const { enabled, searching, results, localRepositoryResults } = useCentralTriggerSearch(props.query);
 
-    const isMountedRef = useRef(true);
-    // The most recently *dispatched* search query. Debounce only coalesces rapid keystrokes into
-    // one call per pause — it does nothing once two calls are genuinely in flight together (e.g. a
-    // slow response for an older query outlasting a newer one). Comparing against this before
-    // applying a response is what stops a stale result from overwriting a fresher one purely
-    // because of network timing.
-    const latestQueryRef = useRef<string>("");
-
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        rpcClient
-            .getCommonRpcClient()
-            .additionalTriggerSearchEnabled()
-            .then((enabled) => {
-                if (isMountedRef.current) {
-                    setAdditionalTriggerSearchEnabled(enabled);
-                }
-            });
-    }, [rpcClient]);
-
-    // Debounced so we don't hit Central on every keystroke.
-    const runSearch = useMemo(
-        () =>
-            debounce((searchQuery: string) => {
-                latestQueryRef.current = searchQuery;
-                setSearching(true);
-                rpcClient
-                    .getServiceDesignerRpcClient()
-                    .searchTriggers({ query: searchQuery, includeLocalRepository: additionalTriggerSearchEnabled })
-                    .then((res) => {
-                        if (!isMountedRef.current || latestQueryRef.current !== searchQuery) {
-                            return;
-                        }
-                        setResults(res?.local ?? []);
-                        setLocalRepositoryResults(res?.localRepositoryResults ?? []);
-                    })
-                    .finally(() => {
-                        if (isMountedRef.current && latestQueryRef.current === searchQuery) {
-                            setSearching(false);
-                        }
-                    });
-            }, SEARCH_DEBOUNCE_MS),
-        [rpcClient, additionalTriggerSearchEnabled]
-    );
-
-    useEffect(() => {
-        if (!additionalTriggerSearchEnabled) {
-            return;
-        }
-        runSearch(props.query);
-        return () => runSearch.cancel();
-    }, [props.query, runSearch, additionalTriggerSearchEnabled]);
-
-    if (!additionalTriggerSearchEnabled) {
+    if (!enabled) {
         return null;
     }
 

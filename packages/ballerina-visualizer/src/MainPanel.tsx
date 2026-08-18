@@ -641,6 +641,8 @@ const MainPanel = () => {
                                     moduleName={value?.artifactInfo.moduleName}
                                     version={value?.artifactInfo.version}
                                     isLocalRepository={value?.artifactInfo.isLocalRepository}
+                                    agentName={value?.artifactInfo.agentName}
+                                    agentOrgName={value?.artifactInfo.agentOrgName}
                                 />
                             );
                             break;
