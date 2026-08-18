@@ -44,4 +44,9 @@ public record TriggerBasicInfo(int id, String name, String orgName, String packa
         this(id, name, orgName, packageName, moduleName, version, type, displayName, documentation,
                 listenerProtocol, icon, null);
     }
+
+    public TriggerBasicInfo withAgentTriggerKind(String kind) {
+        return new TriggerBasicInfo(id, name, orgName, packageName, moduleName, version, type, displayName,
+                documentation, listenerProtocol, icon, kind);
+    }
 }

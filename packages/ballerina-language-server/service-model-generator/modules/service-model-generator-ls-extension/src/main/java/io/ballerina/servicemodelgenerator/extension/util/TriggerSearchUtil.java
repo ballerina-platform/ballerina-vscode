@@ -22,7 +22,6 @@ import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.trigger.LibraryMetadataReader;
-import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
 import java.util.ArrayList;
@@ -153,8 +152,7 @@ public final class TriggerSearchUtil {
                 displayName(moduleInfo.packageName()),
                 "",
                 protocol,
-                "",
-                AgentTriggerChannels.kindOf(moduleInfo.moduleName(), EVENT_TYPE));
+                "");
     }
 
     /**
@@ -210,8 +208,7 @@ public final class TriggerSearchUtil {
                 displayName(pkg.name()),
                 pkg.summary() == null ? "" : pkg.summary(),
                 protocol,
-                pkg.icon() == null ? "" : pkg.icon(),
-                AgentTriggerChannels.kindOf(pkg.name(), EVENT_TYPE));
+                pkg.icon() == null ? "" : pkg.icon());
     }
 
     private static String key(String org, String name) {

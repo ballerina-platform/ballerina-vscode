@@ -63,20 +63,13 @@ public class TelegramChannel implements AgentTriggerChannel {
             """;
 
     @Override
-    public String moduleName() {
-        return MODULE_NAME;
-    }
-
-    @Override
     public AgentTriggerKind kind() {
         return AgentTriggerKind.CHAT;
     }
 
     @Override
     public String serviceBlock(AgentTriggerContext context) {
-        return SERVICE_BLOCK
-                .replace("{{alias}}", context.emitAlias())
-                .replace("{{listener}}", context.listenerVarName())
+        return context.fill(SERVICE_BLOCK)
                 .replace("{{token}}", context.formValue(BOT_TOKEN))
                 .replace("{{agentRun}}", context.agentRun("text", "\"telegram:\" + message.chat.id.toString()"));
     }

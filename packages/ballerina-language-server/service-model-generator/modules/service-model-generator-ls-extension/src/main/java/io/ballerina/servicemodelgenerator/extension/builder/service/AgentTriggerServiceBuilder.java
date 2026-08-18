@@ -100,10 +100,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         channel.ifPresent(c -> {
             c.additionalProperties().forEach(initModel::addProperty);
-            c.customizeInitModel(initModel, TriggerModelReader.getInstance()
-                    .getSchemaDrivenTriggerModel(initModel.getOrgName(), initModel.getModuleName(),
-                            initModel.getVersion(), initModel.isLocalRepository())
-                    .orElse(null));
+            c.customizeInitModel(initModel, triggerModelFor(initModel).orElse(null));
         });
         return initModel;
     }
@@ -113,9 +110,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         ServiceInitModel filledModel = context.serviceInitModel();
         Optional<AgentTriggerChannel> channel = AgentTriggerChannels.forModule(filledModel.getOrgName(),
                 filledModel.getModuleName(), filledModel.getVersion(), filledModel.isLocalRepository());
-        Optional<TriggerUISchemaModel> triggerModel = TriggerModelReader.getInstance()
-                .getSchemaDrivenTriggerModel(filledModel.getOrgName(), filledModel.getModuleName(),
-                        filledModel.getVersion(), filledModel.isLocalRepository());
+        Optional<TriggerUISchemaModel> triggerModel = triggerModelFor(filledModel);
         if (channel.isEmpty() || (channel.get().isSchemaDriven() && triggerModel.isEmpty())) {
             return super.addServiceInitSource(context);
         }
@@ -127,6 +122,11 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                     filledModel.getPackageName(), filledModel.getVersion());
         }
         return edits;
+    }
+
+    private static Optional<TriggerUISchemaModel> triggerModelFor(ServiceInitModel model) {
+        return TriggerModelReader.getInstance().getSchemaDrivenTriggerModel(model.getOrgName(),
+                model.getModuleName(), model.getVersion(), model.isLocalRepository());
     }
 
     public static Map<String, List<TextEdit>> buildEdits(ServiceInitModel filledModel,
