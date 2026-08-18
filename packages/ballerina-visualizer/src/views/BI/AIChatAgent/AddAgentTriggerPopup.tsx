@@ -27,7 +27,7 @@ import ButtonCard from '../../../components/ButtonCard';
 import { RelativeLoader } from '../../../components/RelativeLoader';
 import { getEntryNodeIcon } from '../ComponentListView/EventIntegrationPanel';
 import { cardMatchesSearch, isBetaModule } from '../ComponentListView/componentListUtils';
-import { useCentralTriggerSearch } from '../ComponentListView/useCentralTriggerSearch';
+import { CentralSearchPanel } from '../ComponentListView/CentralSearchPanel';
 import {
     BackButton,
     CloseButton,
@@ -87,7 +87,6 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     const [channel, setChannel] = useState<ServiceModel>(null);
     const [direction, setDirection] = useState<PopupModalStepDirection>("forward");
     const [query, setQuery] = useState("");
-    const central = useCentralTriggerSearch(query);
 
     const showChannel = (next: ServiceModel, to: PopupModalStepDirection) => {
         setDirection(to);
@@ -134,17 +133,6 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
             .filter((section) => section.channels.length > 0),
         [triggers, query]
     );
-
-    const installed = useMemo(
-        () => new Set((triggers.local ?? []).map((t) => `${t.orgName}/${t.packageName}`)),
-        [triggers]
-    );
-    const fromCentral = useMemo(
-        () => [...central.results, ...central.localRepositoryResults.map((t) => ({ ...t, isLocalRepository: true }))]
-            .filter((t) => !installed.has(`${t.orgName}/${t.packageName}`)),
-        [central.results, central.localRepositoryResults, installed]
-    );
-    const showCentral = central.enabled && query.trim().length > 0;
 
     return (
         <PopupModal onClose={onClose} expanded dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
@@ -195,10 +183,10 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                         sx={{ width: "100%", marginBottom: "16px" }}
                                     />
                                 )}
-                                {!isLoading && sections.length === 0 && !showCentral && (
+                                {!isLoading && sections.length === 0 && (
                                     <BodyText>
                                         {query.trim()
-                                            ? `No channel matches "${query}".`
+                                            ? `No installed channel matches "${query}".`
                                             : "No channels are available in this project."}
                                     </BodyText>
                                 )}
@@ -222,34 +210,13 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                         </CardGrid>
                                     </PanelViewMore>
                                 ))}
-                                {showCentral && (
-                                    <PanelViewMore key="central">
-                                        <TitleWrapper>
-                                            <Title variant="h2">More on Ballerina Central</Title>
-                                            <BodyText>
-                                                Event sources published on Ballerina Central. The package is
-                                                pulled when you pick one.
-                                            </BodyText>
-                                        </TitleWrapper>
-                                        <CardGrid>
-                                            {central.searching && <RelativeLoader />}
-                                            {!central.searching && fromCentral.length === 0 && (
-                                                <BodyText>
-                                                    No matching integrations found on Ballerina Central.
-                                                </BodyText>
-                                            )}
-                                            {!central.searching && fromCentral.map((option) => (
-                                                <ButtonCard
-                                                    id={`agent-trigger-central-${option.moduleName.replace(/\./g, '-')}`}
-                                                    key={`central/${option.orgName}/${option.packageName}`}
-                                                    title={option.name}
-                                                    icon={channelIcon(option)}
-                                                    isBeta={isBetaModule(option.moduleName)}
-                                                    onClick={() => showChannel(option, "forward")}
-                                                />
-                                            ))}
-                                        </CardGrid>
-                                    </PanelViewMore>
+                                {query.trim() && (
+                                    <CentralSearchPanel
+                                        query={query}
+                                        triggers={triggers}
+                                        onSelect={(model, isLocalRepository) =>
+                                            showChannel({ ...model, isLocalRepository }, "forward")}
+                                    />
                                 )}
                             </>
                         )}
