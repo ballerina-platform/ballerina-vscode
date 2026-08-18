@@ -38,6 +38,7 @@ import io.ballerina.modelgenerator.commons.ParameterMemberTypeData;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.ModuleDescriptor;
 import io.ballerina.projects.Package;
+import org.ballerinalang.langserver.common.utils.PackageResolver;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -64,6 +65,8 @@ class IndexGenerator {
     private static final Logger LOGGER = Logger.getLogger(IndexGenerator.class.getName());
 
     public static void main(String[] args) {
+        // No language server here, so choose the resolver explicitly.
+        PackageResolver.initialize(false);
         DatabaseManager.createDatabase();
 
         Gson gson = new Gson();

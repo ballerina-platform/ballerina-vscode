@@ -73,6 +73,7 @@ import io.ballerina.projects.Project;
 import io.ballerina.tools.diagnostics.Location;
 import io.ballerina.tools.text.TextRange;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.PackageResolver;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -87,7 +88,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.logging.Logger;
-
 /**
  * Index generator to cache functions and connectors.
  *
@@ -103,6 +103,8 @@ class ServiceIndexGenerator {
     private static final Gson GSON = new Gson();
 
     public static void main(String[] args) {
+        // No language server here, so choose the resolver explicitly.
+        PackageResolver.initialize(false);
         DatabaseManager.createDatabase();
 
         Gson gson = new Gson();

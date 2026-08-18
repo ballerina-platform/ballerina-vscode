@@ -20,11 +20,8 @@ package org.ballerinalang.diagramutil;
 import com.google.gson.Gson;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
-import io.ballerina.projects.BuildOptions;
+import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.ProjectEnvironmentBuilder;
-import io.ballerina.projects.directory.ProjectLoader;
-import io.ballerina.projects.repos.TempDirCompilationCache;
 import org.ballerinalang.diagramutil.connector.generator.ConnectorGenerator;
 import org.ballerinalang.diagramutil.connector.models.connector.Connector;
 import org.ballerinalang.diagramutil.connector.models.connector.Function;
@@ -61,10 +58,7 @@ public class TestConnectorGenerator {
 
     @BeforeClass
     public void initMetadataGenerator() {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        testConProject = ProjectLoader.loadProject(this.testConnectorBalaFile, defaultBuilder,
-                BuildOptions.builder().setOffline(true).build());
+        testConProject = PackageUtil.loadBalaProject(this.testConnectorBalaFile);
     }
 
     @Test(description = "Test getting project all connectors")
@@ -177,10 +171,7 @@ public class TestConnectorGenerator {
 
     @Test(description = "Test all types in connector metadata generation")
     public void getAllTypesInConnectorMetadata() throws IOException {
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        Project testTypesConProject = ProjectLoader.loadProject(this.testClientBalaFile, defaultBuilder,
-                BuildOptions.builder().setOffline(true).build());
+        Project testTypesConProject = PackageUtil.loadBalaProject(this.testClientBalaFile);
         List<Connector> connectors = ConnectorGenerator.generateConnectorModel(testTypesConProject);
         Assert.assertEquals(connectors.size(), 1);
         Connector connector = connectors.get(0);

@@ -44,6 +44,7 @@ module io.ballerina.language.server.core {
     requires com.google.gson;
     requires io.ballerina.syntaxapicallsgen;
     requires io.ballerina.central.client;
+    requires io.ballerina.centralconnector;
     requires java.management;
     requires java.logging;
 }

@@ -397,7 +397,8 @@ allprojects {
         dependsOn rootProject.tasks.named("resolveBallerinaDependencies")
         environment "BALLERINA_HOME_DIR", rootProject.ballerinaTestHomeDir.absolutePath
         // Tests never contact Ballerina Central — they resolve only from the
-        // build-owned home provisioned above. See CommonUtil.TEST_OFFLINE.
+        // build-owned home provisioned above. This installs OfflinePackageResolver;
+        // see PackageResolver in langserver-core.
         systemProperty "ls.test.offline", "true"
     }
 }

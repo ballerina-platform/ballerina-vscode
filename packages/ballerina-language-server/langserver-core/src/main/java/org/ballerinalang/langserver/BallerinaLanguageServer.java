@@ -21,6 +21,7 @@ import com.google.gson.reflect.TypeToken;
 import io.ballerina.projects.util.ProjectConstants;
 import org.ballerinalang.langserver.command.LSCommandExecutorProvidersHolder;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
+import org.ballerinalang.langserver.common.utils.PackageResolver;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.capability.LSClientCapabilities;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
@@ -93,6 +94,9 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
     private final TextDocumentService textService;
     private final WorkspaceService workspaceService;
     private final NotebookDocumentService notebookService;
+    // Seeded from the system property so an unconfigured server is already correct; an embedder or a test driving
+    // the server directly can override it before initialize() runs.
+    private boolean offlineResolution = Boolean.getBoolean("ls.test.offline");
     private int shutdown = 1;
 
     private static final String LS_ENABLE_SEMANTIC_HIGHLIGHTING = "enableSemanticHighlighting";
@@ -145,6 +149,7 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
                 experimentalClientCapabilities,
                 initializationOptions);
         this.serverContext.put(LSClientCapabilities.class, capabilities);
+        PackageResolver.initialize(this.offlineResolution);
 
         //Checks for instances in which the LS needs to be initiated in lightweight mode
         if (capabilities.getInitializationOptions().isEnableLightWeightMode()) {
@@ -211,6 +216,16 @@ public class BallerinaLanguageServer extends AbstractExtendedLanguageServer
         ((BallerinaTextDocumentService) textService).setClientCapabilities(capabilities);
         ((BallerinaWorkspaceService) workspaceService).setClientCapabilities(capabilities);
         return CompletableFuture.supplyAsync(() -> res);
+    }
+
+    /**
+     * Runs this server without Ballerina Central access, resolving only from its Ballerina home. Must be called
+     * before {@link #initialize} to take effect.
+     *
+     * @param offline {@code true} to resolve offline.
+     */
+    public void setOfflineResolution(boolean offline) {
+        this.offlineResolution = offline;
     }
 
     @Override

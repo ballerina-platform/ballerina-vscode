@@ -101,11 +101,6 @@ public final class CommonUtil {
 
     public static final boolean COMPILE_OFFLINE;
 
-    // Set by the Gradle test tasks (-Dls.test.offline=true). When enabled, every site that would contact Ballerina
-    // Central is forced offline so tests resolve only from the build-provisioned Ballerina home. Defaults to false, so
-    // production behaviour is unchanged. Single flag for everything that can see langserver-core;
-    public static final boolean TEST_OFFLINE = Boolean.getBoolean("ls.test.offline");
-
     public static final String BALLERINA_CMD;
 
     public static final String URI_SCHEME_BALA = "bala";

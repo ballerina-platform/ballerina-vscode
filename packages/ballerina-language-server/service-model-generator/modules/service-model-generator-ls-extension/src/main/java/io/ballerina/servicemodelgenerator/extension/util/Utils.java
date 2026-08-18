@@ -1644,7 +1644,7 @@ public final class Utils {
             // Requested version not resolvable locally -> fall through to pull it below.
         }
 
-        // Tests run offline (-Dls.test.offline): never contact Ballerina Central to pull a module.
+        // An offline server never contacts Ballerina Central to pull a module.
         // Distribution-bundled packages (e.g. ballerina/file, ballerina/mcp) are resolved by the
         // downstream builder from the build-provisioned distribution; a package that is genuinely
         // unavailable offline fails loudly there instead of being pulled. Production is unchanged.
