@@ -22,6 +22,7 @@ import { Button, Icon, Switch, View, ThemeColors, Tooltip } from "@wso2/ui-toolk
 import { BIFlowDiagram } from "../FlowDiagram";
 import { BISequenceDiagram } from "../SequenceDiagram";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useTracingStatus } from "../../../hooks/useProductMode";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
 import { CodeData, DIRECTORY_MAP, EVENT_TYPE, FOCUS_FLOW_DIAGRAM_VIEW, FocusFlowDiagramView, FunctionModel, isSamePath, LineRange, ParentMetadata, ProjectStructureArtifactResponse, Protocol, SHARED_COMMANDS } from "@wso2/ballerina-core";
@@ -142,8 +143,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
     const [resources, setResources] = useState<ProjectStructureArtifactResponse[]>([]);
     const [servicePosition, setServicePosition] = useState<NodePosition>();
     const [isSaving, setIsSaving] = useState(false);
-    const [isTracingEnabled, setIsTracingEnabled] = useState(false);
-    const [isToggling, setIsToggling] = useState(false);
+    const { isTracingEnabled, isToggling, toggleTracing } = useTracingStatus(rpcClient, projectPath);
     const [isNarrowViewport, setIsNarrowViewport] = useState(
         typeof window !== "undefined" && window.innerWidth < TRACING_LABEL_BREAKPOINT
     );
@@ -241,45 +241,6 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         })();
     }, [rpcClient]);
 
-
-    useEffect(() => {
-        checkTracingStatus();
-    }, []);
-
-    // Re-query on every change so the button reflects this project's file,
-    // not whatever project triggered the broadcast.
-    useEffect(() => {
-        rpcClient.getAgentChatRpcClient().onTracingStatusChanged(() => {
-            checkTracingStatus();
-        });
-    }, [rpcClient]);
-
-    const checkTracingStatus = async () => {
-        try {
-            const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
-            setIsTracingEnabled(status.enabled);
-        } catch (error) {
-            setIsTracingEnabled(false);
-        }
-    };
-
-    const handleToggleTracing = async () => {
-        if (isToggling) {
-            return;
-        }
-
-        setIsToggling(true);
-        try {
-            const command = isTracingEnabled ? "ballerina.disableTracing" : "ballerina.enableTracing";
-            await rpcClient.getCommonRpcClient().executeCommand({ commands: [command] });
-            await checkTracingStatus();
-        } catch (error) {
-            console.error("Failed to toggle tracing:", error);
-            throw error;
-        } finally {
-            setIsToggling(false);
-        }
-    };
 
     const handleFunctionClose = () => {
         setFunctionModel(undefined);
@@ -605,7 +566,7 @@ export function DiagramWrapper(param: DiagramWrapperProps) {
         const tracingButton = (
             <ActionButton
                 appearance={isTracingEnabled ? "primary" : "secondary"}
-                onClick={handleToggleTracing}
+                onClick={toggleTracing}
                 disabled={isToggling}
                 tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
             >
