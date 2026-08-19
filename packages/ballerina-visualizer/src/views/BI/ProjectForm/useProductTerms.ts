@@ -16,12 +16,15 @@
  * under the License.
  */
 
-export { CollapsibleSection } from "./CollapsibleSection";
-export type { CollapsibleSectionProps } from "./CollapsibleSection";
+import { ProductMode } from "@wso2/ballerina-core";
+import { useProductMode } from "../../../hooks/useProductMode";
+import { ProductTerms, getProductTerms } from "./productTerms";
 
-export { ProjectTypeSelector, PROJECT_TYPE_OPTIONS } from "./ProjectTypeSelector";
-export type { ProjectTypeSelectorProps, ProjectTypeOption } from "./ProjectTypeSelector";
-
-export { AdvancedConfigurationSection } from "./AdvancedConfigurationSection";
-export type { AdvancedConfigurationSectionProps, ConfigurationData } from "./AdvancedConfigurationSection";
-
+/**
+ * The wording for the flavor this webview runs in. For the forms federated into
+ * the Integrator webview the mode arrives as a prop instead — there is no
+ * `rpcClient` there — so those call `getProductTerms` directly.
+ */
+export function useProductTerms(): ProductTerms {
+    return getProductTerms(useProductMode() === ProductMode.AGENT_BUILDER);
+}

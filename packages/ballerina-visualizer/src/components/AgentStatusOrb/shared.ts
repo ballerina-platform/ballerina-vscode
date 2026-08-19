@@ -19,7 +19,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
-import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW } from "@wso2/ballerina-core";
+import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
 
@@ -59,6 +59,64 @@ export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "error": ["#f87171", "#ef4444", "#fb7185"],
 };
 
+/** [base, darker-shade, lighter-shade] from one theme color, mirroring ACCENT_SPHERE below. */
+function shadeTriple(base: string): [string, string, string] {
+    return [base, `color-mix(in srgb, ${base} 62%, #000000)`, `color-mix(in srgb, ${base} 72%, #ffffff)`];
+}
+
+/**
+ * One base color per state, so the orb and the composer frame cannot drift apart —
+ * they shade the same base two different ways (`shadeTriple` / `frameTriple`).
+ */
+const STATE_BASE = {
+    "running": "var(--vscode-progressBar-background)",
+    "awaiting-input": "var(--vscode-editorWarning-foreground)",
+    "completed": "var(--vscode-editorGutter-addedBackground)",
+    "error": "var(--vscode-statusBarItem-errorBackground)",
+} as const;
+
+/** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
+export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
+    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
+    "running": shadeTriple(STATE_BASE.running),
+    "awaiting-input": shadeTriple(STATE_BASE["awaiting-input"]),
+    "completed": shadeTriple(STATE_BASE.completed),
+    "error": shadeTriple(STATE_BASE.error),
+};
+
+const PRIMARY = "var(--vscode-button-background)";
+
+/** [lighter, base, darker] — the frame reads brightest at its leading edge, unlike a sphere. */
+export function frameTriple(base: string): [string, string, string] {
+    return [`color-mix(in srgb, ${base} 72%, #ffffff)`, base, `color-mix(in srgb, ${base} 78%, #000000)`];
+}
+
+export const ACCENT_FRAME: [string, string, string] = frameTriple(PRIMARY);
+
+/** Frame counterpart of AGENT_BUILDER_ORB_COLORS — same bases, frame-shaped. */
+export const AGENT_BUILDER_FRAME_COLORS: Record<AgentRunState, [string, string, string]> = {
+    "idle": ACCENT_FRAME,
+    "running": frameTriple(STATE_BASE.running),
+    "awaiting-input": frameTriple(STATE_BASE["awaiting-input"]),
+    "completed": frameTriple(STATE_BASE.completed),
+    "error": frameTriple(STATE_BASE.error),
+};
+
+export const ACCENT_SPHERE: [string, string, string] = [
+    PRIMARY,
+    `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
+    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
+];
+
+export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
+
+export function orbColors(state: AgentRunState, agentBuilder: boolean): [string, string, string] {
+    if (!agentBuilder) {
+        return ORB_COLORS[state];
+    }
+    return state === "idle" ? ACCENT_SPHERE : AGENT_BUILDER_ORB_COLORS[state];
+}
+
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
 export const ORB_ENERGY: Record<AgentRunState, number> = {
     "idle": 0.35,
@@ -79,10 +137,34 @@ export type AmbientFrameVariant = "hero" | "composer";
 interface AmbientFrameProps {
     $state?: AgentRunState;
     $variant?: AmbientFrameVariant;
+    $colors?: [string, string, string];
+    $agentBuilder?: boolean;
 }
 
+interface AmbientGlowSpec {
+    outerSize: number;
+    outerStrength: number;
+    innerSize: number;
+    innerStrength: number;
+}
+
+export function ambientGlow(colors: [string, string, string], spec: AmbientGlowSpec): string {
+    const [first, second] = colors;
+    return (
+        `0 0 ${spec.outerSize}px color-mix(in srgb, ${first} ${spec.outerStrength}%, transparent), ` +
+        `0 0 ${spec.innerSize}px color-mix(in srgb, ${second} ${spec.innerStrength}%, transparent)`
+    );
+}
+
+export const HERO_GLOW: AmbientGlowSpec = { outerSize: 28, outerStrength: 34, innerSize: 14, innerStrength: 20 };
+
 function ambientColors(props: AmbientFrameProps): [string, string, string] {
-    return ORB_COLORS[props.$state ?? "idle"];
+    const state = props.$state ?? "idle";
+    if (state === "idle") {
+        return props.$colors ?? ORB_COLORS.idle;
+    }
+    // Agent Builder tracks the orb's palette; Integrator keeps its own per-state colors.
+    return props.$agentBuilder ? AGENT_BUILDER_FRAME_COLORS[state] : ORB_COLORS[state];
 }
 
 /**
@@ -102,22 +184,22 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     background-size: 300% 300%;
     animation: ${ambientGradientShift} 9s ease infinite;
     box-shadow: ${(props: AmbientFrameProps) => {
-        const [first, second] = ambientColors(props);
         const hero = props.$variant === "hero";
         const active = !!props.$state && props.$state !== "idle";
-        const outerStrength = hero ? 25 : active ? 20 : 12;
-        const innerStrength = hero ? 12 : active ? 13 : 7;
-        const outerSize = hero ? 18 : active ? 16 : 12;
-        const innerSize = hero ? 10 : active ? 10 : 8;
-        return `0 0 ${outerSize}px color-mix(in srgb, ${first} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${second} ${innerStrength}%, transparent)`;
+        return ambientGlow(ambientColors(props), {
+            outerSize: hero ? 18 : active ? 16 : 12,
+            outerStrength: hero ? 25 : active ? 20 : 12,
+            innerSize: hero ? 10 : active ? 10 : 8,
+            innerStrength: hero ? 12 : active ? 13 : 7,
+        });
     }};
     transition: box-shadow 0.25s ease;
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-            const [first, second] = ambientColors(props);
-            return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
-        }};
+        const [first, second] = ambientColors(props);
+        return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+    }};
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -133,20 +215,23 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 `;
 
 /** User-facing label for a non-idle run state, shared by the orb and the hero box. */
-export const AWAITING_INPUT_LABEL = "Copilot needs your input";
+export function awaitingInputLabel(mode: ProductMode): string {
+    return `${shortAssistantName(mode)} needs your input`;
+}
 
-export function activeStateLabel(status: AgentRunStatus): string {
+export function activeStateLabel(status: AgentRunStatus, mode: ProductMode): string {
+    const shortName = shortAssistantName(mode);
     switch (status.state) {
         case "completed":
-            return "Done — click to open Copilot";
+            return status.aiPanelOpen ? "Done" : `Done — click to open ${shortName}`;
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
-            return status.label ?? AWAITING_INPUT_LABEL;
+            return status.label ?? awaitingInputLabel(mode);
         case "error":
-            return status.label ?? "Copilot hit an error";
+            return status.label ?? `${shortName} hit an error`;
         default:
-            return "Chat with WSO2 Integrator Copilot";
+            return `Chat with ${assistantName(mode)}`;
     }
 }
 
@@ -173,6 +258,7 @@ interface SphereProps {
      * optional let two of them silently render a running orb at idle tempo.
      */
     energy: number;
+    highlightColor?: string;
 }
 
 /**
@@ -194,7 +280,7 @@ export const Sphere = styled.div<SphereProps>`
     justify-content: center;
     background: radial-gradient(
         circle at 32% 28%,
-        rgba(255, 255, 255, 0.55),
+        ${(props: SphereProps) => props.highlightColor ?? "rgba(255, 255, 255, 0.55)"},
         ${(props: SphereProps) => props.colors[0]} 45%,
         ${(props: SphereProps) => props.colors[1]} 100%
     );
@@ -212,6 +298,25 @@ export const Sphere = styled.div<SphereProps>`
     @media (prefers-reduced-motion: reduce), (forced-colors: active) {
         animation: none;
         background-size: 100% 100%;
+    }
+`;
+
+const spin = keyframes`
+    to { transform: rotate(360deg); }
+`;
+
+export const SpinArc = styled.div<{ color: string }>`
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: ${(props: { color: string }) => props.color};
+    animation: ${spin} 1.1s linear infinite;
+    pointer-events: none;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        opacity: 0.6;
     }
 `;
 

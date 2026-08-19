@@ -22,13 +22,15 @@ import { Icon } from "@wso2/ui-toolkit";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { DIRECTORY_MAP, EVENT_TYPE, HistoryEntry, isSamePath, MACHINE_VIEW, VisualizerLocation, WorkspaceTypeResponse } from "@wso2/ballerina-core";
 
-const NavContainer = styled.div`
+const NavContainer = styled.div<{ bordered?: boolean }>`
     display: flex;
     align-items: center;
     min-height: 48px;
     padding: 0 16px;
     gap: 8px;
     background-color: var(--vscode-editor-background);
+    border-bottom: ${(props: { bordered?: boolean }) =>
+        props.bordered ? "1px solid var(--vscode-dropdown-border)" : "none"};
     z-index: 1000;
 `;
 
@@ -104,10 +106,11 @@ interface TopNavigationBarProps {
     projectPath: string;
     onBack?: () => void;
     onHome?: () => void;
+    bordered?: boolean;
 }
 
 export function TopNavigationBar(props: TopNavigationBarProps) {
-    const { projectPath, onBack, onHome } = props;
+    const { projectPath, onBack, onHome, bordered } = props;
     const { rpcClient } = useRpcContext();
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [workspaceType, setWorkspaceType] = useState<WorkspaceTypeResponse>(null);
@@ -269,7 +272,7 @@ export function TopNavigationBar(props: TopNavigationBarProps) {
     );
 
     return (
-        <NavContainer>
+        <NavContainer bordered={bordered}>
             {onBack && (
                 <IconButton onClick={handleBack}>
                     <Icon name="bi-arrow-back" iconSx={{ color: "var(--vscode-foreground)" }} />

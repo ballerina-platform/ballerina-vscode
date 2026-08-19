@@ -128,24 +128,14 @@ export const validateComponentName = (name: string, isLibrary: boolean): string 
 export const isFormValidAddProject = (
     formData: AddProjectFormData,
     isInProject: boolean,
-    addNewAfterConvert: boolean = true,
-    options?: {
-        /**
-         * Whether the organization name is the caller's to validate. False for a route that
-         * neither shows the field nor surfaces its error — gating there would disable submit
-         * over a value the user can neither see nor correct. The organization is resolved
-         * rather than typed, so it can arrive late, or reserved, or not at all.
-         */
-        requireOrgName?: boolean;
-    }
+    addNewAfterConvert: boolean = true
 ): boolean => {
     const needsComponent = isInProject || addNewAfterConvert;
-    const requireOrgName = options?.requireOrgName ?? true;
     return (
         (isInProject || (formData.workspaceName?.length ?? 0) >= 1) &&
         (!needsComponent || validateComponentName(formData.integrationName, formData.isLibrary) === null) &&
         (!needsComponent || validatePackageName(formData.packageName, formData.integrationName) === null) &&
-        (!requireOrgName || validateOrgName(formData.orgName) === null) &&
+        validateOrgName(formData.orgName) === null &&
         (formData.projectHandle === undefined || validateProjectHandle(formData.projectHandle) === null)
     );
 };

@@ -23,7 +23,7 @@ import axios from 'axios';
 import { AuthCredentials, BIIntelSecrets, LoginMethod, AnthropicAwsSecrets } from '@wso2/ballerina-core';
 import { IWso2PlatformExtensionAPI } from '@wso2/wso2-platform-core';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
-import { WI_EXTENSION_ID } from '../config';
+import { WI_EXTENSION_ID, aiAssistantName } from '../config';
 
 export const TOKEN_NOT_AVAILABLE_ERROR_MESSAGE = "Access token is not available.";
 export const TOKEN_REFRESH_ONLY_SUPPORTED_FOR_BI_INTEL = "Token refresh is only supported for BI Intelligence authentication";
@@ -202,7 +202,7 @@ export const exchangeStsToCopilotToken = async (stsToken: string): Promise<BIInt
         throw new Error(response.data?.message || response.data?.reason || `Status ${response.status}`);
     } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown error';
-        vscode.window.showErrorMessage(`WSO2 Integrator Copilot authentication failed: ${reason}`);
+        vscode.window.showErrorMessage(`${aiAssistantName()} authentication failed: ${reason}`);
         throw error;
     }
 };
@@ -245,7 +245,7 @@ export const clearAuthCredentials = async (): Promise<void> => {
 };
 
 // ==================================
-// WSO2 Integrator Copilot Auth Utils
+// AI assistant Auth Utils
 // ==================================
 export const getLoginMethod = async (): Promise<LoginMethod | undefined> => {
     // Priority 1: Check Anthropic API key from environment

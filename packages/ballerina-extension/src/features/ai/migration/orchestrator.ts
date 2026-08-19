@@ -47,6 +47,7 @@ import {
     PENDING_MIGRATION_ENHANCEMENT_KEY,
     PendingMigrationEnhancement,
 } from "./types";
+import { aiAssistantName, aiAssistantShortName } from "../../../utils/config";
 
 // ===========================================================================
 // Active Session – in-memory state for the current window session
@@ -358,12 +359,13 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // Set session state so other parts of the extension know about the migration
         _activeSession = { isActive: false, aiFeatureUsed: true, fullyEnhanced: false };
 
+        const openLabel = `Open ${aiAssistantShortName()}`;
         const action = await window.showInformationMessage(
-            "Migration AI enhancement was paused. You can resume it from 'WSO2 Integrator Copilot'.",
-            "Open Copilot"
+            `Migration AI enhancement was paused. You can resume it from '${aiAssistantName()}'.`,
+            openLabel
         );
 
-        if (action === "Open Copilot") {
+        if (action === openLabel) {
             openAIPanelWithPrompt();
         }
     } else {
@@ -371,11 +373,12 @@ export async function checkAndRunPendingEnhancement(): Promise<void> {
         // a "Start AI Enhancement" button, and notify the user.
         _activeSession = { isActive: false, aiFeatureUsed: false, fullyEnhanced: false };
         console.log("[MigrationEnhancement] AI not enabled at wizard – notification shown.");
+        const openLabel = `Open ${aiAssistantShortName()}`;
         const action = await window.showInformationMessage(
-            "Your migrated project is ready. Open 'WSO2 Integrator Copilot' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.",
-            "Open Copilot"
+            `Your migrated project is ready. Open '${aiAssistantName()}' to run AI enhancement — it can resolve TODOs, fix build errors, and refine tests.`,
+            openLabel
         );
-        if (action === "Open Copilot") {
+        if (action === openLabel) {
             openAIPanelWithPrompt();
         }
     }
@@ -576,7 +579,7 @@ interface StageRunnerOpts {
 function shortStageName(name: string): string {
     const stripped = name.replace(/^\[.*?\]\s*/, ""); // remove "[pkgName] " prefix
     if (stripped.includes("Fidelity Check")) { return "Fidelity Check"; }
-    if (stripped.includes("Diagnostics")) {    return "Diagnostics"; }
+    if (stripped.includes("Diagnostics")) { return "Diagnostics"; }
     if (stripped.includes("Test Refinement")) { return "Test Refinement"; }
     if (stripped.includes("Final Validation")) { return "Final Validation"; }
     if (stripped.includes("Workspace Validation")) { return "Workspace Validation"; }
@@ -726,7 +729,7 @@ async function runStagesForPackage(opts: StageRunnerOpts): Promise<void> {
 let _migrationAbortController: AbortController | undefined;
 
 /** Module-level selected model ID (set by the UI's model selector). */
-let _selectedModelId: string = "wso2"; // default to WSO2 Integrator Copilot
+let _selectedModelId: string = "wso2"; // default to the WSO2 model provider
 
 /**
  * Update the selected model ID from the webview.
@@ -977,7 +980,7 @@ async function ensureAuthenticated(): Promise<boolean> {
     }
 
     // Tell the wizard UI we're signing in
-    const signingInMsg = { type: "content_block" as const, content: "Signing in to WSO2 Integrator Copilot...\n\n" };
+    const signingInMsg = { type: "content_block" as const, content: `Signing in to ${aiAssistantName()}...\n\n` };
     sendVisualizerMigrationNotification(signingInMsg);
     _wizardChatEmitter.fire(signingInMsg);
 
@@ -1047,7 +1050,7 @@ export function isAIAuthenticated(): boolean {
 }
 
 /**
- * Triggers the WSO2 Integrator Copilot browser sign-in flow and waits until the user is
+ * Triggers the AI assistant's browser sign-in flow and waits until the user is
  * authenticated, cancels, or the 2-minute timeout elapses.
  *
  * Unlike `ensureAuthenticated`, this function does NOT emit any messages to a
@@ -1309,7 +1312,7 @@ export async function runWizardMigrationEnhancement(): Promise<void> {
     if (!isAuthenticated) {
         eventHandler({
             type: "error",
-            content: "Please sign in to WSO2 Integrator Copilot to use AI enhancement. Please retry the AI Enhancement step.",
+            content: `Please sign in to ${aiAssistantName()} to use AI enhancement. Please retry the AI Enhancement step.`,
         });
         return;
     }

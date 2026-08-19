@@ -151,3 +151,21 @@ export const suggestedCommandTemplates: AIPanelPrompt[] = [
         planMode: true,
     },
 ];
+
+export const agentBuilderSuggestedCommandTemplates: AIPanelPrompt[] = [
+    {
+        type: "text",
+        text: "Create a customer support agent with a chat trigger",
+        planMode: true,
+    },
+    {
+        type: "text",
+        text: "Add a tool to my agent that calls a REST API",
+        planMode: false,
+    },
+    {
+        type: "text",
+        text: "Explain what my agent does and which tools it uses",
+        planMode: false,
+    },
+];

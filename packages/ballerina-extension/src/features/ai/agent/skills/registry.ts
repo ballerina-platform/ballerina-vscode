@@ -31,6 +31,7 @@ function loadSkillMd(loadBundled: () => string, dir: string): string {
 }
 const dataMapMd = loadSkillMd(() => require('./data-map/SKILL.md'), 'data-map');
 const skillCreatorMd = loadSkillMd(() => require('./skill-creator/SKILL.md'), 'skill-creator');
+const agentBuilderMd = loadSkillMd(() => require('./agent-builder/SKILL.md'), 'agent-builder');
 
 // data-map skill
 const dataMap = parseSkillMd(dataMapMd);
@@ -83,7 +84,22 @@ export const skillCreatorSkill: Skill = {
     default: false,
 };
 
+// agent-builder skill
+const agentBuilder = parseSkillMd(agentBuilderMd);
+if (!agentBuilder.name || !agentBuilder.description) {
+    throw new Error(`[agent-builder] SKILL.md is missing required frontmatter fields (name="${agentBuilder.name}", description="${agentBuilder.description}")`);
+}
+
+export const agentBuilderSkill: Skill = {
+    name: agentBuilder.name,
+    trigger: agentBuilder.description,
+    content: agentBuilder.body,
+    optional: false,
+    default: true,
+};
+
 export const REGISTERED_SKILLS: Skill[] = [
     dataMapSkill,
     skillCreatorSkill,
+    agentBuilderSkill,
 ];

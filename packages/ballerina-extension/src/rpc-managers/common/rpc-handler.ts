@@ -47,6 +47,7 @@ import {
     hasCentralPATConfigured,
     isNPSupported,
     additionalTriggerSearchEnabled,
+    agentBuilderModeEnabled,
     openExternalUrl,
     publishToCentral,
     runBackgroundTerminalCommand,
@@ -76,6 +77,7 @@ export function registerCommonRpcHandlers(messenger: Messenger) {
     messenger.onRequest(selectFileOrFolderPath, () => rpcManger.selectFileOrFolderPath());
     messenger.onRequest(experimentalEnabled, () => rpcManger.experimentalEnabled());
     messenger.onRequest(additionalTriggerSearchEnabled, () => rpcManger.additionalTriggerSearchEnabled());
+    messenger.onRequest(agentBuilderModeEnabled, () => rpcManger.agentBuilderModeEnabled());
     messenger.onRequest(isNPSupported, () => rpcManger.isNPSupported());
     messenger.onRequest(getWorkspaceRoot, () => rpcManger.getWorkspaceRoot());
     messenger.onNotification(showErrorMessage, (args: ShowErrorMessageRequest) => rpcManger.showErrorMessage(args));

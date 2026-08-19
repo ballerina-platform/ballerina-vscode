@@ -26,6 +26,7 @@ const EditableTitleWrapper = styled.div`
     gap: 6px;
     cursor: pointer;
     outline: none;
+    min-width: 0;
 
     &:is(:hover, :focus-visible) .edit-title-icon-wrapper {
         opacity: 1;

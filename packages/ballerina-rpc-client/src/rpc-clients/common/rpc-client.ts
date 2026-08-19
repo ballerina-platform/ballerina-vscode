@@ -56,6 +56,7 @@ import {
     hasCentralPATConfigured,
     isNPSupported,
     additionalTriggerSearchEnabled,
+    agentBuilderModeEnabled,
     openExternalUrl,
     publishToCentral,
     runBackgroundTerminalCommand,
@@ -129,6 +130,10 @@ export class CommonRpcClient implements CommonRPCAPI {
 
     additionalTriggerSearchEnabled(): Promise<boolean> {
         return this._messenger.sendRequest(additionalTriggerSearchEnabled, HOST_EXTENSION);
+    }
+
+    agentBuilderModeEnabled(): Promise<boolean> {
+        return this._messenger.sendRequest(agentBuilderModeEnabled, HOST_EXTENSION);
     }
 
     isNPSupported(): Promise<boolean> {

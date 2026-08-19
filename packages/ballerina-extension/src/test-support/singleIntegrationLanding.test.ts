@@ -39,6 +39,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     DIRECTORY_MAP,
     EVENT_TYPE: {},
     FOCUS_FLOW_DIAGRAM_VIEW: {},
+    ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     isSamePath: (a: string, b: string) => a === b,
 }));
 

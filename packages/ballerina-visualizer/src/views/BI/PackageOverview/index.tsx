@@ -18,7 +18,6 @@
 
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { EditableTitle } from "../../../components/EditableTitle";
 import {
     ProjectStructure,
     EVENT_TYPE,
@@ -27,6 +26,7 @@ import {
     BI_COMMANDS,
     DIRECTORY_MAP,
     isSamePath,
+    shortAssistantName,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Typography, Codicon, ProgressRing, Button, Icon, Divider, CheckBox, ProgressIndicator, Overlay, Dropdown } from "@wso2/ui-toolkit";
@@ -37,14 +37,19 @@ import { Markdown } from "../../../components/Markdown";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { getIntegrationTypes, validateComponentName } from "./utils";
-import { UndoRedoGroup } from "../../../components/UndoRedoGroup";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
+import { PageHeader } from "../components/PageHeader";
 import { PublishToCentralButton } from "./PublishToCentralButton";
 import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
-import { AWAITING_INPUT_LABEL, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
+import { awaitingInputLabel, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
+import { useProductMode } from "../../../hooks/useProductMode";
+
+/** Only reachable from an empty integration, and it pulls in the whole wizard +
+ *  artifact form tree — so keep it out of the overview's own chunk. */
+const LazyAddIntegrationPanel = React.lazy(() => import("./AddIntegrationPanel"));
 
 /** The diagram engine (`@wso2/component-diagram` and its layout stack) is the
  *  heaviest thing this view renders. Kept out of the overview's chunk so the page —
@@ -102,23 +107,6 @@ const EmptyStateContainer = styled.div<{ withHero?: boolean }>`
 const PageLayout = styled.div`
     display: grid;
     grid-template-rows: auto auto;
-`;
-
-const HeaderRow = styled.div<{ isBallerinaWorkspace?: boolean }>`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0 16px 16px;
-    background: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-dropdown-border);
-    margin: ${(props: { isBallerinaWorkspace?: boolean }) => props.isBallerinaWorkspace ? '0 16px 0 16px' : '16px 16px 0 16px'};
-`;
-
-const HeaderControls = styled.div`
-    display: flex;
-    gap: 8px;
-    margin-right: 16px;
-    align-items: center;
 `;
 
 const MainContent = styled.div<{ fullWidth?: boolean }>`
@@ -249,38 +237,6 @@ const ReadmeContent = styled.div`
     code {
         white-space: pre-wrap;
         overflow-wrap: break-word;
-    }
-`;
-
-const TitleContainer = styled.div`
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-`;
-
-const ProjectTitle = styled.h1`
-    font-weight: bold;
-    font-size: 1.5rem;
-    margin-bottom: 0;
-    margin-top: 0;
-    @media (min-width: 768px) {
-        font-size: 1.875rem;
-    }
-`;
-
-const ProjectSubtitle = styled.h2`
-    display: none;
-    font-weight: 200;
-    font-size: 1.5rem;
-    opacity: 0.3;
-    margin-bottom: 0;
-    margin-top: 0;
-    @media (min-width: 640px) {
-        display: block;
-    }
-
-    @media (min-width: 768px) {
-        font-size: 1.875rem;
     }
 `;
 
@@ -833,6 +789,8 @@ interface PackageOverviewProps {
 }
 
 export function PackageOverview(props: PackageOverviewProps) {
+    const productMode = useProductMode();
+    const shortName = shortAssistantName(productMode);
     const { projectPath, isInDevant, isICPSupported } = props;
     const { rpcClient } = useRpcContext();
     const [readmeContent, setReadmeContent] = React.useState<string>("");
@@ -849,6 +807,9 @@ export function PackageOverview(props: PackageOverviewProps) {
     const awaitingInput = agentState === "awaiting-input";
     const agentWorking = agentState === "running" || awaitingInput;
     const showHero = !isLibrary && !aiPanelOpen;
+    // Shows the Create Integration wizard in place of the overview, for an empty
+    // integration whose owner skipped it at creation time.
+    const [showAddIntegration, setShowAddIntegration] = useState<boolean>(false);
 
     const fetchContext = useCallback(() => {
         rpcClient
@@ -936,6 +897,11 @@ export function PackageOverview(props: PackageOverviewProps) {
         setProjectStructure(prev => prev ? { ...prev, projectTitle: newTitle } : prev);
     }, [projectPath, rpcClient]);
 
+    // Returns to the overview. After a successful add the artifact was generated in
+    // the current session, so the backend's notifyCurrentWebview → fetchContext
+    // refresh is what turns the empty state into the component diagram.
+    const closeAddIntegration = useCallback(() => setShowAddIntegration(false), []);
+
     function isEmptyIntegration(): boolean {
         // Filter out connections that start with underscore
         const validConnections = projectStructure.directoryMap[DIRECTORY_MAP.CONNECTION]?.filter(
@@ -958,6 +924,27 @@ export function PackageOverview(props: PackageOverviewProps) {
             <SpinnerContainer>
                 <ProgressRing color={ThemeColors.PRIMARY} />
             </SpinnerContainer>
+        );
+    }
+
+    // Rendered in place of the overview (not on top of it) so the wizard gets the
+    // definite height its pinned-stepper layout needs. This component stays mounted
+    // throughout, so dismissing the wizard restores the overview instantly.
+    if (showAddIntegration) {
+        return (
+            <React.Suspense
+                fallback={
+                    <SpinnerContainer>
+                        <ProgressRing color={ThemeColors.PRIMARY} />
+                    </SpinnerContainer>
+                }
+            >
+                <LazyAddIntegrationPanel
+                    packageRoot={projectPath}
+                    integrationName={integrationTitle}
+                    onClose={closeAddIntegration}
+                />
+            </React.Suspense>
         );
     }
 
@@ -1130,22 +1117,13 @@ export function PackageOverview(props: PackageOverviewProps) {
                         validateTitle={validateTitle}
                     />
                 ) : (
-                    <HeaderRow>
-                        <TitleContainer>
-                            <EditableTitle
-                                title={integrationTitle}
-                                onCommit={handleTitleUpdate}
-                                validate={validateTitle}
-                            >
-                                <ProjectTitle>{integrationTitle}</ProjectTitle>
-                            </EditableTitle>
-                            <ProjectSubtitle>{isLibrary ? "Library" : "Integration"}</ProjectSubtitle>
-                        </TitleContainer>
-                        <HeaderControls>
-                            <UndoRedoGroup key={Date.now()} />
-                            {headerActions}
-                        </HeaderControls>
-                    </HeaderRow>
+                    <PageHeader
+                        title={integrationTitle}
+                        subtitle={isLibrary ? "Library" : "Integration"}
+                        actions={headerActions}
+                        onTitleEdit={handleTitleUpdate}
+                        validateTitle={validateTitle}
+                    />
                 )}
                 <MainContent fullWidth={isLibrary}>
                     <LeftContent>
@@ -1171,8 +1149,6 @@ export function PackageOverview(props: PackageOverviewProps) {
                             {!isLibrary && (
                                 <DiagramHeaderContainer withPadding={true}>
                                     <Title variant="h2">Design</Title>
-                                    {/* An empty integration has its own copy of this below,
-                                        centred in the empty state, so only one is ever on screen. */}
                                     {!isEmptyIntegration() && (
                                         <ActionContainer>
                                             <Button appearance="primary" onClick={handleAddConstruct}>
@@ -1209,7 +1185,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                         sx={{ color: "var(--vscode-descriptionForeground)" }}
                                                     >
                                                         {agentWorking
-                                                            ? (awaitingInput ? AWAITING_INPUT_LABEL : "Copilot is working…")
+                                                            ? (awaitingInput ? awaitingInputLabel(productMode) : `${shortName} is working…`)
                                                             : showHero
                                                                 ? "Describe what you want to build, or add an artifact to get started"
                                                                 : "Add an artifact to get started"}
@@ -1217,10 +1193,19 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                 </StatusRow>
                                             )}
                                             <ButtonContainer>
-                                                {/* The header's button, restated where the empty state can
-                                                    centre it — same handler, same enablement. */}
-                                                <Button appearance="primary" onClick={handleAddConstruct}>
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifact
+                                                {/* An empty integration means the creation wizard was
+                                                    skipped — offer it again here rather than the raw
+                                                    artifact list, so the guided flow can be resumed. */}
+                                                {/* Disabled rather than hidden mid-turn: reverting the
+                                                    generation restores a pre-turn checkpoint and drops
+                                                    whatever is not in it, including an artifact added now. */}
+                                                <Button
+                                                    appearance="primary"
+                                                    onClick={() => setShowAddIntegration(true)}
+                                                    disabled={agentWorking}
+                                                    tooltip={agentWorking ? `Available once ${shortName} finishes` : undefined}
+                                                >
+                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration
                                                 </Button>
                                             </ButtonContainer>
                                         </EmptyStateContainer>

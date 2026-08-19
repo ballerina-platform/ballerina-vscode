@@ -21,6 +21,7 @@ import { AIMachineEventType } from '@wso2/ballerina-core';
 import { useRpcContext } from '@wso2/ballerina-rpc-client';
 
 import { AlertBox } from "../AlertBox";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 const Container = styled.div`
     display: flex;
@@ -31,6 +32,7 @@ const Container = styled.div`
 `;
 
 export const DisabledWindow = () => {
+    const assistantName = useAssistantName();
     const { rpcClient } = useRpcContext();
 
     const Retry = () => {
@@ -43,7 +45,7 @@ export const DisabledWindow = () => {
                 buttonTitle="Retry"
                 onClick={Retry}
                 subTitle={
-                    "An error occurred while trying to establish a connection with the WSO2 Integrator Copilot server. Please click retry to try again."
+                    `An error occurred while trying to establish a connection with the ${assistantName} server. Please click retry to try again.`
                 }
                 title={"Error in establishing Connection"}
             />
