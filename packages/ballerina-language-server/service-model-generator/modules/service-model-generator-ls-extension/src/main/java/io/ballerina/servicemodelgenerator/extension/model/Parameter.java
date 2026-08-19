@@ -59,6 +59,7 @@ public class Parameter {
     private boolean isGraphqlId;
     private String httpParamType;
     private Map<String, Value> properties;
+    private String bindingGroup;
 
     public Parameter(MetaData metadata, String kind, Value type, Value name, Value defaultValue, Value documentation,
                      boolean enabled, boolean editable, boolean optional, boolean advanced, String httpParamType,
@@ -95,6 +96,7 @@ public class Parameter {
         this.headerName = parameter.headerName;
         this.properties = parameter.properties;
         this.isGraphqlId = parameter.isGraphqlId;
+        this.bindingGroup = parameter.bindingGroup;
     }
 
     private static Value name(MetaData metadata) {
@@ -287,6 +289,14 @@ public class Parameter {
         this.headerName = headerName;
     }
 
+    public String getBindingGroup() {
+        return bindingGroup;
+    }
+
+    public void setBindingGroup(String bindingGroup) {
+        this.bindingGroup = bindingGroup;
+    }
+
     public Map<String, Value> getProperties() {
         if (Objects.isNull(properties)) {
             properties = new LinkedHashMap<>();
@@ -353,6 +363,7 @@ public class Parameter {
         private boolean isGraphqlId;
         private String httpParamType;
         private Map<String, Value> properties;
+        private String bindingGroup;
 
 
         public Builder metadata(MetaData metadata) {
@@ -438,10 +449,16 @@ public class Parameter {
             return this;
         }
 
+        public Builder bindingGroup(String bindingGroup) {
+            this.bindingGroup = bindingGroup;
+            return this;
+        }
+
         public Parameter build() {
             Parameter parameter = new Parameter(metadata, kind, type, name, defaultValue, documentation, enabled,
                     editable, optional, advanced, httpParamType, hidden, properties, isGraphqlId);
             parameter.setHeaderName(headerName);
+            parameter.setBindingGroup(bindingGroup);
             return parameter;
         }
     }

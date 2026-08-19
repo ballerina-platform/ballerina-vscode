@@ -98,6 +98,10 @@ const WelcomeOrb = styled.div`
     flex: none;
 `;
 
+const SerifI = styled.span`
+    font-family: Georgia, "Times New Roman", serif;
+`;
+
 const GuideChip = styled.div`
     margin: 42px auto 0;
     padding: 8px 16px;
@@ -188,8 +192,11 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                         marginTop: "16px",
                     }}
                 >
-                    I can help you build, update, and understand your {agentBuilder ? "agent" : "integration"}. Tell
-                    me what you’d like to do.
+                    {agentBuilder ? (
+                        <>I can help you build, update, and understand your agent. Tell me what you’d like to do.</>
+                    ) : (
+                        <>Hi, this is {assistantName} (<SerifI>WII</SerifI>). You can call me Wii. I’m built to be an expert in integration. Let’s do integration together.</>
+                    )}
                 </Typography>
                 <Typography
                     variant="body1"

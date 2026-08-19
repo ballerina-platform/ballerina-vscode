@@ -105,6 +105,22 @@ export function shouldRunExternalFormValidation({
     return formStateIsValid && Object.keys(errors ?? {}).length === 0 && !hasIncompleteRequiredFields;
 }
 
+export function groupHasBlockingIssue({
+    groupFields,
+    errors,
+    values,
+    hasFieldError,
+}: {
+    groupFields: FormField[];
+    errors?: Record<string, unknown>;
+    values?: Record<string, unknown>;
+    hasFieldError?: (fieldKey: string) => boolean;
+}): boolean {
+    return groupFields.some((field) => !!errors?.[field.key])
+        || hasIncompleteRequiredFormFields(groupFields, values)
+        || groupFields.some((field) => hasFieldError?.(field.key) === true);
+}
+
 export function isPrioritizedField(field: FormField): boolean {
     return field.key === "variable" || getPrimaryInputType(field.types)?.fieldType === "TYPE" || field.codedata?.kind === "PARAM_FOR_TYPE_INFER";
 }

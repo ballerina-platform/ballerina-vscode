@@ -25,6 +25,7 @@ import {
     MACHINE_VIEW,
     ProjectStructureArtifactResponse,
     ComponentInfo,
+    RepeatBehavior,
     ServiceModel,
     Protocol,
     SHARED_COMMANDS,
@@ -58,6 +59,7 @@ import {
     hasConfigurableFields,
     isSchemaTriggerService as checkSchemaTriggerService,
     isSoleRepeatableGroup,
+    repeatBehaviorOf,
 } from "./Forms/TriggerHandlerForm/payloadComposer";
 import { getTryItAIDefaultPromptService, getTryItDropdownOptions, TryItOptionValue, TryItQuickPickItem } from "../shared/tryIt";
 
@@ -504,8 +506,11 @@ export function ServiceDesigner(props: ServiceDesignerProps) {
     const getTriggerHandlerTitle = () => {
         const groupId = selectedTriggerGroup ?? (functionModel ? handlerGroupId(functionModel) : undefined);
         const groupMembers = [...(serviceModel ? catalogFunctionsOf(serviceModel) : []), ...(serviceModel?.functions ?? [])];
-        const groupLabel = groupMembers.find(fn => handlerGroupId(fn) === groupId)?.metadata?.label
-            ?? "Handler";
+        const matchedFunction = groupMembers.find(fn => handlerGroupId(fn) === groupId);
+        const groupLabel = matchedFunction?.metadata?.label ?? "Handler";
+        if (matchedFunction && repeatBehaviorOf(matchedFunction) !== RepeatBehavior.TRUE) {
+            return `Configure ${groupLabel} ${isMcpService ? "Tool" : "Handler"}`;
+        }
         return `${isNew ? "New " : ""}${groupLabel} Configuration`;
     };
 

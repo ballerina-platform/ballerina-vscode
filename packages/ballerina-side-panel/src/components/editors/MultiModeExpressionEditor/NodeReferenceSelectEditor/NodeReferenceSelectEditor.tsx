@@ -28,10 +28,27 @@ import {
     SearchNodesQuery,
     SearchNodesTypeConstraint,
 } from "@wso2/ballerina-core";
-import { Codicon, LinkButton, ProgressRing } from "@wso2/ui-toolkit";
+import { Button, Codicon, LinkButton, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { FormField } from "../../../Form/types";
 import { NodeReferenceSelect, NodeReferenceSelectItem } from "../../NodeReferenceSelect";
 import { useFormContext } from "../../../../context";
+
+const EmptyPrompt = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px;
+    border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+    border-radius: 4px;
+    background-color: ${ThemeColors.SURFACE_DIM};
+`;
+
+const EmptyPromptText = styled.div`
+    text-align: center;
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+`;
 
 function humanizeKind(kind: string): string {
     return kind
@@ -107,6 +124,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const filterKey = hasFilters
         ? nodeReferenceFilters!.map((f) => `${f.module ?? ""}:${f.object ?? ""}`).join("|")
         : "";
+    const startLineKey = `${targetLineRange?.startLine?.line}:${targetLineRange?.startLine?.offset}`;
     const applyNodeReferenceFilter = (items: NodeReferenceSelectItem[]): NodeReferenceSelectItem[] => {
         if (!hasFilters) return items;
         return items.filter(item =>
@@ -123,10 +141,10 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const [loading, setLoading] = useState<boolean>(!!searchNodesKind && !itemsPreloaded);
     const requestIdRef = useRef(0);
 
-    const fetchItems = () => {
+    const fetchItems = (silent = false) => {
         const requestId = ++requestIdRef.current;
         if (!searchNodesKind || itemsPreloaded) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
         rpcClient.getBIDiagramRpcClient().searchNodes({
             filePath: fileName,
             position: targetLineRange.startLine,
@@ -146,9 +164,14 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
                         iconUrl,
                     };
                 });
-            setSelectItems(ensureValueInItems(
+            const resolved = ensureValueInItems(
                 applyNodeReferenceFilter([...staticItems, ...items]), value, searchNodesKind
-            ));
+            );
+            setSelectItems(resolved);
+            // Required fields only, and never over the static default the mount effect picks.
+            if (!value && !field.optional && staticItems.length === 0 && resolved.length > 0) {
+                onChange(resolved[0].value, resolved[0].value.length);
+            }
         }).finally(() => {
             if (requestId === requestIdRef.current) setLoading(false);
         });
@@ -162,7 +185,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             return;
         }
         fetchItems();
-    }, [queryKey, fileName, targetLineRange.startLine, filterKey, itemsPreloaded]);
+    }, [queryKey, fileName, startLineKey, filterKey, itemsPreloaded]);
 
     useEffect(() => {
         if (!value && staticItems.length > 0) {
@@ -173,7 +196,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     useEffect(() => {
         if (!value || selectItems.some(item => item.value === value)) return;
         setSelectItems(prev => ensureValueInItems(prev, value, searchNodesKind));
-        fetchItems();
+        fetchItems(true);
     }, [value]);
 
     // A field carries at most one way to create the referenced node: explicit connector
@@ -233,10 +256,40 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
     const createNewLabel = !showCreateNew
         ? ""
         : agentCodeData?.object
-        ? agentCodeData.object
-        : creationCodeData?.module && creationCodeData?.object
-        ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
-        : humanizeKind(searchNodesKind);
+            ? agentCodeData.object
+            : creationCodeData?.module && creationCodeData?.object
+                ? `${humanizeKind(creationCodeData.module.split(".").pop() ?? "")} ${creationCodeData.object}`
+                : humanizeKind(searchNodesKind);
+
+    const creationName = agentCodeData?.object
+        ?? (creationCodeData?.module ? humanizeKind(creationCodeData.module.split(".").pop() ?? "") : "");
+    const isAgentReference = !!agentCodeData;
+    const qualifier = creationName ? `${creationName} ` : "";
+    const emptyTitle = isAgentReference
+        ? `No ${creationName || "agent"} in this project`
+        : `No ${qualifier}connection in this project`;
+    const emptyAction = isAgentReference
+        ? `Create ${creationName || "Agent"}`
+        : `Create ${qualifier}Connection`;
+    const showEmptyPrompt = showCreateNew && !loading && !field.optional && selectItems.length === 0;
+
+    const handleCreateNode = () => onCreateNode(
+        searchNodesKind,
+        (varName) => onChange(varName, varName?.length),
+        creationCodeData
+    );
+
+    if (showEmptyPrompt) {
+        return (
+            <EmptyPrompt>
+                <EmptyPromptText>{emptyTitle}</EmptyPromptText>
+                <Button appearance="primary" onClick={handleCreateNode}>
+                    <Codicon name="add" sx={{ marginRight: 6 }} />
+                    {emptyAction}
+                </Button>
+            </EmptyPrompt>
+        );
+    }
 
     return (
         <>
@@ -269,11 +322,7 @@ export const NodeReferenceSelectEditor: React.FC<NodeReferenceSelectEditorProps>
             )}
             {showCreateNew && (
                 <LinkButton
-                    onClick={() => onCreateNode(
-                        searchNodesKind,
-                        (varName) => onChange(varName, varName?.length),
-                        creationCodeData
-                    )}
+                    onClick={handleCreateNode}
                     sx={{ padding: "4px 6px", margin: 0, marginTop: "6px", fontSize: "13px" }}
                 >
                     <Codicon name="add" />

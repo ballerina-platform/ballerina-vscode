@@ -19,8 +19,6 @@
 import {
     type MarketplaceItem,
     type MarketplaceItemSchema,
-    type Project,
-    ServiceInfoVisibilityEnum,
     capitalizeFirstLetter,
     getTypeForDisplayType,
 } from "@wso2/wso2-platform-core";
@@ -33,7 +31,14 @@ import { usePlatformExtContext } from "../../../../providers/platform-ext-ctx-pr
 import { useMutation } from "@tanstack/react-query";
 import { ActionButton, ConnectorContentContainer, ConnectorInfoContainer, FooterContainer } from "../styles";
 import { DevantTempConfig } from "@wso2/ballerina-core/lib/rpc-types/platform-ext/interfaces";
-import { DevantConnectionFlow, generateInitialConnectionName, isValidDevantConnName } from "./utils";
+import {
+    DevantConnectionFlow,
+    generateInitialConnectionName,
+    getInitialVisibility,
+    getPossibleSchemas,
+    getPossibleVisibilities,
+    isValidDevantConnName,
+} from "./utils";
 
 const Row = styled.div<{}>`
     display: flex;
@@ -61,80 +66,6 @@ const RowTitle = styled.div`
     gap: 2px;
     align-items: center;
 `;
-
-export const getPossibleVisibilities = (marketplaceItem: MarketplaceItem, project: Project) => {
-    const { connectionSchemas = [], visibility: visibilities = [] } = marketplaceItem ?? {};
-    const filteredVisibilities = visibilities.filter((item) => {
-        if (item === ServiceInfoVisibilityEnum.Project) {
-            return marketplaceItem.projectId === project.id;
-        }
-        return item;
-    });
-    /**
-     *
-     * There can be services with multiple visibilities but only with one schema.
-     * [PROJECT, ORGANIZATION] => Default OAuth Connection - Organization
-     *
-     * In this case, the visibilities should be filtered to only include the one that mathces the schema.
-     *
-     * If the schema is Unsecured, the visibilities should be filtered to include only Organization and Public
-     * else, the visibilities should be filtered to include only the visibilities that match the schema name.
-     */
-    if (connectionSchemas.length === 1 && filteredVisibilities.length > 1) {
-        return filteredVisibilities.filter((v) => {
-            const connectionSchemaName = connectionSchemas[0].name.toLowerCase();
-            if (connectionSchemaName.includes("Unsecured".toLowerCase())) {
-                return v === ServiceInfoVisibilityEnum.Organization || v === ServiceInfoVisibilityEnum.Public;
-            }
-            return connectionSchemaName.includes(v.toLowerCase());
-        });
-    }
-    return filteredVisibilities;
-};
-
-export const getInitialVisibility = (item: MarketplaceItem, visibilities: string[] = []) => {
-    if (item?.isThirdParty) {
-        return ServiceInfoVisibilityEnum.Public;
-    }
-    if (visibilities.includes(ServiceInfoVisibilityEnum.Project)) {
-        return ServiceInfoVisibilityEnum.Project;
-    }
-    if (visibilities.includes(ServiceInfoVisibilityEnum.Organization)) {
-        return ServiceInfoVisibilityEnum.Organization;
-    }
-    return ServiceInfoVisibilityEnum.Public;
-};
-
-const getPossibleSchemas = (
-    item: MarketplaceItem,
-    selectedVisibility: string,
-    connectionSchemas: MarketplaceItemSchema[] = [],
-) => {
-    if (!item) {
-        return [];
-    }
-    // If third party, return schemas without filtering
-    if (item.isThirdParty) {
-        return item.connectionSchemas;
-    }
-    // Set the filtered schemas based on the selected visibility
-    // organization and public visibilities can have
-    // Oauth2, api key or unauthenaticated
-    // project visibility can have only project
-    const schemasFiltered = connectionSchemas.filter((schema) => {
-        if (
-            selectedVisibility.toLowerCase().includes("organization") ||
-            selectedVisibility.toLowerCase().includes("public")
-        ) {
-            return (
-                schema.name.toLowerCase().includes(selectedVisibility.toLowerCase()) ||
-                schema.name.toLowerCase().includes("unsecured")
-            );
-        }
-        return schema.name.toLowerCase().includes("project");
-    });
-    return schemasFiltered;
-};
 
 interface CreateConnectionForm {
     name?: string;
