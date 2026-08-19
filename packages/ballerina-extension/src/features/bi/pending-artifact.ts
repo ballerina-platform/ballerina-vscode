@@ -29,6 +29,7 @@ import {
     PendingIntegrationArtifactPayload,
 } from "@wso2/ballerina-core";
 import { openView, StateMachine } from "../../stateMachine";
+import { openAgentBuilderLanding } from "./agent-builder";
 import { ServiceDesignerRpcManager } from "../../rpc-managers/service-designer/rpc-manager";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
 import {
@@ -201,6 +202,9 @@ function ensureLandedOnNewIntegration(
     // `MachineStateValue` type predates the startup states and does not include
     // `extensionReady`, which is exactly the one being tested here.
     if (StateMachine.service().getSnapshot().value !== "extensionReady") {
+        return;
+    }
+    if (openAgentBuilderLanding()) {
         return;
     }
     if (landOnPackageOverview) {

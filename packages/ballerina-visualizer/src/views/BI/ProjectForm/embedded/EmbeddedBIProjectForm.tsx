@@ -89,6 +89,8 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
     // probe before the distribution version is known, so the form can render immediately).
     // Only `create` mode reads this; the other modes never probe it.
     const [workspaceSupported, setWorkspaceSupported] = useState<boolean | undefined>(undefined);
+    // Carried on the same capability handshake; a host predating the field leaves it false.
+    const [isAgentBuilder, setIsAgentBuilder] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -123,6 +125,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                         if (!cancelled && capabilities?.threeStepWizard) {
                             setBiWsClient(wizardClient);
                             setWizardSupport("supported");
+                            setIsAgentBuilder(!!capabilities.isAgentBuilder);
                             wizardOk = true;
                             if (capabilities.isWorkspaceSupported !== undefined) {
                                 setWorkspaceSupported(capabilities.isWorkspaceSupported);
@@ -240,6 +243,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                             <StandaloneCreateChooser
                                 biWsClient={biWsClient}
                                 ballerinaUnavailable={ballerinaUnavailable}
+                                isAgentBuilder={isAgentBuilder}
                                 onBack={onBack}
                             />
                         ) : (
@@ -247,6 +251,7 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
                                 biWsClient={biWsClient}
                                 ballerinaUnavailable={ballerinaUnavailable}
                                 workspaceSupportPending={workspaceSupported === undefined}
+                                isAgentBuilder={isAgentBuilder}
                                 onBack={onBack}
                             />
                         )}
