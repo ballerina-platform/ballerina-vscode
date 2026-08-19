@@ -26,6 +26,7 @@ import { TopNavigationBar } from "../../../../components/TopNavigationBar";
 import { TitleBar } from "../../../../components/TitleBar";
 import ConfigurableItem from "../ConfigurableItem";
 import { RelativeLoader } from "../../../../components/RelativeLoader";
+import { useProductTerms } from "../../ProjectForm/useProductTerms";
 
 const Container = styled.div`
     width: 100%;
@@ -122,6 +123,7 @@ const environmentOptions = [
 export function ViewConfigurableVariables(props?: ConfigProps) {
 
     const { rpcClient } = useRpcContext();
+    const terms = useProductTerms();
     const [configVariables, setConfigVariables] = useState<ConfigVariablesState>({});
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [isAddConfigVariableFormOpen, setAddConfigVariableFormOpen] = useState<boolean>(props?.addNew || false);
@@ -464,8 +466,8 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
     const isTestsImportedLib = isTestsContext && selectedModule?.category && selectedModule.category !== integrationCategory.current;
 
     const categoryDisplay = !isTestsContext
-        ? (selectedModule?.category === integrationCategory.current ? 'Integration' : selectedModule?.category)
-        : isTestsIntegrationModule ? 'Tests : Integration'
+        ? (selectedModule?.category === integrationCategory.current ? terms.integrationLabel : selectedModule?.category)
+        : isTestsIntegrationModule ? `Tests : ${terms.integrationLabel}`
             : isTestsImportedLib ? `Tests : ${selectedModule?.category}`
                 : 'Tests';
 
@@ -568,7 +570,7 @@ export function ViewConfigurableVariables(props?: ConfigProps) {
                                                                 ? 'bold' : 'normal'
                                                         }}
                                                     >
-                                                        Integration
+                                                        {terms.integrationLabel}
                                                     </Typography>
                                                     {categoryWarningCount(category.name) > 0 && (
                                                         <div style={{ display: 'flex', alignItems: 'center' }}>

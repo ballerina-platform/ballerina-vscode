@@ -367,6 +367,12 @@ const MainPanel = () => {
                             break;
                         }
                         case MACHINE_VIEW.WorkspaceOverview: {
+                            if (await rpcClient.getCommonRpcClient().agentBuilderModeEnabled()) {
+                                const { AgentBuilderWorkspaceOverview } = await import("./views/BI/AgentBuilderWorkspaceOverview");
+                                if (isStaleNavigation()) return;
+                                setViewComponent(<AgentBuilderWorkspaceOverview isInDevant={value.isInDevant} />);
+                                break;
+                            }
                             const { WorkspaceOverview } = await import("./views/BI/WorkspaceOverview");
                             if (isStaleNavigation()) return;
                             setViewComponent(

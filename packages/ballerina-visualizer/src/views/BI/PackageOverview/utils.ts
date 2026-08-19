@@ -23,6 +23,7 @@ import {
     ProjectStructure,
     ProjectStructureResponse,
     ProjectScopeMapping,
+    WorkspaceDevantMetadata,
     findScopeByModule,
     findScope
 } from "@wso2/ballerina-core";
@@ -116,4 +117,57 @@ export function useProjectContentRefresh(rpcClient: BallerinaRpcClient | undefin
             }
         });
     }, [rpcClient]);
+}
+
+export interface WorkspaceDeploymentState {
+    libraryProjectPaths: Set<string>;
+    deployableProjectPaths: Set<string>;
+    undeployedProjectScopes: ProjectScopeMapping[];
+    hasDeployableIntegration: boolean;
+}
+
+export function getWorkspaceDeploymentState(
+    projectCollection: ProjectStructureResponse | undefined,
+    devantMetadata: WorkspaceDevantMetadata | undefined
+): WorkspaceDeploymentState {
+    const projectScopes = getWorkspaceProjectScopes(projectCollection);
+
+    const libraryProjectPaths = (projectCollection?.projects ?? []).reduce<Set<string>>((paths, project) => {
+        if (project.isLibrary && project.projectPath) {
+            paths.add(project.projectPath);
+        }
+        return paths;
+    }, new Set<string>());
+
+    const deployableProjectPaths = new Set(projectScopes.map((scope) => scope.projectPath));
+
+    const deployedPaths = new Set(
+        (devantMetadata?.projectsMetadata ?? []).filter((p) => p.hasComponent).map((p) => p.projectPath)
+    );
+    const undeployedProjectScopes = projectScopes.filter(
+        (scope) => !deployedPaths.has(scope.projectPath) && !libraryProjectPaths.has(scope.projectPath)
+    );
+
+    const hasDeployableIntegration = projectScopes.some(
+        (scope) => scope.integrationTypes.length > 0 && !libraryProjectPaths.has(scope.projectPath)
+    );
+
+    return { libraryProjectPaths, deployableProjectPaths, undeployedProjectScopes, hasDeployableIntegration };
+}
+
+export function validateWorkspaceTitle(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return "You are required to enter a project name.";
+    }
+    if (!/^[a-zA-Z]/.test(trimmed)) {
+        return "Name must start with an alphabetical letter.";
+    }
+    if (trimmed.length < 3) {
+        return "The name must have at least three characters.";
+    }
+    if (/[^a-zA-Z0-9\-_ ]/.test(trimmed)) {
+        return "The name cannot contain special characters.";
+    }
+    return "";
 }
