@@ -1,0 +1,244 @@
+name: Scheduled E2E Tests
+
+# See "Scheduled E2E testing" in .github/workflows/README.md for the full design
+# rationale — this file intentionally keeps comments to short pointers, not prose.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-scheduled
+  cancel-in-progress: false
+
+jobs:
+  Prepare:
+    name: Resolve matrix groups
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.groups.outputs.groups }}
+      nightlySha: ${{ steps.nightly-commit.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - id: groups
+        run: echo 'groups=["group1","group2","group3","group4"]' >> "$GITHUB_OUTPUT"
+
+      - name: Resolve nightly build commit
+        id: nightly-commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/retry.sh
+          # jq prints the literal string "null" for a JSON null targetCommitish, which
+          # isn't empty and would otherwise pass as if it were a real commit hash —
+          # folded into the retried command itself so a "null" result also retries.
+          resolve_nightly_sha() {
+            local out
+            # No stderr suppression: a real (non-race) failure's actual gh error should
+            # reach the log, not just retry.sh's generic "attempt N/3" line.
+            out=$(gh release view nightly --repo "${{ github.repository }}" --json targetCommitish --jq .targetCommitish) || return 1
+            [ "$out" != "null" ] || return 1
+            echo "$out"
+          }
+          # Retries: schedule.yml's Tag job briefly deletes then recreates this release.
+          if ! sha=$(retry 3 5 resolve_nightly_sha); then
+            sha=""
+            echo "::warning::Could not resolve the nightly release commit after 3 attempts; this run's history rows will have an empty sourceSha."
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  E2E:
+    name: Run Ballerina e2e Test (${{ matrix.group }})
+    needs: Prepare
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJson(needs.Prepare.outputs.groups) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Download nightly VSIX
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/retry.sh
+          mkdir -p packages/ballerina-extension/vsix
+          # Same brief delete+recreate race on the 'nightly' release as Prepare's commit
+          # lookup, but unlike that lookup (which degrades to an empty sourceSha),
+          # exhausting retries here fails this whole 60-minute job — more attempts and
+          # longer backoff than the metadata-only lookup is worth paying for.
+          if ! retry 6 10 gh release download nightly --repo "${{ github.repository }}" \
+            --pattern 'ballerina-*.vsix' --dir packages/ballerina-extension/vsix --clobber; then
+            echo "::error::Failed to download the nightly VSIX after 6 attempts."
+            exit 1
+          fi
+
+      - name: Setup Rush
+        uses: gigara/setup-rush@7ba3446572d15f5eacc85de383ad9679dfb7223c # v1.2.0
+        with:
+          pnpm: 10.10.0
+          node: 22.x
+          rush-install: true
+
+      - name: Build playwright-vscode-tester
+        run: rush build -t @wso2/playwright-vscode-tester
+
+      - name: Install Ballerina distribution
+        uses: ./.github/actions/setup-ballerina
+        with:
+          gradlePropertiesRef: nightly
+
+      - name: Run e2e test group
+        uses: ./.github/actions/run-e2e-group
+        with:
+          group: ${{ matrix.group }}
+
+  Report:
+    name: Aggregate flakiness report
+    needs:
+      - Prepare
+      - E2E
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download latest available test results per group
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GROUPS_JSON: ${{ needs.Prepare.outputs.groups }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/retry.sh
+          list_artifacts() {
+            gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+              --paginate --jq '.artifacts[].name'
+          }
+          # Retried: one shared call for all 4 groups is more efficient than one per
+          # group, but a transient failure here would otherwise abort every group at
+          # once instead of degrading independently the way 4 separate calls would.
+          if ! artifacts=$(retry 3 5 list_artifacts); then
+            echo "::error::Failed to list this run's artifacts after 3 attempts."
+            exit 1
+          fi
+          for group in $(echo "$GROUPS_JSON" | jq -r '.[]'); do
+            name=$(echo "$artifacts" | grep -E "^Ballerina-e2e-test-results-linux-${group}-[0-9]+$" | sort -V | tail -n1 || true)
+            if [ -z "${name:-}" ]; then
+              echo "No artifact found for ${group}; skipping."
+              continue
+            fi
+            echo "Downloading ${name} for ${group}"
+            mkdir -p "e2e-results/${group}"
+            if ! retry 3 5 gh run download "${{ github.run_id }}" --repo "${{ github.repository }}" \
+              -n "${name}" -D "e2e-results/${group}"; then
+              echo "::error::Failed to download artifact ${name} for ${group} after 3 attempts."
+              exit 1
+            fi
+          done
+
+      - name: Aggregate results
+        id: aggregate
+        shell: bash
+        env:
+          E2E_SOURCE_TAG: nightly
+          E2E_SOURCE_SHA: ${{ needs.Prepare.outputs.nightlySha }}
+          EXPECTED_GROUPS_JSON: ${{ needs.Prepare.outputs.groups }}
+        run: |
+          set -o pipefail
+          node .github/scripts/aggregate-e2e-results.js e2e-results e2e-run-stats.jsonl \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Persist run stats
+        id: persist
+        if: ${{ always() && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -f e2e-run-stats.jsonl ]; then
+            echo "No test results to persist; skipping."
+            exit 0
+          fi
+
+          STATS_FILE="$(pwd)/e2e-run-stats.jsonl"
+          CLONE_DIR="$(mktemp -d)"
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if ! git clone --quiet --depth 1 --single-branch --branch e2e-metrics "$REPO_URL" "$CLONE_DIR" 2>/dev/null; then
+            mkdir -p "$CLONE_DIR"
+            git -C "$CLONE_DIR" init --quiet
+            git -C "$CLONE_DIR" remote add origin "$REPO_URL"
+          fi
+          cd "$CLONE_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pushed=false
+          for attempt in 1 2 3; do
+            git fetch origin e2e-metrics:refs/remotes/origin/e2e-metrics || true
+            if git show-ref --verify --quiet refs/remotes/origin/e2e-metrics; then
+              git checkout -B e2e-metrics origin/e2e-metrics
+            else
+              git checkout --detach 2>/dev/null || true
+              git branch -D e2e-metrics-tmp 2>/dev/null || true
+              git checkout --orphan e2e-metrics-tmp
+              git rm -rf --quiet . || true
+            fi
+            MONTH_FILE="history/$(date -u +%Y-%m).jsonl"
+            mkdir -p history
+            # If this run/attempt's rows are already in the fetched history, a prior
+            # Persist run already succeeded and only a later step (e.g. Notify) failed —
+            # "Re-run failed jobs" re-executes this whole job regardless, and would
+            # otherwise duplicate every row on each such re-run.
+            if [ -f "$MONTH_FILE" ] && grep -q "\"runId\":\"${{ github.run_id }}\",\"runAttempt\":\"${{ github.run_attempt }}\"" "$MONTH_FILE"; then
+              echo "Stats for run ${{ github.run_id }} attempt ${{ github.run_attempt }} already persisted; skipping."
+              pushed=true
+              break
+            fi
+            cat "$STATS_FILE" >> "$MONTH_FILE"
+            git add "$MONTH_FILE"
+            git commit -m "E2E stats: run ${{ github.run_id }} attempt ${{ github.run_attempt }}"
+            if git push origin HEAD:e2e-metrics; then
+              pushed=true
+              break
+            fi
+            echo "Push to e2e-metrics rejected (non-fast-forward?), retrying ($attempt/3)..."
+            sleep $((attempt * 5))
+          done
+
+          if [ "$pushed" != true ]; then
+            echo "::error::Failed to persist e2e stats to e2e-metrics after 3 attempts."
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: ${{ always() && (steps.aggregate.outcome == 'failure' || steps.persist.outcome == 'failure' || needs.E2E.result != 'success' || job.status == 'failure') && github.repository == 'ballerina-platform/ballerina-vscode' }}
+        uses: ./.github/actions/failure-notification
+        with:
+          title: "Scheduled E2E Tests Failed"
+          run_id: ${{ github.run_id }}
+          chat_api: ${{ secrets.EDITOR_TEAM_CHAT_API }}
+          repository: ${{ github.repository }}
+          thread_key: e2e-scheduled

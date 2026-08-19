@@ -75,6 +75,7 @@ public class Function {
     private String group;
     private String variantLabel;
     private String addLabel;
+    private String addDescription;
     @JsonAdapter(RepeatableSerializer.class)
     private Repeatable repeatable;
     private Boolean nameEditable;
@@ -417,6 +418,14 @@ public class Function {
 
     public void setAddLabel(String addLabel) {
         this.addLabel = addLabel;
+    }
+
+    public String getAddDescription() {
+        return addDescription;
+    }
+
+    public void setAddDescription(String addDescription) {
+        this.addDescription = addDescription;
     }
 
     public Repeatable getRepeatable() {

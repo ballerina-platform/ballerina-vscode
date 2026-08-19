@@ -20,6 +20,7 @@ package io.ballerina.architecturemodelgenerator.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.ballerina.artifactsgenerator.Artifact;
 import io.ballerina.projects.Project;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -38,6 +39,14 @@ public class ServiceGeneratorTests {
     private static final String BALLERINA = "ballerina";
     private static final String RESULTS = "results";
     Gson gson = new GsonBuilder().serializeNulls().create();
+
+    @Test(description = "Use descriptive names for SAP JCo services")
+    public void testSapJcoServiceDisplayNames() {
+        Assert.assertEquals(Artifact.resolveServiceName("sap.jco", "jco:IDocService"),
+                "SAP JCo IDoc Service");
+        Assert.assertEquals(Artifact.resolveServiceName("sap.jco", "jco:RfcService"),
+                "SAP JCo RFC Service");
+    }
 
     @Test(description = "model generation for single module projects", enabled = false)
     public void testSingleModuleModelGeneration() throws IOException {

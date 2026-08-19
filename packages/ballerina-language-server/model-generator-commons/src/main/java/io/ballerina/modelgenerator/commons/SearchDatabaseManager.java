@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -468,6 +469,79 @@ public class SearchDatabaseManager {
         }
 
         return results;
+    }
+
+    /**
+     * Lists every indexed connector of the given organizations, with the package keywords and pull count needed to
+     * group and rank them.
+     *
+     * @param allowedOrgs the set of allowed organization names
+     * @return every connector of those organizations
+     * @since 1.8.0
+     */
+    public List<IndexedConnector> listConnectors(Set<String> allowedOrgs) {
+        List<IndexedConnector> results = new ArrayList<>();
+        if (allowedOrgs.isEmpty()) {
+            return results;
+        }
+        String sql = """
+                SELECT
+                    c.name AS connector_name,
+                    c.description AS connector_description,
+                    p.name AS module_name,
+                    p.package_name,
+                    p.org AS package_org,
+                    p.version AS package_version,
+                    p.keywords,
+                    p.pull_count
+                FROM Connector AS c
+                JOIN Package AS p ON c.package_id = p.id
+                WHERE p.org IN (%ORG_PLACEHOLDERS);
+                """.replace("%ORG_PLACEHOLDERS", String.join(",", Collections.nCopies(allowedOrgs.size(), "?")));
+
+        try (Connection conn = DriverManager.getConnection(dbPath);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            int paramIndex = 1;
+            for (String org : allowedOrgs) {
+                stmt.setString(paramIndex++, org);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    SearchResult.Package packageInfo = new SearchResult.Package(rs.getString("package_org"),
+                            rs.getString("package_name"), rs.getString("module_name"),
+                            rs.getString("package_version"));
+                    SearchResult searchResult = SearchResult.from(packageInfo, rs.getString("connector_name"),
+                            rs.getString("connector_description"));
+                    results.add(new IndexedConnector(searchResult, splitKeywords(rs.getString("keywords")),
+                            rs.getInt("pull_count")));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.severe("Error listing connectors: " + e.getMessage());
+            throw new RuntimeException("Failed to list connectors", e);
+        }
+
+        return results;
+    }
+
+    private static List<String> splitKeywords(String keywords) {
+        if (keywords == null || keywords.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(keywords.split(",")).map(String::trim).filter(k -> !k.isEmpty()).toList();
+    }
+
+    /**
+     * A connector as the index holds it.
+     *
+     * @param searchResult the connector itself
+     * @param keywords     the package keywords, already split
+     * @param pullCount    the package pull count
+     * @since 1.8.0
+     */
+    public record IndexedConnector(SearchResult searchResult, List<String> keywords, int pullCount) {
     }
 
     /**

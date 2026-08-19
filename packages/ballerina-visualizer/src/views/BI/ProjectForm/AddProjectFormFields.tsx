@@ -26,11 +26,7 @@ import {
     FormSectionCaption,
     InlineToggle,
 } from "./styles";
-import { ProductMode } from "@wso2/ballerina-core";
 import { ProjectTypeSelector } from "./components";
-import { projectTypeOptions } from "./productTerms";
-import { useProductTerms } from "./useProductTerms";
-import { useProductMode } from "../../../hooks/useProductMode";
 import { AddProjectFormData } from "./types";
 import { sanitizeProjectHandle } from "./utils";
 
@@ -53,9 +49,9 @@ export interface AddProjectFormFieldsProps {
 
 /**
  * Screen 1 of the Add-to-project flow: the project itself (convert case only) and
- * the starting point to add. Both starting points are named and configured on the
- * following screen — the integration in the Create Integration wizard, the library
- * in `AddLibraryFields` — so nothing artifact-specific is collected here.
+ * the starting point to add. Both are named by `AddComponentFields` — the library on
+ * the following screen, alongside its package details; the integration inline, rendered
+ * by the parent right after this section and created empty from this same screen.
  */
 export function AddProjectFormFields({
     formData,
@@ -69,12 +65,8 @@ export function AddProjectFormFields({
     onConvertPathSelect,
     convertPathError,
 }: AddProjectFormFieldsProps) {
-    const terms = useProductTerms();
-    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
+    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
-    // Agent Builder's integration wizard collapses to its Name step; a library still
-    // configures on the next screen.
-    const namesOnlyNextStep = useProductMode() === ProductMode.AGENT_BUILDER && !formData.isLibrary;
     const showIntegrationFields = isInProject || addNewAfterConvert;
 
     const handleProjectName = (value: string) => {
@@ -94,7 +86,7 @@ export function AddProjectFormFields({
                     <FormSectionHeader>
                         <FormSectionTitle>Project</FormSectionTitle>
                         <FormSectionCaption>
-                            Your current {terms.integrationNoun} becomes the first member of this project.
+                            Your current integration becomes the first member of this project.
                         </FormSectionCaption>
                     </FormSectionHeader>
 
@@ -122,13 +114,13 @@ export function AddProjectFormFields({
                             errorMsg={convertPathError || undefined}
                         />
                         <Description>
-                            The project folder is created here and your current {terms.integrationNoun} is moved into it.
+                            The project folder is created here and your current integration is moved into it.
                         </Description>
                     </FieldGroup>
 
                     <InlineToggle>
                         <CheckBox
-                            label={`Also add a new ${terms.integrationNoun} or library`}
+                            label="Also add a new integration or library"
                             checked={addNewAfterConvert}
                             onChange={onAddNewAfterConvertChange}
                         />
@@ -150,17 +142,7 @@ export function AddProjectFormFields({
                     <ProjectTypeSelector
                         value={formData.isLibrary}
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
-                        options={projectTypeOptions(terms)}
                     />
-
-                    {/* Both starting points are named and configured on the next screen,
-                        matching the initial Create experience — except an Agent Builder
-                        integration, which is only named there. */}
-                    <Description>
-                        {namesOnlyNextStep
-                            ? `You'll name your ${resourceTypeLabelLower} in the next step.`
-                            : `You'll name and configure your ${resourceTypeLabelLower} in the next step.`}
-                    </Description>
                 </FormSection>
             )}
         </>

@@ -24,6 +24,10 @@ import { FormField } from "../Form/types";
 import { buildRequiredRule, capitalize, getValueForDropdown } from "./utils";
 import { useFormContext } from "../../context";
 import { SubPanel, SubPanelView } from "@wso2/ballerina-core";
+import { buildValidate } from "../Form/validationRules";
+import { useFieldDiagnostics } from "../Form/useFieldDiagnostics";
+import { dedupeMessages } from "../Form/DiagnosticsStore";
+import { WarningBanner } from "../Form/WarningBanner";
 
 interface AutoCompleteEditorProps {
     field: FormField;
@@ -32,40 +36,69 @@ interface AutoCompleteEditorProps {
 
 export function AutoCompleteEditor(props: AutoCompleteEditorProps) {
     const { field, openSubPanel } = props;
-    const { form } = useFormContext();
-    const { register, setValue, watch } = form;
+    const { form, fileName } = useFormContext();
+    const { register, setValue, watch, formState: { errors } } = form;
 
     const value = watch(field.key);
 
+    // Live diagnostics: client rules (e.g. the identifier check on a free-typed value) run on
+    // every change, same as TextEditor — react-hook-form's default `onSubmit` mode otherwise
+    // leaves `errors` empty until submit is attempted, so a `validations[]` failure would go
+    // unseen until save.
+    const liveDiagnostics = useFieldDiagnostics(field, {
+        filePath: fileName,
+        moduleName: field.codedata?.moduleName,
+    });
+
+    const validationError = errors[field.key]?.message;
+    const errorMsg = dedupeMessages([
+        validationError ? String(validationError) : undefined,
+        ...liveDiagnostics.errors.map((diagnostic) => diagnostic.message),
+        ...(field.diagnostics ?? []).map((diagnostic) => diagnostic.message),
+    ]).join("\n");
+    const warningMsg = dedupeMessages(
+        liveDiagnostics.warnings.map((diagnostic) => diagnostic.message)
+    ).join("\n");
+
     return (
-        <AutoComplete
-            id={field.key}
-            description={field.documentation}
-            value={value as string}
-            {...register(field.key, {
-                required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
-                value: getValueForDropdown(field)
-            })}
-            label={capitalize(field.label)}
-            items={field.items}
-            allowItemCreate={true}
-            required={!field.optional}
-            disabled={!field.editable}
-            onValueChange={(val: string) => {
-                // Preserve existing value when Combobox fires with empty on blur (e.g., click away without selecting)
-                const currentValue = value ?? getValueForDropdown(field) ?? field.value;
-                const newVal = (val === "" || val === undefined || val === null) && currentValue
-                    ? currentValue
-                    : val;
-                setValue(field.key, newVal);
-                field.onValueChange?.(newVal);
-            }}
-            sx={{
-                marginRight: "-4px",
-                "& [id='dropdown-container']": {
-                    width: "292px",
-                }
-            }}
-        />
+        <div style={{ width: "100%" }}>
+            <AutoComplete
+                id={field.key}
+                description={field.documentation}
+                value={value as string}
+                errorMsg={errorMsg || undefined}
+                {...register(field.key, {
+                    required: buildRequiredRule({ isRequired: !field.optional, label: field.label }),
+                    value: getValueForDropdown(field),
+                    validate: buildValidate(field)
+                })}
+                // Append "(Optional)" AFTER capitalize() — capitalize is lodash startCase, which strips
+                // parentheses and title-cases words, so a paren'd label can't be passed through directly.
+                // Opt-in via showOptionalSuffix, so this doesn't relabel every optional autocomplete.
+                label={field.optional && field.showOptionalSuffix
+                    ? `${capitalize(field.label)} (Optional)` : capitalize(field.label)}
+                items={field.items}
+                allowItemCreate={field.allowItemCreate ?? true}
+                required={!field.optional}
+                disabled={!field.editable}
+                onValueChange={(val: string) => {
+                    // Preserve existing value when Combobox fires with empty on blur (e.g., click away without selecting)
+                    const currentValue = value ?? getValueForDropdown(field) ?? field.value;
+                    const newVal = (val === "" || val === undefined || val === null) && currentValue
+                        ? currentValue
+                        : val;
+                    setValue(field.key, newVal);
+                    field.onValueChange?.(newVal);
+                    liveDiagnostics.onValueChange(newVal);
+                }}
+                sx={{
+                    marginRight: "-4px",
+                    "& [id='dropdown-container']": {
+                        width: "292px",
+                    }
+                }}
+            />
+            {warningMsg && <WarningBanner warningMsg={warningMsg} />}
+        </div>
     );
 }

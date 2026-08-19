@@ -143,7 +143,7 @@
       "items": [
         {
           "metadata": {
-            "label": "Logoraisr",
+            "label": "logoraisr",
             "description": "This is a generated connector from [Logoraisr API v1](https://docs.logoraisr.com/) OpenAPI Specification.\nLogoraisr API provides capability to access operations related to your graphic design tasks automatically using best-in-class algorithms and artificial intelligence.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_logoraisr_1.5.1.png"
           },
@@ -161,7 +161,7 @@
         },
         {
           "metadata": {
-            "label": "Logistics",
+            "label": "eBay Logistics",
             "description": "This is a generated connector for [eBay logistics API v1_beta.0.0](https://developer.ebay.com/api-docs/sell/logistics/static/overview.html) OpenAPI Specification.\nThis is an API available only to select developers approved by business units.The Logistics API resources offer the following capabilities: shipping_quote Consolidates into a list a set of live shipping rates, or quotes, from which you can select a rate to ship a package. shipment creates a \"shipment\" for the selected shipping rate. Call createShippingQuote to get a list of live shipping rates. The rates returned are all valid for a specific time window and all quoted prices are at eBay-negotiated rates. Select one of the live rates and using its associated rateId, create a \"shipment\" for the package by calling createFromShippingQuote. Creating a shipment completes an agreement, and the cost of the base service and any added shipping options are summed into the returned totalShippingCost value. This action also generates a shipping label that you can use to ship the package.  The total cost of the shipment is incurred when the package is shipped using the supplied shipping label. Sellers must set up a payment method via their eBay account before they can use the methods in this API to create a shipment and the associated shipping label.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ebay.logistics_1.5.1.png"
           },
@@ -179,7 +179,7 @@
         },
         {
           "metadata": {
-            "label": "Auditlog",
+            "label": "commercetools Auditlog",
             "description": "This is a generated connector for [Commercetools API v1](https://docs.commercetools.com/api/) OpenAPI specification. \nThe commercetools Platform HTTP API(Audit Log) offers an interface for programmatic access to tracks creations, deletions, and updates of platform resources.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_commercetools.auditlog_1.4.1.png"
           },
@@ -197,7 +197,7 @@
         },
         {
           "metadata": {
-            "label": "Onepassword",
+            "label": "1Password",
             "description": "This is a generated connector from [1Password Connect API v1.0](https://1password.com/) OpenAPI specification.\n1Password is the easiest way to store and use strong passwords. Log in to sites and fill forms securely with a single click.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_onepassword_1.5.1.png"
           },
@@ -215,7 +215,7 @@
         },
         {
           "metadata": {
-            "label": "Vision",
+            "label": "Google Vision",
             "description": "This is a generated connector for [Google Cloud Vision API v1](https://cloud.google.com/vision/docs/reference/rest) OpenAPI specification.\nIntegrates Google Vision features, including image labeling, face, logo, and landmark detection, optical character recognition (OCR), and detection of explicit content, into applications.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.vision_1.6.1.png"
           },

@@ -92,7 +92,7 @@
     },
     {
       "metadata": {
-        "label": "Marketingcloud",
+        "label": "Marketing Cloud",
         "description": "Salesforce Marketing Cloud APIs provide programmatic access to features such as Address, Assets (Content Builder), Audit, Contacts, Data Events, Event Notification, Interactions (Journey Builder), Push, SMS, Transactional Messaging, and Messaging. Refer to the official Salesforce documentation for detailed API usage and guidelines.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce.marketingcloud_1.0.2.png",
         "data": {
@@ -113,7 +113,7 @@
     },
     {
       "metadata": {
-        "label": "Pardot",
+        "label": "Salesforce Pardot",
         "description": "This is a generated connector for [Salesforce Pardot API v5](https://developer.salesforce.com/docs/marketing/pardot/guide/version5overview.html) OpenAPI specification.\nThe version 5 of the Pardot API to read and update a variety of assets and objects, like File and Layout Template objects.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce.pardot_1.3.1.png",
         "data": {
@@ -155,7 +155,7 @@
     },
     {
       "metadata": {
-        "label": "Einstein",
+        "label": "Salesforce Einstein",
         "description": "This is a generated connector for [Einstein Vision and Einstein Language API](https://metamind.readme.io/reference#predictive-vision-service-api) OpenAPI specification. Allows you to access the Einstein Vision and Einstein Language services via the standard REST API calls. Use the APIs to programmatically work with datasets, labels, examples, models, and predictions.",
         "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_salesforce.einstein_1.3.1.png",
         "data": {
