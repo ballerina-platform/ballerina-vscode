@@ -15,6 +15,7 @@ workflow because the extension manifest owns the shared extension/LS version.
 | `reusable-build.yml` | `workflow_call` only | Reusable build pipeline (ballerina-only) |
 | `devBuild.yml` | manual + `workflow_call` | Builds a custom branch as a timestamped pre-release VSIX. It creates workflow artifacts only: no GitHub release and no marketplace publication. `schedule.yml` reuses this workflow after stamping the nightly branch. |
 | `schedule.yml` | nightly cron + manual | Syncs the `builds/nightly` branch, runs the LS multi-branch pack/test/Windows-build matrix, calls `devBuild.yml`, and moves the `nightly` tag after every job passes. Manual runs can select a source branch and otherwise behave exactly like scheduled nightlies, including notifications. The VSIX remains a workflow artifact; no GitHub Release is created. See [Versioning](#versioning) and [The nightly branch](#the-nightly-branch). |
+| `e2e-scheduled.yml` | every 6h cron + manual | Runs the Playwright E2E suite against the nightly VSIX without rebuilding, and tracks flakiness over time. See [Scheduled E2E testing](#scheduled-e2e-testing). |
 | `pull-request.yml` | PRs + manual | Detects changes with `dorny/paths-filter`; if anything build-relevant changed, runs `reusable-build.yml` which builds the entire chain (LS via Gradle, then all TS packages and the extension VSIX via rush) in a single job. Windows LS coverage runs in `schedule.yml` only. |
 | `release-pre-release.yml` | manual dispatch | Builds either a timestamped pre-release or the release version authored in the extension manifest. Its `githubRelease` input creates a GitHub Release with the VSIX and LS jar and publishes the matching `io.ballerina:ballerina-language-server` package. Real releases also perform the release branch/PR handling. |
 | `publish-vsix.yml` | manual dispatch | Publishes a built VSIX (passed by `workflowRunId`) to VSCode Marketplace + OpenVSX |
@@ -157,11 +158,13 @@ where one repo held several extensions and each needed its own stable trunk
 
 ## The nightly branch
 
-`schedule.yml` builds from a `builds/nightly` branch that it maintains itself. Scheduled
-runs reset it to `origin/main`; manual runs reset it to the selected `sourceBranch`, which
-defaults to `main`. The workflow then commits the timestamped version and force-pushes the
-branch. Therefore `git diff origin/<sourceBranch> builds/nightly` is exactly the version
-bump, and every nightly VSIX has one commit that pins both its source and its version.
+`schedule.yml` builds from a `builds/nightly` branch that it maintains itself. Scheduled runs,
+and manual runs with `sourceBranch` left blank, reset it to the latest `staging/*` branch if one
+exists, otherwise `main` — resolved by the `resolve-source-branch` composite action. A manual
+run can still pass an explicit `sourceBranch` to override that. The workflow then commits the
+timestamped version and force-pushes the branch.
+Therefore `git diff origin/<resolved-branch> builds/nightly` is exactly the version bump, and
+every nightly VSIX has one commit that pins both its source and its version.
 
 - **Never open a PR against `builds/nightly` and never merge it anywhere** — it is discarded
   and recreated on every run.
@@ -174,18 +177,23 @@ bump, and every nightly VSIX has one commit that pins both its source and its ve
 - The force-push uses `GITHUB_TOKEN`, whose pushes do not trigger workflows, so the
   nightly build cannot re-enter itself.
 - After every validation job passes, the workflow force-moves the `nightly` Git tag to
-  that exact stamped commit. The tag is not a GitHub Release and has no release assets;
-  the VSIX remains available from the workflow run.
+  that exact stamped commit, then overwrites the `nightly` prerelease to target it, with
+  that night's timestamped VSIX as its only asset. The release is deleted and recreated
+  rather than edited: the tag has just moved, and an existing release keeps pointing at
+  the commit it was created from; the asset filename also carries the timestamped version,
+  so editing in place would accumulate one VSIX per night instead of replacing it.
+- The release exists so the VSIX is reachable by tag rather than only through the
+  authenticated Actions artifact API — `e2e-scheduled.yml` downloads it from there (see
+  "Scheduled E2E testing" below). Its once-a-day delete/recreate window is why that
+  workflow retries every `gh release` call.
 - The machine branch is named `builds/nightly`, while the stable public marker remains
   the `nightly` tag. Keeping separate names avoids ambiguous Git ref resolution.
-- On the first run after this migration, the tag job removes the legacy `nightly`
-  GitHub Release before moving the tag. That release currently contains an old
-  `5.12.0-SNAPSHOT` VSIX; retaining it would attach a stale asset to every new tag target.
 
-Every release or pre-release GitHub release carries two assets — the VSIX and the bundled LS jar — so the server
-can be downloaded on its own to debug a regression, or pointed at an existing install via
-`ballerina.langServerPath`. It is the exact jar inside the VSIX, packed at the same version,
-so the two can never disagree about what was built.
+Every release or pre-release GitHub release cut by `release-pre-release.yml` carries two assets —
+the VSIX and the bundled LS jar (the nightly prerelease is the exception; it carries only the
+VSIX) — so the server can be downloaded on its own to debug a regression, or pointed at an
+existing install via `ballerina.langServerPath`. It is the exact jar inside the VSIX, packed at
+the same version, so the two can never disagree about what was built.
 
 | Dispatch | GitHub release + tag | LS GitHub Package | Version commit + `release/X.Y.Z` |
 |---|---|---|---|
@@ -194,7 +202,7 @@ so the two can never disagree about what was built.
 | Pre-release + `githubRelease: true` | yes, on the dispatched commit | yes | no |
 | Pre-release + `githubRelease: false` | no; VSIX artifact only | no | no |
 | Custom development build | no | no | no |
-| Scheduled nightly build | no; updates the `nightly` Git tag | no | nightly version commit only |
+| Scheduled nightly build | yes; overwrites the `nightly` tag + prerelease (VSIX only) | no | nightly version commit only |
 
 Marketplace publishing remains manual: `publish-vsix.yml` takes the `VSIX` workflow artifact
 by run ID (30-day retention), independently of the GitHub release.
@@ -205,6 +213,96 @@ everything, with `publish-vsix.yml` demoting a real release to a proper release 
 marketplace served it. That staged promotion had a failure mode with no signal: cut a release
 and skip publishing, and it stayed labelled a pre-release forever. `publish-vsix.yml` still
 patches the label, which is now a harmless no-op for releases cut after this change.
+
+## Scheduled E2E testing
+
+`e2e-scheduled.yml` runs the Playwright E2E suite (`packages/ballerina-extension/e2e-test/`)
+every 6 hours, purely to track flakiness over time — not for fresh-code feedback, which PR
+builds already cover. It exists because E2E was too flaky to keep gating the nightly build and
+was disabled there (see the `TODO` in `schedule.yml`'s `Build` job).
+
+**Tests the nightly VSIX instead of rebuilding.** The `E2E` job downloads the `ballerina-*.vsix`
+asset from the `nightly` GitHub Release rather than running a full `rush build`/`vsce package`,
+saving that cost 4x/day. Testing the same build across all 4 daily runs is deliberate: it holds
+product code constant so variance is attributable to test flakiness, not code churn. The
+`nightly` tag only moves once `schedule.yml`'s build and LS tests all pass, so it always points
+at the last known-good build — no separate fallback is needed for "what if last night's build
+failed". The job's own checkout stays on the default ref rather than the `nightly` tag's commit,
+because every local `uses: ./.github/actions/...` step resolves against whatever is checked
+out — pinning to an older tag commit would break (permanently, not just once) whenever an
+action under `.github/actions/` changes, until a future nightly build advanced the tag past it.
+The accepted trade-off is that test source and the installed VSIX are no longer commit-matched.
+For the same reason, `setup-ballerina`'s `gradlePropertiesRef: nightly` input pins the installed
+Ballerina distribution version to what the nightly LS actually shipped with, not to
+`gradle.properties` on the current checkout — otherwise a version bump on the default branch
+between nightly builds would fail the whole suite in a way indistinguishable from flakiness.
+
+**Handles GitHub's "Re-run failed jobs" across the whole pipeline.** A matrix group can be
+re-run independently, advancing only its own `github.run_attempt`; `run-e2e-group` restores the
+previous attempt's `.last-run.json` to resume `--last-failed` targeting, and deliberately keeps
+(does not discard) the restored `e2e-reports/` report — a re-run is a continuation of the same
+logical test run, so a test's full attempt history across it (failures before the re-run, plus
+the re-run's own attempts) is what should be recorded, not just the re-run's small subset. Each
+re-run's own report is written to a `run_attempt`-suffixed filename so a *second* re-run can't
+overwrite the first re-run's data the same way. The `Report` job mirrors this at the group level:
+it picks whichever artifact attempt actually exists per group (a passing group's artifact stays
+at a lower attempt number than a re-run group's), rather than assuming every group is at the
+run's current attempt.
+
+**The `nightly` release is briefly unavailable once a day.** `schedule.yml`'s `Tag` job deletes
+then recreates it, so every `gh release view`/`gh release download`/artifact-listing call in
+this workflow retries (`.github/scripts/retry.sh`, sourced rather than duplicated — a prior
+omission of the retry on one of these calls, while its siblings had it, is what prompted
+extracting it) instead of failing outright on that narrow window. One related race is accepted
+rather than closed: `sourceSha` is resolved once in `Prepare` before the E2E matrix starts, but
+each matrix leg separately re-downloads the VSIX later, so a retag landing in between could in
+principle leave a leg testing a different commit than the one recorded in its history row. Fully
+closing that would mean downloading the VSIX once and distributing it to all 4 legs as a shared
+artifact — a real redesign for a multi-second daily window with no effect on the tests
+themselves, so it's left as a known, narrow gap rather than solved here.
+
+**Reports go outside Playwright's `outputDir`.** Both the first-attempt and re-run JSON reports
+are written to `e2e-reports/`, not `test-results/` — Playwright wipes its `outputDir`
+(`test-results/`) at the start of every invocation, so a report placed there would be deleted by
+the very next invocation before ever being read (confirmed by reproducing it locally, not just
+by inspection).
+
+**`aggregate-e2e-results.js`** merges a group's report(s) into one Markdown summary (posted to
+the run's Step Summary) and one NDJSON line per test, keyed by `spec.id` + project name (not
+`file::title`, which collides across `describe` blocks reusing a title). It separately tracks
+and warns on: unparseable report files, groups with no report at all (e.g. killed by the
+60-minute job timeout), and groups that hit `maxFailures` and stopped early. The last needs two
+signals together, since neither alone is precise: a top-level Playwright error containing
+"maximum allowed failures" (emitted only when the cap is hit, but also when the cap happens to
+land on the suite's last test with nothing left to run) AND at least one test with status
+`skipped` and no `skip`/`fixme` annotation (true for a test the cap left un-run, but also true
+for one skipped by a failed `beforeAll`/`beforeEach` hook). Requiring both rules out a suite that
+legitimately finished on its Nth failure and a hook failure that coincidentally also reaches the
+cap. Any of these marks the run failed, not just a test failure. Each NDJSON row also carries a
+`skipCause` (`'involuntary'`/`'intentional'`/`null`) using the same annotation check, so a
+history reader can tell a test that never ran due to the cap apart from one skipped on purpose,
+even though both show `finalStatus: 'skipped'` — this is per-test detail the group-level
+truncation warning above doesn't carry.
+
+**History persists to an orphan `e2e-metrics` branch**, appended once per scheduled run (not
+batched across the day — see below), in a throwaway clone rather than the job's own checkout
+(switching that checkout to `e2e-metrics`, which contains only `history/`, would delete every
+other tracked file the job still needs, including `./.github/actions/failure-notification`).
+The clone is `--depth 1 --single-branch`: `e2e-metrics` is an orphan branch with no relation to
+`main`'s history, so an unrestricted clone would still pull the whole repo's packfiles for a
+branch that only ever holds small `history/YYYY-MM.jsonl` files (rotated monthly to bound
+growth). Each NDJSON row also carries `sourceSha` — the `nightly` release's `targetCommitish`,
+resolved once in the `Prepare` job before the E2E matrix starts (not re-queried later in
+`Report`, which risks reading a commit the tag has since moved past) — so a regression from a
+new nightly build and a genuinely flaky test remain distinguishable in the history, since the
+`nightly` tag itself moves nightly while `E2E_SOURCE_TAG` stays a constant label.
+
+*Why not batch the whole day's stats into one write instead of one per run?* Each of the 4 daily
+runs is an independent GitHub Actions job with no shared filesystem, so batching would mean
+stashing each run's stats in an artifact (its own retention window, its own chance of expiring)
+until some later run decides it's "last" and pushes for the day — new failure modes for a
+problem the shallow clone above already solves directly. Writing immediately after each run
+means each run's data is durably committed the moment it exists, with no held state to lose.
 
 ## The bundled language server
 
@@ -271,9 +369,11 @@ configured.
 | Action | Used by |
 |---|---|
 | `build` | `reusable-build.yml` — runs rush install + `rush build --to ballerina` |
-| `setup-ballerina` | Build and LS workflows — installs the distribution version declared by the LS `gradle.properties` |
+| `setup-ballerina` | Build and LS workflows — installs the distribution version declared by the LS `gradle.properties`; accepts an optional `gradlePropertiesRef` to read that file from a git tag instead of the checkout (used by `e2e-scheduled.yml` to pin to the `nightly` tag) |
 | `updateVersion` | `build`, `schedule.yml` — resolves and writes the version in the extension manifest |
+| `resolve-source-branch` | `schedule.yml` — the latest-`staging/*`-else-`main` resolution described under [The nightly branch](#the-nightly-branch) |
+| `run-e2e-group` | `reusable-build.yml`, `e2e-scheduled.yml` — runs one matrix group of the E2E suite (first attempt + `--last-failed` re-run) and uploads its artifacts; see [Scheduled E2E testing](#scheduled-e2e-testing) |
 | `release` | `release-pre-release.yml` — owns everything that materialises a release: the version commit, `release/<version>`, the tag, the GitHub release and its assets |
 | `pr` | `release-pre-release.yml` — opens the follow-up pull requests (release PR into `X.Y.x`, next-snapshot PR into `main`) + Google Chat notification |
 | `dailyBuildNotification` | `schedule.yml` — success chat notification |
-| `failure-notification` | `schedule.yml`, `release-pre-release.yml` — failure chat notification |
+| `failure-notification` | `schedule.yml`, `release-pre-release.yml`, `e2e-scheduled.yml` — failure chat notification |

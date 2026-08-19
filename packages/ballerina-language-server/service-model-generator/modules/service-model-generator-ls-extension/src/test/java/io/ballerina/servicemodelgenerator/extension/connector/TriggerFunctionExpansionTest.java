@@ -110,9 +110,7 @@ public class TriggerFunctionExpansionTest {
         Assert.assertNotNull(stream, "PAYLOAD_MODIFIER flag must surface as a wire property");
         Assert.assertEquals(stream.getCodedata().getType(), "PAYLOAD_MODIFIER");
         Assert.assertEquals(stream.getCodedata().getTemplate(), "stream<{{type}}, error?>");
-        Value rows = csv.getProperty("rows");
-        Assert.assertNotNull(rows, "METADATA_FLAG marker must surface as a wire property");
-        Assert.assertEquals(rows.getCodedata().getType(), "METADATA_FLAG");
+        Assert.assertNull(csv.getProperty("rows"), "the CSV rows marker was removed from the model");
 
         // Text is a locked (non-bindable) variant: plain REQUIRED string param, no data binding.
         Function text = byName(service, "onFileText");
@@ -133,7 +131,7 @@ public class TriggerFunctionExpansionTest {
     public void testVariantlessComplexPayloadSurfacesCompositionFlags() {
         // Each FTP file format is its own schemaFunction, whose `content` parameter is a
         // COMPLEX_PAYLOAD directly rather than under a VARIATION_SELECTOR. Its composition siblings
-        // (the `stream` toggle, the `rows` marker) must still surface as wire properties, or the
+        // (the `stream` toggle) must still surface as wire properties, or the
         // handler form renders neither.
         Service ftp = ftpTemplate();
         Function csv = byName(ftp, "onFileCsv");
@@ -150,9 +148,7 @@ public class TriggerFunctionExpansionTest {
         Assert.assertNotNull(stream, "variant-less COMPLEX_PAYLOAD must still surface the PAYLOAD_MODIFIER toggle");
         Assert.assertEquals(stream.getCodedata().getType(), "PAYLOAD_MODIFIER");
         Assert.assertEquals(stream.getCodedata().getTemplate(), "stream<{{type}}, error?>");
-        Value rows = csv.getProperty("rows");
-        Assert.assertNotNull(rows, "variant-less COMPLEX_PAYLOAD must still surface the METADATA_FLAG marker");
-        Assert.assertEquals(rows.getCodedata().getType(), "METADATA_FLAG");
+        Assert.assertNull(csv.getProperty("rows"), "the CSV rows marker was removed from the model");
 
         // A payload with no composition siblings (JSON) adds no spurious flags.
         Function json = byName(ftp, "onFileJson");

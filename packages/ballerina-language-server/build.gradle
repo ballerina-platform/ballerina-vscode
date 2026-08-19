@@ -104,10 +104,6 @@ subprojects {
         ballerinaStdLibs "io.ballerina:observe-ballerina:${observeInternalVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:observe-ballerina:${observeVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:tcp-ballerina:${stdlibTcpVersion}"
-
-        /* Packages bundled in the full Ballerina distribution but not in
-           jballerina-tools; test fixtures need them at the versions locked in
-           build-config/ballerina_dependencies/Dependencies.toml */
         ballerinaStdLibs "io.ballerina.stdlib:ai-ballerina:${stdlibAiVersion}"
         ballerinaStdLibs "io.ballerina.lib:avro-ballerina:${stdlibAvroVersion}"
         ballerinaStdLibs "io.ballerina.stdlib:cache-ballerina:${stdlibCacheVersion}"
@@ -401,7 +397,7 @@ allprojects {
         dependsOn rootProject.tasks.named("resolveBallerinaDependencies")
         environment "BALLERINA_HOME_DIR", rootProject.ballerinaTestHomeDir.absolutePath
         // Tests never contact Ballerina Central — they resolve only from the
-        // build-owned home provisioned above. See FORCE_OFFLINE in PackageUtil.
+        // build-owned home provisioned above. See CommonUtil.TEST_OFFLINE.
         systemProperty "ls.test.offline", "true"
     }
 }

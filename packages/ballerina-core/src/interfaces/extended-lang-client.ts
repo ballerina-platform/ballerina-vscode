@@ -979,6 +979,7 @@ export type SearchQueryParams = {
     /** ACTIVITY_CALL search: node kind stamped on result items (e.g. DURABLE_AGENT_ADD_ACTIVITY). */
     nodeKind?: string;
     source?: string;
+    connectorSet?: "GROUPED";
 }
 
 export type SearchKind =

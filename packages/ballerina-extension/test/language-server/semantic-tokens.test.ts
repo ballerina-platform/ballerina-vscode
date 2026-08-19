@@ -22,7 +22,8 @@ import { ExtendedLangClient } from "../../src/core/extended-language-client";
 import { commands, Uri } from "vscode";
 import { log } from '../../src/utils';
 
-const PROJECT_ROOT = join(__dirname, '..', '..', '..', 'grammar', 'ballerina-grammar', 'test', 'resources',
+// Resolved from out/test/language-server -> packages/ballerina-grammar/test/resources/config
+const PROJECT_ROOT = join(__dirname, '..', '..', '..', '..', 'ballerina-grammar', 'test', 'resources',
     'config');
 
 const TEST_CONFIG = [['class.bal'], ['object.bal'], ['service.bal'], ['test.bal'], ['semtype', 'main.bal'],
@@ -43,32 +44,30 @@ const TEST_CONFIG = [['class.bal'], ['object.bal'], ['service.bal'], ['test.bal'
 ['semtype', 'tests', 'data', 'readonly2.bal'], ['semtype', 'tests', 'data', 'string-singleton.bal'],
 ['semtype', 'tests', 'data', 'tuple1.bal']];
 
-export async function runSemanticTokensTestCases(langClient: ExtendedLangClient) {
+// Cases run sequentially and are awaited end to end: the request is measured per
+// file, so overlapping them would distort the timings the perf assertion checks.
+export async function runSemanticTokensTestCases(langClient: ExtendedLangClient): Promise<boolean> {
     let status: boolean = true;
-    for (let i = 0; i < TEST_CONFIG.length; i++) {
-        const element = TEST_CONFIG[i];
-        let filePath = PROJECT_ROOT;
-        element.forEach(path => {
-            filePath = join(filePath, path);
-        })
-
+    for (const element of TEST_CONFIG) {
+        const filePath = join(PROJECT_ROOT, ...element);
         const uri = Uri.file(filePath);
-        await commands.executeCommand('vscode.open', uri).then(() => {
-            const start = new Date();
-            langClient.sendRequest("textDocument/semanticTokens/full", {
-                textDocument: {
-                    uri: uri.toString()
-                }
-            }).then((response: any) => {
-                const result: boolean = response.data.length > 0;
-                status = status ? result : false;
-                assert.equal(result, true, `Semantic tokens API resulted in an incorrect response for ${filePath}`);
-                const end = new Date();
-                const diff = end.getTime() - start.getTime();
-                log(`Time taken for ${filePath}: ${diff}`);
-                assert.equal(diff < 5000, true, `Semantic token response took more than 5 seconds for ${filePath}.`)
-            });
+
+        await commands.executeCommand('vscode.open', uri);
+
+        const start = Date.now();
+        const response: any = await langClient.sendRequest("textDocument/semanticTokens/full", {
+            textDocument: {
+                uri: uri.toString()
+            }
         });
+        const diff = Date.now() - start;
+
+        const result: boolean = response?.data?.length > 0;
+        status = status && result;
+        // Logged before the assertions so a failing case still reports its timing.
+        log(`Time taken for ${filePath}: ${diff}`);
+        assert.equal(result, true, `Semantic tokens API resulted in an incorrect response for ${filePath}`);
+        assert.equal(diff < 5000, true, `Semantic token response took more than 5 seconds for ${filePath}.`);
     }
     return status;
 }

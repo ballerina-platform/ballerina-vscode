@@ -238,21 +238,21 @@ public final class TriggerModelSynthesizer {
         createNewProps.put(LISTENER_CONFIG_GROUP_KEY, configGroup);
         TriggerUISchemaModel.Property createNew = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Create New Listener", "Create a new listener", null, null,
-                        null, null, null, null),
+                        null, null, null, null, null),
                 true, true, false, false, null, null, null, null, null, createNewProps, cd(), null);
 
         Map<String, TriggerUISchemaModel.Property> useExistingProps = new LinkedHashMap<>();
         useExistingProps.put(LISTENER_KEY, existingListenerSelector());
         TriggerUISchemaModel.Property useExisting = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Use Existing Listener", "Attach to an already-declared listener",
-                        null, null, null, null, null, null),
+                        null, null, null, null, null, null, null),
                 false, false, false, false, null, null, null, null, null, useExistingProps, cd(), null);
 
         TriggerUISchemaModel.PropertyType choiceType = new TriggerUISchemaModel.PropertyType(
                 "CHOICE", true, null, null, null, null, null, null);
         TriggerUISchemaModel.Property choice = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Listener", "The listener this service attaches to", null, null, null,
-                        null, null, null),
+                        null, null, null, null),
                 true, true, false, false, null, null, List.of(choiceType), null,
                 List.of(createNew, useExisting), null, cdType(CD_TYPE_LISTENER_CONFIG), null);
         initProperties.put(LISTENER_KEY, choice);
@@ -263,7 +263,7 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.PropertyType type = new TriggerUISchemaModel.PropertyType(
                 "GROUP_SECTION", true, null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
-                new TriggerUISchemaModel.Metadata(label, description, null, null, null, null, null, null),
+                new TriggerUISchemaModel.Metadata(label, description, null, null, null, null, null, null, null),
                 true, true, false, false, null, null, List.of(type), null, null, properties, null, null);
     }
 
@@ -272,7 +272,7 @@ public final class TriggerModelSynthesizer {
                 "IDENTIFIER", true, moduleName + ":Listener", null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Listener Name", "Provide a name for the listener being created",
-                        null, null, null, null, null, null),
+                        null, null, null, null, null, null, null),
                 true, true, false, false, null, moduleName + "Listener", List.of(type), null, null, null,
                 cdType(CD_TYPE_LISTENER_VAR_NAME), null);
     }
@@ -332,7 +332,7 @@ public final class TriggerModelSynthesizer {
                 "SINGLE_SELECT_LISTENER", true, null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Listener", "The existing listener to attach to", null, null,
-                        null, null, null, null),
+                        null, null, null, null, null),
                 true, true, false, false, null, null, List.of(type), null, null, null,
                 cdType(CD_TYPE_EXISTING_LISTENER), null);
     }
@@ -358,7 +358,7 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.Property property = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata(isBasePath ? "Service Path" : "Identifier",
                         isBasePath ? "The base path this service is exposed on"
-                                : "The identifier for this service", null, null, null, null, null, null),
+                                : "The identifier for this service", null, null, null, null, null, null, null),
                 true, true, optional, false, isBasePath ? "/" : null, null, List.of(type), null, null, null,
                 cdType("SERVICE_ID"), null);
         initProperties.put(IDENTIFIER_KEY, property);
@@ -405,7 +405,7 @@ public final class TriggerModelSynthesizer {
                 "SINGLE_SELECT", true, null, options, null, null, null, null);
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Service Type", "The kind of service to create", null, null,
-                        null, null, null, null),
+                        null, null, null, null, null),
                 true, true, false, false, null, serviceTypes.get(0).id(), List.of(type), null, null, null,
                 cdType(ARG_TYPE_SERVICE_TYPE_DESCRIPTOR), null);
     }
@@ -438,7 +438,8 @@ public final class TriggerModelSynthesizer {
         }
 
         return new TriggerUISchemaModel.ServiceTypeModel(
-                new TriggerUISchemaModel.Metadata(humanize(serviceType.id()), null, null, null, null, null, null, null),
+                new TriggerUISchemaModel.Metadata(humanize(serviceType.id()), null, null, null, null, null, null,
+                        null, null),
                 typeName, null, isFirst, multiType, properties, functions, schemaFunctions,
                 cdServiceType(typeName, moduleName));
     }
@@ -484,7 +485,7 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.ReturnType returnType = buildReturnType(fn.returnType(), fn.returnsError());
         String description = fn.doc() == null || fn.doc().isBlank() ? "The `" + fn.name() + "` handler." : fn.doc();
         return new TriggerUISchemaModel.FunctionModel(
-                new TriggerUISchemaModel.Metadata(fn.name(), description, null, null, null, null, null, null),
+                new TriggerUISchemaModel.Metadata(fn.name(), description, null, null, null, null, null, null, null),
                 fn.name(), false, null, fn.kind(), null, fn.qualifiers(), null, null, true, false, false, false,
                 null, null, null, parameters, null, Map.of(), returnType, cdFunction(fn.name(), moduleName), null);
     }
@@ -495,7 +496,7 @@ public final class TriggerModelSynthesizer {
         return new TriggerUISchemaModel.Parameter(
                 new TriggerUISchemaModel.Metadata(humanize(param.name()),
                         param.doc() == null || param.doc().isBlank() ? null : param.doc(), null, null, null, null,
-                        null, null),
+                        null, null, null),
                 KIND_REQUIRED, typeProperty, nameProperty, null, null, null, null, true, false, param.optional(),
                 false, false, cdType("FUNCTION_PARAM"), null);
     }
@@ -504,7 +505,7 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.PropertyType type = new TriggerUISchemaModel.PropertyType(
                 "IDENTIFIER", true, null, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
-                new TriggerUISchemaModel.Metadata(name, null, null, null, null, null, null, null),
+                new TriggerUISchemaModel.Metadata(name, null, null, null, null, null, null, null, null),
                 true, editable, false, false, name, name, List.of(type), null, null, null, null, null);
     }
 
@@ -529,7 +530,7 @@ public final class TriggerModelSynthesizer {
         String label = many ? "Handler" : option.name();
         return new TriggerUISchemaModel.FunctionModel(
                 new TriggerUISchemaModel.Metadata(label, "The `" + option.name() + "` handler.", null, null, null,
-                        many ? "Add Handler" : null, null, null),
+                        many ? "Add Handler" : null, null, null, null),
                 name, many, null, option.kind() == null ? null : option.kind().toUpperCase(Locale.ROOT),
                 null, option.kind() == null ? null : List.of(option.kind()), null, null, false, true, !required,
                 false, null, null, null, parameters, null, properties, returnType,
@@ -585,7 +586,7 @@ public final class TriggerModelSynthesizer {
         String kind = bindingRule != null ? DATA_BINDING : (optional ? DB_KIND_OPTIONAL : KIND_REQUIRED);
         return new TriggerUISchemaModel.Parameter(
                 new TriggerUISchemaModel.Metadata(humanize(name.isEmpty() ? "value" : name), null, null, null,
-                        null, null, null, null),
+                        null, null, null, null, null),
                 kind, typeProperty, nameProperty, null, null, null, null, true, true,
                 optional, false, false, cdType("FUNCTION_PARAM"), null);
     }
@@ -598,12 +599,12 @@ public final class TriggerModelSynthesizer {
         TriggerUISchemaModel.Property typeProperty = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Include " + label,
                         "Tick to include the " + label.toLowerCase(Locale.ROOT) + " parameter in the handler "
-                                + "signature.", null, null, null, null, null, null),
+                                + "signature.", null, null, null, null, null, null, null),
                 true, true, true, false, null, false, List.of(flagType), null, null, null, cd(), null);
         TriggerUISchemaModel.Property nameProperty = identifierProperty(name, false);
         return new TriggerUISchemaModel.Parameter(
                 new TriggerUISchemaModel.Metadata(label, "The " + label.toLowerCase(Locale.ROOT) + " object.", null,
-                        null, null, null, null, null),
+                        null, null, null, null, null, null),
                 DB_KIND_OPTIONAL, typeProperty, nameProperty, null, null, null, null, false, true, true, true, false,
                 cdType("FUNCTION_PARAM"), null);
     }
@@ -613,7 +614,7 @@ public final class TriggerModelSynthesizer {
                 "TYPE", true, typeName, null, null, null, null, null);
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Parameter Type", "The type of the parameter", null, null, null, null,
-                        null, null),
+                        null, null, null),
                 true, false, false, false, null, typeName, List.of(type), null, null, null, cd(), null);
     }
 
@@ -662,7 +663,7 @@ public final class TriggerModelSynthesizer {
                 null);
         TriggerUISchemaModel.Property payload = new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Payload", "The shape of the received payload", null, null,
-                        null, null, null, null),
+                        null, null, null, null, null),
                 true, true, false, false, null, "", List.of(propertyType), null, null, null,
                 cdPayload(cdType, defaultType, template, field, typeConstraint), null);
 
@@ -688,7 +689,7 @@ public final class TriggerModelSynthesizer {
                 .targetParam(targetParam).build();
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata("Stream (Large Files)", "Process the file content in chunks", null,
-                        null, null, null, null, null),
+                        null, null, null, null, null, null),
                 true, true, false, false, null, false, List.of(flagType), null, null, null, modifierCodedata, null);
     }
 
@@ -708,7 +709,7 @@ public final class TriggerModelSynthesizer {
         boolean enabled = type != null && !"()".equals(type);
         return new TriggerUISchemaModel.ReturnType(
                 new TriggerUISchemaModel.Metadata("Return Type", "The return type of the function.", null, null, null,
-                        null, null, null),
+                        null, null, null, null),
                 type, false, null, enabled, false, enabled, hasError, "", cd(), null);
     }
 
@@ -822,7 +823,7 @@ public final class TriggerModelSynthesizer {
         // No per-field skeleton: an empty "{}" record is enough for the user to fill via the record editor.
         return new TriggerUISchemaModel.Property(
                 new TriggerUISchemaModel.Metadata(humanize(annotation.id()), "Configuration for this service", null,
-                        null, null, null, null, null),
+                        null, null, null, null, null, null),
                 true, true, optional, false, "{}", "{}", List.of(propertyType), null, null, null,
                 cdAnnotation(codedataType, annotationName, pkgModule, pkgOrg, pkgName, optional), null);
     }

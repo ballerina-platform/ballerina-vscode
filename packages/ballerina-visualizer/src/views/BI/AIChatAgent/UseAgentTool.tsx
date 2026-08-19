@@ -129,6 +129,7 @@ export function UseAgentTool(props: UseAgentToolProps): JSX.Element {
                 onSelect={(id: string) => onSelectAgent(id)}
                 onAdd={() => setShowAddAgentPopup(true)}
                 addButtonLabel={"Add Agent"}
+                description={"Pick an agent from your integration to hand off requests to."}
                 searchPlaceholder={"Search agents"}
             />
             {showAddAgentPopup && createPortal(

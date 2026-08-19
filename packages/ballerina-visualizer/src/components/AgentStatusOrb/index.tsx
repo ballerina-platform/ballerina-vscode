@@ -373,7 +373,7 @@ export function AgentStatusOrb() {
 
     const state = status.state;
     const colors = ORB_COLORS[state];
-    const label = state === "idle" ? "Chat with WSO2 Integrator Copilot" : activeStateLabel(status);
+    const label = state === "idle" ? "Chat with WSO2 Integration Intelligence" : activeStateLabel(status);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
     // invitation input; dismissing only collapses it into the orb — hovering
@@ -511,9 +511,9 @@ export function AgentStatusOrb() {
                             }
                         }}
                         placeholder="How can I help?"
-                        aria-label="Message WSO2 Integrator Copilot"
+                        aria-label="Message WSO2 Integration Intelligence"
                     />
-                    <InviteDismiss title="Hide" aria-label="Hide the copilot prompt" onClick={() => setInviteDismissed(true)}>
+                    <InviteDismiss title="Hide" aria-label="Hide the WSO2 Integration Intelligence prompt" onClick={() => setInviteDismissed(true)}>
                         ✕
                     </InviteDismiss>
                 </InviteBox>
@@ -525,8 +525,8 @@ export function AgentStatusOrb() {
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                title={label ? `WSO2 Integrator Copilot — ${label}` : "WSO2 Integrator Copilot"}
-                aria-label={label ? `WSO2 Integrator Copilot: ${label}. Open the Copilot mini chat.` : "Open the WSO2 Integrator Copilot mini chat"}
+                title={label ? `WSO2 Integration Intelligence — ${label}` : "WSO2 Integration Intelligence"}
+                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Open the WSO2 Integration Intelligence mini chat.` : "Open the WSO2 Integration Intelligence mini chat"}
             >
                 {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
                 <Aura colors={colors} state={state} />
