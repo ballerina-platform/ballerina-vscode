@@ -23,9 +23,10 @@ import styled from "@emotion/styled";
 import ChatInput from "./ChatInput";
 import LoadingIndicator from "./LoadingIndicator";
 import { ExecutionTimeline } from "./ExecutionTimeline";
+import { ApprovalCard } from "./ApprovalCard";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Button, ThemeColors } from "@wso2/ui-toolkit";
-import { SessionInfoResponse, AgentInfo } from "@wso2/ballerina-core";
+import { SessionInfoResponse, AgentInfo, PendingApprovalInfo, HumanResponse, ChatHistoryMessage } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -36,6 +37,7 @@ import { ExecutionStep } from "@wso2/ballerina-core";
 enum ChatMessageType {
     MESSAGE = "message",
     ERROR = "error",
+    APPROVAL = "approval",
 }
 
 interface ChatMessage {
@@ -44,6 +46,20 @@ interface ChatMessage {
     isUser: boolean;
     traceId?: string;
     executionSteps?: ExecutionStep[];
+    // Present when type is APPROVAL: the requests the agent paused on.
+    pendingApproval?: PendingApprovalInfo;
+    // Present once (some or all of) the pending approval above has been resolved.
+    decisions?: Record<string, HumanResponse>;
+    // Set when the user dismisses this batch after it keeps failing to submit. Terminal even
+    // if some requests still lack a decision.
+    unresolvable?: boolean;
+}
+
+function isApprovalUnresolved(msg: ChatMessage): boolean {
+    return msg.type === ChatMessageType.APPROVAL
+        && !!msg.pendingApproval
+        && !msg.unresolvable
+        && msg.pendingApproval.requests.some(r => !msg.decisions?.[r.id]);
 }
 
 // ---------- WATER MARK ----------
@@ -496,6 +512,23 @@ function toDisplayName(name: string): string {
         .replace("Agent Chat/", "");
 }
 
+function toChatMessage(msg: ChatHistoryMessage): ChatMessage {
+    return {
+        type: msg.type === 'error'
+            ? ChatMessageType.ERROR
+            : msg.type === 'approval'
+                ? ChatMessageType.APPROVAL
+                : ChatMessageType.MESSAGE,
+        text: msg.text,
+        isUser: msg.isUser,
+        traceId: msg.traceId,
+        executionSteps: msg.executionSteps,
+        pendingApproval: msg.pendingApproval,
+        decisions: msg.decisions,
+        unresolvable: msg.unresolvable,
+    };
+}
+
 // Preprocess LaTeX delimiters to convert \(...\) and \[...\] to $...$ and $$...$$
 export function preprocessLatex(text: string): string {
     if (!text || typeof text !== 'string') return text;
@@ -525,9 +558,19 @@ const ChatInterface: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const infoPopoverRef = useRef<HTMLDivElement>(null);
     const agentDropdownRef = useRef<HTMLDivElement>(null);
+    // Bumped whenever the active session changes (switch agent, clear chat, or a switch pushed
+    // from the extension host). In-flight requests capture this value and drop their response
+    // if it no longer matches, rather than applying it to whatever session is now on screen.
+    const sessionTokenRef = useRef(0);
 
     // Check if we have any traces (to enable/disable Session Traces button)
     const hasTraces = messages.some(msg => !msg.isUser && msg.traceId);
+
+    // Block free-text input while any turn has an unresolved approval request. Scanning the
+    // whole list (not just the last message) matters because a failed decision submission
+    // appends an error message after the approval card, which would otherwise become
+    // `lastMessage` and incorrectly report nothing pending.
+    const isApprovalPending = messages.some(isApprovalUnresolved);
 
     // Load chat history and check tracing status on mount
     useEffect(() => {
@@ -538,13 +581,7 @@ const ChatInterface: React.FC = () => {
                 // Only restore chat if the agent is still running
                 if (history.isAgentRunning && history.messages.length > 0) {
                     // Convert ChatHistoryMessage to ChatMessage format
-                    const chatMessages: ChatMessage[] = history.messages.map(msg => ({
-                        type: msg.type === 'error' ? ChatMessageType.ERROR : ChatMessageType.MESSAGE,
-                        text: msg.text,
-                        isUser: msg.isUser,
-                        traceId: msg.traceId,
-                        executionSteps: msg.executionSteps
-                    }));
+                    const chatMessages: ChatMessage[] = history.messages.map(toChatMessage);
                     setMessages(chatMessages);
                 }
                 // If agent is not running, chat history is cleared automatically
@@ -589,16 +626,11 @@ const ChatInterface: React.FC = () => {
     useEffect(() => {
         rpcClient.getAgentChatRpcClient().onActiveAgentChanged(async (agentName: string) => {
             try {
+                sessionTokenRef.current++;
                 const response = await rpcClient.getAgentChatRpcClient().switchChatAgent({ agentName });
                 setActiveAgentName(agentName);
 
-                const chatMessages: ChatMessage[] = response.chatHistory.map((msg: { type: string; text: string; isUser: boolean; traceId?: string; executionSteps?: ExecutionStep[] }) => ({
-                    type: msg.type === 'error' ? ChatMessageType.ERROR : ChatMessageType.MESSAGE,
-                    text: msg.text,
-                    isUser: msg.isUser,
-                    traceId: msg.traceId,
-                    executionSteps: msg.executionSteps
-                }));
+                const chatMessages: ChatMessage[] = response.chatHistory.map(toChatMessage);
                 setMessages(chatMessages);
                 setSessionInfo(null);
                 setShowInfoPopover(false);
@@ -671,17 +703,12 @@ const ChatInterface: React.FC = () => {
         if (agentName === activeAgentName || isLoading) return;
 
         try {
+            sessionTokenRef.current++;
             const response = await rpcClient.getAgentChatRpcClient().switchChatAgent({ agentName });
             setActiveAgentName(agentName);
 
             // Load the chat history for the switched agent
-            const chatMessages: ChatMessage[] = response.chatHistory.map((msg: { type: string; text: string; isUser: boolean; traceId?: string; executionSteps?: ExecutionStep[] }) => ({
-                type: msg.type === 'error' ? ChatMessageType.ERROR : ChatMessageType.MESSAGE,
-                text: msg.text,
-                isUser: msg.isUser,
-                traceId: msg.traceId,
-                executionSteps: msg.executionSteps
-            }));
+            const chatMessages: ChatMessage[] = response.chatHistory.map(toChatMessage);
             setMessages(chatMessages);
 
             // Reset session info cache
@@ -694,8 +721,63 @@ const ChatInterface: React.FC = () => {
         }
     };
 
+    const parseAgentError = (error: unknown): { errorMessage: string; traceId?: string; executionSteps?: ExecutionStep[] } => {
+        let errorMessage = "An unknown error occurred";
+        let traceId: string | undefined;
+        let executionSteps: ExecutionStep[] | undefined;
+
+        // Try to parse structured error with trace information
+        if (error && typeof error === "object" && "message" in error) {
+            try {
+                const parsedError = JSON.parse(String(error.message));
+                if (parsedError.message && parsedError.traceInfo) {
+                    errorMessage = parsedError.message;
+                    traceId = parsedError.traceInfo.traceId;
+                    executionSteps = parsedError.traceInfo.executionSteps;
+                } else {
+                    // Fallback to regular error message
+                    errorMessage = String(error.message);
+                }
+            } catch (parseError) {
+                // If JSON parsing fails, use the original error message
+                errorMessage = String(error.message);
+            }
+        }
+
+        return { errorMessage, traceId, executionSteps };
+    };
+
+    const appendAgentResponse = (response: {
+        pendingApproval?: PendingApprovalInfo;
+        message: string;
+        traceId?: string;
+        executionSteps?: ExecutionStep[];
+    }) => {
+        if (response.pendingApproval) {
+            setMessages((prev) => [
+                ...prev,
+                { type: ChatMessageType.APPROVAL, text: "", isUser: false, pendingApproval: response.pendingApproval },
+            ]);
+        } else {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    type: ChatMessageType.MESSAGE,
+                    text: response.message,
+                    isUser: false,
+                    traceId: response.traceId,
+                    executionSteps: response.executionSteps
+                },
+            ]);
+        }
+    };
+
     const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
+
+        // Capture the session token so a reply that lands after the user switched agents (or
+        // cleared chat) gets dropped instead of appended to the new session's transcript.
+        const requestToken = sessionTokenRef.current;
 
         setMessages((prev) => [...prev, { type: ChatMessageType.MESSAGE, text, isUser: true }]);
         setIsLoading(true);
@@ -703,38 +785,17 @@ const ChatInterface: React.FC = () => {
         try {
             const chatResponse = await rpcClient.getAgentChatRpcClient().getChatMessage({ message: text });
 
-            setMessages((prev) => [
-                ...prev,
-                {
-                    type: ChatMessageType.MESSAGE,
-                    text: chatResponse.message,
-                    isUser: false,
-                    traceId: chatResponse.traceId,
-                    executionSteps: chatResponse.executionSteps
-                },
-            ]);
-        } catch (error) {
-            let errorMessage = "An unknown error occurred";
-            let traceId: string | undefined;
-            let executionSteps: ExecutionStep[] | undefined;
-
-            // Try to parse structured error with trace information
-            if (error && typeof error === "object" && "message" in error) {
-                try {
-                    const parsedError = JSON.parse(String(error.message));
-                    if (parsedError.message && parsedError.traceInfo) {
-                        errorMessage = parsedError.message;
-                        traceId = parsedError.traceInfo.traceId;
-                        executionSteps = parsedError.traceInfo.executionSteps;
-                    } else {
-                        // Fallback to regular error message
-                        errorMessage = String(error.message);
-                    }
-                } catch (parseError) {
-                    // If JSON parsing fails, use the original error message
-                    errorMessage = String(error.message);
-                }
+            if (sessionTokenRef.current !== requestToken) {
+                return;
             }
+
+            appendAgentResponse(chatResponse);
+        } catch (error) {
+            if (sessionTokenRef.current !== requestToken) {
+                return;
+            }
+
+            const { errorMessage, traceId, executionSteps } = parseAgentError(error);
 
             console.error("Chat message error:", error);
 
@@ -748,6 +809,79 @@ const ChatInterface: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Finds the approval message a batch of decisions belongs to by matching request ids,
+    // rather than trusting a snapshotted array index that could point at the wrong message
+    // once anything reorders `messages` between the click and the response.
+    const findApprovalMessageIndex = (messages: ChatMessage[], requestIds: string[]): number => {
+        return messages.findIndex(m =>
+            m.type === ChatMessageType.APPROVAL && m.pendingApproval?.requests.some(r => requestIds.includes(r.id))
+        );
+    };
+
+    const handleApprovalDecision = async (decisions: Record<string, HumanResponse>) => {
+        // Lock session-changing actions (switch agent, clear chat) while a decision is in
+        // flight, and capture the session token so a response that arrives after the user
+        // switched/cleared sessions anyway is dropped instead of applied to the wrong chat.
+        const requestToken = sessionTokenRef.current;
+        setIsLoading(true);
+        try {
+            const response = await rpcClient.getAgentChatRpcClient().submitDecision({ decisions });
+
+            if (sessionTokenRef.current !== requestToken) {
+                return;
+            }
+
+            setMessages((prev) => {
+                const updated = [...prev];
+                const targetIndex = findApprovalMessageIndex(updated, Object.keys(decisions));
+                if (targetIndex !== -1) {
+                    const target = updated[targetIndex];
+                    updated[targetIndex] = { ...target, decisions: { ...(target.decisions || {}), ...decisions } };
+                }
+                return updated;
+            });
+
+            appendAgentResponse(response);
+        } catch (error) {
+            if (sessionTokenRef.current !== requestToken) {
+                return;
+            }
+
+            const { errorMessage, traceId, executionSteps } = parseAgentError(error);
+
+            console.error("Submit decision error:", error);
+
+            // Leave the approval card as-is (a failed submitDecision doesn't change what's
+            // pending) so the user can retry, e.g. with a fuller set of decisions - only the
+            // explicit Dismiss action below gives up on it.
+            setMessages((prev) => [...prev, {
+                type: ChatMessageType.ERROR,
+                text: errorMessage,
+                isUser: false,
+                traceId,
+                executionSteps
+            }]);
+        } finally {
+            // Always clear the lock, even if the session moved on while this was in flight -
+            // otherwise nothing would ever reset isLoading for the session now on screen.
+            setIsLoading(false);
+        }
+    };
+
+    // Lets the user give up on a batch that keeps failing (e.g. the service genuinely lost
+    // track of it) instead of being stuck forever with a disabled chat input and no way out
+    // but Clear Chat. This is a local, session-only decision - it doesn't call the service.
+    const handleDismissApproval = (requestIds: string[]) => {
+        setMessages((prev) => {
+            const updated = [...prev];
+            const targetIndex = findApprovalMessageIndex(updated, requestIds);
+            if (targetIndex !== -1) {
+                updated[targetIndex] = { ...updated[targetIndex], unresolvable: true };
+            }
+            return updated;
+        });
     };
 
     const handleStop = () => {
@@ -780,6 +914,7 @@ const ChatInterface: React.FC = () => {
 
     const confirmClearChat = async () => {
         try {
+            sessionTokenRef.current++;
             // Clear the chat history on the backend and get a new session ID
             await rpcClient.getAgentChatRpcClient().clearChatHistory();
             // Clear the messages in the UI
@@ -930,8 +1065,8 @@ const ChatInterface: React.FC = () => {
                                     onViewInTrace={handleViewInTrace}
                                 />
                             )}
-                            <MessageContainer isUser={msg.isUser}>
-                                {!msg.isUser && (
+                            {msg.type === ChatMessageType.APPROVAL && msg.pendingApproval ? (
+                                <MessageContainer isUser={false}>
                                     <ProfilePic>
                                         <Icon
                                             name="bi-ai-agent"
@@ -943,35 +1078,60 @@ const ChatInterface: React.FC = () => {
                                             }}
                                         />
                                     </ProfilePic>
-                                )}
-                                <MessageBubble isUser={msg.isUser} isError={msg.type === ChatMessageType.ERROR}>
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkMath, remarkGfm]}
-                                        rehypePlugins={[rehypeKatex]}
-                                    >
-                                        {preprocessLatex(msg.text)}
-                                    </ReactMarkdown>
-                                </MessageBubble>
-                                {msg.isUser && (
-                                    <ProfilePic>
-                                        <Icon
-                                            name="bi-user"
-                                            sx={{ width: 18, height: 18 }}
-                                            iconSx={{
-                                                fontSize: "18px",
-                                                color: "var(--vscode-foreground)",
-                                                cursor: "default",
-                                            }}
-                                        />
-                                    </ProfilePic>
-                                )}
-                            </MessageContainer>
-                            {!msg.isUser && isTracingEnabled && msg.traceId && (
-                                <MessageActionsContainer>
-                                    <ShowLogsButton onClick={() => handleShowLogs(idx)} title="View trace logs for this message">
-                                        View Trace
-                                    </ShowLogsButton>
-                                </MessageActionsContainer>
+                                    <ApprovalCard
+                                        requests={msg.pendingApproval.requests}
+                                        decisions={msg.decisions}
+                                        unresolvable={msg.unresolvable}
+                                        onSubmit={handleApprovalDecision}
+                                        onDismiss={() => handleDismissApproval(msg.pendingApproval.requests.map(r => r.id))}
+                                    />
+                                </MessageContainer>
+                            ) : (
+                                <>
+                                    <MessageContainer isUser={msg.isUser}>
+                                        {!msg.isUser && (
+                                            <ProfilePic>
+                                                <Icon
+                                                    name="bi-ai-agent"
+                                                    sx={{ width: 18, height: 18 }}
+                                                    iconSx={{
+                                                        fontSize: "18px",
+                                                        color: "var(--vscode-terminal-ansiBrightCyan)",
+                                                        cursor: "default",
+                                                    }}
+                                                />
+                                            </ProfilePic>
+                                        )}
+                                        <MessageBubble isUser={msg.isUser} isError={msg.type === ChatMessageType.ERROR}>
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkMath, remarkGfm]}
+                                                rehypePlugins={[rehypeKatex]}
+                                            >
+                                                {preprocessLatex(msg.text)}
+                                            </ReactMarkdown>
+                                        </MessageBubble>
+                                        {msg.isUser && (
+                                            <ProfilePic>
+                                                <Icon
+                                                    name="bi-user"
+                                                    sx={{ width: 18, height: 18 }}
+                                                    iconSx={{
+                                                        fontSize: "18px",
+                                                        color: "var(--vscode-foreground)",
+                                                        cursor: "default",
+                                                    }}
+                                                />
+                                            </ProfilePic>
+                                        )}
+                                    </MessageContainer>
+                                    {!msg.isUser && isTracingEnabled && msg.traceId && (
+                                        <MessageActionsContainer>
+                                            <ShowLogsButton onClick={() => handleShowLogs(idx)} title="View trace logs for this message">
+                                                View Trace
+                                            </ShowLogsButton>
+                                        </MessageActionsContainer>
+                                    )}
+                                </>
                             )}
                         </React.Fragment>
                     ))}
@@ -999,7 +1159,14 @@ const ChatInterface: React.FC = () => {
                 </Messages>
             </ChatContainer>
             <ChatFooter>
-                <ChatInput value="" onSend={handleSendMessage} onStop={handleStop} isLoading={isLoading} />
+                <ChatInput
+                    value=""
+                    onSend={handleSendMessage}
+                    onStop={handleStop}
+                    isLoading={isLoading}
+                    disabled={isApprovalPending}
+                    placeholder={isApprovalPending ? "Waiting on your decision…" : "Type your message..."}
+                />
                 {/* <FooterText>
                     <SmallInfoIcon className="codicon codicon-info" />
                     <span>Add chat to external application.</span>

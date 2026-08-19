@@ -79,7 +79,7 @@ function buildSystemPrompt(situation: FollowupSituation): string {
     const framing = situation === "aborted" ? ABORTED_FRAMING
         : situation === "error" ? ERROR_FRAMING
         : COMPLETED_FRAMING;
-    return `You help users of the WSO2 Integrator Copilot decide what to do next.
+    return `You help users of WSO2 Integration Intelligence decide what to do next.
 
 ${framing}
 

@@ -1,0 +1,97 @@
+name: 'Run E2E test group'
+description: >-
+  Runs one matrix group of the Ballerina e2e Playwright suite (first attempt, then a
+  --last-failed re-run if needed) and uploads its results/recordings/project-data
+  artifacts. Shared by reusable-build.yml's BalE2ETest job and e2e-scheduled.yml's E2E
+  job — see "Scheduled E2E testing" in .github/workflows/README.md for the design
+  rationale. Assumes the workspace is already prepared (deps installed, Ballerina
+  distribution installed) by the calling job.
+inputs:
+  group:
+    description: 'Matrix group name, e.g. group1'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Check for previous test results
+      shell: bash
+      if: github.run_attempt > 1
+      run: |
+        PREVIOUS_ATTEMPT=$((${{ github.run_attempt }} - 1))
+        echo "PREVIOUS_ATTEMPT=$PREVIOUS_ATTEMPT" >> $GITHUB_ENV
+
+    - name: Download previous test results
+      id: check-results
+      if: github.run_attempt > 1
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      continue-on-error: true
+      with:
+        name: Ballerina-e2e-test-results-linux-${{ inputs.group }}-${{ env.PREVIOUS_ATTEMPT }}
+        # Restored e2e-reports/ is deliberately kept, not discarded — see README.
+        path: packages/ballerina-extension
+
+    - name: Install packages
+      shell: bash
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y xvfb ffmpeg gnome-keyring libsecret-1.0 dbus-x11
+        cd packages/ballerina-extension && npx playwright install
+
+    - name: Run Ballerina e2e Test (First Attempt)
+      shell: bash
+      id: run-tests-first
+      if: github.run_attempt == 1 || steps.check-results.outcome == 'failure'
+      continue-on-error: true
+      env:
+        # Not under test-results/ (Playwright's outputDir, wiped every invocation).
+        PLAYWRIGHT_JSON_OUTPUT_FILE: e2e-reports/e2e-results-first.json
+      run: |
+        export $(dbus-launch)
+        export DISPLAY=:98.0
+        cd packages/ballerina-extension
+        xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ inputs.group }}"
+
+    - name: Run Failed Ballerina e2e Test (Re-run)
+      shell: bash
+      if: steps.run-tests-first.outcome == 'failure' || steps.check-results.outcome == 'success'
+      env:
+        # run_attempt-suffixed so a second re-run doesn't overwrite the first's report.
+        PLAYWRIGHT_JSON_OUTPUT_FILE: e2e-reports/e2e-results-rerun-${{ github.run_attempt }}.json
+      run: |
+        rm -rf packages/ballerina-extension/e2e-test/data/new-project
+        export $(dbus-launch)
+        export DISPLAY=:98.0
+        cd packages/ballerina-extension
+        xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ inputs.group }} --last-failed"
+
+    - name: Upload Ballerina e2e Test results
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      if: always()
+      with:
+        name: Ballerina-e2e-test-results-linux-${{ inputs.group }}-${{ github.run_attempt }}
+        path: |
+          packages/ballerina-extension/test-results/**
+          packages/ballerina-extension/e2e-reports/**
+        retention-days: 5
+        include-hidden-files: true
+
+    - name: Upload Ballerina e2e Test recordings
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      if: always()
+      with:
+        name: Ballerina-e2e-test-recording-linux-${{ inputs.group }}-${{ github.run_attempt }}
+        path: |
+          packages/ballerina-extension/e2e-test/test-resources/videos/**
+          packages/ballerina-extension/e2e-test/test-resources/screenshots/**
+          packages/ballerina-extension/e2e-test/test-resources/snapshots/**
+          packages/ballerina-extension/record.mp4
+        retention-days: 5
+
+    - name: Upload Ballerina e2e Test project data
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      if: always()
+      with:
+        name: Ballerina-e2e-test-project-linux-${{ inputs.group }}-${{ github.run_attempt }}
+        path: |
+          packages/ballerina-extension/e2e-test/data/new-project/**
+        retention-days: 5

@@ -3831,6 +3831,11 @@
       "name": "xlsx",
       "version": "1.0.1",
       "description": "Provides functionality to read and write Microsoft Excel files in the XLSX format with type-safe data binding."
+    },
+    {
+      "name": "zip",
+      "version": "0.9.0",
+      "description": "The `zip` library provides APIs to create and read ZIP archives from Ballerina."
     }
   ]
 }

@@ -133,20 +133,20 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
 `;
 
 /** User-facing label for a non-idle run state, shared by the orb and the hero box. */
-export const AWAITING_INPUT_LABEL = "Copilot needs your input";
+export const AWAITING_INPUT_LABEL = "WSO2 Integration Intelligence needs your input";
 
 export function activeStateLabel(status: AgentRunStatus): string {
     switch (status.state) {
         case "completed":
-            return "Done — click to open Copilot";
+            return "Done — click to open WSO2 Integration Intelligence";
         case "running":
             return status.label ?? "Working on it…";
         case "awaiting-input":
             return status.label ?? AWAITING_INPUT_LABEL;
         case "error":
-            return status.label ?? "Copilot hit an error";
+            return status.label ?? "WSO2 Integration Intelligence hit an error";
         default:
-            return "Chat with WSO2 Integrator Copilot";
+            return "Chat with WSO2 Integration Intelligence";
     }
 }
 

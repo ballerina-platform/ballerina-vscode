@@ -87,18 +87,17 @@ jobs:
           fetch-depth: 2
           submodules: recursive
 
+      # Skipped for release builds: they ship the whole branch, so there is no
+      # meaningful baseline to diff against, and fetching one pulled in the
+      # submodule commits main references — which fails once any is unreachable.
       - name: Analyze diff
+        if: ${{ !inputs.isReleaseBuild }}
         shell: bash
         id: diff
         run: |
           echo "hasBalDiff=false" >> $GITHUB_OUTPUT
 
-          if [[ ${{ inputs.isReleaseBuild }} = 'true' ]]; then
-            git fetch origin main
-            CHANGED_DIRS=$(git diff --name-only HEAD..refs/remotes/origin/main | grep -E "^/*" || true)
-          else
-            CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
-          fi
+          CHANGED_DIRS=$(git diff --name-only HEAD^..HEAD | grep -E "^/*" || true)
 
           echo "$CHANGED_DIRS"
 
@@ -110,6 +109,7 @@ jobs:
           fi
 
       - name: Set test matrix
+        if: ${{ !inputs.isReleaseBuild }}
         shell: bash
         id: testMatrix
         run: |
@@ -155,7 +155,7 @@ jobs:
     needs: Build_Stage
     if: false
     # Re-enable once unit tests are stable in CI:
-    # if: ${{ inputs.runTests || (inputs.isReleaseBuild && inputs.ballerina) || needs.Build_Stage.outputs.runBalExtTests == 'true' || endsWith(github.base_ref, '.x') }}
+    # if: ${{ inputs.runTests || endsWith(github.base_ref, '.x') }}
     timeout-minutes: 45
     runs-on: ${{ inputs.runOnAWS && inputs.awsRunnerId || 'ubuntu-latest' }}
     steps:
@@ -292,79 +292,10 @@ jobs:
       - name: Install Ballerina distribution
         uses: ./.github/actions/setup-ballerina
 
-      - name: Check for previous test results
-        shell: bash
-        if: github.run_attempt > 1
-        run: |
-          PREVIOUS_ATTEMPT=$((${{ github.run_attempt }} - 1))
-          echo "PREVIOUS_ATTEMPT=$PREVIOUS_ATTEMPT" >> $GITHUB_ENV
-
-      - name: Download previous test results
-        id: check-results
-        if: github.run_attempt > 1
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        continue-on-error: true
+      - name: Run e2e test group
+        uses: ./.github/actions/run-e2e-group
         with:
-          name: Ballerina-e2e-test-results-linux-${{ matrix.group }}-${{ env.PREVIOUS_ATTEMPT }}
-          path: packages/ballerina-extension/test-results
-
-      - name: Install packages
-        shell: bash
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y xvfb ffmpeg gnome-keyring libsecret-1.0 dbus-x11
-          cd packages/ballerina-extension && npx playwright install
-
-      - name: Run Ballerina e2e Test (First Attempt)
-        shell: bash
-        id: run-tests-first
-        if: github.run_attempt == 1 || steps.check-results.outcome == 'failure'
-        continue-on-error: true
-        run: |
-          export $(dbus-launch)
-          export DISPLAY=:98.0
-          cd packages/ballerina-extension
-          xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ matrix.group }}"
-
-      - name: Run Failed Ballerina e2e Test (Re-run)
-        shell: bash
-        if: steps.run-tests-first.outcome == 'failure' || steps.check-results.outcome == 'success'
-        run: |
-          rm -rf packages/ballerina-extension/e2e-test/data/new-project
-          export $(dbus-launch)
-          export DISPLAY=:98.0
-          cd packages/ballerina-extension
-          xvfb-run --server-num 98.0 -s "-ac -screen 0 1920x1080x24" bash -c "ffmpeg -y -nostdin -f x11grab -r 30 -s 1920x1080 -i :98.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p -movflags +faststart -hide_banner -loglevel error record.mp4 & pnpm exec playwright test -c e2e-test/playwright.config.js --grep ${{ matrix.group }} --last-failed"
-
-      - name: Upload Ballerina e2e Test results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: Ballerina-e2e-test-results-linux-${{ matrix.group }}-${{ github.run_attempt }}
-          path: packages/ballerina-extension/test-results/**
-          retention-days: 5
-          include-hidden-files: true
-
-      - name: Upload Ballerina e2e Test recordings
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: Ballerina-e2e-test-recording-linux-${{ matrix.group }}-${{ github.run_attempt }}
-          path: |
-            packages/ballerina-extension/e2e-test/test-resources/videos/**
-            packages/ballerina-extension/e2e-test/test-resources/screenshots/**
-            packages/ballerina-extension/e2e-test/test-resources/snapshots/**
-            packages/ballerina-extension/record.mp4
-          retention-days: 5
-
-      - name: Upload Ballerina e2e Test project data
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
-        with:
-          name: Ballerina-e2e-test-project-linux-${{ matrix.group }}-${{ github.run_attempt }}
-          path: |
-            packages/ballerina-extension/e2e-test/data/new-project/**
-          retention-days: 5
+          group: ${{ matrix.group }}
 
   LSTest_Ballerina:
     name: Run Ballerina LS tests (${{ matrix.os }})

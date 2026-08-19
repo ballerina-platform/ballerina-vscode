@@ -105,7 +105,7 @@ public final class PropertyValueAdapter {
         }
         TriggerUISchemaModel.Metadata metadata = value.getMetadata() == null ? null
                 : new TriggerUISchemaModel.Metadata(value.getMetadata().label(), value.getMetadata().description(),
-                        null, null, null, null, null, null);
+                        null, null, null, null, null, null, null);
         List<TriggerUISchemaModel.PropertyType> types = null;
         if (value.getTypes() != null) {
             types = new ArrayList<>();
@@ -243,7 +243,7 @@ public final class PropertyValueAdapter {
                 cd.getDefaultType(), cd.getBoundType(), cd.getBindable(), null, null, cd.getTemplate(),
                 cd.getModifier(), null,
                 cd.getTargetParam(), null, cd.getField(), cd.getOptional(), cd.getValue(),
-                cd.getValueQualifier(), null, null, cd.getNameEditable());
+                cd.getValueQualifier(), null, null, cd.getNameEditable(), null);
     }
 
     /** String values collapse to their literal form; non-string values pass through raw. */
