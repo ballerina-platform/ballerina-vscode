@@ -16,8 +16,8 @@
  * under the License.
  */
 
-import { useEffect, useState } from "react";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
+import { useCallback, useEffect, useState } from "react";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 
 /** One fetch per webview; the setting needs a reload to change. */
@@ -64,4 +64,53 @@ export function useAssistantName(): string {
 
 export function useShortAssistantName(): string {
     return shortAssistantName(useProductMode());
+}
+
+export interface TracingStatus {
+    isTracingEnabled: boolean;
+    isToggling: boolean;
+    toggleTracing: () => Promise<void>;
+}
+
+export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: string): TracingStatus {
+    const [isTracingEnabled, setIsTracingEnabled] = useState(false);
+    const [isToggling, setIsToggling] = useState(false);
+
+    const checkTracingStatus = useCallback(async () => {
+        try {
+            const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
+            setIsTracingEnabled(status.enabled);
+        } catch (error) {
+            setIsTracingEnabled(false);
+        }
+    }, [rpcClient, projectPath]);
+
+    useEffect(() => {
+        checkTracingStatus();
+    }, [checkTracingStatus]);
+
+    useEffect(() => {
+        rpcClient.getAgentChatRpcClient().onTracingStatusChanged(() => {
+            checkTracingStatus();
+        });
+    }, [rpcClient, checkTracingStatus]);
+
+    const toggleTracing = useCallback(async () => {
+        if (isToggling) {
+            return;
+        }
+        setIsToggling(true);
+        try {
+            const command = isTracingEnabled ? "ballerina.disableTracing" : "ballerina.enableTracing";
+            await rpcClient.getCommonRpcClient().executeCommand({ commands: [command] });
+            await checkTracingStatus();
+        } catch (error) {
+            console.error("Failed to toggle tracing:", error);
+            throw error;
+        } finally {
+            setIsToggling(false);
+        }
+    }, [isToggling, isTracingEnabled, rpcClient, checkTracingStatus]);
+
+    return { isTracingEnabled, isToggling, toggleTracing };
 }

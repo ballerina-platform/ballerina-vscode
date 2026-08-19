@@ -15,6 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useRef } from "react";
+import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 import {
     SCOPE,
     DIRECTORY_MAP,
@@ -98,4 +100,20 @@ export function getWorkspaceProjectScopes(
     return projectCollection.projects
         .map(mapProjectToScope)
         .filter((scopeMapping): scopeMapping is ProjectScopeMapping => scopeMapping !== undefined);
+}
+
+export function useProjectContentRefresh(rpcClient: BallerinaRpcClient | undefined, onUpdate: () => void): void {
+    const onUpdateRef = useRef(onUpdate);
+    onUpdateRef.current = onUpdate;
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        return rpcClient.onProjectContentUpdated((state: boolean) => {
+            if (state) {
+                onUpdateRef.current();
+            }
+        });
+    }, [rpcClient]);
 }
