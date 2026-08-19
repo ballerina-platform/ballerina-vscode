@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     ProjectStructure,
@@ -36,7 +36,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
 import { IOpenInConsoleCmdParams, WICommandIds } from "@wso2/wso2-platform-core";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
-import { getIntegrationTypes, validateComponentName } from "./utils";
+import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "./utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { TitleBar } from "../../../components/TitleBar";
@@ -857,20 +857,7 @@ export function PackageOverview(props: PackageOverviewProps) {
         });
     }, [projectPath, fetchContext]);
 
-    // Keep a stable ref so the subscription callback always calls the latest fetchContext
-    // without needing to re-register the listener every time fetchContext changes.
-    const fetchContextRef = useRef(fetchContext);
-    fetchContextRef.current = fetchContext;
-
-    useEffect(() => {
-        if (!rpcClient) return;
-        const unsubscribe = rpcClient.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchContextRef.current();
-            }
-        });
-        return unsubscribe;
-    }, [rpcClient]);
+    useProjectContentRefresh(rpcClient, fetchContext);
 
     const deployableIntegrationTypes = useMemo(() => {
         return getIntegrationTypes(projectStructure);

@@ -33,7 +33,8 @@ import { Button, Codicon, Icon, Menu, MenuItem, Popover, ProgressRing, ThemeColo
 import { PageHeader } from "../components/PageHeader";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
-import { getIntegrationTypes, validateComponentName } from "../PackageOverview/utils";
+import { getIntegrationTypes, validateComponentName, useProjectContentRefresh } from "../PackageOverview/utils";
+import { useTracingStatus } from "../../../hooks/useProductMode";
 import { AgentTabs, agentKey } from "./AgentTabs";
 import { EmptyState } from "./EmptyState";
 
@@ -155,6 +156,14 @@ const MenuItemLabel = styled.div`
     min-width: 180px;
 `;
 
+function menuLabel(icon: string, text: string) {
+    return (
+        <MenuItemLabel>
+            <Codicon name={icon} /> {text}
+        </MenuItemLabel>
+    );
+}
+
 export interface AgentFocusRequest {
     path: string;
     startLine: number;
@@ -175,13 +184,12 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const [showAddAgent, setShowAddAgent] = useState(false);
     const [showAddLibraryArtifact, setShowAddLibraryArtifact] = useState(false);
     const [deployAnchor, setDeployAnchor] = useState<HTMLElement | null>(null);
-    const [isTracingEnabled, setIsTracingEnabled] = useState(false);
     const [canvasReady, setCanvasReady] = useState(false);
     // Only true once the empty state has actually been on screen, so opening a
     // project that already has an agent never flashes it.
     const [emptyMounted, setEmptyMounted] = useState(false);
     const compactHeader = useCompactHeader();
-    const togglingTracingRef = useRef(false);
+    const { isTracingEnabled, toggleTracing } = useTracingStatus(rpcClient, projectPath);
     const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const sawEmptyRef = useRef(false);
 
@@ -202,17 +210,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         fetchContext();
     }, [fetchContext]);
 
-    const fetchContextRef = useRef(fetchContext);
-    fetchContextRef.current = fetchContext;
-
-    useEffect(() => {
-        if (!rpcClient) return;
-        return rpcClient.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchContextRef.current();
-            }
-        });
-    }, [rpcClient]);
+    useProjectContentRefresh(rpcClient, fetchContext);
 
     const agents = useMemo(
         () => projectStructure?.directoryMap?.[DIRECTORY_MAP.AGENT] ?? [],
@@ -286,8 +284,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
     const hasDeployable = deployableIntegrationTypes.length > 0;
 
     const validateTitle = useCallback((value: string): string => {
-        return validateComponentName(value.trim(), false) ?? "";
-    }, []);
+        return validateComponentName(value.trim(), isLibrary) ?? "";
+    }, [isLibrary]);
 
     const handleTitleUpdate = useCallback(
         async (newTitle: string) => {
@@ -308,51 +306,11 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         rpcClient.getCommonRpcClient().executeCommand({ commands: [BI_COMMANDS.BI_RUN_PROJECT] });
     };
 
-    const checkTracingStatus = useCallback(async () => {
-        try {
-            const status = await rpcClient.getAgentChatRpcClient().getTracingStatus({ projectPath });
-            setIsTracingEnabled(status.enabled);
-        } catch (error) {
-            setIsTracingEnabled(false);
-        }
-    }, [rpcClient, projectPath]);
-
-    useEffect(() => {
-        checkTracingStatus();
-    }, [checkTracingStatus]);
-
-    const checkTracingStatusRef = useRef(checkTracingStatus);
-    checkTracingStatusRef.current = checkTracingStatus;
-
-    useEffect(() => {
-        rpcClient.getAgentChatRpcClient().onTracingStatusChanged(() => {
-            checkTracingStatusRef.current();
-        });
-    }, [rpcClient]);
-
-    const handleToggleTracing = async () => {
-        if (togglingTracingRef.current) {
-            return;
-        }
-        togglingTracingRef.current = true;
-        try {
-            const command = isTracingEnabled ? "ballerina.disableTracing" : "ballerina.enableTracing";
-            await rpcClient.getCommonRpcClient().executeCommand({ commands: [command] });
-            await checkTracingStatus();
-        } finally {
-            togglingTracingRef.current = false;
-        }
-    };
-
     const deployMenuItems = useMemo(() => {
         const items = [
             {
                 id: "docker",
-                label: (
-                    <MenuItemLabel>
-                        <Codicon name="package" /> Build Docker Image
-                    </MenuItemLabel>
-                ),
+                label: menuLabel("package", "Build Docker Image"),
                 disabled: !hasDeployable,
                 onClick: () => {
                     rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER);
@@ -360,11 +318,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
             },
             {
                 id: "vm",
-                label: (
-                    <MenuItemLabel>
-                        <Codicon name="server" /> Build Executable
-                    </MenuItemLabel>
-                ),
+                label: menuLabel("server", "Build Executable"),
                 disabled: !hasDeployable,
                 onClick: () => {
                     rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);
@@ -374,11 +328,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         if (platformExtState.isExtInstalled) {
             items.unshift({
                 id: "cloud",
-                label: (
-                    <MenuItemLabel>
-                        <Codicon name="cloud-upload" /> Deploy to WSO2 Cloud
-                    </MenuItemLabel>
-                ),
+                label: menuLabel("cloud-upload", "Deploy to WSO2 Cloud"),
                 disabled: !hasDeployable,
                 onClick: () => {
                     rpcClient.getBIDiagramRpcClient().deployProject({ integrationTypes: deployableIntegrationTypes });
@@ -406,7 +356,7 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
                 <>
                     <Button
                         appearance="icon"
-                        onClick={handleToggleTracing}
+                        onClick={toggleTracing}
                         tooltip={isTracingEnabled ? "Tracing is on. Click to disable." : "Tracing is off. Click to enable."}
                         buttonSx={{ padding: "4px 8px", color: isTracingEnabled ? "var(--vscode-textLink-foreground)" : undefined }}
                     >

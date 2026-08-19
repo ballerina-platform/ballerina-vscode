@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "@emotion/styled";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -45,7 +45,7 @@ import {
 } from "@wso2/ui-toolkit";
 import { PageHeader } from "../components/PageHeader";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
-import { getWorkspaceProjectScopes } from "../PackageOverview/utils";
+import { getWorkspaceDeploymentState, validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 
 const Page = styled.div`
     display: flex;
@@ -278,6 +278,14 @@ const MenuItemLabel = styled.div`
     min-width: 180px;
 `;
 
+function menuLabel(icon: string, text: string) {
+    return (
+        <MenuItemLabel>
+            <Codicon name={icon} /> {text}
+        </MenuItemLabel>
+    );
+}
+
 const AI_MODULE = "ai";
 const MAX_AGENT_PILLS = 2;
 const MAX_TRIGGER_ICONS = 4;
@@ -321,7 +329,9 @@ function TriggerGlyph({ trigger }: { trigger: ProjectStructureArtifactResponse }
     }
 
     const isLight = document.body.classList.contains("vscode-light");
-    const imageUrl = (isLight ? trigger.iconLight : trigger.iconDark) ?? trigger.iconDark ?? trigger.iconLight;
+    const imageUrl = isLight
+        ? trigger.iconLight ?? trigger.iconDark
+        : trigger.iconDark ?? trigger.iconLight;
 
     return imageUrl ? <ImageWithFallback imageUrl={imageUrl} fallbackEl={glyph} size={TRIGGER_ICON_SIZE} /> : glyph;
 }
@@ -393,17 +403,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
         fetchContext();
     }, [fetchContext]);
 
-    const fetchContextRef = useRef(fetchContext);
-    fetchContextRef.current = fetchContext;
-
-    useEffect(() => {
-        if (!rpcClient) return;
-        return rpcClient.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchContextRef.current();
-            }
-        });
-    }, [rpcClient]);
+    useProjectContentRefresh(rpcClient, fetchContext);
 
     const packages = useMemo(() => {
         return (projectCollection?.projects ?? []).map((project) => {
@@ -427,47 +427,12 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
         });
     }, [projectCollection]);
 
-    const libraryProjectPaths = useMemo(() => {
-        return new Set(
-            (projectCollection?.projects ?? [])
-                .filter((project) => project.isLibrary && project.projectPath)
-                .map((project) => project.projectPath)
-        );
-    }, [projectCollection]);
+    const { libraryProjectPaths, undeployedProjectScopes, hasDeployableIntegration: hasDeployable } = useMemo(
+        () => getWorkspaceDeploymentState(projectCollection, devantMetadata),
+        [projectCollection, devantMetadata]
+    );
 
-    const projectScopes = useMemo(() => getWorkspaceProjectScopes(projectCollection), [projectCollection]);
-
-    const undeployedProjectScopes = useMemo(() => {
-        const deployedPaths = new Set(
-            (devantMetadata?.projectsMetadata ?? []).filter((p) => p.hasComponent).map((p) => p.projectPath)
-        );
-        return projectScopes.filter(
-            (scope) => !deployedPaths.has(scope.projectPath) && !libraryProjectPaths.has(scope.projectPath)
-        );
-    }, [projectScopes, devantMetadata, libraryProjectPaths]);
-
-    const hasDeployable = useMemo(() => {
-        return projectScopes.some(
-            (scope) => scope.integrationTypes.length > 0 && !libraryProjectPaths.has(scope.projectPath)
-        );
-    }, [projectScopes, libraryProjectPaths]);
-
-    const validateTitle = useCallback((value: string): string => {
-        const trimmed = value.trim();
-        if (!trimmed) {
-            return "You are required to enter a project name.";
-        }
-        if (!/^[a-zA-Z]/.test(trimmed)) {
-            return "Name must start with an alphabetical letter.";
-        }
-        if (trimmed.length < 3) {
-            return "The name must have at least three characters.";
-        }
-        if (/[^a-zA-Z0-9\-_ ]/.test(trimmed)) {
-            return "The name cannot contain special characters.";
-        }
-        return "";
-    }, []);
+    const validateTitle = useCallback((value: string): string => validateWorkspaceTitle(value), []);
 
     const handleTitleUpdate = useCallback(
         async (newTitle: string) => {
@@ -502,11 +467,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
         if (platformExtState.isExtInstalled) {
             items.push({
                 id: "cloud",
-                label: (
-                    <MenuItemLabel>
-                        <Codicon name="cloud-upload" /> Deploy to WSO2 Cloud
-                    </MenuItemLabel>
-                ),
+                label: menuLabel("cloud-upload", "Deploy to WSO2 Cloud"),
                 disabled: undeployedProjectScopes.length === 0,
                 onClick: () => {
                     rpcClient.getBIDiagramRpcClient().deployWorkspace({
@@ -520,11 +481,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
             items.push(
                 {
                     id: "docker",
-                    label: (
-                        <MenuItemLabel>
-                            <Codicon name="package" /> Build Docker Image
-                        </MenuItemLabel>
-                    ),
+                    label: menuLabel("package", "Build Docker Image"),
                     disabled: !hasDeployable,
                     onClick: () => {
                         rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.DOCKER);
@@ -532,11 +489,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
                 },
                 {
                     id: "vm",
-                    label: (
-                        <MenuItemLabel>
-                            <Codicon name="server" /> Build Executable
-                        </MenuItemLabel>
-                    ),
+                    label: menuLabel("server", "Build Executable"),
                     disabled: !hasDeployable,
                     onClick: () => {
                         rpcClient.getBIDiagramRpcClient().buildProject(BuildMode.JAR);

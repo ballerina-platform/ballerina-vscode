@@ -19,7 +19,7 @@
 import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
-import { AgentRunStatus, SHARED_COMMANDS } from "@wso2/ballerina-core";
+import { AgentRunStatus } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
@@ -41,6 +41,7 @@ import {
     useAiPanelOpen,
     useSuppressAgentStatusOrb,
 } from "../../../components/AgentStatusOrb/shared";
+import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/CopilotHeroBox";
 import { useProductMode, useAssistantName } from "../../../hooks/useProductMode";
 
 const CONTENT_WIDTH = 760;
@@ -597,31 +598,14 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
         state === "completed" ? undefined : status?.label ?? (running ? "Working on it…" : undefined);
     const showOpenCopilot = !aiPanelOpen;
 
-    const openCopilot = () => {
-        rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
-    };
+    const openCopilot = () => openCopilotPanel(rpcClient);
 
     const send = (prompt: string) => {
         const trimmed = prompt.trim();
-        if (!trimmed) {
-            openCopilot();
-            return;
+        if (submitPromptToCopilot(rpcClient, trimmed, { newThread: true, hiddenContext: copy.hiddenContext })) {
+            setSubmittedPrompt(trimmed);
+            setText("");
         }
-        rpcClient?.getCommonRpcClient().executeCommand({
-            commands: [
-                SHARED_COMMANDS.OPEN_AI_PANEL,
-                {
-                    type: "text",
-                    text: trimmed,
-                    planMode: false,
-                    autoSubmit: true,
-                    newThread: true,
-                    hiddenContext: copy.hiddenContext,
-                },
-            ],
-        });
-        setSubmittedPrompt(trimmed);
-        setText("");
     };
 
     const fillExample = (prompt: string) => {
