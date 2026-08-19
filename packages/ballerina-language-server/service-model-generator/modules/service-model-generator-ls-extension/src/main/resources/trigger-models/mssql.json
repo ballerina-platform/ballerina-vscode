@@ -753,7 +753,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Message Configuration",
+                      "label": "Database Entry",
                       "description": "Define the shape of the database row bound to this parameter."
                     },
                     "value": "record {}",
@@ -937,7 +937,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Message Configuration",
+                      "label": "Database Entry",
                       "description": "Define the shape of the database row bound to this parameter."
                     },
                     "value": "record {}",
@@ -1121,7 +1121,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Message Configuration",
+                      "label": "Database Entry",
                       "description": "Define the shape of the database row bound to this parameter."
                     },
                     "value": "record {}",
@@ -1185,7 +1185,8 @@
               "advanced": false,
               "hidden": false,
               "codedata": {
-                "type": "FUNCTION_PARAM"
+                "type": "FUNCTION_PARAM",
+                "bindingGroup": "rowState"
               }
             },
             {
@@ -1213,7 +1214,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Message Configuration",
+                      "label": "Database Entry",
                       "description": "Define the shape of the database row bound to this parameter."
                     },
                     "value": "record {}",
@@ -1277,7 +1278,8 @@
               "advanced": false,
               "hidden": false,
               "codedata": {
-                "type": "FUNCTION_PARAM"
+                "type": "FUNCTION_PARAM",
+                "bindingGroup": "rowState"
               }
             },
             {
@@ -1397,7 +1399,7 @@
                 "properties": {
                   "payload": {
                     "metadata": {
-                      "label": "Message Configuration",
+                      "label": "Database Entry",
                       "description": "Define the shape of the database row bound to this parameter."
                     },
                     "value": "record {}",

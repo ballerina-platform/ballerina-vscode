@@ -1,0 +1,189 @@
+{
+  "source": "agent_1/agents.bal",
+  "description": "Function agent tool keeps requiresApproval and its predicate when OAuth auth is also configured",
+  "diagram": {
+    "id": "function-agent-tool-approval-auth",
+    "metadata": {
+      "label": "Agent Tool",
+      "description": ""
+    },
+    "codedata": {
+      "node": "AGENT_TOOL",
+      "isNew": true,
+      "data": {
+        "auth": "{\"clientId\":\"\\\"abc\\\"\"}",
+        "requiresApproval": "isHighValue",
+        "generateApprovalFunction": "true",
+        "node": {
+          "id": "0",
+          "metadata": {
+            "label": "refundOrder",
+            "description": ""
+          },
+          "codedata": {
+            "node": "FUNCTION_CALL",
+            "symbol": "refundOrder",
+            "data": {
+              "auth": "{\"clientId\":\"\\\"abc\\\"\"}",
+              "requiresApproval": "isHighValue",
+              "generateApprovalFunction": "true"
+            }
+          },
+          "returning": false,
+          "properties": {
+            "type": {
+              "value": "string",
+              "optional": true,
+              "editable": false,
+              "advanced": false
+            },
+            "orderId": {
+              "value": "orderId",
+              "codedata": {
+                "kind": "REQUIRED"
+              },
+              "optional": false,
+              "editable": true,
+              "advanced": false
+            },
+            "parameters": {
+              "value": {
+                "orderId": {
+                  "value": {
+                    "variable": {
+                      "value": "orderId",
+                      "optional": false,
+                      "editable": true,
+                      "advanced": false
+                    }
+                  },
+                  "optional": false,
+                  "editable": false,
+                  "advanced": false
+                }
+              },
+              "optional": false,
+              "editable": false,
+              "advanced": false
+            }
+          },
+          "flags": 0
+        }
+      }
+    },
+    "returning": false,
+    "properties": {
+      "functionName": {
+        "metadata": {
+          "label": "Name",
+          "description": "Name of the tool"
+        },
+        "valueType": "IDENTIFIER",
+        "value": "refundOrderTool",
+        "optional": false,
+        "editable": true,
+        "advanced": false
+      },
+      "functionNameDescription": {
+        "metadata": {
+          "label": "Description",
+          "description": "Description of the tool"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "Refunds an order.",
+        "optional": true,
+        "editable": true,
+        "advanced": false
+      },
+      "parameters": {
+        "metadata": {
+          "label": "Parameters",
+          "description": "Function parameters"
+        },
+        "valueType": "REPEATABLE_PROPERTY",
+        "value": {
+          "orderId": {
+            "metadata": {
+              "label": "Parameter",
+              "description": "Function parameter"
+            },
+            "valueType": "FIXED_PROPERTY",
+            "value": {
+              "type": {
+                "valueType": "TYPE",
+                "value": "string",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "variable": {
+                "valueType": "IDENTIFIER",
+                "value": "orderId",
+                "optional": false,
+                "editable": true,
+                "advanced": false
+              },
+              "parameterDescription": {
+                "valueType": "DOC_TEXT",
+                "value": "The order to refund.",
+                "optional": true,
+                "editable": true,
+                "advanced": false
+              }
+            },
+            "optional": false,
+            "editable": false,
+            "advanced": false
+          }
+        },
+        "optional": false,
+        "editable": false,
+        "advanced": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "agent_1/agents.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "import ballerina/ai;"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "isolated function isHighValue(string orderId) returns boolean {\n    // TODO: inspect the proposed arguments and return true to require approval\n    return true;\n}"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 0,
+            "character": 0
+          },
+          "end": {
+            "line": 0,
+            "character": 0
+          }
+        },
+        "newText": "# Refunds an order.\n# + orderId - The order to refund.\n@ai:AgentTool {\n    auth: {\n        clientId: \"abc\"\n    },\n    requiresApproval: isHighValue\n}\n@display {label: \"\", iconPath: \"\"}\nisolated function refundOrderTool(string orderId) returns string {\n    string result = refundOrder(orderId);\n    return result;\n}"
+      }
+    ]
+  }
+}

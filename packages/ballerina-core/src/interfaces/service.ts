@@ -121,6 +121,7 @@ export interface FunctionModel {
     group?: string;
     variantLabel?: string;
     addLabel?: string;
+    addDescription?: string;
     repeatable?: RepeatBehavior;
     nameEditable?: boolean;
 
@@ -307,6 +308,8 @@ export interface PropertyModel {
     optional?: boolean;
     advanced?: boolean;
     items?: string[];
+    allowItemCreate?: boolean;
+    showOptionalSuffix?: boolean;
     choices?: PropertyModel[];
     properties?: ConfigProperties;
     addNewButton?: boolean;
@@ -323,6 +326,7 @@ export interface ParameterModel extends PropertyModel {
     name?: PropertyModel;
     headerName?: PropertyModel;
     documentation?: PropertyModel;
+    bindingGroup?: string;
 }
 
 

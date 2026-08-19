@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, ReactNode } from "react";
 import { Button, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { PanelContainer, NodeList, CardList, ExpressionFormField } from "@wso2/ballerina-side-panel";
 import {
@@ -38,6 +38,7 @@ import { LoaderContainer } from "../../../components/RelativeLoader/styles";
 import { ConnectionListItem } from "@wso2/wso2-platform-core";
 import { ConnectorErrorView } from "./components/ErrorContainer";
 import { NewActivityFromConnection } from "./NewActivityFromConnection";
+import { ADD_TOOL_TITLE, addToolTitle } from "../AIChatAgent/AddTool";
 import { AgentEditorPanelContent } from "../AIChatAgent/AgentEditorPanelContent";
 import { AgentEditorController } from "../AIChatAgent/useAgentEditorController";
 
@@ -69,6 +70,9 @@ export enum SidePanelView {
     CHUNKER_LIST = "CHUNKER_LIST",
     KNOWLEDGE_BASES = "KNOWLEDGE_BASES",
     KNOWLEDGE_BASE_LIST = "KNOWLEDGE_BASE_LIST",
+    // Intermediate page reached by clicking the "WSO2 Cloud Knowledge Base" box: lists existing
+    // cloud knowledge bases and offers a "create new" action.
+    WSO2_CLOUD_KB_LIST = "WSO2_CLOUD_KB_LIST",
     NEW_AGENT = "NEW_AGENT",
     ADD_TOOL = "ADD_TOOL",
     NEW_TOOL_CUSTOM = "NEW_TOOL_CUSTOM",
@@ -167,6 +171,8 @@ interface PanelManagerProps {
     onImportDevantConn?: (devantConn: ConnectionListItem) => void
     onLinkDevantProject?: () => void;
     onRefreshDevantConnections?: () => void;
+    // Intermediate page rendered for the WSO2_CLOUD_KB_LIST view (existing cloud KBs + create new).
+    wso2CloudKbListSection?: ReactNode;
 }
 
 export function PanelManager(props: PanelManagerProps) {
@@ -239,6 +245,7 @@ export function PanelManager(props: PanelManagerProps) {
         onImportDevantConn,
         onLinkDevantProject,
         onRefreshDevantConnections,
+        wso2CloudKbListSection,
     } = props;
 
     const findSubPanelComponent = (subPanel: SubPanel) => {
@@ -499,6 +506,19 @@ export function PanelManager(props: PanelManagerProps) {
                     />
                 );
 
+            case SidePanelView.WSO2_CLOUD_KB_LIST:
+                return (
+                    <CardList
+                        categories={[]}
+                        onSelect={onSelectNode}
+                        onClose={onClose}
+                        title={"WSO2 Cloud Knowledge Bases"}
+                        searchPlaceholder={"Search knowledge bases"}
+                        onBack={canGoBack ? onBack : undefined}
+                        extraSection={wso2CloudKbListSection}
+                    />
+                );
+
             case SidePanelView.DATA_LOADER_LIST:
                 return (
                     <NodeList
@@ -699,18 +719,21 @@ export function PanelManager(props: PanelManagerProps) {
         switch (sidePanelView) {
             case SidePanelView.AGENT_MEMORY_MANAGER:
                 return "Configure Memory";
+            case SidePanelView.NEW_TOOL_FROM_AGENT:
             case SidePanelView.NEW_TOOL_FROM_AGENT_FORM:
-                return "Use Agent";
+                return addToolTitle("AGENT");
             case SidePanelView.ADD_MCP_SERVER:
-                return "Add MCP Server";
+                return addToolTitle("MCP");
             case SidePanelView.EDIT_MCP_SERVER:
                 return "Edit MCP Server";
-            case SidePanelView.ADD_TOOL:
-            case SidePanelView.NEW_TOOL_CUSTOM:
             case SidePanelView.NEW_TOOL_FROM_CONNECTION:
+                return addToolTitle("CONNECTION");
             case SidePanelView.NEW_TOOL_FROM_FUNCTION:
-            case SidePanelView.NEW_TOOL_FROM_AGENT:
-                return "Add Tool";
+                return addToolTitle("FUNCTION");
+            case SidePanelView.NEW_TOOL_CUSTOM:
+                return addToolTitle("CUSTOM");
+            case SidePanelView.ADD_TOOL:
+                return ADD_TOOL_TITLE;
             default:
                 return undefined;
         }

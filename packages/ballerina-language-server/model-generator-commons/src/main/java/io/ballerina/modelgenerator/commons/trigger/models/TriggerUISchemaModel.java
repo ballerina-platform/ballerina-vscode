@@ -326,6 +326,7 @@ public record TriggerUISchemaModel(
      *                       some connectors bind to a fixed, structural identifier referred to by name
      *                       elsewhere, so only the bound type is user-selected. Defaults to editable
      *                       when unset.
+     * @param bindingGroup   the binding-group id this parameter shares with any sibling parameters
      */
     public record Codedata(
             String type,
@@ -352,7 +353,8 @@ public record TriggerUISchemaModel(
             String valueQualifier,
             String group,
             String variantLabel,
-            Boolean nameEditable) {
+            Boolean nameEditable,
+            String bindingGroup) {
 
         public static Builder builder() {
             return new Builder();
@@ -385,6 +387,7 @@ public record TriggerUISchemaModel(
             private String group;
             private String variantLabel;
             private Boolean nameEditable;
+            private String bindingGroup;
 
             private Builder() {
             }
@@ -514,11 +517,16 @@ public record TriggerUISchemaModel(
                 return this;
             }
 
+            public Builder bindingGroup(String bindingGroup) {
+                this.bindingGroup = bindingGroup;
+                return this;
+            }
+
             public Codedata build() {
                 return new Codedata(type, argType, originalName, moduleName, orgName, packageName, position, path,
                         defaultType, boundType, bindable, bindingKind, typeConstraint, template, modifier, supersedes,
                         targetParam, modifiers, field, optional, value, valueQualifier, group, variantLabel,
-                        nameEditable);
+                        nameEditable, bindingGroup);
             }
         }
     }
@@ -609,6 +617,7 @@ public record TriggerUISchemaModel(
      * @param addLabel    the label used when offering to add this node
      * @param groupName   the logical group this node is listed under
      * @param badge       a short badge tag shown on the node
+     * @param addDescription the description used when offering to add this node
      */
     public record Metadata(
             String label,
@@ -618,6 +627,7 @@ public record TriggerUISchemaModel(
             String subLabel,
             String addLabel,
             String groupName,
-            String badge) {
+            String badge,
+            String addDescription) {
     }
 }

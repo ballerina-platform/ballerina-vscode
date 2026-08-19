@@ -64,6 +64,7 @@ import {
 } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
+import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 
 export namespace NodeStyles {
     export const Node = styled.div<{ readOnly: boolean }>`
@@ -1669,6 +1670,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     </foreignObject>
                                 </>
                             )}
+
+                            {/* Rendered after the hover-detection overlay above (it spans the same corner
+                                with pointer-events: all) so the badge paints on top and still gets hover. */}
+                            {tool.requiresApproval && <ApprovalBadge background={ThemeColors.SURFACE_DIM} />}
 
                             <line
                                 x1="0"

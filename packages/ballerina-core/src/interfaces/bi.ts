@@ -79,6 +79,7 @@ export type AgentToolData = Record<string, CodeDataValue> & (
         agentVarName: string;
         includeContext: boolean;
         description: string;
+        returnType?: string;
         node?: never;
         connection?: never;
     }
@@ -137,6 +138,9 @@ export type ToolData = {
     description?: string;
     path?: string;
     type?: string;
+    // True when the tool's @ai:AgentTool annotation gates it for human-in-the-loop approval
+    // (requiresApproval: true, or a predicate function). Surfaced by the language server.
+    requiresApproval?: boolean;
 };
 
 export type AgentData = {

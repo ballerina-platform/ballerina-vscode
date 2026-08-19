@@ -151,6 +151,8 @@
       "linkify-it@5": "5.0.2",
       "markdown-it@>=14 <15": "14.2.0",
       "micromatch": "4.0.8",
+      // Security fix: DoS via infinite loop in random ID generation
+      "nanoid@3.3.17": "3.3.18",
       // Security fix: path traversal via source map auto-loading.
       "postcss@8": "8.5.23",
       "prismjs": "1.30.0",

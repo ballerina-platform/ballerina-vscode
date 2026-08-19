@@ -25,7 +25,11 @@
 //     required child revealed by a dynamic selection) with no value blocks submit.
 
 import type { FormField } from "../components/Form/types";
-import { hasIncompleteRequiredFormFields, shouldRunExternalFormValidation } from "../components/Form/utils";
+import {
+    groupHasBlockingIssue,
+    hasIncompleteRequiredFormFields,
+    shouldRunExternalFormValidation,
+} from "../components/Form/utils";
 
 // The functions read a handful of FormField props; build partials without dragging
 // the full type into every fixture.
@@ -223,5 +227,56 @@ describe("hasIncompleteRequiredFormFields", () => {
                 hasIncompleteRequiredFormFields([optionalParent], { optionalSelector: "", requiredChild: "" })
             ).toBe(false);
         });
+    });
+});
+
+describe("groupHasBlockingIssue", () => {
+    const required = (key: string) => field({ key, optional: false, hidden: false, enabled: true });
+
+    it("is clean when every required field has a value and nothing is failing", () => {
+        expect(
+            groupHasBlockingIssue({ groupFields: [required("query")], values: { query: "SELECT 1" } })
+        ).toBe(false);
+    });
+
+    it("flags a react-hook-form error on a field in the group", () => {
+        expect(
+            groupHasBlockingIssue({
+                groupFields: [required("query")],
+                errors: { query: { type: "required" } },
+                values: { query: "SELECT 1" },
+            })
+        ).toBe(true);
+    });
+
+    it("flags a required field left empty, with no error entry", () => {
+        expect(
+            groupHasBlockingIssue({ groupFields: [required("query")], errors: {}, values: { query: "" } })
+        ).toBe(true);
+    });
+
+    it("flags an ERROR-severity live diagnostic on a field in the group", () => {
+        expect(
+            groupHasBlockingIssue({
+                groupFields: [required("query")],
+                values: { query: "SELECT 1" },
+                hasFieldError: (key) => key === "query",
+            })
+        ).toBe(true);
+    });
+
+    it("ignores errors and diagnostics belonging to fields outside the group", () => {
+        expect(
+            groupHasBlockingIssue({
+                groupFields: [required("query")],
+                errors: { name: { type: "required" } },
+                values: { query: "SELECT 1", name: "" },
+                hasFieldError: (key) => key === "name",
+            })
+        ).toBe(false);
+    });
+
+    it("is clean for an empty group", () => {
+        expect(groupHasBlockingIssue({ groupFields: [], values: {} })).toBe(false);
     });
 });
