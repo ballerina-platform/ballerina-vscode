@@ -47,8 +47,8 @@
       "event"
     ],
     "triggerName": "Solace",
-    "version": "0.4.0",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_0.4.0.png",
+    "version": "1.0.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_1.0.0.png",
     "kind": "event"
   },
   "5": {
@@ -62,8 +62,8 @@
       "event"
     ],
     "triggerName": "Solace (JMS)",
-    "version": "0.1.0",
-    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_0.1.0.png",
+    "version": "1.0.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace.jms_1.0.0.png",
     "kind": "event"
   },
   "6": {

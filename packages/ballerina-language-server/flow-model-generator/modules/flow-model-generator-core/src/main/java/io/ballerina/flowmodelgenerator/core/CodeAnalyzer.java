@@ -783,7 +783,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     }
                     String toolName = fieldName.name().text();
                     if (isMcpToolKitExpression(fieldAccess)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER));
+                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false));
                         continue;
                     }
                     MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
@@ -792,16 +792,21 @@ public class CodeAnalyzer extends NodeVisitor {
                     String description = method == null ? "" : method.documentation()
                             .flatMap(Documentation::description)
                             .orElse("");
-                    toolsData.add(new ToolData(toolName, icon, description, type));
+                    boolean requiresApproval = method != null
+                            && AiUtils.readRequiresApproval(method, project);
+                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval));
                 } else if (element instanceof SimpleNameReferenceNode nameRef) {
                     String toolName = nameRef.name().text();
                     Symbol symbol = semanticModel.symbol(element).orElse(null);
                     if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER));
+                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false));
                     } else {
                         String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
                                 ? AGENT_TOOL_TYPE : null;
-                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type));
+                        boolean requiresApproval = symbol != null
+                                && AiUtils.readRequiresApproval(symbol, project);
+                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
+                                requiresApproval));
                     }
                 }
             }
@@ -5475,7 +5480,8 @@ public class CodeAnalyzer extends NodeVisitor {
 
     }
 
-    private record ToolData(String name, String path, String description, String type) {
+    private record ToolData(String name, String path, String description, String type,
+                            boolean requiresApproval) {
 
     }
 

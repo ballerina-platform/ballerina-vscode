@@ -70,7 +70,7 @@
       },
       "path": {
         "metadata": {
-          "label": "Monitoring Path",
+          "label": "Monitored Path",
           "description": "The folder on the remote server to monitor for file actions (e.g., /uploads or /incoming)"
         },
         "value": "config.path",

@@ -135,7 +135,7 @@ export const isFormValidAddProject = (
         (isInProject || (formData.workspaceName?.length ?? 0) >= 1) &&
         (!needsComponent || validateComponentName(formData.integrationName, formData.isLibrary) === null) &&
         (!needsComponent || validatePackageName(formData.packageName, formData.integrationName) === null) &&
-        validateOrgName(formData.orgName) === null &&
+        (!needsComponent || validateOrgName(formData.orgName) === null) &&
         (formData.projectHandle === undefined || validateProjectHandle(formData.projectHandle) === null)
     );
 };

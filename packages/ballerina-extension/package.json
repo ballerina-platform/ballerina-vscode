@@ -85,7 +85,7 @@
             {
                 "language": "ballerina",
                 "scopeName": "source.ballerina",
-                "path": "./grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage"
+                "path": "./syntaxes/ballerina.tmLanguage"
             }
         ],
         "configuration": {
@@ -281,7 +281,7 @@
                     "type": "boolean",
                     "default": false,
                     "scope": "window",
-                    "description": "Enable Model Context Protocol (MCP) tool support in the AI assistant."
+                    "description": "Enable Model Context Protocol (MCP) tool support in the WSO2 Integration Intelligence."
                 },
                 "ballerina.copilot.skills": {
                     "type": "object",
@@ -642,7 +642,7 @@
             },
             {
                 "command": "ballerina.open.ai.panel",
-                "title": "Open AI Assistant",
+                "title": "Open WSO2 Integration Intelligence",
                 "category": "Ballerina",
                 "icon": {
                     "dark": "./resources/icons/light-ai-chat.svg",
@@ -1141,7 +1141,7 @@
                     "command": "ballerina.open.ai.panel",
                     "group": "navigation@1",
                     "when": "resourceLangId == ballerina || isBallerinaDiagram || (isBalVisualizerActive && isBIProject)",
-                    "title": "Open WSO2 Agent Builder Intelligence"
+                    "title": "Open WSO2 Integration Intelligence"
                 },
                 {
                     "command": "BI.project.run",
@@ -1451,7 +1451,7 @@
                 "description": "design-view",
                 "default": {
                     "fontPath": "./resources/font-wso2-vscode/dist/wso2-vscode.woff",
-                    "fontCharacter": "\\f1d0"
+                    "fontCharacter": "\\f1c6"
                 }
             },
             "distro-file-submodule": {
@@ -1525,7 +1525,6 @@
         "e2e-test": "pnpm exec playwright test -c e2e-test/playwright.config.js",
         "e2e-test:download-prerelease": "DOWNLOAD_PRERELEASE=true pnpm exec playwright test -c e2e-test/playwright.config.js",
         "test-coverage": "cross-env COVER_CONFIG=html pnpm run test",
-        "build-tm-grammar": "js-yaml grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.yaml > grammar/ballerina-grammar/syntaxes/ballerina.tmLanguage.json",
         "lint": "tslint --fix 'src/**/*{.ts,.tsx}'",
         "package": "node ../../submodules/wso2-vscode-extensions/workspaces/common-libs/scripts/package-vsix.js",
         "clearVsix": "del-cli \"./ballerina-[0-9]*.vsix\" \"./vsix/ballerina-[0-9]*.vsix\"",
@@ -1533,7 +1532,7 @@
         "copyVSIX": "copyfiles *.vsix ./vsix",
         "copyVSIXToRoot": "copyfiles -f ./vsix/*.vsix ../../..",
         "copyLS": "del-cli ./ls && node -e \"const fs=require('fs'),path=require('path'),version=require('./package.json').version,source=path.join('..','ballerina-language-server','build','ballerina-language-server-'+version+'.jar'),destination=path.join('ls',path.basename(source));fs.mkdirSync('ls',{recursive:true});fs.copyFileSync(source,destination);console.log('Copied '+source+' -> '+destination)\"",
-        "copyGrammar": "del-cli ./grammar/ballerina-grammar && copyfiles -u 3 \"../ballerina-grammar/syntaxes/*\" ./grammar/ballerina-grammar/syntaxes/",
+        "copyGrammar": "copyfiles -f ../ballerina-grammar/syntaxes/ballerina.tmLanguage ./syntaxes/",
         "build": "pnpm run compile && pnpm run lint && pnpm run postbuild",
         "rebuild": "pnpm run clean && pnpm run compile && pnpm run postbuild",
         "postbuild": "pnpm run copyLS && pnpm run copyFonts && pnpm run copyJSLibs && pnpm run clearVsix && pnpm run package && pnpm run copyVSIX",

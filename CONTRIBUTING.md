@@ -259,10 +259,21 @@ cd packages/ballerina-language-server && ./gradlew pack -x test
 
 ## Working with the TextMate grammar
 
-The grammar source lives at `packages/ballerina-grammar/`. During the extension build,
-the `copyGrammar` script copies just `syntaxes/` into
-`packages/ballerina-extension/grammar/ballerina-grammar/syntaxes/` (gitignored). Edit
-the canonical source, then re-build the extension.
+The grammar source lives at `packages/ballerina-grammar/`. The extension ships a
+tracked copy of the compiled grammar at
+`packages/ballerina-extension/syntaxes/ballerina.tmLanguage`, which is what
+`contributes.grammars` points at and what ends up in the VSIX.
+
+To change the grammar, edit the canonical YAML source
+(`packages/ballerina-grammar/syntaxes/ballerina.YAML-tmLanguage`), then:
+
+```bash
+# 1. Rebuild the plist from the YAML source
+cd packages/ballerina-grammar && pnpm run build-tm
+
+# 2. Refresh the extension's copy (commit both files together)
+cd ../ballerina-extension && pnpm run copyGrammar
+```
 
 ## Working with the common-libs submodule
 

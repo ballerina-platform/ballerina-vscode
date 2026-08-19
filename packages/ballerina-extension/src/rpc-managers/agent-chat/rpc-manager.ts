@@ -32,7 +32,11 @@ import {
     SessionInfoResponse,
     AvailableAgentsResponse,
     SwitchAgentRequest,
-    SwitchAgentResponse
+    SwitchAgentResponse,
+    SubmitDecisionRequest,
+    DecisionMessage,
+    HumanResponse,
+    PendingApprovalInfo
 } from "@wso2/ballerina-core";
 import * as vscode from 'vscode';
 import * as fs from 'fs';
@@ -45,6 +49,9 @@ import { v4 as uuidv4 } from "uuid";
 import { updateChatSessionId } from "../../features/tryit/activator";
 
 export class AgentChatRpcManager implements AgentChatAPI {
+    // Shared by getChatMessage and submitDecision. Safe only because the UI serializes them -
+    // input stays disabled while an approval is pending, so the two never overlap. If that
+    // ever changes, give each operation its own controller.
     private currentAbortController: AbortController | null = null;
     // Store chat history per session ID
     private static chatHistoryMap: Map<string, ChatHistoryMessage[]> = new Map();
@@ -81,7 +88,18 @@ export class AgentChatRpcManager implements AgentChatAPI {
                     payload,
                     this.currentAbortController.signal
                 );
-                if (response && response.message) {
+                if (response && response.pendingApproval) {
+                    const pendingApproval: PendingApprovalInfo = response.pendingApproval;
+
+                    this.addMessageToHistory(sessionId, {
+                        type: 'approval',
+                        text: '',
+                        isUser: false,
+                        pendingApproval
+                    });
+
+                    resolve({ message: '', pendingApproval } as ChatRespMessage);
+                } else if (response && response.message) {
                     // Find trace and extract tool calls and execution steps
                     const trace = this.findTraceForMessage(extension.agentChatContext.chatSessionId, params.message, response.message);
                     const executionSteps = trace ? this.extractExecutionSteps(trace) : undefined;
@@ -149,6 +167,125 @@ export class AgentChatRpcManager implements AgentChatAPI {
         AgentChatRpcManager.chatHistoryMap.get(sessionId)!.push(message);
     }
 
+    // Merges the decisions just submitted into whichever 'approval' history entry they belong
+    // to (a batch may be resolved across several submitDecision calls, one request at a time),
+    // so a later getChatHistory()/switchChatAgent() replay renders resolved requests collapsed
+    // rather than as if still pending.
+    private resolvePendingApprovalInHistory(sessionId: string, decisions: Record<string, HumanResponse>): void {
+        const decidedIds = Object.keys(decisions);
+        const history = AgentChatRpcManager.chatHistoryMap.get(sessionId);
+        if (!history) {
+            return;
+        }
+        for (let i = history.length - 1; i >= 0; i--) {
+            const entry = history[i];
+            if (entry.type !== 'approval' || !entry.pendingApproval) {
+                continue;
+            }
+            if (entry.pendingApproval.requests.some(r => decidedIds.includes(r.id))) {
+                entry.decisions = { ...(entry.decisions || {}), ...decisions };
+                break;
+            }
+        }
+    }
+
+    // The dispatcher attaches `chat` and `decision` as sibling resources under the same
+    // service base path (see ai:Listener's ChatDispatcherService), and `chatEp` is always
+    // built ending in `/chat` (see buildChatEndpoint in features/tryit/activator.ts). Assert
+    // the invariant rather than silently posting to the wrong resource if it's ever violated.
+    private toDecisionEndpoint(chatEp: string): string {
+        if (!chatEp.endsWith('/chat')) {
+            throw new Error(`Unexpected chat endpoint shape: ${chatEp}`);
+        }
+        return chatEp.replace(/\/chat$/, '/decision');
+    }
+
+    async submitDecision(params: SubmitDecisionRequest): Promise<ChatRespMessage> {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (
+                    !extension.agentChatContext.chatEp || typeof extension.agentChatContext.chatEp !== 'string' ||
+                    !extension.agentChatContext.chatSessionId || typeof extension.agentChatContext.chatSessionId !== 'string'
+                ) {
+                    throw new Error('Invalid Agent Chat Context: Missing or incorrect ChatEP or ChatSessionID!');
+                }
+
+                const sessionId = extension.agentChatContext.chatSessionId;
+                const decisionEp = this.toDecisionEndpoint(extension.agentChatContext.chatEp);
+                const payload: DecisionMessage = { sessionId, decisions: params.decisions };
+
+                this.currentAbortController = new AbortController();
+                const response = await this.fetchTestData(decisionEp, payload, this.currentAbortController.signal);
+
+                if (response && response.pendingApproval) {
+                    // The run resumed only to pause again (e.g. a further gated call surfaced
+                    // in the same turn), so this is a fresh batch, not a resolution of the last one.
+                    this.resolvePendingApprovalInHistory(sessionId, params.decisions);
+
+                    const pendingApproval: PendingApprovalInfo = response.pendingApproval;
+
+                    this.addMessageToHistory(sessionId, {
+                        type: 'approval',
+                        text: '',
+                        isUser: false,
+                        pendingApproval
+                    });
+
+                    resolve({ message: '', pendingApproval } as ChatRespMessage);
+                } else if (response && response.message) {
+                    this.resolvePendingApprovalInHistory(sessionId, params.decisions);
+
+                    const trace = this.findTraceForMessage(sessionId, '', response.message);
+                    const executionSteps = trace ? this.extractExecutionSteps(trace) : undefined;
+
+                    this.addMessageToHistory(sessionId, {
+                        type: 'message',
+                        text: response.message,
+                        isUser: false,
+                        traceId: trace?.traceId,
+                        executionSteps
+                    });
+
+                    resolve({
+                        message: response.message,
+                        traceId: trace?.traceId,
+                        executionSteps
+                    } as ChatRespMessage);
+                } else {
+                    // Response shape didn't match either known case - the batch was never
+                    // actually resolved, so history must keep showing it pending.
+                    reject(new Error("Invalid response format from the decision endpoint."));
+                }
+            } catch (error) {
+                const errorMessage =
+                    error && typeof error === "object" && "message" in error
+                        ? String(error.message)
+                        : "An unknown error occurred";
+
+                const sessionId = extension.agentChatContext?.chatSessionId;
+                if (sessionId) {
+                    this.addMessageToHistory(sessionId, {
+                        type: 'error',
+                        text: errorMessage,
+                        isUser: false
+                    });
+                }
+
+                // A failed decision leaves the batch exactly as it was (see the comment on
+                // the `else` branch above) - the card stays interactive so the user can retry,
+                // possibly with a fuller decision set, rather than being forced to Clear Chat.
+                const errorWithTrace = new Error(JSON.stringify({
+                    message: errorMessage,
+                    traceInfo: {}
+                }));
+
+                reject(errorWithTrace);
+            } finally {
+                this.currentAbortController = null;
+            }
+        });
+    }
+
     abortChatRequest(): void {
         if (this.currentAbortController) {
             this.currentAbortController.abort();
@@ -178,7 +315,21 @@ export class AgentChatRpcManager implements AgentChatAPI {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
+                const errorData: any = await response.json().catch(() => undefined);
+
+                // The dispatcher maps a paused run (ai:ApprovalRequiredError) to HTTP 403 with a
+                // structured `{ requests: ApprovalRequest[] }` body - not a real error, so surface
+                // it to the caller instead of throwing.
+                if (response.status === 403 && errorData && Array.isArray(errorData.requests)) {
+                    return { pendingApproval: { requests: errorData.requests } };
+                }
+
+                // A `decision` resume naming a session/id with nothing pending maps to 404/400
+                // with a stable `errorType` discriminator (ApprovalNotFoundError/UnknownApprovalIdError).
+                if (errorData?.errorType === 'ApprovalNotFoundError' || errorData?.errorType === 'UnknownApprovalIdError') {
+                    throw new Error(errorData.message || 'The pending approval could not be resumed.');
+                }
+
                 switch (response.status) {
                     case 400:
                         throw new Error("Bad Request: The server could not understand the request.");
@@ -277,7 +428,10 @@ export class AgentChatRpcManager implements AgentChatAPI {
                     continue;
                 }
 
-                const inputMatches = inputMessages && inputMessages.includes(userMessage);
+                // Guard on a non-empty userMessage: String.prototype.includes('') is always
+                // true, which would otherwise match the first same-session span regardless
+                // of whether it's actually the one this response came from.
+                const inputMatches = userMessage && inputMessages && inputMessages.includes(userMessage);
                 const outputMatches = agentResponse && outputMessages && outputMessages.includes(agentResponse);
 
                 if (inputMatches || outputMatches) {

@@ -115,6 +115,9 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
         newProject: params.project.newProject,
         workspaceName: params.project.workspaceName,
         convertToWorkspace: params.project.convertToWorkspace,
+        orgName: params.project.orgName,
+        orgHandle: params.project.orgHandle,
+        version: params.project.version,
     };
     const { packageRoot, openRoot } = await createBIComponent(projectRequest);
     await cleanupStaging();
