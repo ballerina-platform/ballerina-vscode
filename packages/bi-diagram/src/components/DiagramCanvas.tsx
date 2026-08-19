@@ -34,6 +34,7 @@ export namespace DiagramStyles {
         height: 100%;
         background-size: 50px 50px;
         display: flex;
+        overflow: hidden;
         pointer-events: ${(props) => (props.locked ? "none" : "auto")};
 
         > * {

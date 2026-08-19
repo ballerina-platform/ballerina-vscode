@@ -17,7 +17,7 @@
  */
 
 import { CDModel } from "@wso2/ballerina-core";
-import { findAgentUsages } from "./agentUsages";
+import { findAgentUsages, findListenerPosition } from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
 const MODEL_UUID = "56125554-ece7-d97c-cf7c-f67f55d014fe";
@@ -312,6 +312,28 @@ describe("findAgentUsages trigger payload", () => {
         expect(usagesOf("onMessage")?.trigger?.listeners).toEqual([]);
     });
 
+    it("re-resolves a listener that moved after the service was deleted", () => {
+        const shifted = {
+            ...triggerModel,
+            listeners: triggerModel.listeners.map((listener) =>
+                listener.symbol === "whatsappListener"
+                    ? { ...listener, location: { filePath: TRIGGERS_BAL, ...range(2) } }
+                    : listener
+            ),
+        } as unknown as CDModel;
+        expect(findListenerPosition(shifted, "whatsappListener", TRIGGERS_BAL)).toEqual({
+            startLine: 2,
+            startColumn: 0,
+            endLine: 3,
+            endColumn: 1,
+        });
+    });
+
+    it("skips a listener that is already gone", () => {
+        expect(findListenerPosition(triggerModel, "whatsappListener", "/proj/other.bal")).toBeUndefined();
+        expect(findListenerPosition(triggerModel, "goneListener", TRIGGERS_BAL)).toBeUndefined();
+    });
+
     it("leaves an entry point the user wrote themselves un-deletable", () => {
         expect(usagesOf("POST /chat")?.trigger).toBeUndefined();
     });
@@ -321,6 +343,48 @@ describe("findAgentUsages trigger payload", () => {
             .filter((usage) => usage.type === "telegram:TelegramService");
 
         expect(telegramRows.map((usage) => usage.label)).toEqual(["onMessage"]);
+    });
+
+    it("opens the helper holding the agent call, not the handler that offloads to it", () => {
+        expect(usagesOf("onMessage")).toMatchObject({
+            documentUri: TRIGGERS_BAL,
+            position: { startLine: 52, endLine: 53 },
+        });
+    });
+
+    it("stays on the handler when it is the only function reaching the agent", () => {
+        expect(usagesOf("onMessages")?.position).toMatchObject({ startLine: 12, endLine: 13 });
+    });
+
+    it("stays on the handlers when a merged service leaves the helper ambiguous", () => {
+        const merged = {
+            ...triggerModel,
+            services: (triggerModel.services ?? []).map((service) =>
+                service.type === "telegram:TelegramService"
+                    ? {
+                          ...service,
+                          remoteFunctions: [
+                              ...service.remoteFunctions,
+                              { name: "onEdited", location: { filePath: TRIGGERS_BAL, ...range(60) },
+                                  connections: [AGENT_UUID] },
+                          ],
+                          functions: [
+                              ...service.functions,
+                              { name: "replyToEditedMessage", location: { filePath: TRIGGERS_BAL, ...range(70) },
+                                  connections: [AGENT_UUID] },
+                          ],
+                      }
+                    : service
+            ),
+        } as unknown as CDModel;
+
+        const rows = findAgentUsages(merged, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .filter((usage) => usage.type === "telegram:TelegramService");
+
+        expect(rows.map((usage) => [usage.label, usage.position.startLine])).toEqual([
+            ["onMessage", 48],
+            ["onEdited", 60],
+        ]);
     });
 
     it("offers nothing to delete when the channel list could not be read", () => {

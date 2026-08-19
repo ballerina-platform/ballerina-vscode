@@ -50,6 +50,7 @@ import {
     NodeMetadata,
     isDefaultModelProviderExpr,
     resolveBrandIcon,
+    resolveEntryTypeGlyph,
     resolveKindDefaultIcon,
 } from "@wso2/ballerina-core";
 import ReactMarkdown from "react-markdown";
@@ -315,7 +316,7 @@ export namespace NodeStyles {
         width: 100%;
         margin: 8px 0;
         padding: 8px 0;
-        border: 1px dashed ${ThemeColors.OUTLINE_VARIANT};
+        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
         border-radius: 4px;
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE_VARIANT};
@@ -443,16 +444,11 @@ const usageFadeIn = (delay: number) => css`
     animation-delay: ${delay}ms;
 `;
 
-const USAGE_TYPE_GLYPH: Record<string, { glyph: string; isCodicon?: boolean }> = {
-    ai: { glyph: "comment-discussion", isCodicon: true },
-    automation: { glyph: "bi-task" },
-};
-
 function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }) {
     const { usage, codedata } = props;
     const modulePart = usage.type?.includes(":") ? usage.type.split(":")[0] : usage.type;
 
-    const typeGlyph = modulePart ? USAGE_TYPE_GLYPH[modulePart] : undefined;
+    const typeGlyph = resolveEntryTypeGlyph(modulePart);
     if (typeGlyph) {
         return (
             <Icon
@@ -842,11 +838,12 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const modelProvider = agentInfo?.modelProvider?.presentation;
     const memory = agentInfo?.memory?.presentation;
     const nodeModelIconUrl = modelProvider?.path;
-    const modelProviderLabel = isDefaultModelProviderExpr(modelProvider?.name)
+    const modelProviderName = isDefaultModelProviderExpr(modelProvider?.name)
         ? DEFAULT_MODEL_PROVIDER_LABEL
-        : (modelProvider?.name?.length ?? 0) > 20
-            ? `${modelProvider!.name.slice(0, 20)}...`
-            : modelProvider?.name;
+        : modelProvider?.name;
+    const modelProviderLabel = (modelProviderName?.length ?? 0) > 20
+        ? `${modelProviderName!.slice(0, 20)}...`
+        : modelProviderName;
     const tools = agentInfo?.tools || [];
 
     const animateUsages = agentInfo?.animateUsages !== false;
@@ -871,11 +868,16 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
     };
 
-    const showsAddTile = !readOnly && !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const showsAddTile = !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
     const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
         - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
-    const onAddTriggerClick = () => agentNode?.onAddTrigger?.(model.node);
+    const onAddTriggerClick = () => {
+        if (readOnly) {
+            return;
+        }
+        agentNode?.onAddTrigger?.(model.node);
+    };
 
     const sanitizedAgent = agentInfo?.systemPrompt ? sanitizeAgentData(agentInfo.systemPrompt) : undefined;
     const hasPrompt = Boolean(sanitizedAgent?.role && sanitizedAgent?.instructions);
@@ -1620,7 +1622,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 <title>{tool.name}</title>
                             </text>
 
-                            {!readOnly && !toolsReadOnly && (
+                            {!toolsReadOnly && (
                                 <>
                                     <foreignObject
                                         x="60"
@@ -1749,7 +1751,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     </Menu>
                 </Popover>}
 
-                {!readOnly && !toolsReadOnly && agentNode?.onAddTool && (
+                {!toolsReadOnly && agentNode?.onAddTool && (
                     <EdgeAddButton
                         testId="agent-add-tool"
                         anchorX={NODE_EDGE_RIGHT_X}
