@@ -96,6 +96,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -244,7 +245,7 @@ public class CommonUtils {
             String typeName = matcher.group(4);
 
             if (moduleInfo == null || !modPart.equals(moduleInfo.packageName())) {
-                newText.append(modPart);
+                newText.append(CommonUtil.escapeReservedKeyword(modPart));
                 newText.append(":");
             }
             newText.append(typeName);
@@ -854,13 +855,26 @@ public class CommonUtils {
             importStatement.append(orgName).append("/");
         }
         if (moduleName != null && moduleName.startsWith(packageName + ".")) {
-            importStatement.append(moduleName);
+            importStatement.append(escapeModuleName(moduleName));
         } else if (moduleName != null && !packageName.equals(moduleName)) {
-            importStatement.append(packageName).append(".").append(moduleName);
+            importStatement.append(escapeModuleName(packageName)).append(".").append(escapeModuleName(moduleName));
         } else {
-            importStatement.append(packageName);
+            importStatement.append(escapeModuleName(packageName));
         }
         return importStatement.toString();
+    }
+
+    /**
+     * Escapes each dot-separated segment of a module name against Ballerina reserved keywords.
+     * e.g. "hubspot.crm.import" -> "hubspot.crm.'import"
+     *
+     * @param moduleName the dot-separated module name
+     * @return the module name with each reserved-keyword segment escaped
+     */
+    private static String escapeModuleName(String moduleName) {
+        return Arrays.stream(moduleName.split("\\."))
+                .map(CommonUtil::escapeReservedKeyword)
+                .collect(Collectors.joining("."));
     }
 
     /**
@@ -991,7 +1005,8 @@ public class CommonUtils {
     }
 
     public static String getClassType(String packageName, String clientName) {
-        String importPrefix = packageName.substring(packageName.lastIndexOf('.') + 1);
+        String importPrefix =
+                CommonUtil.escapeReservedKeyword(packageName.substring(packageName.lastIndexOf('.') + 1));
         return String.format("%s:%s", importPrefix, clientName);
     }
 

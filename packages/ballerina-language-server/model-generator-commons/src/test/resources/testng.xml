@@ -27,4 +27,9 @@ under the License.
             <class name="io.ballerina.modelgenerator.commons.trigger.TypeRefResolverTest"/>
         </classes>
     </test>
+    <test name="common-utils-test" parallel="false">
+        <classes>
+            <class name="io.ballerina.modelgenerator.commons.CommonUtilsTest"/>
+        </classes>
+    </test>
 </suite>
