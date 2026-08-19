@@ -23,12 +23,13 @@ import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
+import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.contexts.ContextBuilder;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.diagnostic.DiagnosticsHelper;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.ballerinalang.langserver.util.TestUtil;
-import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManager;
+import org.ballerinalang.langserver.workspace.WorkspaceManagerFacadeFactory;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -47,6 +48,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * Tests for workspace project diagnostics.
  *
@@ -57,7 +59,7 @@ public class WorkspaceDiagnosticsTest {
     private Endpoint serviceEndpoint;
     private final Path testRoot = FileUtils.RES_DIR.resolve("diagnostics").resolve("workspace-diag");
     private final LanguageServerContext serverContext = new LanguageServerContextImpl();
-    private final BallerinaWorkspaceManager workspaceManager = new BallerinaWorkspaceManager(serverContext);
+    private final WorkspaceManager workspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
 
     @BeforeClass
     public void init() {
@@ -258,6 +260,12 @@ public class WorkspaceDiagnosticsTest {
 
     @AfterClass
     public void cleanupLanguageServer() {
+        if (workspaceManager instanceof AutoCloseable closeableWorkspaceManager) {
+            try {
+                closeableWorkspaceManager.close();
+            } catch (Exception ignored) {
+            }
+        }
         TestUtil.shutdownLanguageServer(this.serviceEndpoint);
         this.serviceEndpoint = null;
     }

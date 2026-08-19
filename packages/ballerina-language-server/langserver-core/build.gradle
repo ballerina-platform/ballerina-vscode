@@ -85,6 +85,7 @@ rootProject.configureBallerinaDistribution(project)
 
 test {
     dependsOn copyRuntime
+    maxHeapSize = "2048m"
 
     useTestNG() {
         suites "src/test/resources/testng.xml"
@@ -99,4 +100,3 @@ compileJava {
         classpath = files()
     }
 }
-

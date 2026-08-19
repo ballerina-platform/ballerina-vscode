@@ -120,6 +120,12 @@ public record Artifact(String id, LineRange location, String type, String name, 
             Map.entry("telegram", "Telegram Event Integration")
     );
 
+    private static final Map<String, Map<String, String>> serviceTypeMap = Map.of(
+            "sap.jco", Map.of(
+                    "jco:IDocService", "SAP JCo IDoc Service",
+                    "jco:RfcService", "SAP JCo RFC Service")
+    );
+
     /**
      * Mapping of module names to annotation field names for services that derive their name from annotations. Each
      * module can have multiple field names to try in order of preference.
@@ -290,11 +296,7 @@ public record Artifact(String id, LineRange location, String type, String name, 
         }
 
         public Builder serviceName(String name) {
-            if (module == null || !entryPointMap.containsKey(module)) {
-                this.name = name;
-            } else {
-                this.name = entryPointMap.get(module);
-            }
+            this.name = resolveServiceName(module, name);
             return this;
         }
 
@@ -345,5 +347,13 @@ public record Artifact(String id, LineRange location, String type, String name, 
                     visibility == null ? null : visibility.getValue(), icon,
                     module, new HashMap<>(children), metadata == null ? null : new HashMap<>(metadata));
         }
+    }
+
+    public static String resolveServiceName(String module, String name) {
+        if (module == null) {
+            return name;
+        }
+        String serviceTypeName = serviceTypeMap.getOrDefault(module, Collections.emptyMap()).get(name);
+        return serviceTypeName != null ? serviceTypeName : entryPointMap.getOrDefault(module, name);
     }
 }

@@ -41,10 +41,12 @@ const readCreatedVariable = (node: FlowNode): string | undefined => {
 export function useCreateNode(
     fileName?: string,
     targetLineRange?: LineRange,
-    onNodeCreated?: () => void
+    onNodeCreated?: () => void,
+    options?: { preferModal?: boolean }
 ) {
     const { rpcClient } = useRpcContext();
-    const panelOverlay = useContext(PanelOverlayContext);
+    const panelOverlayContext = useContext(PanelOverlayContext);
+    const panelOverlay = options?.preferModal ? undefined : panelOverlayContext;
     const { addModal, closeModal } = useModalStack();
 
     const handleCreated = (variableName: string, onCreated: (variableName: string) => void) => {
@@ -103,7 +105,12 @@ export function useCreateNode(
         try {
             const flowNode = await fetchTemplate();
             addModal(renderCreator(flowNode, () => closeModal(modalId)), modalId, title, 600, 520);
-        } catch {}
+        } catch (error) {
+            console.error("Error fetching connector template", error);
+            await rpcClient.getCommonRpcClient().showErrorMessage({
+                message: "Could not load the connector. Please try again.",
+            });
+        }
     };
 
     return (kind: string, onCreated: (variableName: string) => void, nodeCodeData?: CodeData) => {

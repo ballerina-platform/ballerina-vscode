@@ -56,11 +56,12 @@ The repo has settled conventions:
 Don't add a new task runner, alternative bundler, or per-package install
 scripts. If you think you need one, raise it first.
 
-### 4. Don't edit `lib/`, `build/`, `dist/`, `out/`, or `packages/ballerina-extension/grammar/ballerina-grammar/`.
+### 4. Don't edit `lib/`, `build/`, `dist/`, `out/`, or `packages/ballerina-extension/syntaxes/`.
 
-These are generated artifacts. They're gitignored or they live in a copy that
-`copyGrammar` overwrites on every build. Edit the source under `src/` or the
-canonical package (`packages/ballerina-grammar/syntaxes/` for grammars).
+These are generated artifacts. They're gitignored, or — for
+`packages/ballerina-extension/syntaxes/` — they're a tracked copy that
+`copyGrammar` overwrites. Edit the source under `src/` or the canonical package
+(`packages/ballerina-grammar/syntaxes/` for grammars).
 
 ### 5. Don't push past hook failures.
 

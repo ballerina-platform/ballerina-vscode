@@ -25,6 +25,7 @@ import {
     SidePanelBody,
     Switch,
     TextArea,
+    Typography,
     ThemeColors,
     Tooltip,
 } from "@wso2/ui-toolkit";
@@ -118,6 +119,14 @@ namespace S {
     export const SubTitle = styled.div<{}>`
         font-size: 12px;
         opacity: 0.9;
+    `;
+
+    export const Description = styled(Typography)`
+        width: 100%;
+        font-weight: normal;
+        font-size: 13px !important;
+        margin: 0 0 12px !important;
+        color: var(--vscode-descriptionForeground);
     `;
 
     export const BodyText = styled.div<{}>`
@@ -355,6 +364,7 @@ interface NodeListProps {
     categories: Category[];
     showAiPanel?: boolean;
     title?: string;
+    description?: string;
     onSelect: (id: string, metadata?: any) => void;
     onSelectConnector?: (id: string, metadata?: any) => void; // For connector routing
     onSearchTextChange?: (text: string) => void;
@@ -372,6 +382,7 @@ interface NodeListProps {
     searchText?: string;
     panelBodySx?: React.CSSProperties;
     alwaysCollapsedCategories?: string[];
+    alwaysExpandedCategories?: string[];
     loading?: boolean;
 }
 
@@ -380,6 +391,7 @@ export function NodeList(props: NodeListProps) {
         categories,
         showAiPanel,
         title,
+        description,
         onSelect,
         onSelectConnector,
         onSearchTextChange,
@@ -396,6 +408,7 @@ export function NodeList(props: NodeListProps) {
         onRefreshDevantConnections,
         panelBodySx,
         alwaysCollapsedCategories,
+        alwaysExpandedCategories,
         loading
     } = props;
 
@@ -439,6 +452,12 @@ export function NodeList(props: NodeListProps) {
             if (alwaysCollapsedCategories) {
                 alwaysCollapsedCategories.forEach((cat) => {
                     mergedState[cat] = false;
+                });
+            }
+
+            if (alwaysExpandedCategories) {
+                alwaysExpandedCategories.forEach((cat) => {
+                    mergedState[cat] = true;
                 });
             }
 
@@ -952,39 +971,44 @@ export function NodeList(props: NodeListProps) {
     return (
         <S.Container>
             <S.HeaderContainer>
-                <S.Row>
-                    {showAiPanel && (
-                        <Switch
-                            leftLabel="Search"
-                            rightLabel="Generate"
-                            checked={showGeneratePanel}
-                            checkedColor={ThemeColors.PRIMARY}
-                            enableTransition={true}
-                            onChange={() => {
-                                setShowGeneratePanel(!showGeneratePanel);
-                            }}
-                            sx={{
-                                margin: "auto",
-                                zIndex: "2",
-                                border: "unset",
-                            }}
-                            disabled={false}
-                        />
-                    )}
-                    {onBack && title && (
-                        <S.LeftAlignRow>
-                            <S.BackButton appearance="icon" onClick={handleBackClick}>
-                                <BackIcon />
-                            </S.BackButton>
-                            {title}
-                        </S.LeftAlignRow>
-                    )}
-                    {onClose && (
-                        <S.CloseButton appearance="icon" onClick={onClose}>
-                            <CloseIcon />
-                        </S.CloseButton>
-                    )}
-                </S.Row>
+                {(showAiPanel || (onBack && title) || onClose) && (
+                    <S.Row>
+                        {showAiPanel && (
+                            <Switch
+                                leftLabel="Search"
+                                rightLabel="Generate"
+                                checked={showGeneratePanel}
+                                checkedColor={ThemeColors.PRIMARY}
+                                enableTransition={true}
+                                onChange={() => {
+                                    setShowGeneratePanel(!showGeneratePanel);
+                                }}
+                                sx={{
+                                    margin: "auto",
+                                    zIndex: "2",
+                                    border: "unset",
+                                }}
+                                disabled={false}
+                            />
+                        )}
+                        {onBack && title && (
+                            <S.LeftAlignRow>
+                                <S.BackButton appearance="icon" onClick={handleBackClick}>
+                                    <BackIcon />
+                                </S.BackButton>
+                                {title}
+                            </S.LeftAlignRow>
+                        )}
+                        {onClose && (
+                            <S.CloseButton appearance="icon" onClick={onClose}>
+                                <CloseIcon />
+                            </S.CloseButton>
+                        )}
+                    </S.Row>
+                )}
+                {!showGeneratePanel && description && (
+                    <S.Description variant="body2">{description}</S.Description>
+                )}
                 {!showGeneratePanel && (
                     <S.Row>
                         <S.StyledSearchInput

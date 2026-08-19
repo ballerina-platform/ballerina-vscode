@@ -252,7 +252,11 @@ public class LSPackageLoader {
         repoPackages.addAll(this.getLocalRepoModules());
         repoPackages.stream().filter(packageInfo -> !packagesList.containsKey(packageInfo.packageIdentifier()))
                 .forEach(packageInfo -> packagesList.put(packageInfo.packageIdentifier(), packageInfo));
-        Package currentPackage = ctx.workspace().project(ctx.filePath()).get().currentPackage();
+        Optional<Project> currentProject = ctx.workspace().project(ctx.filePath());
+        if (currentProject.isEmpty()) {
+            return new ArrayList<>(packagesList.values());
+        }
+        Package currentPackage = currentProject.get().currentPackage();
         currentPackage.modules().forEach(module -> {
             Package packageInstance = module.packageInstance();
             ModuleInfo moduleInfo = new ModuleInfo(PackageOrg.from(""), packageInstance.packageName(),

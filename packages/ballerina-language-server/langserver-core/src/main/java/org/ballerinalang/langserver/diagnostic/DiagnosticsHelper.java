@@ -27,7 +27,6 @@ import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.WorkspaceServiceContext;
 import org.ballerinalang.langserver.commons.client.ExtendedLanguageClient;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
-import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManager;
 import org.ballerinalang.util.diagnostic.DiagnosticErrorCode;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -129,7 +128,7 @@ public class DiagnosticsHelper {
      */
     public synchronized void compileAndSendDiagnostics(ExtendedLanguageClient client, DocumentServiceContext context) {
         // Compile diagnostics
-        Optional<Project> project = context.workspace().project(context.filePath());
+        Optional<Project> project = projectForDiagnostics(context);
         if (project.isEmpty()) {
             return;
         }
@@ -186,12 +185,12 @@ public class DiagnosticsHelper {
     }
 
     private DiagnosticsResponse getLatestDiagnosticsWithPackages(DocumentServiceContext context) {
-        BallerinaWorkspaceManager workspace = (BallerinaWorkspaceManager) context.workspace();
+        WorkspaceManager workspace = context.workspace();
         Map<String, List<Diagnostic>> diagnosticMap = new HashMap<>();
         List<Path> compiledPackages = new ArrayList<>();
         Map<Path, Set<String>> packageFileUris = new HashMap<>();
 
-        Optional<Project> project = workspace.project(context.filePath());
+        Optional<Project> project = projectForDiagnostics(context);
         if (project.isEmpty()) {
             return new DiagnosticsResponse(diagnosticMap, compiledPackages, packageFileUris);
         }
@@ -253,16 +252,26 @@ public class DiagnosticsHelper {
             }
         } else {
             // Fall back to single package compilation
-            Optional<PackageCompilation> compilation = workspace.waitAndGetPackageCompilation(context.filePath());
-            compilation.ifPresent(packageCompilation -> {
-                PackageDiagnostics pkgDiag = toDiagnosticsMap(
-                        packageCompilation.diagnosticResult().diagnostics(false), originalPath, workspace);
-                diagnosticMap.putAll(pkgDiag.diagnostics());
-                compiledPackages.add(originalPath);
-                packageFileUris.put(originalPath, pkgDiag.fileUris());
-            });
+            PackageCompilation packageCompilation = project.get().duplicate().currentPackage().getCompilation();
+            PackageDiagnostics pkgDiag = toDiagnosticsMap(
+                    compilerApi.getDiagnostics(packageCompilation.diagnosticResult()), originalPath, workspace);
+            diagnosticMap.putAll(pkgDiag.diagnostics());
+            compiledPackages.add(originalPath);
+            packageFileUris.put(originalPath, pkgDiag.fileUris());
         }
         return new DiagnosticsResponse(diagnosticMap, compiledPackages, packageFileUris);
+    }
+
+    private Optional<Project> projectForDiagnostics(DocumentServiceContext context) {
+        Optional<Project> cachedProject = context.workspace().project(context.filePath());
+        if (cachedProject.isPresent()) {
+            return cachedProject;
+        }
+        try {
+            return Optional.of(context.workspace().loadProject(context.filePath()));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
     }
 
     public Map<String, List<Diagnostic>> getLatestDiagnostics(DocumentServiceContext context) {

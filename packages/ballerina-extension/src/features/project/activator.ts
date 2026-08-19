@@ -27,6 +27,7 @@ import { activatePasteXMLAsRecord } from "./cmds/xml-to-record";
 import { activatePackCommand } from "./cmds/pack";
 import { activateRenameCommand } from "./cmds/rename";
 import { activateExtractCommand } from "./cmds/extract";
+import { activateCreateConfigTomlCommand } from "./cmds/create-config-toml";
 import { activateConfigRunCommand } from "./cmds/configRun";
 import { activateTryItCommand } from "../tryit/activator";
 import { activateIntegrationRunnerState } from "./integration-runner-state";
@@ -72,4 +73,7 @@ export function activate() {
 
     // activate the extract command
     activateExtractCommand();
+
+    // activate the create Config.toml code action command
+    activateCreateConfigTomlCommand();
 }

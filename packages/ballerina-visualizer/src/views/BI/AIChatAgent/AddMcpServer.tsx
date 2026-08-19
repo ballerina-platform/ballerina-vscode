@@ -9,7 +9,6 @@
 
 import { FlowNode, LineRange, NodePosition } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import styled from "@emotion/styled";
 import { cloneDeep, debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RelativeLoader } from "../../../components/RelativeLoader";
@@ -46,22 +45,6 @@ const AUTH_FIELD_KEY = "auth";
 const RESULT_FIELD_KEY = "variable";
 const TOOLKIT_NAME_FIELD_KEY = "toolKitName";
 const INCLUDE_CONTEXT_PROPERTY = "includeContext";
-
-const ContextOption = styled.label`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    cursor: pointer;
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-`;
-
-const ContextHint = styled.div`
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    margin-top: 2px;
-    line-height: 1.4;
-`;
 
 // Delegates to the shared removeQuotes so `"url"` and string `url` compare equal.
 const normalizeExpressionValue = (value: unknown): string =>
@@ -578,20 +561,13 @@ export function AddMcpServer(props: AddMcpServerProps): JSX.Element {
             },
             {
                 component: (
-                    <ContextOption>
-                        <input
-                            type="checkbox"
-                            checked={includeContext}
-                            onChange={(event) => setIncludeContext(event.target.checked)}
-                        />
-                        <div>
-                            Pass agent context
-                            <ContextHint>
-                                Adds ai:Context ctx as the first parameter so this tool can access the invoking
-                                agent's context.
-                            </ContextHint>
-                        </div>
-                    </ContextOption>
+                    <RequiresAuthCheckbox
+                        checked={includeContext}
+                        onChange={setIncludeContext}
+                        label="Pass agent context"
+                        description={"Adds ai:Context ctx as the first parameter so the generated tools can "
+                            + "access the invoking agent's context."}
+                    />
                 ),
                 index: 0,
                 advanced: true,
