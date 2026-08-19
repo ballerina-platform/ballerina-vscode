@@ -161,9 +161,17 @@ public final class SchemaDrivenSourceGenerator {
                     continue;
                 }
                 String org = moduleRef.substring(0, slash);
-                String module = moduleRef.substring(slash + 1);
+                String rest = moduleRef.substring(slash + 1).trim();
+                String module = rest;
+                String alias = null;
+                int asIndex = rest.lastIndexOf(" as ");
+                if (asIndex > 0) {
+                    module = rest.substring(0, asIndex).trim();
+                    alias = rest.substring(asIndex + 4).trim();
+                }
                 if (!Utils.importExists(rootNode, org, module)) {
-                    imports.append(Utils.getImportStmt(org, module));
+                    imports.append(alias == null ? Utils.getImportStmt(org, module)
+                            : Utils.getImportStmt(org, module, alias));
                 }
             }
         }

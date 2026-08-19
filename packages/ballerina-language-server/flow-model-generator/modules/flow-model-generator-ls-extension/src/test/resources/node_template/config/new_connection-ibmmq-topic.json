@@ -13,7 +13,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Ibmmq Topic",
+      "label": "IBM MQ Topic",
       "description": "IBM MQ Topic client.",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png"
     },

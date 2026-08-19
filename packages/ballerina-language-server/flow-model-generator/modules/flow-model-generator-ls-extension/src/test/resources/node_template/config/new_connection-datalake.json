@@ -17,7 +17,7 @@
   "output": {
     "id": "31",
     "metadata": {
-      "label": "Datalake",
+      "label": "Azure Datalake",
       "description": "This is a generated connector for [Azure DataLake Storage (Gen2) API version 2019-10-31](https://azure.microsoft.com/en-us/solutions/data-lake/) OpenAPI specification.\nAzure Data Lake Storage provides storage for Hadoop and other big data workloads.",
       "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.datalake_1.5.1.png"
     },

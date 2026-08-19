@@ -6,7 +6,7 @@
   "orgName": "ballerinax",
   "packageName": "solace",
   "moduleName": "solace",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "type": "solace",
   "icon": "icon.png",
   "kind": "event",
@@ -588,7 +588,7 @@
                           "typeMembers": [
                             {
                               "type": "SecureSocket",
-                              "packageInfo": "ballerinax:solace:0.4.0",
+                              "packageInfo": "ballerinax:solace:1.0.0",
                               "packageName": "solace",
                               "kind": "RECORD_TYPE",
                               "selected": false
@@ -706,7 +706,7 @@
                           "typeMembers": [
                             {
                               "type": "RetryConfiguration",
-                              "packageInfo": "ballerinax:solace:0.4.0",
+                              "packageInfo": "ballerinax:solace:1.0.0",
                               "packageName": "solace",
                               "kind": "RECORD_TYPE",
                               "selected": false
@@ -1157,7 +1157,7 @@
                       "defaultType": "solace:Message",
                       "template": "{{type}}",
                       "modifiers": {
-                        "type": "ballerinax/solace:0.4.0:Message",
+                        "type": "ballerinax/solace:1.0.0:Message",
                         "field": "payload",
                         "template": "{{type}}"
                       }

@@ -187,13 +187,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -219,7 +219,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -365,13 +365,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -397,7 +397,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "before",
@@ -418,17 +418,18 @@
             "optional": false,
             "advanced": false,
             "hidden": false,
-            "isGraphqlId": false
+            "isGraphqlId": false,
+            "bindingGroup": "rowState"
           },
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -454,7 +455,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -475,7 +476,8 @@
             "optional": false,
             "advanced": false,
             "hidden": false,
-            "isGraphqlId": false
+            "isGraphqlId": false,
+            "bindingGroup": "rowState"
           },
           {
             "metadata": {
@@ -602,13 +604,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -634,7 +636,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "after",
@@ -769,13 +771,13 @@
         "parameters": [
           {
             "metadata": {
-              "label": "Message Configuration",
+              "label": "Database Entry",
               "description": "Define the shape of the database row bound to this parameter."
             },
             "kind": "DATA_BINDING",
             "type": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "codedata": {
@@ -801,7 +803,7 @@
             },
             "name": {
               "metadata": {
-                "label": "Message Configuration",
+                "label": "Database Entry",
                 "description": "Define the shape of the database row bound to this parameter."
               },
               "placeholder": "before",
