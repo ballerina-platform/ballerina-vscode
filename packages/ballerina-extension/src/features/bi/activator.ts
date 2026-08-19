@@ -51,7 +51,6 @@ import {
 } from "../../utils/bi";
 import { checkAndRunPendingEnhancement } from "../ai/migration/orchestrator";
 import { checkAndRunPendingArtifact } from "./pending-artifact";
-import { openAgentBuilderLanding } from "./agent-builder";
 import { createVersionNumber, findBallerinaPackageRoot, isSupportedSLVersion } from ".././../utils";
 import { extension } from "../../BalExtensionContext";
 import { VisualizerWebview } from "../../views/visualizer/webview";
@@ -319,7 +318,6 @@ export function activate(context: BallerinaExtension) {
         if (state.value === "extensionReady" && state.changed) {
             subscription.unsubscribe();
             checkAndRunPendingArtifact()
-                .then(() => openAgentBuilderLanding())
                 .then(() => checkAndRunPendingEnhancement())
                 .catch((err) => console.error("[MigrationEnhancement] Unexpected error:", err));
         }

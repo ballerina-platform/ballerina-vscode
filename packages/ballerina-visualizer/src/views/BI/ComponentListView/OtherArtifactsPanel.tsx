@@ -31,10 +31,12 @@ interface OtherArtifactsPanelProps {
     isLibrary?: boolean;
     /** Page-level gallery search; when set, only matching cards show. */
     searchQuery?: string;
+    hideHeader?: boolean;
+    onCardClick?: () => void;
 }
 
 export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
-    const { isNPSupported, isLibrary = false } = props;
+    const { isNPSupported, isLibrary = false, hideHeader = false, onCardClick } = props;
     const { rpcClient } = useRpcContext();
     const { setPopupMessage } = useVisualizerContext();
     const [experimentalEnabled, setExperimentalEnabled] = useState(false);
@@ -128,12 +130,14 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
 
     return (
         <PanelViewMore>
-            <TitleWrapper>
-                <Title variant="h2">{panelTitle}</Title>
-                <BodyText>
-                    {panelDescription}
-                </BodyText>
-            </TitleWrapper>
+            {!hideHeader && (
+                <TitleWrapper>
+                    <Title variant="h2">{panelTitle}</Title>
+                    <BodyText>
+                        {panelDescription}
+                    </BodyText>
+                </TitleWrapper>
+            )}
             <CardGrid>
                 {cards.map((card) => (
                     <ButtonCard
@@ -141,7 +145,10 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                         key={card.id}
                         icon={card.icon}
                         title={card.displayName}
-                        onClick={() => handleClick(card.directoryKey)}
+                        onClick={async () => {
+                            await handleClick(card.directoryKey);
+                            onCardClick?.();
+                        }}
                         isBeta={card.isBeta}
                     />
                 ))}
