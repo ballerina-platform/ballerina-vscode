@@ -17,6 +17,7 @@
  */
 
 import { useState } from "react";
+import { accessSeparator, isNilableAfterAccess } from "./fieldAccess";
 
 export type BreadCrumbStep = {
     label: string;
@@ -25,18 +26,9 @@ export type BreadCrumbStep = {
     arrayIndex?: number;
     fieldName?: string;
     stepType?: string;
+    // Whether the value this step represents is nilable.
+    nilable?: boolean;
 }
-
-// Ballerina renders optionality either as a trailing `?` (e.g. `string?`,
-// `ChangeEventMetadata?`, `(A|B)?`) or as a union with nil written out
-// (e.g. `string|()`, `Foo | ( )`). Detect both forms.
-const NIL_UNION_RE = /\|\s*\(\s*\)$/;
-const isOptionalType = (t?: string) => {
-    if (!t) return false;
-    const s = t.trim();
-    return s.endsWith('?') || NIL_UNION_RE.test(s);
-};
-const joinSep = (prevStepType?: string) => (isOptionalType(prevStepType) ? '?.' : '.');
 
 export const useHelperPaneNavigation = (initialLabel: string) => {
     const [breadCrumbSteps, setBreadCrumbSteps] = useState<BreadCrumbStep[]>([{
@@ -44,20 +36,23 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
         replaceText: ""
     }]);
 
-    const navigateToNext = (value: string, currentValue: string, stepType?: string) => {
+    const navigateToNext = (value: string, currentValue: string, stepType?: string, selectedItemValue?: string) => {
         const lastStep = breadCrumbSteps[breadCrumbSteps.length - 1];
-        const separator = currentValue ? joinSep(lastStep?.stepType) : '';
+        const useOptional = currentValue ? accessSeparator(lastStep?.nilable, selectedItemValue) === '?.' : false;
+        const separator = currentValue ? (useOptional ? '?.' : '.') : '';
         const newBreadCrumSteps = [...breadCrumbSteps, {
             label: value,
             replaceText: currentValue + separator + value,
-            stepType
+            stepType,
+            nilable: isNilableAfterAccess(useOptional, stepType)
         }];
         setBreadCrumbSteps(newBreadCrumSteps);
     };
 
     const navigateToNextArray = (value: string, currentValue: string, index: number, stepType?: string) => {
         const lastStep = breadCrumbSteps[breadCrumbSteps.length - 1];
-        const separator = currentValue ? joinSep(lastStep?.stepType) : '';
+        const useOptional = currentValue ? accessSeparator(lastStep?.nilable) === '?.' : false;
+        const separator = currentValue ? (useOptional ? '?.' : '.') : '';
         const indexedValue = `${value}[${index}]`;
         const newBreadCrumSteps = [...breadCrumbSteps, {
             label: indexedValue,
@@ -65,7 +60,8 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
             isArrayAccess: true,
             arrayIndex: index,
             fieldName: value,
-            stepType
+            stepType,
+            nilable: isNilableAfterAccess(useOptional, stepType)
         }];
         setBreadCrumbSteps(newBreadCrumSteps);
     };
@@ -78,7 +74,7 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
 
         const parentStep = steps[steps.length - 2];
         const parentPath = parentStep.replaceText;
-        const separator = parentPath ? joinSep(parentStep.stepType) : '';
+        const separator = parentPath ? accessSeparator(parentStep.nilable) : '';
         const newReplaceText = parentPath + separator + lastStep.fieldName + '[' + index + ']';
 
         steps[steps.length - 1] = {
@@ -105,8 +101,8 @@ export const useHelperPaneNavigation = (initialLabel: string) => {
 
     const getCurrentNavigationPath = getCurrentPath;
 
-    const getLeafSeparator = () =>
-        joinSep(breadCrumbSteps[breadCrumbSteps.length - 1]?.stepType);
+    const getLeafSeparator = (selectedItemValue?: string) =>
+        accessSeparator(breadCrumbSteps[breadCrumbSteps.length - 1]?.nilable, selectedItemValue);
 
     return {
         breadCrumbSteps,

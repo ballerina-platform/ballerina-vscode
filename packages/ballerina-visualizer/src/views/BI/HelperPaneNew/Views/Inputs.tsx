@@ -44,7 +44,7 @@ type InputsPageProps = {
 
 type InputItemProps = {
     item: CompletionItem;
-    onItemSelect: (value: string) => void;
+    onItemSelect: (value: string, item: CompletionItem) => void;
     onMoreIconClick: (item: CompletionItem) => void;
 }
 
@@ -73,7 +73,7 @@ const InputItem = ({ item, onItemSelect, onMoreIconClick }: InputItemProps) => {
 
     return (
         <HelperPaneListItem
-            onClick={() => onItemSelect(item.label)}
+            onClick={() => onItemSelect(item.label, item)}
             endAction={endAction}
             onClickEndAction={() => onMoreIconClick(item)}
         >
@@ -178,9 +178,9 @@ export const Inputs = (props: InputsPageProps) => {
         setSearchValue(searchText);
     };
 
-    const handleItemSelect = (value: string) => {
-        // Build full path from navigation; use ?. when the parent step is optional
-        const fullPath = navigationPath ? `${navigationPath}${getLeafSeparator()}${value}` : value;
+    const handleItemSelect = (value: string, item?: CompletionItem) => {
+        // Use ?. when the parent step is optional OR the field itself is optional/nilable.
+        const fullPath = navigationPath ? `${navigationPath}${getLeafSeparator(item?.value)}${value}` : value;
         onChange(fullPath, false);
     }
 
@@ -189,7 +189,7 @@ export const Inputs = (props: InputsPageProps) => {
         if (isArrayOfObjectsType(typeDetail)) {
             navigateToNextArray(item.label, navigationPath, 0, typeDetail);
         } else {
-            navigateToNext(item.label, navigationPath, typeDetail);
+            navigateToNext(item.label, navigationPath, typeDetail, item.value);
         }
     }
 
