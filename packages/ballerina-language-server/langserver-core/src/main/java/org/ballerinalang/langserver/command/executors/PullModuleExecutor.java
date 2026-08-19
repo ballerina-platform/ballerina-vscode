@@ -231,10 +231,9 @@ public class PullModuleExecutor implements LSCommandExecutor {
                     }
                 })
                 .thenRunAsync(() -> {
-                    // Refresh project caches if the workspace manager supports it
-                    BallerinaWorkspaceManager bwm = (BallerinaWorkspaceManager) workspaceManager;
                     try {
-                        bwm.refreshProject(filePath);
+                        // Refresh project
+                        ((BallerinaWorkspaceManager) workspaceManager).refreshProject(filePath);
                     } catch (WorkspaceDocumentException e) {
                         throw new UserErrorException("Failed to refresh project");
                     }

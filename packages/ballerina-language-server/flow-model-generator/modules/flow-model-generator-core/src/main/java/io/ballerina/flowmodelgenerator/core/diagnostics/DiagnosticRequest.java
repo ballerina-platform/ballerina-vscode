@@ -30,10 +30,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
-import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.Document;
-import io.ballerina.projects.DocumentId;
-import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.TextDocument;
@@ -109,32 +106,20 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         // Apply edits for the primary file. The returned metadata pinpoints the main statement
         // edit (last sorted edit) in the updated document, which is needed below to find its
         // ST node.
-        Optional<Document> primaryDocumentOp = workspaceManager.document(path);
-        if (primaryDocumentOp.isEmpty()) {
-            return null;
-        }
-        EditApplication primary = applyLspEdits(path, primaryDocumentOp.get(), textEdits.get(path));
+        EditApplication primary = applyLspEdits(path, textEdits.get(path));
         if (primary == null) {
             return null;
         }
         Document updatedDoc = primary.updatedDoc();
 
-        // Apply edits for any other affected files (e.g. types defined in a separate .bal file) so that the
-        // project compiles before the semantic model is retrieved below. Each secondary document is derived
-        // from the PRIMARY edit's own package lineage (not re-fetched via workspaceManager) so that the edits
-        // chain onto the same Package instance rather than landing on two disconnected Package snapshots.
-        Package latestPackage = updatedDoc.module().packageInstance();
+        // Apply edits for any other affected files (e.g. types defined in a separate .bal file) so
+        // that the project compiles before the semantic model is retrieved below.
         for (Map.Entry<Path, List<TextEdit>> entry : textEdits.entrySet()) {
             Path otherPath = entry.getKey();
             if (otherPath.equals(path)) {
                 continue;
             }
-            DocumentId otherDocId = latestPackage.project().documentId(otherPath);
-            Document otherDocument = latestPackage.module(otherDocId.moduleId()).document(otherDocId);
-            EditApplication otherResult = applyLspEdits(otherPath, otherDocument, entry.getValue());
-            if (otherResult != null) {
-                latestPackage = otherResult.updatedDoc().module().packageInstance();
-            }
+            applyLspEdits(otherPath, entry.getValue());
         }
 
         // Find the ST node relevant to the modified range
@@ -145,10 +130,8 @@ public class DiagnosticRequest implements Callable<JsonElement> {
 
         // Generate the flow node for the ST node with the respective diagnostics annotated. CodeAnalyzer's default
         // DiagnosticHandler already sources from the package compilation, which includes compiler plugin diagnostics.
-        // Compile off latestPackage (which reflects every applied edit) rather than project.currentPackage(),
-        // which may not have observed edits applied to a document fetched from a different Package lineage.
-        SemanticModel semanticModel = PackageUtil.getCompilation(latestPackage)
-                .getSemanticModel(latestPackage.getDefaultModule().moduleId());
+        SemanticModel semanticModel = project.currentPackage().getCompilation()
+                .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         NodeKind flowKind = flowNodeObj.codedata().node();
         CodeAnalyzer codeAnalyzer = new CodeAnalyzer(project, semanticModel, Property.LOCAL_SCOPE, Map.of(),
                 Map.of(), updatedTextDocument, ModuleInfo.from(updatedDoc.module().descriptor()),
@@ -177,10 +160,15 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         }
     }
 
-    private EditApplication applyLspEdits(Path targetPath, Document document, List<TextEdit> lspEdits) {
+    private EditApplication applyLspEdits(Path targetPath, List<TextEdit> lspEdits) {
         if (lspEdits == null || lspEdits.isEmpty()) {
             return null;
         }
+        Optional<Document> documentOp = workspaceManager.document(targetPath);
+        if (documentOp.isEmpty()) {
+            return null;
+        }
+        Document document = documentOp.get();
         TextDocument textDocument = document.textDocument();
 
         // Sort edits by ascending file position so that:

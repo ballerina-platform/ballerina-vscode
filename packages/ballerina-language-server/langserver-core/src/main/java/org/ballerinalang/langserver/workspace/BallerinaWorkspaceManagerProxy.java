@@ -24,10 +24,8 @@ import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 /**
  * A proxy implementation for the ballerina workspace manager.
  *
- * @deprecated As of 1.7.0, use the unified workspace manager facade instead.
  * @since 1.0.0
  */
-@Deprecated(since = "1.7.0", forRemoval = true)
 public interface BallerinaWorkspaceManagerProxy extends WorkspaceManagerProxy {
     /**
      * Handle the document open event.

@@ -5,7 +5,6 @@ module io.ballerina.language.server.commons {
     requires io.ballerina.tools.api;
     requires org.eclipse.lsp4j;
     requires org.eclipse.lsp4j.jsonrpc;
-    requires jsr305;
     requires com.google.gson;
     requires io.ballerina.toml;
     requires java.semver;

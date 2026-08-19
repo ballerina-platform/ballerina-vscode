@@ -49,8 +49,7 @@ public class VariableDeclarationContextTest extends CompletionTest {
     public List<String> skipList() {
         return List.of(
                 // expected type cases
-                "var_def_ctx_config16.json", // issue #38711
-                "project_var_def_ctx_config3.json" // TODO: Investigate why this test is failing in Windows
+                "var_def_ctx_config16.json" // issue #38711
         );
     }
 }

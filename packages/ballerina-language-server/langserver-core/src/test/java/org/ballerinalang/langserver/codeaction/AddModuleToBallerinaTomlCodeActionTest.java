@@ -50,7 +50,10 @@ public class AddModuleToBallerinaTomlCodeActionTest extends AbstractCodeActionTe
     }
 
     @BeforeClass
-    public void setupLocalModules() {
+    @Override
+    public void setup() {
+        super.setup();
+
         LanguageServerContext context = new LanguageServerContextImpl();
         BallerinaLanguageServer languageServer = new BallerinaLanguageServer();
         Endpoint endpoint = TestUtil.initializeLanguageSever(languageServer);

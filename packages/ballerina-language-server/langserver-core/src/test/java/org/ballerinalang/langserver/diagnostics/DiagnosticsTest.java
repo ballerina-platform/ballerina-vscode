@@ -25,13 +25,12 @@ import org.ballerinalang.langserver.common.utils.PathUtil;
 import org.ballerinalang.langserver.commons.DocumentServiceContext;
 import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
-import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.contexts.ContextBuilder;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.diagnostic.DiagnosticsHelper;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.ballerinalang.langserver.util.TestUtil;
-import org.ballerinalang.langserver.workspace.WorkspaceManagerFacadeFactory;
+import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManager;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
@@ -52,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-
 /**
  * Diagnostics tests are covered here.
  *
@@ -68,7 +66,7 @@ public class DiagnosticsTest {
 
     private final LanguageServerContext serverContext = new LanguageServerContextImpl();
 
-    private final WorkspaceManager workspaceManager = WorkspaceManagerFacadeFactory.create(serverContext);
+    private final BallerinaWorkspaceManager workspaceManager = new BallerinaWorkspaceManager(serverContext);
 
     @BeforeClass
     public void init() {
@@ -152,12 +150,6 @@ public class DiagnosticsTest {
 
     @AfterClass
     public void cleanupLanguageServer() {
-        if (workspaceManager instanceof AutoCloseable closeableWorkspaceManager) {
-            try {
-                closeableWorkspaceManager.close();
-            } catch (Exception ignored) {
-            }
-        }
         TestUtil.shutdownLanguageServer(this.serviceEndpoint);
         this.serviceEndpoint = null;
     }

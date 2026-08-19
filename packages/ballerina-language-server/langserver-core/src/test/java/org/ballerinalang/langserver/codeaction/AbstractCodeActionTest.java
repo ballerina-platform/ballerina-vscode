@@ -33,8 +33,10 @@ import org.ballerinalang.langserver.commons.codeaction.CodeActionData;
 import org.ballerinalang.langserver.commons.codeaction.ResolvableCodeAction;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
+import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.util.FileUtils;
 import org.ballerinalang.langserver.util.TestUtil;
+import org.ballerinalang.langserver.workspace.BallerinaWorkspaceManager;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionContext;
 import org.eclipse.lsp4j.Diagnostic;
@@ -43,8 +45,8 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.Endpoint;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -328,10 +330,10 @@ public abstract class AbstractCodeActionTest extends AbstractLSTest {
         return responseJson;
     }
 
-    @BeforeMethod
+    @BeforeClass
     public void setup() {
-        workspaceManager = getLanguageServer().getWorkspaceManager();
-        serverContext = getLanguageServer().getServerContext();
+        workspaceManager = new BallerinaWorkspaceManager(new LanguageServerContextImpl());
+        serverContext = new LanguageServerContextImpl();
     }
 
     /**
@@ -385,7 +387,7 @@ public abstract class AbstractCodeActionTest extends AbstractLSTest {
 
     public abstract String getResourceDir();
 
-    @AfterMethod
+    @AfterClass
     public void cleanUp() {
         this.serverContext = null;
         this.workspaceManager = null;

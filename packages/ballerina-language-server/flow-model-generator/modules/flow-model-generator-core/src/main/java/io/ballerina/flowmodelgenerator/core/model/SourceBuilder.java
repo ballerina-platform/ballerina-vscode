@@ -444,7 +444,7 @@ public class SourceBuilder {
             }
 
             SemanticModel localModuleSemanticModel =
-                    PackageUtil.getCompilation(project.currentPackage()).getSemanticModel(moduleId);
+                    project.currentPackage().getCompilation().getSemanticModel(moduleId);
             Optional<Symbol> moduleSymbol = localModuleSemanticModel.moduleSymbols()
                     .stream()
                     .filter(symbol -> symbol.nameEquals(typeNameParts[1]))

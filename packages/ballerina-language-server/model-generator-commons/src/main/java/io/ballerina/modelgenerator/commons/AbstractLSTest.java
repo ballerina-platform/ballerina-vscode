@@ -61,10 +61,8 @@ import java.util.stream.Stream;
  */
 public abstract class AbstractLSTest {
 
-    protected Logger log;
-    protected Path resDir;
-    protected Path sourceDir;
-    protected Path configDir;
+    protected static Logger log;
+    protected static Path resDir, sourceDir, configDir;
     protected final Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
     protected Endpoint serviceEndpoint;

@@ -276,6 +276,7 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
  * @since 1.0.0
  */
 public class CodeAnalyzer extends NodeVisitor {
+
     public static final String PARAMETERIZED_QUERY = "sql:ParameterizedQuery";
     public static final String PARAMETERIZED_CALL_QUERY = "sql:ParameterizedCallQuery";
     // Readonly fields
@@ -290,6 +291,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private final String connectionScope;
     private final WorkspaceManager workspaceManager;
     private final Path filePath;
+
     // State fields
     private NodeBuilder nodeBuilder;
     private final List<FlowNode> flowNodeList;
@@ -335,7 +337,7 @@ public class CodeAnalyzer extends NodeVisitor {
         // Source diagnostics from the package compilation (superset of the semantic model) so that compiler plugin
         // diagnostics are surfaced alongside semantic-phase ones.
         this.diagnosticHandler = new DiagnosticHandler(
-                PackageUtil.getCompilation(project.currentPackage()).diagnosticResult().diagnostics());
+                project.currentPackage().getCompilation().diagnosticResult().diagnostics());
         this.workspaceManager = workspaceManager;
         this.filePath = filePath;
     }
