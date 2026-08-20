@@ -21,7 +21,6 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,12 +33,13 @@ public final class AgentTriggerChannels {
 
     private static final String EVENT_TRIGGER_KIND = "event";
 
-    private static final Map<String, AgentTriggerChannel> BESPOKE = new LinkedHashMap<>() {{
-            put(AiChatChannel.MODULE_NAME, new AiChatChannel());
-            put(WhatsAppBusinessChannel.MODULE_NAME, new WhatsAppBusinessChannel());
-            put(TelegramChannel.MODULE_NAME, new TelegramChannel());
-            put(GoogleChatChannel.MODULE_NAME, new GoogleChatChannel());
-        }};
+    /** Keyed on {@code org/module}: a same-named module from another org is not this channel. */
+    private static final Map<String, AgentTriggerChannel> BESPOKE = Map.of(
+            key(AiChatChannel.ORG_NAME, AiChatChannel.MODULE_NAME), new AiChatChannel(),
+            key(WhatsAppBusinessChannel.ORG_NAME, WhatsAppBusinessChannel.MODULE_NAME),
+            new WhatsAppBusinessChannel(),
+            key(TelegramChannel.ORG_NAME, TelegramChannel.MODULE_NAME), new TelegramChannel(),
+            key(GoogleChatChannel.ORG_NAME, GoogleChatChannel.MODULE_NAME), new GoogleChatChannel());
 
     private AgentTriggerChannels() {
     }
@@ -50,7 +50,7 @@ public final class AgentTriggerChannels {
 
     public static Optional<AgentTriggerChannel> forModule(String orgName, String moduleName, String version,
                                                           boolean isLocalRepository) {
-        AgentTriggerChannel bespoke = moduleName == null ? null : BESPOKE.get(moduleName);
+        AgentTriggerChannel bespoke = bespoke(orgName, moduleName);
         if (bespoke != null) {
             return Optional.of(bespoke);
         }
@@ -62,14 +62,22 @@ public final class AgentTriggerChannels {
 
     /** Stamps a listed trigger with how it calls an agent, from the scalars the row already holds. */
     public static TriggerBasicInfo withAgentKind(TriggerBasicInfo trigger) {
-        return trigger.withAgentTriggerKind(kindOf(trigger.moduleName(), trigger.type()));
+        return trigger.withAgentTriggerKind(kindOf(trigger.orgName(), trigger.moduleName(), trigger.type()));
     }
 
-    public static String kindOf(String moduleName, String triggerKind) {
-        AgentTriggerChannel bespoke = moduleName == null ? null : BESPOKE.get(moduleName);
+    public static String kindOf(String orgName, String moduleName, String triggerKind) {
+        AgentTriggerChannel bespoke = bespoke(orgName, moduleName);
         if (bespoke != null) {
             return bespoke.kind().name();
         }
         return EVENT_TRIGGER_KIND.equals(triggerKind) ? AgentTriggerKind.EVENT.name() : null;
+    }
+
+    private static AgentTriggerChannel bespoke(String orgName, String moduleName) {
+        return orgName == null || moduleName == null ? null : BESPOKE.get(key(orgName, moduleName));
+    }
+
+    private static String key(String orgName, String moduleName) {
+        return orgName + "/" + moduleName;
     }
 }

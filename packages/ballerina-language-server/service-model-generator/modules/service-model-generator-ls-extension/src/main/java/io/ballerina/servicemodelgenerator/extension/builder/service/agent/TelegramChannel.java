@@ -25,6 +25,7 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
  */
 public class TelegramChannel implements AgentTriggerChannel {
 
+    static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "telegram";
     private static final String BOT_TOKEN = "token";
 
