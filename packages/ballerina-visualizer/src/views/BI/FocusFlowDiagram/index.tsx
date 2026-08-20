@@ -120,6 +120,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
     const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout>>();
     const usageRequestIdRef = useRef(0);
     const usagesDirtyRef = useRef(true);
+    const usagesContentRef = useRef(0);
     const [agentFormKey, setAgentFormKey] = useState(0);
     const [agentTypeFormMode, setAgentTypeFormMode] = useState<"ALL" | "MODEL">("ALL");
 
@@ -163,6 +164,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         const unsubscribeContentUpdated = rpcClient.onProjectContentUpdated((state: boolean) => {
             console.log(">>> on project content updated", state);
             usagesDirtyRef.current = true;
+            usagesContentRef.current++;
             if (isAgent) {
                 debouncedGetAgentModel();
                 return;
@@ -284,13 +286,14 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         clearTimeout(usageFetchTimerRef.current);
         const requestId = ++usageRequestIdRef.current;
         usageFetchTimerRef.current = setTimeout(async () => {
+            const contentAtStart = usagesContentRef.current;
             try {
                 const location = await rpcClient.getVisualizerLocation();
                 const [response, triggerProtocols] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }),
                     getAgentTriggerProtocols(rpcClient),
                 ]);
-                if (requestId !== usageRequestIdRef.current) {
+                if (requestId !== usageRequestIdRef.current || usagesContentRef.current !== contentAtStart) {
                     return;
                 }
                 if (!response?.designModel) {
@@ -364,6 +367,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             }
             await rpcClient.getAIAgentRpcClient().fixMissingImports();
             usagesDirtyRef.current = true;
+            usagesContentRef.current++;
         } catch (error) {
             console.error(">>> agent focus: failed to delete trigger", error);
             rpcClient.getCommonRpcClient().showErrorMessage({
