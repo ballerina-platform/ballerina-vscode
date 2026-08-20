@@ -18,6 +18,13 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
+import io.ballerina.servicemodelgenerator.extension.model.Value;
+
+import java.util.List;
+import java.util.Map;
+
 /**
  * Telegram Bot API.
  *
@@ -27,7 +34,7 @@ public class TelegramChannel implements AgentTriggerChannel {
 
     static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "telegram";
-    private static final String BOT_TOKEN = "token";
+    private static final String BOT_TOKEN = "botToken";
 
     private static final String SERVICE_BLOCK = """
             service {{alias}}:TelegramService on {{listener}} {
@@ -66,6 +73,19 @@ public class TelegramChannel implements AgentTriggerChannel {
     @Override
     public AgentTriggerKind kind() {
         return AgentTriggerKind.CHAT;
+    }
+
+    @Override
+    public Map<String, Value> additionalProperties() {
+        return Map.of(BOT_TOKEN, new Value.ValueBuilder()
+                .metadata("Bot Token", "The Telegram bot token used to send replies.")
+                .types(List.of(PropertyType.types(Value.FieldType.TEXT, "string"),
+                        PropertyType.types(Value.FieldType.EXPRESSION, "string")))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .setValidations(List.of(new ValidationRule("common.validate.required")))
+                .build());
     }
 
     @Override

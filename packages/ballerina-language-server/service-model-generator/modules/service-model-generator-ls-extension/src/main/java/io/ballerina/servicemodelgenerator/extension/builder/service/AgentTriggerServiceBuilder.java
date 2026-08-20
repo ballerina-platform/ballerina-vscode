@@ -150,7 +150,12 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
                 : findService(rootNode, listener.varName(), channelContext.serviceDescriptor());
         Optional<AgentTriggerChannel.HandlerBinding> binding = channel.handlerBinding(channelContext);
-        if (existing.isPresent() && binding.isPresent()) {
+        if (existing.isPresent()) {
+            if (binding.isEmpty()) {
+                throw new IllegalStateException("A " + channelContext.serviceDescriptor()
+                        + " service is already attached to listener '" + listener.varName()
+                        + "'. Create the trigger on its own listener.");
+            }
             edits.addAll(mergeIntoService(existing.get(), binding.get()));
             return Map.of(filePath, edits);
         }
@@ -187,17 +192,34 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .findFirst();
         LineRange lastMember = members.isEmpty() ? service.openBraceToken().lineRange()
                 : members.get(members.size() - 1).lineRange();
+        boolean replyMethodExists = hasMethod(members, binding.replyMethodName());
         if (body.isEmpty()) {
-            return List.of(new TextEdit(Utils.toRange(lastMember.endLine()),
-                    TWO_NEW_LINES + binding.handler() + TWO_NEW_LINES + binding.replyMethod()));
+            String appended = replyMethodExists ? binding.handler()
+                    : binding.handler() + TWO_NEW_LINES + binding.replyMethod();
+            return List.of(new TextEdit(Utils.toRange(lastMember.endLine()), TWO_NEW_LINES + appended));
         }
-        if (body.get().toSourceCode().contains(binding.offload())) {
+        if (body.get().toSourceCode().contains(offloadCall(binding))) {
             return List.of();
         }
-        return List.of(
-                new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
-                        INDENT + binding.offload() + NEW_LINE + INDENT),
-                new TextEdit(Utils.toRange(lastMember.endLine()), TWO_NEW_LINES + binding.replyMethod()));
+        List<TextEdit> edits = new ArrayList<>();
+        edits.add(new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
+                INDENT + binding.offload() + NEW_LINE + INDENT));
+        if (!replyMethodExists) {
+            edits.add(new TextEdit(Utils.toRange(lastMember.endLine()),
+                    TWO_NEW_LINES + binding.replyMethod()));
+        }
+        return edits;
+    }
+
+    private static String offloadCall(AgentTriggerChannel.HandlerBinding binding) {
+        return "start self." + binding.replyMethodName() + "(";
+    }
+
+    private static boolean hasMethod(NodeList<Node> members, String name) {
+        return members.stream()
+                .filter(FunctionDefinitionNode.class::isInstance)
+                .map(FunctionDefinitionNode.class::cast)
+                .anyMatch(fn -> fn.functionName().text().equals(name));
     }
 
     private static Value hiddenValue(String value) {

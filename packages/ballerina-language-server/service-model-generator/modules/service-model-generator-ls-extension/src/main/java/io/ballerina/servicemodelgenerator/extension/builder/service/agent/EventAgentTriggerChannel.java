@@ -196,7 +196,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         List<HandlerParameter> parameters = context.parametersOf(primary);
         String arguments = parameters.stream().map(HandlerParameter::name).collect(Collectors.joining(", "));
         String offload = "_ = start self." + replyMethodName + "(" + arguments + ");";
-        return Optional.of(new HandlerBinding(primary.name(), offload,
+        return Optional.of(new HandlerBinding(primary.name(), replyMethodName, offload,
                 replyMethod(context, replyMethodName, parameters), render(primary, context, offload)));
     }
 
@@ -249,7 +249,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static boolean isPresent(TriggerUISchemaModel.FunctionModel handler) {
-        return handler.enabled() && !Boolean.TRUE.equals(handler.optional());
+        return !Boolean.TRUE.equals(handler.optional()) || handler.enabled();
     }
 
     private String render(TriggerUISchemaModel.FunctionModel handler, AgentTriggerContext context, String body) {

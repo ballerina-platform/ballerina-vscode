@@ -33,7 +33,6 @@ public final class AgentTriggerChannels {
 
     private static final String EVENT_TRIGGER_KIND = "event";
 
-    /** Keyed on {@code org/module}: a same-named module from another org is not this channel. */
     private static final Map<String, AgentTriggerChannel> BESPOKE = Map.of(
             key(AiChatChannel.ORG_NAME, AiChatChannel.MODULE_NAME), new AiChatChannel(),
             key(WhatsAppBusinessChannel.ORG_NAME, WhatsAppBusinessChannel.MODULE_NAME),
