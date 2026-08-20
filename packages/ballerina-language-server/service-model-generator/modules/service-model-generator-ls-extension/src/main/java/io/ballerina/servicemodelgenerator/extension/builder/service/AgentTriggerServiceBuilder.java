@@ -43,9 +43,11 @@ import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NEW_LINES;
@@ -135,6 +137,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                                                          String filePath) {
         String emitAlias = SchemaDrivenSourceGenerator.resolveEmitAlias(rootNode, filledModel, triggerModel);
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
+        reclaimChannelKeys(formValues, filledModel, channel);
         List<TextEdit> edits = new ArrayList<>();
         String imports = SchemaDrivenSourceGenerator.buildImports(filledModel, triggerModel, rootNode, emitAlias,
                 channel.imports());
@@ -238,6 +241,24 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         Value branch = properties.get(field.getValue());
         return branch == null ? null : branch.getProperties();
+    }
+
+    private static void reclaimChannelKeys(Map<String, String> flat, ServiceInitModel model,
+                                          AgentTriggerChannel channel) {
+        Map<String, Value> properties = model.getProperties();
+        if (properties == null) {
+            return;
+        }
+        Set<String> owned = new LinkedHashSet<>(channel.additionalProperties().keySet());
+        owned.add(AGENT_NAME_PROPERTY);
+        owned.add(AGENT_ORG_PROPERTY);
+        for (String key : owned) {
+            Value field = properties.get(key);
+            String value = field == null ? null : field.getValue();
+            if (value != null && !value.isBlank()) {
+                flat.put(key, value);
+            }
+        }
     }
 
     private static Map<String, String> flattenFormValues(Map<String, Value> properties) {

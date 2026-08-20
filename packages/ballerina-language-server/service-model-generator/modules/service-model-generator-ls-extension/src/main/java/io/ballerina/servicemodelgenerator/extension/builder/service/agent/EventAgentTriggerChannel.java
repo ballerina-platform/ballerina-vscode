@@ -192,11 +192,12 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         TriggerUISchemaModel.ServiceTypeModel serviceType = context.serviceType();
         TriggerUISchemaModel.FunctionModel primary = selectHandler(handlers, context.formValue(HANDLER),
                 serviceType == null ? "" : serviceType.name());
-        String replyMethodName = REPLY_METHOD_PREFIX + capitalize(primary.name());
+        String emittedName = SchemaDrivenSourceGenerator.effectiveFunctionName(primary);
+        String replyMethodName = REPLY_METHOD_PREFIX + capitalize(emittedName);
         List<HandlerParameter> parameters = context.parametersOf(primary);
         String arguments = parameters.stream().map(HandlerParameter::name).collect(Collectors.joining(", "));
         String offload = "_ = start self." + replyMethodName + "(" + arguments + ");";
-        return Optional.of(new HandlerBinding(primary.name(), replyMethodName, offload,
+        return Optional.of(new HandlerBinding(emittedName, replyMethodName, offload,
                 replyMethod(context, replyMethodName, parameters), render(primary, context, offload)));
     }
 
@@ -225,7 +226,7 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
         String chosen = binding.get().handlerName();
         List<String> members = new ArrayList<>();
         for (TriggerUISchemaModel.FunctionModel handler : handlers(context)) {
-            if (handler.name().equals(chosen)) {
+            if (SchemaDrivenSourceGenerator.effectiveFunctionName(handler).equals(chosen)) {
                 members.add(binding.get().handler());
             } else if (isPresent(handler)) {
                 members.add(render(handler, context, ""));
