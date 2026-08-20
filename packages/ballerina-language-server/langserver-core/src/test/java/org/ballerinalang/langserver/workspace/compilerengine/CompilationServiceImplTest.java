@@ -26,7 +26,7 @@ import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.PackageName;
 import io.ballerina.projects.Project;
-import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
+import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.ResolutionResult;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.DualSnapshotStore;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.InProgressSnapshot;

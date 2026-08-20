@@ -28,9 +28,9 @@ import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
-import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
 import org.ballerinalang.langserver.commons.workspace.RunContext;
 import org.ballerinalang.langserver.commons.workspace.RunResult;
+import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
 import org.ballerinalang.langserver.workspace.workspacemanager.ProjectService;
 
 import java.io.File;

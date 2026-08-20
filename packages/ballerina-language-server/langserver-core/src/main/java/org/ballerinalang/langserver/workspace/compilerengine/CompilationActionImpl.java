@@ -32,7 +32,7 @@ import io.ballerina.projects.Project;
 import io.ballerina.projects.environment.PackageLockingMode;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
-import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
+import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.FailureType;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.RecoveryLadder;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.ResolutionResult;

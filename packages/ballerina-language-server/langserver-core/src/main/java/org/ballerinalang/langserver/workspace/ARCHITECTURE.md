@@ -87,6 +87,7 @@ langserver-core/.../workspace/
 ├── WorkspaceManagerFacadeImpl.java        # live implementation
 ├── WorkspaceManagerFacadeFactory.java     # constructs a wired facade
 ├── WiringConfiguration.java               # wires services/event bus/monitors
+├── CompilerCompilationGuard.java          # serializes direct compiler compilation/resolution
 ├── BallerinaWorkspaceManager.java         # legacy monolith, not in live path
 ├── BallerinaWorkspaceManagerProxy(Impl).java  # deprecated, zero callers
 │

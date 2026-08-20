@@ -16,15 +16,18 @@
  *  under the License.
  */
 
-package org.ballerinalang.langserver.commons;
+package org.ballerinalang.langserver.workspace;
 
 import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.PackageResolution;
+import org.ballerinalang.compiler.BLangCompilerException;
+import org.ballerinalang.langserver.command.executors.PullModuleExecutor;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -41,9 +44,12 @@ import javax.annotation.Nonnull;
  * directly &mdash; notably {@code BallerinaWorkspaceManager}, {@code PullModuleExecutor},
  * {@code LSPackageLoader}, {@code DiagnosticsHelper}, {@code RenameUtil}, and the flow/service
  * model generators &mdash; bypass this guard and are therefore not serialized against the race it
- * was introduced to prevent. Routing those remaining call sites through the guard is tracked as a
- * follow-up; see
- * {@code packages/ballerina-language-server/tasks/04-compilation-guard-not-universal.md}.
+ * was introduced to prevent.
+ *
+ * <p>On the resolution path ({@link #getResolution(Package, CompilationOptions)}), a
+ * {@code BLangCompilerException} signalling a missing module triggers a one-shot repair of the
+ * local bala cache via {@code PullModuleExecutor.repairMissingDependencyBalas} before a single
+ * retry, keyed by source root so each project is repaired at most once per failure episode.
  *
  * <p>Compiler-plugin caches (e.g. the {@code ballerina/http} user-data cache) are scoped to the
  * {@code Project}'s own environment, so two different projects compiling concurrently cannot race on
@@ -61,6 +67,7 @@ import javax.annotation.Nonnull;
  */
 public final class CompilerCompilationGuard {
     private static final ConcurrentHashMap<Path, ReentrantLock> PROJECT_LOCKS = new ConcurrentHashMap<>();
+    private static final Set<Path> REPAIR_ATTEMPTED = ConcurrentHashMap.newKeySet();
 
     private CompilerCompilationGuard() {
     }
@@ -126,7 +133,25 @@ public final class CompilerCompilationGuard {
                                                            @Nonnull CompilationOptions compilationOptions,
                                                            CancelChecker cancelChecker) {
         checkCancellation(cancelChecker);
+        Path root = normalizeSourceRoot(ballerinaPackage.project().sourceRoot());
         ReentrantLock projectLock = projectLock(ballerinaPackage);
+        try {
+            return tryResolve(ballerinaPackage, compilationOptions, projectLock, cancelChecker);
+        } catch (BLangCompilerException e) {
+            if (!PullModuleExecutor.isMissingModuleFailure(e) || !REPAIR_ATTEMPTED.add(root)) {
+                throw e;
+            }
+        }
+        // The lock is released before repair (decision 3): the repair performs network I/O and must
+        // not hold the per-project compiler lock while doing so.
+        PullModuleExecutor.repairMissingDependencyBalas(ballerinaPackage.project());
+        PackageResolution resolution = tryResolve(ballerinaPackage, compilationOptions, projectLock, cancelChecker);
+        REPAIR_ATTEMPTED.remove(root);
+        return resolution;
+    }
+
+    private static PackageResolution tryResolve(Package ballerinaPackage, CompilationOptions compilationOptions,
+                                                ReentrantLock projectLock, CancelChecker cancelChecker) {
         lock(projectLock);
         try {
             checkCancellation(cancelChecker);
@@ -155,7 +180,9 @@ public final class CompilerCompilationGuard {
      * @param sourceRoot the source root of the evicted project; normalized internally
      */
     public static void evictProjectLock(@Nonnull Path sourceRoot) {
-        PROJECT_LOCKS.remove(normalizeSourceRoot(sourceRoot));
+        Path normalized = normalizeSourceRoot(sourceRoot);
+        PROJECT_LOCKS.remove(normalized);
+        REPAIR_ATTEMPTED.remove(normalized);
     }
 
     private static ReentrantLock projectLock(Package ballerinaPackage) {
@@ -208,5 +235,13 @@ public final class CompilerCompilationGuard {
      */
     static void clearLocksForTesting() {
         PROJECT_LOCKS.clear();
+    }
+
+    /**
+     * Removes every entry from the static repair-marker set. Test-only seam to isolate tests that
+     * share the process-wide {@code REPAIR_ATTEMPTED}.
+     */
+    static void clearRepairMarkersForTesting() {
+        REPAIR_ATTEMPTED.clear();
     }
 }

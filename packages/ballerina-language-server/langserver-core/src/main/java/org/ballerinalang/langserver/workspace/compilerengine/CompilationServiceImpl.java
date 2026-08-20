@@ -20,7 +20,7 @@ package org.ballerinalang.langserver.workspace.compilerengine;
 
 import io.ballerina.projects.PackageDescriptor;
 import io.ballerina.projects.Project;
-import org.ballerinalang.langserver.commons.CompilerCompilationGuard;
+import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.FailureClass;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.ResolutionResult;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.DualSnapshotStore;
