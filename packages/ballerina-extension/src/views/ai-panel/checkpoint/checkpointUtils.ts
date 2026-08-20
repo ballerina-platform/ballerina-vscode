@@ -54,27 +54,39 @@ export async function captureWorkspaceSnapshot(messageId: string): Promise<Check
     try {
         const allFiles = await getAllWorkspaceFiles(workspaceRoot, config.ignorePatterns);
 
-        for (const fileUri of allFiles) {
-            try {
-                const fileContent = await vscode.workspace.fs.readFile(fileUri);
-                const content = Buffer.from(fileContent).toString('utf8');
-                const relativePath = path.relative(workspaceRoot.fsPath, fileUri.fsPath).split(path.sep).join('/');
-
-                workspaceSnapshot[relativePath] = content;
-                fileList.push(relativePath);
-                totalSize += content.length;
-
-                if (totalSize > config.maxSnapshotSize) {
-                    // Fail closed rather than save a partial checkpoint that silently leaves
-                    // later-scanned files unrevertible on restore.
-                    console.warn(`[Checkpoint] Snapshot size exceeded max limit (${totalSize} bytes) — aborting capture, no partial checkpoint will be saved`);
-                    vscode.window.showWarningMessage(
-                        `Workspace is too large to checkpoint (exceeds ${Math.round(config.maxSnapshotSize / 1024 / 1024)}MB). This generation will not be revertible.`
-                    );
+        // Read in bounded-concurrency chunks: one-at-a-time reads dominate run-start
+        // latency on large workspaces, while unbounded Promise.all can exhaust file
+        // handles. Chunks keep fileList in findFiles order and let the size cap abort
+        // between chunks.
+        const READ_CONCURRENCY = 32;
+        for (let i = 0; i < allFiles.length; i += READ_CONCURRENCY) {
+            const chunk = allFiles.slice(i, i + READ_CONCURRENCY);
+            const chunkContents = await Promise.all(chunk.map(async fileUri => {
+                try {
+                    const fileContent = await vscode.workspace.fs.readFile(fileUri);
+                    return { fileUri, content: Buffer.from(fileContent).toString('utf8') };
+                } catch (error) {
+                    console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
                     return null;
                 }
-            } catch (error) {
-                console.error(`[Checkpoint] Failed to read file ${fileUri.fsPath}:`, error);
+            }));
+
+            for (const entry of chunkContents) {
+                if (!entry) { continue; }
+                const relativePath = path.relative(workspaceRoot.fsPath, entry.fileUri.fsPath).split(path.sep).join('/');
+                workspaceSnapshot[relativePath] = entry.content;
+                fileList.push(relativePath);
+                totalSize += entry.content.length;
+            }
+
+            if (totalSize > config.maxSnapshotSize) {
+                // Fail closed rather than save a partial checkpoint that silently leaves
+                // later-scanned files unrevertible on restore.
+                console.warn(`[Checkpoint] Snapshot size exceeded max limit (${totalSize} bytes) — aborting capture, no partial checkpoint will be saved`);
+                vscode.window.showWarningMessage(
+                    `Workspace is too large to checkpoint (exceeds ${Math.round(config.maxSnapshotSize / 1024 / 1024)}MB). This generation will not be revertible.`
+                );
+                return null;
             }
         }
 

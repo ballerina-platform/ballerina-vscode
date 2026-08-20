@@ -31,6 +31,9 @@ import {
 import { openView, StateMachine } from "../../stateMachine";
 import { ServiceDesignerRpcManager } from "../../rpc-managers/service-designer/rpc-manager";
 import { BiDiagramRpcManager } from "../../rpc-managers/bi-diagram/rpc-manager";
+import { extension } from "../../BalExtensionContext";
+import { addConfigFile, getConfigFilePath } from "../ai/utils";
+import { isAIAuthenticated } from "../ai/migration/orchestrator";
 import {
     clearPendingIntegrationPointer,
     isPendingPointerFresh,
@@ -309,6 +312,9 @@ async function generatePendingArtifact(
                 flowNode: payload.flowNode,
                 isFunctionNodeUpdate: true,
             });
+            if (payload.flowNode.codedata?.node === "DURABLE_AGENT") {
+                await configureDurableAgentModelProvider(projectRoot);
+            }
             if (landOnPackageOverview) {
                 openPackageOverview(projectRoot);
             }
@@ -326,6 +332,32 @@ async function generatePendingArtifact(
         }
         default:
             throw new Error(`Unsupported artifact kind: ${(payload as PendingIntegrationArtifactPayload).kind}`);
+    }
+}
+
+/**
+ * Writes the WSO2 default model provider's Config.toml entry for a durable agent generated
+ * into a fresh package. The generation itself declares the `wso2ModelProvider` variable, but
+ * without the `[ballerina.ai.wso2ProviderConfig]` values the agent fails at startup. The
+ * package root is already known here, so the config file is targeted directly (no project
+ * quick-pick). Failures are non-fatal: the agent exists and the provider can be configured
+ * from the agent's model circle.
+ *
+ * Only attempted while the user is signed in to the AI features, and with `signOutOnFailure` off:
+ * a failed token fetch signs the user out by default, and ending their AI session because a
+ * background config write hit a network blip is a far larger consequence than the write itself.
+ */
+async function configureDurableAgentModelProvider(projectRoot: string): Promise<void> {
+    if (!isAIAuthenticated()) {
+        return;
+    }
+    try {
+        const configPath = await getConfigFilePath(extension.ballerinaExtInstance, projectRoot);
+        if (configPath) {
+            await addConfigFile(configPath, "model", { signOutOnFailure: false });
+        }
+    } catch (error) {
+        console.error("[IntegrationWizard] Failed to configure the default model provider:", error);
     }
 }
 

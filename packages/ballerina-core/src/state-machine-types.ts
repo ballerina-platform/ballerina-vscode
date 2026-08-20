@@ -247,6 +247,8 @@ export interface ReviewViewItem {
 export interface ReviewModeData {
     views: ReviewViewItem[];
     currentIndex: number;
+    /** MainPanel keys ReviewMode's remount on this; its data is only read on mount. */
+    generationId: string;
     onAccept?: string;
     onReject?: string;
     semanticDiffs?: object[];
@@ -255,6 +257,8 @@ export interface ReviewModeData {
     modifiedFiles?: string[];
     tempProjectPath?: string;
     isWorkspace?: boolean;
+    /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+    semanticDiffError?: string;
 }
 
 // --- Evalset Trace Types ---
@@ -850,6 +854,8 @@ export interface GenerationReviewState {
         semanticDiffs: object[];
         loadDesignDiagrams: boolean;
         isWorkspace: boolean;
+        /** Compile/diff failure to surface in the review UI instead of a silent empty review. */
+        semanticDiffError?: string;
     };
 }
 

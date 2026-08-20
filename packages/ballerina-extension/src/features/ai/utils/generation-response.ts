@@ -26,6 +26,7 @@ import { getHashedProjectId } from "../../telemetry/common/project-id";
 import { Command } from "@wso2/ballerina-core";
 import { chatStateStorage } from "../../../views/ai-panel/chatStateStorage";
 import { sendSaveChatNotification } from "./ai-utils";
+import { approvalViewManager } from "../state/ApprovalViewManager";
 
 /**
  * Implicitly accept whichever generation is still revertible, with the reporting that goes with
@@ -35,6 +36,12 @@ import { sendSaveChatNotification } from "./ai-utils";
  * @returns true if a generation was finalized
  */
 export function finalizeRevertibleGeneration(projectRootPath: string, threadId: string): boolean {
+    // Runs before the early return: the open review belongs to the previous turn either way.
+    approvalViewManager.closeReviewModeIfOpen();
+    return finalizeThreadGeneration(projectRootPath, threadId);
+}
+
+function finalizeThreadGeneration(projectRootPath: string, threadId: string): boolean {
     const finalized = chatStateStorage.finalizeLastGenerationIfDone(projectRootPath, threadId);
     if (!finalized) {
         return false;
@@ -45,6 +52,27 @@ export function finalizeRevertibleGeneration(projectRootPath: string, threadId: 
     sendSaveChatNotification(Command.Agent, finalized.id);
     console.log(`[Agent] Accepted generation: ${finalized.id}`);
     return true;
+}
+
+/**
+ * Finalizes revertible generations across EVERY thread of the project, not just the one
+ * about to run. The ai:// diff baseline is a single per-package slot in the Language
+ * Server — reseeding it at generation start silently invalidates any other thread's
+ * still-open review, whose decline would then restore stale content over the new run's
+ * edits. Same policy as the same-thread implicit accept, applied project-wide.
+ *
+ * @returns true if any generation was finalized
+ */
+export function finalizeRevertibleGenerationsAllThreads(projectRootPath: string): boolean {
+    // Once, not per thread: closeReviewModeIfOpen only self-guards on the view having already
+    // updated, which updateView can defer, so a per-thread call pops history repeatedly.
+    approvalViewManager.closeReviewModeIfOpen();
+
+    let finalizedAny = false;
+    for (const thread of chatStateStorage.listThreadsSummary(projectRootPath)) {
+        finalizedAny = finalizeThreadGeneration(projectRootPath, thread.id) || finalizedAny;
+    }
+    return finalizedAny;
 }
 
 /**

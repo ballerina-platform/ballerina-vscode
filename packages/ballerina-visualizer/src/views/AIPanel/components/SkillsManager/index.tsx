@@ -152,10 +152,11 @@ const EmptyMessage = styled.div`
 
 interface SkillsManagerProps {
     onClose: () => void;
+    backTooltip?: string;
     onSkillsChange?: () => void;
 }
 
-const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, onSkillsChange }) => {
+const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, backTooltip, onSkillsChange }) => {
     const { rpcClient } = useRpcContext();
     const [skills, setSkills] = useState<SkillEntry[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -274,7 +275,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, onSkillsChange }
     return (
         <AIChatView>
             <PanelHeader>
-                <Button appearance="icon" onClick={onClose} tooltip="Back">
+                <Button appearance="icon" onClick={onClose} tooltip={backTooltip ?? "Back"}>
                     <Codicon name="arrow-left" />
                 </Button>
                 <TitleGroup>

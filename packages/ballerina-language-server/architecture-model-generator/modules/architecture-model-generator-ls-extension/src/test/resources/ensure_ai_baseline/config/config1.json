@@ -1,0 +1,12 @@
+{
+  "description": "Seeds the ai:// baseline for every file in the package",
+  "projectPath": "simple_service",
+  "files": [
+    { "filePath": "main.bal", "content": "public function main() {\n}\n" },
+    { "filePath": "types.bal", "content": "public type Student record {|\n    int id;\n|};\n" }
+  ],
+  "output": {
+    "seededFileCount": 2,
+    "failedFiles": []
+  }
+}

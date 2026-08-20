@@ -760,9 +760,11 @@ public class ConfigEditorV2Service implements ExtendedLanguageServerService {
                     packageInstance.getResolution(
                             CompilationOptions.builder().setOffline(true).build());
                 }
-                SemanticModel semanticModel = PackageUtil.getCompilation(packageInstance)
-                        .getSemanticModel(module.moduleId());
-                return Optional.ofNullable(semanticModel);
+                if (packageInstance.getCompilation() != null) {
+                    SemanticModel semanticModel = packageInstance.getCompilation()
+                            .getSemanticModel(module.moduleId());
+                    return Optional.ofNullable(semanticModel);
+                }
             }
         } catch (RuntimeException e) {
             // getSemanticModel() can throw an Error if the module is an imported module without a semantic model.

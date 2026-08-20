@@ -265,4 +265,11 @@
         <Class name="io.ballerina.projectservice.core.baltool.BalToolsUtil" />
         <Bug pattern="DP_CREATE_CLASSLOADER_INSIDE_DO_PRIVILEGED"/>
     </Match>
+    <Match>
+        <!-- Returning the shared sample project is the point: it is a process-wide memoized
+             instance whose per-call re-creation defeated resolution caching (see PackageUtil). -->
+        <Class name="io.ballerina.modelgenerator.commons.PackageUtil" />
+        <Method name="getSampleProject" />
+        <Bug pattern="MS_EXPOSE_REP"/>
+    </Match>
 </FindBugsFilter>

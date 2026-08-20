@@ -23,8 +23,8 @@ coverage/
 .vscode-test/
 test-resources/
 packages/ballerina-extension/test-results/
+packages/ballerina-extension/e2e-reports/
 extractedDistribution/
-packages/ballerina-extension/test-results/
 .npmrc
 .env
 .hintrc

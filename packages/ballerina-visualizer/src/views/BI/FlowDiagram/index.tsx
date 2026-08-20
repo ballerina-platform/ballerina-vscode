@@ -83,10 +83,12 @@ import { ConnectionKind } from "../../../components/ConnectionSelector";
 import AddAgentPopup from "../AIChatAgent/AddAgentPopup";
 import { DiagramSkeleton } from "../../../components/Skeletons";
 import { AI_COMPONENT_PROGRESS_MESSAGE, AI_COMPONENT_PROGRESS_MESSAGE_TIMEOUT, FORM_LOADING_MESSAGE, LOADING_MESSAGE } from "../../../constants";
-import { ConnectionListItem } from "@wso2/wso2-platform-core";
+import { ConnectionListItem, MarketplaceItem } from "@wso2/wso2-platform-core";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 import { requestMiniChatOpen } from "../../../components/AgentStatusOrb/shared";
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
+import { CloudKnowledgeBasePage } from "../Connection/DevantConnections/CloudKnowledgeBasePage";
+import { prepareDevantKnowledgeBase } from "../Connection/DevantConnections/devant-kb-utils";
 
 const Container = styled.div`
     width: 100%;
@@ -130,6 +132,17 @@ type NodePromptLaunchOptions = {
 };
 
 const SIDE_PANEL_DEFAULT_ERROR_MESSAGE = "Error while performing the action.";
+
+// The form node kind behind each capability of the durable agent box. A capability type with
+// no entry here has no form, and is refused rather than routed to whichever branch happened
+// to be last.
+const DURABLE_CAPABILITY_NODE_KINDS: Record<string, string> = {
+    activity: "DURABLE_AGENT_ADD_ACTIVITY",
+    event: "DURABLE_AGENT_REGISTER_EVENT",
+    tool: "DURABLE_AGENT_REGISTER_TOOL",
+    humanTask: "DURABLE_AGENT_HUMAN_TASK",
+    peer: "DURABLE_AGENT_PEER",
+};
 
 // AI component pickers resolve templates from Central, so selecting one shows a full-panel loader.
 const AI_COMPONENT_PICKER_VIEWS: SidePanelView[] = [
@@ -186,6 +199,8 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     const isMountedRef = useRef(true);
     const selectedNodeRef = useRef<FlowNode>();
     const nodeTemplateRef = useRef<FlowNode>();
+    // The "WSO2 Cloud Knowledge Base" box node captured on click; its codedata drives the create flows.
+    const cloudKbNodeRef = useRef<AvailableNode>();
     const hasRenameOperation = useRef<boolean>(false);
     const topNodeRef = useRef<FlowNode | Branch>();
     const targetRef = useRef<LineRange>();
@@ -642,6 +657,71 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         } else {
             console.log(">>> KNOWLEDGE_BASE_LIST not found in navigation stack, closing panel");
             closeSidePanelAndFetchUpdatedFlowModel();
+        }
+    };
+
+    // Registers a Devant-backed WSO2 Cloud knowledge base and opens its pre-filled create form.
+    const handleCreateDevantKnowledgeBase = async (node: AvailableNode, item: MarketplaceItem) => {
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const flowNode = await prepareDevantKnowledgeBase({
+                rpcClient,
+                platformRpcClient,
+                platformExtState,
+                item,
+                node,
+                projectPath,
+                target: targetRef.current.startLine,
+                fileName: model?.fileName,
+            });
+            if (!flowNode) {
+                showConnectorError();
+                return;
+            }
+            selectedNodeRef.current = flowNode;
+            nodeTemplateRef.current = flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error setting up WSO2 Cloud knowledge base", error);
+        } finally {
+            setShowProgressIndicator(false);
+        }
+    };
+
+    // "Create new" on the WSO2 Cloud KB intermediate page: open a blank CloudKnowledgeBase form
+    // (manual entry, no Devant service pre-selected). Mirrors the generic node-template -> form path.
+    const handleCreateNewCloudKnowledgeBase = async () => {
+        const kbCodedata = cloudKbNodeRef.current?.codedata;
+        if (!kbCodedata) {
+            return;
+        }
+        setShowProgressIndicator(true);
+        pushToNavigationStack(sidePanelView, categories, selectedNodeRef.current, selectedClientName.current);
+        try {
+            const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
+                position: targetRef.current.startLine,
+                filePath: model?.fileName,
+                id: kbCodedata,
+            });
+            if ((response as any)?.errorMsg) {
+                showConnectorError((response as any).errorMsg);
+                return;
+            }
+            selectedNodeRef.current = response.flowNode;
+            nodeTemplateRef.current = response.flowNode;
+            showEditForm.current = false;
+            isCreatingNewVectorKnowledgeBase.current = true; // reuse KB post-create navigation
+            setSidePanelView(SidePanelView.FORM);
+            setShowSidePanel(true);
+        } catch (error) {
+            console.error(">>> Error opening WSO2 Cloud knowledge base form", error);
+            showConnectorError();
+        } finally {
+            setShowProgressIndicator(false);
         }
     };
 
@@ -1190,6 +1270,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         if (agentEditor.view !== "NONE") {
             agentEditor.close();
         }
+        // Dismissing the panel ends the agent flow, so the flags that say "this activity list belongs
+        // to an agent" end with it. They are not cleared in resetNodeSelectionStates, which also runs
+        // on post-write refreshes the flow is meant to survive — only an explicit close means cancel.
+        durableAgentActivityListRef.current = false;
+        activityWizardForAgentRef.current = false;
         resetNodeSelectionStates();
         // Cancel draft and return to previous flow model
         if (hasDraft) {
@@ -1682,6 +1767,18 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
 
         const showFormLoader = AI_COMPONENT_PICKER_VIEWS.includes(sidePanelView);
 
+        // The "WSO2 Cloud Knowledge Base" box routes to an intermediate page (list existing cloud KBs
+        // + create new) instead of the generic form.
+        if (
+            sidePanelView === SidePanelView.KNOWLEDGE_BASES &&
+            node.codedata.packageName === "ai.wso2.integration"
+        ) {
+            cloudKbNodeRef.current = node; // reuse this codedata for the list/create flows
+            setSidePanelView(SidePanelView.WSO2_CLOUD_KB_LIST);
+            setShowSidePanel(true);
+            return;
+        }
+
         switch (node.codedata.node) {
             case "FUNCTION":
                 setShowProgressIndicator(true);
@@ -1958,13 +2055,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     break;
                 }
 
-                // Selecting a project activity from the list is a complete choice — append it to
-                // the agent declaration's activities list directly (no intermediate form),
-                // unless it needs a binding.
+                // Selecting a project activity from the list opens its registration form
+                // (retry policy, approval gating, bindings) before anything is written.
                 setShowProgressIndicator(true);
                 addActivityToDurableAgent(node.codedata, fileName)
                     .catch((error) => {
                         console.error(">>> Error adding the activity to the agent", error);
+                        // The form never opens on failure, so without this the panel just sits on the
+                        // activity list with the spinner gone and no reason given.
+                        showConnectorError();
                     })
                     .finally(() => {
                         setShowProgressIndicator(false);
@@ -2256,6 +2355,46 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                 updatedNode.codedata.lineRange = selectedLineRange;
             }
             hasRenameOperation.current = false;
+        }
+
+        // A durable-agent capability edit writes back to the entry's own range inside the
+        // declaration's config literal, but the form re-stamps the submitted node with
+        // targetLineRange — the expression-editor probe position at the declaration START
+        // (see probeRangeForCapability). Submitting that range would splice the entry text
+        // into the declaration line, so restore the entry range stamped on the selected node
+        // by handleOnEditDurableCapability.
+        if (
+            updatedNode.codedata?.isNew === false &&
+            Object.values(DURABLE_CAPABILITY_NODE_KINDS).includes(updatedNode.codedata.node)
+        ) {
+            // The range is only the entry's if the selected node is still the node being submitted.
+            // A panel navigation between opening the form and submitting it can move the ref, and a
+            // range taken from another node would splice this entry over that one's source.
+            //
+            // Identity has to separate two entries of the SAME kind on the same agent, which is the
+            // realistic stale case. They share `node` and `parentSymbol`, and `codedata.symbol` too —
+            // every activity entry's template carries `registerActivity`, whatever activity it
+            // registers. What distinguishes them is the capability's name, which the form preserves:
+            // createNodeWithUpdatedLineRange and updateNodeWithProperties both spread the node and
+            // replace only codedata.lineRange and properties.
+            const selectedCodedata = selectedNodeRef.current?.codedata;
+            const sameEntry =
+                !!selectedCodedata?.lineRange &&
+                selectedCodedata.node === updatedNode.codedata.node &&
+                selectedCodedata.parentSymbol === updatedNode.codedata.parentSymbol &&
+                selectedNodeRef.current?.metadata?.label === updatedNode.metadata?.label;
+            if (!sameEntry) {
+                // There is nowhere safe to write: the submitted range is the probe position at the
+                // declaration START, so going ahead would splice the entry over the declaration
+                // itself. Abort and say so, rather than corrupting the source we cannot place.
+                console.error(
+                    ">>> Cannot place a durable agent capability edit; aborting the submit",
+                    { submitted: updatedNode.codedata, selected: selectedCodedata }
+                );
+                showConnectorError();
+                return;
+            }
+            updatedNode.codedata.lineRange = selectedCodedata.lineRange;
         }
 
         setShowProgressIndicator(true);
@@ -3437,11 +3576,11 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         return node;
     };
 
-    // Appends a project activity to the agent declaration's activities. An activity that takes
-    // something the model cannot supply — the client of a connection-based activity, say — comes
-    // back with a binding selector per such parameter: those open the register form so the
-    // connection is picked, because an entry registered without it could never be invoked.
-    // Everything else is a complete choice and is written straight to the declaration.
+    // Opens the registration form for a project activity picked from the agent's activity list.
+    // The activity itself is already chosen (its selector arrives pre-selected and hidden), so
+    // the form presents the registration config: retry policy, approval gating, and a binding
+    // selector for every parameter the model cannot supply — the client of a connection-based
+    // activity, say. Saving appends the entry to the agent declaration's activities.
     const addActivityToDurableAgent = async (activityCodedata: AvailableNode["codedata"], fileName?: string) => {
         const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
             position: targetRef.current.startLine,
@@ -3457,20 +3596,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
             startLine: targetRef.current.startLine,
             endLine: targetRef.current.startLine,
         } as any;
-        if (Object.keys(activityNode.properties ?? {}).some((key) => key.startsWith("bindings."))) {
-            selectedNodeRef.current = activityNode;
-            nodeTemplateRef.current = activityNode;
-            showEditForm.current = false;
-            setSidePanelView(SidePanelView.FORM);
-            setShowSidePanel(true);
-            return;
-        }
-        await rpcClient.getBIDiagramRpcClient().getSourceCode({
-            filePath: model.fileName,
-            flowNode: activityNode,
-        });
-        durableAgentActivityListRef.current = false;
-        finishCapabilityOpAfterRefresh();
+        // Title the form with the chosen activity, like the edit path does.
+        activityNode.metadata = {
+            ...activityNode.metadata,
+            label: activityCodedata?.symbol || activityNode.metadata?.label,
+        } as any;
+        selectedNodeRef.current = activityNode;
+        nodeTemplateRef.current = activityNode;
+        showEditForm.current = false;
+        setSidePanelView(SidePanelView.FORM);
+        setShowSidePanel(true);
     };
 
     // Adds a workflow activity to the durable agent: the registerActivities statement is
@@ -3608,13 +3743,7 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
     // The form behind each capability of the agent box. A kind with no entry here has no form,
     // and is refused rather than routed to whichever branch happened to be last.
     const durableCapabilityNodeKind = (type?: string): string | undefined =>
-        ({
-            activity: "DURABLE_AGENT_ADD_ACTIVITY",
-            event: "DURABLE_AGENT_REGISTER_EVENT",
-            tool: "DURABLE_AGENT_REGISTER_TOOL",
-            humanTask: "DURABLE_AGENT_HUMAN_TASK",
-            peer: "DURABLE_AGENT_PEER",
-        } as Record<string, string>)[type ?? ""];
+        DURABLE_CAPABILITY_NODE_KINDS[type ?? ""];
 
     const handleOnEditDurableCapability = async (runNode: FlowNode, capability: any) => {
         const superseded = beginPanelNav();
@@ -3648,10 +3777,16 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
         setTargetLineRange(probeRange);
         setShowProgressIndicator(true);
         try {
+            // An activity capability's template is requested with the activity function as the
+            // symbol: the selector arrives pre-selected (and hidden — the entry's activity is its
+            // identity, not a choice) and the template carries the binding selector properties,
+            // without which a declared `bindings` field could not round-trip through the form.
+            const activityRef =
+                capability?.type === "activity" ? (capability?.values as any)?.activity : undefined;
             const response = await rpcClient.getBIDiagramRpcClient().getNodeTemplate({
                 position: lineRange.startLine,
                 filePath: model?.fileName,
-                id: { node: nodeKind } as any,
+                id: (activityRef ? { node: nodeKind, symbol: activityRef } : { node: nodeKind }) as any,
             });
             const node = response.flowNode;
             // Seed the form with the existing statement's values and point it at that statement.
@@ -4110,6 +4245,15 @@ export function BIFlowDiagram(props: BIFlowDiagramProps) {
                     platformExtState?.selectedContext?.project && !platformExtState?.devantConns?.loading
                         ? () => platformRpcClient?.refreshConnectionList()
                         : undefined
+                }
+                wso2CloudKbListSection={
+                    <CloudKnowledgeBasePage
+                        onCreateNew={handleCreateNewCloudKnowledgeBase}
+                        onSelectExisting={(item) =>
+                            cloudKbNodeRef.current &&
+                            handleCreateDevantKnowledgeBase(cloudKbNodeRef.current, item)
+                        }
+                    />
                 }
             />
 

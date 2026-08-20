@@ -61,30 +61,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reset builds/nightly to the source branch
-        env:
-          INPUT_SOURCE_BRANCH: ${{ inputs.sourceBranch }}
+      - name: Configure git identity
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if [ -n "${INPUT_SOURCE_BRANCH}" ]; then
-            SOURCE_BRANCH="${INPUT_SOURCE_BRANCH}"
-          else
-            # No explicit source given (scheduled run, or manual run left blank): prefer the
-            # latest staging/* branch (e.g. staging/5.14.0) if one exists, so the nightly
-            # pipeline follows the active release staging branch without a workflow edit
-            # each time one is cut. Falls back to main once no staging/* branch remains.
-            latest_staging=$(git ls-remote --heads origin \
-              | awk -F'refs/heads/' '/refs\/heads\/staging\// { print $2 }' \
-              | sort -t/ -k2 -V | tail -n 1)
-            SOURCE_BRANCH="${latest_staging:-main}"
-          fi
+      - name: Resolve source branch
+        id: resolve-source
+        uses: ./.github/actions/resolve-source-branch
+        with:
+          sourceBranch: ${{ inputs.sourceBranch }}
 
+      - name: Reset builds/nightly to the source branch
+        env:
+          SOURCE_BRANCH: ${{ steps.resolve-source.outputs.branch }}
+        run: |
+          set -euo pipefail
           # Checkout fetches only the triggering ref, so fetch the requested source
           # explicitly even though the initial checkout uses fetch-depth 0.
-          SOURCE_BRANCH="$(git check-ref-format --branch "${SOURCE_BRANCH}")"
           git fetch origin \
             "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
           git checkout -B builds/nightly "origin/${SOURCE_BRANCH}"

@@ -150,6 +150,7 @@ import io.ballerina.flowmodelgenerator.core.model.node.ChunkerBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.ClassInitBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataLoaderBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DataMapperBuilder;
+import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentAddActivityBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentDataResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentResultBuilder;
 import io.ballerina.flowmodelgenerator.core.model.node.DurableAgentRunBuilder;
@@ -276,6 +277,7 @@ import static io.ballerina.modelgenerator.commons.CommonUtils.isPersistClient;
  * @since 1.0.0
  */
 public class CodeAnalyzer extends NodeVisitor {
+
     public static final String PARAMETERIZED_QUERY = "sql:ParameterizedQuery";
     public static final String PARAMETERIZED_CALL_QUERY = "sql:ParameterizedCallQuery";
     // Readonly fields
@@ -290,6 +292,7 @@ public class CodeAnalyzer extends NodeVisitor {
     private final String connectionScope;
     private final WorkspaceManager workspaceManager;
     private final Path filePath;
+
     // State fields
     private NodeBuilder nodeBuilder;
     private final List<FlowNode> flowNodeList;
@@ -335,7 +338,7 @@ public class CodeAnalyzer extends NodeVisitor {
         // Source diagnostics from the package compilation (superset of the semantic model) so that compiler plugin
         // diagnostics are surfaced alongside semantic-phase ones.
         this.diagnosticHandler = new DiagnosticHandler(
-                PackageUtil.getCompilation(project.currentPackage()).diagnosticResult().diagnostics());
+                project.currentPackage().getCompilation().diagnosticResult().diagnostics());
         this.workspaceManager = workspaceManager;
         this.filePath = filePath;
     }
@@ -552,6 +555,12 @@ public class CodeAnalyzer extends NodeVisitor {
             } else {
                 overrideSymbolFromFirstArg(remoteMethodCallActionNode.arguments());
                 populateActivityCallProperties(remoteMethodCallActionNode);
+                // `callActivity` returns `T|error` with `T` an inferred typedesc, so processing its symbol
+                // marks the node as having an inferred return type - and the form hides the result type
+                // field for such nodes. For a user-defined activity the result type is the activity
+                // function's own, which the creation form does present, so clear the flag or the field
+                // would vanish on edit.
+                nodeBuilder.codedata().inferredReturnType(null);
             }
             // The node title is the activity being called, not the generic callActivity method name
             // (the node icon already marks it as an activity call).
@@ -781,7 +790,7 @@ public class CodeAnalyzer extends NodeVisitor {
                     }
                     String toolName = fieldName.name().text();
                     if (isMcpToolKitExpression(fieldAccess)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER));
+                        toolsData.add(new ToolData(toolName, ICON_PATH, "", MCP_SERVER, false));
                         continue;
                     }
                     MethodSymbol method = resolveToolMethod(fieldAccess, toolName).orElse(null);
@@ -790,16 +799,21 @@ public class CodeAnalyzer extends NodeVisitor {
                     String description = method == null ? "" : method.documentation()
                             .flatMap(Documentation::description)
                             .orElse("");
-                    toolsData.add(new ToolData(toolName, icon, description, type));
+                    boolean requiresApproval = method != null
+                            && AiUtils.readRequiresApproval(method, project);
+                    toolsData.add(new ToolData(toolName, icon, description, type, requiresApproval));
                 } else if (element instanceof SimpleNameReferenceNode nameRef) {
                     String toolName = nameRef.name().text();
                     Symbol symbol = semanticModel.symbol(element).orElse(null);
                     if (AiUtils.isMcpToolKitSymbol(symbol) || isMcpToolKitExpression(nameRef)) {
-                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER));
+                        toolsData.add(new ToolData(toolName, ICON_PATH, getToolDescription(""), MCP_SERVER, false));
                     } else {
                         String type = symbol instanceof FunctionSymbol function && isAgentDelegationTool(function)
                                 ? AGENT_TOOL_TYPE : null;
-                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type));
+                        boolean requiresApproval = symbol != null
+                                && AiUtils.readRequiresApproval(symbol, project);
+                        toolsData.add(new ToolData(toolName, getIcon(toolName), getToolDescription(toolName), type,
+                                requiresApproval));
                     }
                 }
             }
@@ -1539,6 +1553,35 @@ public class CodeAnalyzer extends NodeVisitor {
                     }
                     String fieldName = specificField.fieldName().toSourceCode().trim();
                     String rawValue = specificField.valueExpr().get().toSourceCode().trim();
+                    // Activity entries carry two composite fields the generic key mapping cannot
+                    // express, and both must hydrate or an edit-save regenerates the entry
+                    // without them. retryPolicy decomposes into the retry form's dropdown value
+                    // plus sub-fields; bindings explodes into the form's per-parameter selectors.
+                    if ("activity".equals(capabilityType) && "retryPolicy".equals(fieldName)) {
+                        RetryPolicyForm retryForm = normalizeRetryPolicy(rawValue);
+                        values.put(ActivityCallBuilder.RETRY_POLICY_PARAM, retryForm.dropdownValue());
+                        putIfNotBlank(values, ActivityCallBuilder.MAX_RETRIES_KEY, retryForm.maxRetries());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_DELAY_KEY, retryForm.retryDelay());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_BACKOFF_KEY, retryForm.retryBackoff());
+                        putIfNotBlank(values, ActivityCallBuilder.MAX_RETRY_DELAY_KEY,
+                                retryForm.maxRetryDelay());
+                        putIfNotBlank(values, ActivityCallBuilder.RETRY_USER_ROLES_KEY,
+                                retryForm.retryUserRoles());
+                        continue;
+                    }
+                    if ("activity".equals(capabilityType) && "bindings".equals(fieldName)
+                            && specificField.valueExpr().get().kind() == SyntaxKind.MAPPING_CONSTRUCTOR) {
+                        for (MappingFieldNode bindingField
+                                : ((MappingConstructorExpressionNode) specificField.valueExpr().get()).fields()) {
+                            if (bindingField instanceof SpecificFieldNode bindingSpecific
+                                    && bindingSpecific.valueExpr().isPresent()) {
+                                values.put(DurableAgentAddActivityBuilder.BINDING_KEY_PREFIX
+                                                + bindingSpecific.fieldName().toSourceCode().trim(),
+                                        bindingSpecific.valueExpr().get().toSourceCode().trim());
+                            }
+                        }
+                        continue;
+                    }
                     String propertyKey = fieldToPropertyKey.get(fieldName);
                     if (propertyKey != null) {
                         // The cardinality enum may be module-qualified in source (workflow:SINGLE_EVENT);
@@ -1547,7 +1590,7 @@ public class CodeAnalyzer extends NodeVisitor {
                         // form shows the text, not its source syntax.
                         String value;
                         if ("cardinality".equals(fieldName)) {
-                            value = stripModulePrefix(rawValue);
+                            value = WorkflowUtil.stripModulePrefix(rawValue);
                         } else if (TEXT_MODE_CAPABILITY_FIELDS.contains(fieldName)) {
                             value = stripQuotes(rawValue);
                         } else {
@@ -1573,9 +1616,10 @@ public class CodeAnalyzer extends NodeVisitor {
     private static final Set<String> TEXT_MODE_CAPABILITY_FIELDS =
             Set.of("name", "title", "description", "roles");
 
-    private static String stripModulePrefix(String value) {
-        int colon = value.lastIndexOf(':');
-        return colon >= 0 ? value.substring(colon + 1) : value;
+    private static void putIfNotBlank(Map<String, String> values, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            values.put(key, value);
+        }
     }
 
     private static String stripQuotes(String value) {
@@ -1724,6 +1768,7 @@ public class CodeAnalyzer extends NodeVisitor {
         }
 
         if (activityParamSymbols.isEmpty()) {
+            ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(remoteMethodCallActionNode));
             addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
             return;
         }
@@ -1803,8 +1848,47 @@ public class CodeAnalyzer extends NodeVisitor {
                     customPropBuilder, diagnosticHandler);
             nodeBuilderFormBuilder.addProperty(FlowNodeUtil.getPropertyKey(paramName), valueNode);
         }
+        // The flag mirrors the template so an existing statement round-trips: a call written without
+        // `check` comes back with the box cleared instead of being silently rewritten with it.
+        ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(remoteMethodCallActionNode));
         // After activity input params, add retryPolicy at root level (outside ADVANCE_PARAM_LIST).
         addNormalizedRetryPolicyProperties(rawRetryPolicyValue);
+    }
+
+    /**
+     * Whether the given call is wrapped in a {@code check} expression/action in the source.
+     */
+    private static boolean isCheckedCall(NonTerminalNode callNode) {
+        SyntaxKind parentKind = callNode.parent().kind();
+        return parentKind == SyntaxKind.CHECK_ACTION || parentKind == SyntaxKind.CHECK_EXPRESSION;
+    }
+
+    private boolean bindsWildcard() {
+        return this.typedBindingPatternNode != null
+                && this.typedBindingPatternNode.bindingPattern().kind() == SyntaxKind.WILDCARD_BINDING_PATTERN;
+    }
+
+    /**
+     * Whether the statement discards a result that carries no value of its own — the shape
+     * {@code () _ = check ctx->callActivity(...)} takes when an activity only reports failure.
+     *
+     * <p>A wildcard alone is not enough: {@code int _ = check ctx->callActivity(...)} discards a value
+     * that still has a declared type, and reading it as a nil result would drop that type from the
+     * form and rewrite the statement without it on save.
+     */
+    private boolean bindsNilWildcard() {
+        return bindsWildcard()
+                && ActivityCallBuilder.isNilResultType(this.typedBindingPatternNode.typeDescriptor());
+    }
+
+    /**
+     * Whether the statement names a result whose type carries no value of its own — the shape
+     * {@code error? r = ctx->callActivity(...)} takes when an activity only reports failure and its
+     * errors are not checked.
+     */
+    private boolean bindsNilResult() {
+        return this.typedBindingPatternNode != null && !bindsWildcard()
+                && ActivityCallBuilder.isNilResultType(this.typedBindingPatternNode.typeDescriptor());
     }
 
     /**
@@ -2007,10 +2091,6 @@ public class CodeAnalyzer extends NodeVisitor {
         // the clear below discards them.  Without this, builtin activities lose their advanced options
         // on every reload/regeneration, causing toSourceBuiltin() to omit them.
         Map<String, Property> currentProps = nodeBuilder.properties().build();
-        Property savedCheckError = currentProps.get(Property.CHECK_ERROR_KEY);
-        boolean uncheckedBuiltinInDoClause = callNode.parent().kind() != SyntaxKind.CHECK_ACTION
-                && callNode.parent().kind() != SyntaxKind.CHECK_EXPRESSION
-                && CommonUtils.withinDoClause(callNode);
         Property savedInferredType = currentProps.values().stream()
                 .filter(property -> property.codedata() != null && property.codedata().kind() != null
                         && property.codedata().kind().equals(ParameterData.Kind.PARAM_FOR_TYPE_INFER.name()))
@@ -2121,16 +2201,8 @@ public class CodeAnalyzer extends NodeVisitor {
                             .advanced(false)
                             .build());
         }
-        // Restore checkError. If the original call was unchecked inside a do-clause and no explicit
-        // checkError property was captured, persist false explicitly so toSourceBuiltin() doesn't
-        // fall back to its default true.
-        if (savedCheckError != null) {
-            boolean checkError = savedCheckError.value() != null
-                    && Boolean.parseBoolean(savedCheckError.value().toString());
-            nodeBuilder.properties().checkError(checkError);
-        } else if (uncheckedBuiltinInDoClause) {
-            nodeBuilder.properties().checkError(false);
-        }
+
+        ActivityCallBuilder.addCheckErrorProperty(nodeBuilder, isCheckedCall(callNode));
 
         // Restore advanced callActivity params (retryOnError, timeout, etc.) as ADVANCED_PARAM_KEY
         // so toSourceBuiltin() / populateAdvancedArgs() can emit them as named arguments.
@@ -2153,6 +2225,19 @@ public class CodeAnalyzer extends NodeVisitor {
      * then adds them as root-level properties on the current nodeBuilder.
      */
     private void addNormalizedRetryPolicyProperties(String rawValue) {
+        RetryPolicyForm form = normalizeRetryPolicy(rawValue);
+        ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, form.dropdownValue(),
+                form.maxRetries(), form.retryDelay(), form.retryBackoff(), form.maxRetryDelay(),
+                form.retryUserRoles());
+    }
+
+    // The retry-policy form's decomposition of a raw retryPolicy source value: the dropdown
+    // selection plus its sub-field values.
+    private record RetryPolicyForm(String dropdownValue, String maxRetries, String retryDelay,
+                                   String retryBackoff, String maxRetryDelay, String retryUserRoles) {
+    }
+
+    private static RetryPolicyForm normalizeRetryPolicy(String rawValue) {
         String dropdownValue = ActivityCallBuilder.NO_RETRY_VALUE;
         String maxRetries = "", retryDelay = "", retryBackoff = "", maxRetryDelay = "";
         String retryUserRoles = "";
@@ -2184,9 +2269,8 @@ public class CodeAnalyzer extends NodeVisitor {
                 dropdownValue = trimmed;
             }
         }
-
-        ActivityCallBuilder.addRetryPolicyFormProperties(nodeBuilder, dropdownValue,
-                maxRetries, retryDelay, retryBackoff, maxRetryDelay, retryUserRoles);
+        return new RetryPolicyForm(dropdownValue, maxRetries, retryDelay, retryBackoff,
+                maxRetryDelay, retryUserRoles);
     }
 
     // Whether the retryPolicy source is a literal reviewer role (a string) or role list, the two
@@ -3847,6 +3931,21 @@ public class CodeAnalyzer extends NodeVisitor {
                             Property.VARIABLE_DOC, true, new HashSet<>(), true);
         } else if (nodeBuilder instanceof WaitDataBuilder) {
             // Variable/type info is embedded in the dataWaits property — skip generic handling
+        } else if (nodeBuilder instanceof ActivityCallBuilder && (bindsNilWildcard() || bindsNilResult())) {
+            // An activity producing no value: `() _ = check ctx->callActivity(...)` while its errors are
+            // checked, `error? r = ctx->callActivity(...)` while they are not. Either way the form gets the
+            // template's shape - the Result field inside the cleared Check Error branch, its value in a
+            // root property the branch's field reads from - so clearing the box on a checked statement
+            // still asks for a name. A plain result variable here would be shadowed by the branch's own
+            // (empty) field, leaving the form blank.
+            // The wildcard names nothing, so the name starts empty and the branch's field (required)
+            // collects it; an unchecked statement carries the name it already bound.
+            Property capturedFlag = nodeBuilder.properties().build().get(Property.CHECK_ERROR_KEY);
+            boolean checkedInSource = capturedFlag == null || capturedFlag.value() == null
+                    || Boolean.parseBoolean(capturedFlag.value().toString());
+            String boundName = bindsWildcard() ? ""
+                    : this.typedBindingPatternNode.bindingPattern().toSourceCode().strip();
+            ActivityCallBuilder.addNilResultProperties(nodeBuilder, checkedInSource, boundName);
         } else if (nodeBuilder.properties().build().containsKey(Property.VARIABLE_KEY)
                 && !(nodeBuilder instanceof AgentCallBuilder)) {
             // VARIABLE_KEY already set (e.g. by populateBuiltinActivityProperties) — skip.
@@ -5473,7 +5572,8 @@ public class CodeAnalyzer extends NodeVisitor {
 
     }
 
-    private record ToolData(String name, String path, String description, String type) {
+    private record ToolData(String name, String path, String description, String type,
+                            boolean requiresApproval) {
 
     }
 

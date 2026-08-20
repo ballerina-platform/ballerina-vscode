@@ -1241,6 +1241,7 @@
             "label": "On Create",
             "description": "Invoked when a .csv file is created in the monitored directory. Define a row schema below to receive the rows as custom types (e.g., User[], Student[]).",
             "addLabel": "Add On Create Handler (CSV)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileCsv",
@@ -1768,6 +1769,7 @@
             "label": "On Create",
             "description": "Invoked when a .json file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (JSON)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileJson",
@@ -2305,6 +2307,7 @@
             "label": "On Create",
             "description": "Invoked when a .xml file is created in the monitored directory. Define a schema below to receive the content as a custom type (e.g., User, Student).",
             "addLabel": "Add On Create Handler (XML)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileXml",
@@ -2832,6 +2835,7 @@
             "label": "On Create",
             "description": "Invoked when a .txt file is created in the monitored directory. The content arrives as plain text.",
             "addLabel": "Add On Create Handler (Text)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFileText",
@@ -3355,6 +3359,7 @@
             "label": "On Create",
             "description": "Invoked when a file is created in the monitored directory. Handles any extension without a typed handler; the content arrives as raw, unparsed bytes.",
             "addLabel": "Add On Create Handler (Raw Bytes)",
+            "addDescription": "Invoked when a file is created in the monitored directory.",
             "badge": "onCreate"
           },
           "name": "onFile",

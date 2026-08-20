@@ -551,13 +551,18 @@ export class AiPanelRpcManager implements AIPanelAPI {
 
             console.log(`[Review Actions] Reverting generation ${doneGeneration.id}`);
 
-            // Restore workspace to state before this generation ran
+            // Restore workspace to state before this generation ran. Without a checkpoint
+            // (checkpoints disabled, or the workspace exceeded the snapshot size cap)
+            // nothing can be restored — that must fail loudly rather than mark the
+            // generation reverted and tell the model files were restored when they weren't.
             const checkpoint = doneGeneration.checkpoint;
-            if (checkpoint) {
-                await restoreWorkspaceSnapshot(checkpoint, true);
-            } else {
-                console.warn("[Review Actions] No checkpoint found for generation — workspace changes will not be reverted");
+            if (!checkpoint) {
+                const reason = "No checkpoint exists for this generation (checkpoints may be disabled, or the workspace exceeded the snapshot size limit), so the changes cannot be reverted automatically. Use source control to undo them if needed.";
+                console.error(`[Review Actions] Revert refused for ${doneGeneration.id}: ${reason}`);
+                window.showErrorMessage(`Could not revert the Copilot changes: ${reason}`);
+                throw new Error(reason);
             }
+            await restoreWorkspaceSnapshot(checkpoint, true);
 
             // Append revert notification to model messages so the LLM knows changes were reverted
             const existingMessages = doneGeneration.modelMessages || [];
@@ -575,6 +580,10 @@ User reverted the last made changes. The files have been restored to the state b
 
             chatStateStorage.revertLastGeneration(projectRootPath, threadId);
             console.log(`[Review Actions] Reverted generation: ${doneGeneration.id}`);
+
+            // Drop the manager's cached review for this generation so a queued/late
+            // navigation cannot reopen the just-reverted diff.
+            approvalViewManager.clearReviewData(doneGeneration.id);
 
             sendGenerationDiscardTelemetry(doneGeneration.id);
 

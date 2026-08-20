@@ -43,7 +43,6 @@ import org.ballerinalang.langserver.commons.command.CommandArgument;
 import org.ballerinalang.langserver.commons.command.LSCommandExecutorException;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
-import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.contexts.LanguageServerContextImpl;
 import org.ballerinalang.langserver.extensions.ballerina.document.ExecutorPositionsUtil;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
@@ -61,7 +60,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockSettings;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -88,23 +87,21 @@ import static org.awaitility.Awaitility.await;
  *
  * @since 1.0.0
  */
-@Test()
 public class TestWorkspaceManager {
 
     private static final Path RESOURCE_DIRECTORY = Path.of("src/test/resources/project");
     private final String dummyContent = "function foo() {" + CommonUtil.LINE_SEPARATOR + "}";
     private final String dummyDidChangeContent = "function foo1() {" + CommonUtil.LINE_SEPARATOR + "}";
-    private WorkspaceManager workspaceManager;
+    private BallerinaWorkspaceManager workspaceManager;
 
     @BeforeMethod
     void initWorkspaceManager() {
         // Need to get a clean workspace manager before each test method
-        workspaceManager = WorkspaceManagerFacadeFactory.create(new LanguageServerContextImpl());
+        workspaceManager = new BallerinaWorkspaceManager(new LanguageServerContextImpl());
     }
 
-    @AfterMethod
+    @AfterClass
     void cleanupWorkspaceManager() {
-        closeWorkspaceManager(workspaceManager);
         workspaceManager = null;
     }
 
@@ -127,7 +124,10 @@ public class TestWorkspaceManager {
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e instanceof WorkspaceDocumentException);
-            Assert.assertTrue(workspaceManager.project(filePath).isEmpty());
+            Path projectRoot = workspaceManager.projectRoot(filePath);
+            BallerinaWorkspaceManager.ProjectContext projectContext =
+                    workspaceManager.sourceRootToProject.get(projectRoot);
+            Assert.assertTrue(projectContext == null || projectContext.isProjectCrashed());
         }
     }
 
@@ -138,7 +138,10 @@ public class TestWorkspaceManager {
 
         // Open project
         openFile(filePath);
-        Assert.assertTrue(workspaceManager.project(filePath).isPresent());
+        Path projectRoot = workspaceManager.projectRoot(filePath);
+        BallerinaWorkspaceManager.ProjectContext projectContext =
+                workspaceManager.sourceRootToProject.get(projectRoot);
+        Assert.assertTrue(projectContext != null && !projectContext.isProjectCrashed());
 
         // Create a new file and send CREATED event
         Path newFile = RESOURCE_DIRECTORY.resolve("pkg_with_generated_sources1").resolve("modules")
@@ -149,7 +152,8 @@ public class TestWorkspaceManager {
             openFile(newFile);
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e instanceof WorkspaceDocumentException);
+            Assert.assertTrue(e instanceof WorkspaceDocumentException
+                    && projectContext.isProjectCrashed());
         } finally {
             Files.deleteIfExists(newFile);
         }
@@ -711,8 +715,7 @@ public class TestWorkspaceManager {
         //Create workspace manager
         LanguageServerContextImpl languageServerContext = new LanguageServerContextImpl();
         languageServerContext.put(ExtendedLanguageClient.class, languageClient);
-        closeWorkspaceManager(workspaceManager);
-        workspaceManager = WorkspaceManagerFacadeFactory.create(languageServerContext);
+        workspaceManager = new BallerinaWorkspaceManager(languageServerContext);
 
         //Open the bal files/projects in the workspace
         openFile(project1File);
@@ -754,18 +757,18 @@ public class TestWorkspaceManager {
     /**
      * Test opening the root of a workspace project (multi-package workspace).
      */
-    @Test(description = "Test loading a multi-package workspace project root")
-    public void testOpenWorkspaceProjectRoot() throws WorkspaceDocumentException, EventSyncException {
+    @Test(description = "Test opening a document in a multi-package workspace project")
+    public void testOpenWorkspaceProjectRoot() throws WorkspaceDocumentException {
         Path workspaceProjectsPath =
                 RESOURCE_DIRECTORY.resolve("workspace-projects").resolve("simple-workspace").toAbsolutePath();
 
-        Project loadedProject = workspaceManager.loadProject(workspaceProjectsPath);
+        // Open file from workspace project
+        openFile(workspaceProjectsPath);
         Optional<Project> project = workspaceManager.project(workspaceProjectsPath);
 
         Assert.assertTrue(project.isPresent(), "Project should be loaded from workspace");
-        Assert.assertEquals(loadedProject.kind(), ProjectKind.WORKSPACE_PROJECT,
+        Assert.assertEquals(project.get().kind(), ProjectKind.WORKSPACE_PROJECT,
                 "Workspace root should be loaded as WORKSPACE_PROJECT");
-        Assert.assertSame(project.get(), loadedProject, "Loaded workspace root should be cached");
     }
 
     /**
@@ -914,8 +917,8 @@ public class TestWorkspaceManager {
                 "Package B project should still exist");
     }
 
-    @Test(description = "Test closing all documents in one workspace package keeps package isolation")
-    public void testDocumentLifecycleAfterClosingAllPackageDocuments() throws WorkspaceDocumentException {
+    @Test(description = "Test last-close eviction removes only the matching workspace package")
+    public void testDocumentLifecycleWithLastCloseEviction() throws WorkspaceDocumentException {
         Path workspaceProjectsPath = RESOURCE_DIRECTORY.resolve("workspace-projects");
         Path packageAFile = workspaceProjectsPath.resolve("simple-workspace")
                 .resolve("package-a").resolve("main.bal").toAbsolutePath();
@@ -923,6 +926,7 @@ public class TestWorkspaceManager {
                 .resolve("package-a").resolve("modules").resolve("utils").resolve("utils.bal").toAbsolutePath();
         Path packageBFile = workspaceProjectsPath.resolve("simple-workspace")
                 .resolve("package-b").resolve("main.bal").toAbsolutePath();
+        workspaceManager.setEvictProjectOnLastClose(true);
 
         openFile(packageAFile);
         openFile(packageAUtilsFile);
@@ -939,10 +943,10 @@ public class TestWorkspaceManager {
         closePackageAUtilsParams.setTextDocument(new TextDocumentIdentifier(packageAUtilsFile.toUri().toString()));
         workspaceManager.didClose(packageAUtilsFile, closePackageAUtilsParams);
 
-        Assert.assertTrue(workspaceManager.project(packageAFile).isPresent(),
-                "Package A project should remain loaded after all package A documents close");
+        Assert.assertTrue(workspaceManager.project(packageAFile).isEmpty(),
+                "Package A project should be evicted after its last open document closes");
         Assert.assertTrue(workspaceManager.project(packageBFile).isPresent(),
-                "Package B project should remain loaded after closing package A documents");
+                "Package B project should remain loaded after evicting package A");
     }
 
     /**
@@ -1043,29 +1047,26 @@ public class TestWorkspaceManager {
         Path workspaceProjectsPath = RESOURCE_DIRECTORY.resolve("workspace-projects");
         Path packageAFile = workspaceProjectsPath.resolve("simple-workspace")
                 .resolve("package-b").resolve("main.bal").toAbsolutePath();
-        WorkspaceManager workspaceManagerProxy = WorkspaceManagerFacadeFactory.create(new LanguageServerContextImpl());
-        try {
-            workspaceManagerProxy.loadProject(packageAFile);
-            byte[] encodedContent = Files.readAllBytes(packageAFile);
+        BallerinaWorkspaceManagerProxy workspaceManagerProxy =
+                new BallerinaWorkspaceManagerProxyImpl(new LanguageServerContextImpl());
+        workspaceManagerProxy.get().loadProject(packageAFile);
+        byte[] encodedContent = Files.readAllBytes(packageAFile);
 
-            // 2. Open same file with expr:// scheme
-            String exprUri = packageAFile.toUri().toString().replace("file:///", "expr:///");
-            DidOpenTextDocumentParams exprParams = new DidOpenTextDocumentParams();
-            TextDocumentItem exprDocumentItem = new TextDocumentItem();
-            exprDocumentItem.setUri(exprUri);
-            exprDocumentItem.setText(new String(encodedContent));
-            exprParams.setTextDocument(exprDocumentItem);
-            workspaceManagerProxy.didOpen(packageAFile, exprParams);
+        // 2. Open same file with expr:// scheme
+        String exprUri = packageAFile.toUri().toString().replace("file:///", "expr:///");
+        DidOpenTextDocumentParams exprParams = new DidOpenTextDocumentParams();
+        TextDocumentItem exprDocumentItem = new TextDocumentItem();
+        exprDocumentItem.setUri(exprUri);
+        exprDocumentItem.setText(new String(encodedContent));
+        exprParams.setTextDocument(exprDocumentItem);
+        workspaceManagerProxy.didOpen(exprParams);
 
-            // 3. Get diagnostics and verify no errors
-            Project project = workspaceManagerProxy.loadProject(packageAFile);
-            PackageCompilation compilation = project.currentPackage().getCompilation();
-            Collection<Diagnostic> diagnostics = compilation.diagnosticResult().diagnostics();
-            Assert.assertTrue(diagnostics.isEmpty(),
-                    "Project should not have any compilation errors. Found: " + diagnostics.size());
-        } finally {
-            closeWorkspaceManager(workspaceManagerProxy);
-        }
+        // 3. Get diagnostics and verify no errors
+        Project project = workspaceManagerProxy.get(exprUri).loadProject(packageAFile);
+        PackageCompilation compilation = project.currentPackage().getCompilation();
+        Collection<Diagnostic> diagnostics = compilation.diagnosticResult().diagnostics();
+        Assert.assertTrue(diagnostics.isEmpty(),
+                "Project should not have any compilation errors. Found: " + diagnostics.size());
     }
 
     private List<WorkspaceFolder> mockWorkspaceFolders() {
@@ -1090,15 +1091,6 @@ public class TestWorkspaceManager {
         textDocumentItem.setText(dummyContent);
         params.setTextDocument(textDocumentItem);
         workspaceManager.didOpen(singleFile, params);
-    }
-
-    private static void closeWorkspaceManager(WorkspaceManager workspaceManager) {
-        if (workspaceManager instanceof AutoCloseable closeableWorkspaceManager) {
-            try {
-                closeableWorkspaceManager.close();
-            } catch (Exception ignored) {
-            }
-        }
     }
 
     @DataProvider

@@ -1,0 +1,107 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Keep an activity entry's declared name and description when the entry is rewritten",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 18
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "activity": {
+        "metadata": {
+          "label": "Activity"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "myActivity",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "name": {
+        "metadata": {
+          "label": "Activity Name"
+        },
+        "valueType": "TEXT",
+        "value": "lookupClaim",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Activity Description"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "Looks up a claim by its id",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval"
+        },
+        "valueType": "FLAG",
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "NoRetry",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 8
+          },
+          "end": {
+            "line": 19,
+            "character": 18
+          }
+        },
+        "newText": "{activity: myActivity, name: \"lookupClaim\", description: \"Looks up a claim by its id\"}"
+      }
+    ]
+  }
+}

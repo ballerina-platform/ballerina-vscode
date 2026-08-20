@@ -160,6 +160,7 @@ import java.util.stream.Collectors;
  * @since 1.0.0
  */
 public class DataMapManager {
+
     public static final String DOT = "\\.";
     public static final String FROM = "from";
     public static final String WHERE = "where";
@@ -177,6 +178,7 @@ public class DataMapManager {
     public static final String ZERO = "0";
     private final Document document;
     private final Gson gson = new Gson();
+
     public DataMapManager(Document document) {
         this.document = document;
     }
@@ -2520,7 +2522,7 @@ public class DataMapManager {
                 .withContent(String.join(System.lineSeparator(), newTextDocument.textLines()))
                 .apply();
 
-        SemanticModel semanticModel = PackageUtil.getCompilation(project.currentPackage())
+        SemanticModel semanticModel = project.currentPackage().getCompilation()
                 .getSemanticModel(project.currentPackage().getDefaultModule().moduleId());
         LineRange lineRange = queryExpr.lineRange();
         Node newNode = getQueryNode(updatedDoc, lineRange, isNewClause);

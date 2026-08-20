@@ -33,7 +33,7 @@ import {
 } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 
-import { ExpressionFormField, FieldDerivation, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
+import { ExpressionFormField, FieldDerivation, FieldGroup, FormExpressionEditorProps, FormField, FormImports, FormValues } from "./types";
 import { FieldFactory } from "../editors/FieldFactory";
 import { InputMode } from "../editors/MultiModeExpressionEditor/ChipExpressionEditor/types";
 import { getValueForDropdown, isDropdownField } from "../editors/utils";
@@ -66,6 +66,7 @@ import {
     formatJSONLikeString,
     updateFormFieldWithImports,
     hasIncompleteRequiredFormFields,
+    groupHasBlockingIssue,
     shouldRunExternalFormValidation,
     isPrioritizedField,
     hasRequiredParameters,
@@ -143,6 +144,85 @@ namespace S {
         border-top: ${({ topBorder }) => (topBorder ? `1px solid ${ThemeColors.OUTLINE_VARIANT}` : "none")};
     `;
 
+    export const GroupCard = styled.div`
+        width: 100%;
+        border: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        border-radius: 4px;
+        background-color: ${ThemeColors.SURFACE_DIM};
+        transition: background-color 120ms ease, border-color 120ms ease;
+
+        &:hover {
+            border-color: ${ThemeColors.PRIMARY};
+        }
+    `;
+
+    export const GroupHeader = styled.button`
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 12px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        color: var(--vscode-editor-foreground);
+        font-family: var(--vscode-font-family);
+
+        &:focus-visible {
+            outline: 1px solid ${ThemeColors.PRIMARY};
+            outline-offset: -1px;
+            border-radius: 4px;
+        }
+    `;
+
+    export const GroupTitle = styled.span`
+        font-family: var(--vscode-font-family);
+        font-size: 13px;
+        color: var(--vscode-editor-foreground);
+    `;
+
+    export const GroupIssueIcon = styled.span`
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        margin-left: auto;
+        color: ${ThemeColors.ERROR};
+    `;
+
+    export const GroupChevron = styled.span<{ expanded?: boolean }>`
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        color: var(--vscode-descriptionForeground);
+        transform: rotate(${({ expanded }) => (expanded ? "180deg" : "0deg")});
+        transition: transform 150ms ease;
+    `;
+
+    export const GroupSection = styled.div`
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+    `;
+
+    export const GroupDivider = styled.hr`
+        width: 100%;
+        margin: 0 0 8px;
+        border: 0;
+        border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+    `;
+
+    export const GroupBody = styled.div`
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 16px 14px;
+        border-top: 1px solid ${ThemeColors.OUTLINE_VARIANT};
+        margin-top: -1px;
+    `;
+
     export const CheckboxRow = styled.div<{}>`
         display: flex;
         flex-direction: row;
@@ -171,7 +251,6 @@ namespace S {
         z-index: 10;
         width: 100%;
         padding: 16px 0 0;
-        background: var(--vscode-editor-background);
         border-top: 1px solid var(--vscode-panel-border);
     `;
 
@@ -364,6 +443,8 @@ export interface FormProps {
     // its `propertyPath` resolves to; anything unresolvable falls back to the form-level banner.
     serverValidationErrors?: ValidationResult[];
     preserveOrder?: boolean;
+    groups?: FieldGroup[];
+    opensPrefilled?: boolean;
     handleSelectedTypeChange?: (type: string | CompletionItem) => void;
     scopeFieldAddon?: React.ReactNode;
     onChange?: (fieldKey: string, value: any, allValues: FormValues) => void;
@@ -426,6 +507,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
         concertMessage,
         formImports,
         preserveOrder = false,
+        groups,
+        opensPrefilled = false,
         bottomFields = [],
         handleSelectedTypeChange,
         scopeFieldAddon,
@@ -503,6 +586,13 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }, [serverValidationErrors, setError]);
 
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(props.defaultExpandAdvanced ?? false);
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const toggleGroup = (groupId: string) =>
+        setExpandedGroups((prev) => {
+            const group = (props.groups ?? []).find((candidate) => candidate.id === groupId);
+            const current = prev[groupId] ?? !(group?.defaultCollapsed ?? true);
+            return { ...prev, [groupId]: !current };
+        });
     const [activeFormField, setActiveFormField] = useState<string | undefined>(undefined);
     const [diagnosticsInfo, setDiagnosticsInfo] = useState<FormDiagnostics[] | undefined>(undefined);
     const [isMarkdownExpanded, setIsMarkdownExpanded] = useState(false);
@@ -537,7 +627,35 @@ export const Form = forwardRef((props: FormProps, _ref) => {
             return next;
         });
     }, []);
-    const isFormLoading = loadingFields.size > 0;
+    const [initialLoadSettled, setInitialLoadSettled] = useState(false);
+    const expectsInitialLoadRef = useRef<boolean | null>(null);
+    if (expectsInitialLoadRef.current === null) {
+        expectsInitialLoadRef.current = (props.formFields ?? []).some(
+            (field) => !field.hidden && typeof field.value === "string" && field.value !== ""
+        );
+    }
+    const sawInitialLoadingRef = useRef(false);
+    useEffect(() => {
+        if (!opensPrefilled) {
+            return;
+        }
+        if (loadingFields.size > 0) {
+            sawInitialLoadingRef.current = true;
+        }
+        if (initialLoadSettled || loadingFields.size > 0) {
+            return;
+        }
+        if (sawInitialLoadingRef.current) {
+            setInitialLoadSettled(true);
+            return;
+        }
+        const timer = setTimeout(() => setInitialLoadSettled(true), 0);
+        return () => clearTimeout(timer);
+    }, [loadingFields.size, initialLoadSettled, opensPrefilled]);
+
+    const isFormLoading = opensPrefilled
+        ? !initialLoadSettled && (loadingFields.size > 0 || expectsInitialLoadRef.current)
+        : loadingFields.size > 0;
 
     // Bubble loading state up to the parent form when this is a nested form
     useEffect(() => {
@@ -850,17 +968,20 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     }, [formFields, unregister, trigger]);
 
     // has advance fields
-    const hasAdvanceFields = formFields.some((field) => field.advanced && field.enabled && !field.hidden)
+    const groupIds = useMemo(() => new Set((groups ?? []).map((group) => group.id)), [groups]);
+    const isGroupedField = (field: FormField) => Boolean(field.group && groupIds.has(field.group));
+    const hasAdvanceFields =
+        formFields.some((field) => field.advanced && field.enabled && !field.hidden && !isGroupedField(field))
         || advancedChoiceFields.length > 0
         || injectedComponents?.some((component) => component.advanced) === true;
-    const variableField = formFields.find((field) => field.key === "variable");
+    const variableField = formFields.find((field) => field.key === "variable" && !isGroupedField(field));
     // Exclude PARAM_FOR_TYPE_INFER fields (e.g. the activity/human-task "Databinding Type"): those are
     // rendered via targetTypeField below, so matching them here too would render the same field twice.
-    const typeField = formFields.find((field) => !field.advanced && !field.hidden && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
+    const typeField = formFields.find((field) => !field.advanced && !field.hidden && !isGroupedField(field) && field.codedata?.kind !== "PARAM_FOR_TYPE_INFER" && getPrimaryInputType(field.types)?.fieldType === "TYPE");
     const expressionField = formFields.find((field) => getSecondaryInputType(field.types)?.fieldType === "EXPRESSION" || getPrimaryInputType(field.types)?.fieldType === "ACTION_OR_EXPRESSION");
-    const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER");
+    const targetTypeField = formFields.find((field) => field.codedata?.kind === "PARAM_FOR_TYPE_INFER" && !isGroupedField(field));
     const bottomFieldList = bottomFields.length > 0
-        ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden)
+        ? formFields.filter((field) => bottomFields.includes(field.key) && !field.hidden && !isGroupedField(field))
         : [];
     const hasParameters = hasRequiredParameters(formFields, selectedNode) || hasOptionalParameters(formFields);
 
@@ -901,6 +1022,11 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     const firstEditableFieldIndex = formFields.findIndex(
         (field) => field.editable !== false && getPrimaryInputType(field.types)?.fieldType === "IDENTIFIER"
     );
+
+    const firstEditableFieldValue = formFields[firstEditableFieldIndex]?.value;
+    const autoFocusFirstField =
+        firstEditableFieldIndex >= 0 &&
+        (!opensPrefilled || firstEditableFieldValue === undefined || firstEditableFieldValue === "");
 
     const isValid = useMemo(() => {
         let hasDiagnostics: boolean = false;
@@ -964,6 +1090,12 @@ export const Form = forwardRef((props: FormProps, _ref) => {
     // rather than calling the store twice — see the disableSaveButton comment for what these cover.
     const hasBlockingLiveErrors = diagnosticsStore.hasBlockingErrors();
     const isLiveValidating = diagnosticsStore.isAnyValidating();
+
+    const hasFieldLiveError = (fieldKey: string): boolean => {
+        const fieldDiagnostics = diagnosticsStore.getField(fieldKey);
+        return [...fieldDiagnostics.client, ...fieldDiagnostics.ls, ...fieldDiagnostics.compiler]
+            .some((diagnostic) => diagnostic.severity === "ERROR");
+    };
 
     // Call onValidityChange when form validity changes
     useEffect(() => {
@@ -1186,7 +1318,8 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                 {(() => {
                     const fieldsToRender = [...formFields]
                         .sort((a, b) => (b.groupNo ?? 0) - (a.groupNo ?? 0))
-                        .filter((field) => field.type !== "VIEW");
+                        .filter((field) => field.type !== "VIEW")
+                        .filter((field) => !isGroupedField(field));
 
                     const renderedComponents: React.ReactNode[] = [];
                     let renderedFieldCount = 0;
@@ -1235,7 +1368,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                                     subPanelView={subPanelView}
                                     handleFormValidation={handleFormValidation}
                                     handleOnFieldFocus={handleOnFieldFocus}
-                                    autoFocus={firstEditableFieldIndex === formFields.indexOf(updatedField) && !hideSaveButton}
+                                    autoFocus={autoFocusFirstField && firstEditableFieldIndex === formFields.indexOf(updatedField) && !hideSaveButton}
                                     recordTypeFields={recordTypeFields}
                                     onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
                                     setSubComponentEnabled={setIsSubComponentEnabled}
@@ -1311,7 +1444,7 @@ export const Form = forwardRef((props: FormProps, _ref) => {
                         const advancedInjections = injectedComponents?.filter((ic) => ic.advanced);
 
                         formFields.forEach((field) => {
-                            if (field.advanced && !field.hidden) {
+                            if (field.advanced && !field.hidden && !isGroupedField(field)) {
                                 if (advancedInjections) {
                                     advancedInjections.forEach((injected) => {
                                         if (injected.index === advancedFieldCount && !advancedInjectedIndices.has(injected.index)) {
@@ -1362,6 +1495,81 @@ export const Form = forwardRef((props: FormProps, _ref) => {
 
                         return advancedComponents;
                     })()}
+                {(() => {
+                    const sections = (groups ?? [])
+                        .map((group) => ({
+                            group,
+                            groupFields: formFields.filter(
+                                (field) => field.group === group.id && !field.hidden && field.enabled !== false
+                            ),
+                        }))
+                        .filter((section) => section.groupFields.length > 0);
+                    if (sections.length === 0) {
+                        return null;
+                    }
+                    return (
+                        <S.GroupSection>
+                        <S.GroupDivider />
+                        {sections.map(({ group, groupFields }) => {
+                    const renderGroupField = (field: FormField) => {
+                        const updatedField = updateFormFieldWithImports(field, formImports);
+                        return (
+                            <S.Row key={updatedField.key}>
+                                <FieldFactory
+                                    field={updatedField}
+                                    selectedNode={selectedNode}
+                                    openRecordEditor={
+                                        openRecordEditor &&
+                                        ((open: boolean, newType?: string | NodeProperties) =>
+                                            handleOpenRecordEditor(open, updatedField, newType))
+                                    }
+                                    openSubPanel={handleOpenSubPanel}
+                                    subPanelView={subPanelView}
+                                    handleOnFieldFocus={handleOnFieldFocus}
+                                    recordTypeFields={recordTypeFields}
+                                    onIdentifierEditingStateChange={handleIdentifierEditingStateChange}
+                                    onBlur={handleOnBlur}
+                                    handleFormValidation={handleFormValidation}
+                                />
+                            </S.Row>
+                        );
+                    };
+                    const expanded = expandedGroups[group.id] ?? !(group.defaultCollapsed ?? true);
+                    const showIssueIcon = !expanded && groupHasBlockingIssue({
+                        groupFields,
+                        errors,
+                        values: watchedValues,
+                        hasFieldError: hasFieldLiveError,
+                    });
+                    return (
+                        <S.GroupCard key={group.id}>
+                            <S.GroupHeader
+                                type="button"
+                                aria-expanded={expanded}
+                                onClick={() => toggleGroup(group.id)}
+                            >
+                                <S.GroupTitle>{group.label}</S.GroupTitle>
+                                {showIssueIcon && (
+                                    <S.GroupIssueIcon
+                                        title="This section has a required or invalid field"
+                                        aria-label="This section has a required or invalid field"
+                                    >
+                                        <Codicon name="warning" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
+                                    </S.GroupIssueIcon>
+                                )}
+                                <S.GroupChevron expanded={expanded}>
+                                    <Codicon name="chevron-down" iconSx={{ fontSize: 14 }} sx={{ height: 14 }} />
+                                </S.GroupChevron>
+                            </S.GroupHeader>
+                            <S.GroupBody style={{ display: expanded ? "flex" : "none" }}>
+                                {groupFields.map(renderGroupField)}
+                            </S.GroupBody>
+                        </S.GroupCard>
+                            );
+                        })}
+                        </S.GroupSection>
+                    );
+                })()}
                 {hasAdvanceFields &&
                     showAdvancedOptions &&
                     advancedChoiceFields.map((field) => {

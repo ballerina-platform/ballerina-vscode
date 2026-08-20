@@ -1,0 +1,69 @@
+{
+  "description": "Durable agent Add Activity list on a project with no activities: empty category for the create-new CTA",
+  "kind": "ACTIVITY_CALL",
+  "source": "empty.bal",
+  "position": {
+    "startLine": {
+      "line": 1,
+      "offset": 1
+    },
+    "endLine": {
+      "line": 1,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "",
+    "excludeBuiltins": "true",
+    "nodeKind": "DURABLE_AGENT_ADD_ACTIVITY"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Activities",
+        "description": "Activities defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Activity"
+        ]
+      },
+      "items": []
+    },
+    {
+      "metadata": {
+        "label": "MCP Tools",
+        "description": "MCP servers exposing tools to the durable agent",
+        "keywords": [
+          "MCP",
+          "Tool",
+          "Agent"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Use MCP Server",
+            "description": "Connect to an MCP server and expose its tools to the agent",
+            "icon": "bi-plus"
+          },
+          "codedata": {
+            "node": "MCP_TOOL_KIT"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Tools",
+        "description": "AI tools usable by the durable agent",
+        "keywords": [
+          "Tool",
+          "Agent"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

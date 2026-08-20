@@ -143,15 +143,6 @@ export function AddProjectFormFields({
                         value={formData.isLibrary}
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
                     />
-
-                    {/* The integration is named by the field the parent renders directly
-                        below this section and created empty from here; only the library
-                        still has a screen of its own. Matches the initial Create flow. */}
-                    {formData.isLibrary && (
-                        <Description>
-                            You'll name and configure your {resourceTypeLabelLower} in the next step.
-                        </Description>
-                    )}
                 </FormSection>
             )}
         </>

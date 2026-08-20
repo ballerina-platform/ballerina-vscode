@@ -187,7 +187,7 @@ public class Constants {
         public static final String REGISTER_ACTIVITY_METHOD_NAME = "registerActivity";
         public static final String REGISTER_ACTIVITY_LABEL = "Register Activity";
         public static final String REGISTER_ACTIVITY_DESCRIPTION =
-                "Register a workflow activity as a durable agent tool";
+                "Register a workflow activity as a durable agent activity";
         public static final String REGISTER_HUMAN_TASK_METHOD_NAME = "registerHumanTask";
         public static final String REGISTER_HUMAN_TASK_LABEL = "Register HumanTask";
         public static final String REGISTER_HUMAN_TASK_DESCRIPTION =

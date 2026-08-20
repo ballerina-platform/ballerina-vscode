@@ -21,15 +21,20 @@ import debounce from "lodash/debounce";
 import styled from "@emotion/styled";
 import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
+import { useCloudContext } from "./providers";
 import {
     joinPath,
     splitPath,
     sanitizePackageName,
+    sanitizeOrgHandle,
     validateComponentName,
+    validateOrgName,
+    validatePackageName,
     validateProjectName,
 } from "./utils";
+import { AdvancedConfigurationSection } from "./components";
 import { useRealtimeProjectPathValidation } from "./useRealtimeProjectPathValidation";
-import { FieldGroup, ProjectSectionContainer } from "./styles";
+import { FieldGroup, ProjectSectionContainer, SectionDivider } from "./styles";
 import { DEFAULT_INTEGRATION_NAME, DEFAULT_PROJECT_NAME } from "./types";
 import { CreateFlowShell } from "./shared/CreateFlowShell";
 import { FormFooter } from "./shared/FormPageLayout";
@@ -43,7 +48,6 @@ import {
 } from "../../hooks/resolveAvailableDirectoryName";
 import { LibraryCreationView } from "./LibraryCreationView";
 import { ProjectTypeSelector } from "../../components";
-import { CreatingIntegrationView } from "../../../CreateIntegrationWizard/components/CreatingIntegrationView";
 import { ProjectContext } from "../../../CreateIntegrationWizard/types";
 import { BiWsClient } from "../../../wsManager/WsClient";
 
@@ -154,21 +158,6 @@ const FormError = styled.div`
     color: var(--vscode-errorForeground);
 `;
 
-/** Gives the create-in-progress screen room to centre itself inside the scrolling form body. */
-const CreatingSlot = styled.div`
-    display: flex;
-    min-height: 320px;
-`;
-
-/**
- * Which screen of the Create flow is showing. The integration route no longer has
- * a screen of its own: the 3-step integration wizard (Name → Type → Configure) is
- * bypassed for now, and the chooser collects the integration name inline and
- * creates an empty integration directly. Restore the `"integration"` screen (and
- * the `CreateIntegrationWizard` render behind it) to bring the wizard back.
- */
-type Screen = "chooser" | "library";
-
 interface CreateProjectChooserProps {
     /** The wizard client (native BI WS) used by the integration route. */
     biWsClient: BiWsClient;
@@ -199,8 +188,11 @@ export function CreateProjectChooser({
     onBack,
 }: CreateProjectChooserProps) {
     const { wsClient } = useVisualizerContext();
+    const { authState } = useCloudContext();
+    const organizations = (authState?.userInfo?.organizations as Array<{ id?: any; handle: string; name: string }> | undefined);
     const firstFieldRef = useRef<HTMLInputElement>(null);
     const defaultPathInitialized = useRef(false);
+    const orgNameInitialized = useRef(false);
     const projectNameTouchedRef = useRef(false);
     // Set the moment the user edits the integration name, so the async default-name
     // indexing below never clobbers what they typed.
@@ -209,11 +201,14 @@ export function CreateProjectChooser({
     // skip a path it has already listed (and re-list whenever the project retargets).
     const takenNamesPathRef = useRef<string | null>(null);
 
-    const [screen, setScreen] = useState<Screen>("chooser");
     const [isLibrary, setIsLibrary] = useState(false);
 
     const [integrationName, setIntegrationName] = useState(DEFAULT_INTEGRATION_NAME);
     const [integrationNameError, setIntegrationNameError] = useState<string | null>(null);
+    const [packageName, setPackageName] = useState("");
+    const [orgName, setOrgName] = useState("");
+    const [version, setVersion] = useState("");
+    const [isPackageInfoExpanded, setIsPackageInfoExpanded] = useState(false);
     // Folders/titles already used in the target project, for live collision flagging.
     const [takenNames, setTakenNames] = useState<TakenNames>(emptyTakenNames());
     // Submit-time re-check of the collision list, before anything is created.
@@ -253,11 +248,27 @@ export function CreateProjectChooser({
     // editable path field here, since the location is already resolved above.
     const effectiveIntegrationName = integrationName.trim() || DEFAULT_INTEGRATION_NAME;
     const integrationPackageName = sanitizePackageName(effectiveIntegrationName) || "untitled";
+    const effectivePackageName = packageName || integrationPackageName;
     // Resolved synchronously — the displayed diagnostic is debounced, so gating Create on
     // the error state alone would leave it clickable for a beat after a bad edit.
     const integrationNameIssue =
         validateComponentName(integrationName) ||
         resolveNameCollisionMessage(integrationName, takenNames, sanitizePackageName);
+    const packageNameError = validatePackageName(effectivePackageName, effectiveIntegrationName);
+    const orgNameError = validateOrgName(orgName);
+
+    // Initialize org name independently of workspace readiness — mirrors the library route.
+    useEffect(() => {
+        if (orgNameInitialized.current) return;
+        orgNameInitialized.current = true;
+        if (organizations && organizations.length > 0) {
+            setOrgName(organizations[0].handle);
+        } else {
+            wsClient.getDefaultOrgName()
+                .then(({ orgName: defaultOrgName }) => setOrgName(defaultOrgName))
+                .catch((error) => console.error("Failed to fetch default org name:", error));
+        }
+    }, [organizations, wsClient]);
 
     // Seed the Default project location once (`<defaultLocation>/default`). The
     // realtime validation then reports whether it already exists (add into it) or
@@ -302,7 +313,7 @@ export function CreateProjectChooser({
     // `vscode-text-field`'s shadow root and may not be attached yet, hence the bounded
     // per-frame retry. The guards below keep it from ever fighting the user.
     useEffect(() => {
-        if (screen !== "chooser") return;
+        if (isLibrary) return;
 
         let frameId = 0;
         let framesWaited = 0;
@@ -339,7 +350,7 @@ export function CreateProjectChooser({
 
         frameId = requestAnimationFrame(focusFirstField);
         return () => cancelAnimationFrame(frameId);
-    }, [screen, preselectRequestId]);
+    }, [isLibrary, preselectRequestId]);
 
     useEffect(() => {
         const error = validateProjectName(projectName);
@@ -468,17 +479,13 @@ export function CreateProjectChooser({
 
     const canProceed =
         !projectNameError && !pathError && !!projectName.trim() && !!editablePath && !!effectiveDirectoryName;
-    /** The integration route submits from this screen, so its name must be valid too. */
-    const canCreateIntegration = canProceed && !integrationNameIssue;
+    /** The integration route submits from this screen, so its name and Advanced
+     *  Configurations (package name / org) must be valid too. */
+    const canCreateIntegration = canProceed && !integrationNameIssue && !packageNameError && !orgNameError;
 
     const handleIntegrationNameChange = (value: string) => {
         integrationNameTouchedRef.current = true;
         setIntegrationName(value);
-    };
-
-    const handleNext = () => {
-        if (!canProceed || workspaceSupportPending) return;
-        setScreen("library");
     };
 
     /**
@@ -523,14 +530,18 @@ export function CreateProjectChooser({
             }
 
             setIsCreating(true);
+            const orgHandle = organizations?.find(o => o.handle === orgName)?.handle || sanitizeOrgHandle(orgName);
             await biWsClient.createIntegration({
                 project: {
                     integrationName: effectiveIntegrationName,
-                    packageName: integrationPackageName,
+                    packageName: effectivePackageName,
                     projectPath: resolvedPath,
                     directoryName: integrationPackageName,
                     newProject: projectContext.isNewProject,
                     workspaceName: projectContext.workspaceName,
+                    orgName: orgName || undefined,
+                    orgHandle,
+                    version: version || undefined,
                 },
             });
         } catch (error) {
@@ -545,33 +556,6 @@ export function CreateProjectChooser({
             setIsValidating(false);
         }
     };
-
-    if (isCreating) {
-        return (
-            <CreateFlowShell title="Create">
-                <CreatingSlot>
-                    <CreatingIntegrationView
-                        variant="create"
-                        integrationName={effectiveIntegrationName}
-                        projectName={projectContext.workspaceName}
-                        isNewProject={projectContext.isNewProject}
-                    />
-                </CreatingSlot>
-            </CreateFlowShell>
-        );
-    }
-
-    if (screen === "library") {
-        return (
-            <CreateFlowShell
-                title="New Library"
-                subtitle={`In project ${projectName.trim() || DEFAULT_PROJECT_NAME}`}
-                onBack={() => setScreen("chooser")}
-            >
-                <LibraryCreationView embedded projectContext={projectContext} ballerinaUnavailable={ballerinaUnavailable} />
-            </CreateFlowShell>
-        );
-    }
 
     return (
         <CreateFlowShell
@@ -641,55 +625,76 @@ export function CreateProjectChooser({
                 />
             </Section>
 
-            {/* The integration is named here rather than on a step of its own — the
-                wizard is bypassed, so this screen submits. The library route keeps its
-                own form, which already collects a name alongside its package details. */}
-            {!isLibrary && (
+            {isLibrary ? (
                 <Section>
-                    <FieldGroup>
-                        <TextField
-                            onTextChange={handleIntegrationNameChange}
-                            value={integrationName}
-                            label="Integration name"
-                            placeholder="Enter an integration name"
-                            required={true}
-                            errorMsg={integrationNameError || ""}
-                        />
-                    </FieldGroup>
+                    <LibraryCreationView
+                        embedded
+                        projectContext={projectContext}
+                        ballerinaUnavailable={ballerinaUnavailable}
+                        isCreateDisabled={!canProceed || workspaceSupportPending}
+                    />
                 </Section>
-            )}
+            ) : (
+                <>
+                    <Section>
+                        <FieldGroup>
+                            <TextField
+                                onTextChange={handleIntegrationNameChange}
+                                value={integrationName}
+                                label="Integration name"
+                                placeholder="Enter an integration name"
+                                required={true}
+                                errorMsg={integrationNameError || ""}
+                            />
+                        </FieldGroup>
 
-            {createError && (
-                <FormError>
-                    <Icon name="error" isCodicon sx={{ marginTop: "1px" }} />
-                    <span>{createError}</span>
-                </FormError>
-            )}
+                        <SectionDivider />
 
-            <FormFooter>
-                <span
-                    title={
-                        ballerinaUnavailable
-                            ? "Ballerina distribution is not set up. Use Configure to set it up."
-                            : workspaceSupportPending
-                                ? "Finishing start-up…"
-                                : undefined
-                    }
-                >
-                    <Button
-                        disabled={
-                            ballerinaUnavailable ||
-                            workspaceSupportPending ||
-                            isValidating ||
-                            (isLibrary ? !canProceed : !canCreateIntegration)
-                        }
-                        onClick={isLibrary ? handleNext : handleCreateIntegration}
-                        appearance="primary"
-                    >
-                        {isLibrary ? "Next" : isValidating ? "Validating..." : "Create Integration"}
-                    </Button>
-                </span>
-            </FormFooter>
+                        <AdvancedConfigurationSection
+                            isExpanded={isPackageInfoExpanded}
+                            onToggle={() => setIsPackageInfoExpanded(!isPackageInfoExpanded)}
+                            data={{ packageName: effectivePackageName, orgName, version }}
+                            onChange={(data) => {
+                                if (data.packageName !== undefined) setPackageName(data.packageName);
+                                if (data.orgName !== undefined) setOrgName(data.orgName);
+                                if (data.version !== undefined) setVersion(data.version);
+                            }}
+                            isLibrary={false}
+                            packageNameError={packageNameError}
+                            orgNameError={orgNameError}
+                            organizations={organizations}
+                            hasError={!!(packageNameError || orgNameError)}
+                        />
+                    </Section>
+
+                    {createError && (
+                        <FormError>
+                            <Icon name="error" isCodicon sx={{ marginTop: "1px" }} />
+                            <span>{createError}</span>
+                        </FormError>
+                    )}
+
+                    <FormFooter>
+                        <span
+                            title={
+                                ballerinaUnavailable
+                                    ? "Ballerina distribution is not set up. Use Configure to set it up."
+                                    : workspaceSupportPending
+                                        ? "Finishing start-up…"
+                                        : undefined
+                            }
+                        >
+                            <Button
+                                disabled={ballerinaUnavailable || workspaceSupportPending || isValidating || !canCreateIntegration}
+                                onClick={handleCreateIntegration}
+                                appearance="primary"
+                            >
+                                {isCreating ? "Creating..." : isValidating ? "Validating..." : "Create Integration"}
+                            </Button>
+                        </span>
+                    </FormFooter>
+                </>
+            )}
         </CreateFlowShell>
     );
 }

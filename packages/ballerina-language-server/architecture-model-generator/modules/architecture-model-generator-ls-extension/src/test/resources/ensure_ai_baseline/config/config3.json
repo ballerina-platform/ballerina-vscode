@@ -1,0 +1,12 @@
+{
+  "description": "A file that does not exist in the package gains no baseline document — didChange must not create one, or getSemanticDiff would stop seeing the file as an addition",
+  "projectPath": "simple_service",
+  "files": [
+    { "filePath": "main.bal", "content": "public function main() {\n}\n" },
+    { "filePath": "not_in_package.bal", "content": "public function stray() {\n}\n" }
+  ],
+  "output": {
+    "seededFileCount": 1,
+    "failedFiles": ["not_in_package.bal"]
+  }
+}

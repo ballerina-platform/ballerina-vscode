@@ -22,6 +22,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { TypeDiagram as TypeDesignDiagram } from "@wso2/type-diagram";
+import { fetchTypesModel, ReviewModelCache } from "./reviewModelCache";
 
 const SpinnerContainer = styled.div`
     display: flex;
@@ -35,6 +36,16 @@ const Container = styled.div`
     pointer-events: auto;
 `;
 
+const MessageContainer = styled.div`
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--vscode-descriptionForeground);
+    padding: 0 24px;
+    text-align: center;
+`;
+
 interface ItemMetadata {
     type: string;
     name: string;
@@ -46,36 +57,40 @@ interface ReadonlyTypeDiagramProps {
     filePath: string;
     onModelLoaded?: (metadata: ItemMetadata) => void;
     useFileSchema?: boolean;
+    /** Session-scoped model cache owned by ReviewMode — survives toggle/navigation remounts. */
+    modelCache: ReviewModelCache;
 }
 
 export function ReadonlyTypeDiagram(props: ReadonlyTypeDiagramProps): JSX.Element {
-    const { filePath, onModelLoaded, useFileSchema } = props;
+    const { filePath, onModelLoaded, useFileSchema, modelCache } = props;
     const { rpcClient } = useRpcContext();
     const [typesModel, setTypesModel] = useState<Type[] | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         setTypesModel(null);
-        fetchTypesModel();
-    }, [filePath, useFileSchema]);
-
-    const fetchTypesModel = () => {
-        rpcClient
-            .getBIDiagramRpcClient()
-            .getTypes({ filePath: filePath, useFileSchema })
-            .then((response) => {
-                if (response?.types) {
-                    setTypesModel(response.types);
+        setErrorMessage(null);
+        // Stale-response guard: a slower earlier request (e.g. after toggling Old/New)
+        // must not overwrite this render with the other version's model.
+        let cancelled = false;
+        fetchTypesModel(rpcClient, modelCache, filePath, useFileSchema)
+            .then((types) => {
+                if (cancelled) {
+                    return;
+                }
+                if (types) {
+                    setTypesModel(types);
 
                     // Extract metadata from the types
-                    if (onModelLoaded && response.types.length > 0) {
+                    if (onModelLoaded && types.length > 0) {
                         // If there's a single type, use it; otherwise show "Types" as plural
-                        const firstType = response.types[0];
+                        const firstType = types[0];
                         onModelLoaded({
                             type: "Type",
                             name:
-                                response.types.length === 1
+                                types.length === 1
                                     ? firstType.name || "Unknown"
-                                    : `${response.types.length} Types`,
+                                    : `${types.length} Types`,
                         });
                     } else if (onModelLoaded) {
                         // No types found
@@ -84,17 +99,31 @@ export function ReadonlyTypeDiagram(props: ReadonlyTypeDiagramProps): JSX.Elemen
                             name: "No Types",
                         });
                     }
+                } else {
+                    // A resolved-but-empty response (e.g. the source is mid-edit and not
+                    // parseable) previously left the spinner up forever.
+                    setErrorMessage("The type diagram is unavailable for the selected version.");
                 }
             })
             .catch((error) => {
                 console.error("Error fetching types model:", error);
+                if (!cancelled) {
+                    setErrorMessage("The type diagram could not be loaded.");
+                }
             });
-    };
+        return () => {
+            cancelled = true;
+        };
+    }, [filePath, useFileSchema, rpcClient, modelCache]);
 
     // No-op handlers for readonly mode
     const noOpHandler = () => {
         console.log("Diagram is in readonly mode");
     };
+
+    if (errorMessage) {
+        return <MessageContainer>{errorMessage}</MessageContainer>;
+    }
 
     if (!typesModel) {
         return (

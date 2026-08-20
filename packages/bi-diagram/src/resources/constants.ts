@@ -177,3 +177,9 @@ export const WAIT_DATA_DETAILS_WIDTH = 220;
 export const WAIT_DATA_DETAILS_GAP = 12;
 export const WAIT_DATA_CIRCLE_SIZE = 56;
 export const WAIT_DATA_ARROW_WIDTH = 60;
+
+// A human task names the roles it waits on to the left of the person icon, so the node reserves a
+// strip for them there. Both the sizing visitor and the widget measure from this, or the icon would
+// be drawn somewhere the layout did not put it.
+export const HUMAN_TASK_ROLES_LABEL_WIDTH = 140;
+export const HUMAN_TASK_ROLES_LABEL_GAP = 8;

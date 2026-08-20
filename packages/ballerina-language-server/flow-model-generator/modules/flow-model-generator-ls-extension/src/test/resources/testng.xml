@@ -81,6 +81,7 @@ under the License.
             <class name="io.ballerina.flowmodelgenerator.extension.AddWorkflowManagementTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.WorkflowManagementDefaultEnableTests"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SearchTest"/>
+            <class name="io.ballerina.flowmodelgenerator.extension.ConnectorIndexKeywordTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.SearchNodesTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.InitializerTest"/>
             <class name="io.ballerina.flowmodelgenerator.extension.ServiceFieldNodesTest"/>

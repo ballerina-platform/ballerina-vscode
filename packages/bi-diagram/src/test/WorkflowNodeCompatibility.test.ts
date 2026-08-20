@@ -19,12 +19,14 @@
 import { traverseFlow } from "@wso2/ballerina-core";
 
 import {
+    HUMAN_TASK_ROLES_LABEL_WIDTH,
     LABEL_HEIGHT,
     NODE_GAP_X,
     NODE_HEIGHT,
     NODE_WIDTH,
     NodeTypes,
 } from "../resources/constants";
+import { getHumanTaskUserRoles } from "../utils/node";
 import { NodeFactoryVisitor } from "../visitors/NodeFactoryVisitor";
 import { SizingVisitor } from "../visitors/SizingVisitor";
 
@@ -71,6 +73,7 @@ describe("Workflow Nodes", () => {
             createFlowNode("activity-call", "ACTIVITY_CALL"),
             createFlowNode("send-data", "SEND_DATA"),
             createFlowNode("wait-data", "WAIT_DATA"),
+            createFlowNode("human-task", "HUMAN_TASK"),
         ]);
 
         const visitor = new NodeFactoryVisitor();
@@ -83,6 +86,9 @@ describe("Workflow Nodes", () => {
         expect(nodeTypeById.get("activity-call")).toBe(NodeTypes.CALL_ACTIVITY_NODE);
         expect(nodeTypeById.get("send-data")).toBe(NodeTypes.SEND_DATA_NODE);
         expect(nodeTypeById.get("wait-data")).toBe(NodeTypes.WAIT_DATA_NODE);
+        // A human task waits on a person, which is still waiting on the outside world, so it is
+        // drawn as a wait.
+        expect(nodeTypeById.get("human-task")).toBe(NodeTypes.WAIT_DATA_NODE);
     });
 
     // A node's declared widths are its own bounds, so the body a widget paints has to land on the
@@ -117,12 +123,12 @@ describe("Workflow Nodes", () => {
     });
 
     it("applies sizing for wait-data node kinds", () => {
-        const flow = createFlow([createFlowNode("wait-data", "WAIT_DATA")]);
+        const flow = createFlow([createFlowNode("wait-data", "WAIT_DATA"), createFlowNode("human-task", "HUMAN_TASK")]);
 
         const visitor = new SizingVisitor();
         traverseFlow(flow, visitor);
 
-        const [waitDataNode] = flow.nodes as TestFlowNode[];
+        const [waitDataNode, humanTaskNode] = flow.nodes as TestFlowNode[];
         // A wait is the mirror of a send: the same body, with the source box and its arrow on the
         // left rather than the right.
         const halfNodeWidth = NODE_WIDTH / 2;
@@ -135,5 +141,57 @@ describe("Workflow Nodes", () => {
         expect(waitDataNode.viewState.clw).toBe(expectedLeftWidth);
         expect(waitDataNode.viewState.crw).toBe(halfNodeWidth);
 
+        // The human task takes the same measurements, or its widget would paint a source box and an
+        // arrow into space the layout never reserved.
+        expect(humanTaskNode.viewState).toEqual(waitDataNode.viewState);
+    });
+
+    // The roles are drawn in the strip before the person icon, so the strip has to be part of the
+    // node's left width — otherwise the widget paints them outside the node's bounds.
+    it("reserves the roles strip on a human task that names its roles", () => {
+        const withRoles = createFlowNode("human-task-roles", "HUMAN_TASK");
+        withRoles.properties = { userRoles: { value: '["FINANCE_APPROVER"]' } };
+        const flow = createFlow([createFlowNode("human-task", "HUMAN_TASK"), withRoles]);
+
+        const visitor = new SizingVisitor();
+        traverseFlow(flow, visitor);
+
+        const [plainHumanTask, humanTaskWithRoles] = flow.nodes as TestFlowNode[];
+        expect(humanTaskWithRoles.viewState.lw).toBe(plainHumanTask.viewState.lw + HUMAN_TASK_ROLES_LABEL_WIDTH);
+        // Only the left side grows: the body stays where it is on the node's centre line.
+        expect(humanTaskWithRoles.viewState.rw).toBe(plainHumanTask.viewState.rw);
+        expect(humanTaskWithRoles.viewState.ch).toBe(plainHumanTask.viewState.ch);
+    });
+
+    // The roles are drawn under the person the task waits on, so they may only be read off the
+    // statement when it names them outright — anything resolved at run time would be a guess.
+    describe("human task user roles", () => {
+        const nodeWithUserRoles = (value?: unknown) =>
+            ({ properties: value === undefined ? {} : { userRoles: { value } } } as any);
+
+        it("reads a list of string literals", () => {
+            expect(getHumanTaskUserRoles(nodeWithUserRoles('["FINANCE_APPROVER", "MANAGER"]'))).toEqual([
+                "FINANCE_APPROVER",
+                "MANAGER",
+            ]);
+        });
+
+        it("reads a single string literal", () => {
+            expect(getHumanTaskUserRoles(nodeWithUserRoles('"approver"'))).toEqual(["approver"]);
+        });
+
+        it("keeps a comma that belongs to a role name", () => {
+            expect(getHumanTaskUserRoles(nodeWithUserRoles('["finance,approver", "MANAGER"]'))).toEqual([
+                "finance,approver",
+                "MANAGER",
+            ]);
+        });
+
+        it("shows nothing for a value only known at run time", () => {
+            expect(getHumanTaskUserRoles(nodeWithUserRoles("roles"))).toEqual([]);
+            expect(getHumanTaskUserRoles(nodeWithUserRoles('[roles[0], "MANAGER"]'))).toEqual([]);
+            expect(getHumanTaskUserRoles(nodeWithUserRoles("[]"))).toEqual([]);
+            expect(getHumanTaskUserRoles(nodeWithUserRoles())).toEqual([]);
+        });
     });
 });

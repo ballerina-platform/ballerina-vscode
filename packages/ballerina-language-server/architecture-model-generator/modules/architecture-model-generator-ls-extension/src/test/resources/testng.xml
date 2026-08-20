@@ -33,6 +33,7 @@ under the License.
             <class name="io.ballerina.designmodelgenerator.extension.ImportMultiRootMigrationTest"/>
             <class name="io.ballerina.designmodelgenerator.extension.GetMigrationToolsTest" />
             <class name="io.ballerina.copilotagent.extension.SemanticDiffComputerTest" />
+            <class name="io.ballerina.copilotagent.extension.EnsureAiBaselineTest" />
         </classes>
     </test>
 </suite>

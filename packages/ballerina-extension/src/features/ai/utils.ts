@@ -262,7 +262,25 @@ function addDefaultModelConfig(
     return true;
 }
 
-export async function addConfigFile(configPath: string, kind: DefaultProviderKind = "model"): Promise<boolean> {
+/**
+ * Options for {@link addConfigFile}.
+ *
+ * `signOutOnFailure` is what a failed token fetch means to the caller. For the interactive flows it
+ * means the session is no longer usable, so the user is signed out. A caller that configures the
+ * provider as a non-fatal side effect of something else (creating a durable agent, say) must pass
+ * `false`: ending the user's AI session because a background write hit a network blip is a much
+ * larger consequence than the write it was attached to.
+ */
+export interface AddConfigFileOptions {
+    signOutOnFailure?: boolean;
+}
+
+export async function addConfigFile(
+    configPath: string,
+    kind: DefaultProviderKind = "model",
+    options: AddConfigFileOptions = {}
+): Promise<boolean> {
+    const signOutOnFailure = options.signOutOnFailure ?? true;
     const progress = await vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Notification,
@@ -273,7 +291,9 @@ export async function addConfigFile(configPath: string, kind: DefaultProviderKin
             try {
                 const token: string | null = await getTokenForDefaultModel();
                 if (token === null) {
-                    AIStateMachine.service().send(AIMachineEventType.LOGOUT);
+                    if (signOutOnFailure) {
+                        AIStateMachine.service().send(AIMachineEventType.LOGOUT);
+                    }
                     throw new Error(TOKEN_NOT_AVAILABLE_ERROR_MESSAGE);
                 }
                 const openAiEpUrl = BACKEND_URL + LLM_API_BASE_PATH + "/openai";
@@ -289,7 +309,9 @@ export async function addConfigFile(configPath: string, kind: DefaultProviderKin
                     return true;
                 }
             } catch (error) {
-                AIStateMachine.service().send(AIMachineEventType.LOGOUT);
+                if (signOutOnFailure) {
+                    AIStateMachine.service().send(AIMachineEventType.LOGOUT);
+                }
                 throw error;
             }
         }

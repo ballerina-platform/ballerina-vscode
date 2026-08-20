@@ -61,7 +61,7 @@
         },
         {
           "metadata": {
-            "label": "Websocket",
+            "label": "WebSocket",
             "description": "Represents a WebSocket synchronous client endpoint.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_websocket_2.15.2.png",
             "data": {
@@ -334,7 +334,7 @@
       "items": [
         {
           "metadata": {
-            "label": "S3",
+            "label": "AWS S3",
             "description": "Ballerina Amazon S3 connector provides the capability to access AWS S3 API.\nThis connector lets you to get authorized access to AWS S3 buckets and objects.\n",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.s3_3.5.1.png",
             "data": {
@@ -355,7 +355,7 @@
         },
         {
           "metadata": {
-            "label": "SQS",
+            "label": "AWS SQS",
             "description": "The Amazon SQS API Client.\n\nProvides access to Amazon Simple Queue Service (SQS) using the AWS SDK for Java V2.\nSupports static credentials, profile-based credentials, and the default AWS credential\nprovider chain (environment variables, ECS container credentials, EC2 instance profiles, etc.).",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png",
             "data": {
@@ -376,7 +376,7 @@
         },
         {
           "metadata": {
-            "label": "DynamoDB",
+            "label": "AWS DynamoDB",
             "description": "The Ballerina AWS DynamoDB connector provides the capability to access AWS Simple Email Service related operations.\nThis connector lets you to to send email messages to your customers.\n",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.dynamodb_2.3.0.png",
             "data": {
@@ -418,7 +418,7 @@
         },
         {
           "metadata": {
-            "label": "Gcalendar",
+            "label": "Google Calendar",
             "description": "Manipulates events and other calendar data.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_googleapis.gcalendar_4.0.1.png",
             "data": {
@@ -509,7 +509,7 @@
         },
         {
           "metadata": {
-            "label": "Github",
+            "label": "GitHub",
             "description": "GitHub's v3 REST API.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_github_5.1.0.png",
             "data": {
@@ -558,7 +558,7 @@
       "items": [
         {
           "metadata": {
-            "label": "Chat",
+            "label": "Azure OpenAI Chat",
             "description": "This is a generated connector from [Azure OpenAI Chat Completions API v2023-12-01-preview](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#chat-completions/) OpenAPI specification.\nThe Azure Azure OpenAI Service REST API Chat Completions Endpoint will create completions for chat messages with the ChatGPT (preview) and GPT-4 (preview) models.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.chat_3.0.2.png",
             "data": {
@@ -579,7 +579,7 @@
         },
         {
           "metadata": {
-            "label": "Embeddings",
+            "label": "Azure OpenAI Embeddings",
             "description": "This is a generated connector from [Azure OpenAI Embeddings API v2023-03-15-preview](https://learn.microsoft.com/en-us/azure/cognitive-services/openai/reference#embeddings/) OpenAPI specification.\nThe Azure Azure OpenAI Service REST API Embeddings Endpoint will generate one a vector representation of a given input that can be easily consumed by machine learning models and other algorithms.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_azure.openai.embeddings_1.0.2.png",
             "data": {
@@ -600,7 +600,7 @@
         },
         {
           "metadata": {
-            "label": "Chat",
+            "label": "OpenAI Chat",
             "description": "The OpenAI REST API. Please see https://platform.openai.com/docs/api-reference for more details.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openai.chat_4.0.1.png",
             "data": {
@@ -621,7 +621,7 @@
         },
         {
           "metadata": {
-            "label": "Embeddings",
+            "label": "OpenAI Embeddings",
             "description": "This is a generated connector for the [OpenAI API] (https://platform.openai.com/docs/api-reference/introduction) specification. Use the OpenAI API to access the state-of-the-art language models that can complete sentences, transcribe audio, and generate images. The API also supports natural language processing tasks such as text classification, entity recognition, and sentiment analysis. By using the OpenAI API, you can incorporate advanced AI capabilities into your own applications and services.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_openai.embeddings_1.0.5.png",
             "data": {
@@ -642,7 +642,7 @@
         },
         {
           "metadata": {
-            "label": "Stabilityai",
+            "label": "Stability AI",
             "description": "Welcome to the Stability.ai REST API!\n\nYour DreamStudio API key will be required for authentication: [How to find your API key](https://platform.stability.ai/docs/getting-started/authentication)\n\nAPI operations use the following versioning scheme:\n- `/v*` interface is stable and ready for production workloads\n- `/v*beta*`: interface is stable, preparing for production release\n- `/v*alpha*`: under development and the interface is subject to change\n\nNOTE: The v1alpha and v1beta endpoints from the developer preview are still available, but they\nwill disabled on May 1st, 2023.  Please migrate to the v1 endpoints as soon as possible.\n\nIf you have feedback or encounter any issues with the API, please reach out:\n- [https://github.com/Stability-AI/REST-API](https://github.com/Stability-AI/REST-API)\n- [https://discord.gg/stablediffusion #API channel](https://discord.com/channels/1002292111942635562/1042896447311454361)",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_stabilityai_1.0.1.png",
             "data": {
@@ -684,7 +684,7 @@
         },
         {
           "metadata": {
-            "label": "Mcp StreamableHttp",
+            "label": "MCP Streamable HTTP",
             "description": "Represents an MCP client built on top of the Streamable HTTP transport.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_mcp_1.0.3.png",
             "data": {
@@ -705,7 +705,7 @@
         },
         {
           "metadata": {
-            "label": "Ai",
+            "label": "WebScraping AI",
             "description": "This is a generated connector for [WebScraping.AI API v2.0.4](https://webscraping.ai/docs) OpenAPI specification.\nIt provides a web scaping automation API with Chrome JS rendering, rotating proxies and builtin HTML parsing.\nMore information about the WebScraping.AI API can be found at https://webscraping.ai.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_webscraping.ai_1.5.1.png",
             "data": {
@@ -726,7 +726,7 @@
         },
         {
           "metadata": {
-            "label": "Vector",
+            "label": "Pinecone Vector",
             "description": "This is a generated connector for the `Vector Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) OpenAPI specification. Pinecone is a fully managed vector database which supports building developer-friendly, easily scalable, and high-performance vector search applications without infrastructure hassles.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pinecone.vector_1.0.2.png",
             "data": {
@@ -747,7 +747,7 @@
         },
         {
           "metadata": {
-            "label": "Index",
+            "label": "Pinecone Index",
             "description": "This is a generated connector for the `Index Operations` under [Pinecone Vector Database API](https://docs.pinecone.io/reference) OpenAPI specification. Pinecone is a fully managed vector database which supports building developer-friendly, easily scalable, and high-performance vector search applications without infrastructure hassles.",
             "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_pinecone.index_1.0.2.png",
             "data": {

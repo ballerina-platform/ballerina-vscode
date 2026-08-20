@@ -114,7 +114,7 @@ interface LibraryProjectContext {
     workspaceName?: string;
 }
 
-export function LibraryCreationView({ onBack, ballerinaUnavailable, projectContext, embedded }: { onBack?: () => void; ballerinaUnavailable?: boolean; projectContext?: LibraryProjectContext; embedded?: boolean }) {
+export function LibraryCreationView({ onBack, ballerinaUnavailable, projectContext, embedded, isCreateDisabled }: { onBack?: () => void; ballerinaUnavailable?: boolean; projectContext?: LibraryProjectContext; embedded?: boolean; isCreateDisabled?: boolean }) {
     const { wsClient } = useVisualizerContext();
     const { authState } = useCloudContext();
     const organizations = (authState?.userInfo?.organizations as Array<{ id?: any; handle: string; name: string }> | undefined);
@@ -208,6 +208,13 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable, projectConte
             mounted = false;
         };
     }, [workspaceReady, wsClient, workspacePath]);
+    
+    useEffect(() => {
+        if (!embedded || !projectContext?.workspacePath) return;
+        const target = projectContext.workspacePath;
+        setDefaultPath(target);
+        setFormData(prev => (prev.path === target ? prev : { ...prev, path: target }));
+    }, [embedded, projectContext?.workspacePath]);
 
     // Initialize org name independently of workspace readiness.
     useEffect(() => {
@@ -450,7 +457,7 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable, projectConte
         }
     };
 
-    const content = isCreating ? (
+    const content = (isCreating && !embedded) ? (
         <CreatingSlot>
             <CreatingIntegrationView
                 variant="create"
@@ -545,11 +552,11 @@ export function LibraryCreationView({ onBack, ballerinaUnavailable, projectConte
                             <FormFooter>
                                 <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>
                                     <Button
-                                        disabled={isValidating || ballerinaUnavailable || !!libraryNameError || !!packageNameError || !!orgNameError || (!hidePath && !!pathError)}
+                                        disabled={isValidating || ballerinaUnavailable || isCreateDisabled || !!libraryNameError || !!packageNameError || !!orgNameError || (!hidePath && !!pathError)}
                                         onClick={handleCreate}
                                         appearance="primary"
                                     >
-                                        {isValidating ? "Validating..." : "Create Library"}
+                                        {isCreating ? "Creating..." : isValidating ? "Validating..." : "Create Library"}
                                     </Button>
                                 </span>
                             </FormFooter>

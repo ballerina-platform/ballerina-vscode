@@ -60,6 +60,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -160,6 +162,27 @@ public class LSPackageLoader {
 
                 this.getDistributionRepoModules().forEach(packageInfo ->
                         packagesList.put(packageInfo.packageIdentifier(), packageInfo));
+
+                // The user-home repositories hold the centrally-pulled and locally-published
+                // packages that do NOT ship inside the distribution (ballerina/workflow, for
+                // one). Without loading them here, the "import module" code action and
+                // unimported-module completions only ever offer distribution packages — a
+                // module the project itself pulled would still get no import suggestion.
+                // The empty listener map skips the listener-metadata compilation pass.
+                // `addAll` is safe here because this is one-time init: loadModules is called once,
+                // from BallerinaLanguageServer#initialized. Were it ever called again, these two
+                // lists would accumulate duplicates.
+                lsClientLogger.logTrace("Loading packages from the Ballerina user home repositories");
+                BallerinaUserHome ballerinaUserHome = BallerinaUserHome.from(environment);
+                this.remoteRepoPackages.addAll(checkAndResolvePackagesFromRepository(
+                        ballerinaUserHome.remotePackageRepository(), Collections.emptyMap(),
+                        Collections.emptyList(), packagesList.keySet()));
+                this.getRemoteRepoModules().forEach(packageInfo ->
+                        packagesList.putIfAbsent(packageInfo.packageIdentifier(), packageInfo));
+                this.localRepoPackages.addAll(checkAndResolvePackagesFromRepository(
+                        ballerinaUserHome.localPackageRepository(), Collections.emptyMap(),
+                        Collections.emptyList(), packagesList.keySet()));
+
                 List<ModuleInfo> repoPackages = new ArrayList<>(this.getLocalRepoModules());
                 repoPackages.stream().filter(packageInfo -> !packagesList.containsKey(packageInfo.packageIdentifier()))
                         .forEach(packageInfo -> packagesList.put(packageInfo.packageIdentifier(), packageInfo));
@@ -252,11 +275,7 @@ public class LSPackageLoader {
         repoPackages.addAll(this.getLocalRepoModules());
         repoPackages.stream().filter(packageInfo -> !packagesList.containsKey(packageInfo.packageIdentifier()))
                 .forEach(packageInfo -> packagesList.put(packageInfo.packageIdentifier(), packageInfo));
-        Optional<Project> currentProject = ctx.workspace().project(ctx.filePath());
-        if (currentProject.isEmpty()) {
-            return new ArrayList<>(packagesList.values());
-        }
-        Package currentPackage = currentProject.get().currentPackage();
+        Package currentPackage = ctx.workspace().project(ctx.filePath()).get().currentPackage();
         currentPackage.modules().forEach(module -> {
             Package packageInstance = module.packageInstance();
             ModuleInfo moduleInfo = new ModuleInfo(PackageOrg.from(""), packageInstance.packageName(),
@@ -297,25 +316,38 @@ public class LSPackageLoader {
             List<String> skipList, Set<String> loadedPackages) {
         Map<String, List<String>> packageMap = repository.getPackages();
         List<ModuleInfo> packages = new ArrayList<>();
+        // A repository reports every version it holds, while a ModuleInfo is identified by org/name
+        // alone: resolving each version would append entries that whoever merges these lists later
+        // collapses in map order, keeping an arbitrary version. Only the newest version of a name is
+        // resolved, and names resolved here join the dedupe set so the rest of this pass skips them.
+        Set<String> resolvedPackages = new HashSet<>(loadedPackages);
         packageMap.forEach((key, value) -> {
 
             if (key.equals(Names.BALLERINA_INTERNAL_ORG.getValue())) {
                 return;
             }
+            PackageOrg packageOrg = PackageOrg.from(key);
+            Map<String, PackageVersion> latestVersions = new LinkedHashMap<>();
             value.forEach(nameEntry -> {
                 String[] components = nameEntry.split(":");
                 if (components.length != 2 || skipList.contains(components[0])) {
                     return;
                 }
-                String nameComponent = components[0];
-                String version = components[1];
-                PackageOrg packageOrg = PackageOrg.from(key);
+                try {
+                    PackageVersion candidate = PackageVersion.from(components[1]);
+                    latestVersions.merge(components[0], candidate, (existing, latest) ->
+                            latest.value().greaterThan(existing.value()) ? latest : existing);
+                } catch (RuntimeException e) {
+                    clientLogger.logTrace("Skipped package with an unreadable version: "
+                            + packageOrg + "/" + nameEntry);
+                }
+            });
+            latestVersions.forEach((nameComponent, pkgVersion) -> {
                 PackageName packageName = PackageName.from(nameComponent);
                 String packageIdentifier = packageOrg.toString() + "/" + packageName;
-                if (loadedPackages.contains(packageIdentifier)) {
+                if (!resolvedPackages.add(packageIdentifier)) {
                     return;
                 }
-                PackageVersion pkgVersion = PackageVersion.from(version);
 
                 try {
                     PackageDescriptor pkdDesc = PackageDescriptor.from(packageOrg, packageName, pkgVersion);

@@ -1,0 +1,151 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Rewrite an existing activity entry at its own range inside the declaration's activities list",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "myActivity",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 19,
+          "offset": 8
+        },
+        "endLine": {
+          "line": 19,
+          "offset": 18
+        }
+      },
+      "isNew": false
+    },
+    "returning": false,
+    "properties": {
+      "activity": {
+        "metadata": {
+          "label": "Activity"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "myActivity",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "name": {
+        "metadata": {
+          "label": "Activity Name"
+        },
+        "valueType": "TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Activity Description"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval"
+        },
+        "valueType": "FLAG",
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "NoRetry",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "maxRetries": {
+        "metadata": {
+          "label": "Max Retries"
+        },
+        "valueType": "EXPRESSION",
+        "value": "3",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "retryDelay": {
+        "metadata": {
+          "label": "Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "1.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "retryBackoff": {
+        "metadata": {
+          "label": "Retry Backoff"
+        },
+        "valueType": "EXPRESSION",
+        "value": "2.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "maxRetryDelay": {
+        "metadata": {
+          "label": "Max Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 8
+          },
+          "end": {
+            "line": 19,
+            "character": 18
+          }
+        },
+        "newText": "{activity: myActivity, requiresApproval: true}"
+      }
+    ]
+  }
+}

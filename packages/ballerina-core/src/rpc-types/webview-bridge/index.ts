@@ -232,6 +232,12 @@ export interface IntegrationProjectParams {
      * be a project.
      */
     convertToWorkspace?: boolean;
+    /** Ballerina package organization (advanced configuration); defaults to the OS username. */
+    orgName?: string;
+    /** Resolved org handle written to Ballerina.toml's `org`; falls back to `orgName`. */
+    orgHandle?: string;
+    /** Ballerina package version (advanced configuration); defaults to 0.1.0. */
+    version?: string;
 }
 
 /**
