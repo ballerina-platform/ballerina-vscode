@@ -20,7 +20,6 @@ package org.ballerinalang.langserver.workspace.compilerengine;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
-import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.CompilationOptions;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
@@ -33,8 +32,6 @@ import io.ballerina.projects.environment.PackageLockingMode;
 import org.ballerinalang.langserver.common.utils.CommonUtil;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
-import org.ballerinalang.langserver.workspace.compilerengine.recovery.FailureType;
-import org.ballerinalang.langserver.workspace.compilerengine.recovery.RecoveryLadder;
 import org.ballerinalang.langserver.workspace.compilerengine.recovery.ResolutionResult;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.StableSnapshot;
 import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
@@ -97,53 +94,6 @@ public final class CompilationActionImpl implements CompilationPipeline.Compilat
         return snapshot(task, projectService.loadOrCreateFromIdentifier(task.sourceRootIdentifier(), null));
     }
 
-    @Override
-    public LockingMode currentLockingMode(CompileTask task) {
-        Project project = projectService.loadOrCreateFromIdentifier(task.sourceRootIdentifier(), null);
-        return projectService.getLockingMode(project);
-    }
-
-    /**
-     * Attempts recovery at progressively more permissive locking modes.
-     *
-     * <p>Each iteration loads a transient project solely to test whether resolution and
-     * compilation succeed at the escalated mode. The transient project is scoped to the
-     * try block so its compilation artifacts (symbol tables, BIR, semantic models) become
-     * eligible for GC immediately after each attempt — avoiding accumulation across the loop.
-     */
-    @Override
-    public CompilationPipeline.RecoveryResult recover(CompileTask task, LockingMode initialMode, Throwable cause) {
-        LockingMode recoveryMode = nextMorePermissiveMode(initialMode);
-        while (recoveryMode != initialMode) {
-            if (tryRecoveryAtMode(task, recoveryMode)) {
-                return CompilationPipeline.RecoveryResult.success();
-            }
-            initialMode = recoveryMode;
-            recoveryMode = nextMorePermissiveMode(recoveryMode);
-        }
-        return CompilationPipeline.RecoveryResult.exhausted();
-    }
-
-    /**
-     * Tries a single recovery attempt at the given locking mode with a transient project.
-     *
-     * @param task compilation task
-     * @param mode locking mode to attempt
-     * @return true if resolution and compilation succeeded
-     */
-    private boolean tryRecoveryAtMode(CompileTask task, LockingMode mode) {
-        try {
-            Project transientProject = BallerinaCompilerApi.getInstance()
-                    .loadProject(projectService.resolvePathFromIdentifier(task.sourceRootIdentifier()),
-                            buildOptions(mode));
-            CompilerCompilationGuard.getResolution(transientProject.currentPackage(), compilationOptions(mode));
-            CompilerCompilationGuard.getCompilation(transientProject.currentPackage());
-            return true;
-        } catch (RuntimeException ignored) {
-            return false;
-        }
-    }
-
     private StableSnapshot snapshot(CompileTask task, Project project) {
         if (task.isCancelled() || Thread.currentThread().isInterrupted()) {
             throw new java.util.concurrent.CancellationException(
@@ -201,16 +151,5 @@ public final class CompilationActionImpl implements CompilationPipeline.Compilat
                 .setOffline(CommonUtil.COMPILE_OFFLINE)
                 .setLockingMode(PackageLockingMode.valueOf(lockingMode.name()))
                 .build();
-    }
-
-    private BuildOptions buildOptions(LockingMode lockingMode) {
-        return BuildOptions.builder()
-                .setOffline(CommonUtil.COMPILE_OFFLINE)
-                .setLockingMode(PackageLockingMode.valueOf(lockingMode.name()))
-                .build();
-    }
-
-    private LockingMode nextMorePermissiveMode(LockingMode mode) {
-        return RecoveryLadder.nextMode(mode, FailureType.RESOLUTION_SUCCEEDED);
     }
 }

@@ -37,7 +37,6 @@ import org.ballerinalang.langserver.workspace.eventbus.event.ProjectEvent;
 import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
 import org.ballerinalang.langserver.workspace.observability.LogLevel;
 import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
-import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
 import org.ballerinalang.langserver.workspace.workspacemanager.ProjectServiceImpl;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 import org.ballerinalang.langserver.workspace.workspacemanager.uri.UriResolver;
@@ -764,17 +763,6 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                 current = current.getCause();
             }
             return false;
-        }
-
-        @Override
-        public LockingMode currentLockingMode(CompileTask task) {
-            return baseAction.currentLockingMode(task);
-        }
-
-        @Override
-        public CompilationPipeline.RecoveryResult recover(CompileTask task, LockingMode initialMode,
-                                                          Throwable cause) throws Exception {
-            return baseAction.recover(task, initialMode, cause);
         }
 
         boolean isOpen() {

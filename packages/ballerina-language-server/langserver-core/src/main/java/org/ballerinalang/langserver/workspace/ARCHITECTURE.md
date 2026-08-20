@@ -10,7 +10,7 @@ implements the public `WorkspaceManager` interface (`langserver-commons`).
 |---|---|---|
 | **Facade** | `workspace` (top level) | Implements `WorkspaceManager`; delegates to services |
 | **Workspace Manager** | `workspace.workspacemanager.*` | Project lifecycle, URI resolution, change buffering |
-| **Compiler Engine** | `workspace.compilerengine.*` | Compilation pipeline, dual snapshot store, recovery ladder |
+| **Compiler Engine** | `workspace.compilerengine.*` | Compilation pipeline, dual snapshot store, circuit breaker |
 | **Execution Manager** | `workspace.executionmanager`, `workspace.execution` | `bal run` child-process lifecycle |
 | **Observability** | `workspace.observability` | Trace/metric emission |
 | **Resource Monitor** | `workspace.resourcemonitor` | Heap pressure detection |
@@ -42,10 +42,6 @@ this doc and the test cited with it.
 - **`DualSnapshotStore`:** default max **16** stable snapshots (`DEFAULT_MAX_STABLE_SNAPSHOTS`),
   LRU eviction. Eviction clears only the stable snapshot's symbol graph — never the
   in-progress slot or pipeline registration. → `DualSnapshotAcceptanceTest`
-- **Recovery ladder** (`LockingMode`: `SOFT`/`MEDIUM`/`HARD`/`LOCKED`): escalates
-  `SOFT→MEDIUM→HARD→LOCKED` on `RESOLUTION_FAILED`, de-escalates in reverse on
-  `RESOLUTION_SUCCEEDED`. `RecoveryLadder` is a stateless utility (static methods only);
-  locking mode is owned by the caller. → `RecoveryLadderAcceptanceTest`
 - **Heap pressure** (`HeapPressureLevel`): `NORMAL→WARNING(≥70%)→CRITICAL(≥80%)→EMERGENCY(≥90%)`,
   10-point hysteresis, event fires only on level transitions.
 - **Event bus tiers** (`SubscriberTier`): `CRITICAL`, `COALESCEABLE`, `BEST_EFFORT` —
@@ -100,7 +96,7 @@ langserver-core/.../workspace/
 ├── compilerengine/
 │   ├── CompilationService(Impl).java, CompilationPipeline.java, CompileTask.java
 │   ├── snapshot/       # DualSnapshotStore, StableSnapshot, InProgressSnapshot
-│   └── recovery/       # RecoveryLadder, ResolutionResult, FailureClass/Type
+│   └── recovery/       # CancellationToken, ResolutionResult, FailureClass
 │
 ├── executionmanager/    # ExecutionService, ProcessId, ProcessState, ExecutionMode
 ├── execution/           # ExecutionServiceImpl, ExecutionProcess, ProcessRegistry

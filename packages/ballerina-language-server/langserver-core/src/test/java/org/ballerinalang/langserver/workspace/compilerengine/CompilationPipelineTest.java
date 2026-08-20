@@ -30,7 +30,6 @@ import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.workspace.eventbus.SubscriberTier;
 import org.ballerinalang.langserver.workspace.eventbus.event.CompilerEvent;
 import org.ballerinalang.langserver.workspace.eventbus.event.DomainEvent;
-import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -625,100 +624,6 @@ public class CompilationPipelineTest {
         Assert.assertFalse(compilationDiagnosticsReady.await(300, TimeUnit.MILLISECONDS),
                 "Resolution failure must not publish CE-E5b");
         Assert.assertEquals(compileCount.get(), 0, "Compilation must be skipped on non-qualifying resolution failure");
-    }
-
-    @Test
-    public void pipeline_birCompilationFailurePublishesRecoveredAndRecompiles() throws InterruptedException {
-        CountDownLatch recovered = new CountDownLatch(1);
-        CountDownLatch diagnosticsReady = new CountDownLatch(1);
-        AtomicInteger compileCount = new AtomicInteger(0);
-        AtomicInteger recoveryCalls = new AtomicInteger(0);
-        StableSnapshot snapshot = createMockSnapshot(new ContentVersion(1));
-
-        eventBus = new EventSyncPubSubHolder();
-        eventBus.subscribe("test-recovered", SubscriberTier.CRITICAL,
-                Set.of(EventKind.CE_RESOLUTION_RECOVERED), event -> recovered.countDown());
-        eventBus.subscribe("test-e5b-after-recovery", SubscriberTier.CRITICAL,
-                Set.of(EventKind.CE_E5B_COMPILATION_DIAGNOSTICS_READY), event -> diagnosticsReady.countDown());
-
-        pipeline = createPipeline(eventBus, new CompilationPipeline.CompilationAction() {
-            @Override
-            public ResolutionResult resolve(CompileTask task) {
-                return new ResolutionResult(task.descriptor(), List.of(), true);
-            }
-
-            @Override
-            public StableSnapshot compile(CompileTask task) {
-                if (compileCount.getAndIncrement() == 0) {
-                    throw new RuntimeException("failed to load the module foo.bir");
-                }
-                return snapshot;
-            }
-
-            @Override
-            public LockingMode currentLockingMode(CompileTask task) {
-                return LockingMode.LOCKED;
-            }
-
-            @Override
-            public CompilationPipeline.RecoveryResult recover(CompileTask task, LockingMode initialMode,
-                                                              Throwable cause) {
-                recoveryCalls.incrementAndGet();
-                return CompilationPipeline.RecoveryResult.success();
-            }
-        });
-
-        pipeline.requestCompilation(new ContentVersion(1));
-
-        Assert.assertTrue(recovered.await(3, TimeUnit.SECONDS), "BIR failure should publish recovery event");
-        Assert.assertTrue(diagnosticsReady.await(3, TimeUnit.SECONDS),
-                "Recovered pipeline should trigger a new successful compilation cycle");
-        Assert.assertEquals(recoveryCalls.get(), 1, "Recovery ladder should be invoked once");
-        Assert.assertTrue(compileCount.get() >= 2, "Compilation should be retried after recovery");
-    }
-
-    @Test
-    public void pipeline_birCompilationFailurePublishesExhaustedWhenRecoveryFails() throws InterruptedException {
-        CountDownLatch exhausted = new CountDownLatch(1);
-        CountDownLatch diagnosticsReady = new CountDownLatch(1);
-        AtomicInteger recoveryCalls = new AtomicInteger(0);
-
-        eventBus = new EventSyncPubSubHolder();
-        eventBus.subscribe("test-exhausted", SubscriberTier.CRITICAL,
-                Set.of(EventKind.CE_RESOLUTION_EXHAUSTED), event -> exhausted.countDown());
-        eventBus.subscribe("test-no-e5b-after-exhausted", SubscriberTier.CRITICAL,
-                Set.of(EventKind.CE_E5B_COMPILATION_DIAGNOSTICS_READY), event -> diagnosticsReady.countDown());
-
-        pipeline = createPipeline(eventBus, new CompilationPipeline.CompilationAction() {
-            @Override
-            public ResolutionResult resolve(CompileTask task) {
-                return new ResolutionResult(task.descriptor(), List.of(), true);
-            }
-
-            @Override
-            public StableSnapshot compile(CompileTask task) {
-                throw new RuntimeException("failed to load the module bar.bir");
-            }
-
-            @Override
-            public LockingMode currentLockingMode(CompileTask task) {
-                return LockingMode.HARD;
-            }
-
-            @Override
-            public CompilationPipeline.RecoveryResult recover(CompileTask task, LockingMode initialMode,
-                                                              Throwable cause) {
-                recoveryCalls.incrementAndGet();
-                return CompilationPipeline.RecoveryResult.exhausted();
-            }
-        });
-
-        pipeline.requestCompilation(new ContentVersion(1));
-
-        Assert.assertTrue(exhausted.await(3, TimeUnit.SECONDS), "BIR failure should publish exhaustion event");
-        Assert.assertFalse(diagnosticsReady.await(300, TimeUnit.MILLISECONDS),
-                "Exhausted recovery must not publish CE-E5b");
-        Assert.assertEquals(recoveryCalls.get(), 1, "Recovery ladder should be invoked once");
     }
 
     // ---- Semaphore-based concurrency limit ----

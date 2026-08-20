@@ -30,12 +30,10 @@ import org.ballerinalang.langserver.workspace.eventbus.event.CompilerEvent;
 import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
 import org.ballerinalang.langserver.workspace.observability.LogLevel;
 import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
-import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -69,15 +67,6 @@ public class CompilationPipeline implements AutoCloseable {
 
         StableSnapshot compile(CompileTask task) throws Exception;
 
-        default LockingMode currentLockingMode(CompileTask task) {
-            // Tests and lightweight callers can omit locking-mode wiring; production overrides this.
-            return LockingMode.LOCKED;
-        }
-
-        default RecoveryResult recover(CompileTask task, LockingMode initialMode, Throwable cause) throws Exception {
-            return RecoveryResult.exhausted();
-        }
-
         /**
          * Returns the package descriptor for the given source root path. Called once at pipeline creation time to
          * establish the PackageDescriptor index.
@@ -87,23 +76,6 @@ public class CompilationPipeline implements AutoCloseable {
          */
         default PackageDescriptor describe(String sourceRootIdentifier) throws Exception {
             throw new UnsupportedOperationException("describe() must be implemented");
-        }
-    }
-
-    /**
-     * Recovery outcome for a qualifying compilation failure.
-     *
-     * @param recovered whether transient recovery succeeded
-     * @since 1.7.0
-     */
-    public record RecoveryResult(boolean recovered) {
-
-        public static RecoveryResult success() {
-            return new RecoveryResult(true);
-        }
-
-        public static RecoveryResult exhausted() {
-            return new RecoveryResult(false);
         }
     }
 
@@ -401,10 +373,6 @@ public class CompilationPipeline implements AutoCloseable {
         } catch (InterruptedException e) {
             emitEvent(EventKind.COMPILER_COMPILATION_CANCELLED);
         } catch (Exception e) {
-            if (isBirCompilationFailure(e)) {
-                scheduleRecovery(task, e);
-                return;
-            }
             diagnosticLog.log(LogLevel.WARN, SOURCE, "Compilation failed for " + descriptorName, e);
             emitEvent(EventKind.COMPILER_COMPILATION_FAILED);
         } finally {
@@ -426,27 +394,6 @@ public class CompilationPipeline implements AutoCloseable {
     private void clearStaleInterrupt(CompileTask task) {
         if (!task.isCancelled() && Thread.currentThread().isInterrupted()) {
             Thread.interrupted();
-        }
-    }
-
-    private void scheduleRecovery(CompileTask task, Throwable cause) {
-        compilationWorker.execute(() -> executeRecovery(task, cause));
-    }
-
-    private void executeRecovery(CompileTask task, Throwable cause) {
-        try {
-            RecoveryResult recoveryResult =
-                    compilationAction.recover(task, compilationAction.currentLockingMode(task), cause);
-            if (recoveryResult.recovered()) {
-                emitEvent(EventKind.CE_RESOLUTION_RECOVERED);
-                requestCompilation(latestRequestedVersion.updateAndGet(version ->
-                        version != null ? version : task.contentVersion()));
-            } else {
-                emitEvent(EventKind.CE_RESOLUTION_EXHAUSTED);
-            }
-        } catch (Exception e) {
-            diagnosticLog.log(LogLevel.WARN, SOURCE, "Recovery failed for " + descriptorName, e);
-            emitEvent(EventKind.CE_RESOLUTION_EXHAUSTED);
         }
     }
 
@@ -504,16 +451,5 @@ public class CompilationPipeline implements AutoCloseable {
             return descriptor.name().value();
         }
         return "unknown-package";
-    }
-
-    private boolean isBirCompilationFailure(Throwable error) {
-        String message = error.getMessage();
-        if (message == null) {
-            return false;
-        }
-        String normalized = message.toLowerCase(Locale.ROOT);
-        return normalized.startsWith("failed to load the module")
-                || normalized.contains(".bir")
-                || normalized.contains(" bir ");
     }
 }
