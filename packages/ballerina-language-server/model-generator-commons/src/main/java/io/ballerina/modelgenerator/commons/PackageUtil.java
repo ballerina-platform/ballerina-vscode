@@ -117,8 +117,9 @@ public class PackageUtil {
             new ConcurrentHashMap<>();
 
     /**
-     * Serializes cache-miss resolutions: before caching, every call built its own sample project
-     * (and resolver), so the shared resolver was never used concurrently. Keep that property.
+     * Serializes access to the shared sample project's non-thread-safe resolver — cache-miss
+     * resolutions, offline resolutions, and metadata queries — so concurrent Language Server
+     * requests cannot corrupt it.
      */
     private static final Object SAMPLE_RESOLUTION_LOCK = new Object();
 
@@ -164,21 +165,24 @@ public class PackageUtil {
      * i.e. the version the build has provisioned. Returns null if not cached.
      */
     public static String cachedVersion(String org, String name) {
-        try {
-            PackageResolver resolver = SAMPLE_PROJECT.projectEnvironmentContext().getService(PackageResolver.class);
-            Collection<PackageMetadataResponse> responses = resolver.resolvePackageMetadata(
-                    Collections.singletonList(ResolutionRequest.from(
-                            PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)))),
-                    ResolutionOptions.builder().setOffline(true).build());
-            Optional<PackageMetadataResponse> first = responses.stream().findFirst();
-            if (first.isPresent()
-                    && first.get().resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED) {
-                return first.get().resolvedDescriptor().version().toString();
+        synchronized (SAMPLE_RESOLUTION_LOCK) {
+            try {
+                PackageResolver resolver = SAMPLE_PROJECT.projectEnvironmentContext()
+                        .getService(PackageResolver.class);
+                Collection<PackageMetadataResponse> responses = resolver.resolvePackageMetadata(
+                        Collections.singletonList(ResolutionRequest.from(
+                                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)))),
+                        ResolutionOptions.builder().setOffline(true).build());
+                Optional<PackageMetadataResponse> first = responses.stream().findFirst();
+                if (first.isPresent()
+                        && first.get().resolutionStatus() != ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+                    return first.get().resolvedDescriptor().version().toString();
+                }
+            } catch (RuntimeException ignored) {
+                // fall through to null
             }
-        } catch (RuntimeException ignored) {
-            // fall through to null
+            return null;
         }
-        return null;
     }
 
     /**
@@ -398,42 +402,48 @@ public class PackageUtil {
      * {@link #pullModuleAndNotify}) rather than pulling it silently as a side effect of a read.
      */
     public static Optional<Package> getModulePackageOffline(BuildProject buildProject, String org, String name) {
-        ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)));
-        PackageResolver packageResolver = buildProject.projectEnvironmentContext().getService(PackageResolver.class);
-        Collection<PackageMetadataResponse> packageMetadataResponses = packageResolver.resolvePackageMetadata(
-                Collections.singletonList(resolutionRequest),
-                ResolutionOptions.builder().setOffline(true).build());
-        Optional<PackageMetadataResponse> pkgMetadata = packageMetadataResponses.stream().findFirst();
-        if (pkgMetadata.isEmpty() ||
-                pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
-            return Optional.empty();
-        }
+        synchronized (SAMPLE_RESOLUTION_LOCK) {
+            ResolutionRequest resolutionRequest = ResolutionRequest.from(
+                    PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name)));
+            PackageResolver packageResolver = buildProject.projectEnvironmentContext()
+                    .getService(PackageResolver.class);
+            Collection<PackageMetadataResponse> packageMetadataResponses = packageResolver.resolvePackageMetadata(
+                    Collections.singletonList(resolutionRequest),
+                    ResolutionOptions.builder().setOffline(true).build());
+            Optional<PackageMetadataResponse> pkgMetadata = packageMetadataResponses.stream().findFirst();
+            if (pkgMetadata.isEmpty() ||
+                    pkgMetadata.get().resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED) {
+                return Optional.empty();
+            }
 
-        Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
-                Collections.singletonList(ResolutionRequest.from(pkgMetadata.get().resolvedDescriptor())),
-                ResolutionOptions.builder().setOffline(true).build());
-        Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
-        if (resolutionResponse.isEmpty()) {
-            return Optional.empty();
-        }
+            Collection<ResolutionResponse> resolutionResponses = packageResolver.resolvePackages(
+                    Collections.singletonList(ResolutionRequest.from(pkgMetadata.get().resolvedDescriptor())),
+                    ResolutionOptions.builder().setOffline(true).build());
+            Optional<ResolutionResponse> resolutionResponse = resolutionResponses.stream().findFirst();
+            if (resolutionResponse.isEmpty()) {
+                return Optional.empty();
+            }
 
-        Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
-        ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
-        defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
-        BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath);
-        return Optional.ofNullable(balaProject.currentPackage());
+            Path balaPath = resolutionResponse.get().resolvedPackage().project().sourceRoot();
+            ProjectEnvironmentBuilder defaultBuilder = ProjectEnvironmentBuilder.getDefaultBuilder();
+            defaultBuilder.addCompilationCacheFactory(TempDirCompilationCache::from);
+            BalaProject balaProject = BalaProject.loadProject(defaultBuilder, balaPath);
+            return Optional.ofNullable(balaProject.currentPackage());
+        }
     }
 
     public static boolean isModuleUnresolved(String org, String name, String version) {
-        ResolutionRequest resolutionRequest = ResolutionRequest.from(
-                PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version)));
-        PackageResolver packageResolver = SAMPLE_PROJECT.projectEnvironmentContext().getService(PackageResolver.class);
-        return packageResolver.resolvePackageMetadata(Collections.singletonList(resolutionRequest),
-                        ResolutionOptions.builder().setOffline(true).build()).stream()
-                .findFirst()
-                .map(response -> response.resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED)
-                .orElse(false);
+        synchronized (SAMPLE_RESOLUTION_LOCK) {
+            ResolutionRequest resolutionRequest = ResolutionRequest.from(
+                    PackageDescriptor.from(PackageOrg.from(org), PackageName.from(name), PackageVersion.from(version)));
+            PackageResolver packageResolver = SAMPLE_PROJECT.projectEnvironmentContext()
+                    .getService(PackageResolver.class);
+            return packageResolver.resolvePackageMetadata(Collections.singletonList(resolutionRequest),
+                            ResolutionOptions.builder().setOffline(true).build()).stream()
+                    .findFirst()
+                    .map(response -> response.resolutionStatus() == ResolutionResponse.ResolutionStatus.UNRESOLVED)
+                    .orElse(false);
+        }
     }
 
     private static Path getPath(Path path) {
