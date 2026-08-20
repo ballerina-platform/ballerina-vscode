@@ -48,7 +48,6 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
-import org.ballerinalang.langserver.workspace.CompilerCompilationGuard;
 import org.eclipse.lsp4j.MessageType;
 
 import java.io.IOException;
