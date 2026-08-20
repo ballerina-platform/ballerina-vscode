@@ -90,6 +90,9 @@ const NODE_COLOR_GROUPS = {
         // An activity is the unit of work a workflow executes — a call, like the ones above.
         "ACTIVITY_CALL",
         "CONNECTION_ACTIVITY_CALL",
+        // Asking a person to act is the other way a workflow gets work done, so it reads in the same
+        // green as the activity it stands beside.
+        "HUMAN_TASK",
         // The workflow accessors are plain function calls on the context, and they render the
         // function glyph, so they share the function colour.
         "WORKFLOW_CURRENT_TIME",
@@ -131,6 +134,8 @@ const NODE_COLOR_GROUPS = {
         // Data events carry data in and out of a running workflow, so they belong with the data.
         "SEND_DATA",
         "WAIT_DATA",
+        // A sleep is the other thing a workflow suspends on, so it shares the data event's colour.
+        "SLEEP",
     ],
     
     // Comments, concurrency and transactions - magenta variants
@@ -146,10 +151,6 @@ const NODE_COLOR_GROUPS = {
     
     // Error handling - yellow variants
     YELLOW_GROUP: ["ERROR_HANDLER", "PANIC", "FAIL", "RETRY"],
-
-    // Suspension - the workflow stops and waits on something it does not control: a person acting,
-    // or a deadline passing. Yellow reads as "pending", which is exactly what these nodes are.
-    YELLOW_SUSPEND_GROUP: ["HUMAN_TASK", "SLEEP"],
 };
 
 // Get current theme type (light or dark)
@@ -216,11 +217,6 @@ export const getNodeChartColor = (nodeType: NodeKind): string => {
 
     // Error handling - yellow variants
     if (NODE_COLOR_GROUPS.YELLOW_GROUP.includes(nodeType)) {
-        return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
-    }
-
-    // Suspended-on-the-outside-world nodes - yellow variants
-    if (NODE_COLOR_GROUPS.YELLOW_SUSPEND_GROUP.includes(nodeType)) {
         return dark ? CHART_COLORS.BRIGHT_YELLOW : CHART_COLORS.YELLOW;
     }
 
