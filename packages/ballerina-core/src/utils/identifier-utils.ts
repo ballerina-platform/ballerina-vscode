@@ -149,7 +149,7 @@ export function getAllVariablesByProjectComponents(projectComponents: BallerinaP
     return variableCollection;
 }
 
-export function toKebabCase(identifier: string): string {
+export function toKebabCase(identifier?: string | null): string {
     return (identifier ?? "")
         .replace(/_/g, '-')
         .replace(/([a-z])([A-Z])/g, '$1-$2')

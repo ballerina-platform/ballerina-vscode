@@ -136,6 +136,8 @@ export function Diagram(props: DiagramProps) {
         embedded,
     } = props;
 
+    const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
+
     const [showErrorFlow, setShowErrorFlow] = useState(false);
     const [nodeComments, setNodeComments] = useState<Map<string, FlowNode[]>>(new Map());
     const [diagramEngine] = useState<DiagramEngine>(generateEngine());
@@ -174,7 +176,7 @@ export function Diagram(props: DiagramProps) {
 
         const initVisitor = new InitVisitor(flowModel, currentExpandedErrorHandler);
         traverseFlow(flowModel, initVisitor);
-        const sizingVisitor = new SizingVisitor();
+        const sizingVisitor = new SizingVisitor(agentUsageOptions);
         traverseFlow(flowModel, sizingVisitor);
         const positionVisitor = new PositionVisitor();
         traverseFlow(flowModel, positionVisitor);
