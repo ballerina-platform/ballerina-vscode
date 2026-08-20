@@ -71,7 +71,10 @@ jobs:
                 git checkout -B "$tempBranch" "origin/$stagingBranch"
               fi
 
-              if git diff --quiet "origin/main" "$tempBranch" --; then
+              # Ancestry, not just contents: main moving ahead on its own makes the trees
+              # differ while staging has nothing to sync, and gh pr create 422s on that.
+              if [ "$(git rev-list --count "origin/main..$tempBranch")" -eq 0 ] \
+                || git diff --quiet "origin/main" "$tempBranch" --; then
                 if [ -n "$existingPr" ]; then
                   gh pr close "$existingPr" --comment "Closing: \`$stagingBranch\` has no changes left to sync into \`main\`." || true
                   echo "::notice::$stagingBranch has nothing new for main; closed stale PR $existingPr."
