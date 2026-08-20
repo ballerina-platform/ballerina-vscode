@@ -34,6 +34,9 @@ import org.ballerinalang.langserver.workspace.eventbus.event.CompilerEvent;
 import org.ballerinalang.langserver.workspace.eventbus.event.DomainEvent;
 import org.ballerinalang.langserver.workspace.eventbus.event.HeapPressureEvent;
 import org.ballerinalang.langserver.workspace.eventbus.event.ProjectEvent;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
+import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
 import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
 import org.ballerinalang.langserver.workspace.workspacemanager.ProjectServiceImpl;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
@@ -57,8 +60,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
@@ -72,7 +73,7 @@ import javax.annotation.Nonnull;
  * @since 1.7.0
  */
 public class CompilationServiceImpl implements CompilationService, AutoCloseable {
-    private static final Logger LOG = Logger.getLogger(CompilationServiceImpl.class.getName());
+    private static final String SOURCE = "CompilationServiceImpl";
     private static final int INITIAL_REQUEST_VERSION = 1;
 
     private final DualSnapshotStore snapshotStore;
@@ -88,6 +89,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
     private final Map<String, Set<CompilationKey>> sourceRootIndex;
     private final AtomicInteger versionCounter;
     private final AtomicLong throttledUntilNanos;
+    private final DiagnosticLog diagnosticLog;
     private final AtomicBoolean closed;
 
     /**
@@ -145,7 +147,8 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                                   @Nonnull ProjectServiceImpl projectService, long retryDelayMs,
                                   long heapPressureThrottleMs, int maxConcurrentCompilations) {
         this(snapshotStore, eventBus, new CompilationActionImpl(projectService), retryDelayMs,
-                heapPressureThrottleMs, buildSemaphore(maxConcurrentCompilations), projectService);
+                heapPressureThrottleMs, buildSemaphore(maxConcurrentCompilations), projectService,
+                NoOpDiagnosticLog.INSTANCE);
     }
 
     /**
@@ -175,7 +178,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                                   @Nonnull CompilationPipeline.CompilationAction compilationAction,
                                   long retryDelayMs, long heapPressureThrottleMs) {
         this(snapshotStore, eventBus, compilationAction, retryDelayMs, heapPressureThrottleMs,
-                new Semaphore(Integer.MAX_VALUE, false), null);
+                new Semaphore(Integer.MAX_VALUE, false), null, NoOpDiagnosticLog.INSTANCE);
     }
 
     /**
@@ -192,7 +195,37 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                                   @Nonnull CompilationPipeline.CompilationAction compilationAction,
                                   long retryDelayMs, long heapPressureThrottleMs, int maxConcurrentCompilations) {
         this(snapshotStore, eventBus, compilationAction, retryDelayMs, heapPressureThrottleMs,
-                buildSemaphore(maxConcurrentCompilations), null);
+                buildSemaphore(maxConcurrentCompilations), null, NoOpDiagnosticLog.INSTANCE);
+    }
+
+    /**
+     * Creates a compilation service with the given diagnostic log (production path).
+     *
+     * @param snapshotStore snapshot store for publishing compiled snapshots
+     * @param eventBus event bus for publishing/subscribing to domain events
+     * @param projectService the project service
+     * @param diagnosticLog diagnostic log for compilation diagnostics
+     */
+    public CompilationServiceImpl(@Nonnull DualSnapshotStore snapshotStore, @Nonnull EventSyncPubSubHolder eventBus,
+                                  @Nonnull ProjectServiceImpl projectService, @Nonnull DiagnosticLog diagnosticLog) {
+        this(snapshotStore, eventBus, new CompilationActionImpl(projectService), 500L, 250L,
+                buildSemaphore(Runtime.getRuntime().availableProcessors()), projectService, diagnosticLog);
+    }
+
+    /**
+     * Creates a compilation service with a custom compilation action and diagnostic log (test path).
+     *
+     * @param snapshotStore     snapshot store for publishing compiled snapshots
+     * @param eventBus          event bus for publishing/subscribing to domain events
+     * @param compilationAction the compilation strategy (typically a test double)
+     * @param retryDelayMs      delay in milliseconds before retrying a transient failure
+     * @param diagnosticLog     diagnostic log for compilation diagnostics
+     */
+    public CompilationServiceImpl(@Nonnull DualSnapshotStore snapshotStore, @Nonnull EventSyncPubSubHolder eventBus,
+                                  @Nonnull CompilationPipeline.CompilationAction compilationAction,
+                                  long retryDelayMs, @Nonnull DiagnosticLog diagnosticLog) {
+        this(snapshotStore, eventBus, compilationAction, retryDelayMs, 250L,
+                new Semaphore(Integer.MAX_VALUE, false), null, diagnosticLog);
     }
 
     /**
@@ -201,13 +234,14 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
     private CompilationServiceImpl(DualSnapshotStore snapshotStore, EventSyncPubSubHolder eventBus,
                                    CompilationPipeline.CompilationAction compilationAction, long retryDelayMs,
                                    long heapPressureThrottleMs, Semaphore compilationPermits,
-                                   ProjectServiceImpl projectService) {
+                                   ProjectServiceImpl projectService, DiagnosticLog diagnosticLog) {
         this.snapshotStore = snapshotStore;
         this.eventBus = eventBus;
         this.baseAction = compilationAction;
         this.retryDelayMs = retryDelayMs;
         this.heapPressureThrottleMs = heapPressureThrottleMs;
         this.compilationPermits = compilationPermits;
+        this.diagnosticLog = diagnosticLog == null ? NoOpDiagnosticLog.INSTANCE : diagnosticLog;
         this.pipelines = new ConcurrentHashMap<>();
         this.circuitActions = new ConcurrentHashMap<>();
         this.throttledRequests = new ConcurrentHashMap<>();
@@ -230,7 +264,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                     Path path = projectService.resolvePathFromIdentifier(evictedKey.sourceRoot());
                     projectService.evictProject(path);
                 } catch (Exception e) {
-                    LOG.fine(() -> "Failed to evict project for LRU-evicted snapshot: "
+                    diagnosticLog.log(LogLevel.DEBUG, SOURCE, "Failed to evict project for LRU-evicted snapshot: "
                             + evictedKey.sourceRoot() + " - " + e.getMessage());
                 }
             });
@@ -415,7 +449,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
         for (Map.Entry<CompilationKey, CircuitBreakerAction> entry : circuitActions.entrySet()) {
             if (entry.getValue().isOpen()) {
                 snapshotStore.clearStable(entry.getKey());
-                LOG.fine(() -> "Evicted stale snapshot for circuit-open pipeline: "
+                diagnosticLog.log(LogLevel.DEBUG, SOURCE, "Evicted stale snapshot for circuit-open pipeline: "
                         + descriptorName(entry.getKey().descriptor()));
             }
         }
@@ -428,7 +462,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
      */
     private void evictAllStableSnapshots() {
         int cleared = snapshotStore.clearAllStable();
-        LOG.info(() -> "Emergency heap pressure: cleared " + cleared + " stable snapshots"
+        diagnosticLog.log(LogLevel.INFO, SOURCE, "Emergency heap pressure: cleared " + cleared + " stable snapshots"
                 + " (store size=" + snapshotStore.size() + ", pipelines=" + pipelines.size() + ")");
     }
 
@@ -505,10 +539,11 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
         try {
             descriptor = baseAction.describe(sourceRootIdentifier);
         } catch (NoSuchElementException e) {
-            LOG.fine(() -> "Skipping compilation pipeline for project without packages at " + sourceRootIdentifier);
+            diagnosticLog.log(LogLevel.DEBUG, SOURCE, "Skipping compilation pipeline for project without packages at "
+                    + sourceRootIdentifier);
             return;
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Failed to describe project at " + sourceRootIdentifier, e);
+            diagnosticLog.log(LogLevel.WARN, SOURCE, "Failed to describe project at " + sourceRootIdentifier, e);
             return;
         }
         CompilationKey key = new CompilationKey(sourceRootIdentifier, descriptor);
@@ -516,9 +551,9 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
             return;
         }
         CircuitBreakerAction circuitAction = new CircuitBreakerAction(key, baseAction, snapshotStore, eventBus,
-                pipelines, retryScheduler, versionCounter, retryDelayMs);
+                pipelines, retryScheduler, versionCounter, retryDelayMs, diagnosticLog);
         CompilationPipeline pipeline = new CompilationPipeline(key, snapshotStore, eventBus,
-                circuitAction, compilationPermits);
+                circuitAction, compilationPermits, diagnosticLog);
         CompilationPipeline existing = pipelines.putIfAbsent(key, pipeline);
         if (existing != null) {
             pipeline.close();
@@ -658,6 +693,8 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
      */
     private static class CircuitBreakerAction implements CompilationPipeline.CompilationAction {
 
+        private static final String SOURCE = "CircuitBreakerAction";
+
         private final CompilationKey key;
         private final CompilationPipeline.CompilationAction baseAction;
         private final DualSnapshotStore snapshotStore;
@@ -668,13 +705,14 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
         private final long retryDelayMs;
         private final AtomicInteger retryCount;
         private final AtomicBoolean circuitOpen;
+        private final DiagnosticLog diagnosticLog;
         private volatile ScheduledFuture<?> retryTask;
 
         CircuitBreakerAction(CompilationKey key, CompilationPipeline.CompilationAction baseAction,
                              DualSnapshotStore snapshotStore, EventSyncPubSubHolder eventBus,
                              Map<CompilationKey, CompilationPipeline> pipelines,
                              ScheduledExecutorService retryScheduler, AtomicInteger versionCounter,
-                             long retryDelayMs) {
+                             long retryDelayMs, DiagnosticLog diagnosticLog) {
             this.key = key;
             this.baseAction = baseAction;
             this.snapshotStore = snapshotStore;
@@ -685,6 +723,7 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
             this.retryDelayMs = retryDelayMs;
             this.retryCount = new AtomicInteger(0);
             this.circuitOpen = new AtomicBoolean(false);
+            this.diagnosticLog = diagnosticLog == null ? NoOpDiagnosticLog.INSTANCE : diagnosticLog;
         }
 
         @Override
@@ -774,7 +813,8 @@ public class CompilationServiceImpl implements CompilationService, AutoCloseable
                 eventBus.publish(new CompilerEvent(EventKind.CE_RESOLUTION_EXHAUSTED, uri,
                         descriptorName(key.descriptor())));
             } catch (Exception e) {
-                LOG.log(Level.WARNING, "Failed to emit CE-E6 for " + descriptorName(key.descriptor()), e);
+                diagnosticLog.log(LogLevel.WARN, SOURCE, "Failed to emit CE-E6 for "
+                        + descriptorName(key.descriptor()), e);
             }
         }
 

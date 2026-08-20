@@ -24,6 +24,9 @@ import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.ModuleId;
 import io.ballerina.projects.PackageCompilation;
 import org.ballerinalang.langserver.workspace.compilerengine.CompilationKey;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
+import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 
@@ -31,7 +34,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
@@ -59,29 +61,53 @@ import javax.annotation.Nonnull;
 public class DualSnapshotStore {
     private static final ContentVersion INITIAL_CONTENT_VERSION = new ContentVersion(0);
     private static final int DEFAULT_MAX_STABLE_SNAPSHOTS = 16;
-    private static final Logger LOG = Logger.getLogger(DualSnapshotStore.class.getName());
+    private static final String SOURCE = "DualSnapshotStore";
     private final ConcurrentHashMap<CompilationKey, SnapshotPair> snapshots;
     private final int maxStableSnapshots;
+    private final DiagnosticLog diagnosticLog;
     private volatile Consumer<CompilationKey> evictionListener;
 
     /**
-     * Creates an empty dual snapshot store with the default stable snapshot limit (16).
+     * Creates an empty dual snapshot store with the default stable snapshot limit (16) and a
+     * no-op diagnostic log.
      */
     public DualSnapshotStore() {
-        this(DEFAULT_MAX_STABLE_SNAPSHOTS);
+        this(DEFAULT_MAX_STABLE_SNAPSHOTS, NoOpDiagnosticLog.INSTANCE);
     }
 
     /**
-     * Creates an empty dual snapshot store with the given stable snapshot limit.
+     * Creates an empty dual snapshot store with the given stable snapshot limit and a no-op
+     * diagnostic log.
      *
      * @param maxStableSnapshots maximum number of stable snapshots to retain; must be >= 1
      */
     public DualSnapshotStore(int maxStableSnapshots) {
+        this(maxStableSnapshots, NoOpDiagnosticLog.INSTANCE);
+    }
+
+    /**
+     * Creates an empty dual snapshot store with the default stable snapshot limit (16) and the
+     * given diagnostic log.
+     *
+     * @param diagnosticLog diagnostic log for LRU-eviction diagnostics
+     */
+    public DualSnapshotStore(DiagnosticLog diagnosticLog) {
+        this(DEFAULT_MAX_STABLE_SNAPSHOTS, diagnosticLog);
+    }
+
+    /**
+     * Creates an empty dual snapshot store with the given stable snapshot limit and diagnostic log.
+     *
+     * @param maxStableSnapshots maximum number of stable snapshots to retain; must be >= 1
+     * @param diagnosticLog diagnostic log for LRU-eviction diagnostics
+     */
+    public DualSnapshotStore(int maxStableSnapshots, DiagnosticLog diagnosticLog) {
         if (maxStableSnapshots < 1) {
             throw new IllegalArgumentException("maxStableSnapshots must be >= 1, got: " + maxStableSnapshots);
         }
         this.snapshots = new ConcurrentHashMap<>();
         this.maxStableSnapshots = maxStableSnapshots;
+        this.diagnosticLog = diagnosticLog == null ? NoOpDiagnosticLog.INSTANCE : diagnosticLog;
     }
 
     /**
@@ -294,15 +320,15 @@ public class DualSnapshotStore {
             if (evictedPair != null) {
                 evictedPair.clearStable();
                 CompilationKey evictedKey = oldestKey;
-                LOG.fine(() -> "LRU eviction: cleared stable snapshot for " + evictedKey.sourceRoot()
-                        + " (store holds " + maxStableSnapshots + " max)");
+                diagnosticLog.log(LogLevel.DEBUG, SOURCE, "LRU eviction: cleared stable snapshot for "
+                        + evictedKey.sourceRoot() + " (store holds " + maxStableSnapshots + " max)");
                 Consumer<CompilationKey> listener = evictionListener;
                 if (listener != null) {
                     try {
                         listener.accept(evictedKey);
                     } catch (Exception e) {
-                        LOG.warning(() -> "Eviction listener failed for " + evictedKey.sourceRoot()
-                                + ": " + e.getMessage());
+                        diagnosticLog.log(LogLevel.WARN, SOURCE, "Eviction listener failed for "
+                                + evictedKey.sourceRoot() + ": " + e.getMessage());
                     }
                 }
             }

@@ -27,6 +27,7 @@ import org.ballerinalang.langserver.workspace.eventbus.EventKind;
 import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.workspace.eventbus.SubscriberTier;
 import org.ballerinalang.langserver.workspace.eventbus.event.ProjectEvent;
+import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 import org.ballerinalang.langserver.workspace.workspacemanager.project.ProjectKind;
 import org.ballerinalang.langserver.workspace.workspacemanager.uri.DocumentUri;
@@ -75,6 +76,7 @@ public class WiringConfigurationTest {
         wiring = WiringConfiguration.builder()
                 .eventBus(eventBus)
                 .snapshotStore(new DualSnapshotStore())
+                .diagnosticLog(NoOpDiagnosticLog.INSTANCE)
                 .compilationAction(new org.ballerinalang.langserver.workspace.compilerengine.CompilationPipeline
                         .CompilationAction() {
                     @Override

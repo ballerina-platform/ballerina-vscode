@@ -28,6 +28,9 @@ import org.ballerinalang.langserver.commons.LanguageServerContext;
 import org.ballerinalang.langserver.commons.workspace.WorkspaceManager;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.DualSnapshotStore;
 import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.SinkDiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.TraceSinkFactory;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -57,12 +60,14 @@ public final class WorkspaceManagerFacadeFactory {
                 .build();
 
         EventSyncPubSubHolder eventBus = new EventSyncPubSubHolder();
-        DualSnapshotStore snapshotStore = new DualSnapshotStore();
+        DiagnosticLog diagnosticLog = new SinkDiagnosticLog(TraceSinkFactory.resolve());
+        DualSnapshotStore snapshotStore = new DualSnapshotStore(diagnosticLog);
         Duration gracePeriod = Duration.ofMillis(2000);
 
         WiringConfiguration config = WiringConfiguration.builder()
                 .eventBus(eventBus)
                 .snapshotStore(snapshotStore)
+                .diagnosticLog(diagnosticLog)
                 .projectLoader((requestUri, kind) -> loadProject(Path.of(requestUri.uri()), buildOptions))
                 .gracePeriod(gracePeriod)
                 .build();
@@ -71,7 +76,8 @@ public final class WorkspaceManagerFacadeFactory {
                 config.projectService(),
                 config.compilationService(),
                 config.executionService(),
-                config
+                config,
+                diagnosticLog
         );
     }
 

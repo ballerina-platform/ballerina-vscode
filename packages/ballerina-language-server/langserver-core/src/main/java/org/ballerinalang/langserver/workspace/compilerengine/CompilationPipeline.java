@@ -27,6 +27,9 @@ import org.ballerinalang.langserver.workspace.compilerengine.snapshot.StableSnap
 import org.ballerinalang.langserver.workspace.eventbus.EventKind;
 import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.workspace.eventbus.event.CompilerEvent;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
+import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
 import org.ballerinalang.langserver.workspace.workspacemanager.LockingMode;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 
@@ -42,8 +45,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
 
@@ -55,7 +56,7 @@ import javax.annotation.Nonnull;
 public class CompilationPipeline implements AutoCloseable {
     private static final long DEBOUNCE_MILLIS = 150;
     private static final long PERMIT_ACQUIRE_TIMEOUT_SECONDS = 30;
-    private static final Logger LOG = Logger.getLogger(CompilationPipeline.class.getName());
+    private static final String SOURCE = "CompilationPipeline";
 
     /**
      * Strategy for performing the actual compilation work.
@@ -112,6 +113,7 @@ public class CompilationPipeline implements AutoCloseable {
     private final DualSnapshotStore snapshotStore;
     private final EventSyncPubSubHolder eventBus;
     private final CompilationAction compilationAction;
+    private final DiagnosticLog diagnosticLog;
     private final Semaphore compilationPermits;
     private final ScheduledExecutorService debounceScheduler;
     private final ExecutorService compilationWorker;
@@ -152,13 +154,48 @@ public class CompilationPipeline implements AutoCloseable {
                                @Nonnull EventSyncPubSubHolder eventBus,
                                @Nonnull CompilationAction compilationAction,
                                @Nonnull Semaphore compilationPermits) {
+        this(key, snapshotStore, eventBus, compilationAction, compilationPermits, NoOpDiagnosticLog.INSTANCE);
+    }
+
+    /**
+     * Creates a compilation pipeline with the given diagnostic log.
+     *
+     * @param key               the compound key (source root + package descriptor)
+     * @param snapshotStore     store to publish snapshots into
+     * @param eventBus          event bus for domain event emission
+     * @param compilationAction the actual compilation strategy
+     * @param diagnosticLog     diagnostic log for compilation diagnostics
+     */
+    public CompilationPipeline(@Nonnull CompilationKey key, @Nonnull DualSnapshotStore snapshotStore,
+                               @Nonnull EventSyncPubSubHolder eventBus,
+                               @Nonnull CompilationAction compilationAction,
+                               @Nonnull DiagnosticLog diagnosticLog) {
+        this(key, snapshotStore, eventBus, compilationAction, new Semaphore(Integer.MAX_VALUE, false), diagnosticLog);
+    }
+
+    /**
+     * Creates a compilation pipeline with a shared semaphore and diagnostic log.
+     *
+     * @param key                the compound key (source root + package descriptor)
+     * @param snapshotStore      store to publish snapshots into
+     * @param eventBus           event bus for domain event emission
+     * @param compilationAction  the actual compilation strategy
+     * @param compilationPermits shared semaphore controlling the maximum concurrent compilations
+     * @param diagnosticLog      diagnostic log for compilation diagnostics
+     */
+    public CompilationPipeline(@Nonnull CompilationKey key, @Nonnull DualSnapshotStore snapshotStore,
+                               @Nonnull EventSyncPubSubHolder eventBus,
+                               @Nonnull CompilationAction compilationAction,
+                               @Nonnull Semaphore compilationPermits,
+                               @Nonnull DiagnosticLog diagnosticLog) {
         this.key = key;
         this.descriptorName = descriptorName(key.descriptor());
-        this.sourceRootUri = parseSourceRootUri(key.sourceRoot());
         this.snapshotStore = snapshotStore;
         this.eventBus = eventBus;
         this.compilationAction = compilationAction;
+        this.diagnosticLog = diagnosticLog;
         this.compilationPermits = compilationPermits;
+        this.sourceRootUri = parseSourceRootUri(key.sourceRoot());
 
         this.debounceScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "compile-debounce-" + descriptorName);
@@ -318,7 +355,8 @@ public class CompilationPipeline implements AutoCloseable {
         try {
             permitAcquired = compilationPermits.tryAcquire(PERMIT_ACQUIRE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!permitAcquired) {
-                LOG.warning(() -> "Timed out waiting for compilation permit for " + descriptorName);
+                diagnosticLog.log(LogLevel.WARN, SOURCE, "Timed out waiting for compilation permit for "
+                        + descriptorName);
                 emitEvent(EventKind.COMPILER_COMPILATION_FAILED);
                 return;
             }
@@ -338,7 +376,6 @@ public class CompilationPipeline implements AutoCloseable {
 
             // Publication guard: discard result if cancelled or pipeline closed
             if (task.isCancelled() || closed.get()) {
-                LOG.fine(() -> "Cancelled compilation result discarded for " + descriptorName);
                 emitEvent(EventKind.COMPILER_COMPILATION_CANCELLED);
                 return;
             }
@@ -346,8 +383,6 @@ public class CompilationPipeline implements AutoCloseable {
             // Staleness guard before publish
             ContentVersion latest = latestRequestedVersion.get();
             if (latest != null && latest.compareTo(task.contentVersion()) > 0) {
-                LOG.fine(() -> "Stale compilation discarded for " + descriptorName + " version="
-                        + task.contentVersion());
                 emitEvent(EventKind.COMPILER_COMPILATION_CANCELLED);
                 return;
             }
@@ -362,17 +397,15 @@ public class CompilationPipeline implements AutoCloseable {
             published = true;
             emitEvent(EventKind.COMPILER_SNAPSHOT_PUBLISHED);
         } catch (CancellationException e) {
-            LOG.fine(() -> "Compilation cancelled for " + descriptorName);
             emitEvent(EventKind.COMPILER_COMPILATION_CANCELLED);
         } catch (InterruptedException e) {
-            LOG.fine(() -> "Compilation interrupted for " + descriptorName);
             emitEvent(EventKind.COMPILER_COMPILATION_CANCELLED);
         } catch (Exception e) {
             if (isBirCompilationFailure(e)) {
                 scheduleRecovery(task, e);
                 return;
             }
-            LOG.log(Level.WARNING, "Compilation failed for " + descriptorName, e);
+            diagnosticLog.log(LogLevel.WARN, SOURCE, "Compilation failed for " + descriptorName, e);
             emitEvent(EventKind.COMPILER_COMPILATION_FAILED);
         } finally {
             if (permitAcquired) {
@@ -412,7 +445,7 @@ public class CompilationPipeline implements AutoCloseable {
                 emitEvent(EventKind.CE_RESOLUTION_EXHAUSTED);
             }
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Recovery failed for " + descriptorName, e);
+            diagnosticLog.log(LogLevel.WARN, SOURCE, "Recovery failed for " + descriptorName, e);
             emitEvent(EventKind.CE_RESOLUTION_EXHAUSTED);
         }
     }
@@ -440,7 +473,7 @@ public class CompilationPipeline implements AutoCloseable {
         try {
             eventBus.publish(new CompilerEvent(kind, sourceRootUri, descriptorName));
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Failed to emit event " + kind + " for " + descriptorName, e);
+            diagnosticLog.log(LogLevel.WARN, SOURCE, "Failed to emit event " + kind + " for " + descriptorName, e);
         } finally {
             if (interrupted) {
                 Thread.currentThread().interrupt();
@@ -448,7 +481,7 @@ public class CompilationPipeline implements AutoCloseable {
         }
     }
 
-    private static URI parseSourceRootUri(String sourceRootIdentifier) {
+    private URI parseSourceRootUri(String sourceRootIdentifier) {
         if (sourceRootIdentifier == null || sourceRootIdentifier.isBlank()) {
             return null;
         }
@@ -459,7 +492,8 @@ public class CompilationPipeline implements AutoCloseable {
             }
             return URI.create("file://" + trimmed);
         } catch (IllegalArgumentException e) {
-            LOG.fine(() -> "Could not parse sourceRootIdentifier as URI: " + sourceRootIdentifier);
+            diagnosticLog.log(LogLevel.DEBUG, SOURCE, "Could not parse sourceRootIdentifier as URI: "
+                    + sourceRootIdentifier);
             return null;
         }
     }

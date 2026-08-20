@@ -34,6 +34,8 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 import org.ballerinalang.langserver.workspace.compilerengine.CompilationService;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.StableSnapshot;
 import org.ballerinalang.langserver.workspace.executionmanager.ExecutionService;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
 import org.ballerinalang.langserver.workspace.workspacemanager.ProjectService;
 import org.ballerinalang.langserver.workspace.workspacemanager.change.ContentVersion;
 import org.ballerinalang.langserver.workspace.workspacemanager.uri.DocumentUri;
@@ -62,10 +64,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
 
 /**
@@ -78,6 +76,7 @@ public class WorkspaceManagerFacadeImplTest {
     private ProjectService mockProjectService;
     private CompilationService mockCompilationService;
     private ExecutionService mockExecutionService;
+    private RecordingDiagnosticLog diagnosticLog;
     private WorkspaceManagerFacadeImpl facade;
     private Path testPath;
 
@@ -86,11 +85,13 @@ public class WorkspaceManagerFacadeImplTest {
         mockProjectService = Mockito.mock(ProjectService.class);
         mockCompilationService = Mockito.mock(CompilationService.class);
         mockExecutionService = Mockito.mock(ExecutionService.class);
+        diagnosticLog = new RecordingDiagnosticLog();
 
         facade = new WorkspaceManagerFacadeImpl(
                 mockProjectService,
                 mockCompilationService,
-                mockExecutionService
+                mockExecutionService,
+                diagnosticLog
         );
 
         Path workspaceDir = Files.createTempDirectory("workspace-facade-test").toAbsolutePath().normalize();
@@ -616,47 +617,23 @@ public class WorkspaceManagerFacadeImplTest {
 
     @Test
     public void testSwallowedException_IsLoggedAtFine() {
-        // Representative JUL-handler test for task #06: a swallowed RuntimeException in a read facade
-        // method is emitted at FINE with the failing operation, subject, and thrown exception.
-        Logger logger = Logger.getLogger(WorkspaceManagerFacadeImpl.class.getName());
-        Level previousLevel = logger.getLevel();
-        List<LogRecord> records = new ArrayList<>();
-        Handler capturingHandler = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                records.add(record);
-            }
+        // A swallowed RuntimeException in a read facade method is emitted as a DEBUG diagnostic
+        // with the failing operation, subject, and thrown exception.
+        Mockito.when(mockProjectService.loadOrCreate(Mockito.any(Path.class), Mockito.any()))
+                .thenThrow(new RuntimeException("engine bug"));
 
-            @Override
-            public void flush() {
-            }
+        Optional<String> result = facade.relativePath(testPath);
 
-            @Override
-            public void close() {
-            }
-        };
-        capturingHandler.setLevel(Level.ALL);
-        logger.setLevel(Level.FINE);
-        logger.addHandler(capturingHandler);
-        try {
-            Mockito.when(mockProjectService.loadOrCreate(Mockito.any(Path.class), Mockito.any()))
-                    .thenThrow(new RuntimeException("engine bug"));
-
-            Optional<String> result = facade.relativePath(testPath);
-
-            Assert.assertFalse(result.isPresent());
-            LogRecord swallowed = records.stream()
-                    .filter(r -> r.getLevel() == Level.FINE)
-                    .filter(r -> r.getMessage() != null && r.getMessage().contains("relativePath"))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("No FINE log for swallowed relativePath exception"));
-            Assert.assertNotNull(swallowed.getThrown());
-            Assert.assertTrue(swallowed.getThrown() instanceof RuntimeException);
-            Assert.assertTrue(swallowed.getMessage().contains(testPath.toString()));
-        } finally {
-            logger.removeHandler(capturingHandler);
-            logger.setLevel(previousLevel);
-        }
+        Assert.assertFalse(result.isPresent());
+        RecordingDiagnosticLog.Entry swallowed = diagnosticLog.entries.stream()
+                .filter(e -> e.level() == LogLevel.DEBUG)
+                .filter(e -> e.message() != null && e.message().contains("relativePath"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No DEBUG diagnostic for swallowed relativePath exception"));
+        Assert.assertEquals(swallowed.source(), "WorkspaceManagerFacadeImpl");
+        Assert.assertNotNull(swallowed.throwable());
+        Assert.assertTrue(swallowed.throwable() instanceof RuntimeException);
+        Assert.assertTrue(swallowed.message().contains(testPath.toString()));
     }
 
     private StableSnapshot createStableSnapshot(SyntaxTree syntaxTree, SemanticModel semanticModel,
@@ -666,5 +643,23 @@ public class WorkspaceManagerFacadeImplTest {
         Mockito.when(documentId.moduleId()).thenReturn(moduleId);
         return new StableSnapshot(Map.of(documentId, syntaxTree), Map.of(testPath, documentId),
                 Map.of(moduleId, semanticModel), compilation, new ContentVersion(1));
+    }
+
+    private static final class RecordingDiagnosticLog implements DiagnosticLog {
+
+        private final List<Entry> entries = new ArrayList<>();
+
+        @Override
+        public void log(LogLevel level, String source, String message) {
+            log(level, source, message, null);
+        }
+
+        @Override
+        public void log(LogLevel level, String source, String message, Throwable t) {
+            entries.add(new Entry(level, source, message, t));
+        }
+
+        record Entry(LogLevel level, String source, String message, Throwable throwable) {
+        }
     }
 }

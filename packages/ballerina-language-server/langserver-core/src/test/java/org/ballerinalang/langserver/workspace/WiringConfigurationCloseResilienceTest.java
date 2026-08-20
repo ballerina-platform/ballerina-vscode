@@ -24,6 +24,7 @@ import io.ballerina.projects.PackageName;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.DualSnapshotStore;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.StableSnapshot;
 import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
+import org.ballerinalang.langserver.workspace.observability.NoOpDiagnosticLog;
 import org.ballerinalang.langserver.workspace.observability.WorkspaceTraceLogger;
 import org.ballerinalang.langserver.workspace.resourcemonitor.HeapPressureMonitor;
 import org.testng.Assert;
@@ -85,6 +86,7 @@ public class WiringConfigurationCloseResilienceTest {
         wiring = WiringConfiguration.builder()
                 .eventBus(eventBus)
                 .snapshotStore(new DualSnapshotStore())
+                .diagnosticLog(NoOpDiagnosticLog.INSTANCE)
                 .compilationAction(new org.ballerinalang.langserver.workspace.compilerengine.CompilationPipeline
                         .CompilationAction() {
                     @Override

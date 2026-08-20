@@ -39,6 +39,8 @@ import org.ballerinalang.langserver.workspace.compilerengine.CompilationService;
 import org.ballerinalang.langserver.workspace.compilerengine.snapshot.StableSnapshot;
 import org.ballerinalang.langserver.workspace.execution.WorkspaceRunService;
 import org.ballerinalang.langserver.workspace.executionmanager.ExecutionService;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
 import org.ballerinalang.langserver.workspace.workspacemanager.ProjectService;
 import org.ballerinalang.langserver.workspace.workspacemanager.uri.DocumentUri;
 import org.ballerinalang.langserver.workspace.workspacemanager.uri.UriResolver;
@@ -59,8 +61,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -74,12 +74,13 @@ import javax.annotation.Nonnull;
  */
 public final class WorkspaceManagerFacadeImpl
         implements WorkspaceManager, UriScopedWorkspaceManagerProvider, AutoCloseable {
+    private static final String SOURCE = "WorkspaceManagerFacadeImpl";
     private final ProjectService projectService;
     private final CompilationService compilationService;
     private final ExecutionService executionService;
     private final WorkspaceRunService workspaceRunService;
     private final AutoCloseable closeAction;
-    private static final Logger LOG = Logger.getLogger(WorkspaceManagerFacadeImpl.class.getName());
+    private final DiagnosticLog diagnosticLog;
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     /**
@@ -92,8 +93,9 @@ public final class WorkspaceManagerFacadeImpl
     public WorkspaceManagerFacadeImpl(
             ProjectService projectService,
             CompilationService compilationService,
-            ExecutionService executionService) {
-        this(projectService, compilationService, executionService, () -> { });
+            ExecutionService executionService,
+            DiagnosticLog diagnosticLog) {
+        this(projectService, compilationService, executionService, () -> { }, diagnosticLog);
     }
 
     /**
@@ -103,17 +105,20 @@ public final class WorkspaceManagerFacadeImpl
      * @param compilationService compilation service
      * @param executionService execution service
      * @param closeAction close action for the owned workspace wiring; must not be null
+     * @param diagnosticLog diagnostic log for swallowed-exception diagnostics
      */
     public WorkspaceManagerFacadeImpl(
             @Nonnull ProjectService projectService,
             @Nonnull CompilationService compilationService,
             @Nonnull ExecutionService executionService,
-            @Nonnull AutoCloseable closeAction) {
+            @Nonnull AutoCloseable closeAction,
+            @Nonnull DiagnosticLog diagnosticLog) {
         this.projectService = projectService;
         this.compilationService = compilationService;
         this.executionService = executionService;
         this.workspaceRunService = new WorkspaceRunService(projectService);
         this.closeAction = closeAction;
+        this.diagnosticLog = diagnosticLog;
     }
 
     /**
@@ -522,7 +527,7 @@ public final class WorkspaceManagerFacadeImpl
             try {
                 return Optional.of(facade.loadProject(uriFor(filePath)));
             } catch (Exception e) {
-                logSwallowed("project (uri-scoped)", filePath, e);
+                facade.logSwallowed("project (uri-scoped)", filePath, e);
                 return Optional.empty();
             }
         }
@@ -657,19 +662,17 @@ public final class WorkspaceManagerFacadeImpl
     }
 
     /**
-     * Logs a swallowed exception at {@link Level#FINE} before a facade read method returns its empty/default
-     * value. String construction is guarded by {@link Logger#isLoggable} so the hot path pays nothing when
-     * fine logging is disabled. The return behavior of the caller is intentionally unchanged; this is purely
-     * an observability hook so a genuine engine bug is distinguishable from "no result".
+     * Logs a swallowed exception at {@link LogLevel#DEBUG} before a facade read method returns its
+     * empty/default value. The return behavior of the caller is intentionally unchanged; this is
+     * purely an observability hook so a genuine engine bug is distinguishable from "no result".
      *
      * @param operation short name of the facade operation that failed (e.g. {@code "document"})
      * @param subject   the path or URI involved, or {@code null} if none
      * @param e         the swallowed exception
      */
-    private static void logSwallowed(String operation, Object subject, Throwable e) {
-        if (LOG.isLoggable(Level.FINE)) {
-            LOG.log(Level.FINE, operation + " failed for " + subject + "; returning empty/default value", e);
-        }
+    private void logSwallowed(String operation, Object subject, Throwable e) {
+        diagnosticLog.log(LogLevel.DEBUG, SOURCE,
+                operation + " failed for " + subject + "; returning empty/default value", e);
     }
 
     /**

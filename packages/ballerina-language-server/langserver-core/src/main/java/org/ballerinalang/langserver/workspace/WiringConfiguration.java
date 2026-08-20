@@ -24,6 +24,11 @@ import org.ballerinalang.langserver.workspace.compilerengine.snapshot.DualSnapsh
 import org.ballerinalang.langserver.workspace.eventbus.EventSyncPubSubHolder;
 import org.ballerinalang.langserver.workspace.eventbus.event.HeapPressureEvent;
 import org.ballerinalang.langserver.workspace.execution.ExecutionServiceImpl;
+import org.ballerinalang.langserver.workspace.observability.DiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.LogLevel;
+import org.ballerinalang.langserver.workspace.observability.SinkDiagnosticLog;
+import org.ballerinalang.langserver.workspace.observability.TraceLogSink;
+import org.ballerinalang.langserver.workspace.observability.TraceSinkFactory;
 import org.ballerinalang.langserver.workspace.observability.WorkspaceTraceLogger;
 import org.ballerinalang.langserver.workspace.resourcemonitor.HeapPressureDetected;
 import org.ballerinalang.langserver.workspace.resourcemonitor.HeapPressureMonitor;
@@ -77,15 +82,17 @@ public final class WiringConfiguration implements AutoCloseable {
 
         // 4. CompilationService (subscribes to WM-E1, WM-E2, WM-E4, WM-E9, WM-E11)
         this.compilationService = builder.compilationAction != null
-                ? new CompilationServiceImpl(builder.snapshotStore, eventBus, builder.compilationAction, 500L)
-                : new CompilationServiceImpl(builder.snapshotStore, eventBus, this.projectService);
+                ? new CompilationServiceImpl(builder.snapshotStore, eventBus, builder.compilationAction, 500L,
+                        builder.diagnosticLog)
+                : new CompilationServiceImpl(builder.snapshotStore, eventBus, this.projectService,
+                        builder.diagnosticLog);
 
         // 5. ExecutionService (subscribes to WM-E2, WM-E4)
         this.executionService = new ExecutionServiceImpl(
                 eventBus, builder.gracePeriod, builder.maxActiveProcesses);
 
         // 6. WorkspaceTraceLogger (subscribes to ALL event kinds with BEST_EFFORT)
-        this.traceLogger = new WorkspaceTraceLogger(eventBus);
+        this.traceLogger = new WorkspaceTraceLogger(eventBus, LogLevel.TRACE, traceSinks(builder.diagnosticLog));
 
     }
 
@@ -150,6 +157,18 @@ public final class WiringConfiguration implements AutoCloseable {
     }
 
     /**
+     * Resolves the sink list shared by the event-trace and diagnostic channels. When the
+     * diagnostic log is a {@link SinkDiagnosticLog}, its sinks are reused so both channels write
+     * to the same file/console; otherwise a fresh list is resolved from {@link TraceSinkFactory}.
+     */
+    private static List<TraceLogSink> traceSinks(DiagnosticLog diagnosticLog) {
+        if (diagnosticLog instanceof SinkDiagnosticLog sinkDiagnosticLog) {
+            return sinkDiagnosticLog.sinks();
+        }
+        return TraceSinkFactory.resolve();
+    }
+
+    /**
      * Runs a single shutdown action, recording (not short-circuiting on) any thrown failure.
      *
      * @param action   shutdown action ({@code stop()}, {@code close()}, or {@code shutdown()})
@@ -196,6 +215,7 @@ public final class WiringConfiguration implements AutoCloseable {
         private int maxActiveProcesses = 5;
         private long heapPressurePollIntervalMs = 5000L;
         private CompilationPipeline.CompilationAction compilationAction;
+        private DiagnosticLog diagnosticLog;
 
         public Builder eventBus(@Nonnull EventSyncPubSubHolder eventBus) {
             this.eventBus = eventBus;
@@ -238,9 +258,16 @@ public final class WiringConfiguration implements AutoCloseable {
             return this;
         }
 
+        public Builder diagnosticLog(@Nonnull DiagnosticLog diagnosticLog) {
+            this.diagnosticLog = diagnosticLog;
+            return this;
+        }
+
         public WiringConfiguration build() {
-            if (eventBus == null || snapshotStore == null || projectLoader == null || gracePeriod == null) {
-                throw new IllegalStateException("eventBus, snapshotStore, projectLoader, and gracePeriod are required");
+            if (eventBus == null || snapshotStore == null || projectLoader == null || gracePeriod == null
+                    || diagnosticLog == null) {
+                throw new IllegalStateException(
+                        "eventBus, snapshotStore, projectLoader, gracePeriod, and diagnosticLog are required");
             }
             return new WiringConfiguration(this);
         }
