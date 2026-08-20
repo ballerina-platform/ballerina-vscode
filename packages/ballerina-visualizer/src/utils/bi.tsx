@@ -141,6 +141,9 @@ function convertAvailableNodeToPanelNode(
                 type={functionType === FUNCTION_TYPE.EXPRESSION_BODIED ? "DATA_MAPPER_CALL" : node.codedata.node}
                 size={16}
                 isDBConnection={isDBConnection}
+                // The prebuilt activities share one node kind, so the function they call is what tells
+                // them apart for colouring.
+                symbol={node.codedata.symbol}
             />
         ),
     };
