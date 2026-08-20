@@ -48,6 +48,7 @@ import { Button, Icon, Item, Menu, MenuItem, getAIModuleIcon, DefaultLlmIcon } f
 import { MoreVertIcon } from "../../../resources/icons";
 import { AgentData, FlowNode, ToolData } from "../../../utils/types";
 import NodeIcon from "../../NodeIcon";
+import { ApprovalBadge } from "../AgentWidget/ApprovalBadge";
 import ConnectorIcon from "../../ConnectorIcon";
 import { useDiagramContext } from "../../DiagramContext";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
@@ -544,6 +545,15 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         setMenuPos(null);
     };
 
+    // Whether an activity is gated by a review before the agent may run it. The value arrives as the
+    // declared source text — `true`, or the name of a predicate function — so anything other than
+    // absent or `false` gates it, which is how the chat agent's tool badge reads it too.
+    const isApprovalGated = (item: CapabilityItem) => {
+        const declared = (item.data as any)?.values?.requiresApproval;
+        const value = typeof declared === "string" ? declared.trim() : "";
+        return value !== "" && value !== "false";
+    };
+
     const onCapabilityClick = (item: CapabilityItem) => {
         if (readOnly) {
             return;
@@ -661,8 +671,11 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             // rather than as a plain tool function.
             return <Icon name="bi-ai-agent" sx={{ fontSize: "24px" }} />;
         }
+        // The three declared capability kinds are the same things the node palette lists, so they are
+        // drawn through NodeIcon: one source for both the glyph and its colour, which is what keeps a
+        // registered activity, human task or data event reading the same here as in the palette.
         if (item.kind === "activity") {
-            return <Icon name="bi-task" sx={{ fontSize: "24px" }} />;
+            return <NodeIcon type="ACTIVITY_CALL" size={24} />;
         }
         if (item.kind === "humanTask") {
             // The clock badge marks a configured deadline: the task times out and the agent
@@ -670,7 +683,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
             const hasDeadline = !!(item.data as any)?.values?.timeout;
             return (
                 <div style={{ position: "relative", display: "flex" }}>
-                    <Icon name="bi-user" sx={{ fontSize: "24px" }} />
+                    <NodeIcon type="HUMAN_TASK" size={24} />
                     {hasDeadline && (
                         <Icon
                             name="bi-clock"
@@ -683,7 +696,7 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
         if (item.kind === "event") {
             // Receiver icon: data arriving from outside. (The clock badge is reserved for
             // capabilities with a configured deadline.)
-            return <Icon name="bi-import" sx={{ fontSize: "24px" }} />;
+            return <NodeIcon type="WAIT_DATA" size={24} />;
         }
         if (item.data.path) {
             return (
@@ -1189,6 +1202,13 @@ export function DurableAgentRunNodeWidget(props: DurableAgentRunNodeWidgetProps)
                             >
                                 <div className="connector-icon">{renderCapabilityIcon(item)}</div>
                             </foreignObject>
+
+                            {/* The same shield the chat agent puts on a gated tool. It sits at the
+                                circle's bottom-right rather than its top-right, because the remove
+                                button already owns that corner here. */}
+                            {item.kind === "activity" && isApprovalGated(item) && (
+                                <ApprovalBadge background={NODE_BG_COLOR} x="88.5" y="31.5" />
+                            )}
 
                             {!isAgentReference && <g
                                 transform="translate(96, 8)"
