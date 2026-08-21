@@ -220,8 +220,7 @@ async function getPopupContext(): Promise<PopupVisualizerLocation> {
 }
 
 function isWebviewPanel(webview: WebviewPanel | WebviewView): boolean {
-    const title = webview.title;
-    return title === VisualizerWebview.webviewTitle;
+    return webview.viewType === VisualizerWebview.viewType;
 }
 
 function isMigrationPanel(webview: WebviewPanel | WebviewView): boolean {

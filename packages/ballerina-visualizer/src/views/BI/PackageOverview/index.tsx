@@ -47,10 +47,6 @@ import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBo
 import { awaitingInputLabel, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
 import { useProductMode } from "../../../hooks/useProductMode";
 
-/** Only reachable from an empty integration, and it pulls in the whole wizard +
- *  artifact form tree — so keep it out of the overview's own chunk. */
-const LazyAddIntegrationPanel = React.lazy(() => import("./AddIntegrationPanel"));
-
 /** The diagram engine (`@wso2/component-diagram` and its layout stack) is the
  *  heaviest thing this view renders. Kept out of the overview's chunk so the page —
  *  header, README, deployment panel — paints without waiting for it; the diagram
@@ -807,9 +803,6 @@ export function PackageOverview(props: PackageOverviewProps) {
     const awaitingInput = agentState === "awaiting-input";
     const agentWorking = agentState === "running" || awaitingInput;
     const showHero = !isLibrary && !aiPanelOpen;
-    // Shows the Create Integration wizard in place of the overview, for an empty
-    // integration whose owner skipped it at creation time.
-    const [showAddIntegration, setShowAddIntegration] = useState<boolean>(false);
 
     const fetchContext = useCallback(() => {
         rpcClient
@@ -884,11 +877,6 @@ export function PackageOverview(props: PackageOverviewProps) {
         setProjectStructure(prev => prev ? { ...prev, projectTitle: newTitle } : prev);
     }, [projectPath, rpcClient]);
 
-    // Returns to the overview. After a successful add the artifact was generated in
-    // the current session, so the backend's notifyCurrentWebview → fetchContext
-    // refresh is what turns the empty state into the component diagram.
-    const closeAddIntegration = useCallback(() => setShowAddIntegration(false), []);
-
     function isEmptyIntegration(): boolean {
         // Filter out connections that start with underscore
         const validConnections = projectStructure.directoryMap[DIRECTORY_MAP.CONNECTION]?.filter(
@@ -911,27 +899,6 @@ export function PackageOverview(props: PackageOverviewProps) {
             <SpinnerContainer>
                 <ProgressRing color={ThemeColors.PRIMARY} />
             </SpinnerContainer>
-        );
-    }
-
-    // Rendered in place of the overview (not on top of it) so the wizard gets the
-    // definite height its pinned-stepper layout needs. This component stays mounted
-    // throughout, so dismissing the wizard restores the overview instantly.
-    if (showAddIntegration) {
-        return (
-            <React.Suspense
-                fallback={
-                    <SpinnerContainer>
-                        <ProgressRing color={ThemeColors.PRIMARY} />
-                    </SpinnerContainer>
-                }
-            >
-                <LazyAddIntegrationPanel
-                    packageRoot={projectPath}
-                    integrationName={integrationTitle}
-                    onClose={closeAddIntegration}
-                />
-            </React.Suspense>
         );
     }
 
@@ -1136,6 +1103,8 @@ export function PackageOverview(props: PackageOverviewProps) {
                             {!isLibrary && (
                                 <DiagramHeaderContainer withPadding={true}>
                                     <Title variant="h2">Design</Title>
+                                    {/* An empty integration has its own copy of this below,
+                                        centred in the empty state, so only one is ever on screen. */}
                                     {!isEmptyIntegration() && (
                                         <ActionContainer>
                                             <Button appearance="primary" onClick={handleAddConstruct}>
@@ -1180,19 +1149,10 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                 </StatusRow>
                                             )}
                                             <ButtonContainer>
-                                                {/* An empty integration means the creation wizard was
-                                                    skipped — offer it again here rather than the raw
-                                                    artifact list, so the guided flow can be resumed. */}
-                                                {/* Disabled rather than hidden mid-turn: reverting the
-                                                    generation restores a pre-turn checkpoint and drops
-                                                    whatever is not in it, including an artifact added now. */}
-                                                <Button
-                                                    appearance="primary"
-                                                    onClick={() => setShowAddIntegration(true)}
-                                                    disabled={agentWorking}
-                                                    tooltip={agentWorking ? `Available once ${shortName} finishes` : undefined}
-                                                >
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration
+                                                {/* The header's button, restated where the empty state can
+                                                    centre it — same handler, same enablement. */}
+                                                <Button appearance="primary" onClick={handleAddConstruct}>
+                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Artifact
                                                 </Button>
                                             </ButtonContainer>
                                         </EmptyStateContainer>

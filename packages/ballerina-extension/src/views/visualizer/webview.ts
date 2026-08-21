@@ -32,7 +32,7 @@ import { AiPanelWebview } from "../ai-panel/webview";
 import { approvalViewManager } from "../../features/ai/state/ApprovalViewManager";
 import { StateMachinePopup } from "../../stateMachinePopup";
 import { clearFormState } from "../../rpc-managers/bi-diagram/form-state";
-import { isInWI } from "../../utils/config";
+import { getProductMode, isInWI } from "../../utils/config";
 import { chatStateStorage } from "../ai-panel/chatStateStorage";
 import { isAiTouchedFile } from "../../rpc-managers/diagram-validity";
 import { setCompanionVisualizer } from "../ai-panel/activeFileContext";
@@ -195,7 +195,7 @@ export class VisualizerWebview {
     }
 
     public static get webviewTitle(): string {
-        if (StateMachine.productMode() === ProductMode.AGENT_BUILDER) {
+        if (getProductMode() === ProductMode.AGENT_BUILDER) {
             return VisualizerWebview.agentBuilderTitle;
         }
         const biExtension = isInWI() || vscode.extensions.getExtension('wso2.ballerina-integrator');
