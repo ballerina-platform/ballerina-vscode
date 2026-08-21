@@ -20,8 +20,13 @@ import { useEffect, useState } from "react";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 
+function seededMode(): ProductMode | undefined {
+    const seed = (window as unknown as { productMode?: string }).productMode;
+    return seed === ProductMode.AGENT_BUILDER || seed === ProductMode.INTEGRATOR ? seed : undefined;
+}
+
 /** One fetch per webview; the setting needs a reload to change. */
-let cached: ProductMode | undefined;
+let cached: ProductMode | undefined = seededMode();
 let inFlight: Promise<ProductMode> | undefined;
 
 export function useProductMode(): ProductMode {
@@ -42,7 +47,7 @@ export function useProductMode(): ProductMode {
                 return result;
             })
             .catch(() => {
-                cached = ProductMode.INTEGRATOR;
+                inFlight = undefined;
                 return ProductMode.INTEGRATOR;
             });
         inFlight.then((result) => {
