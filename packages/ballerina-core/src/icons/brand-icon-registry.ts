@@ -93,3 +93,19 @@ export const KIND_DEFAULT_ICON: Record<string, BrandIcon> = {
 export function resolveKindDefaultIcon(kind: string | undefined | null): BrandIcon {
     return (kind && KIND_DEFAULT_ICON[kind]) || KIND_DEFAULT_ICON.http;
 }
+
+const CENTRAL_ICON_MODULE = /\/[^/]*?_(.+)_\d[^/]*\.(?:png|svg)$/i;
+
+export function resolveBrandIconFromUrl(url: string | undefined | null): BrandIcon | undefined {
+    const match = url?.match(CENTRAL_ICON_MODULE);
+    return match ? resolveBrandIcon(match[1]) : undefined;
+}
+
+export const ENTRY_TYPE_GLYPH: Record<string, BrandIcon & { isCodicon?: boolean }> = {
+    ai: { glyph: "comment-discussion", isCodicon: true },
+    automation: { glyph: "bi-task" },
+};
+
+export function resolveEntryTypeGlyph(type: string | undefined | null) {
+    return type ? ENTRY_TYPE_GLYPH[type] : undefined;
+}
