@@ -346,7 +346,7 @@ export function AddProjectForm() {
             ? `Convert to Project & Add New ${resourceTypeLabel}`
             : "Convert to Project";
     const chooserSubtitle = isInProject
-        ? "Add an integration or library to your project."
+        ? `Add an ${terms.integrationNoun} or library to your project.`
         : "Organize your current integration inside a project.";
 
     return (

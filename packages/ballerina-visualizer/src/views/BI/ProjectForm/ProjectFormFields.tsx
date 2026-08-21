@@ -28,6 +28,8 @@ import {
     OptionalSectionsLabel,
 } from "./styles";
 import { CollapsibleSection, ProjectTypeSelector, AdvancedConfigurationSection } from "./components";
+import { projectTypeOptions } from "./productTerms";
+import { useProductTerms } from "./useProductTerms";
 import { ProjectFormData } from "./types";
 import { sanitizePackageName, validatePackageName, validateOrgName } from "./utils";
 
@@ -51,6 +53,7 @@ export function ProjectFormFields({
     projectNameError,
     packageNameValidationError,
 }: ProjectFormFieldsProps) {
+    const terms = useProductTerms();
     const { rpcClient } = useRpcContext();
     const { platformExtState } = usePlatformExtContext();
     const isLoggedIn = !!platformExtState?.isLoggedIn;
@@ -62,7 +65,7 @@ export function ProjectFormFields({
     const [isProjectModeSupported, setIsProjectModeSupported] = useState(false);
     const [isProjectSettingsExpanded, setIsProjectSettingsExpanded] = useState(false);
     const [isPackageInfoExpanded, setIsPackageInfoExpanded] = useState(false);
-    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
+    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
 
     const handleIntegrationName = (value: string) => {
@@ -83,7 +86,7 @@ export function ProjectFormFields({
     };
 
     const projectTypeNote = formData.createAsWorkspace
-        ? `This sets the type for your first ${resourceTypeLabelLower}. You can add more integrations or libraries to this project later.`
+        ? `This sets the type for your first ${resourceTypeLabelLower}. You can add more ${terms.integrationNounPlural} or libraries to this project later.`
         : undefined;
 
     useEffect(() => {
@@ -173,6 +176,7 @@ export function ProjectFormFields({
                 <ProjectTypeSelector
                     value={formData.isLibrary}
                     onChange={(isLibrary) => onFormDataChange({ isLibrary })}
+                    options={projectTypeOptions(terms)}
                     note={projectTypeNote}
                 />
             </FieldGroup>

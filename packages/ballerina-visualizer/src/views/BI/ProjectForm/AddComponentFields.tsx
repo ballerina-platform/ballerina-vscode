@@ -23,6 +23,7 @@ import { FieldGroup, SectionDivider } from "./styles";
 import { AdvancedConfigurationSection } from "./components";
 import { Organization } from "./components/AdvancedConfigurationSection";
 import { AddProjectFormData } from "./types";
+import { useProductTerms } from "./useProductTerms";
 import { useBiWsContext } from "../wsManager/WsClientContext";
 import {
     checkNameCollision as resolveNameCollisionMessage,
@@ -120,7 +121,8 @@ export function AddComponentFields({
     onNameErrorChange,
 }: AddComponentFieldsProps) {
     const isLibrary = !!formData.isLibrary;
-    const componentLabel = isLibrary ? "Library" : "Integration";
+    const terms = useProductTerms();
+    const componentLabel = isLibrary ? "Library" : terms.integrationLabel;
     const { wsClient } = useBiWsContext();
     const [isPackageInfoExpanded, setIsPackageInfoExpanded] = useState(false);
     const [componentNameError, setComponentNameError] = useState<string | null>(null);
@@ -255,7 +257,7 @@ export function AddComponentFields({
                     onTextChange={handleComponentName}
                     value={formData.integrationName}
                     label={`${componentLabel} Name`}
-                    placeholder={`Enter ${isLibrary ? "a library" : "an integration"} name`}
+                    placeholder={`Enter ${isLibrary ? "a library" : `an ${terms.integrationNoun}`} name`}
                     // Not auto-focused: both routes now render inline on the chooser, where
                     // the convert flow's Project Name already claims focus.
                     onFocus={(e) => (e.target as HTMLInputElement).select()}
