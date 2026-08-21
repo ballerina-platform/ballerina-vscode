@@ -25,6 +25,7 @@ import { animateAgentFocusFit, computeAgentFocusFit, findAgentFocusNode, isSingl
 export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView: boolean, embedded: boolean) {
     const [canvasVisible, setCanvasVisible] = useState(!(isAgentFocusView && embedded));
     const nodeObserverRef = useRef<ResizeObserver>();
+    const cancelAnimationRef = useRef<() => void>();
 
     const fitToContainer = useCallback(
         (animate: boolean) => {
@@ -36,12 +37,16 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
             if (!agentNode) {
                 return false;
             }
+            cancelAnimationRef.current?.();
+            cancelAnimationRef.current = undefined;
             const target = computeAgentFocusFit(canvas, diagramEngine, agentNode, embedded);
             if (!target) {
                 return false;
             }
             if (animate) {
-                animateAgentFocusFit(canvas, diagramEngine.getModel(), diagramEngine, target);
+                cancelAnimationRef.current = animateAgentFocusFit(
+                    canvas, diagramEngine.getModel(), diagramEngine, target
+                );
             } else {
                 diagramEngine.getModel().setZoomLevel(target.targetZoomPct);
                 diagramEngine.getModel().setOffset(target.targetOffsetX, target.targetOffsetY);
@@ -86,7 +91,10 @@ export function useAgentFocusFit(diagramEngine: DiagramEngine, isAgentFocusView:
         [diagramEngine, fitToContainer]
     );
 
-    useEffect(() => () => nodeObserverRef.current?.disconnect(), []);
+    useEffect(() => () => {
+        nodeObserverRef.current?.disconnect();
+        cancelAnimationRef.current?.();
+    }, []);
 
     const positionAndFit = useCallback(
         (nodes: NodeModel[]) => {

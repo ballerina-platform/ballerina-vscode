@@ -293,6 +293,14 @@ export function AgentTabs({ agents, selectedKey, onSelect, onAdd }: AgentTabsPro
     };
 
     const overflowing = fade.start || fade.end;
+
+    useEffect(() => {
+        if (!overflowing) {
+            setPickerAnchor(null);
+            setPickerQuery("");
+        }
+    }, [overflowing]);
+
     const query = pickerQuery.trim().toLowerCase();
     const matches = query ? agents.filter((agent) => agent.name.toLowerCase().includes(query)) : agents;
 

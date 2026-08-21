@@ -99,7 +99,6 @@ const Layer = styled.div<{ $show?: boolean }>`
     }
 `;
 
-/** The focus diagram wraps itself in a 100vh `View`. */
 const CanvasSlot = styled.div`
     flex: 1;
     min-height: 0;
@@ -241,9 +240,6 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         setShowAddAgent(false);
     }, [agents, agentFocus]);
 
-    // The fade belongs to the agent arriving while the empty state is on screen.
-    // Navigating to a project that already has one shows the canvas outright, and
-    // this must not count the render before projectStructure resolves.
     if (projectStructure && !selectedAgent) {
         sawEmptyRef.current = true;
     }
@@ -253,6 +249,8 @@ export function AgentBuilderOverview({ projectPath, agentFocus }: AgentBuilderOv
         clearTimeout(revealTimerRef.current);
         revealTimerRef.current = setTimeout(() => setCanvasReady(true), READY_SETTLE_MS);
     }, []);
+
+    useEffect(() => () => clearTimeout(revealTimerRef.current), []);
 
     useEffect(() => {
         if (!projectStructure) {
