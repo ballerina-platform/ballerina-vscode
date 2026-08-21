@@ -36,7 +36,7 @@ export const PARSING_ERROR: ErrorCode = {
 
 export const UNKNOWN_ERROR: ErrorCode = {
     code: 4,
-    message: "An unknown error occurred while generating code. Try login again to copilot"
+    message: `An unknown error occurred while generating code. Try logging in again to ${aiAssistantName()}.`
 };
 
 export const MODIFIYING_ERROR: ErrorCode = {

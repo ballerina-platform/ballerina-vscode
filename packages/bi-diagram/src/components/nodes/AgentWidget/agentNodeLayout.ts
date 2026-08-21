@@ -63,19 +63,15 @@ const layoutStrategies = {
         + AGENT_NODE_TOOL_GAP * 2 + 38 + toolHeight,
 } satisfies Record<AgentWidgetType, (toolHeight: number, agentInfo?: NodeMetadata["agentInfo"]) => number>;
 
-export function getAgentNodeContainerHeight(node: FlowNode, type: AgentWidgetType): number {
-    const agentInfo = (node.metadata?.data as NodeMetadata | undefined)?.agentInfo;
-    const toolCount = agentInfo?.tools?.length ?? 0;
-    const toolHeight = toolCount * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
-    const usageHeight = getAgentUsageRowCount(node, type) * AGENT_USAGE_ROW_PITCH;
-    return Math.max(layoutStrategies[type](toolHeight, agentInfo), usageHeight);
-}
-
 export const AGENT_USAGE_ROW_PITCH = NODE_HEIGHT + AGENT_NODE_USAGE_GAP;
 
 export const AGENT_USAGE_ROW_LIMIT = 5;
 
 export const AGENT_USAGE_COLUMN_WIDTH = NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + LABEL_WIDTH;
+
+export type AgentUsageOptions = {
+    canAddTrigger?: boolean;
+};
 
 export function getAgentNodeUsages(node: FlowNode): AgentUsage[] {
     const agentInfo = (node.metadata?.data as NodeMetadata | undefined)?.agentInfo;
@@ -86,13 +82,41 @@ export function getVisibleAgentUsages(node: FlowNode): AgentUsage[] {
     return getAgentNodeUsages(node).slice(0, AGENT_USAGE_ROW_LIMIT);
 }
 
-export function getAgentUsageRowCount(node: FlowNode, type: AgentWidgetType = NodeTypes.AGENT_NODE): number {
+export function showsAddTriggerTile(type: AgentWidgetType, options?: AgentUsageOptions): boolean {
+    return type === NodeTypes.AGENT_NODE && Boolean(options?.canAddTrigger);
+}
+
+export function hasAgentUsageColumn(
+    node: FlowNode,
+    type: AgentWidgetType,
+    options?: AgentUsageOptions
+): boolean {
+    return getAgentNodeUsages(node).length > 0 || showsAddTriggerTile(type, options);
+}
+
+export function getAgentUsageRowCount(
+    node: FlowNode,
+    type: AgentWidgetType = NodeTypes.AGENT_NODE,
+    options?: AgentUsageOptions
+): number {
     const total = getAgentNodeUsages(node).length;
     return Math.min(total, AGENT_USAGE_ROW_LIMIT)
         + (total > AGENT_USAGE_ROW_LIMIT ? 1 : 0)
-        + (showsAddTriggerTile(type) ? 1 : 0);
+        + (showsAddTriggerTile(type, options) ? 1 : 0);
 }
 
-export function showsAddTriggerTile(type: AgentWidgetType): boolean {
-    return type === NodeTypes.AGENT_NODE;
+export function getAgentNodeLayoutHeight(node: FlowNode, type: AgentWidgetType): number {
+    const agentInfo = (node.metadata?.data as NodeMetadata | undefined)?.agentInfo;
+    const toolCount = agentInfo?.tools?.length ?? 0;
+    const toolHeight = toolCount * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP);
+    return layoutStrategies[type](toolHeight, agentInfo);
+}
+
+export function getAgentNodeContainerHeight(
+    node: FlowNode,
+    type: AgentWidgetType,
+    options?: AgentUsageOptions
+): number {
+    const usageHeight = getAgentUsageRowCount(node, type, options) * AGENT_USAGE_ROW_PITCH;
+    return Math.max(getAgentNodeLayoutHeight(node, type), usageHeight);
 }

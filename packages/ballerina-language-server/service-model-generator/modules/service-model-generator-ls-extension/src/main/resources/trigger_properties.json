@@ -355,7 +355,8 @@
       "chat"
     ],
     "triggerName": "Agent Chat",
-    "version": "1.0.0",
+    "version": "1.13.0",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
     "kind": "agent-chat"
   }
 }

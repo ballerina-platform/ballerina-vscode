@@ -27,6 +27,8 @@ import {
     InlineToggle,
 } from "./styles";
 import { ProjectTypeSelector } from "./components";
+import { projectTypeOptions } from "./productTerms";
+import { useProductTerms } from "./useProductTerms";
 import { AddProjectFormData } from "./types";
 import { sanitizeProjectHandle } from "./utils";
 
@@ -65,7 +67,8 @@ export function AddProjectFormFields({
     onConvertPathSelect,
     convertPathError,
 }: AddProjectFormFieldsProps) {
-    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
+    const terms = useProductTerms();
+    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
     const resourceTypeLabelLower = resourceTypeLabel.toLowerCase();
     const showIntegrationFields = isInProject || addNewAfterConvert;
 
@@ -120,7 +123,7 @@ export function AddProjectFormFields({
 
                     <InlineToggle>
                         <CheckBox
-                            label="Also add a new integration or library"
+                            label={`Also add a new ${terms.integrationNoun} or library`}
                             checked={addNewAfterConvert}
                             onChange={onAddNewAfterConvertChange}
                         />
@@ -142,6 +145,7 @@ export function AddProjectFormFields({
                     <ProjectTypeSelector
                         value={formData.isLibrary}
                         onChange={(isLibrary) => onFormDataChange({ isLibrary })}
+                        options={projectTypeOptions(terms)}
                     />
                 </FormSection>
             )}

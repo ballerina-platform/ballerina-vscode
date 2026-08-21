@@ -577,7 +577,7 @@ public final class SchemaDrivenSourceGenerator {
     }
 
     /** The emitted function name: a format-variant handler fans out to the selected variant's name. */
-    private static String effectiveFunctionName(TriggerUISchemaModel.FunctionModel function) {
+    public static String effectiveFunctionName(TriggerUISchemaModel.FunctionModel function) {
         if (function.parameters() != null) {
             for (TriggerUISchemaModel.Parameter parameter : function.parameters()) {
                 String variantName = selectedVariantOriginalName(parameter.type());
