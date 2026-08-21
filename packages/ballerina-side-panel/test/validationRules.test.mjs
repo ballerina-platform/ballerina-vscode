@@ -271,39 +271,7 @@ test("file.exists stays silent when the host listing is unavailable", async () =
 
 test("hasAsyncClientRules gates the round trip", () => {
     assert.equal(hasAsyncClientRules(field("X", [rule("vscode.validate.file.exists")])), true);
-    assert.equal(hasAsyncClientRules(field("X", [rule("vscode.validate.path.in.project")])), true);
     assert.equal(hasAsyncClientRules(field("X", [rule("common.validate.required")])), false);
-});
-
-// ---- vscode.validate.path.in.project -----------------------------------------------------------
-
-test("path.in.project accepts a path under the workspace root and rejects one outside it", async () => {
-    const target = field("Driver JAR", [rule("vscode.validate.path.in.project")]);
-    const listWorkspaceFiles = async () => ({ workspaceRoot: "/ws", files: [] });
-    assert.deepEqual(await evaluateAsyncClientRules(target, "/ws/libs/sapjco3.jar", { listWorkspaceFiles }), []);
-    assert.deepEqual(
-        (await evaluateAsyncClientRules(target, "/tmp/sapjco3.jar", { listWorkspaceFiles })).map((f) => f.message),
-        ["Driver JAR must be inside the current project"]
-    );
-});
-
-test("path.in.project honours a model-supplied message", async () => {
-    const target = field("Driver JAR", [
-        rule("vscode.validate.path.in.project", { message: "The selected file must be inside the current project." }),
-    ]);
-    const listWorkspaceFiles = async () => ({ workspaceRoot: "/ws", files: [] });
-    assert.deepEqual(
-        (await evaluateAsyncClientRules(target, "/tmp/sapjco3.jar", { listWorkspaceFiles })).map((f) => f.message),
-        ["The selected file must be inside the current project."]
-    );
-});
-
-test("path.in.project stays silent when the host listing is unavailable", async () => {
-    const target = field("Driver JAR", [rule("vscode.validate.path.in.project")]);
-    const throwing = async () => {
-        throw new Error("host unreachable");
-    };
-    assert.deepEqual(await evaluateAsyncClientRules(target, "/tmp/sapjco3.jar", { listWorkspaceFiles: throwing }), []);
 });
 
 // ---- merge ordering ---------------------------------------------------------------------------

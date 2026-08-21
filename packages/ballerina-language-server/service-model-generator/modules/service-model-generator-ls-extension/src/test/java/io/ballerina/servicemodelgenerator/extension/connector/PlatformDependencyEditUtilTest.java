@@ -109,6 +109,17 @@ public class PlatformDependencyEditUtilTest {
     }
 
     @Test
+    public void testAlreadyRelativePathIsWrittenVerbatim() throws URISyntaxException {
+        Project project = load("platform_dependency/no_dependency");
+        Map<String, List<TextEdit>> edits = new HashMap<>();
+
+        PlatformDependencyEditUtil.addIfMissing(edits, project, SAP_JCO, "./resources/sapjco3.jar");
+
+        TextEdit tomlEdit = edits.values().iterator().next().get(0);
+        Assert.assertTrue(tomlEdit.getNewText().contains("path = \"./resources/sapjco3.jar\""));
+    }
+
+    @Test
     public void testNoDuplicateWhenAlreadyDeclared() throws URISyntaxException {
         Project project = load("platform_dependency/already_declared");
         Map<String, List<TextEdit>> edits = new HashMap<>();

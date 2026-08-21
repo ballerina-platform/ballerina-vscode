@@ -107,7 +107,11 @@ public final class PlatformDependencyEditUtil {
     }
 
     private static String relativize(Project project, String rawPath) {
-        Path candidate = Path.of(rawPath).toAbsolutePath().normalize();
+        Path rawCandidate = Path.of(rawPath);
+        if (!rawCandidate.isAbsolute()) {
+            return rawPath.replace('\\', '/');
+        }
+        Path candidate = rawCandidate.normalize();
         Path sourceRoot = project.sourceRoot().toAbsolutePath().normalize();
         if (candidate.startsWith(sourceRoot)) {
             return sourceRoot.relativize(candidate).toString().replace('\\', '/');

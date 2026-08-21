@@ -774,7 +774,7 @@
           },
           "types": [
             {
-              "fieldType": "FILE_SELECT",
+              "fieldType": "PROJECT_FILE_SELECT",
               "selected": true,
               "extensions": ["jar"]
             }
@@ -795,10 +795,6 @@
           "validations": [
             {
               "rule": "common.validate.required"
-            },
-            {
-              "rule": "vscode.validate.path.in.project",
-              "message": "The selected file must be inside the current project."
             }
           ]
         },
@@ -809,7 +805,7 @@
           },
           "types": [
             {
-              "fieldType": "FILE_SELECT",
+              "fieldType": "PROJECT_FILE_SELECT",
               "selected": true,
               "extensions": ["jar"]
             }
@@ -830,10 +826,6 @@
           "validations": [
             {
               "rule": "common.validate.required"
-            },
-            {
-              "rule": "vscode.validate.path.in.project",
-              "message": "The selected file must be inside the current project."
             }
           ]
         }
