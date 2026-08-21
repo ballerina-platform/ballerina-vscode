@@ -38,6 +38,7 @@ import java.util.Optional;
  */
 public class AiChatChannel implements AgentTriggerChannel {
 
+    static final String ORG_NAME = "ballerina";
     static final String MODULE_NAME = "ai";
     static final String BASE_PATH = "basePath";
     static final String LISTENER_VAR_NAME = "agentChatListener";
