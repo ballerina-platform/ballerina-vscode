@@ -20,8 +20,13 @@ import { useCallback, useEffect, useState } from "react";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 
+function seededMode(): ProductMode | undefined {
+    const seed = (window as unknown as { productMode?: string }).productMode;
+    return seed === ProductMode.AGENT_BUILDER || seed === ProductMode.INTEGRATOR ? seed : undefined;
+}
+
 /** One fetch per webview; the setting needs a reload to change. */
-let cached: ProductMode | undefined;
+let cached: ProductMode | undefined = seededMode();
 let inFlight: Promise<ProductMode> | undefined;
 
 /** The mode for callers outside a component, sharing the one fetch with the hook. */
@@ -38,7 +43,7 @@ export function fetchProductMode(rpcClient: BallerinaRpcClient): Promise<Product
             return result;
         })
         .catch(() => {
-            cached = ProductMode.INTEGRATOR;
+            inFlight = undefined;
             return ProductMode.INTEGRATOR;
         });
     return inFlight;
