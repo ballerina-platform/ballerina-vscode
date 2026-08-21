@@ -25,6 +25,7 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
  */
 public class GoogleChatChannel implements AgentTriggerChannel {
 
+    static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "googleapis.chat";
 
     private static final String SERVICE_BLOCK = """
