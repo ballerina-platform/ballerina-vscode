@@ -77,6 +77,9 @@ export class RPCLayer {
             window.onDidChangeActiveColorTheme((theme) => {
                 RPCLayer._messenger.sendNotification(currentThemeChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, theme.kind);
             });
+            AIStateMachine.service().onTransition((state) => {
+                RPCLayer._messenger.sendNotification(aiStateChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, state.value);
+            });
         } else if (isMigrationPanel(webViewPanel)) {
             // Migration panel is a WebviewPanel but does not use the AI state machine.
             RPCLayer._messenger.registerWebviewPanel(webViewPanel as WebviewPanel);

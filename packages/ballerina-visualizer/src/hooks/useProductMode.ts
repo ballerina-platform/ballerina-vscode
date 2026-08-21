@@ -18,7 +18,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
-import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
+import { ProductMode, assistantName, assistantTagline, shortAssistantName } from "@wso2/ballerina-core";
 
 function seededMode(): ProductMode | undefined {
     const seed = (window as unknown as { productMode?: string }).productMode;
@@ -126,4 +126,8 @@ export function useTracingStatus(rpcClient: BallerinaRpcClient, projectPath: str
     }, [isToggling, isTracingEnabled, rpcClient, checkTracingStatus]);
 
     return { isTracingEnabled, isToggling, toggleTracing };
+}
+
+export function useAssistantTagline(): string {
+    return assistantTagline(useProductMode());
 }

@@ -20,66 +20,38 @@ import styled from "@emotion/styled";
 import { AIMachineEventType, LoginMethod } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 
-import { AlertBox } from "../AlertBox";
+import { AlertBox, AuthActions, AuthPanel, AuthSubTitle, AuthTitle } from "../AlertBox";
 import { useEffect, useState } from "react";
-import { Codicon, RadioButtonGroup } from "@wso2/ui-toolkit";
+import { Codicon, RadioButtonGroup, ThemeColors } from "@wso2/ui-toolkit";
 import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
 import { useAssistantName } from "../../../hooks/useProductMode";
 
-const Container = styled.div`
+const Container = styled.div<{ $embedded?: boolean }>`
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding: 10px;
-    gap: 8px;
-`;
-
-// AlertBox-style container for consistency
-const AlertContainer = styled.div<{ variant: "primary" | "secondary" }>`
-    border-left: 0.3rem solid
-        var(
-            ${(props: { variant: string }) =>
-        props.variant === "secondary" ? "--vscode-editorWidget-border" : "--vscode-focusBorder"}
-        );
-    background: var(
-        ${(props: { variant: string }) =>
-        props.variant === "secondary" ? "transparent" : "--vscode-inputValidation-infoBackground"}
-    );
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem;
-    gap: 12px;
-    margin-bottom: 15px;
-    width: -webkit-fill-available;
-`;
-
-const Title = styled.div`
-    color: var(--vscode-foreground);
-    font-weight: 500;
-`;
-
-const SubTitle = styled.div`
-    color: var(--vscode-descriptionForeground);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.5;
+    align-items: center;
+    justify-content: ${(props: { $embedded?: boolean }) => (props.$embedded ? "flex-start" : "safe center")};
+    height: ${(props: { $embedded?: boolean }) => (props.$embedded ? "auto" : "100vh")};
+    overflow-y: ${(props: { $embedded?: boolean }) => (props.$embedded ? "visible" : "auto")};
+    padding: ${(props: { $embedded?: boolean }) => (props.$embedded ? "0" : "16px")};
+    width: 100%;
+    box-sizing: border-box;
 `;
 
 const InputContainer = styled.div`
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 2px 4px;
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
+    padding: 2px 6px;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 6px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
     width: 100%;
     box-sizing: border-box;
-    min-height: 32px;
+    min-height: 36px;
     &:focus-within {
-        border-color: var(--vscode-button-background);
+        border-color: ${ThemeColors.PRIMARY};
     }
 `;
 
@@ -154,10 +126,8 @@ const EyeButton = styled.button`
     }
 `;
 
-const ButtonContainer = styled.div`
-    display: flex;
-    gap: 8px;
-    align-self: flex-start;
+const ButtonContainer = styled(AuthActions)`
+    margin-top: 8px;
 `;
 
 const ErrorMessage = styled.div`
@@ -173,21 +143,23 @@ const ErrorMessage = styled.div`
 
 const AuthModeToggle = styled.div`
     display: flex;
-    gap: 0;
-    border: 1px solid var(--vscode-editorWidget-border);
-    border-radius: 4px;
-    overflow: hidden;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 8px;
     width: 100%;
+    box-sizing: border-box;
 `;
 
 const AuthModeButton = styled.button<{ active: boolean }>`
     flex: 1;
-    padding: 5px 8px;
+    padding: 7px 10px;
     font-size: 12px;
+    border-radius: 5px;
     cursor: pointer;
     border: none;
-    background: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-background)' : 'transparent'};
-    color: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-foreground)' : 'var(--vscode-foreground)'};
+    background: ${(props: { active: boolean }) => props.active ? ThemeColors.PRIMARY : 'transparent'};
+    color: ${(props: { active: boolean }) => props.active ? ThemeColors.ON_PRIMARY : 'var(--vscode-foreground)'};
     &:hover {
         background: ${(props: { active: boolean }) => props.active ? 'var(--vscode-button-hoverBackground)' : 'var(--vscode-toolbar-hoverBackground)'};
     }
@@ -201,9 +173,10 @@ interface WaitingForLoginProps {
     loginMethod?: LoginMethod;
     isValidating?: boolean;
     errorMessage?: string;
+    embedded?: boolean;
 }
 
-const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: WaitingForLoginProps) => {
+const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embedded }: WaitingForLoginProps) => {
     const { rpcClient } = useRpcContext();
     const assistantName = useAssistantName();
     const [apiKey, setApiKey] = useState("");
@@ -361,13 +334,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
     if (loginMethod === LoginMethod.ANTHROPIC_KEY) {
         return (
-            <Container>
-                <AlertContainer variant="primary">
-                    <Title>Connect with Anthropic API Key</Title>
-                    <SubTitle>
+            <Container $embedded={embedded}>
+                <AuthPanel>
+                    <AuthTitle>Connect with Anthropic API Key</AuthTitle>
+                    <AuthSubTitle>
                         Enter your Anthropic API key to connect to {assistantName}. Your API key will be securely stored
                         and used for authentication.
-                    </SubTitle>
+                    </AuthSubTitle>
 
                     <InputContainer>
                         <InputRow>
@@ -398,21 +371,21 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
                     <ButtonContainer>
                         <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Back
+                        </VSCodeButton>
+                        <VSCodeButton
                             appearance="primary"
                             onClick={connectWithKey}
                             disabled={isValidating || !apiKey || apiKey.trim().length === 0}
                         >
                             {isValidating ? "Validating..." : "Connect with Key"}
                         </VSCodeButton>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Cancel
-                        </VSCodeButton>
                     </ButtonContainer>
-                </AlertContainer>
+                </AuthPanel>
             </Container>
         );
     }
@@ -433,13 +406,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
         const isFormValid = awsServiceMode === 'bedrock' ? isBedrockFormValid : isAnthropicAwsFormValid;
 
         return (
-            <Container>
-                <AlertContainer variant="primary">
-                    <Title>Connect with AWS</Title>
-                    <SubTitle>
+            <Container $embedded={embedded}>
+                <AuthPanel>
+                    <AuthTitle>Connect with AWS</AuthTitle>
+                    <AuthSubTitle>
                         Choose your AWS-based AI provider. Use AWS Bedrock to access Claude via Amazon's inference service,
                         or Claude Platform on AWS for Anthropic's native API with same-day feature parity.
-                    </SubTitle>
+                    </AuthSubTitle>
 
                     <AuthModeToggle>
                         <AuthModeButton
@@ -667,6 +640,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
                     <ButtonContainer>
                         <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Back
+                        </VSCodeButton>
+                        <VSCodeButton
                             appearance="primary"
                             onClick={awsServiceMode === 'bedrock' ? connectWithAwsCredentials : connectWithAnthropicAwsCredentials}
                             disabled={isValidating || !isFormValid}
@@ -677,15 +657,8 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                                     ? "Connect with AWS Bedrock"
                                     : "Connect with Claude Platform on AWS"}
                         </VSCodeButton>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Cancel
-                        </VSCodeButton>
                     </ButtonContainer>
-                </AlertContainer>
+                </AuthPanel>
             </Container>
         );
     }
@@ -696,13 +669,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
             awsCredentials.region.trim();
 
         return (
-            <Container>
-                <AlertContainer variant="primary">
-                    <Title>Connect with AWS Bedrock</Title>
-                    <SubTitle>
+            <Container $embedded={embedded}>
+                <AuthPanel>
+                    <AuthTitle>Connect with AWS Bedrock</AuthTitle>
+                    <AuthSubTitle>
                         Enter your AWS credentials to connect to {assistantName} via AWS Bedrock. Your credentials will be securely stored
                         and used for authentication.
-                    </SubTitle>
+                    </AuthSubTitle>
 
                     <InputContainer>
                         <InputRow>
@@ -785,21 +758,21 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
                     <ButtonContainer>
                         <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Back
+                        </VSCodeButton>
+                        <VSCodeButton
                             appearance="primary"
                             onClick={connectWithAwsCredentials}
                             disabled={isValidating || !isFormValid}
                         >
                             {isValidating ? "Validating..." : "Connect with AWS Bedrock"}
                         </VSCodeButton>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Cancel
-                        </VSCodeButton>
                     </ButtonContainer>
-                </AlertContainer>
+                </AuthPanel>
             </Container>
         );
     }
@@ -811,13 +784,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
         const submitDisabled = isValidating || !isFormValid;
 
         return (
-            <Container>
-                <AlertContainer variant="primary">
-                    <Title>Connect with Google Vertex AI</Title>
-                    <SubTitle>
+            <Container $embedded={embedded}>
+                <AuthPanel>
+                    <AuthTitle>Connect with Google Vertex AI</AuthTitle>
+                    <AuthSubTitle>
                         Select the GCP service account JSON key file to authenticate {assistantName} with Google Vertex AI.
                         The path is stored locally and read on each request, so the file must remain accessible at this location.
-                    </SubTitle>
+                    </AuthSubTitle>
 
                     <InputContainer>
                         <InputRow>
@@ -864,21 +837,21 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
                     <ButtonContainer>
                         <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Back
+                        </VSCodeButton>
+                        <VSCodeButton
                             appearance="primary"
                             onClick={connectWithVertexAi}
                             disabled={submitDisabled}
                         >
                             {isValidating ? "Validating..." : "Validate & Connect"}
                         </VSCodeButton>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Cancel
-                        </VSCodeButton>
                     </ButtonContainer>
-                </AlertContainer>
+                </AuthPanel>
             </Container>
         );
     }
@@ -893,13 +866,13 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
         );
 
         return (
-            <Container>
-                <AlertContainer variant="primary">
-                    <Title>Connect with Claude Platform on AWS</Title>
-                    <SubTitle>
+            <Container $embedded={embedded}>
+                <AuthPanel>
+                    <AuthTitle>Connect with Claude Platform on AWS</AuthTitle>
+                    <AuthSubTitle>
                         Anthropic's native API through AWS with same-day feature parity and AWS Marketplace billing.
                         Use IAM credentials or an API key provisioned by your Anthropic account representative.
-                    </SubTitle>
+                    </AuthSubTitle>
 
                     <InputContainer>
                         <InputRow>
@@ -1037,21 +1010,21 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
                     <ButtonContainer>
                         <VSCodeButton
+                            appearance="secondary"
+                            onClick={cancelLogin}
+                            disabled={isValidating}
+                        >
+                            Back
+                        </VSCodeButton>
+                        <VSCodeButton
                             appearance="primary"
                             onClick={connectWithAnthropicAwsCredentials}
                             disabled={isValidating || !isFormValid}
                         >
                             {isValidating ? "Validating..." : "Connect with Claude Platform on AWS"}
                         </VSCodeButton>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Cancel
-                        </VSCodeButton>
                     </ButtonContainer>
-                </AlertContainer>
+                </AuthPanel>
             </Container>
         );
     }
@@ -1059,7 +1032,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
     // Default: BI_INTEL login method
 
     return (
-        <Container>
+        <Container $embedded={embedded}>
             <AlertBox
                 buttonTitle="Cancel"
                 onClick={cancelLogin}

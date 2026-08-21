@@ -16,10 +16,10 @@
  * under the License.
  */
 
-import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
-import { AgentRunStatus } from "@wso2/ballerina-core";
+import { AgentRunStatus, AIMachineSnapshot, AIMachineStateValue } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Button, Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
 import {
@@ -29,13 +29,11 @@ import {
     ACCENT_FRAME,
     ACCENT_SPHERE,
     SpinArc,
-    HERO_GLOW,
-    ambientGlow,
     frameTriple,
     IconOverlay,
     AGENT_BUILDER_ORB_COLORS,
     ORB_ENERGY,
-    ORB_SIZE,
+    OrbAura,
     Sphere,
     subscribeAgentRunStatus,
     useAiPanelOpen,
@@ -43,14 +41,46 @@ import {
 } from "../../../components/AgentStatusOrb/shared";
 import { openCopilotPanel, submitPromptToCopilot } from "../../../components/AgentStatusOrb/CopilotHeroBox";
 import { useProductMode, useAssistantName } from "../../../hooks/useProductMode";
+import { LoadingRing } from "../../../components/Loader";
+import LoginPanel from "../../AIPanel/LoginPanel";
+import WaitingForLogin from "../../AIPanel/WaitingForLoginSection";
+import { DisabledWindow } from "../../AIPanel/DisabledSection";
+import { PopupModal } from "../../../components/PopupModal";
+import { CloseButton } from "../Connection/styles";
 
 const CONTENT_WIDTH = 760;
 
 const INPUT_MIN_HEIGHT = 46;
-const INPUT_MAX_HEIGHT = 220;
+const INPUT_MAX_HEIGHT = 100;
 
 const EXIT_MS = 680;
 const RUN_START_TIMEOUT_MS = 10000;
+
+type AuthState = "unknown" | "authenticated" | "unauthenticated" | "connecting" | "disabled";
+
+const VALIDATING_SUBSTATES = [
+    "validatingApiKey",
+    "validatingAwsCredentials",
+    "validatingVertexAiCredentials",
+    "validatingAnthropicAwsCredentials",
+];
+
+function authenticatingSubstate(state: AIMachineStateValue | undefined): string | undefined {
+    return typeof state === "object" && state !== null ? state.Authenticating : undefined;
+}
+
+function toAuthState(state: AIMachineStateValue | undefined): AuthState {
+    if (state === undefined || state === "Initialize") {
+        return "unknown";
+    }
+    if (state === "Authenticated") {
+        return "authenticated";
+    }
+    if (state === "Disabled") {
+        return "disabled";
+    }
+    return authenticatingSubstate(state) ? "connecting" : "unauthenticated";
+}
 
 interface Example {
     name: string;
@@ -177,56 +207,6 @@ const Intro = styled.div`
     align-items: center;
     gap: 8px;
     margin-top: 8px;
-`;
-
-const auraBreathe = keyframes`
-    0%, 100% { transform: scale(1); opacity: 0.4; }
-    50% { transform: scale(1.15); opacity: 0.7; }
-`;
-
-const ACTIVE_GLOW = { outerSize: 40, outerStrength: 48, innerSize: 20, innerStrength: 30 };
-
-interface OrbHolderProps {
-    $active?: boolean;
-    $colors: [string, string, string];
-}
-
-const OrbHolder = styled.div<OrbHolderProps>`
-    position: relative;
-    width: ${ORB_SIZE}px;
-    height: ${ORB_SIZE}px;
-    flex: none;
-    border-radius: 50%;
-    box-shadow: ${(props: OrbHolderProps) =>
-        ambientGlow(props.$colors, props.$active ? ACTIVE_GLOW : HERO_GLOW)};
-    transform: scale(${(props: OrbHolderProps) => (props.$active ? 1.12 : 1)});
-    transition: transform 620ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 620ms ease;
-
-    &::before {
-        content: "";
-        position: absolute;
-        inset: -75%;
-        border-radius: 50%;
-        background: ${(props: OrbHolderProps) => `radial-gradient(
-            circle,
-            color-mix(in srgb, ${props.$colors[1]} 32%, transparent) 0%,
-            color-mix(in srgb, ${props.$colors[0]} 12%, transparent) 45%,
-            transparent 70%
-        )`};
-        filter: blur(12px);
-        animation: ${auraBreathe} ${(props: OrbHolderProps) => (props.$active ? "2.6s" : "5.5s")} ease-in-out
-            infinite;
-        pointer-events: none;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        transition: none;
-
-        &::before {
-            animation: none;
-            opacity: 0.75;
-        }
-    }
 `;
 
 const riseIn = keyframes`
@@ -398,6 +378,53 @@ const RoundButton = styled.button<{ primary?: boolean }>`
     }
 `;
 
+const FooterLeft = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+const FooterHint = styled.span`
+    color: var(--vscode-descriptionForeground);
+    font-size: 12px;
+`;
+
+const SetupModalHeader = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 12px 0;
+`;
+
+const SetupModalBody = styled.div`
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: safe center;
+    padding: 32px 24px 32px;
+`;
+
+const LoginSlot = styled.div`
+    width: 100%;
+    padding-top: 12px;
+`;
+
+const NarrowSlot = styled.div`
+    width: 100%;
+    max-width: 520px;
+`;
+
+const Notice = styled.div`
+    width: 100%;
+    max-width: ${CONTENT_WIDTH}px;
+    margin-top: 16px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    text-align: center;
+`;
+
 const ExamplesBlock = styled.div`
     width: 100%;
     max-width: ${CONTENT_WIDTH}px;
@@ -520,6 +547,10 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
     const [submittedPrompt, setSubmittedPrompt] = useState<string>();
+    const [aiSnapshot, setAiSnapshot] = useState<AIMachineSnapshot>();
+    const [pendingPrompt, setPendingPrompt] = useState<string>();
+    const [setupRequested, setSetupRequested] = useState(false);
+    const [startFailed, setStartFailed] = useState(false);
     const [idleMounted, setIdleMounted] = useState(true);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const focusOnTextRef = useRef(false);
@@ -535,6 +566,22 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
         }
         return subscribeAgentRunStatus(rpcClient, setStatus);
     }, [rpcClient]);
+
+    const refreshAiSnapshot = useCallback(() => {
+        rpcClient
+            ?.getAiPanelRpcClient()
+            .getAIMachineSnapshot()
+            .then(setAiSnapshot)
+            .catch((): void => undefined);
+    }, [rpcClient]);
+
+    useEffect(() => {
+        if (!rpcClient) {
+            return;
+        }
+        refreshAiSnapshot();
+        rpcClient.onAIPanelStateChanged(refreshAiSnapshot);
+    }, [rpcClient, refreshAiSnapshot]);
 
     useLayoutEffect(() => {
         const input = inputRef.current;
@@ -570,7 +617,11 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
             setSubmittedPrompt(undefined);
             return;
         }
-        const timer = setTimeout(() => setSubmittedPrompt(undefined), RUN_START_TIMEOUT_MS);
+        const timer = setTimeout(() => {
+            setSubmittedPrompt(undefined);
+            setText(submittedPrompt);
+            setStartFailed(true);
+        }, RUN_START_TIMEOUT_MS);
         return () => clearTimeout(timer);
     }, [working, submittedPrompt]);
 
@@ -597,10 +648,14 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
     const runDetail =
         state === "completed" ? undefined : status?.label ?? (running ? "Working on it…" : undefined);
     const showOpenCopilot = !aiPanelOpen;
+    const authState = toAuthState(aiSnapshot?.state);
+    const substate = authenticatingSubstate(aiSnapshot?.state);
+    const showSetup =
+        authState !== "authenticated" && (pendingPrompt !== undefined || setupRequested);
 
     const openCopilot = () => openCopilotPanel(rpcClient);
 
-    const send = (prompt: string) => {
+    const dispatch = (prompt: string) => {
         const trimmed = prompt.trim();
         if (submitPromptToCopilot(rpcClient, trimmed, { newThread: true, hiddenContext: copy.hiddenContext })) {
             setSubmittedPrompt(trimmed);
@@ -608,137 +663,253 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
         }
     };
 
+    const send = async (prompt: string) => {
+        const trimmed = prompt.trim();
+        if (!trimmed) {
+            openCopilot();
+            return;
+        }
+        setStartFailed(false);
+        const authenticated =
+            authState === "authenticated" ||
+            (await rpcClient?.getAiPanelRpcClient().isUserAuthenticated().catch(() => false));
+        if (!authenticated) {
+            refreshAiSnapshot();
+            setPendingPrompt(trimmed);
+            return;
+        }
+        dispatch(trimmed);
+    };
+
+    const openSetup = () => {
+        refreshAiSnapshot();
+        setSetupRequested(true);
+    };
+
+    const dismissSetup = () => {
+        setSetupRequested(false);
+        setPendingPrompt(undefined);
+    };
+
+    useEffect(() => {
+        if (authState !== "authenticated" || pendingPrompt === undefined) {
+            return;
+        }
+        setPendingPrompt(undefined);
+        dispatch(text.trim() || pendingPrompt);
+    }, [authState, pendingPrompt, text]);
+
     const fillExample = (prompt: string) => {
         focusOnTextRef.current = true;
         setText(prompt);
     };
 
+    const setupModal = showSetup && (
+        <PopupModal
+            onClose={dismissSetup}
+            dismissOnBackdropClick={authState !== "connecting"}
+            dismissOnEscape
+            autoHeight
+            maxWidth={authState === "unauthenticated" ? undefined : 560}
+        >
+            {(close) => (
+                <>
+                    <SetupModalHeader>
+                        <CloseButton appearance="icon" onClick={close}>
+                            <Codicon name="close" />
+                        </CloseButton>
+                    </SetupModalHeader>
+                    <SetupModalBody>
+                        {authState === "unknown" || substate === "determineFlow" ? (
+                            <LoadingRing />
+                        ) : authState === "disabled" ? (
+                            <NarrowSlot>
+                                <DisabledWindow />
+                            </NarrowSlot>
+                        ) : authState === "connecting" ? (
+                            <NarrowSlot>
+                                <WaitingForLogin
+                                    embedded
+                                    loginMethod={aiSnapshot?.context?.loginMethod}
+                                    isValidating={!!substate && VALIDATING_SUBSTATES.includes(substate)}
+                                    errorMessage={aiSnapshot?.context?.errorMessage}
+                                />
+                            </NarrowSlot>
+                        ) : (
+                            <LoginSlot>
+                                <LoginPanel
+                                    embedded
+                                    subtitle={
+                                        pendingPrompt
+                                            ? "Your prompt is saved and will be sent once setup is complete."
+                                            : undefined
+                                    }
+                                />
+                            </LoginSlot>
+                        )}
+                    </SetupModalBody>
+                </>
+            )}
+        </PopupModal>
+    );
+
     return (
-        <Wrap>
-            <OrbHolder $active={showRun} $colors={orbGlow}>
-                <Sphere
-                    colors={orbColors}
-                    energy={ORB_ENERGY[state]}
-                    highlightColor={orbHighlight}
-                />
-                <IconOverlay>
-                    <Icon
-                        name="bi-ai-chat"
-                        sx={{ width: 26, height: 26 }}
-                        iconSx={{ fontSize: "26px", color: "#ffffff" }}
+        <>
+            {setupModal}
+            <Wrap>
+                <OrbAura $active={showRun} $colors={orbGlow}>
+                    <Sphere
+                        colors={orbColors}
+                        energy={ORB_ENERGY[state]}
+                        highlightColor={orbHighlight}
                     />
-                </IconOverlay>
-                {(running || (showRun && !working)) && <SpinArc color={orbGlow[1]} />}
-            </OrbHolder>
+                    <IconOverlay>
+                        <Icon
+                            name="bi-ai-chat"
+                            sx={{ width: 26, height: 26 }}
+                            iconSx={{ fontSize: "26px", color: "#ffffff" }}
+                        />
+                    </IconOverlay>
+                    {(running || (showRun && !working)) && <SpinArc color={orbGlow[1]} />}
+                </OrbAura>
 
-            {showRun && (
-                <RunBlock>
-                    <Intro>
-                        <Heading>{runHeading}</Heading>
-                        {runDetail && <Subtitle live>{runDetail}</Subtitle>}
-                    </Intro>
-                    {submittedPrompt && <PromptEcho>{submittedPrompt}</PromptEcho>}
-                    {showOpenCopilot && (
-                        <ScratchLine>
-                            <LinkButton type="button" onClick={openCopilot}>
-                                Open {assistantName}
-                            </LinkButton>
-                        </ScratchLine>
-                    )}
-                </RunBlock>
-            )}
+                {showRun && (
+                    <RunBlock>
+                        <Intro>
+                            <Heading>{runHeading}</Heading>
+                            {runDetail && <Subtitle live>{runDetail}</Subtitle>}
+                        </Intro>
+                        {submittedPrompt && <PromptEcho>{submittedPrompt}</PromptEcho>}
+                        {showOpenCopilot && (
+                            <ScratchLine>
+                                <LinkButton type="button" onClick={openCopilot}>
+                                    Open {assistantName}
+                                </LinkButton>
+                            </ScratchLine>
+                        )}
+                    </RunBlock>
+                )}
 
-            {idleMounted && (
-                <IdleBlock $out={showRun}>
-                    <div>
-                        <ExitGroup $out={showRun}>
-                            <CopilotName>{assistantName}</CopilotName>
-                            <Intro>
-                                <Heading>{copy.heading}</Heading>
-                            </Intro>
-                        </ExitGroup>
+                {idleMounted && (
+                    <IdleBlock $out={showRun}>
+                        <div>
+                            <ExitGroup $out={showRun}>
+                                <CopilotName>{assistantName}</CopilotName>
+                                <Intro>
+                                    <Heading>{copy.heading}</Heading>
+                                </Intro>
+                            </ExitGroup>
 
-                        <ExitGroup $out={showRun} $delay={110}>
-                            <ComposerRow>
-                                <ComposerFrame $variant="hero" $state={state} $agentBuilder $colors={ACCENT_FRAME}>
-                                    <Composer>
-                                        <PromptInput
-                                            ref={inputRef}
-                                            rows={2}
-                                            value={text}
-                                            onChange={(event) => setText(event.target.value)}
-                                            onKeyDown={(event) => {
-                                                if (event.key === "Enter" && !event.shiftKey) {
-                                                    event.preventDefault();
-                                                    send(text);
-                                                }
-                                            }}
-                                            placeholder={copy.placeholder}
-                                            aria-label={copy.inputLabel}
-                                        />
-                                        <ComposerFooter>
-                                            <RoundButton
-                                                type="button"
-                                                title={`Open ${assistantName}`}
-                                                onClick={openCopilot}
-                                            >
-                                                <Codicon name="add" />
-                                            </RoundButton>
-                                            <RoundButton
-                                                type="button"
-                                                title={`Send to ${assistantName}`}
-                                                aria-label={`Send to ${assistantName}`}
-                                                disabled={!text.trim()}
-                                                onClick={() => send(text)}
-                                                primary={true}
-                                            >
-                                                <Codicon name="arrow-up" />
-                                            </RoundButton>
-                                        </ComposerFooter>
-                                    </Composer>
-                                </ComposerFrame>
-                            </ComposerRow>
-                        </ExitGroup>
-
-                        <ExitGroup $out={showRun}>
-                            <ExamplesBlock>
-                                <ExamplesLabel>Examples</ExamplesLabel>
-                                <Cards>
-                                    {copy.examples.map((example) => (
-                                        <Card
-                                            key={example.name}
-                                            type="button"
-                                            onClick={() => fillExample(example.prompt)}
-                                        >
-                                            <Icon
-                                                name={example.icon}
-                                                isCodicon={example.isCodicon}
-                                                sx={{ color: "var(--vscode-foreground)" }}
-                                                iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
+                            <ExitGroup $out={showRun} $delay={110}>
+                                <ComposerRow>
+                                    <ComposerFrame $variant="hero" $state={state} $agentBuilder $colors={ACCENT_FRAME}>
+                                        <Composer>
+                                            <PromptInput
+                                                ref={inputRef}
+                                                rows={2}
+                                                value={text}
+                                                onChange={(event) => setText(event.target.value)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter" && !event.shiftKey) {
+                                                        event.preventDefault();
+                                                        void send(text);
+                                                    }
+                                                }}
+                                                placeholder={copy.placeholder}
+                                                aria-label={copy.inputLabel}
                                             />
-                                            <CardText>
-                                                <CardName>{example.name}</CardName>
-                                                <CardDescription>{example.description}</CardDescription>
-                                            </CardText>
-                                        </Card>
-                                    ))}
-                                </Cards>
-                            </ExamplesBlock>
+                                            <ComposerFooter>
+                                                <FooterLeft>
+                                                    <RoundButton
+                                                        type="button"
+                                                        title={`Open ${assistantName}`}
+                                                        onClick={openCopilot}
+                                                    >
+                                                        <Codicon name="add" />
+                                                    </RoundButton>
+                                                    {authState === "unauthenticated" && (
+                                                        <FooterHint>
+                                                            <LinkButton type="button" onClick={openSetup}>
+                                                                Set up AI
+                                                            </LinkButton>{" "}
+                                                            to generate
+                                                        </FooterHint>
+                                                    )}
+                                                    {authState === "connecting" && (
+                                                        <FooterHint>
+                                                            <LinkButton type="button" onClick={openSetup}>
+                                                                Finish setting up AI
+                                                            </LinkButton>
+                                                        </FooterHint>
+                                                    )}
+                                                </FooterLeft>
+                                                <RoundButton
+                                                    type="button"
+                                                    title={`Send to ${assistantName}`}
+                                                    aria-label={`Send to ${assistantName}`}
+                                                    disabled={!text.trim()}
+                                                    onClick={() => void send(text)}
+                                                    primary={true}
+                                                >
+                                                    <Codicon name="arrow-up" />
+                                                </RoundButton>
+                                            </ComposerFooter>
+                                        </Composer>
+                                    </ComposerFrame>
+                                </ComposerRow>
 
-                            <ManualRow>
-                                or
-                                <Button
-                                    appearance="secondary"
-                                    onClick={onCreateFromScratch}
-                                    buttonSx={MANUAL_BUTTON_SX}
-                                >
-                                    {copy.manualLabel}
-                                </Button>
-                            </ManualRow>
-                        </ExitGroup>
-                    </div>
-                </IdleBlock>
-            )}
-        </Wrap>
+                                {startFailed && (
+                                    <Notice>
+                                        {assistantName} didn’t start. Try again, or{" "}
+                                        <LinkButton type="button" onClick={openCopilot}>
+                                            open {assistantName}
+                                        </LinkButton>
+                                        .
+                                    </Notice>
+                                )}
+
+                            </ExitGroup>
+
+                            <ExitGroup $out={showRun}>
+                                <ExamplesBlock>
+                                    <ExamplesLabel>Examples</ExamplesLabel>
+                                    <Cards>
+                                        {copy.examples.map((example) => (
+                                            <Card
+                                                key={example.name}
+                                                type="button"
+                                                onClick={() => fillExample(example.prompt)}
+                                            >
+                                                <Icon
+                                                    name={example.icon}
+                                                    isCodicon={example.isCodicon}
+                                                    sx={{ color: "var(--vscode-foreground)" }}
+                                                    iconSx={{ fontSize: "18px", color: "var(--vscode-foreground)" }}
+                                                />
+                                                <CardText>
+                                                    <CardName>{example.name}</CardName>
+                                                    <CardDescription>{example.description}</CardDescription>
+                                                </CardText>
+                                            </Card>
+                                        ))}
+                                    </Cards>
+                                </ExamplesBlock>
+
+                                <ManualRow>
+                                    or
+                                    <Button
+                                        appearance="secondary"
+                                        onClick={onCreateFromScratch}
+                                        buttonSx={MANUAL_BUTTON_SX}
+                                    >
+                                        {copy.manualLabel}
+                                    </Button>
+                                </ManualRow>
+                            </ExitGroup>
+                        </div>
+                    </IdleBlock>
+                )}
+            </Wrap>
+        </>
     );
 }
