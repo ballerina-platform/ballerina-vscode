@@ -84,7 +84,7 @@ namespace S {
         display: flex;
         flex-direction: column;
         gap: ${({ compact }) => (compact ? "8px" : "20px")};
-        padding: ${({ nestedForm }) => (nestedForm ? "16px 5px" : "16px")};
+        padding: ${({ nestedForm }) => (nestedForm ? "16px 4px" : "16px")};
         height: ${({ nestedForm, footerActionButton }) => {
             if (nestedForm) return "unset";
             if (footerActionButton) return "100%";

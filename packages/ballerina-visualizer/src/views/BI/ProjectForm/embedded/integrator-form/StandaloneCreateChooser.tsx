@@ -22,6 +22,7 @@ import { CreateFlowShell } from "./shared/CreateFlowShell";
 import { FormFooter } from "./shared/FormPageLayout";
 import { ProjectTypeSelector } from "../../components";
 import { LibraryCreationView } from "./LibraryCreationView";
+import { getProductTerms, projectTypeOptions } from "../../productTerms";
 import { CreateIntegrationWizard } from "../../../CreateIntegrationWizard";
 import { BiWsClient } from "../../../wsManager/WsClient";
 import { BiWsClientProvider } from "../../../wsManager/WsClientContext";
@@ -33,7 +34,7 @@ interface StandaloneCreateChooserProps {
     /** The wizard client (native BI WS) used by the integration route. */
     biWsClient: BiWsClient;
     ballerinaUnavailable?: boolean;
-    /** Agent builder mode words the integration option for what it builds there. */
+    /** Agent Builder wording: what is created here is an agentic integration. */
     isAgentBuilder?: boolean;
     /** Exit the whole Create flow (back to the welcome view). */
     onBack?: () => void;
@@ -47,9 +48,15 @@ interface StandaloneCreateChooserProps {
  * views used before the project chooser existed (no project context — no
  * workspace is created).
  */
-export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, isAgentBuilder, onBack }: StandaloneCreateChooserProps) {
+export function StandaloneCreateChooser({
+    biWsClient,
+    ballerinaUnavailable,
+    isAgentBuilder,
+    onBack,
+}: StandaloneCreateChooserProps) {
     const [screen, setScreen] = useState<Screen>("chooser");
     const [isLibrary, setIsLibrary] = useState(false);
+    const terms = getProductTerms(isAgentBuilder);
 
     if (screen === "integration") {
         return (
@@ -66,15 +73,15 @@ export function StandaloneCreateChooser({ biWsClient, ballerinaUnavailable, isAg
     return (
         <CreateFlowShell
             title="Create"
-            subtitle="Your connected Ballerina distribution doesn't support projects — you can still create a standalone integration or library."
+            subtitle={`Your connected Ballerina distribution doesn't support projects — you can still create a standalone ${terms.integrationNoun} or library.`}
             onBack={onBack}
         >
             <ProjectTypeSelector
                 label="Choose your starting point"
                 value={isLibrary}
                 onChange={setIsLibrary}
-                isAgentBuilder={isAgentBuilder}
-                note="Update your Ballerina distribution to 2201.13.0 or above to organize integrations and libraries into a project."
+                options={projectTypeOptions(terms)}
+                note={`Update your Ballerina distribution to 2201.13.0 or above to organize ${terms.integrationNounPlural} and libraries into a project.`}
             />
             <FormFooter>
                 <span title={ballerinaUnavailable ? "Ballerina distribution is not set up. Use Configure to set it up." : undefined}>

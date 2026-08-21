@@ -105,7 +105,8 @@ export const EditorFactory = (props: FormFieldEditorProps) => {
         fieldInputType.fieldType === "TEXT" ||
         fieldInputType.fieldType === "EXPRESSION_SET" ||
         fieldInputType.fieldType === "TEXT_SET" ||
-        (fieldInputType.fieldType === "SINGLE_SELECT" && isDropDownType(fieldInputType)) ||
+        (fieldInputType.fieldType === "SINGLE_SELECT" && isDropDownType(fieldInputType)
+            && !field.dynamicFormFields) ||
         fieldInputType.fieldType === "RECORD_MAP_EXPRESSION" ||
         fieldInputType.fieldType === "SQL_QUERY" ||
         fieldInputType.fieldType === "NUMBER" ||

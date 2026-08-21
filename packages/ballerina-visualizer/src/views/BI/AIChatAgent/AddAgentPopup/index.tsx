@@ -17,57 +17,17 @@
  */
 
 import { ReactNode, useState } from "react";
-import styled from "@emotion/styled";
 import { AvailableNode, ParentPopupData } from "@wso2/ballerina-core";
-import { Codicon, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon } from "@wso2/ui-toolkit";
 import {
     BackButton,
     CloseButton,
     HeaderTitleContainer,
-    PopupContainer,
     PopupHeader,
-    PopupOverlay,
     PopupTitle,
 } from "../../Connection/styles";
+import { PopupModal, PopupModalStep } from "../../../../components/PopupModal";
 import { AddAgentPopupContent, AddAgentView } from "./AddAgentPopupContent";
-
-const AgentModalStep = styled.div<{ $direction: "forward" | "backward" }>`
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-    animation: ${(props: { $direction: "forward" | "backward" }) =>
-        props.$direction === "forward" ? "agent-step-forward" : "agent-step-backward"}
-        150ms ease-out both;
-
-    @keyframes agent-step-forward {
-        from {
-            opacity: 0;
-            transform: translateX(8px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @keyframes agent-step-backward {
-        from {
-            opacity: 0;
-            transform: translateX(-8px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
-`;
 
 export interface AddAgentPopupProps {
     projectPath: string;
@@ -116,10 +76,9 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
     };
 
     return (
-        <>
-            <PopupOverlay sx={{ background: `${ThemeColors.SURFACE_CONTAINER}`, opacity: `0.5`, zIndex: 2050 }} />
-            <PopupContainer style={{ zIndex: 2051 }}>
-                <AgentModalStep key={isDependencyToolForm ? "agent-tool-form" : view} $direction={transitionDirection}>
+        <PopupModal onClose={handleClosePopup} zIndexBase={2050}>
+            {(close) => (
+                <PopupModalStep key={isDependencyToolForm ? "agent-tool-form" : view} $direction={transitionDirection}>
                     <PopupHeader>
                         {isForm && (
                             <BackButton
@@ -138,14 +97,14 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                                         : dependencyMode ? "Use Agent" : "Add Agent"}
                             </PopupTitle>
                         </HeaderTitleContainer>
-                        <CloseButton appearance="icon" onClick={handleClosePopup}>
+                        <CloseButton appearance="icon" onClick={close}>
                             <Codicon name="close" />
                         </CloseButton>
                     </PopupHeader>
                     {isDependencyToolForm ? dependencyToolForm : (
                         <AddAgentPopupContent
                             projectPath={props.projectPath}
-                            onClose={handleClosePopup}
+                            onClose={close}
                             onAgentDefinitionCreated={isPopup ? onClose : undefined}
                             view={view}
                             onViewChange={changeView}
@@ -158,9 +117,9 @@ export function AddAgentPopup(props: AddAgentPopupProps) {
                             onGenericAgentSelected={onGenericAgentSelected}
                         />
                     )}
-                </AgentModalStep>
-            </PopupContainer>
-        </>
+                </PopupModalStep>
+            )}
+        </PopupModal>
     );
 }
 

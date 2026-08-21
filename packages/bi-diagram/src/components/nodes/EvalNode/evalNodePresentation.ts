@@ -16,11 +16,10 @@
  * under the License.
  */
 
-import { NodeMetadata } from "@wso2/ballerina-core";
+import { DEFAULT_MODEL_PROVIDER_LABEL, NodeMetadata, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import { NODE_HEIGHT } from "../../../resources/constants";
 import { FlowNode } from "../../../utils/types";
 
-const DEFAULT_MODEL_PROVIDER_EXPR = "check ai:getDefaultModelProvider()";
 const AGENT_TYPE = "ai:Agent";
 const MODEL_PROVIDER_TYPE = "ai:ModelProvider";
 
@@ -90,8 +89,8 @@ export function getEvalPresentation(node: FlowNode): EvalPresentation {
         agentName: propertyValueByType(node, AGENT_TYPE) || undefined,
         judgeModel: modelValue
             ? {
-                label: modelValue === DEFAULT_MODEL_PROVIDER_EXPR ? "Default model provider" : modelValue,
-                isDefault: modelValue === DEFAULT_MODEL_PROVIDER_EXPR,
+                label: isDefaultModelProviderExpr(modelValue) ? DEFAULT_MODEL_PROVIDER_LABEL : modelValue,
+                isDefault: isDefaultModelProviderExpr(modelValue),
                 type: model?.type,
                 iconUrl: model?.path,
             }

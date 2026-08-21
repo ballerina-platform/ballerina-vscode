@@ -20,7 +20,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { DiagnosticsPopUp } from "../components/DiagnosticsPopUp";
 import { DiagramContext, DiagramContextState } from "../components/DiagramContext";
-import { FlowNode } from "@wso2/ballerina-core";
+import { FlowNode, ProductMode, assistantName } from "@wso2/ballerina-core";
 
 const createContextValue = (
     options: {
@@ -83,6 +83,7 @@ const createContextValue = (
     lockCanvas: false,
     setLockCanvas: jest.fn(),
     isUserAuthenticated: options.isUserAuthenticated ?? true,
+    aiAssistantName: assistantName(ProductMode.INTEGRATOR),
     expressionContext: {
         completions: [],
         triggerCharacters: [],

@@ -16,14 +16,13 @@
  * under the License.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import styled from "@emotion/styled";
-import { Codicon, ThemeColors } from "@wso2/ui-toolkit";
+import { Codicon } from "@wso2/ui-toolkit";
 import { AvailableNode } from "@wso2/ballerina-core";
+import { PopupModal } from "../../../components/PopupModal";
 import {
-    PopupOverlay, PopupContainer, PopupHeader, HeaderTitleContainer, PopupTitle, PopupSubtitle,
-    CloseButton, PopupContent
+    PopupHeader, HeaderTitleContainer, PopupTitle, PopupSubtitle, CloseButton, PopupContent
 } from "../Connection/styles";
 import {
     Badge, EmptyTemplates, ModalControls, TemplateFilter, TemplateFilters, TemplateIconTile,
@@ -33,46 +32,6 @@ import {
 import {
     TemplateFilterKind, getTemplateIcon, getTemplateKind, matchesTemplateFilter, templateNeedsEvalset
 } from "./templateUtils";
-
-const MOTION_MS = 150;
-
-const AnimatedOverlay = styled(PopupOverlay) <{ $closing: boolean }>`
-    animation: ${(props: { $closing: boolean }) =>
-        `${props.$closing ? 'eval-overlay-out' : 'eval-overlay-in'} ${MOTION_MS}ms ease-out both`};
-
-    @keyframes eval-overlay-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes eval-overlay-out {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
-`;
-
-const AnimatedContainer = styled(PopupContainer) <{ $closing: boolean }>`
-    animation: ${(props: { $closing: boolean }) =>
-        `${props.$closing ? 'eval-modal-out' : 'eval-modal-in'} ${MOTION_MS}ms ease-out both`};
-
-    @keyframes eval-modal-in {
-        from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
-        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    }
-
-    @keyframes eval-modal-out {
-        from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
-`;
 
 interface TemplateModalProps {
     templates: AvailableNode[];
@@ -87,29 +46,6 @@ export function TemplateModal(props: TemplateModalProps) {
 
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState<TemplateFilterKind>('all');
-    const [closing, setClosing] = useState(false);
-    const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
-    useEffect(() => () => clearTimeout(closeTimerRef.current), []);
-
-    const handleClose = () => {
-        if (closing) {
-            return;
-        }
-        setClosing(true);
-        closeTimerRef.current = setTimeout(onClose, MOTION_MS);
-    };
-
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !event.defaultPrevented) {
-                handleClose();
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [closing]);
-
     const filteredTemplates = useMemo(() => {
         const text = query.trim().toLowerCase();
         return templates.filter(template => {
@@ -119,21 +55,20 @@ export function TemplateModal(props: TemplateModalProps) {
         });
     }, [templates, filter, query]);
 
-    const handleSelect = (template: AvailableNode) => {
-        if (closing) {
-            return;
-        }
+    const handleSelect = (template: AvailableNode, close: () => void) => {
         onSelectTemplate(template);
-        handleClose();
+        close();
     };
 
     return createPortal(
-        <>
-            <AnimatedOverlay $closing={closing}
-                sx={{ background: `color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent)` }}
-                onClose={handleClose} />
-            <AnimatedContainer $closing={closing} role="dialog" aria-modal="true"
-                aria-labelledby="evaluation-template-dialog-title">
+        <PopupModal
+            onClose={onClose}
+            dismissOnBackdropClick
+            dismissOnEscape
+            ariaLabelledBy="evaluation-template-dialog-title"
+        >
+            {(close) => (
+                <>
                 <PopupHeader>
                     <HeaderTitleContainer>
                         <PopupTitle variant="h2" id="evaluation-template-dialog-title">
@@ -143,7 +78,7 @@ export function TemplateModal(props: TemplateModalProps) {
                             {filteredTemplates.length} of {templates.length} templates
                         </PopupSubtitle>
                     </HeaderTitleContainer>
-                    <CloseButton appearance="icon" onClick={handleClose} aria-label="Close template browser">
+                    <CloseButton appearance="icon" onClick={close} aria-label="Close template browser">
                         <Codicon name="close" />
                     </CloseButton>
                 </PopupHeader>
@@ -181,7 +116,7 @@ export function TemplateModal(props: TemplateModalProps) {
                                 const isSelected = selectedTemplate?.codedata.symbol === template.codedata.symbol;
                                 return (
                                     <TemplateOption key={template.codedata.symbol} type="button"
-                                        selected={isSelected} onClick={() => handleSelect(template)}>
+                                        selected={isSelected} onClick={() => handleSelect(template, close)}>
                                         <TemplateIconTile size={32} selected={isSelected}>
                                             <Codicon name={getTemplateIcon(template)}
                                                 sx={{ display: 'flex', height: 'auto', width: 'auto', cursor: 'pointer' }}
@@ -204,8 +139,9 @@ export function TemplateModal(props: TemplateModalProps) {
                         </TemplateResultsGrid>
                     )}
                 </PopupContent>
-            </AnimatedContainer>
-        </>,
+                </>
+            )}
+        </PopupModal>,
         document.body
     );
 }

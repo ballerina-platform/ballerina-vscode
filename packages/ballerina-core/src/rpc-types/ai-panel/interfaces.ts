@@ -29,7 +29,7 @@ import { DataMapperMetadata } from "../../interfaces/shared-types";
 // ==================================
 export type AIPanelPrompt =
     | { type: 'command-template'; command: Command; templateId: TemplateId; text?: string; params?: Record<string, string>; metadata?: Record<string, any>; hiddenContext?: string }
-    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; }
+    | { type: 'text'; text: string; planMode: boolean; codeContext?: CodeContext; autoSubmit?: boolean; hiddenContext?: string; suggestedCommandTemplates?: AIPanelPrompt[];    inputPlaceholder?:string; newThread?: boolean; }
     | { type: 'skill'; skillId: string; skillName: string; args?: string; tagParams?: Record<string, string>; autoSubmit?: boolean; hiddenContext?: string }
     | undefined;
 

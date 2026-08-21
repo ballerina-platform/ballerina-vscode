@@ -106,6 +106,7 @@ import { ActiveMigrationSession } from "@wso2/ballerina-rpc-client";
 import { ReviewBar } from "../ReviewBar";
 import SkillsManager from "../SkillsManager";
 import { MAX_CONTEXT_WINDOW } from "./compaction/ContextUsageWidget";
+import { useShortAssistantName } from "../../../../hooks/useProductMode";
 
 const NO_DRIFT_FOUND = "No drift identified between the code and the documentation.";
 const DRIFT_CHECK_ERROR = "Failed to check drift between the code and the documentation. Please try again.";
@@ -251,6 +252,7 @@ function scaffoldKeyHash(text: string, hiddenContext: string | undefined): strin
 }
 
 const AIChat: React.FC = () => {
+    const shortName = useShortAssistantName();
     const { rpcClient } = useRpcContext();
     const [messages, setMessages] = useState<PanelMessage[]>([]);
     const renderedMessagesRef = useRef(messages);
@@ -535,6 +537,10 @@ const AIChat: React.FC = () => {
                                         return;
                                     }
                                     activeScaffoldKeyRef.current = key;
+                                }
+                                if (defaultPrompt.newThread) {
+                                    await reconnectSettledRef.current;
+                                    await handleClearChat();
                                 }
                                 void handleSend({
                                     input: [{ content: defaultPrompt.text }],
@@ -2884,7 +2890,7 @@ const AIChat: React.FC = () => {
                         <UsageLimitNoticeContainer>
                             <span className="codicon codicon-warning" role="img" aria-hidden="true" />
                             <span>
-                                You've reached your Integrator Copilot usage limit
+                                You've reached your {shortName} usage limit
                                 {usage && usage.resetsIn !== -1 ? `, which resets in ${formatResetsIn(usage.resetsIn)}` : ""}.
                                 {usage?.alreadyRequested
                                     ? <>{" "}Your request for additional quota has been submitted. Reach us at <a href={`mailto:${QUOTA_CONTACT_EMAIL}`}>{QUOTA_CONTACT_EMAIL}</a>.</>

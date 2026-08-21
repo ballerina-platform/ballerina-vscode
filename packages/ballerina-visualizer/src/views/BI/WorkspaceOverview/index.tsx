@@ -16,7 +16,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { EditableTitle } from "../../../components/EditableTitle";
 import {
     ProjectStructureResponse,
@@ -35,7 +35,7 @@ import { VSCodeLink } from "@vscode/webview-ui-toolkit/react";
 import { Markdown } from "../../../components/Markdown";
 import { AlertBoxWithClose } from "../../AIPanel/AlertBoxWithClose";
 import { PackageListView } from "./PackageListView";
-import { getWorkspaceProjectScopes } from "../PackageOverview/utils";
+import { getWorkspaceDeploymentState, validateWorkspaceTitle, useProjectContentRefresh } from "../PackageOverview/utils";
 import { usePlatformExtContext } from "../../../providers/platform-ext-ctx-provider";
 
 const SpinnerContainer = styled.div`
@@ -785,20 +785,7 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
             });
     };
 
-    // Stable ref so the subscription callback always calls the latest
-    // fetchContext without re-registering on every render.
-    const fetchContextRef = useRef(fetchContext);
-    fetchContextRef.current = fetchContext;
-
-    useEffect(() => {
-        if (!rpcClient) return;
-        const unsubscribe = rpcClient.onProjectContentUpdated((state: boolean) => {
-            if (state) {
-                fetchContextRef.current();
-            }
-        });
-        return unsubscribe;
-    }, [rpcClient]);
+    useProjectContentRefresh(rpcClient, fetchContext);
 
     useEffect(() => {
         fetchContext();
@@ -852,65 +839,10 @@ export function WorkspaceOverview({ isInDevant, isICPSupported }: WorkspaceOverv
         return "partial";
     }, [icpProjectPaths, icpEnabledCount]);
 
-    const projectScopes = useMemo(() => {
-        return getWorkspaceProjectScopes(projectCollection);
-    }, [projectCollection]);
+    const { libraryProjectPaths, deployableProjectPaths, undeployedProjectScopes, hasDeployableIntegration } =
+        useMemo(() => getWorkspaceDeploymentState(projectCollection, devantMetadata), [projectCollection, devantMetadata]);
 
-    // Libraries can never be deployed to cloud; exclude them from deployment state calculations.
-    const libraryProjectPaths = useMemo(() => {
-        return (projectCollection?.projects ?? []).reduce<Set<string>>((paths, project) => {
-            if (project.isLibrary && project.projectPath) {
-                paths.add(project.projectPath);
-            }
-            return paths;
-        }, new Set<string>());
-    }, [projectCollection?.projects]);
-
-    // Calculate which projects need deployment
-    const undeployedProjectScopes = useMemo(() => {
-        if (!devantMetadata?.projectsMetadata || !projectCollection) {
-            return projectScopes;
-        }
-
-        const deployedPaths = new Set(
-            devantMetadata.projectsMetadata
-                .filter(p => p.hasComponent)
-                .map(p => p.projectPath)
-        );
-
-        return projectScopes.filter(scope =>
-            !deployedPaths.has(scope.projectPath) &&
-            !libraryProjectPaths.has(scope.projectPath)
-        );
-    }, [projectScopes, devantMetadata, projectCollection, libraryProjectPaths]);
-
-    const deployableProjectPaths = useMemo(() => {
-        return new Set(projectScopes.map(scope => scope.projectPath));
-    }, [projectScopes]);
-
-    const hasDeployableIntegration = useMemo(() => {
-        return projectScopes.some(scope =>
-            scope.integrationTypes.length > 0 &&
-            !libraryProjectPaths.has(scope.projectPath)
-        );
-    }, [projectScopes, libraryProjectPaths]);
-
-    const validateTitle = useCallback((value: string): string => {
-        const trimmed = value.trim();
-        if (!trimmed) {
-            return "You are required to enter a project name.";
-        }
-        if (!/^[a-zA-Z]/.test(trimmed)) {
-            return "Name must start with an alphabetical letter.";
-        }
-        if (trimmed.length < 3) {
-            return "The name must have at least three characters.";
-        }
-        if (/[^a-zA-Z0-9\-_ ]/.test(trimmed)) {
-            return "The name cannot contain special characters.";
-        }
-        return "";
-    }, []);
+    const validateTitle = useCallback((value: string): string => validateWorkspaceTitle(value), []);
 
     const handleTitleUpdate = useCallback(async (newTitle: string) => {
         if (!projectCollection?.workspacePath) return;

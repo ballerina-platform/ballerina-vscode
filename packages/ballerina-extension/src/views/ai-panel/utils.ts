@@ -37,6 +37,7 @@ import {
 } from '../../utils/ai/auth';
 import { getBedrockRegionalPrefix } from '../../features/ai/utils/ai-client';
 import { WICommandIds } from '@wso2/wso2-platform-core';
+import { aiAssistantName } from "../../utils/config";
 
 const LEGACY_ACCESS_TOKEN_SECRET_KEY = 'BallerinaAIUser';
 const LEGACY_REFRESH_TOKEN_SECRET_KEY = 'BallerinaAIRefreshToken';
@@ -120,7 +121,7 @@ export const logout = async (_isUserLogout: boolean = true) => {
  */
 export async function initiateDevantAuth(): Promise<boolean> {
     if (!isPlatformExtensionAvailable()) {
-        throw new Error('WSO2 Platform extension is not installed. Please install it to use WSO2 Integration Intelligence.');
+        throw new Error(`WSO2 Platform extension is not installed. Please install it to use ${aiAssistantName()}.`);
     }
 
     // Trigger platform extension login command

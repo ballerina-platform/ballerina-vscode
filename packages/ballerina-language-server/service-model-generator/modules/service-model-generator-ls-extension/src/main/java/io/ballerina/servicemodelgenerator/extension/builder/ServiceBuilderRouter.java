@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
+import io.ballerina.servicemodelgenerator.extension.builder.service.AgentTriggerServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.AiChatServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.DefaultServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.builder.service.GraphqlServiceBuilder;
@@ -164,12 +165,17 @@ public class ServiceBuilderRouter {
                                                        SemanticModel semanticModel, Document document) {
         GetServiceInitModelContext context = new GetServiceInitModelContext(
                 request.orgName(), request.pkgName(), request.moduleName(), request.version(),
-                project, semanticModel, document, request.isLocalRepository());
-        ServiceNodeBuilder serviceBuilder =
-                useSchemaDrivenPath(request.orgName(), request.moduleName(), request.version(),
-                        request.isLocalRepository())
-                        ? new SchemaDrivenServiceBuilder()
-                        : getServiceBuilder(request.moduleName());
+                project, semanticModel, document, request.isLocalRepository(),
+                request.agentName(), request.agentOrgName());
+        ServiceNodeBuilder serviceBuilder;
+        if (AgentTriggerServiceBuilder.handles(request)) {
+            serviceBuilder = new AgentTriggerServiceBuilder();
+        } else if (useSchemaDrivenPath(request.orgName(), request.moduleName(), request.version(),
+                request.isLocalRepository())) {
+            serviceBuilder = new SchemaDrivenServiceBuilder();
+        } else {
+            serviceBuilder = getServiceBuilder(request.moduleName());
+        }
         return serviceBuilder.getServiceInitModel(context);
     }
 
@@ -181,11 +187,15 @@ public class ServiceBuilderRouter {
             throws Exception {
         AddServiceInitModelContext context = new AddServiceInitModelContext(serviceInitModel, semanticModel, project,
                 workspaceManager, filePath, document);
-        ServiceNodeBuilder serviceBuilder = useSchemaDrivenPath(
-                        serviceInitModel.getOrgName(), serviceInitModel.getModuleName(),
-                        serviceInitModel.getVersion(), serviceInitModel.isLocalRepository())
-                        ? new SchemaDrivenServiceBuilder()
-                        : getServiceBuilder(serviceInitModel.getModuleName());
+        ServiceNodeBuilder serviceBuilder;
+        if (AgentTriggerServiceBuilder.handles(serviceInitModel)) {
+            serviceBuilder = new AgentTriggerServiceBuilder();
+        } else if (useSchemaDrivenPath(serviceInitModel.getOrgName(), serviceInitModel.getModuleName(),
+                serviceInitModel.getVersion(), serviceInitModel.isLocalRepository())) {
+            serviceBuilder = new SchemaDrivenServiceBuilder();
+        } else {
+            serviceBuilder = getServiceBuilder(serviceInitModel.getModuleName());
+        }
         return serviceBuilder.addServiceInitSource(context);
     }
 }

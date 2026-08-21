@@ -213,14 +213,14 @@ async function getPopupContext(): Promise<PopupVisualizerLocation> {
             identifier: context.identifier,
             metadata: context.metadata,
             agentMetadata: context.agentMetadata,
-            dataMapperMetadata: context.dataMapperMetadata
+            dataMapperMetadata: context.dataMapperMetadata,
+            artifactInfo: context.artifactInfo
         });
     });
 }
 
 function isWebviewPanel(webview: WebviewPanel | WebviewView): boolean {
-    const title = webview.title;
-    return title === VisualizerWebview.webviewTitle;
+    return webview.viewType === VisualizerWebview.viewType;
 }
 
 function isMigrationPanel(webview: WebviewPanel | WebviewView): boolean {

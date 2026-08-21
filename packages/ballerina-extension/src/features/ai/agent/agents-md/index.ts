@@ -37,11 +37,12 @@ import type { AgentsMdFileInfoDTO, ChatThread } from '@wso2/ballerina-core';
 import { notifyAgentsMdFileInfoChanged } from '../../../../RPCLayer';
 import { chatStateStorage } from '../../../../views/ai-panel/chatStateStorage';
 import { FILE_READ_TOOL_NAME } from '../tools/text-editor';
+import { aiAssistantName } from "../../../../utils/config";
 
 const AGENTS_MD_FILENAME = 'AGENTS.md';
 const MAX_LINES_IN_BLOCK = 200;
 
-const STARTER_TEMPLATE = `# Project instructions for the WSO2 Integration Intelligence
+const STARTER_TEMPLATE = `# Project instructions for the ${aiAssistantName()}
 `;
 
 /** Stored on a generation after a REMOVAL_NOTE. Non-hex so it can't collide with a SHA-1. */

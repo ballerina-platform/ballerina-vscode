@@ -361,7 +361,8 @@ public class TriggerModelReader {
             }
 
             Optional<TriggerMetadataModel> metadata = metadataReader
-                    .getTriggerMetadataModelFromLocalRepository(moduleInfo);
+                    .getTriggerMetadataModelFromLocalRepository(moduleInfo)
+                    .or(() -> metadataReader.getPackagedTriggerMetadataModel(moduleInfo));
             if (metadata.isEmpty()) {
                 return Optional.empty();
             }
@@ -395,7 +396,8 @@ public class TriggerModelReader {
             return Resolution.of(shipped);
         }
 
-        Optional<TriggerMetadataModel> metadata = metadataReader.getTriggerMetadataModel(moduleInfo);
+        Optional<TriggerMetadataModel> metadata = metadataReader.getTriggerMetadataModel(moduleInfo)
+                .or(() -> metadataReader.getPackagedTriggerMetadataModel(moduleInfo));
         if (metadata.isEmpty()) {
             return metadataReader.isLocallyResolvable(moduleInfo) ? Resolution.ABSENT : Resolution.UNRESOLVED;
         }

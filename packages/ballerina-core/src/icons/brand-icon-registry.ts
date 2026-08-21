@@ -45,6 +45,7 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     grpc: { glyph: "bi-grpc" },
     graphql: { glyph: "bi-graphql", color: "#e535ab" },
     "java.jms": { glyph: "bi-java" },
+    github: { glyph: "bi-github" },
     "trigger.github": { glyph: "bi-github" },
     http: { glyph: "bi-globe" },
     mcp: { glyph: "bi-mcp" },
@@ -91,4 +92,20 @@ export const KIND_DEFAULT_ICON: Record<string, BrandIcon> = {
 /** Looks up the kind-default icon; falls back to the generic API glyph for an unknown kind. */
 export function resolveKindDefaultIcon(kind: string | undefined | null): BrandIcon {
     return (kind && KIND_DEFAULT_ICON[kind]) || KIND_DEFAULT_ICON.http;
+}
+
+const CENTRAL_ICON_MODULE = /\/[^/]*?_(.+)_\d[^/]*\.(?:png|svg)$/i;
+
+export function resolveBrandIconFromUrl(url: string | undefined | null): BrandIcon | undefined {
+    const match = url?.match(CENTRAL_ICON_MODULE);
+    return match ? resolveBrandIcon(match[1]) : undefined;
+}
+
+export const ENTRY_TYPE_GLYPH: Record<string, BrandIcon & { isCodicon?: boolean }> = {
+    ai: { glyph: "comment-discussion", isCodicon: true },
+    automation: { glyph: "bi-task" },
+};
+
+export function resolveEntryTypeGlyph(type: string | undefined | null) {
+    return type ? ENTRY_TYPE_GLYPH[type] : undefined;
 }

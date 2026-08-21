@@ -24,6 +24,7 @@ import { AlertBox } from "../AlertBox";
 import { useEffect, useState } from "react";
 import { Codicon, RadioButtonGroup } from "@wso2/ui-toolkit";
 import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 const Container = styled.div`
     display: flex;
@@ -38,11 +39,11 @@ const AlertContainer = styled.div<{ variant: "primary" | "secondary" }>`
     border-left: 0.3rem solid
         var(
             ${(props: { variant: string }) =>
-                props.variant === "secondary" ? "--vscode-editorWidget-border" : "--vscode-focusBorder"}
+        props.variant === "secondary" ? "--vscode-editorWidget-border" : "--vscode-focusBorder"}
         );
     background: var(
         ${(props: { variant: string }) =>
-            props.variant === "secondary" ? "transparent" : "--vscode-inputValidation-infoBackground"}
+        props.variant === "secondary" ? "transparent" : "--vscode-inputValidation-infoBackground"}
     );
     display: flex;
     flex-direction: column;
@@ -204,6 +205,7 @@ interface WaitingForLoginProps {
 
 const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: WaitingForLoginProps) => {
     const { rpcClient } = useRpcContext();
+    const assistantName = useAssistantName();
     const [apiKey, setApiKey] = useState("");
     const [showApiKey, setShowApiKey] = useState(false);
     const [awsCredentials, setAwsCredentials] = useState({
@@ -363,7 +365,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                 <AlertContainer variant="primary">
                     <Title>Connect with Anthropic API Key</Title>
                     <SubTitle>
-                        Enter your Anthropic API key to connect to WSO2 Integration Intelligence. Your API key will be securely stored
+                        Enter your Anthropic API key to connect to {assistantName}. Your API key will be securely stored
                         and used for authentication.
                     </SubTitle>
 
@@ -690,15 +692,15 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
     if (loginMethod === LoginMethod.AWS_BEDROCK) {
         const isFormValid = awsCredentials.accessKeyId.trim() &&
-                           awsCredentials.secretAccessKey.trim() &&
-                           awsCredentials.region.trim();
+            awsCredentials.secretAccessKey.trim() &&
+            awsCredentials.region.trim();
 
         return (
             <Container>
                 <AlertContainer variant="primary">
                     <Title>Connect with AWS Bedrock</Title>
                     <SubTitle>
-                        Enter your AWS credentials to connect to WSO2 Integration Intelligence via AWS Bedrock. Your credentials will be securely stored
+                        Enter your AWS credentials to connect to {assistantName} via AWS Bedrock. Your credentials will be securely stored
                         and used for authentication.
                     </SubTitle>
 
@@ -804,8 +806,8 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
 
     if (loginMethod === LoginMethod.VERTEX_AI) {
         const isFormValid = !!(vertexAiCredentials.projectId.trim() &&
-                           vertexAiCredentials.location.trim() &&
-                           vertexAiCredentials.keyFile.trim());
+            vertexAiCredentials.location.trim() &&
+            vertexAiCredentials.keyFile.trim());
         const submitDisabled = isValidating || !isFormValid;
 
         return (
@@ -813,7 +815,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                 <AlertContainer variant="primary">
                     <Title>Connect with Google Vertex AI</Title>
                     <SubTitle>
-                        Select the GCP service account JSON key file to authenticate WSO2 Integration Intelligence with Google Vertex AI.
+                        Select the GCP service account JSON key file to authenticate {assistantName} with Google Vertex AI.
                         The path is stored locally and read on each request, so the file must remain accessible at this location.
                     </SubTitle>
 
@@ -1062,7 +1064,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage }: Wa
                 buttonTitle="Cancel"
                 onClick={cancelLogin}
                 subTitle={
-                    "Waiting for the login credentials. Please sign in to your WSO2 Integration Intelligence account in the browser window to continue."
+                    `Waiting for the login credentials. Please sign in to your ${assistantName} account in the browser window to continue.`
                 }
                 title={"Waiting for Login"}
             />

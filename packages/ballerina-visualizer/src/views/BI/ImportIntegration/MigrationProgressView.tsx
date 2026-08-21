@@ -34,6 +34,7 @@ import {
 } from "./styles";
 import { MigrationProgressProps } from "./types";
 import { getMigrationDisplayState, getMigrationProgressHeaderData } from "./utils";
+import { useAssistantName } from "../../../hooks/useProductMode";
 
 const StatusRow = styled.div`
     display: flex;
@@ -65,6 +66,7 @@ export function MigrationProgressView({
     toolPullFailureMessage,
     migrationToolCommandName,
 }: MigrationProgressProps) {
+    const assistantName = useAssistantName();
     const [isLogsOpen, setIsLogsOpen] = useState(true);
     const [aiEnhancementEnabled, setAiEnhancementEnabled] = useState(true);
 
@@ -169,7 +171,7 @@ export function MigrationProgressView({
                                 <RadioInput type="radio" name="ai-enhancement-mode-report" checked={!aiEnhancementEnabled} onChange={() => setAiEnhancementEnabled(false)} />
                                 <RadioContent>
                                     <RadioTitle>Skip for Now, Enhance Later</RadioTitle>
-                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from WSO2 Integration Intelligence.</RadioDescription>
+                                    <RadioDescription>Keep the project as-is. You can trigger AI enhancement later from the {assistantName}.</RadioDescription>
                                 </RadioContent>
                             </RadioOption>
                         </RadioGroup>

@@ -54,6 +54,8 @@ interface BasicInfoStepProps {
     /** Hide the path field — the location is fixed by the chosen project (the
      *  integration is created inside it), so only the name is asked for. */
     hidePath?: boolean;
+    /** Host's own wording for the artifact being named. */
+    nameLabel?: string;
 }
 
 /**
@@ -72,6 +74,7 @@ export function BasicInfoStep({
     onPathChange,
     onBrowse,
     hidePath = false,
+    nameLabel = "Integration Name",
 }: BasicInfoStepProps) {
     const nameFieldRef = useRef<HTMLInputElement>(null);
     // Set on the first user edit, so the re-select below never fights their typing.
@@ -130,7 +133,7 @@ export function BasicInfoStep({
                         onNameChange(value);
                     }}
                     value={integrationName}
-                    label="Integration Name"
+                    label={nameLabel}
                     placeholder="Enter an integration name"
                     required={true}
                     errorMsg={nameError || ""}

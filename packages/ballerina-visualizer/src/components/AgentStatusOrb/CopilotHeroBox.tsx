@@ -18,8 +18,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import styled from "@emotion/styled";
-import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { SHARED_COMMANDS, AgentRunStatus } from "@wso2/ballerina-core";
+import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
+import { AgentRunStatus, SHARED_COMMANDS, shortAssistantName } from "@wso2/ballerina-core";
 import { Codicon, Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
 import {
@@ -34,6 +34,35 @@ import {
     useSuppressAgentStatusOrb,
     subscribeAgentRunStatus,
 } from "./shared";
+import { useProductMode, useAssistantName } from "../../hooks/useProductMode";
+
+export function openCopilotPanel(rpcClient: BallerinaRpcClient | undefined): void {
+    rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
+}
+
+export interface CopilotPromptOptions {
+    newThread?: boolean;
+    hiddenContext?: string;
+}
+
+export function submitPromptToCopilot(
+    rpcClient: BallerinaRpcClient | undefined,
+    prompt: string,
+    options?: CopilotPromptOptions
+): boolean {
+    const trimmed = prompt.trim();
+    if (!trimmed) {
+        openCopilotPanel(rpcClient);
+        return false;
+    }
+    rpcClient?.getCommonRpcClient().executeCommand({
+        commands: [
+            SHARED_COMMANDS.OPEN_AI_PANEL,
+            { type: "text", text: trimmed, planMode: false, autoSubmit: true, ...options },
+        ],
+    });
+    return true;
+}
 
 /**
  * Inline "ask the Copilot" prompt box in the package overview's design panel,
@@ -124,6 +153,9 @@ const SendButton = styled.button`
 `;
 
 export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
+    const assistantName = useAssistantName();
+    const productMode = useProductMode();
+    const shortName = shortAssistantName(productMode);
     const { rpcClient } = useRpcContext();
     const [status, setStatus] = useState<AgentRunStatus | null>(null);
     const [text, setText] = useState("");
@@ -147,22 +179,14 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
     const state = status?.state ?? "idle";
     const active = state !== "idle";
     const colors = ORB_COLORS[state];
-    const label = active && status ? activeStateLabel(status) : null;
+    const label = active && status ? activeStateLabel(status, productMode) : null;
 
-    const openCopilot = () => {
-        rpcClient?.getCommonRpcClient().executeCommand({ commands: [SHARED_COMMANDS.OPEN_AI_PANEL] });
-    };
+    const openCopilot = () => openCopilotPanel(rpcClient);
 
     const submit = () => {
-        const prompt = text.trim();
-        if (!prompt) {
-            openCopilot();
-            return;
+        if (submitPromptToCopilot(rpcClient, text)) {
+            setText("");
         }
-        rpcClient?.getCommonRpcClient().executeCommand({
-            commands: [SHARED_COMMANDS.OPEN_AI_PANEL, { type: "text", text: prompt, planMode: false, autoSubmit: true }],
-        });
-        setText("");
     };
 
     return (
@@ -178,7 +202,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                         openCopilot();
                     }
                 }}
-                aria-label={label ? `WSO2 Integration Intelligence: ${label}. Open the WSO2 Integration Intelligence chat.` : undefined}
+                aria-label={label ? `${assistantName}: ${label}. Open the ${shortName} chat.` : undefined}
             >
                 <OrbHolder>
                     {webglFailed ? (
@@ -204,7 +228,7 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                     <>
                         <StatusText>{label}</StatusText>
                         <OpenHint>
-                            Open WSO2 Integration Intelligence <Codicon name="arrow-right" />
+                            Open {shortName} <Codicon name="arrow-right" />
                         </OpenHint>
                     </>
                 ) : (
@@ -219,11 +243,11 @@ export function CopilotHeroBox({ placeholder }: { placeholder: string }) {
                                 }
                             }}
                             placeholder={placeholder}
-                            aria-label="Message WSO2 Integration Intelligence"
+                            aria-label={`Message ${assistantName}`}
                         />
                         <SendButton
-                            title="Send to WSO2 Integration Intelligence"
-                            aria-label="Send to WSO2 Integration Intelligence"
+                            title={`Send to ${assistantName}`}
+                            aria-label={`Send to ${assistantName}`}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 submit();

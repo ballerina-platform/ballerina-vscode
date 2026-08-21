@@ -47,6 +47,7 @@ import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.servicemodelgenerator.extension.builder.FunctionBuilderRouter;
 import io.ballerina.servicemodelgenerator.extension.builder.ServiceBuilderRouter;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Codedata;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -443,6 +444,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     .filter(triggerProperty -> filterTriggers(triggerProperty, request))
                     .map(this::getTriggerBasicInfoByName)
                     .flatMap(Optional::stream)
+                    .map(AgentTriggerChannels::withAgentKind)
                     .toList();
             return new TriggerListResponse(triggerBasicInfoList);
         });
@@ -465,9 +467,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                     .collect(Collectors.toSet());
             String query = request == null ? null : request.query();
             List<TriggerBasicInfo> centralTriggers = TriggerSearchUtil.searchCentral(
-                    RemoteCentral.getInstance(), query, null, localKeys);
+                    RemoteCentral.getInstance(), query, null, localKeys).stream()
+                    .map(AgentTriggerChannels::withAgentKind)
+                    .toList();
             List<TriggerBasicInfo> localRepositoryTriggers = (request != null && request.includeLocalRepository())
-                    ? TriggerSearchUtil.searchLocalRepository(localKeys)
+                    ? TriggerSearchUtil.searchLocalRepository(localKeys).stream()
+                            .map(AgentTriggerChannels::withAgentKind)
+                            .toList()
                     : List.of();
             return new TriggerListResponse(centralTriggers, localRepositoryTriggers);
         });

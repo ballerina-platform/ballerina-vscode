@@ -1491,6 +1491,8 @@ export interface ServiceModelRequest {
     version?: string;
     projectPath?: string;
     isLocalRepository?: boolean;
+    agentName?: string;
+    agentOrgName?: string;
 }
 export interface ServiceModelResponse {
     service: ServiceModel;

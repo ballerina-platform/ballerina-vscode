@@ -98,6 +98,7 @@ import {
     PopupSubtitle,
     PopupTitle,
 } from "../Connection/styles";
+import { PopupModalStep } from "../../../components/PopupModal";
 
 const LoaderContainer = styled.div`
     display: flex;
@@ -288,36 +289,6 @@ const ConnectionMethodChevron = styled.div`
     align-items: center;
     justify-content: center;
     color: ${ThemeColors.ON_SURFACE_VARIANT};
-`;
-
-const ConnectionModalStep = styled.div<{
-    $animate: boolean;
-    $direction: "forward" | "backward";
-}>`
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-    --connection-step-offset: ${(props: { $animate: boolean; $direction: "forward" | "backward" }) => props.$direction === "forward" ? "8px" : "-8px"};
-    animation: ${(props: { $animate: boolean; $direction: "forward" | "backward" }) => props.$animate
-        ? "connection-step 150ms ease-out both"
-        : "none"};
-
-    @keyframes connection-step {
-        from {
-            opacity: 0;
-            transform: translateX(var(--connection-step-offset));
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
 `;
 
 const AgentConnectionPopupContainer = styled(PopupContainer) <{ $compact?: boolean }>`
@@ -1533,7 +1504,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                         $compact={sidePanelView === SidePanelView.CONNECTION_METHOD}
                         style={{ zIndex: 2051 }}
                     >
-                        <ConnectionModalStep
+                        <PopupModalStep
                             key={sidePanelView}
                             $animate={shouldAnimateConnectionStep}
                             $direction={connectionModalDirection}
@@ -1729,7 +1700,7 @@ export function AIAgentSidePanel(props: BIFlowDiagramProps) {
                                     onSaveConfiguredConnection={handleSaveAgentConnection}
                                 />
                             )}
-                        </ConnectionModalStep>
+                        </PopupModalStep>
                     </AgentConnectionPopupContainer>
                 </>,
                 document.body

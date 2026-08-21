@@ -32,6 +32,8 @@ interface CentralSearchPanelProps {
     query: string;
     /** Locally available triggers, used to hide Central results already installed. */
     triggers: TriggerModelsResponse;
+    /** Handles a pick instead of navigating to the service wizard, for a caller that stays in place. */
+    onSelect?: (model: ServiceModel, isLocalRepository: boolean) => void;
 }
 
 const SEARCH_DEBOUNCE_MS = 700;
@@ -113,6 +115,10 @@ export function CentralSearchPanel(props: CentralSearchPanelProps) {
     }
 
     const handleSelect = async (model: ServiceModel, isLocalRepository: boolean) => {
+        if (props.onSelect) {
+            props.onSelect(model, isLocalRepository);
+            return;
+        }
         await rpcClient.getVisualizerRpcClient().openView({
             type: EVENT_TYPE.OPEN_VIEW,
             location: {

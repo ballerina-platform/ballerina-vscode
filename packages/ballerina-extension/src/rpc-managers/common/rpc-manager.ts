@@ -35,6 +35,7 @@ import {
     GoToSourceRequest,
     OpenExternalUrlRequest,
     PackageTomlValues,
+    ProductMode,
     PublishToCentralResponse,
     RunExternalCommandRequest,
     RunExternalCommandResponse,
@@ -282,6 +283,10 @@ export class CommonRpcManager implements CommonRPCAPI {
 
     async additionalTriggerSearchEnabled(): Promise<boolean> {
         return extension.ballerinaExtInstance.enabledAdditionalTriggerSearch();
+    }
+
+    async agentBuilderModeEnabled(): Promise<boolean> {
+        return StateMachine.productMode() === ProductMode.AGENT_BUILDER;
     }
 
     async runBackgroundTerminalCommand(params: RunExternalCommandRequest): Promise<RunExternalCommandResponse> {

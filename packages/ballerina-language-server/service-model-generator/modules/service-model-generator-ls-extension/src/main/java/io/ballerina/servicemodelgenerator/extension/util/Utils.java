@@ -146,7 +146,7 @@ public final class Utils {
     private static final String REPOSITORIES_DIR = "repositories";
     private static final String CENTRAL_REPO = "central.ballerina.io";
     private static final String BALA_DIR = "bala";
-    private static final List<String> DISTRIBUTION_MODULES = Arrays.asList("http", "graphql", "tcp");
+    private static final List<String> DISTRIBUTION_MODULES = Arrays.asList("http", "graphql", "tcp", "ai");
 
     private Utils() {
     }

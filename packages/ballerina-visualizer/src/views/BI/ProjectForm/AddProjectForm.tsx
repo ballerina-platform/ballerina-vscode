@@ -32,6 +32,7 @@ import { FormFooter } from "./embedded/integrator-form/shared/FormPageLayout";
 import { FormSection } from "./styles";
 import { useDirectoryNameCoupling } from "./hooks/useDirectoryNameCoupling";
 import { useDefaultOrgName } from "./hooks/useDefaultOrgName";
+import { useProductTerms } from "./useProductTerms";
 
 /** Holds the panel's body height while initialization settles, so it does not collapse. */
 const ShellLoader = styled.div`
@@ -82,7 +83,8 @@ export function AddProjectForm() {
     const [pathValidationError, setPathValidationError] = useState<string | null>(null);
     const [packageNameValidationError, setPackageNameValidationError] = useState<string | null>(null);
     const [projectNameValidationError, setProjectNameValidationError] = useState<string | null>(null);
-    const resourceTypeLabel = formData.isLibrary ? "Library" : "Integration";
+    const terms = useProductTerms();
+    const resourceTypeLabel = formData.isLibrary ? "Library" : terms.integrationLabel;
     const isConvert = !isInProject;
     const isConvertAndAdd = isConvert && addNewAfterConvert;
     // Whether a starting point (integration/library) is being added (vs a plain convert).
@@ -344,7 +346,7 @@ export function AddProjectForm() {
             ? `Convert to Project & Add New ${resourceTypeLabel}`
             : "Convert to Project";
     const chooserSubtitle = isInProject
-        ? "Add an integration or library to your project."
+        ? `Add an ${terms.integrationNoun} or library to your project.`
         : "Organize your current integration inside a project.";
 
     return (

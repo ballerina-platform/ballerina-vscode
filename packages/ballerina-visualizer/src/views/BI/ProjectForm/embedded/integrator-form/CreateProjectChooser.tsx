@@ -48,6 +48,7 @@ import {
 } from "../../hooks/resolveAvailableDirectoryName";
 import { LibraryCreationView } from "./LibraryCreationView";
 import { ProjectTypeSelector } from "../../components";
+import { getProductTerms, projectTypeOptions } from "../../productTerms";
 import { ProjectContext } from "../../../CreateIntegrationWizard/types";
 import { BiWsClient } from "../../../wsManager/WsClient";
 
@@ -624,7 +625,7 @@ export function CreateProjectChooser({
                     label="Choose your starting point"
                     value={isLibrary}
                     onChange={setIsLibrary}
-                    isAgentBuilder={isAgentBuilder}
+                    options={projectTypeOptions(getProductTerms(isAgentBuilder))}
                     note="This is just your starting point. You can add more integrations and libraries to the project later."
                 />
             </Section>

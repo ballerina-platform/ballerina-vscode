@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ProductMode } from "@wso2/ballerina-core";
 import { ProgressIndicator, Typography } from "@wso2/ui-toolkit";
 import { WsClientProvider, WiBridgeClient } from "./integrator-form/context/WsClientContext";
 import { CloudContextProvider } from "./integrator-form/providers";
@@ -50,6 +51,12 @@ export interface EmbeddedBIProjectFormProps {
     ballerinaUnavailable?: boolean;
     /** The variant to render. Defaults to `integration`. */
     mode?: EmbeddedFormMode;
+    /**
+     * The embedding host's product flavor, which decides the Create flow's wording
+     * (Agent Builder says "agentic integration"). Absent — an older host that does
+     * not pass it — reads as the Integrator.
+     */
+    productMode?: ProductMode;
     /** Back navigation for the self-chromed `project`/`library` variants. */
     onBack?: () => void;
 }
@@ -79,7 +86,7 @@ type WizardSupport = "probing" | "supported" | "unsupported";
  * capabilities and renders the Create Integration wizard, falling back
  * to the legacy single-step form against an older extension.
  */
-export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, mode = "integration", onBack }: EmbeddedBIProjectFormProps) {
+export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, mode = "integration", productMode, onBack }: EmbeddedBIProjectFormProps) {
     const queryClient = useMemo(() => new QueryClient(), []);
     const [rpcClient, setRpcClient] = useState<WiBridgeClient | null>(null);
     const [biWsClient, setBiWsClient] = useState<BiWsClient | null>(null);
@@ -89,8 +96,9 @@ export default function EmbeddedBIProjectForm({ wsClient, ballerinaUnavailable, 
     // probe before the distribution version is known, so the form can render immediately).
     // Only `create` mode reads this; the other modes never probe it.
     const [workspaceSupported, setWorkspaceSupported] = useState<boolean | undefined>(undefined);
-    // Carried on the same capability handshake; a host predating the field leaves it false.
-    const [isAgentBuilder, setIsAgentBuilder] = useState(false);
+    // Seeded from the host's prop, then confirmed by the capability handshake, which is
+    // authoritative because the extension owns the product mode.
+    const [isAgentBuilder, setIsAgentBuilder] = useState(productMode === ProductMode.AGENT_BUILDER);
 
     useEffect(() => {
         let cancelled = false;

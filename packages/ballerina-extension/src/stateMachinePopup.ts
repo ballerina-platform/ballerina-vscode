@@ -67,7 +67,8 @@ const stateMachinePopup = createMachine<PopupMachineContext>({
                         documentUri: (context, event) => event.viewLocation.documentUri,
                         metadata: (context, event) => event.viewLocation.metadata,
                         agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
-                        dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata
+                        dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata,
+                        artifactInfo: (context, event) => event.viewLocation?.artifactInfo
                     })
                 },
             }
@@ -87,7 +88,8 @@ const stateMachinePopup = createMachine<PopupMachineContext>({
                                 documentUri: (context, event) => event.viewLocation.documentUri,
                                 metadata: (context, event) => event.viewLocation.metadata,
                                 agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
-                                dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata
+                                dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata,
+                                artifactInfo: (context, event) => event.viewLocation?.artifactInfo
                             })
                         },
                         VIEW_UPDATE: {
@@ -99,7 +101,8 @@ const stateMachinePopup = createMachine<PopupMachineContext>({
                                 documentUri: (context, event) => event.viewLocation.documentUri,
                                 metadata: (context, event) => event.viewLocation.metadata,
                                 agentMetadata: (context, event) => event.viewLocation?.agentMetadata,
-                                dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata
+                                dataMapperMetadata: (context, event) => event.viewLocation?.dataMapperMetadata,
+                                artifactInfo: (context, event) => event.viewLocation?.artifactInfo
                             })
                         },
                         CLOSE_VIEW: {

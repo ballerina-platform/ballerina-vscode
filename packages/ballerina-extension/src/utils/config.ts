@@ -16,7 +16,8 @@
  * under the License.
  */
 
-import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath } from '@wso2/ballerina-core';
+import { SemanticVersion, PackageTomlValues, SCOPE, WorkspaceTomlValues, ProjectInfo, isSamePath, ProductMode, assistantName, shortAssistantName } from '@wso2/ballerina-core';
+export { ProductMode } from '@wso2/ballerina-core';
 import { BallerinaExtension } from '../core';
 import { WorkspaceConfiguration, workspace, Uri, RelativePattern, extensions } from 'vscode';
 import * as fs from 'fs';
@@ -247,25 +248,24 @@ export function isInDevant(): boolean {
 }
 
 /**
- * Which product this extension is running inside. Set by the host app's own environment
- * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it and
- * never configures it itself. The enum values are the literal env values — the comparison
- * in {@link getProductMode} is exact.
- */
-export enum ProductMode {
-    INTEGRATOR = 'integrator',
-    AGENT_BUILDER = 'agent-builder'
-}
-
-/**
- * Read once at startup and cached on the state machine context, so callers should read
- * `StateMachine.productMode()` rather than calling this directly. Anything other than
- * agent builder is the ordinary Integrator experience.
+ * Derived from the environment, which is fixed before the host starts — so this is safe to
+ * call from anywhere, including at module load, and does not need the state machine to be
+ * running. `StateMachine.productMode()` returns the same value from the machine context and
+ * is the more natural read from inside a state-machine flow. Anything other than agent
+ * builder is the ordinary Integrator experience.
  */
 export function getProductMode(): ProductMode {
     return process.env.WSO2_PRODUCT_MODE === ProductMode.AGENT_BUILDER
         ? ProductMode.AGENT_BUILDER
         : ProductMode.INTEGRATOR;
+}
+
+export function aiAssistantName(): string {
+    return assistantName(getProductMode());
+}
+
+export function aiAssistantShortName(): string {
+    return shortAssistantName(getProductMode());
 }
 
 export async function checkIsBallerinaPackage(uri: Uri): Promise<boolean> {

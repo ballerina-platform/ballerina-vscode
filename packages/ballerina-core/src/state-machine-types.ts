@@ -25,6 +25,33 @@ import { DIRECTORY_MAP, ProjectStructureArtifactResponse, ProjectStructureRespon
 import { SCOPE, ArtifactData, DataMapperMetadata } from "./interfaces/shared-types";
 import { DiagnosticEntry, DocumentationGeneratorIntermediaryState, SourceFile, CodeContext, FileAttatchment, SkillEnableStage } from "./rpc-types/ai-panel/interfaces";
 
+/**
+ * Which product the extension is running inside. Set by the host app's own environment
+ * (the WSO2 Integrator app exports `WSO2_PRODUCT_MODE`), so the extension inherits it.
+ */
+export enum ProductMode {
+    INTEGRATOR = 'integrator',
+    AGENT_BUILDER = 'agent-builder'
+}
+
+const ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: 'WSO2 Integration Intelligence',
+    [ProductMode.AGENT_BUILDER]: 'WSO2 Agent Builder Intelligence'
+};
+
+export function assistantName(mode: ProductMode): string {
+    return ASSISTANT_NAMES[mode];
+}
+
+const SHORT_ASSISTANT_NAMES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: 'Integration Intelligence',
+    [ProductMode.AGENT_BUILDER]: 'Agent Builder Intelligence'
+};
+
+export function shortAssistantName(mode: ProductMode): string {
+    return SHORT_ASSISTANT_NAMES[mode];
+}
+
 export type MachineStateValue =
     | 'initialize'
     | 'lsError'
@@ -91,6 +118,7 @@ export enum MACHINE_VIEW {
     BITestFunctionForm = "Add Test Function SKIP",
     BIAIEvaluationForm = "AI Evaluation SKIP",
     BIServiceWizard = "Service Wizard SKIP",
+    BIAddAgentTrigger = "Add Agent Trigger SKIP",
     BIServiceConfigView = "Service Config View",
     BIListenerConfigView = "Listener Config View",
     BIServiceClassDesigner = "Service Class Designer",
@@ -166,6 +194,8 @@ export interface ArtifactInfo {
     moduleName?: string;
     version?: string;
     isLocalRepository?: boolean;
+    agentName?: string;
+    agentOrgName?: string;
 }
 
 export interface ManagedCredentialMapping {

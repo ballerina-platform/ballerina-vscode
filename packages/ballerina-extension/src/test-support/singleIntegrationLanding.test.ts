@@ -39,6 +39,7 @@ jest.mock("@wso2/ballerina-core", () => ({
     DIRECTORY_MAP,
     EVENT_TYPE: {},
     FOCUS_FLOW_DIAGRAM_VIEW: {},
+    ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
     isSamePath: (a: string, b: string) => a === b,
 }));
 
@@ -142,11 +143,11 @@ describe("resolveSingleIntegrationOverride", () => {
         ).toBeUndefined();
     });
 
-    it("opens Add Agent for an empty integration in Agent Builder mode", () => {
+    it("opens the package overview for an empty integration in Agent Builder mode", () => {
         productMode.mockReturnValue(ProductMode.AGENT_BUILDER);
 
         expect(resolveSingleIntegrationOverride({}, soleIntegration)).toEqual({
-            view: MACHINE_VIEW.AddAgent,
+            view: MACHINE_VIEW.PackageOverview,
             projectPath: `${WORKSPACE_ROOT}/orders`,
         });
     });
@@ -164,12 +165,12 @@ describe("resolveSingleIntegrationOverride", () => {
         expect(resolveSingleIntegrationOverride({}, populatedIntegration)).toEqual(expected);
     });
 
-    it("opens Add Agent from a bare package navigation in Agent Builder mode", () => {
+    it("opens the package overview from a bare package navigation in Agent Builder mode", () => {
         productMode.mockReturnValue(ProductMode.AGENT_BUILDER);
         const packageContext = { ...soleIntegration, projectPath: `${WORKSPACE_ROOT}/orders` };
 
         expect(resolveSingleIntegrationOverride({}, packageContext)).toEqual({
-            view: MACHINE_VIEW.AddAgent,
+            view: MACHINE_VIEW.PackageOverview,
             projectPath: `${WORKSPACE_ROOT}/orders`,
         });
     });
