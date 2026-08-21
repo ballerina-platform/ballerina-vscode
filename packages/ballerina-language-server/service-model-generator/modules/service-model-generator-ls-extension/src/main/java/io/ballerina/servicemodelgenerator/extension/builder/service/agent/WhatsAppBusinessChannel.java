@@ -32,6 +32,7 @@ import java.util.Map;
  */
 public class WhatsAppBusinessChannel implements AgentTriggerChannel {
 
+    static final String ORG_NAME = "ballerinax";
     static final String MODULE_NAME = "whatsapp.business";
     private static final String ACCESS_TOKEN = "accessToken";
 
@@ -58,7 +59,7 @@ public class WhatsAppBusinessChannel implements AgentTriggerChannel {
                         } else {
                             string|error result = {{agentRun}};
                             if result is error {
-                                log:printError("Agent run failed", result, sender = message.'from);
+                                log:printError("Agent run failed", result);
                                 replyText = "Sorry, something went wrong. Please try again.";
                             } else {
                                 replyText = result;

@@ -35,6 +35,7 @@ import {
     GoToSourceRequest,
     OpenExternalUrlRequest,
     PackageTomlValues,
+    ProductMode,
     PublishToCentralResponse,
     RunExternalCommandRequest,
     RunExternalCommandResponse,
@@ -285,7 +286,6 @@ export class CommonRpcManager implements CommonRPCAPI {
     }
 
     async agentBuilderModeEnabled(): Promise<boolean> {
-        const { ProductMode } = await import("../../utils/config");
         return StateMachine.productMode() === ProductMode.AGENT_BUILDER;
     }
 

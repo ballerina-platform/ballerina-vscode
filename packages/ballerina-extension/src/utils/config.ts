@@ -248,9 +248,11 @@ export function isInDevant(): boolean {
 }
 
 /**
- * Read once at startup and cached on the state machine context, so callers should read
- * `StateMachine.productMode()` rather than calling this directly. Anything other than
- * agent builder is the ordinary Integrator experience.
+ * Derived from the environment, which is fixed before the host starts — so this is safe to
+ * call from anywhere, including at module load, and does not need the state machine to be
+ * running. `StateMachine.productMode()` returns the same value from the machine context and
+ * is the more natural read from inside a state-machine flow. Anything other than agent
+ * builder is the ordinary Integrator experience.
  */
 export function getProductMode(): ProductMode {
     return process.env.WSO2_PRODUCT_MODE === ProductMode.AGENT_BUILDER

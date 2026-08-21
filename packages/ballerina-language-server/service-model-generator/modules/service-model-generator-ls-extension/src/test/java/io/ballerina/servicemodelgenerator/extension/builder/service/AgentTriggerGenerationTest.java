@@ -65,6 +65,10 @@ public class AgentTriggerGenerationTest {
     private AgentTriggerChannel channel(String moduleName) {
         String orgName = TriggerModelReader.getInstance().getBundledTriggerModel(moduleName)
                 .map(TriggerUISchemaModel::orgName).orElse(null);
+        return channel(orgName, moduleName);
+    }
+
+    private AgentTriggerChannel channel(String orgName, String moduleName) {
         return AgentTriggerChannels.forModule(orgName, moduleName).orElseThrow();
     }
 
@@ -530,7 +534,7 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForAgentChat(String basePath, String existingSource) {
-        AgentTriggerChannel channel = channel("ai");
+        AgentTriggerChannel channel = channel("ballerina", "ai");
         ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "ai", "ai",
                 "1.0.0", null, null, null, false, "mathTutorAgent", null)).orElseThrow();
         form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
@@ -688,16 +692,16 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testAnEventSourceIsOfferedToAnAgentWithoutBeingRegistered() {
-        Assert.assertEquals(AgentTriggerChannels.kindOf("kafka", "event"), "EVENT",
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "kafka", "event"), "EVENT",
                 "every event source is served by the generic channel; naming them one by one is what "
                         + "kept the picker to a curated few");
-        Assert.assertEquals(AgentTriggerChannels.kindOf("whatsapp.business", "event"), "CHAT",
+        Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "whatsapp.business", "event"), "CHAT",
                 "a chat channel owns its reply path, so it keeps its own implementation");
     }
 
     @Test
     public void testAConnectorThatIsNotAnEventSourceIsNotOffered() {
-        Assert.assertNull(AgentTriggerChannels.kindOf("ftp", "file"),
+        Assert.assertNull(AgentTriggerChannels.kindOf("ballerina", "ftp", "file"),
                 "file integration is a separate surface and has not been taken on");
         Assert.assertTrue(AgentTriggerChannels.forModule("ballerina", "ftp").isEmpty(),
                 "the listing and the builder must agree on what is offerable");

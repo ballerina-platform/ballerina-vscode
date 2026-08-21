@@ -43,9 +43,11 @@ import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.TWO_NEW_LINES;
@@ -135,6 +137,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                                                          String filePath) {
         String emitAlias = SchemaDrivenSourceGenerator.resolveEmitAlias(rootNode, filledModel, triggerModel);
         Map<String, String> formValues = flattenFormValues(filledModel.getProperties());
+        reclaimChannelKeys(formValues, filledModel, channel);
         List<TextEdit> edits = new ArrayList<>();
         String imports = SchemaDrivenSourceGenerator.buildImports(filledModel, triggerModel, rootNode, emitAlias,
                 channel.imports());
@@ -150,7 +153,12 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
                 : findService(rootNode, listener.varName(), channelContext.serviceDescriptor());
         Optional<AgentTriggerChannel.HandlerBinding> binding = channel.handlerBinding(channelContext);
-        if (existing.isPresent() && binding.isPresent()) {
+        if (existing.isPresent()) {
+            if (binding.isEmpty()) {
+                throw new IllegalStateException("A " + channelContext.serviceDescriptor()
+                        + " service is already attached to listener '" + listener.varName()
+                        + "'. Create the trigger on its own listener.");
+            }
             edits.addAll(mergeIntoService(existing.get(), binding.get()));
             return Map.of(filePath, edits);
         }
@@ -187,17 +195,34 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 .findFirst();
         LineRange lastMember = members.isEmpty() ? service.openBraceToken().lineRange()
                 : members.get(members.size() - 1).lineRange();
+        boolean replyMethodExists = hasMethod(members, binding.replyMethodName());
         if (body.isEmpty()) {
-            return List.of(new TextEdit(Utils.toRange(lastMember.endLine()),
-                    TWO_NEW_LINES + binding.handler() + TWO_NEW_LINES + binding.replyMethod()));
+            String appended = replyMethodExists ? binding.handler()
+                    : binding.handler() + TWO_NEW_LINES + binding.replyMethod();
+            return List.of(new TextEdit(Utils.toRange(lastMember.endLine()), TWO_NEW_LINES + appended));
         }
-        if (body.get().toSourceCode().contains(binding.offload())) {
+        if (body.get().toSourceCode().contains(offloadCall(binding))) {
             return List.of();
         }
-        return List.of(
-                new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
-                        INDENT + binding.offload() + NEW_LINE + INDENT),
-                new TextEdit(Utils.toRange(lastMember.endLine()), TWO_NEW_LINES + binding.replyMethod()));
+        List<TextEdit> edits = new ArrayList<>();
+        edits.add(new TextEdit(Utils.toRange(body.get().closeBraceToken().lineRange().startLine()),
+                INDENT + binding.offload() + NEW_LINE + INDENT));
+        if (!replyMethodExists) {
+            edits.add(new TextEdit(Utils.toRange(lastMember.endLine()),
+                    TWO_NEW_LINES + binding.replyMethod()));
+        }
+        return edits;
+    }
+
+    private static String offloadCall(AgentTriggerChannel.HandlerBinding binding) {
+        return "start self." + binding.replyMethodName() + "(";
+    }
+
+    private static boolean hasMethod(NodeList<Node> members, String name) {
+        return members.stream()
+                .filter(FunctionDefinitionNode.class::isInstance)
+                .map(FunctionDefinitionNode.class::cast)
+                .anyMatch(fn -> fn.functionName().text().equals(name));
     }
 
     private static Value hiddenValue(String value) {
@@ -216,6 +241,24 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         Value branch = properties.get(field.getValue());
         return branch == null ? null : branch.getProperties();
+    }
+
+    private static void reclaimChannelKeys(Map<String, String> flat, ServiceInitModel model,
+                                          AgentTriggerChannel channel) {
+        Map<String, Value> properties = model.getProperties();
+        if (properties == null) {
+            return;
+        }
+        Set<String> owned = new LinkedHashSet<>(channel.additionalProperties().keySet());
+        owned.add(AGENT_NAME_PROPERTY);
+        owned.add(AGENT_ORG_PROPERTY);
+        for (String key : owned) {
+            Value field = properties.get(key);
+            String value = field == null ? null : field.getValue();
+            if (value != null && !value.isBlank()) {
+                flat.put(key, value);
+            }
+        }
     }
 
     private static Map<String, String> flattenFormValues(Map<String, Value> properties) {

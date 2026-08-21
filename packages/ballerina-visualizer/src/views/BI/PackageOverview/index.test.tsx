@@ -56,6 +56,9 @@ jest.mock("@wso2/ballerina-core", () => ({
         ACTIVITY: "ACTIVITY",
     },
     isSamePath: (a: string, b: string) => a === b,
+    ProductMode: { INTEGRATOR: "integrator", AGENT_BUILDER: "agent-builder" },
+    assistantName: () => "WSO2 Integration Intelligence",
+    shortAssistantName: () => "Integration Intelligence",
     // Reached through `getIntegrationTypes`, which the view derives its deployment options
     // from. Irrelevant to which add-artifact button renders; undefined means "no scope",
     // which the caller already filters out.
@@ -165,7 +168,7 @@ function makeRpc(directoryMap: Record<string, unknown[]>) {
             }),
             handleReadmeContent: async () => ({ content: "" }),
         }),
-        getCommonRpcClient: () => ({ isNPSupported: async () => false }),
+        getCommonRpcClient: () => ({ isNPSupported: async () => false, agentBuilderModeEnabled: async () => false }),
         getICPRpcClient: () => ({ isIcpEnabled: async () => ({ enabled: false }) }),
         getWorkflowManagementRpcClient: () => ({ isWorkflowManagementEnabled: async () => ({ enabled: false }) }),
         getAiPanelRpcClient: () => ({ showSignInAlert: async () => false }),
