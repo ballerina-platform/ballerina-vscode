@@ -30,6 +30,7 @@ import {
     CodeData,
     LinePosition,
     isSamePath,
+    ProductMode,
 } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { BiWsClientProvider } from "./views/BI/wsManager/WsClientContext";
@@ -40,6 +41,7 @@ import { LoadingRing } from "./components/Loader";
 import { WebviewErrorState } from "./components/WebviewErrorState";
 import { useSuppressAgentStatusOrb, viewHidesAgentStatusOrb } from "./components/AgentStatusOrb/shared";
 import { useTraceAnimationBridge } from "./hooks/useTraceAnimationBridge";
+import { fetchProductMode } from "./hooks/useProductMode";
 import { handleRedo, handleUndo } from "./utils/utils";
 import { STKindChecker } from "@wso2/syntax-tree";
 import { URI, Utils } from "vscode-uri";
@@ -344,7 +346,7 @@ const MainPanel = () => {
                 } else {
                     switch (value?.view) {
                         case MACHINE_VIEW.PackageOverview: {
-                            if (await rpcClient.getCommonRpcClient().agentBuilderModeEnabled()) {
+                            if ((await fetchProductMode(rpcClient)) === ProductMode.AGENT_BUILDER) {
                                 const { AgentBuilderOverview } = await import("./views/BI/AgentBuilderOverview");
                                 if (isStaleNavigation()) return;
                                 const agentFocus = value.documentUri && value.position
