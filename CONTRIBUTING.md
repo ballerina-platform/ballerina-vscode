@@ -179,6 +179,12 @@ we push tests **down** a layered pyramid so most coverage is fast and determinis
 data?" → L2. "Do the two sides exchange the right message?" → L3. "Does the LS produce
 the right model?" → L4. Whole app → L5 (only if no lower layer can see it).
 
+**The language server also has its own JVM (Gradle/TestNG) suite**, inside
+`packages/ballerina-language-server` and outside this pyramid. See
+[docs/LS_TEST_GUIDE.md](docs/LS_TEST_GUIDE.md), and
+[docs/LS_FIXTURE_DEPENDENCIES.md](docs/LS_FIXTURE_DEPENDENCIES.md) for the Ballerina
+package versions its fixtures compile against.
+
 ### Running the fast tests (L0–L3)
 
 Fast tests use **Jest** (Node ≥ 20 required):

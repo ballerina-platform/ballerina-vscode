@@ -142,6 +142,8 @@ available for a one-off Gradle build without changing the manifest.
 
 **Read [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) first — it has, per level, what it is / how to run / how to add / example files to copy.** This is the authoritative how-to; the rules below are the non-negotiables.
 
+**For the language server's own JVM (Gradle/TestNG) suite, read [`docs/LS_TEST_GUIDE.md`](docs/LS_TEST_GUIDE.md) instead** — it is not one of the four levels below. Those tests are data-driven over a `config/` directory (a case is a `.json` file, not a method) and their expected output is generated, never hand-written. Fixture package versions are owned by `build-config/ballerina_dependencies/`, never by a `stdlib*Version` pin in `gradle.properties` — see [`docs/LS_FIXTURE_DEPENDENCIES.md`](docs/LS_FIXTURE_DEPENDENCIES.md).
+
 **Levels & where they run.** Four **scope levels** ordered by how much of the system each test runs — L1 unit/contract (pure logic + shared-type/enum invariants), L2 component (render), L3 LS-integration, L4 E2E — plus an **orthogonal Perf/QA suite** (performance is non-functional and cuts across L1–L4, so it isn't a numbered level). L1 and L2 are **fast, PR-gated** — a package's tests run in CI **only** via a file named exactly `jest.config.js`. L3 (headless LS), L4 (E2E), and perf need Java + a Ballerina distribution (or VSCode) and **must use another config filename** (`jest.ls-integration.config.js`, `jest.realdata.config.js`, `jest.headless-view.config.js`, `jest.perf.config.js`) so they never run on every PR; they `describe.skip` when no distro is found. **Never rename an LS/E2E/perf config to `jest.config.js`.**
 
 **Core rules (apply at every level):**
@@ -183,6 +185,7 @@ When in doubt about behavior, read these instead of guessing:
 | What version of pnpm/node/rush? | `rush.json` (top), `common/config/rush/pnpm-config.json` |
 | What changed recently? | `git log --oneline -30` — commit messages here are descriptive |
 | How do I write/run/add a test? | [`docs/TEST_GUIDE.md`](docs/TEST_GUIDE.md) — per-level explain / run / add / example files |
+| How do I write/run/debug an LS (Java) test? | [`docs/LS_TEST_GUIDE.md`](docs/LS_TEST_GUIDE.md) + [`docs/LS_FIXTURE_DEPENDENCIES.md`](docs/LS_FIXTURE_DEPENDENCIES.md) |
 
 ## Migration history (for context)
 
