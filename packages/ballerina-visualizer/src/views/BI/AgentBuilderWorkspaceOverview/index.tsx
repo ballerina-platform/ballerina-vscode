@@ -390,6 +390,7 @@ export function AgentBuilderWorkspaceOverview({ isInDevant }: AgentBuilderWorksp
     const { data: devantMetadata } = useQuery({
         queryKey: ["project-devant-metadata"],
         queryFn: () => rpcClient.getBIDiagramRpcClient().getWorkspaceDevantMetadata(),
+        refetchInterval: 5000,
     });
 
     const fetchContext = useCallback(() => {
