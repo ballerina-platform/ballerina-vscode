@@ -58,9 +58,12 @@ import { flowDashAnimation, sanitizeAgentData, sanitizeId, usageRowFadeIn } from
 import {
     AGENT_USAGE_COLUMN_WIDTH,
     AGENT_USAGE_ROW_PITCH,
+    AgentWidgetType,
     getAgentNodeContainerHeight,
+    getAgentNodeLayoutHeight,
     getAgentNodeUsages,
     getVisibleAgentUsages,
+    showsAddTriggerTile,
 } from "../AgentWidget/agentNodeLayout";
 import { useAgentNodeController } from "../AgentWidget/useAgentNodeController";
 import { getAgentTraceState, matchesUsageEntrypoint } from "../AgentWidget/agentTraceAnimation";
@@ -421,6 +424,7 @@ interface AgentNodeWidgetProps {
 
 type AgentNodePresentation = {
     isTypeDefinition: boolean;
+    agentWidgetType: AgentWidgetType;
     showMemory: boolean;
     showModelCircle: boolean;
     toolsReadOnly: boolean;
@@ -474,12 +478,14 @@ function UsageIcon(props: { usage: AgentUsage; codedata?: FlowNode["codedata"] }
             <ConnectorIcon
                 url={usage.icon}
                 style={{ width: 24, height: 24, fontSize: 24 }}
-                fallbackIcon={<Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />}
+                fallbackIcon={
+                    <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: 24, width: 24, height: 24 }} />
+                }
                 codedata={codedata}
             />
         );
     }
-    return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: "24px" }} />;
+    return <Icon name={resolveKindDefaultIcon(modulePart).glyph} sx={{ fontSize: 24, width: 24, height: 24 }} />;
 }
 
 function EdgeAddButton(props: {
@@ -567,8 +573,10 @@ function EdgeAddButton(props: {
 
 function getAgentNodePresentation(variant: "agent" | "typedAgent", agentInfo?: NodeMetadata["agentInfo"]): AgentNodePresentation {
     const isTypeDefinition = variant === "typedAgent";
+    const agentWidgetType = isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE;
     return {
         isTypeDefinition,
+        agentWidgetType,
         showMemory: !isTypeDefinition || Boolean(agentInfo?.memory?.propertyKey),
         showModelCircle: !isTypeDefinition || Boolean(agentInfo?.modelProvider?.propertyKey),
         toolsReadOnly: isTypeDefinition,
@@ -735,6 +743,9 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     };
 
     const handleUsageMenuClick = (event: React.MouseEvent<HTMLElement | SVGSVGElement>, usage: AgentUsage) => {
+        if (readOnly) {
+            return;
+        }
         event.stopPropagation();
         setUsageAnchorEl(event.currentTarget);
         setSelectedUsage(usage);
@@ -786,7 +797,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const nodeMetadata = model?.node.metadata.data as NodeMetadata;
     const agentInfo = nodeMetadata?.agentInfo;
     const presentation = getAgentNodePresentation(variant, agentInfo);
-    const { isTypeDefinition, showMemory, showModelCircle, toolsReadOnly } = presentation;
+    const { isTypeDefinition, agentWidgetType, showMemory, showModelCircle, toolsReadOnly } = presentation;
     const hasBreakpoint = !isTypeDefinition && model.hasBreakpoint();
     const isActiveBreakpoint = !isTypeDefinition && model.isActiveBreakpoint();
 
@@ -872,7 +883,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
     };
 
-    const showsAddTile = !readOnly && !isTypeDefinition && Boolean(agentNode?.onAddTrigger);
+    const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
+    const showsAddTile = !readOnly && showsAddTriggerTile(agentWidgetType, agentUsageOptions);
     const addTileRow = usages.length + (hiddenUsageCount > 0 ? 1 : 0);
     const addTileY = addTileRow * AGENT_USAGE_ROW_PITCH
         - (addTileRow > 0 ? AGENT_NODE_USAGE_GAP - AGENT_NODE_TOOL_GAP : 0);
@@ -894,8 +906,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const isUsageActive = (usage: AgentUsage) =>
         isAgentNodeActive && matchesUsageEntrypoint(usage, activeEntrypoint);
 
-    let containerHeight = getAgentNodeContainerHeight(model.node,
-        isTypeDefinition ? NodeTypes.TYPED_AGENT_NODE : NodeTypes.AGENT_NODE);
+    const toolSectionHeight = getAgentNodeLayoutHeight(model.node, agentWidgetType);
+    let containerHeight = getAgentNodeContainerHeight(model.node, agentWidgetType, agentUsageOptions);
     if (isTypeDefinition) {
         containerHeight = model.node.viewState?.ch || containerHeight;
     }
@@ -1760,7 +1772,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         anchorX={NODE_EDGE_RIGHT_X}
                         y={(tools.length > 0
                             ? (tools.length + 1) * (NODE_HEIGHT + AGENT_NODE_TOOL_GAP) + AGENT_NODE_TOOL_SECTION_GAP
-                            : containerHeight - NODE_HEIGHT - AGENT_NODE_TOOL_GAP) + 24}
+                            : toolSectionHeight - NODE_HEIGHT - AGENT_NODE_TOOL_GAP) + 24}
                         side="right"
                         label="Add Tool"
                         title="Add a tool or MCP server for this agent to call"
