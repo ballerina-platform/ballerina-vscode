@@ -33,6 +33,8 @@ import {
     FileOrDirRequest,
     FileOrDirResponse,
     GoToSourceRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     OpenExternalUrlRequest,
     PackageTomlValues,
     PublishToCentralResponse,
@@ -76,6 +78,7 @@ import {
     askFilePath,
     askProjectPath,
     BALLERINA_INTEGRATOR_ISSUES_URL,
+    copyIntoIntegration,
     findWorkspaceTypeFromWorkspaceFolders,
     getFirstBalaPath,
     getPublishDescriptionInfo,
@@ -85,8 +88,11 @@ import {
     getUpdatedSource,
     handleDownloadFile,
     handlePublishDescriptionSetup,
+    nextAvailablePath,
     openPublishDescriptionInEditor,
-    selectSampleDownloadPath
+    resolveIntegrationRoot,
+    selectSampleDownloadPath,
+    toIntegrationRelative
 } from "./utils";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 
@@ -226,15 +232,7 @@ export class CommonRpcManager implements CommonRPCAPI {
                         if (resp === 'Yes') {
                             // Move the file inside the project
                             const fileName = path.basename(filePath);
-                            const newFilePath = path.join(projectPath, fileName);
-                            // if newFilePath already exists, append a number to the file name
-                            let counter = 1;
-                            let finalFilePath = newFilePath;
-                            while (fs.existsSync(finalFilePath)) {
-                                const parsedPath = path.parse(newFilePath);
-                                finalFilePath = path.join(parsedPath.dir, `${parsedPath.name}-${counter}${parsedPath.ext}`);
-                                counter++;
-                            }
+                            const finalFilePath = nextAvailablePath(path.join(projectPath, fileName));
                             fs.copyFileSync(filePath, finalFilePath);
                             resolve({ path: finalFilePath });
                             return;
@@ -255,6 +253,36 @@ export class CommonRpcManager implements CommonRPCAPI {
                 }
             }
         });
+    }
+
+    /**
+     * A FILE_SELECT variant for fields (e.g. platform-dependency JARs) that must end up as a path
+     * relative to the current integration. Unlike {@link selectFileOrDirPath}, this never prompts
+     * "move it inside the project?" — a file outside the integration is copied into
+     * `<integration>/<targetDir>` (default "resources") automatically, and the resolved
+     * integration-relative path is returned. A file already inside the integration is left in
+     * place; only its path is relativized.
+     */
+    async selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        const selectedFile = await askFilePath(params.filters);
+        if (!selectedFile || selectedFile.length === 0) {
+            return { path: "" };
+        }
+        const picked = selectedFile[0].fsPath;
+
+        const root = params.allowOutsideProject ? undefined : await resolveIntegrationRoot();
+        if (!root) {
+            return { path: picked, absolutePath: picked };
+        }
+        if (isPathInside(root, picked)) {
+            return { path: toIntegrationRelative(root, picked), absolutePath: picked };
+        }
+
+        const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "resources");
+        if (!dest) {
+            return { path: "" };
+        }
+        return { path: toIntegrationRelative(root, dest), absolutePath: dest, copied: true };
     }
 
     async selectFileOrFolderPath(): Promise<FileOrDirResponse> {

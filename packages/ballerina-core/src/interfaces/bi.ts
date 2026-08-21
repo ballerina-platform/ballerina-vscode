@@ -189,6 +189,7 @@ export type FormFieldInputType = "TEXT" |
     "PARAM_MANAGER" |
     "STRING" |
     "FILE_SELECT" |
+    "PROJECT_FILE_SELECT" |
     "ACTION_OR_EXPRESSION" |
     "MULTIPLE_SELECT_LISTENER" |
     "SINGLE_SELECT_LISTENER" |

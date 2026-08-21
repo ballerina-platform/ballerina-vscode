@@ -272,6 +272,7 @@ export class DefaultServer {
         this.register("getExistingProjectInfo", (p) => getExistingProjectInfo(p.projectPath));
         this.register("getProjectComponentNames", (p) => getProjectComponentNames(p.projectPath));
         this.register("selectFileOrDirPath", (p) => common.selectFileOrDirPath(p));
+        this.register("selectProjectRelativeFile", (p) => common.selectProjectRelativeFile(p));
         this.register("selectFileOrFolderPath", () => common.selectFileOrFolderPath());
         this.register("getWorkspaceRoot", () => common.getWorkspaceRoot());
         this.register("getDefaultOrgName", () => common.getDefaultOrgName());

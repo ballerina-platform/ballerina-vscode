@@ -28,6 +28,7 @@ import * as path from 'path';
 import {
     checkIsBallerinaPackage,
     checkIsBallerinaWorkspace,
+    findBallerinaPackageRoot,
     getBallerinaPackages,
     hasMultipleBallerinaPackages
 } from '../../utils';
@@ -112,6 +113,94 @@ export async function askFileOrFolderPath() {
         defaultUri: Uri.file(os.homedir()),
         title: "Select a file or folder"
     });
+}
+
+/**
+ * The Ballerina package (integration) the user is currently working in — the same notion of
+ * "current integration" the visualizer state machine tracks. Falls back to walking up from the
+ * state machine's project path in case it isn't itself a package root (e.g. a multi-package
+ * workspace folder was set as `projectPath`).
+ */
+export async function resolveIntegrationRoot(): Promise<string | undefined> {
+    const projectPath = StateMachine.context()?.projectPath;
+    if (!projectPath) {
+        return undefined;
+    }
+    if (await checkIsBallerinaPackage(Uri.file(projectPath))) {
+        return projectPath;
+    }
+    return (await findBallerinaPackageRoot(projectPath)) ?? undefined;
+}
+
+/** `abs`, relative to `root`, `/`-separated and `./`-prefixed (e.g. `./resources/x.jar`). */
+export function toIntegrationRelative(root: string, abs: string): string {
+    const rel = path.relative(path.normalize(root), path.normalize(abs)).replace(/\\/g, "/");
+    return rel.startsWith(".") ? rel : `./${rel}`;
+}
+
+/** First of `filePath`, `<name>-1.<ext>`, `<name>-2.<ext>`, ... that does not already exist. */
+export function nextAvailablePath(filePath: string): string {
+    let counter = 1;
+    let candidate = filePath;
+    while (fs.existsSync(candidate)) {
+        const parsedPath = path.parse(filePath);
+        candidate = path.join(parsedPath.dir, `${parsedPath.name}-${counter}${parsedPath.ext}`);
+        counter++;
+    }
+    return candidate;
+}
+
+/**
+ * Copies `src` into `<root>/<targetDir>` (creating it if needed) and returns the destination path,
+ * or `undefined` if the user cancelled a same-name collision prompt or the copy failed.
+ *
+ * A file already at the destination with the same name is not assumed to be identical — the user
+ * is asked how to resolve it, since two dependencies could otherwise silently point at unrelated
+ * files with the same name.
+ */
+export async function copyIntoIntegration(root: string, src: string, targetDir: string): Promise<string | undefined> {
+    const destDir = path.join(root, targetDir);
+    try {
+        fs.mkdirSync(destDir, { recursive: true });
+    } catch (error) {
+        window.showErrorMessage(`Failed to create ${targetDir}/: ${error}`);
+        return undefined;
+    }
+
+    const fileName = path.basename(src);
+    const destPath = path.join(destDir, fileName);
+
+    if (fs.existsSync(destPath)) {
+        const choice = await window.showInformationMessage(
+            `${fileName} already exists in ${targetDir}/.`,
+            { modal: true, detail: "Choose how to handle the existing file." },
+            "Use Existing", "Replace", "Keep Both"
+        );
+        if (!choice) {
+            return undefined;
+        }
+        if (choice === "Use Existing") {
+            return destPath;
+        }
+        if (choice === "Keep Both") {
+            const finalPath = nextAvailablePath(destPath);
+            try {
+                fs.copyFileSync(src, finalPath);
+                return finalPath;
+            } catch (error) {
+                window.showErrorMessage(`Failed to copy ${fileName}: ${error}`);
+                return undefined;
+            }
+        }
+    }
+
+    try {
+        fs.copyFileSync(src, destPath);
+        return destPath;
+    } catch (error) {
+        window.showErrorMessage(`Failed to copy ${fileName}: ${error}`);
+        return undefined;
+    }
 }
 
 export async function applyBallerinaTomlEdit(tomlPath: Uri, textEdit: TextEdit) {

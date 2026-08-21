@@ -32,6 +32,8 @@ import {
     WorkspaceFileRequest,
     WorkspacesFileResponse,
     FileOrDirRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     WorkspaceRootResponse,
     ShowErrorMessageRequest,
     WorkspaceTypeResponse,
@@ -54,6 +56,7 @@ export const getAgentRunStatus: RequestType<void, AgentRunStatus> = { method: `$
 export const runBackgroundTerminalCommand: RequestType<RunExternalCommandRequest, RunExternalCommandResponse> = { method: `${_preFix}/runBackgroundTerminalCommand` };
 export const openExternalUrl: NotificationType<OpenExternalUrlRequest> = { method: `${_preFix}/openExternalUrl` };
 export const selectFileOrDirPath: RequestType<FileOrDirRequest, FileOrDirResponse> = { method: `${_preFix}/selectFileOrDirPath` };
+export const selectProjectRelativeFile: RequestType<ProjectFileRequest, ProjectFileResponse> = { method: `${_preFix}/selectProjectRelativeFile` };
 export const selectFileOrFolderPath: RequestType<void, FileOrDirResponse> = { method: `${_preFix}/selectFileOrFolderPath` };
 export const experimentalEnabled: RequestType<void, boolean> = { method: `${_preFix}/experimentalEnabled` };
 export const additionalTriggerSearchEnabled: RequestType<void, boolean> = { method: `${_preFix}/additionalTriggerSearchEnabled` };

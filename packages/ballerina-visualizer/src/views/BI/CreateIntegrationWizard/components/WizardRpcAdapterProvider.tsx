@@ -77,10 +77,11 @@ function createWizardRpcAdapter(wsClient: BiWsClient): BallerinaRpcClient {
 
     const commonRpcClient = withFallback("Common", {
         showErrorMessage: (params: any) => wsClient.showErrorMessage(params),
-        // FILE_SELECT pickers go over the WS bridge. `allowOutsideProject` is forced:
-        // pre-project the host would otherwise offer to copy the spec into whatever
+        // FILE_SELECT / PROJECT_FILE_SELECT pickers go over the WS bridge. `allowOutsideProject`
+        // is forced: pre-project the host would otherwise offer to copy the spec into whatever
         // project happens to be open.
         selectFileOrDirPath: (params: any) => wsClient.selectFileOrDirPath({ ...params, allowOutsideProject: true }),
+        selectProjectRelativeFile: (params: any) => wsClient.selectProjectRelativeFile({ ...params, allowOutsideProject: true }),
         selectFileOrFolderPath: () => wsClient.selectFileOrFolderPath(),
     });
 

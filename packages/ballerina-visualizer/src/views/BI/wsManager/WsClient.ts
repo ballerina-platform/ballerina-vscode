@@ -175,6 +175,10 @@ export class BiWsClient {
         return this.request("selectFileOrDirPath", params);
     }
 
+    public selectProjectRelativeFile(params: any): Promise<any> {
+        return this.request("selectProjectRelativeFile", params);
+    }
+
     public selectFileOrFolderPath(): Promise<any> {
         return this.request("selectFileOrFolderPath");
     }
