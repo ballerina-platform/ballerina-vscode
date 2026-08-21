@@ -132,7 +132,7 @@ export function animateAgentFocusFit(
     model: DiagramModel,
     diagramEngine: DiagramEngine,
     target: AgentFocusFitTarget
-): void {
+): (() => void) | undefined {
     const { targetZoomPct, targetOffsetX, targetOffsetY } = target;
     const startZoomPct = model.getZoomLevel();
     const startOffsetX = model.getOffsetX();
@@ -143,7 +143,7 @@ export function animateAgentFocusFit(
     const translateY = targetOffsetY - scale * startOffsetY;
 
     if (Math.abs(scale - 1) < 0.001 && Math.abs(translateX) < 0.5 && Math.abs(translateY) < 0.5) {
-        return;
+        return undefined;
     }
 
     canvas.style.transformOrigin = "0 0";
@@ -167,4 +167,12 @@ export function animateAgentFocusFit(
     };
     canvas.addEventListener("transitionend", finalize, { once: true });
     const fallback = setTimeout(finalize, AGENT_FOCUS_FIT_ANIMATION_MS + 100);
+
+    return () => {
+        canvas.removeEventListener("transitionend", finalize);
+        clearTimeout(fallback);
+        canvas.style.transition = "none";
+        canvas.style.transform = "translate(0px, 0px) scale(1)";
+        void canvas.offsetWidth;
+    };
 }
