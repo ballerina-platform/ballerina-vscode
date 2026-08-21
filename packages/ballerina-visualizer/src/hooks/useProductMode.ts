@@ -24,6 +24,26 @@ import { ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-
 let cached: ProductMode | undefined;
 let inFlight: Promise<ProductMode> | undefined;
 
+/** The mode for callers outside a component, sharing the one fetch with the hook. */
+export function fetchProductMode(rpcClient: BallerinaRpcClient): Promise<ProductMode> {
+    if (cached !== undefined) {
+        return Promise.resolve(cached);
+    }
+    inFlight ??= rpcClient
+        .getCommonRpcClient()
+        .agentBuilderModeEnabled()
+        .then((isEnabled) => {
+            const result = isEnabled ? ProductMode.AGENT_BUILDER : ProductMode.INTEGRATOR;
+            cached = result;
+            return result;
+        })
+        .catch(() => {
+            cached = ProductMode.INTEGRATOR;
+            return ProductMode.INTEGRATOR;
+        });
+    return inFlight;
+}
+
 export function useProductMode(): ProductMode {
     const { rpcClient } = useRpcContext();
     const [mode, setMode] = useState<ProductMode>(cached ?? ProductMode.INTEGRATOR);
@@ -33,19 +53,7 @@ export function useProductMode(): ProductMode {
             return;
         }
         let active = true;
-        inFlight ??= rpcClient
-            .getCommonRpcClient()
-            .agentBuilderModeEnabled()
-            .then((isEnabled) => {
-                const result = isEnabled ? ProductMode.AGENT_BUILDER : ProductMode.INTEGRATOR;
-                cached = result;
-                return result;
-            })
-            .catch(() => {
-                cached = ProductMode.INTEGRATOR;
-                return ProductMode.INTEGRATOR;
-            });
-        inFlight.then((result) => {
+        fetchProductMode(rpcClient).then((result) => {
             if (active) {
                 setMode(result);
             }
