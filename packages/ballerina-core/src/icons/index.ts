@@ -109,9 +109,6 @@ export { TIcon } from './TIcon';
 export {
     BRAND_ICON_REGISTRY,
     resolveBrandIcon,
-    resolveBrandIconFromUrl,
-    ENTRY_TYPE_GLYPH,
-    resolveEntryTypeGlyph,
     KIND_DEFAULT_ICON,
     resolveKindDefaultIcon,
 } from './brand-icon-registry';
