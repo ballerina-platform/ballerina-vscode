@@ -585,14 +585,53 @@ public class WorkflowUtil {
     public static List<Option> declaredAgentEventOptions(
             org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
             String targetAgent) {
-        java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
+        return declaredAgentEvents(workspaceManager, filePath, targetAgent).keySet().stream()
+                .map(name -> new Option(name, name))
+                .toList();
+    }
+
+    /**
+     * The declared {@code response} type of one event channel, as written in the declaration.
+     *
+     * <p>Empty when the channel is one-way — it declares no {@code response}, or declares {@code ()},
+     * which is the field's own default — and also when the channel or the project cannot be read. A
+     * caller generating the send statement uses this to decide whether there is anything to bind.
+     *
+     * @param workspaceManager the workspace manager to resolve the project from
+     * @param filePath         the file the statement is generated into
+     * @param targetAgent      the agent variable name to scope to, or {@code null} for all agents
+     * @param eventName        the channel name, unquoted
+     * @return the response type as written, or empty for a one-way or unknown channel
+     */
+    public static Optional<String> declaredAgentEventResponseType(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent, String eventName) {
+        String response = declaredAgentEvents(workspaceManager, filePath, targetAgent).get(eventName);
+        if (response == null || response.isBlank() || NIL_RESPONSE_TYPE.equals(response)) {
+            return Optional.empty();
+        }
+        return Optional.of(response);
+    }
+
+    /** The `response` value that means "this channel answers nothing"; also the field's default. */
+    private static final String NIL_RESPONSE_TYPE = "()";
+
+    /**
+     * Every event channel declared on the matching agent(s): channel name to its declared
+     * {@code response} type as written, or an empty string where the channel declares none. Source
+     * order, deduplicated by name.
+     */
+    private static java.util.LinkedHashMap<String, String> declaredAgentEvents(
+            org.ballerinalang.langserver.commons.workspace.WorkspaceManager workspaceManager, Path filePath,
+            String targetAgent) {
+        java.util.LinkedHashMap<String, String> events = new java.util.LinkedHashMap<>();
         Project project;
         try {
             project = workspaceManager.loadProject(filePath);
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Skipping declared agent event options: failed to load the project of "
+            LOGGER.log(Level.WARNING, "Skipping declared agent events: failed to load the project of "
                     + filePath, e);
-            return List.of();
+            return events;
         }
         Module module = project.currentPackage().getDefaultModule();
         for (DocumentId documentId : module.documentIds()) {
@@ -613,18 +652,16 @@ public class WorkflowUtil {
                             || !targetAgent.equals(capture.variableName().text()))) {
                     continue;
                 }
-                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEventNames(config, names));
+                agentConfigLiteral(varDecl).ifPresent(config -> collectDeclaredEvents(config, events));
             }
         }
-        return names.stream()
-                .map(name -> new Option(name, name))
-                .toList();
+        return events;
     }
 
-    // Collects the `name` field of each mapping entry in the config's `events` list.
-    private static void collectDeclaredEventNames(
+    // Collects the `name` and `response` fields of each mapping entry in the config's `events` list.
+    private static void collectDeclaredEvents(
             MappingConstructorExpressionNode config,
-            java.util.Set<String> names) {
+            Map<String, String> events) {
         for (MappingFieldNode field : config.fields()) {
             if (!(field instanceof SpecificFieldNode specificField)
                     || specificField.valueExpr().isEmpty()
@@ -637,19 +674,26 @@ public class WorkflowUtil {
                 if (item.kind() != SyntaxKind.MAPPING_CONSTRUCTOR) {
                     continue;
                 }
+                String name = "";
+                String response = "";
                 for (MappingFieldNode entryField
                         : ((MappingConstructorExpressionNode) item).fields()) {
-                    if (entryField instanceof SpecificFieldNode entry
-                            && entry.valueExpr().isPresent()
-                            && "name".equals(entry.fieldName().toSourceCode().trim())) {
-                        String raw = entry.valueExpr().get().toSourceCode().trim();
+                    if (!(entryField instanceof SpecificFieldNode entry) || entry.valueExpr().isEmpty()) {
+                        continue;
+                    }
+                    String fieldName = entry.fieldName().toSourceCode().trim();
+                    String raw = entry.valueExpr().get().toSourceCode().trim();
+                    if ("name".equals(fieldName)) {
                         if (raw.length() >= 2 && raw.startsWith("\"") && raw.endsWith("\"")) {
                             raw = raw.substring(1, raw.length() - 1);
                         }
-                        if (!raw.isEmpty()) {
-                            names.add(raw);
-                        }
+                        name = raw;
+                    } else if ("response".equals(fieldName)) {
+                        response = raw;
                     }
+                }
+                if (!name.isEmpty()) {
+                    events.put(name, response);
                 }
             }
         }
