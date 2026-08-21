@@ -300,7 +300,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ onClose, onSkillsChange }
                     <Loader label="Loading skills…" />
                 ) : (
                     <>
-                        {renderSection(SkillTier.BUILTIN, "Built-in", `Skills shipped with the ${shortName}.`, builtinSkills, "No built-in skills.")}
+                        {renderSection(SkillTier.BUILTIN, "Built-in", `Skills shipped with ${shortName}.`, builtinSkills, "No built-in skills.")}
                         {renderSection(SkillTier.PROJECT, "Project", "Saved to this project and shared with your team.", projectSkills, "No project skills yet.")}
                         {renderSection(SkillTier.USER, "User", "Available across all your projects.", userSkills, "No user skills yet.")}
                     </>

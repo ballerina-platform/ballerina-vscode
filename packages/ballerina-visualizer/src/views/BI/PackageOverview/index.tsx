@@ -46,6 +46,7 @@ import { LibraryOverview } from "./LibraryOverview";
 import { CopilotHeroBox } from "../../../components/AgentStatusOrb/CopilotHeroBox";
 import { awaitingInputLabel, useAgentRunState, useAiPanelOpen } from "../../../components/AgentStatusOrb/shared";
 import { useProductMode } from "../../../hooks/useProductMode";
+import { useProductTerms } from "../ProjectForm/useProductTerms";
 
 /** Only reachable from an empty integration, and it pulls in the whole wizard +
  *  artifact form tree — so keep it out of the overview's own chunk. */
@@ -790,6 +791,7 @@ interface PackageOverviewProps {
 
 export function PackageOverview(props: PackageOverviewProps) {
     const productMode = useProductMode();
+    const terms = useProductTerms();
     const shortName = shortAssistantName(productMode);
     const { projectPath, isInDevant, isICPSupported } = props;
     const { rpcClient } = useRpcContext();
@@ -1205,7 +1207,7 @@ export function PackageOverview(props: PackageOverviewProps) {
                                                     disabled={agentWorking}
                                                     tooltip={agentWorking ? `Available once ${shortName} finishes` : undefined}
                                                 >
-                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add Integration
+                                                    <Codicon name="add" sx={{ marginRight: 8 }} /> Add {terms.integrationLabel}
                                                 </Button>
                                             </ButtonContainer>
                                         </EmptyStateContainer>

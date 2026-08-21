@@ -59,7 +59,7 @@ export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "error": ["#f87171", "#ef4444", "#fb7185"],
 };
 
-/** [base, darker-shade, lighter-shade] from one theme color, mirroring ACCENT_SPHERE below. */
+/** [base, darker-shade, lighter-shade] from one theme color, mirroring ACCENT_SPHERE. */
 function shadeTriple(base: string): [string, string, string] {
     return [base, `color-mix(in srgb, ${base} 62%, #000000)`, `color-mix(in srgb, ${base} 72%, #ffffff)`];
 }
@@ -75,15 +75,6 @@ const STATE_BASE = {
     "error": "var(--vscode-statusBarItem-errorBackground)",
 } as const;
 
-/** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
-export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
-    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
-    "running": shadeTriple(STATE_BASE.running),
-    "awaiting-input": shadeTriple(STATE_BASE["awaiting-input"]),
-    "completed": shadeTriple(STATE_BASE.completed),
-    "error": shadeTriple(STATE_BASE.error),
-};
-
 const PRIMARY = "var(--vscode-button-background)";
 
 /** [lighter, base, darker] — the frame reads brightest at its leading edge, unlike a sphere. */
@@ -92,6 +83,23 @@ export function frameTriple(base: string): [string, string, string] {
 }
 
 export const ACCENT_FRAME: [string, string, string] = frameTriple(PRIMARY);
+
+export const ACCENT_SPHERE: [string, string, string] = [
+    PRIMARY,
+    `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
+    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
+];
+
+export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
+
+/** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
+export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
+    "idle": ACCENT_SPHERE,
+    "running": shadeTriple(STATE_BASE.running),
+    "awaiting-input": shadeTriple(STATE_BASE["awaiting-input"]),
+    "completed": shadeTriple(STATE_BASE.completed),
+    "error": shadeTriple(STATE_BASE.error),
+};
 
 /** Frame counterpart of AGENT_BUILDER_ORB_COLORS — same bases, frame-shaped. */
 export const AGENT_BUILDER_FRAME_COLORS: Record<AgentRunState, [string, string, string]> = {
@@ -102,19 +110,11 @@ export const AGENT_BUILDER_FRAME_COLORS: Record<AgentRunState, [string, string, 
     "error": frameTriple(STATE_BASE.error),
 };
 
-export const ACCENT_SPHERE: [string, string, string] = [
-    PRIMARY,
-    `color-mix(in srgb, ${PRIMARY} 62%, #000000)`,
-    `color-mix(in srgb, ${PRIMARY} 72%, #ffffff)`,
-];
-
-export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
-
 export function orbColors(state: AgentRunState, agentBuilder: boolean): [string, string, string] {
     if (!agentBuilder) {
         return ORB_COLORS[state];
     }
-    return state === "idle" ? ACCENT_SPHERE : AGENT_BUILDER_ORB_COLORS[state];
+    return AGENT_BUILDER_ORB_COLORS[state];
 }
 
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */

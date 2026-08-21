@@ -17,6 +17,7 @@
  */
 
 import { CreateIntegrationWizard } from "../CreateIntegrationWizard";
+import { useProductTerms } from "../ProjectForm/useProductTerms";
 import { CreateFlowShell } from "../ProjectForm/embedded/integrator-form/shared/CreateFlowShell";
 import { BiWsClientProvider } from "../wsManager/WsClientContext";
 
@@ -38,9 +39,10 @@ interface AddIntegrationPanelProps {
  * the user returns to the overview they came from instead of reloading anywhere.
  */
 export function AddIntegrationPanel({ packageRoot, integrationName, onClose }: AddIntegrationPanelProps) {
+    const terms = useProductTerms();
     return (
         <CreateFlowShell
-            title="Add Integration"
+            title={`Add ${terms.integrationLabel}`}
             subtitle={integrationName ? `Continue setting up ${integrationName}.` : undefined}
             onBack={onClose}
             bodyFill
