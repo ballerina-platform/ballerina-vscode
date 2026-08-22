@@ -68,6 +68,11 @@ Not `final ai:ModelProvider <agent>Model = check ai:getDefaultModelProvider();`.
 When the user does name a provider, the same rule holds — declare the provider's own class, not
 `ai:ModelProvider`.
 
+The same applies to every `ai` component the diagram identifies by declared type. An embedding
+provider is `ai:Wso2EmbeddingProvider`, never `ai:EmbeddingProvider`; a vector store is
+`ai:InMemoryVectorStore`, never `ai:VectorStore`. The abstract type renders as an unresolved node in
+each case.
+
 ## Agent tools
 
 Every tool is a module-level `isolated function` annotated with `@ai:AgentTool`, listed by name in
@@ -138,10 +143,10 @@ list that tool in the parent's `tools` array:
 # <what delegating to this subagent accomplishes, one line>
 # + context - Context injected by the runtime; forwarded so the subagent shares the caller's context
 # + <param> - <the request or payload to send to the subagent>
-# + sessionId - Conversation handle. Generate a unique id to start a new conversation with the agent and reuse the same id to continue it across turns. Omit for a one-off, stateless request.
+# + sessionId - Conversation handle. Generate a unique id to start a new conversation with the agent, and reuse the same id to continue it across turns.
 # + return - <what the subagent returns>
 @ai:AgentTool
-isolated function <subAgent>AgentTool(ai:Context context, string <param>, string sessionId = "") returns string|error {
+isolated function <subAgent>AgentTool(ai:Context context, string <param>, string sessionId) returns string|error {
     string response = check <subAgent>Agent.run(<param>, sessionId, context);
     return response;
 }
@@ -151,6 +156,10 @@ Keep both extra parameters: `ai:Context` carries the parent's context down to th
 `sessionId` is what lets the subagent hold a multi-turn conversation. Reuse the `sessionId` doc
 line above verbatim — the model reads it to decide when to generate a fresh id and when to reuse
 one.
+
+Give `sessionId` **no default**. A default makes every call that leaves it out share one memory
+bucket, so unrelated requests from different callers see each other's history. Required, the model
+supplies a fresh id per conversation, which is the behaviour the doc line describes.
 
 ## No expression-bodied functions
 
@@ -190,6 +199,74 @@ the agent and its knowledge base are ready by the time the first message arrives
 keeps running after `main` returns.
 
 Never call the setup function from a module-level variable declaration just to get it to run.
+
+## Data loaders take file paths, never a folder
+
+`ai:TextDataLoader` is constructed with one or more **file** paths — `init(string... paths)`. Passing a
+directory compiles, and its constructor accepts it, because construction only checks that each path
+exists. It fails later, at `load()`, with `Unsupported file type: <name>` — so a folder path surfaces as
+a runtime error that names a file type rather than the real problem.
+
+To ingest a folder, enumerate it and spread the result:
+
+```ballerina
+function <ingestFunction>() returns error? {
+    file:MetaData[] entries = check file:readDir(<docsPath>);
+    string[] paths = from file:MetaData entry in entries
+        where !entry.dir
+        select entry.absPath;
+    ai:DataLoader loader = check new ai:TextDataLoader(...paths);
+    ai:Document|ai:Document[] documents = check loader.load();
+    check <knowledgeBase>.ingest(documents);
+}
+```
+
+That needs `import ballerina/file;`. Enumerating the folder is correct whether or not the loader later
+accepts one directly, so prefer it over passing a path you have not verified.
+
+Only these extensions load as of `ballerina/ai` 1.13.0: `md`, `html`, `htm`, `pdf`, `docx`, `pptx`.
+**`.txt` is not supported** — despite the type's name, a plain text file fails with
+`Unsupported file type: txt`. Ask for, and claim, only these formats: a prompt or a doc comment
+promising `.txt` or `.csv` ingestion describes something the loader cannot do.
+
+## Knowledge bases
+
+A retrieval-augmented agent needs three declarations, each with its concrete type, plus a tool that
+queries it:
+
+```ballerina
+final ai:Wso2EmbeddingProvider <agent>EmbeddingProvider = check ai:getDefaultEmbeddingProvider();
+final ai:InMemoryVectorStore <agent>VectorStore = check new ai:InMemoryVectorStore();
+final ai:KnowledgeBase <agent>KnowledgeBase =
+        new ai:VectorKnowledgeBase(<agent>VectorStore, <agent>EmbeddingProvider);
+```
+
+`ingest` accepts `Document`, `Document[]` or `Chunk[]` — pass the loader's result straight through
+without unwrapping it. `retrieve` takes the query and a result limit and returns `QueryMatch[]`,
+where each match carries its text at `chunk.content`:
+
+```ballerina
+# <what this searches, one line>
+# + query - <what to search for>
+# + return - the matched excerpts, or an error if the search fails
+@ai:AgentTool
+isolated function <toolName>(string query) returns string|error {
+    ai:QueryMatch[] matches = check <agent>KnowledgeBase.retrieve(query, 5);
+    if matches.length() == 0 {
+        return "<no relevant information was found>";
+    }
+    string[] excerpts = from ai:QueryMatch match in matches
+        select match.chunk.content.toString();
+    return string:'join("\n", ...excerpts);
+}
+```
+
+Return the excerpts as text and let the agent read them. Do not have the tool answer the question
+itself — the agent's own instructions decide how the excerpts are used.
+
+Ingestion is startup work, so it belongs in `main`, never in `init` — see above. A knowledge base
+that is never ingested retrieves nothing and the agent answers from the model alone, with no error
+to show why.
 
 ## Chat trigger
 
