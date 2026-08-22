@@ -18,14 +18,15 @@
 
 import { Button, Icon, ThemeColors, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
+import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
 import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { DownloadIcon } from "../../../components/DownloadIcon";
@@ -42,11 +43,9 @@ const Container = styled.div`
     flex-direction: column;
     gap: 10;
     margin: 20px;
-    /* padding: 0 20px 20px; */
     max-width: 600px;
     height: 100%;
     > div:last-child {
-        /* padding: 20px 0; */
         > div:last-child {
             justify-content: flex-start;
         }
@@ -108,7 +107,6 @@ const StatusText = styled(Typography)`
     color: ${ThemeColors.ON_SURFACE};
 `;
 
-
 export interface ServiceCreationViewProps {
     projectPath: string;
     orgName: string;
@@ -120,8 +118,11 @@ export interface ServiceCreationViewProps {
     agentOrgName?: string;
     isPopup?: boolean;
     defaultValues?: Record<string, string>;
+    collectEndpointShape?: boolean;
     onCreated?: () => void;
 }
+
+const INSTRUCTIONS_KEY = "instructions";
 
 interface HeaderInfo {
     title: string;
@@ -138,7 +139,7 @@ enum PullingStatus {
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName, isPopup, onCreated, defaultValues } = props;
+        agentName, agentOrgName, isPopup, onCreated, defaultValues , collectEndpointShape } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -156,9 +157,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const MAIN_BALLERINA_FILE = "main.bal";
 
-    // Lifted out of the effect (rather than a local closure) so the ERROR state's Retry button can
-    // call it again — previously a failed fetch here left the loading screen stuck forever with no
-    // way out: PullingStatus.ERROR was rendered but never actually set anywhere.
     const fetchData = async () => {
         setPullingStatus(PullingStatus.FETCHING);
 
@@ -174,7 +172,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             let timer: ReturnType<typeof setTimeout> | null = null;
             let didTimeout = false;
 
-            // Wait for up to 3 seconds for a fast response
             const timeoutPromise = new Promise<void>((resolve) => {
                 timer = setTimeout(() => {
                     didTimeout = true;
@@ -202,8 +199,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
 
             const initModel = res?.serviceInitModel;
             if (!initModel) {
-                // The call resolved but came back with no model to show — treat it the same as a
-                // failure rather than leaving the loading UI stuck with nothing to display.
                 setPullingStatus(PullingStatus.ERROR);
                 return;
             }
@@ -258,12 +253,30 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
     }, [model]);
 
+    const [endpointModel, setEndpointModel] = useState<FunctionModel>(undefined);
+    const [endpointHasErrors, setEndpointHasErrors] = useState(false);
+
+    useEffect(() => {
+        if (!collectEndpointShape || endpointModel) {
+            return;
+        }
+        rpcClient.getServiceDesignerRpcClient()
+            .getHttpResourceModel({ type: "http", functionName: "resource" })
+            .then((res) => {
+                if (isMountedRef.current && res?.function) {
+                    const shaped = res.function;
+                    if (shaped.name && !shaped.name.value) {
+                        shaped.name = { ...shaped.name, value: "." };
+                    }
+                    setEndpointModel(shaped);
+                }
+            });
+    }, [collectEndpointShape, endpointModel]);
+
     const handleOnChange = (fieldKey: string, value: any) => {
-        // Try to update the CHOICE field in the model (recursively)
         const wasUpdated = updateChoiceInModel(model.properties, fieldKey, value);
 
         if (wasUpdated) {
-            // Regenerate form fields to reflect the nested structure changes
             const updatedFormFields = mapPropertiesToFormFields(model.properties);
             setFormFields(updatedFormFields);
         }
@@ -272,6 +285,9 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     const handleOnSubmit = async (data: FormValues, formImports: FormImports) => {
         setIsSaving(true);
         const updatedModel = applyFormValuesToModel(formFields, model, data, formImports);
+        if (collectEndpointShape && endpointModel) {
+            updatedModel.resource = endpointModel;
+        }
 
         const res = await rpcClient
             .getServiceDesignerRpcClient()
@@ -281,9 +297,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             return;
         }
 
-        // The language server refused the model: nothing was written, so keep the form open and
-        // hand the failures to it rather than leaving the user on a stuck "Saving" button. Only an
-        // ERROR blocks — a WARNING rides along with a successful save and must not trap the form.
         if (hasBlockingValidationErrors(res.validationErrors)) {
             setServerValidationErrors(res.validationErrors);
             setIsSaving(false);
@@ -303,7 +316,6 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             setIsSaving(false);
             return;
         }
-        // No artifact came back and nothing was rejected — release the button rather than hanging.
         setIsSaving(false);
     }
 
@@ -349,13 +361,39 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         </StatusContainer>
     );
 
+    const endpointFormFields = useMemo(
+        () => (formFields ?? []).map((field) => field.key === INSTRUCTIONS_KEY
+            ? { ...field, growRange: { start: 2, offset: 12 } }
+            : field),
+        [formFields]
+    );
+
+    const endpointSlots = useMemo(
+        () => collectEndpointShape && endpointModel
+            ? [
+                {
+                    component: <AgentEndpointFields
+                        model={endpointModel}
+                        onChange={setEndpointModel}
+                        onError={setEndpointHasErrors}
+                    />,
+                    index: 1
+                },
+                { component: <PromptContinuation model={endpointModel} />, index: Infinity }
+            ]
+            : undefined,
+        [collectEndpointShape, endpointModel]
+    );
+
     const form = !pullingStatus && formFields && formFields.length > 0 && filePath && targetLineRange && (
         <ArtifactForm
             fileName={filePath}
             targetLineRange={targetLineRange}
-            fields={formFields}
+            fields={collectEndpointShape ? endpointFormFields : formFields}
             isSaving={isSaving}
             nestedForm={true}
+            disableSaveButton={endpointHasErrors}
+            injectedComponents={endpointSlots}
             onSubmit={handleOnSubmit}
             onChange={handleOnChange}
             serverValidationErrors={serverValidationErrors}

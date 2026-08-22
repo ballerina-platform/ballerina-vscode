@@ -247,6 +247,8 @@ export function setCachedUsages(key: string, usages: AgentUsage[]): void {
 
 let triggerProtocols: Set<string> | undefined;
 
+const UNDELETABLE_PROTOCOLS = new Set(["http"]);
+
 export async function getAgentTriggerProtocols(rpcClient: BallerinaRpcClient): Promise<Set<string>> {
     if (!triggerProtocols) {
         const models = await rpcClient.getServiceDesignerRpcClient().getTriggerModels({ query: "" });
@@ -254,6 +256,7 @@ export async function getAgentTriggerProtocols(rpcClient: BallerinaRpcClient): P
             (models?.local ?? [])
                 .filter((trigger) => trigger.agentTriggerKind && trigger.listenerProtocol)
                 .map((trigger) => trigger.listenerProtocol)
+                .filter((protocol) => !UNDELETABLE_PROTOCOLS.has(protocol))
         );
     }
     return triggerProtocols;

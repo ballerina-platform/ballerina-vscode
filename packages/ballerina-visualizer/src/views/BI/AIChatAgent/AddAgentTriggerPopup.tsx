@@ -54,6 +54,11 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
         description: "Incoming messages are passed to the agent and its reply is sent back.",
     },
     {
+        kind: "HTTP",
+        title: "API Endpoints",
+        description: "Expose the agent at a URL. A caller sends a request and gets the agent's answer back.",
+    },
+    {
         kind: "EVENT",
         title: "Event Sources",
         description: "The agent runs when something happens in another system. "
@@ -63,8 +68,13 @@ const SECTIONS: { kind: AgentTriggerKind; title: string; description: string }[]
 
 type CentralChannel = ServiceModel & { isLocalRepository?: boolean };
 
+const PATH_SEEDED_MODULES = ["ai", "http"];
+const FORM_STEP_MAX_WIDTH = 700;
+
 const channelDefaults = (channel: ServiceModel, agentName: string) =>
-    channel.moduleName === "ai" && agentName ? { basePath: deriveBasePath(agentName) } : undefined;
+    PATH_SEEDED_MODULES.includes(channel.moduleName) && agentName
+        ? { basePath: deriveBasePath(agentName) }
+        : undefined;
 
 const channelIcon = (channel: ServiceModel) =>
     channel.moduleName === "ai"
@@ -135,7 +145,13 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
     );
 
     return (
-        <PopupModal onClose={onClose} expanded dismissOnBackdropClick={!channel} dismissOnEscape={!channel}>
+        <PopupModal
+            onClose={onClose}
+            expanded
+            maxWidth={channel ? FORM_STEP_MAX_WIDTH : undefined}
+            dismissOnBackdropClick={!channel}
+            dismissOnEscape={!channel}
+        >
             {(close) => (
                 <PopupModalStep key={channel ? channel.moduleName : "picker"} $direction={direction}>
                     <PopupHeader>
@@ -167,6 +183,7 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                 moduleName={channel.moduleName}
                                 version={channel.version}
                                 isLocalRepository={channel.isLocalRepository}
+                                collectEndpointShape={channel.moduleName === "http"}
                                 agentName={agentName}
                                 agentOrgName={agentOrgName}
                                 defaultValues={channelDefaults(channel, agentName)}
@@ -190,26 +207,28 @@ export function AddAgentTriggerPopup(props: AddAgentTriggerPopupProps) {
                                             : "No channels are available in this project."}
                                     </BodyText>
                                 )}
-                                {sections.map((section) => (
-                                    <PanelViewMore key={section.kind}>
-                                        <TitleWrapper>
-                                            <Title variant="h2">{section.title}</Title>
-                                            <BodyText>{section.description}</BodyText>
-                                        </TitleWrapper>
-                                        <CardGrid>
-                                            {section.channels.map((option) => (
-                                                <ButtonCard
-                                                    id={`agent-trigger-${option.moduleName.replace(/\./g, '-')}`}
-                                                    key={option.id}
-                                                    title={option.name}
-                                                    icon={channelIcon(option)}
-                                                    isBeta={isBetaModule(option.moduleName)}
-                                                    onClick={() => showChannel(option, "forward")}
-                                                />
-                                            ))}
-                                        </CardGrid>
-                                    </PanelViewMore>
-                                ))}
+                                <div style={{ gap: 28, display: "flex", flexDirection: "column" }}>
+                                    {sections.map((section) => (
+                                        <PanelViewMore key={section.kind}>
+                                            <TitleWrapper>
+                                                <Title variant="h2">{section.title}</Title>
+                                                <BodyText>{section.description}</BodyText>
+                                            </TitleWrapper>
+                                            <CardGrid>
+                                                {section.channels.map((option) => (
+                                                    <ButtonCard
+                                                        id={`agent-trigger-${option.moduleName.replace(/\./g, '-')}`}
+                                                        key={option.id}
+                                                        title={option.name}
+                                                        icon={channelIcon(option)}
+                                                        isBeta={isBetaModule(option.moduleName)}
+                                                        onClick={() => showChannel(option, "forward")}
+                                                    />
+                                                ))}
+                                            </CardGrid>
+                                        </PanelViewMore>
+                                    ))}
+                                </div>
                                 {query.trim() && (
                                     <CentralSearchPanel
                                         query={query}
