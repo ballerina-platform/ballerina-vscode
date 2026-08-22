@@ -358,5 +358,21 @@
     "version": "1.13.0",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ai_1.13.0.png",
     "kind": "agent-chat"
+  },
+  "27": {
+    "name": "http",
+    "orgName": "ballerina",
+    "packageName": "http",
+    "keywords": [
+      "http",
+      "api",
+      "rest",
+      "endpoint",
+      "webhook"
+    ],
+    "triggerName": "HTTP",
+    "version": "2.14.1",
+    "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_http_2.14.1.png",
+    "kind": "agent-http"
   }
 }

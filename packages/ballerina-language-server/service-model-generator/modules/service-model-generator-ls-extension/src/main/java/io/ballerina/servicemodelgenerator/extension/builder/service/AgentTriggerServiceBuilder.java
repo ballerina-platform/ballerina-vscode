@@ -38,9 +38,11 @@ import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInit
 import io.ballerina.servicemodelgenerator.extension.model.request.ServiceModelRequest;
 import io.ballerina.servicemodelgenerator.extension.util.FTPListenerUtil;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
 import org.eclipse.lsp4j.TextEdit;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -61,6 +63,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
 
     public static final String KIND = "agent-trigger";
     private static final String AGENT_NAME_PROPERTY = "agentName";
+    private static final String TYPES_BAL = "types.bal";
     private static final String AGENT_ORG_PROPERTY = "agentOrg";
     private static final String BALLERINA_ORG = "ballerina";
     private static final String INDENT = "    ";
@@ -144,7 +147,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         if (!imports.isEmpty()) {
             edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().startLine()), imports));
         }
-        SchemaDrivenSourceGenerator.ResolvedListener listener = channel.listener(rootNode, emitAlias)
+        SchemaDrivenSourceGenerator.ResolvedListener listener = channel.listener(rootNode, emitAlias, formValues)
                 .orElseGet(() -> SchemaDrivenSourceGenerator.resolveListener(filledModel, emitAlias));
         AgentTriggerContext channelContext = new AgentTriggerContext(emitAlias, listener.varName(),
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
@@ -160,7 +163,7 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                         + "'. Create the trigger on its own listener.");
             }
             edits.addAll(mergeIntoService(existing.get(), binding.get()));
-            return Map.of(filePath, edits);
+            return withAuxiliaryEdits(filePath, edits, channelContext);
         }
 
         StringBuilder block = new StringBuilder(NEW_LINE);
@@ -169,7 +172,21 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
         }
         block.append(channel.serviceBlock(channelContext));
         edits.add(new TextEdit(Utils.toRange(rootNode.lineRange().endLine()), block.toString()));
-        return Map.of(filePath, edits);
+        return withAuxiliaryEdits(filePath, edits, channelContext);
+    }
+
+    private static Map<String, List<TextEdit>> withAuxiliaryEdits(String filePath, List<TextEdit> edits,
+                                                                 AgentTriggerContext context) {
+        Map<String, List<TextEdit>> byFile = new LinkedHashMap<>();
+        byFile.put(filePath, edits);
+        if (context.auxiliaryTypes().isEmpty()) {
+            return byFile;
+        }
+        Path typesBal = Path.of(filePath).resolveSibling(TYPES_BAL);
+        String source = NEW_LINE + String.join(TWO_NEW_LINES, context.auxiliaryTypes()) + NEW_LINE;
+        byFile.put(typesBal.toString(), new ArrayList<>(List.of(
+                new TextEdit(Utils.toRange(LinePosition.from(0, 0)), source))));
+        return byFile;
     }
 
     private static Optional<ServiceDeclarationNode> findService(ModulePartNode rootNode, String listenerVarName,

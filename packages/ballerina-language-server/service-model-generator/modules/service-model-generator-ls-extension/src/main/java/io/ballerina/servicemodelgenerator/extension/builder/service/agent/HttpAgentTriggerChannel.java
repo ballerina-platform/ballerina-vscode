@@ -1,0 +1,303 @@
+/*
+ *  Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com)
+ *
+ *  WSO2 LLC. licenses this file to you under the Apache License,
+ *  Version 2.0 (the "License"); you may not use this file except
+ *  in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+
+package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
+
+import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
+import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
+import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
+import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator.HandlerParameter;
+import io.ballerina.servicemodelgenerator.extension.model.Codedata;
+import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
+import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
+import io.ballerina.servicemodelgenerator.extension.model.Value;
+import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.util.HttpUtil;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.SPACE;
+
+/**
+ * Exposes an agent at an HTTP endpoint the user shapes: the request becomes the prompt and the agent's
+ * answer becomes the response.
+ *
+ * @since 1.9.0
+ */
+public class HttpAgentTriggerChannel implements AgentTriggerChannel {
+
+    static final String ORG_NAME = "ballerina";
+    static final String MODULE_NAME = "http";
+    static final String BASE_PATH = "basePath";
+    static final String PORT = "port";
+
+    private static final String LISTENER_VAR_NAME = "httpDefaultListener";
+    private static final String DEFAULT_BASE_PATH = "/agent";
+    private static final String DEFAULT_INSTRUCTIONS = "Answer the request.";
+    private static final String SOLE_PAYLOAD_LABEL = "Request payload";
+    private static final String STRING_TYPE = "string";
+    private static final String ERROR_TYPE = "error";
+    private static final String BODY_FIELD = " body;";
+    private static final Pattern PATH_PARAM =
+            Pattern.compile("^\\[\\s*([A-Za-z_][A-Za-z0-9_:]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*]$");
+    private static final List<String> BINDABLE_SIMPLE_TYPES =
+            List.of(STRING_TYPE, "json", "int", "float", "decimal", "boolean");
+    private static final String LISTENER_TYPE = MODULE_NAME + ":Listener";
+    private static final String LISTENER_DECLARATION =
+            "listener " + LISTENER_TYPE + " " + LISTENER_VAR_NAME + " = http:getDefaultListener();";
+
+    private static final String SERVICE_BLOCK = """
+            service {{basePath}} on {{listener}} {
+            {{resource}}
+            }
+            """;
+
+    private static final String DEFAULT_SIGNATURE =
+            "resource function post .(@http:Payload string question) returns string|error ";
+
+    private static final String RESOURCE = """
+            {{signature}}{
+                {{prompt}}
+                {{answerType}}|error response = {{agentRun}};
+            {{return}}}""";
+
+    private static final String RETURN_ANSWER = "    return response;" + NEW_LINE;
+
+    private static final String RETURN_ANSWER_AS_BODY = """
+                if response is error {
+                    return response;
+                }
+                return {body: response};
+            """;
+
+    @Override
+    public AgentTriggerKind kind() {
+        return AgentTriggerKind.HTTP;
+    }
+
+    @Override
+    public List<String> imports() {
+        return List.of();
+    }
+
+    @Override
+    public boolean isSchemaDriven() {
+        return false;
+    }
+
+    @Override
+    public Optional<ServiceInitModel> initModel(GetServiceInitModelContext context) {
+        ServiceInitModel model = new ServiceInitModel("http-agent", "HTTP Endpoint",
+                "Expose the agent at a URL, so anything that can call an API can reach it.",
+                context.orgName(), context.packageName(), MODULE_NAME, context.version(), "agent-http", "");
+        model.addProperty(BASE_PATH, new Value.ValueBuilder()
+                .metadata("Endpoint Path", "The HTTP path this endpoint is served on.")
+                .setCodedata(new Codedata("SERVICE_BASE_PATH"))
+                .types(List.of(PropertyType.types(Value.FieldType.SERVICE_PATH, "string")))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .value(DEFAULT_BASE_PATH)
+                .setValidations(List.of(new ValidationRule("common.validate.required"),
+                        new ValidationRule("common.validate.service.path")))
+                .build());
+        addListenerChooser(model, context);
+        return Optional.of(model);
+    }
+
+    @Override
+    public Map<String, Value> additionalProperties() {
+        return Map.of(INSTRUCTIONS, AgentTriggerChannel.instructionsField(
+                "What the agent should do with each request.", DEFAULT_INSTRUCTIONS));
+    }
+
+    private static void addListenerChooser(ServiceInitModel model, GetServiceInitModelContext context) {
+        if (context.document() == null) {
+            return;
+        }
+        ServiceInitModel httpModel = new HttpServiceBuilder().getServiceInitModel(context);
+        if (httpModel == null) {
+            return;
+        }
+        Value chooser = httpModel.getProperties().get(ServiceInitModel.KEY_CONFIGURE_LISTENER);
+        if (chooser != null) {
+            model.addProperty(ServiceInitModel.KEY_CONFIGURE_LISTENER, chooser);
+        }
+    }
+
+    @Override
+    public Optional<SchemaDrivenSourceGenerator.ResolvedListener> listener(ModulePartNode rootNode, String alias,
+                                                                          Map<String, String> formValues) {
+        String port = formValues.get(PORT);
+        String customName = formValues.get(ServiceInitModel.KEY_LISTENER_VAR_NAME);
+        if (port != null && !port.isBlank() && customName != null && !customName.isBlank()) {
+            return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(customName.strip(),
+                    "listener " + LISTENER_TYPE + " " + customName.strip() + " = new (" + port.strip() + ");"));
+        }
+        for (ModuleMemberDeclarationNode member : rootNode.members()) {
+            if (member instanceof ListenerDeclarationNode declaration
+                    && declaration.toSourceCode().contains(LISTENER_TYPE)) {
+                return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(
+                        declaration.variableName().text().strip(), null));
+            }
+        }
+        return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(LISTENER_VAR_NAME,
+                LISTENER_DECLARATION));
+    }
+
+    @Override
+    public String serviceBlock(AgentTriggerContext context) {
+        return context.fill(SERVICE_BLOCK)
+                .replace("{{basePath}}", context.servicePath(BASE_PATH, DEFAULT_BASE_PATH))
+                .replace("{{resource}}", resource(context));
+    }
+
+    private static String resource(AgentTriggerContext context) {
+        Function shaped = context.initForm().getResource();
+        return shaped == null ? defaultResource(context) : shapedResource(context, shaped);
+    }
+
+    private static String shapedResource(AgentTriggerContext context, Function shaped) {
+        List<String> newTypeDefinitions = new ArrayList<>();
+        Map<String, String> importsForMainBal = new LinkedHashMap<>();
+        String signature = HttpUtil.generateHttpResourceSignature(shaped, newTypeDefinitions, importsForMainBal,
+                context.auxiliaryImports(), true);
+        context.auxiliaryTypes().addAll(newTypeDefinitions);
+        String header = "resource function " + accessor(shaped) + SPACE + resourcePath(shaped) + signature;
+        Answer answer = answer(shaped);
+        return body(context, header, answer, promptParameters(shaped));
+    }
+
+    private static String defaultResource(AgentTriggerContext context) {
+        return body(context, DEFAULT_SIGNATURE, new Answer(STRING_TYPE, false),
+                List.of(new HandlerParameter(STRING_TYPE, "question", true)));
+    }
+
+    private static String body(AgentTriggerContext context, String header, Answer answer,
+                               List<HandlerParameter> parameters) {
+        String resource = RESOURCE.replace("{{return}}",
+                answer.isBody() ? RETURN_ANSWER_AS_BODY : RETURN_ANSWER);
+        return AgentTriggerChannel.indent(resource)
+                .replace("{{signature}}", header)
+                .replace("{{answerType}}", answer.type())
+                .replace("{{prompt}}", AgentPromptBuilder.promptStatement(context.formValue(INSTRUCTIONS),
+                        DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters))
+                .replace("{{agentRun}}", context.agentRun("prompt"));
+    }
+
+    private record Answer(String type, boolean isBody) {
+    }
+
+    private static String accessor(Function shaped) {
+        Value accessor = shaped.getAccessor();
+        String value = accessor == null ? null : accessor.getValue();
+        return value == null || value.isBlank() ? "post" : value.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static String resourcePath(Function shaped) {
+        Value name = shaped.getName();
+        String value = name == null ? null : name.getValue();
+        return value == null || value.isBlank() ? "." : value.strip();
+    }
+
+    private static Answer answer(Function shaped) {
+        HttpResponse response = firstAnswerResponse(shaped);
+        if (response == null) {
+            return new Answer(STRING_TYPE, false);
+        }
+        String emitted = HttpUtil.getStatusCodeResponse(response, new ArrayList<>(), new LinkedHashMap<>(),
+                new LinkedHashMap<>(), defaultStatusCode(shaped));
+        String body = valueOf(response.getBody());
+        if (emitted != null && body != null && !emitted.equals(body) && emitted.contains(BODY_FIELD)) {
+            return new Answer(isBindable(body) ? body : STRING_TYPE, true);
+        }
+        String declared = emitted != null && !emitted.isBlank() ? emitted.strip() : body;
+        return new Answer(declared != null && isBindable(declared) ? declared : STRING_TYPE, false);
+    }
+
+    private static HttpResponse firstAnswerResponse(Function shaped) {
+        if (shaped.getReturnType() == null || shaped.getReturnType().getResponses() == null) {
+            return null;
+        }
+        return shaped.getReturnType().getResponses().stream()
+                .filter(HttpResponse::isEnabled)
+                .filter(response -> !ERROR_TYPE.equals(valueOf(response.getBody()))
+                        && !ERROR_TYPE.equals(valueOf(response.getType())))
+                .filter(response -> Objects.nonNull(valueOf(response.getStatusCode())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static int defaultStatusCode(Function shaped) {
+        return "post".equals(accessor(shaped)) ? 201 : 200;
+    }
+
+    private static boolean isBindable(String type) {
+        return BINDABLE_SIMPLE_TYPES.contains(type) || type.matches("[A-Za-z_][A-Za-z0-9_]*");
+    }
+
+    private static List<HandlerParameter> promptParameters(Function shaped) {
+        List<HandlerParameter> parameters = new ArrayList<>(pathParameters(shaped));
+        for (Parameter parameter : shaped.getParameters() == null ? List.<Parameter>of() : shaped.getParameters()) {
+            if (!parameter.isEnabled()) {
+                continue;
+            }
+            String type = valueOf(parameter.getType());
+            String name = valueOf(parameter.getName());
+            if (type == null || name == null) {
+                continue;
+            }
+            parameters.add(new HandlerParameter(type, name, true));
+        }
+        return parameters;
+    }
+
+    private static List<HandlerParameter> pathParameters(Function shaped) {
+        List<HandlerParameter> parameters = new ArrayList<>();
+        for (String segment : resourcePath(shaped).split("/")) {
+            Matcher matcher = PATH_PARAM.matcher(segment.strip());
+            if (matcher.matches()) {
+                parameters.add(new HandlerParameter(matcher.group(1), matcher.group(2), true));
+            }
+        }
+        return parameters;
+    }
+
+    private static String valueOf(Value value) {
+        if (value == null || value.getValue() == null || value.getValue().isBlank()) {
+            return null;
+        }
+        return value.getValue().strip();
+    }
+
+}

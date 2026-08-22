@@ -26,7 +26,11 @@ import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentT
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
+import io.ballerina.servicemodelgenerator.extension.model.Function;
+import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
+import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
+import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
@@ -593,6 +597,158 @@ public class AgentTriggerGenerationTest {
     public void testAgentChatPathIsAlwaysAbsolute() {
         Assert.assertTrue(generateForAgentChat("support", "\n").contains("service /support on"),
                 "a path typed without a leading slash must not emit invalid source");
+    }
+
+    private ServiceInitModel httpForm(String basePath, String instructions) {
+        AgentTriggerChannel channel = channel("ballerina", "http");
+        ServiceInitModel form = channel.initModel(new GetServiceInitModelContext("ballerina", "http", "http",
+                "2.14.1", null, null, null, false, "issueTriageAgent", null)).orElseThrow();
+        form.addProperty(AGENT_NAME_PROPERTY, new Value.ValueBuilder()
+                .enabled(true).editable(false).value("issueTriageAgent").build());
+        channel.additionalProperties().forEach(form::addProperty);
+        form.getProperties().get("basePath").setValue(basePath);
+        form.getProperties().get("instructions").setValue(instructions);
+        return form;
+    }
+
+    private String generateForHttp(String basePath, String instructions, String existingSource) {
+        return render(AgentTriggerServiceBuilder.buildEdits(httpForm(basePath, instructions), null,
+                channel("ballerina", "http"), rootOf(existingSource), "main.bal"));
+    }
+
+    @Test
+    public void testHttpEndpointIsWiredToTheAgent() {
+        String src = generateForHttp("/issue-triage", "Triage this issue.", "\n");
+
+        Assert.assertTrue(src.contains("service /issue\\-triage on httpDefaultListener"),
+                "the user's path should be the service path, with '-' escaped: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "one endpoint should be one URL, so the resource sits on the base path: " + src);
+        Assert.assertTrue(src.contains("issueTriageAgent.run(prompt)"),
+                "the agent should be called with the assembled prompt: " + src);
+        Assert.assertTrue(src.contains("import ballerina/http;"),
+                "the endpoint needs ballerina/http: " + src);
+    }
+
+    private String generateForShapedHttp(String accessor, String path, List<Parameter> parameters,
+                                         String responseBodyType) {
+        ServiceInitModel form = httpForm("/triage", "Triage it.");
+        FunctionReturnType returnType = new FunctionReturnType(
+                new Value.ValueBuilder().enabled(true).value("").build());
+        returnType.setResponses(List.of(new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value("200").build(),
+                new Value.ValueBuilder().enabled(true).value(responseBodyType).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)));
+        Function shaped = new Function.FunctionBuilder()
+                .kind("RESOURCE")
+                .accessor(new Value.ValueBuilder().enabled(true).value(accessor).build())
+                .name(new Value.ValueBuilder().enabled(true).value(path).build())
+                .parameters(new ArrayList<>(parameters))
+                .returnType(returnType)
+                .enabled(true)
+                .build();
+        form.setResource(shaped);
+
+        return render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
+                rootOf("\n"), "main.bal"));
+    }
+
+    private static Parameter param(String httpParamType, String type, String name) {
+        return new Parameter(null, "REQUIRED",
+                new Value.ValueBuilder().enabled(true).value(type).build(),
+                new Value.ValueBuilder().enabled(true).value(name).build(),
+                null, null, true, true, false, false, httpParamType, false, null, false);
+    }
+
+    @Test
+    public void testShapedHttpEndpointKeepsTheUsersSignature() {
+        String src = generateForShapedHttp("GET", "issues/[string owner]",
+                List.of(param("QUERY", "string", "priority")), "string");
+
+        Assert.assertTrue(src.contains("resource function get issues/[string owner]"),
+                "the method and path the user chose should be the resource's own: " + src);
+        Assert.assertTrue(src.contains("priority"),
+                "a query parameter the user declared should reach the signature: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheAgentAnswerToTheDeclaredType() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
+
+        Assert.assertTrue(src.contains("IssueSummary|error response = issueTriageAgent.run(prompt);"),
+                "ai:Agent.run infers its return from the left-hand side, so the declared type binds: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointPromptsWithPathParameters() {
+        String src = generateForShapedHttp("GET", "accounts/[string owner]/[int year]",
+                List.of(param("QUERY", "string", "region")), "string");
+
+        Assert.assertTrue(src.contains("resource function get accounts/[string owner]/[int year]"),
+                "the path the user typed should be the resource path: " + src);
+        Assert.assertTrue(src.contains("owner:") && src.contains("${owner}"),
+                "a path parameter is request data and belongs in the prompt: " + src);
+        Assert.assertTrue(src.contains("year:") && src.contains("${year.toJsonString()}"),
+                "a non-string path parameter is rendered as json: " + src);
+        Assert.assertTrue(src.indexOf("owner:") < src.indexOf("region:"),
+                "path parameters come first, matching their order in the signature: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointReturnsTheBodyWhenTheStatusCodeWrapsIt() {
+        String src = generateForShapedHttp("POST", "process", List.of(), "json");
+
+        Assert.assertTrue(src.contains("json|error response = issueTriageAgent.run(prompt);"),
+                "the answer binds to the body type, not to the wrapping record: " + src);
+        Assert.assertTrue(src.contains("return {body: response};"),
+                "a wrapped return cannot take the answer directly: " + src);
+        Assert.assertTrue(src.contains("if response is error {"),
+                "the error has to be narrowed away before the record is built: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointPromptsWithEveryDeclaredParameter() {
+        String src = generateForShapedHttp("POST", ".",
+                List.of(param("QUERY", "string", "region"), param("PAYLOAD", "json", "issue")), "string");
+
+        Assert.assertTrue(src.contains("region:") && src.contains("${region}"),
+                "a string parameter interpolates as itself: " + src);
+        Assert.assertTrue(src.contains("issue:") && src.contains("${issue.toJsonString()}"),
+                "a non-string parameter is rendered as json: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointDoesNotOffloadTheAgentCall() {
+        String src = generateForHttp("/issue-triage", "Triage this issue.", "\n");
+
+        Assert.assertFalse(src.contains("start self."),
+                "a caller is waiting for the answer, so the run must not be offloaded: " + src);
+        Assert.assertTrue(src.contains("return"),
+                "the agent's answer is the HTTP response: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointCarriesTheUsersInstructions() {
+        String src = generateForHttp("/triage", "Suggest a priority label.", "\n");
+
+        Assert.assertTrue(src.contains("string prompt = string `Suggest a priority label."),
+                "the instructions should open the prompt: " + src);
+        Assert.assertTrue(src.contains("Request payload:"),
+                "a single carried parameter gets a heading rather than its own name: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointReusesTheProjectsExistingListener() {
+        String src = generateForHttp("/triage", "Triage.", """
+                import ballerina/http;
+
+                listener http:Listener sharedListener = http:getDefaultListener();
+                """);
+
+        Assert.assertTrue(src.contains("service /triage on sharedListener"),
+                "endpoints should share one listener: " + src);
+        Assert.assertFalse(src.contains("listener http:Listener httpDefaultListener"),
+                "a second listener would take a second port for no reason: " + src);
     }
 
     @Test

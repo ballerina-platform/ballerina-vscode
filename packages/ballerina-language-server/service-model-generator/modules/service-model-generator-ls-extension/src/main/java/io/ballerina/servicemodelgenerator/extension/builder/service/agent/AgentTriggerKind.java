@@ -22,5 +22,7 @@ public enum AgentTriggerKind {
 
     CHAT,
 
-    EVENT
+    EVENT,
+
+    HTTP
 }
