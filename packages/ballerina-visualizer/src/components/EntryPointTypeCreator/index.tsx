@@ -74,6 +74,7 @@ interface TypeEditorState {
     editingType: Type;
 }
 
+const TYPE_MODAL_BACKDROP = `color-mix(in srgb, ${ThemeColors.SECONDARY_CONTAINER} 70%, transparent)`;
 
 export function EntryPointTypeCreator(props: EntryPointTypeCreatorProps) {
     const { modalTitle, initialTypeName, modalWidth, modalHeight, payloadContext, isOpen, onClose, onTypeCreate, defaultTab, note } = props;
@@ -291,6 +292,7 @@ export function EntryPointTypeCreator(props: EntryPointTypeCreatorProps) {
                 title={modalTitle}
                 openState={typeEditorState.isTypeCreatorOpen}
                 setOpenState={onTypeEditorClosed}
+                sx={{ backgroundColor: TYPE_MODAL_BACKDROP }}
             >
                 <div style={{ height: '525px', overflow: 'auto' }}>
                     <FormTypeEditor
