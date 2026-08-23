@@ -17,7 +17,7 @@
  */
 
 import { CDModel } from "@wso2/ballerina-core";
-import { findAgentUsages, findListenerPosition } from "./agentUsages";
+import { AgentTriggerScopes, findAgentUsages, findListenerPosition } from "./agentUsages";
 
 const AGENT_UUID = "c371fce0-2d2e-4e47-2f32-13911cf544a8";
 const MODEL_UUID = "56125554-ece7-d97c-cf7c-f67f55d014fe";
@@ -283,7 +283,10 @@ const triggerModel = {
     ],
 } as unknown as CDModel;
 
-const CHANNELS = new Set(["whatsapp", "telegram"]);
+const CHANNELS: AgentTriggerScopes = new Map([
+    ["whatsapp", "SERVICE"],
+    ["telegram", "SERVICE"],
+]);
 
 describe("findAgentUsages trigger payload", () => {
     const usagesOf = (label: string) =>
@@ -390,6 +393,131 @@ describe("findAgentUsages trigger payload", () => {
     it("offers nothing to delete when the channel list could not be read", () => {
         const usages = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 });
         expect(usages.every((usage) => usage.trigger === undefined)).toBe(true);
+    });
+});
+
+const HTTP_BAL = "/proj/http_trigger.bal";
+const SUPPORT_API_UUID = "support-api-service";
+const HTTP_CHANNELS: AgentTriggerScopes = new Map([["http", "ENTRY_POINT"]]);
+
+const supportApi = {
+    location: { filePath: HTTP_BAL, ...range(5) },
+    attachedListeners: ["http-listener"],
+    connections: [AGENT_UUID],
+    functions: [],
+    remoteFunctions: [],
+    resourceFunctions: [
+        {
+            accessor: "post",
+            path: "products/[string productId]/questions",
+            location: { filePath: HTTP_BAL, ...range(6) },
+            connections: [AGENT_UUID],
+        },
+    ],
+    absolutePath: "/support\\-api",
+    type: "http:Service",
+    icon: "http.png",
+    uuid: SUPPORT_API_UUID,
+    enableFlowModel: true,
+    sortText: "http_trigger.bal5",
+};
+
+const httpRows = (service: unknown) =>
+    findAgentUsages(
+        {
+            ...model,
+            listeners: [
+                {
+                    symbol: "httpListener",
+                    location: { filePath: HTTP_BAL, ...range(3) },
+                    attachedServices: [SUPPORT_API_UUID],
+                    uuid: "http-listener",
+                },
+            ],
+            services: [service],
+        } as unknown as CDModel,
+        { filePath: AGENTS_BAL, startLine: 4 },
+        HTTP_CHANNELS
+    ).filter((usage) => usage.type === "http:Service");
+
+describe("http endpoint rows", () => {
+    it("aims the row's deletion at the entry point, not the whole service", () => {
+        const row = httpRows(supportApi)[0];
+
+        expect(row.label).toBe("POST /products/[string productId]/questions");
+        expect(row.trigger?.entryPoint).toEqual({
+            label: "POST /products/[string productId]/questions",
+            documentUri: HTTP_BAL,
+            position: { startLine: 6, startColumn: 0, endLine: 7, endColumn: 1 },
+        });
+        expect(row.trigger).toMatchObject({ serviceName: "/support-api", position: { startLine: 5 } });
+    });
+
+    it("offers the service and its listener when the endpoint is all the service holds", () => {
+        const trigger = httpRows(supportApi)[0].trigger;
+
+        expect(trigger?.orphansService).toBe(true);
+        expect(trigger?.listeners.map((listener) => listener.symbol)).toEqual(["httpListener"]);
+    });
+
+    it("keeps the service when another endpoint would be left behind", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [
+                ...supportApi.resourceFunctions,
+                { accessor: "get", path: "health", location: { filePath: HTTP_BAL, ...range(20) },
+                    connections: [] },
+            ],
+        });
+
+        expect(rows.map((row) => row.label)).toEqual(["POST /products/[string productId]/questions"]);
+        expect(rows[0].trigger?.orphansService).toBe(false);
+    });
+
+    it("keeps the service when it holds members the endpoint does not own", () => {
+        const rows = httpRows({
+            ...supportApi,
+            functions: [{ name: "init", location: { filePath: HTTP_BAL, ...range(8) }, connections: [] }],
+        });
+
+        expect(rows[0].trigger?.orphansService).toBe(false);
+    });
+
+    it("gives each endpoint its own entry point to delete", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [
+                ...supportApi.resourceFunctions,
+                { accessor: "get", path: "summary", location: { filePath: HTTP_BAL, ...range(20) },
+                    connections: [AGENT_UUID] },
+            ],
+        });
+
+        expect(rows.map((row) => row.trigger?.entryPoint?.label)).toEqual([
+            "POST /products/[string productId]/questions",
+            "GET /summary",
+        ]);
+        expect(rows.every((row) => row.trigger?.orphansService === false)).toBe(true);
+    });
+
+    it("leaves a service reached only through a private helper alone", () => {
+        const rows = httpRows({
+            ...supportApi,
+            resourceFunctions: [{ ...supportApi.resourceFunctions[0], connections: [] }],
+            functions: [{ name: "askAgent", location: { filePath: HTTP_BAL, ...range(9) },
+                connections: [AGENT_UUID] }],
+        });
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0].trigger).toBeUndefined();
+    });
+
+    it("still takes a chat channel down as a whole service", () => {
+        const trigger = findAgentUsages(triggerModel, { filePath: AGENTS_BAL, startLine: 4 }, CHANNELS)
+            .find((usage) => usage.label === "onMessages")?.trigger;
+
+        expect(trigger?.entryPoint).toBeUndefined();
+        expect(trigger?.orphansService).toBeUndefined();
     });
 });
 

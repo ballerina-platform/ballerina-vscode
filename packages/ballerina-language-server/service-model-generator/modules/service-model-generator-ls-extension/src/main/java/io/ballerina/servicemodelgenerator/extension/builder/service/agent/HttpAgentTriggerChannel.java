@@ -106,6 +106,11 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public AgentTriggerDeletionScope deletionScope() {
+        return AgentTriggerDeletionScope.ENTRY_POINT;
+    }
+
+    @Override
     public List<String> imports() {
         return List.of();
     }

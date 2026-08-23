@@ -33,20 +33,23 @@ package io.ballerina.servicemodelgenerator.extension.model;
  * @param listenerProtocol     the protocol its listener speaks
  * @param icon                 the icon reference shown for this trigger
  * @param agentTriggerKind     how this trigger calls an agent, or {@code null} when it cannot
+ * @param deletionScope        what removing this trigger takes with it, or {@code null} when it cannot
+ *                             call an agent
  */
 public record TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                                String version, String type, String displayName, String documentation,
-                               String listenerProtocol, String icon, String agentTriggerKind) {
+                               String listenerProtocol, String icon, String agentTriggerKind,
+                               String deletionScope) {
 
     public TriggerBasicInfo(int id, String name, String orgName, String packageName, String moduleName,
                             String version, String type, String displayName, String documentation,
                             String listenerProtocol, String icon) {
         this(id, name, orgName, packageName, moduleName, version, type, displayName, documentation,
-                listenerProtocol, icon, null);
+                listenerProtocol, icon, null, null);
     }
 
-    public TriggerBasicInfo withAgentTriggerKind(String kind) {
+    public TriggerBasicInfo withAgentTrigger(String kind, String scope) {
         return new TriggerBasicInfo(id, name, orgName, packageName, moduleName, version, type, displayName,
-                documentation, listenerProtocol, icon, kind);
+                documentation, listenerProtocol, icon, kind, scope);
     }
 }

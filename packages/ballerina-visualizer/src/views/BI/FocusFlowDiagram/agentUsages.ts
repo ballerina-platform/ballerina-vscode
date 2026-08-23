@@ -16,7 +16,15 @@
  * under the License.
  */
 
-import { AgentUsage, AgentUsageTrigger, CDLocation, CDModel, CDService, NodePosition } from "@wso2/ballerina-core";
+import {
+    AgentTriggerDeletionScope,
+    AgentUsage,
+    AgentUsageTrigger,
+    CDLocation,
+    CDModel,
+    CDService,
+    NodePosition,
+} from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
 
 function toPosition(location: CDLocation): NodePosition {
@@ -103,6 +111,21 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     };
 }
 
+function entryPointTrigger(
+    service: CDService,
+    trigger: AgentUsageTrigger,
+    label: string,
+    location: CDLocation
+): AgentUsageTrigger {
+    return {
+        ...trigger,
+        entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
+        orphansService:
+            (service.resourceFunctions?.length ?? 0) + (service.remoteFunctions?.length ?? 0) === 1 &&
+            (service.functions?.length ?? 0) === 0,
+    };
+}
+
 function agentCallSite(service: CDService, uuid: string, entryPoints: number): CDLocation | undefined {
     if (entryPoints !== 1) {
         return undefined;
@@ -111,16 +134,26 @@ function agentCallSite(service: CDService, uuid: string, entryPoints: number): C
     return helpers.length === 1 ? helpers[0].location : undefined;
 }
 
-function usagesForService(service: CDService, uuid: string, trigger?: AgentUsageTrigger): AgentUsage[] {
+function usagesForService(
+    model: CDModel,
+    service: CDService,
+    uuid: string,
+    scope?: AgentTriggerDeletionScope
+): AgentUsage[] {
     const label = serviceLabel(service);
     const name = serviceName(service);
     const isAgentChat = modulePrefix(service.type) === "ai";
+    const trigger = scope ? triggerFor(model, service) : undefined;
+    const serviceTrigger = scope === "ENTRY_POINT" ? undefined : trigger;
+    const scopedTrigger = (rowLabel: string, location: CDLocation) =>
+        scope === "ENTRY_POINT" ? entryPointTrigger(service, trigger, rowLabel, location) : trigger;
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
         if (resource.connections?.includes(uuid)) {
+            const rowLabel = isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path);
             usages.push({
-                label: isAgentChat ? "Agent Chat" : resourceLabel(resource.accessor, resource.path),
+                label: rowLabel,
                 serviceLabel: label,
                 serviceName: name,
                 functionName: resourcePath(resource.path),
@@ -129,7 +162,7 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
                 icon: service.icon,
                 documentUri: resource.location.filePath,
                 position: toPosition(resource.location),
-                trigger,
+                trigger: scopedTrigger(rowLabel, resource.location),
             });
         }
     }
@@ -146,7 +179,7 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
                 icon: service.icon,
                 documentUri: fn.location.filePath,
                 position: toPosition(fn.location),
-                trigger,
+                trigger: scopedTrigger(fn.name, fn.location),
             });
         }
     }
@@ -166,7 +199,7 @@ function usagesForService(service: CDService, uuid: string, trigger?: AgentUsage
             icon: service.icon,
             documentUri: service.location.filePath,
             position: toPosition(service.location),
-            trigger,
+            trigger: serviceTrigger,
         });
     }
 
@@ -203,7 +236,11 @@ function groupByChannel(services: CDService[]): CDService[] {
     return [...services].sort((a, b) => order.get(modulePrefix(a.type)) - order.get(modulePrefix(b.type)));
 }
 
-export function findAgentUsages(model: CDModel, agent: AgentRef, triggerProtocols?: Set<string>): AgentUsage[] {
+export function findAgentUsages(
+    model: CDModel,
+    agent: AgentRef,
+    triggerScopes?: AgentTriggerScopes
+): AgentUsage[] {
     const uuid = model && findAgentUuid(model, agent);
     if (!uuid) {
         return [];
@@ -213,9 +250,8 @@ export function findAgentUsages(model: CDModel, agent: AgentRef, triggerProtocol
         .filter((service) => service.connections?.includes(uuid))
         .filter((service) => !isGeneratedChatService(service.location?.filePath));
 
-    const usages = groupByChannel(services)
-        .flatMap((service) => usagesForService(service, uuid,
-            triggerProtocols?.has(modulePrefix(service.type)) ? triggerFor(model, service) : undefined));
+    const usages = groupByChannel(services).flatMap((service) =>
+        usagesForService(model, service, uuid, triggerScopes?.get(modulePrefix(service.type))));
 
     const automation = model.automation;
     if (automation?.connections?.includes(uuid)) {
@@ -245,19 +281,18 @@ export function setCachedUsages(key: string, usages: AgentUsage[]): void {
     usageCache.set(key, usages);
 }
 
-let triggerProtocols: Set<string> | undefined;
+export type AgentTriggerScopes = Map<string, AgentTriggerDeletionScope>;
 
-const UNDELETABLE_PROTOCOLS = new Set(["http"]);
+let triggerScopes: AgentTriggerScopes | undefined;
 
-export async function getAgentTriggerProtocols(rpcClient: BallerinaRpcClient): Promise<Set<string>> {
-    if (!triggerProtocols) {
+export async function getAgentTriggerScopes(rpcClient: BallerinaRpcClient): Promise<AgentTriggerScopes> {
+    if (!triggerScopes) {
         const models = await rpcClient.getServiceDesignerRpcClient().getTriggerModels({ query: "" });
-        triggerProtocols = new Set(
+        triggerScopes = new Map(
             (models?.local ?? [])
-                .filter((trigger) => trigger.agentTriggerKind && trigger.listenerProtocol)
-                .map((trigger) => trigger.listenerProtocol)
-                .filter((protocol) => !UNDELETABLE_PROTOCOLS.has(protocol))
+                .filter((trigger) => trigger.agentTriggerKind && trigger.listenerProtocol && trigger.deletionScope)
+                .map((trigger) => [trigger.listenerProtocol, trigger.deletionScope])
         );
     }
-    return triggerProtocols;
+    return triggerScopes;
 }

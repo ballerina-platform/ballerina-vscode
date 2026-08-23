@@ -32,6 +32,7 @@ import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
+import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
 import io.ballerina.tools.text.TextDocuments;
@@ -853,6 +854,23 @@ public class AgentTriggerGenerationTest {
                         + "kept the picker to a curated few");
         Assert.assertEquals(AgentTriggerChannels.kindOf("ballerinax", "whatsapp.business", "event"), "CHAT",
                 "a chat channel owns its reply path, so it keeps its own implementation");
+    }
+
+    @Test
+    public void testOnlyAnHttpEndpointIsDeletableOnItsOwn() {
+        Assert.assertEquals(stamped("ballerina", "http", "agent-http").deletionScope(), "ENTRY_POINT",
+                "an http resource returns the answer inline, so it owns no reply method to orphan");
+        Assert.assertEquals(stamped("ballerinax", "telegram", "event").deletionScope(), "SERVICE",
+                "a chat channel's handler offloads to a reply method and a client field in the same service");
+        Assert.assertEquals(stamped("ballerinax", "kafka", "event").deletionScope(), "SERVICE",
+                "an event handler offloads the same way, and it is not registered anywhere");
+        Assert.assertNull(stamped("ballerina", "ftp", "file").deletionScope(),
+                "a trigger that cannot call an agent carries no scope to act on");
+    }
+
+    private static TriggerBasicInfo stamped(String orgName, String moduleName, String type) {
+        return AgentTriggerChannels.withAgentKind(new TriggerBasicInfo(0, moduleName, orgName, moduleName,
+                moduleName, "1.0.0", type, moduleName, "", moduleName, ""));
     }
 
     @Test

@@ -176,6 +176,14 @@ export type AgentUsageTrigger = {
     documentUri: string;
     position: NodePosition;
     listeners: AgentUsageTriggerListener[];
+    entryPoint?: AgentUsageTriggerEntryPoint;
+    orphansService?: boolean;
+};
+
+export type AgentUsageTriggerEntryPoint = {
+    label: string;
+    documentUri: string;
+    position: NodePosition;
 };
 
 export type AgentUsageTriggerListener = {

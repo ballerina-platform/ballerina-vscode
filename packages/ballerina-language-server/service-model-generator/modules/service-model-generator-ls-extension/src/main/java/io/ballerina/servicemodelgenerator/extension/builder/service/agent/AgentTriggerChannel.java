@@ -42,6 +42,10 @@ public interface AgentTriggerChannel {
 
     AgentTriggerKind kind();
 
+    default AgentTriggerDeletionScope deletionScope() {
+        return AgentTriggerDeletionScope.SERVICE;
+    }
+
     default Map<String, Value> additionalProperties() {
         return Map.of();
     }
