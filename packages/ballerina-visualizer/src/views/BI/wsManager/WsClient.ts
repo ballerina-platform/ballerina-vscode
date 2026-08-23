@@ -34,6 +34,8 @@ import {
     MigrationToolPullRequest,
     OpenMigrationReportRequest,
     OpenSubProjectReportRequest,
+    ProjectFileRequest,
+    ProjectFileResponse,
     ProjectMigrationResult,
     SaveMigrationReportRequest,
     ScaffoldIntegrationProjectResponse,
@@ -175,8 +177,8 @@ export class BiWsClient {
         return this.request("selectFileOrDirPath", params);
     }
 
-    public selectProjectRelativeFile(params: any): Promise<any> {
-        return this.request("selectProjectRelativeFile", params);
+    public selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
+        return this.request<ProjectFileResponse>("selectProjectRelativeFile", params);
     }
 
     public selectFileOrFolderPath(): Promise<any> {

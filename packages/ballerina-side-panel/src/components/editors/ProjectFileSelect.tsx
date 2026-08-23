@@ -34,7 +34,7 @@ interface DropdownEditorProps {
 /**
  * A FILE_SELECT sibling for fields that must resolve to a path relative to the current
  * integration (e.g. platform-dependency JARs) — a file picked from outside the integration is
- * copied into it (under `resources/` by default) rather than merely validated. Kept as its own
+ * copied into it (under `libs/` by default) rather than merely validated. Kept as its own
  * component, deliberately not a shared refactor of {@link FileSelect}: that component's
  * `selectFileOrDirPath` RPC is also used by OpenAPI-spec import and MCP cert/keystore pickers,
  * none of which want copy-into-project semantics.
@@ -42,7 +42,7 @@ interface DropdownEditorProps {
 export function ProjectFileSelect(props: DropdownEditorProps) {
     const { field } = props;
     const { form } = useFormContext();
-    const { setValue, control } = form;
+    const { setValue, setError, control } = form;
 
     const { rpcClient } = useRpcContext();
 
@@ -58,6 +58,7 @@ export function ProjectFileSelect(props: DropdownEditorProps) {
             }
         } catch (error) {
             console.error(">>> Error selecting the file", error);
+            setError(field.key, { type: "file_select_failed", message: `Failed to select ${field.label}. Please try again.` });
         }
     };
 

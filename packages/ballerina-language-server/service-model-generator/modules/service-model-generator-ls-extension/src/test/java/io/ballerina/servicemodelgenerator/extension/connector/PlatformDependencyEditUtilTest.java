@@ -120,6 +120,35 @@ public class PlatformDependencyEditUtilTest {
     }
 
     @Test
+    public void testPathContainingQuoteIsEscaped() throws URISyntaxException {
+        Project project = load("platform_dependency/no_dependency");
+        Map<String, List<TextEdit>> edits = new HashMap<>();
+
+        PlatformDependencyEditUtil.addIfMissing(edits, project, SAP_JCO, "./resources/sap\"jco3.jar");
+
+        TextEdit tomlEdit = edits.values().iterator().next().get(0);
+        Assert.assertTrue(tomlEdit.getNewText().contains("path = \"./resources/sap\\\"jco3.jar\""),
+                "a double quote in the path must be escaped so the generated TOML stays valid");
+    }
+
+    @Test
+    public void testDriverDependencyWithBackslashAndNewlineIsEscaped() throws URISyntaxException {
+        Project project = load("platform_dependency/no_dependency");
+        Map<String, List<TextEdit>> edits = new HashMap<>();
+        DriverDependency hostile = new DriverDependency("com.sap\\evil", "com.sap.conn.jco", "3.1.*\n",
+                "provided");
+
+        PlatformDependencyEditUtil.addIfMissing(edits, project, hostile, "libs/sapjco3.jar");
+
+        TextEdit tomlEdit = edits.values().iterator().next().get(0);
+        Assert.assertTrue(tomlEdit.getNewText().contains("groupId = \"com.sap\\\\evil\""),
+                "a backslash in a dependency field must be escaped so the generated TOML stays valid");
+        Assert.assertTrue(tomlEdit.getNewText().contains("version = \"3.1.*\\n\""),
+                "a newline in a dependency field must be escaped so the generated TOML stays valid, not break "
+                        + "the line");
+    }
+
+    @Test
     public void testNoDuplicateWhenAlreadyDeclared() throws URISyntaxException {
         Project project = load("platform_dependency/already_declared");
         Map<String, List<TextEdit>> edits = new HashMap<>();

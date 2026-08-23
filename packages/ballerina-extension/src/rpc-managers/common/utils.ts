@@ -20,7 +20,7 @@ import * as os from 'os';
 import { NodePosition } from "@wso2/syntax-tree";
 import { StateMachine } from "../../stateMachine";
 import { Position, Progress, Range, Uri, ViewColumn, window, workspace, WorkspaceEdit } from "vscode";
-import { isSamePath, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
+import { isPathInside, isSamePath, PROJECT_KIND, ProjectInfo, TextEdit, WorkspaceTypeResponse } from "@wso2/ballerina-core";
 import axios from 'axios';
 import fs from 'fs';
 import * as path from 'path';
@@ -165,7 +165,11 @@ export function nextAvailablePath(filePath: string): string {
  * files with the same name.
  */
 export async function copyIntoIntegration(root: string, src: string, targetDir: string): Promise<string | undefined> {
-    const destDir = path.join(root, targetDir);
+    const destDir = path.resolve(path.join(root, targetDir));
+    if (!isPathInside(root, destDir)) {
+        window.showErrorMessage(`Invalid target directory: ${targetDir}`);
+        return undefined;
+    }
     try {
         fs.mkdirSync(destDir, { recursive: true });
     } catch (error) {

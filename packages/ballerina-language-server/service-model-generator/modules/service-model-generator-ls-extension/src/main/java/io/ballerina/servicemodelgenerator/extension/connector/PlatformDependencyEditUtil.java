@@ -223,13 +223,33 @@ public final class PlatformDependencyEditUtil {
         Position dependencyStart = new Position(getDependencyStartLine(toml), 0);
         StringBuilder dependencyText = new StringBuilder();
         dependencyText.append(String.format("[[platform.java21.dependency]]%npath = \"%s\"%ngroupId = \"%s\"%n"
-                        + "artifactId = \"%s\"%nversion = \"%s\"%n", relativePath, dependency.getGroupId(),
-                dependency.getArtifactId(), dependency.getVersion()));
+                        + "artifactId = \"%s\"%nversion = \"%s\"%n", tomlString(relativePath),
+                tomlString(dependency.getGroupId()), tomlString(dependency.getArtifactId()),
+                tomlString(dependency.getVersion())));
         if (dependency.getScope() != null && !dependency.getScope().isBlank()) {
-            dependencyText.append(String.format("scope = \"%s\"%n", dependency.getScope()));
+            dependencyText.append(String.format("scope = \"%s\"%n", tomlString(dependency.getScope())));
         }
         dependencyText.append(String.format("%n"));
         return new TextEdit(new Range(dependencyStart, dependencyStart), dependencyText.toString());
+    }
+
+    /** Escapes a value for a TOML basic string ({@code "..."}), per the TOML spec's escape rules. */
+    private static String tomlString(String raw) {
+        StringBuilder escaped = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            switch (c) {
+                case '\\' -> escaped.append("\\\\");
+                case '"' -> escaped.append("\\\"");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                default -> escaped.append(c);
+            }
+        }
+        return escaped.toString();
     }
 
     private static int getDependencyStartLine(BallerinaToml toml) {

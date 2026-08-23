@@ -35,20 +35,23 @@ jest.mock("@wso2/ballerina-rpc-client", () => {
     return { __esModule: true, useRpcContext: h.useRpcContext };
 });
 
-const field = (value = ""): FormField =>
-    ({
-        key: "sapJcoDriverPath",
-        label: "SAP JCo Library JAR",
-        type: "PROJECT_FILE_SELECT",
-        value,
-        optional: false,
-        editable: true,
-        enabled: true,
-        documentation: "",
-        types: [{ fieldType: "PROJECT_FILE_SELECT", selected: true, extensions: ["jar"] }],
-    } as unknown as FormField);
+const field = (value = ""): FormField => ({
+    key: "sapJcoDriverPath",
+    label: "SAP JCo Library JAR",
+    type: "PROJECT_FILE_SELECT",
+    value,
+    optional: false,
+    editable: true,
+    enabled: true,
+    documentation: "",
+    types: [{ fieldType: "PROJECT_FILE_SELECT", selected: true, extensions: ["jar"] }],
+});
 
-function renderProjectFileSelect(rpcClient: any, initial = "") {
+type ProjectFileSelectRpcClient = {
+    getCommonRpcClient: () => { selectProjectRelativeFile: jest.Mock };
+};
+
+function renderProjectFileSelect(rpcClient: ProjectFileSelectRpcClient, initial = "") {
     return renderWithForm(
         <TestRpcContext.Provider value={{ rpcClient }}>
             <ProjectFileSelect field={field(initial)} />
@@ -95,5 +98,15 @@ describe("ProjectFileSelect", () => {
 
         await waitFor(() => expect(selectProjectRelativeFile).toHaveBeenCalled());
         expect(getForm().getValues("sapJcoDriverPath")).toBe("./resources/sapjco3.jar");
+    });
+
+    it("surfaces a form error when the RPC call rejects", async () => {
+        const selectProjectRelativeFile = jest.fn().mockRejectedValue(new Error("host unavailable"));
+        const rpcClient = { getCommonRpcClient: () => ({ selectProjectRelativeFile }) };
+        const { getByText, findByText } = renderProjectFileSelect(rpcClient);
+
+        fireEvent.click(getByText("Select File"));
+
+        await findByText(/Failed to select SAP JCo Library JAR/i);
     });
 });
