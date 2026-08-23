@@ -568,11 +568,20 @@ const scatteredChannels = {
 } as unknown as CDModel;
 
 describe("rail ordering", () => {
-    it("keeps rows of the same channel together", () => {
-        const labels = findAgentUsages(scatteredChannels, { filePath: AGENTS_BAL, startLine: 4 })
-            .map((usage) => usage.label);
+    const labelsOf = (model: CDModel) =>
+        findAgentUsages(model, { filePath: AGENTS_BAL, startLine: 4 }).map((usage) => usage.label);
 
-        expect(labels).toEqual(["onAssigned", "onReopened", "Agent Chat", "main"]);
+    it("groups rows by channel, and orders the channels by name", () => {
+        expect(labelsOf(scatteredChannels)).toEqual(["Agent Chat", "onAssigned", "onReopened", "main"]);
+    });
+
+    it("does not depend on the order the design model happens to list services in", () => {
+        const reversed = {
+            ...scatteredChannels,
+            services: [...(scatteredChannels.services ?? [])].reverse(),
+        } as unknown as CDModel;
+
+        expect(labelsOf(reversed)).toEqual(labelsOf(scatteredChannels));
     });
 });
 

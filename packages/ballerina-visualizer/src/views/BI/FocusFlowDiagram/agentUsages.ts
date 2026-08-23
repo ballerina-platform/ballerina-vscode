@@ -247,14 +247,10 @@ function isGeneratedChatService(filePath?: string): boolean {
 }
 
 function groupByChannel(services: CDService[]): CDService[] {
-    const order = new Map<string, number>();
-    services.forEach((service) => {
-        const channel = modulePrefix(service.type);
-        if (!order.has(channel)) {
-            order.set(channel, order.size);
-        }
-    });
-    return [...services].sort((a, b) => order.get(modulePrefix(a.type)) - order.get(modulePrefix(b.type)));
+    return [...services].sort((a, b) =>
+        modulePrefix(a.type).localeCompare(modulePrefix(b.type)) ||
+        (a.location?.filePath ?? "").localeCompare(b.location?.filePath ?? "") ||
+        (a.location?.startLine?.line ?? 0) - (b.location?.startLine?.line ?? 0));
 }
 
 export function findAgentUsages(
