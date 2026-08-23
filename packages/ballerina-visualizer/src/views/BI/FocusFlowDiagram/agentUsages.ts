@@ -20,6 +20,7 @@ import {
     AgentTriggerDeletionScope,
     AgentUsage,
     AgentUsageTrigger,
+    AgentUsageTryIt,
     CDLocation,
     CDModel,
     CDService,
@@ -126,6 +127,19 @@ function entryPointTrigger(
     };
 }
 
+const TRY_IT_PROTOCOLS = new Set(["http", "ai", "graphql", "mcp"]);
+
+function tryItFor(model: CDModel, service: CDService): AgentUsageTryIt | undefined {
+    if (!TRY_IT_PROTOCOLS.has(modulePrefix(service.type))) {
+        return undefined;
+    }
+    const listener = (service.attachedListeners ?? [])
+        .map((uuid) => (model.listeners ?? []).find((listener) => listener.uuid === uuid)?.symbol)
+        .filter(Boolean)
+        .join(",");
+    return { basePath: service.absolutePath?.trim() || "/", listener };
+}
+
 function agentCallSite(service: CDService, uuid: string, entryPoints: number): CDLocation | undefined {
     if (entryPoints !== 1) {
         return undefined;
@@ -147,6 +161,8 @@ function usagesForService(
     const serviceTrigger = scope === "ENTRY_POINT" ? undefined : trigger;
     const scopedTrigger = (rowLabel: string, location: CDLocation) =>
         scope === "ENTRY_POINT" ? entryPointTrigger(service, trigger, rowLabel, location) : trigger;
+    const tryIt = tryItFor(model, service);
+    const isHttp = modulePrefix(service.type) === "http";
     const usages: AgentUsage[] = [];
 
     for (const resource of service.resourceFunctions ?? []) {
@@ -163,6 +179,9 @@ function usagesForService(
                 documentUri: resource.location.filePath,
                 position: toPosition(resource.location),
                 trigger: scopedTrigger(rowLabel, resource.location),
+                tryIt: tryIt && isHttp
+                    ? { ...tryIt, resource: { method: resource.accessor, path: resource.path } }
+                    : tryIt,
             });
         }
     }
@@ -180,6 +199,7 @@ function usagesForService(
                 documentUri: fn.location.filePath,
                 position: toPosition(fn.location),
                 trigger: scopedTrigger(fn.name, fn.location),
+                tryIt,
             });
         }
     }
@@ -200,6 +220,7 @@ function usagesForService(
             documentUri: service.location.filePath,
             position: toPosition(service.location),
             trigger: serviceTrigger,
+            tryIt,
         });
     }
 
@@ -295,4 +316,48 @@ export async function getAgentTriggerScopes(rpcClient: BallerinaRpcClient): Prom
         );
     }
     return triggerScopes;
+}
+
+export function agentCallerProtocols(model: CDModel, agent: AgentRef): string[] {
+    const uuid = model && findAgentUuid(model, agent);
+    if (!uuid) {
+        return [];
+    }
+    return (model.services ?? [])
+        .filter((service) => service.connections?.includes(uuid))
+        .map((service) => modulePrefix(service.type))
+        .filter(Boolean);
+}
+
+const centralScopes = new Map<string, AgentTriggerDeletionScope | undefined>();
+
+export async function resolveTriggerScopes(
+    rpcClient: BallerinaRpcClient,
+    known: AgentTriggerScopes,
+    present: string[]
+): Promise<AgentTriggerScopes> {
+    const unresolved = [...new Set(present)].filter((protocol) => !known.has(protocol) && !centralScopes.has(protocol));
+
+    await Promise.all(unresolved.map(async (protocol) => {
+        try {
+            const models = await rpcClient
+                .getServiceDesignerRpcClient()
+                .searchTriggers({ query: protocol, includeLocalRepository: true });
+            const results = [...(models?.local ?? []), ...(models?.localRepositoryResults ?? [])];
+            const match = results.some((trigger) => trigger.listenerProtocol === protocol);
+            centralScopes.set(protocol, match ? "SERVICE" : undefined);
+        } catch (error) {
+            console.error(`>>> agent focus: could not resolve the trigger protocol '${protocol}'`, error);
+            centralScopes.set(protocol, undefined);
+        }
+    }));
+
+    const resolved = new Map(known);
+    for (const protocol of present) {
+        const scope = centralScopes.get(protocol);
+        if (scope) {
+            resolved.set(protocol, scope);
+        }
+    }
+    return resolved;
 }

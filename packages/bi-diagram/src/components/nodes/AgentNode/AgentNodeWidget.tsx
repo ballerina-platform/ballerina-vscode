@@ -435,6 +435,14 @@ const USAGE_TEXT_RIGHT_X = 190;
 const USAGE_LABEL_CHAR_WIDTH = 7.4;
 const USAGE_SERVICE_CHAR_WIDTH = 7.2;
 const USAGE_MENU_SIZE = 24;
+const USAGE_ROW_HIT_RIGHT_X = 243;
+const USAGE_ROW_HIT_HEIGHT = 48;
+const TOOL_LABEL_X = 110;
+const TOOL_LABEL_CHAR_WIDTH = 7.4;
+const TOOL_LABEL_MAX_CHARS = 21;
+const TOOL_MENU_SIZE = 24;
+const TOOL_MENU_GAP = 6;
+const TOOL_COLUMN_RIGHT_X = 300;
 const NODE_EDGE_LEFT_X = 300;
 const NODE_EDGE_RIGHT_X = 0;
 const EDGE_ADD_DOT_R = 3;
@@ -443,6 +451,15 @@ const EDGE_ADD_PLUS_CX = 31;
 const EDGE_ADD_PLUS_R = 9;
 const EDGE_ADD_LABEL_GAP = 8;
 const EDGE_ADD_HIT_WIDTH = 170;
+
+const toolLabel = (name: string) =>
+    name.length > TOOL_LABEL_MAX_CHARS ? `${name.slice(0, TOOL_LABEL_MAX_CHARS - 3)}...` : name;
+
+const toolMenuX = (name: string) =>
+    Math.min(
+        TOOL_LABEL_X + toolLabel(name).length * TOOL_LABEL_CHAR_WIDTH + TOOL_MENU_GAP,
+        TOOL_COLUMN_RIGHT_X - TOOL_MENU_SIZE - TOOL_MENU_GAP
+    );
 
 const usageFadeIn = (delay: number) => css`
     animation: ${usageRowFadeIn} 260ms ease-out both;
@@ -757,6 +774,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         handleUsageMenuClose();
     };
 
+    const onTryTrigger = (usage: AgentUsage) => {
+        agentNode?.onTryTrigger?.(usage, model.node);
+        handleUsageMenuClose();
+    };
+
     const onAddBreakpoint = () => {
         addBreakpoint && addBreakpoint(model.node);
         setAnchorEl(null);
@@ -870,15 +892,29 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
     const canDeleteTrigger = (usage: AgentUsage) =>
         !readOnly && Boolean(usage.trigger) && Boolean(agentNode?.onDeleteTrigger);
 
-    const usageMenuX = (usage: AgentUsage) => {
+    const canTryTrigger = (usage: AgentUsage) =>
+        !readOnly && Boolean(usage.tryIt) && Boolean(agentNode?.onTryTrigger);
+
+    const hasUsageMenu = (usage: AgentUsage) => canTryTrigger(usage) || canDeleteTrigger(usage);
+
+    const tryTriggerLabel = (usage: AgentUsage) =>
+        (usage.type?.split(":")[0] ?? usage.type) === "ai" ? "Chat" : "Try It";
+
+    const usageTextWidth = (usage: AgentUsage) => {
         const chars = (text: string, limit: number) =>
             Math.min(text.length, limit) + (text.length > limit ? 3 : 0);
         const labelWidth = chars(usage.label, 20) * USAGE_LABEL_CHAR_WIDTH;
         const serviceWidth = usage.serviceLabel
             ? chars(usage.serviceLabel, 24) * USAGE_SERVICE_CHAR_WIDTH
             : 0;
-        return Math.max(0, USAGE_TEXT_RIGHT_X - Math.max(labelWidth, serviceWidth) - USAGE_MENU_SIZE - 4);
+        return Math.max(labelWidth, serviceWidth);
     };
+
+    const usageMenuX = (usage: AgentUsage) =>
+        Math.max(0, USAGE_TEXT_RIGHT_X - usageTextWidth(usage) - USAGE_MENU_SIZE - 4);
+
+    const usageRowHitX = (usage: AgentUsage) =>
+        hasUsageMenu(usage) ? usageMenuX(usage) : Math.max(0, USAGE_TEXT_RIGHT_X - usageTextWidth(usage));
 
     const agentUsageOptions = { canAddTrigger: Boolean(agentNode?.onAddTrigger) };
     const showsAddTile = !readOnly && showsAddTriggerTile(agentWidgetType, agentUsageOptions);
@@ -932,7 +968,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         transform={`translate(0, ${index * AGENT_USAGE_ROW_PITCH})`}
                         onClick={() => onUsageClick(usage)}
                         onContextMenu={(event) => {
-                            if (canDeleteTrigger(usage)) {
+                            if (hasUsageMenu(usage)) {
                                 event.preventDefault();
                                 handleUsageMenuClick(event as any, usage);
                             }
@@ -942,7 +978,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             > g {
                                 ${animateUsages ? usageFadeIn(index * 70) : ""}
                             }
-                            &:hover rect:first-of-type {
+                            &:hover .usage-square {
                                 stroke: ${ThemeColors.SECONDARY};
                             }
                             &:hover text {
@@ -955,8 +991,17 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                         `}
                     >
                         <g>
+                            <rect
+                                x={usageRowHitX(usage)}
+                                y="0"
+                                width={USAGE_ROW_HIT_RIGHT_X - usageRowHitX(usage)}
+                                height={USAGE_ROW_HIT_HEIGHT}
+                                fill="transparent"
+                                style={{ pointerEvents: "all" }}
+                            />
                             {/* Square marks an inbound caller; tools and the model stay circles. */}
                             <rect
+                                className="usage-square"
                                 x="198"
                                 y="2"
                                 width="44"
@@ -1058,7 +1103,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 `}
                             />
 
-                            {canDeleteTrigger(usage) && (
+                            {hasUsageMenu(usage) && (
                                 <foreignObject
                                     x={usageMenuX(usage)}
                                     y="12"
@@ -1116,12 +1161,22 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                     sx={{ padding: 0, borderRadius: 0 }}
                 >
                     <Menu>
-                        {selectedUsage && (
+                        {selectedUsage && canTryTrigger(selectedUsage) && (
+                            <MenuItem
+                                key="try-trigger"
+                                item={{
+                                    id: "tryTrigger",
+                                    label: tryTriggerLabel(selectedUsage),
+                                    onClick: () => onTryTrigger(selectedUsage),
+                                }}
+                            />
+                        )}
+                        {selectedUsage && canDeleteTrigger(selectedUsage) && (
                             <MenuItem
                                 key="delete-trigger"
                                 item={{
                                     id: "deleteTrigger",
-                                    label: "Delete Trigger",
+                                    label: selectedUsage.trigger?.entryPoint ? "Delete Endpoint" : "Delete Trigger",
                                     onClick: () => onDeleteTrigger(selectedUsage),
                                 }}
                             />
@@ -1623,7 +1678,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             </foreignObject>
 
                             <text
-                                x="110"
+                                x={TOOL_LABEL_X}
                                 y="28"
                                 textAnchor="start"
                                 fill={ThemeColors.ON_SURFACE}
@@ -1631,7 +1686,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 fontFamily="GilmerRegular"
                                 dominantBaseline="middle"
                             >
-                                {tool.name.length > 20 ? `${tool.name.slice(0, 20)}...` : tool.name}
+                                {toolLabel(tool.name)}
                                 <title>{tool.name}</title>
                             </text>
 
@@ -1653,10 +1708,10 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                         <div style={{ width: "100%", height: "100%" }} />
                                     </foreignObject>
                                     <foreignObject
-                                        x={tool.name.length > 20 ? 240 : 110 + tool.name.length * 7}
+                                        x={toolMenuX(tool.name)}
                                         y="14"
-                                        width="24"
-                                        height="24"
+                                        width={TOOL_MENU_SIZE}
+                                        height={TOOL_MENU_SIZE}
                                         className="tool-menu-button"
                                         css={css`
                                         opacity: 0;

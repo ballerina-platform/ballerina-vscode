@@ -54,7 +54,16 @@ import { AgentEditorPanelContent, getAgentEditorPanelTitle } from "../AIChatAgen
 import { AgentEditorView, useAgentEditorController } from "../AIChatAgent/useAgentEditorController";
 import { goToAgent, goToAgentDefinitionFromInstance, resolveAgentDefinitionLocation, startAddAgentTrigger, startAgentChat } from "../AIChatAgent/utils";
 import { buildAgentRenderNode, withAgentUsages } from "./agent";
-import { findAgentUsages, findListenerPosition, getAgentTriggerScopes, getCachedUsages, setCachedUsages, usageCacheKey } from "./agentUsages";
+import {
+    agentCallerProtocols,
+    findAgentUsages,
+    findListenerPosition,
+    getAgentTriggerScopes,
+    getCachedUsages,
+    resolveTriggerScopes,
+    setCachedUsages,
+    usageCacheKey,
+} from "./agentUsages";
 
 const sameUsages = (a: AgentUsage[], b: AgentUsage[]) =>
     a.length === b.length &&
@@ -295,7 +304,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             const contentAtStart = usagesContentRef.current;
             try {
                 const location = await rpcClient.getVisualizerLocation();
-                const [response, triggerScopes] = await Promise.all([
+                const [response, localScopes] = await Promise.all([
                     rpcClient.getBIDiagramRpcClient().getDesignModel({ projectPath: location?.projectPath }),
                     getAgentTriggerScopes(rpcClient),
                 ]);
@@ -307,13 +316,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
                     setUsagesLoading(false);
                     return;
                 }
-                const usages = findAgentUsages(response.designModel, {
+                const agentRef = {
                     filePath,
                     startLine: pos.startLine,
                     symbol: typeof renderNode.properties?.variable?.value === "string"
                         ? renderNode.properties.variable.value.trim()
                         : undefined,
-                }, triggerScopes);
+                };
+                const triggerScopes = await resolveTriggerScopes(
+                    rpcClient, localScopes, agentCallerProtocols(response.designModel, agentRef));
+                if (requestId !== usageRequestIdRef.current || usagesContentRef.current !== contentAtStart) {
+                    return;
+                }
+                const usages = findAgentUsages(response.designModel, agentRef, triggerScopes);
                 usagesDirtyRef.current = false;
                 const previous = getCachedUsages(key);
                 setCachedUsages(key, usages);
@@ -369,6 +384,19 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
             return "endpoint";
         }
         return choice === withService ? "service" : undefined;
+    };
+
+    const tryAgentTrigger = async (usage: AgentUsage) => {
+        const tryIt = usage.tryIt;
+        if (!tryIt) {
+            return;
+        }
+        const resource = tryIt.resource
+            ? { methodValue: tryIt.resource.method, pathValue: tryIt.resource.path }
+            : undefined;
+        await rpcClient.getCommonRpcClient().executeCommand({
+            commands: ["ballerina.tryIt", false, resource, { basePath: tryIt.basePath, listener: tryIt.listener }],
+        });
     };
 
     const deleteAgentTrigger = async (usage: AgentUsage) => {
@@ -1048,6 +1076,7 @@ export function BIFocusFlowDiagram(props: BIFocusFlowDiagramProps) {
         onChat: (node) => startAgentChat(node, filePath, rpcClient),
         onAddTrigger: (node) => startAddAgentTrigger(node, rpcClient),
         onDeleteTrigger: (usage) => void deleteAgentTrigger(usage),
+        onTryTrigger: (usage) => void tryAgentTrigger(usage),
     });
 
     const isAgentPanelOpen = agentPanel !== "NONE" || showConnectionPanel || agentEditor.view !== "NONE";

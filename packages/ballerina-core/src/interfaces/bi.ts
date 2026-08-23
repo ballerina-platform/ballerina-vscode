@@ -169,6 +169,18 @@ export type AgentUsage = {
     documentUri: string;
     position: NodePosition;
     trigger?: AgentUsageTrigger;
+    tryIt?: AgentUsageTryIt;
+};
+
+export type AgentUsageTryIt = {
+    basePath: string;
+    listener: string;
+    resource?: AgentUsageTryItResource;
+};
+
+export type AgentUsageTryItResource = {
+    method: string;
+    path: string;
 };
 
 export type AgentUsageTrigger = {
