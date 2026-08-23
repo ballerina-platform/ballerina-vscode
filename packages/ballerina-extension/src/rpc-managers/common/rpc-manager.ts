@@ -259,9 +259,13 @@ export class CommonRpcManager implements CommonRPCAPI {
      * A FILE_SELECT variant for fields (e.g. platform-dependency JARs) that must end up as a path
      * relative to the current integration. Unlike {@link selectFileOrDirPath}, this never prompts
      * "move it inside the project?" — a file outside the integration is copied into
-     * `<integration>/<targetDir>` (default "resources") automatically, and the resolved
+     * `<integration>/<targetDir>` (default "libs") automatically, and the resolved
      * integration-relative path is returned. A file already inside the integration is left in
      * place; only its path is relativized.
+     *
+     * The default is "libs", not "resources" — the latter is a reserved Ballerina package
+     * directory whose contents get bundled into the BALA/executable as module resources, which
+     * would ship a provided-scope dependency JAR inside the build artifact.
      */
     async selectProjectRelativeFile(params: ProjectFileRequest): Promise<ProjectFileResponse> {
         const selectedFile = await askFilePath(params.filters);
@@ -278,7 +282,7 @@ export class CommonRpcManager implements CommonRPCAPI {
             return { path: toIntegrationRelative(root, picked), absolutePath: picked };
         }
 
-        const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "resources");
+        const dest = await copyIntoIntegration(root, picked, params.targetDir ?? "libs");
         if (!dest) {
             return { path: "" };
         }

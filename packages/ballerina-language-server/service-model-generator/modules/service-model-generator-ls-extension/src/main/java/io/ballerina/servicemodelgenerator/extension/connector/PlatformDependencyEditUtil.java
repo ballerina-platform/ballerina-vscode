@@ -43,6 +43,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Registers a connector-required driver JAR (e.g. SAP JCo) as a {@code [[platform.java21.dependency]]}
+ * in {@code Ballerina.toml}. Bridges a {@link Value} field's {@link DriverDependency} codedata
+ * (populated by {@link #overlayDriverDependencies}) to the TOML text edit that declares it
+ * (emitted by {@link #addDriverDependenciesIfPresent}/{@link #addIfMissing}), checking the existing
+ * TOML first so a dependency already declared is neither duplicated nor re-prompted for.
+ *
+ * @since 1.8.0
+ */
 public final class PlatformDependencyEditUtil {
 
     private static final String TABLE_ARRAY_NAME = "platform.java21.dependency";

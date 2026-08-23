@@ -147,6 +147,8 @@ public record TriggerUISchemaModel(
      * @param template      the composition template applied to the bound element
      * @param formats       the data-binding formats offered, when applicable
      * @param validations   the validation rules applied to this candidate
+     * @param extensions    the file extensions offered by a FILE_SELECT/PROJECT_FILE_SELECT candidate
+     *                      (e.g. {@code [".jar"]}), when applicable
      */
     public record PropertyType(
             String fieldType,
@@ -156,7 +158,15 @@ public record TriggerUISchemaModel(
             List<TypeMember> typeMembers,
             Object template,
             List<PayloadFormat> formats,
-            List<ValidationRule> validations) {
+            List<ValidationRule> validations,
+            List<String> extensions) {
+
+        /** Compatibility constructor for existing call sites predating {@code extensions}. */
+        public PropertyType(String fieldType, boolean selected, String ballerinaType, List<Option> options,
+                             List<TypeMember> typeMembers, Object template, List<PayloadFormat> formats,
+                             List<ValidationRule> validations) {
+            this(fieldType, selected, ballerinaType, options, typeMembers, template, formats, validations, null);
+        }
     }
 
     /**
@@ -327,6 +337,14 @@ public record TriggerUISchemaModel(
      *                       elsewhere, so only the bound type is user-selected. Defaults to editable
      *                       when unset.
      * @param bindingGroup   the binding-group id this parameter shares with any sibling parameters
+     * @param driverDependency the Maven coordinates of a required-but-unbundled driver JAR this
+     *                         PROJECT_FILE_SELECT field registers as a
+     *                         {@code [[platform.java21.dependency]]} in Ballerina.toml. Kept as an
+     *                         open {@code Object} (like {@code modifiers}) rather than a typed
+     *                         {@code DriverDependency}, since this module is a dependency of, and so
+     *                         cannot reference a type owned by, the service-model-generator module;
+     *                         the shape survives the Gson round-trip into that module's own
+     *                         {@code Codedata}.
      */
     public record Codedata(
             String type,
@@ -354,7 +372,21 @@ public record TriggerUISchemaModel(
             String group,
             String variantLabel,
             Boolean nameEditable,
-            String bindingGroup) {
+            String bindingGroup,
+            Object driverDependency) {
+
+        /** Compatibility constructor for existing call sites predating {@code driverDependency}. */
+        public Codedata(String type, String argType, String originalName, String moduleName, String orgName,
+                         String packageName, Integer position, String path, String defaultType, String boundType,
+                         Boolean bindable, String bindingKind, String typeConstraint, String template,
+                         String modifier, List<String> supersedes, String targetParam, Object modifiers,
+                         String field, Boolean optional, String value, String valueQualifier, String group,
+                         String variantLabel, Boolean nameEditable, String bindingGroup) {
+            this(type, argType, originalName, moduleName, orgName, packageName, position, path, defaultType,
+                    boundType, bindable, bindingKind, typeConstraint, template, modifier, supersedes, targetParam,
+                    modifiers, field, optional, value, valueQualifier, group, variantLabel, nameEditable,
+                    bindingGroup, null);
+        }
 
         public static Builder builder() {
             return new Builder();
@@ -388,6 +420,7 @@ public record TriggerUISchemaModel(
             private String variantLabel;
             private Boolean nameEditable;
             private String bindingGroup;
+            private Object driverDependency;
 
             private Builder() {
             }
@@ -522,11 +555,16 @@ public record TriggerUISchemaModel(
                 return this;
             }
 
+            public Builder driverDependency(Object driverDependency) {
+                this.driverDependency = driverDependency;
+                return this;
+            }
+
             public Codedata build() {
                 return new Codedata(type, argType, originalName, moduleName, orgName, packageName, position, path,
                         defaultType, boundType, bindable, bindingKind, typeConstraint, template, modifier, supersedes,
                         targetParam, modifiers, field, optional, value, valueQualifier, group, variantLabel,
-                        nameEditable, bindingGroup);
+                        nameEditable, bindingGroup, driverDependency);
             }
         }
     }

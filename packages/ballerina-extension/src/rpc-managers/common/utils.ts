@@ -118,8 +118,9 @@ export async function askFileOrFolderPath() {
 /**
  * The Ballerina package (integration) the user is currently working in — the same notion of
  * "current integration" the visualizer state machine tracks. Falls back to walking up from the
- * state machine's project path in case it isn't itself a package root (e.g. a multi-package
- * workspace folder was set as `projectPath`).
+ * state machine's project path in case it is nested inside a package root, then to walking down
+ * in case it is instead a multi-package workspace folder with exactly one package underneath;
+ * either fallback returns `undefined` if it doesn't resolve to a single package.
  */
 export async function resolveIntegrationRoot(): Promise<string | undefined> {
     const projectPath = StateMachine.context()?.projectPath;
@@ -129,7 +130,12 @@ export async function resolveIntegrationRoot(): Promise<string | undefined> {
     if (await checkIsBallerinaPackage(Uri.file(projectPath))) {
         return projectPath;
     }
-    return (await findBallerinaPackageRoot(projectPath)) ?? undefined;
+    const ancestorRoot = await findBallerinaPackageRoot(projectPath);
+    if (ancestorRoot) {
+        return ancestorRoot;
+    }
+    const packages = await getBallerinaPackages(Uri.file(projectPath));
+    return packages.length === 1 ? packages[0] : undefined;
 }
 
 /** `abs`, relative to `root`, `/`-separated and `./`-prefixed (e.g. `./resources/x.jar`). */
