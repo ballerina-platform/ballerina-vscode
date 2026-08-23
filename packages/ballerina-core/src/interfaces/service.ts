@@ -38,7 +38,7 @@ export type ListenerModel = {
 
 export type AgentTriggerKind = "CHAT" | "EVENT" | "HTTP";
 
-export type AgentTriggerDeletionScope = "ENTRY_POINT" | "SERVICE";
+export type AgentTriggerDeletionScope = "ENTRY_POINT" | "ENTRY_POINT_BODY" | "SERVICE";
 
 /**
  * For schema-driven triggers (unified TriggerModel), `functions` and `schemaFunctions` split the

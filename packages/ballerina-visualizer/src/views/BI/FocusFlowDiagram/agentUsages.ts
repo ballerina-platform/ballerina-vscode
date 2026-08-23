@@ -20,10 +20,12 @@ import {
     AgentTriggerDeletionScope,
     AgentUsage,
     AgentUsageTrigger,
+    AgentUsageTriggerListener,
     AgentUsageTryIt,
     CDLocation,
     CDModel,
     CDService,
+    FlowNode,
     NodePosition,
 } from "@wso2/ballerina-core";
 import { BallerinaRpcClient } from "@wso2/ballerina-rpc-client";
@@ -112,18 +114,29 @@ function triggerFor(model: CDModel, service: CDService): AgentUsageTrigger {
     };
 }
 
+function agentHelpers(service: CDService, uuid: string): AgentUsageTriggerListener[] {
+    return (service.functions ?? [])
+        .filter((fn) => fn.connections?.includes(uuid))
+        .map((fn) => ({ symbol: fn.name, documentUri: fn.location.filePath, position: toPosition(fn.location) }));
+}
+
 function entryPointTrigger(
     service: CDService,
     trigger: AgentUsageTrigger,
+    uuid: string,
+    scope: AgentTriggerDeletionScope,
     label: string,
     location: CDLocation
 ): AgentUsageTrigger {
+    const entryPoints = [...(service.resourceFunctions ?? []), ...(service.remoteFunctions ?? [])];
     return {
         ...trigger,
         entryPoint: { label, documentUri: location.filePath, position: toPosition(location) },
-        orphansService:
-            (service.resourceFunctions?.length ?? 0) + (service.remoteFunctions?.length ?? 0) === 1 &&
-            (service.functions?.length ?? 0) === 0,
+        orphansService: scope === "ENTRY_POINT_BODY"
+            ? entryPoints.filter((fn) => fn.connections?.includes(uuid)).length === 1
+            : entryPoints.length === 1 && (service.functions?.length ?? 0) === 0,
+        scope,
+        helpers: scope === "ENTRY_POINT_BODY" ? agentHelpers(service, uuid) : undefined,
     };
 }
 
@@ -158,9 +171,10 @@ function usagesForService(
     const name = serviceName(service);
     const isAgentChat = modulePrefix(service.type) === "ai";
     const trigger = scope ? triggerFor(model, service) : undefined;
-    const serviceTrigger = scope === "ENTRY_POINT" ? undefined : trigger;
+    const memberScoped = scope === "ENTRY_POINT" || scope === "ENTRY_POINT_BODY";
+    const serviceTrigger = memberScoped ? undefined : trigger;
     const scopedTrigger = (rowLabel: string, location: CDLocation) =>
-        scope === "ENTRY_POINT" ? entryPointTrigger(service, trigger, rowLabel, location) : trigger;
+        memberScoped ? entryPointTrigger(service, trigger, uuid, scope, rowLabel, location) : trigger;
     const tryIt = tryItFor(model, service);
     const isHttp = modulePrefix(service.type) === "http";
     const usages: AgentUsage[] = [];
@@ -356,4 +370,88 @@ export async function resolveTriggerScopes(
         }
     }
     return resolved;
+}
+
+export function startLineOf(node: FlowNode): number {
+    return node.codedata?.lineRange?.startLine?.line ?? 0;
+}
+
+export function namesHelper(node: FlowNode, helper: string): boolean {
+    const expression = node.properties?.expression?.value;
+    if (typeof expression !== "string") {
+        return false;
+    }
+    return new RegExp(`(^|[^\\w.])(self\\.)?${helper}\\s*\\(`).test(expression);
+}
+
+export function findServiceHelperPosition(
+    model: CDModel,
+    service: string,
+    helper: string,
+    filePath: string
+): NodePosition | undefined {
+    const owner = (model?.services ?? []).find((candidate) => serviceName(candidate) === service);
+    const fn = (owner?.functions ?? []).find(
+        (candidate) => candidate.name === helper && samePath(candidate.location?.filePath ?? "", filePath));
+    return fn ? toPosition(fn.location) : undefined;
+}
+
+export function deleteComponentAt(
+    rpcClient: BallerinaRpcClient,
+    name: string,
+    documentUri: string,
+    position: NodePosition
+): Promise<unknown> {
+    return rpcClient.getBIDiagramRpcClient().deleteByComponentInfo({
+        filePath: documentUri,
+        component: {
+            name, filePath: documentUri,
+            startLine: position.startLine, startColumn: position.startColumn,
+            endLine: position.endLine, endColumn: position.endColumn,
+        },
+    });
+}
+
+export async function deleteEachResolved(
+    rpcClient: BallerinaRpcClient,
+    targets: AgentUsageTriggerListener[],
+    locate: (model: CDModel, target: AgentUsageTriggerListener) => NodePosition | undefined
+): Promise<void> {
+    for (const target of targets) {
+        const location = await rpcClient.getVisualizerLocation();
+        const model = await rpcClient.getBIDiagramRpcClient()
+            .getDesignModel({ projectPath: location?.projectPath });
+        const position = locate(model?.designModel, target);
+        if (position) {
+            await deleteComponentAt(rpcClient, target.symbol, target.documentUri, position);
+        }
+    }
+}
+
+export async function clearAgentCallFromHandler(
+    rpcClient: BallerinaRpcClient,
+    trigger: AgentUsageTrigger
+): Promise<void> {
+    const entryPoint = trigger.entryPoint;
+    const helpers = trigger.helpers ?? [];
+    const response = await rpcClient.getBIDiagramRpcClient().getFlowModel({
+        filePath: entryPoint.documentUri,
+        startLine: { line: entryPoint.position.startLine, offset: entryPoint.position.startColumn },
+        endLine: { line: entryPoint.position.endLine, offset: entryPoint.position.endColumn },
+    });
+    const calls = (response?.flowModel?.nodes ?? [])
+        .filter((node) => helpers.some((helper) => namesHelper(node, helper.symbol)))
+        .sort((a, b) => startLineOf(b) - startLineOf(a));
+    if (calls.length === 0) {
+        throw new Error(`no agent call found in ${entryPoint.label}`);
+    }
+
+    for (const node of calls) {
+        await rpcClient.getBIDiagramRpcClient().deleteFlowNode({ filePath: entryPoint.documentUri, flowNode: node });
+    }
+
+    await deleteEachResolved(
+        rpcClient,
+        helpers.filter((helper) => calls.some((node) => namesHelper(node, helper.symbol))),
+        (model, helper) => findServiceHelperPosition(model, trigger.serviceName, helper.symbol, helper.documentUri));
 }

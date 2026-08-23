@@ -81,6 +81,11 @@ public class EventAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     @Override
+    public AgentTriggerDeletionScope deletionScope() {
+        return AgentTriggerDeletionScope.ENTRY_POINT_BODY;
+    }
+
+    @Override
     public Map<String, Value> additionalProperties() {
         return Map.of(INSTRUCTIONS, AgentTriggerChannel.instructionsField(
                 "What the agent should do with each event. The event itself is passed along "

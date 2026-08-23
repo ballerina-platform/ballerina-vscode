@@ -1211,8 +1211,10 @@ public class AgentTriggerGenerationTest {
                 "an http resource returns the answer inline, so it owns no reply method to orphan");
         Assert.assertEquals(stamped("ballerinax", "telegram", "event").deletionScope(), "SERVICE",
                 "a chat channel's handler offloads to a reply method and a client field in the same service");
-        Assert.assertEquals(stamped("ballerinax", "kafka", "event").deletionScope(), "SERVICE",
-                "an event handler offloads the same way, and it is not registered anywhere");
+        Assert.assertEquals(stamped("ballerinax", "kafka", "event").deletionScope(), "ENTRY_POINT_BODY",
+                "an event handler is required by its service type, so removing the agent empties it instead");
+        Assert.assertEquals(stamped("ballerinax", "trigger.github", "event").deletionScope(), "ENTRY_POINT_BODY",
+                "one wired handler among required siblings must not take the whole service with it");
         Assert.assertNull(stamped("ballerina", "ftp", "file").deletionScope(),
                 "a trigger that cannot call an agent carries no scope to act on");
     }

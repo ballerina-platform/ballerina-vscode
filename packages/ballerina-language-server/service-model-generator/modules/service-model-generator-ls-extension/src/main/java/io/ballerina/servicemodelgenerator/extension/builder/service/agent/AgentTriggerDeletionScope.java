@@ -20,5 +20,6 @@ package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
 public enum AgentTriggerDeletionScope {
     ENTRY_POINT,
+    ENTRY_POINT_BODY,
     SERVICE
 }

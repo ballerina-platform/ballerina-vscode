@@ -21,7 +21,7 @@ import { LinePosition } from "./common";
 import { Diagnostic as VSCodeDiagnostic } from "vscode-languageserver-types";
 import { ValueTypeConstraint } from "../rpc-types/ai-agent/interfaces";
 import { Type } from "./extended-lang-client";
-import { ValidationResult, ValidationRule } from "./service";
+import { AgentTriggerDeletionScope, ValidationResult, ValidationRule } from "./service";
 
 export type { NodePosition };
 
@@ -190,6 +190,8 @@ export type AgentUsageTrigger = {
     listeners: AgentUsageTriggerListener[];
     entryPoint?: AgentUsageTriggerEntryPoint;
     orphansService?: boolean;
+    scope?: AgentTriggerDeletionScope;
+    helpers?: AgentUsageTriggerListener[];
 };
 
 export type AgentUsageTriggerEntryPoint = {
