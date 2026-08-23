@@ -295,7 +295,7 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Path filePath = Path.of(request.filePath());
-                this.workspaceManager.loadProject(filePath);
+                Project project = this.workspaceManager.loadProject(filePath);
 
                 Optional<Document> document = this.workspaceManager.document(filePath);
                 if (document.isEmpty()) {
@@ -313,7 +313,13 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                 }
                 String listenerDeclaration = listener.getListenerDeclaration();
                 edits.add(new TextEdit(Utils.toRange(lineRange.endLine()), NEW_LINE + listenerDeclaration));
-                return new CommonSourceResponse(Map.of(request.filePath(), edits));
+
+                Map<String, List<TextEdit>> allEdits = new LinkedHashMap<>();
+                allEdits.put(request.filePath(), edits);
+                PlatformDependencyEditUtil.addDriverDependenciesIfPresent(allEdits, project,
+                        listener.getProperties());
+
+                return new CommonSourceResponse(allEdits);
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }
