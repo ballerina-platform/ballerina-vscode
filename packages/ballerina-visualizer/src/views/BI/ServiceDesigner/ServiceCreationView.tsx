@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, LineRange, ParameterModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -253,6 +253,28 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
     }, [model]);
 
+function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
+    const seeded = { ...shaped };
+    if (seeded.name && !seeded.name.value) {
+        seeded.name = { ...seeded.name, value: "." };
+    }
+    if (seeded.accessor) {
+        seeded.accessor = { ...seeded.accessor, value: "POST" };
+    }
+    const payload = (seeded.schema as Record<string, ParameterModel>)?.["payload"];
+    const carries = (seeded.parameters ?? []).some((parameter) => parameter.httpParamType === "PAYLOAD");
+    if (payload && !carries) {
+        seeded.parameters = [...(seeded.parameters ?? []), {
+            ...payload,
+            enabled: true,
+            httpParamType: "PAYLOAD",
+            name: { ...payload.name, value: "query" },
+            type: { ...payload.type, value: "string" },
+        }];
+    }
+    return seeded;
+}
+
     const [endpointModel, setEndpointModel] = useState<FunctionModel>(undefined);
     const [endpointHasErrors, setEndpointHasErrors] = useState(false);
 
@@ -264,11 +286,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             .getHttpResourceModel({ type: "http", functionName: "resource" })
             .then((res) => {
                 if (isMountedRef.current && res?.function) {
-                    const shaped = res.function;
-                    if (shaped.name && !shaped.name.value) {
-                        shaped.name = { ...shaped.name, value: "." };
-                    }
-                    setEndpointModel(shaped);
+                    setEndpointModel(seedAgentEndpoint(res.function));
                 }
             });
     }, [collectEndpointShape, endpointModel]);

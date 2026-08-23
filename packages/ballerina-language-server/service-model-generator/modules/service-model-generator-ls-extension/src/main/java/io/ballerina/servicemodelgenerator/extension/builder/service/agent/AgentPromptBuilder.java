@@ -36,9 +36,7 @@ final class AgentPromptBuilder {
     private static final String STRING_TYPE = "string";
 
     private static final String PROMPT_STATEMENT = """
-            string prompt = string `{{instructions}}
-
-            {{payload}}`;""";
+            string prompt = string `{{instructions}}{{payload}}`;""";
 
     private AgentPromptBuilder() {
     }
@@ -55,12 +53,13 @@ final class AgentPromptBuilder {
         if (carried.isEmpty()) {
             return "";
         }
+        String separator = NEW_LINE + NEW_LINE;
         if (carried.size() == 1) {
-            return soleLabel + ":" + NEW_LINE + interpolate(carried.getFirst());
+            return separator + soleLabel + ":" + NEW_LINE + interpolate(carried.getFirst());
         }
-        return carried.stream()
+        return separator + carried.stream()
                 .map(parameter -> parameter.name() + ":" + NEW_LINE + interpolate(parameter))
-                .collect(Collectors.joining(NEW_LINE + NEW_LINE));
+                .collect(Collectors.joining(separator));
     }
 
     private static String interpolate(HandlerParameter parameter) {

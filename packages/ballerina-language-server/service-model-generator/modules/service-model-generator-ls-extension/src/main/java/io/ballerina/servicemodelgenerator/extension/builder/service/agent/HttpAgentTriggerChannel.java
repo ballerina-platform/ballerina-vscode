@@ -70,8 +70,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String BODY_FIELD = " body;";
     private static final Pattern PATH_PARAM =
             Pattern.compile("^\\[\\s*([A-Za-z_][A-Za-z0-9_:]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*]$");
-    private static final List<String> BINDABLE_SIMPLE_TYPES =
-            List.of(STRING_TYPE, "json", "int", "float", "decimal", "boolean");
+    private static final List<String> STRING_TYPE_ALIASES = List.of(STRING_TYPE, "json", "anydata");
     private static final String LISTENER_TYPE = MODULE_NAME + ":Listener";
     private static final String LISTENER_DECLARATION =
             "listener " + LISTENER_TYPE + " " + LISTENER_VAR_NAME + " = http:getDefaultListener();";
@@ -83,22 +82,26 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
             """;
 
     private static final String DEFAULT_SIGNATURE =
-            "resource function post .(@http:Payload string question) returns string|error ";
+            "resource function post .(@http:Payload string query) returns string|error ";
 
     private static final String RESOURCE = """
             {{signature}}{
-                {{prompt}}
-                {{answerType}}|error response = {{agentRun}};
-            {{return}}}""";
-
-    private static final String RETURN_ANSWER = "    return response;" + NEW_LINE;
-
-    private static final String RETURN_ANSWER_AS_BODY = """
-                if response is error {
-                    return response;
+                do {
+                    {{prompt}}
+                    {{answerType}} answer = check {{agentRun}};
+            {{return}}    } on fail error err {
+                    // handle error
+                    return error("unhandled error", err);
                 }
-                return {body: response};
-            """;
+            }""";
+
+    private static final String RETURN_ANSWER = "        return answer;" + NEW_LINE;
+
+    private static final String RETURN_ANSWER_AS_BODY = "        return {body: answer};" + NEW_LINE;
+
+    private static final String RETURN_ANSWER_UNMAPPED =
+            "        // TODO: map the agent's answer to the declared response type and return it" + NEW_LINE
+            + "        return error(\"response mapping not implemented\", answer = answer);" + NEW_LINE;
 
     @Override
     public AgentTriggerKind kind() {
@@ -204,14 +207,13 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static String defaultResource(AgentTriggerContext context) {
-        return body(context, DEFAULT_SIGNATURE, new Answer(STRING_TYPE, false),
-                List.of(new HandlerParameter(STRING_TYPE, "question", true)));
+        return body(context, DEFAULT_SIGNATURE, new Answer(STRING_TYPE, false, true),
+                List.of(new HandlerParameter(STRING_TYPE, "query", true)));
     }
 
     private static String body(AgentTriggerContext context, String header, Answer answer,
                                List<HandlerParameter> parameters) {
-        String resource = RESOURCE.replace("{{return}}",
-                answer.isBody() ? RETURN_ANSWER_AS_BODY : RETURN_ANSWER);
+        String resource = RESOURCE.replace("{{return}}", returnStatement(answer));
         return AgentTriggerChannel.indent(resource)
                 .replace("{{signature}}", header)
                 .replace("{{answerType}}", answer.type())
@@ -220,7 +222,14 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 .replace("{{agentRun}}", context.agentRun("prompt"));
     }
 
-    private record Answer(String type, boolean isBody) {
+    private record Answer(String type, boolean isBody, boolean deliverable) {
+    }
+
+    private static String returnStatement(Answer answer) {
+        if (!answer.deliverable()) {
+            return RETURN_ANSWER_UNMAPPED;
+        }
+        return answer.isBody() ? RETURN_ANSWER_AS_BODY : RETURN_ANSWER;
     }
 
     private static String accessor(Function shaped) {
@@ -238,16 +247,20 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static Answer answer(Function shaped) {
         HttpResponse response = firstAnswerResponse(shaped);
         if (response == null) {
-            return new Answer(STRING_TYPE, false);
+            return new Answer(STRING_TYPE, false, true);
         }
         String emitted = HttpUtil.getStatusCodeResponse(response, new ArrayList<>(), new LinkedHashMap<>(),
                 new LinkedHashMap<>(), defaultStatusCode(shaped));
         String body = valueOf(response.getBody());
         if (emitted != null && body != null && !emitted.equals(body) && emitted.contains(BODY_FIELD)) {
-            return new Answer(isBindable(body) ? body : STRING_TYPE, true);
+            return new Answer(STRING_TYPE, true, acceptsString(body));
         }
         String declared = emitted != null && !emitted.isBlank() ? emitted.strip() : body;
-        return new Answer(declared != null && isBindable(declared) ? declared : STRING_TYPE, false);
+        return new Answer(STRING_TYPE, false, acceptsString(declared));
+    }
+
+    private static boolean acceptsString(String type) {
+        return type == null || type.isBlank() || STRING_TYPE_ALIASES.contains(type.strip());
     }
 
     private static HttpResponse firstAnswerResponse(Function shaped) {
@@ -265,10 +278,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static int defaultStatusCode(Function shaped) {
         return "post".equals(accessor(shaped)) ? 201 : 200;
-    }
-
-    private static boolean isBindable(String type) {
-        return BINDABLE_SIMPLE_TYPES.contains(type) || type.matches("[A-Za-z_][A-Za-z0-9_]*");
     }
 
     private static List<HandlerParameter> promptParameters(Function shaped) {

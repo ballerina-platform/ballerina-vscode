@@ -673,11 +673,38 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
-    public void testShapedHttpEndpointBindsTheAgentAnswerToTheDeclaredType() {
+    public void testShapedHttpEndpointLeavesAnUndeliverableAnswerToTheUser() {
         String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
 
-        Assert.assertTrue(src.contains("IssueSummary|error response = issueTriageAgent.run(prompt);"),
-                "ai:Agent.run infers its return from the left-hand side, so the declared type binds: " + src);
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"),
+                "the answer is always a string, so no declared type is bound to run: " + src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's answer to the declared response type"),
+                "a record cannot take a string, so the mapping is the user's and has to be visible: " + src);
+        Assert.assertTrue(src.contains("return error(\"response mapping not implemented\", answer = answer);"),
+                "the placeholder still has to compile, so it returns an error rather than the answer: " + src);
+        Assert.assertFalse(src.contains("return {body: answer};"),
+                "a body field the answer cannot fill must not be generated: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointDeliversTheAnswerWhenTheDeclaredTypeAcceptsIt() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "string");
+
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"), src);
+        Assert.assertTrue(src.contains("return {body: answer};"),
+                "a string body takes the answer directly, wrapped by the status code record: " + src);
+        Assert.assertFalse(src.contains("// TODO:"),
+                "nothing is left for the user to map: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointHandlesTheAgentFailureInsteadOfReturningIt() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "string");
+
+        Assert.assertTrue(src.contains("do {"), "the resource wraps its body like every other http resource: " + src);
+        Assert.assertTrue(src.contains("} on fail error err {"), src);
+        Assert.assertTrue(src.contains("return error(\"unhandled error\", err);"),
+                "the agent's own error must not reach the caller verbatim: " + src);
     }
 
     @Test
@@ -699,12 +726,9 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointReturnsTheBodyWhenTheStatusCodeWrapsIt() {
         String src = generateForShapedHttp("POST", "process", List.of(), "json");
 
-        Assert.assertTrue(src.contains("json|error response = issueTriageAgent.run(prompt);"),
-                "the answer binds to the body type, not to the wrapping record: " + src);
-        Assert.assertTrue(src.contains("return {body: response};"),
-                "a wrapped return cannot take the answer directly: " + src);
-        Assert.assertTrue(src.contains("if response is error {"),
-                "the error has to be narrowed away before the record is built: " + src);
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"), src);
+        Assert.assertTrue(src.contains("return {body: answer};"),
+                "a wrapped return puts the answer in the body field: " + src);
     }
 
     @Test
