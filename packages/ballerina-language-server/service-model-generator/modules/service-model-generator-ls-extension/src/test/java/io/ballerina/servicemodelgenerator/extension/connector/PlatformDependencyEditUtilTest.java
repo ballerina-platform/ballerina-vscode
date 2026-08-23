@@ -149,6 +149,24 @@ public class PlatformDependencyEditUtilTest {
     }
 
     @Test
+    public void testUnnamedControlCharactersAreUnicodeEscaped() throws URISyntaxException {
+        Project project = load("platform_dependency/no_dependency");
+        Map<String, List<TextEdit>> edits = new HashMap<>();
+        // U+0001 (SOH), U+001B (ESC), and U+007F (DEL) have no named TOML escape (unlike \n/\t etc.)
+        // and are disallowed unescaped in a TOML basic string, so they must fall through to a
+        // unicode escape.
+        String path = "./resources/sap\u0001jco\u001B3\u007F.jar";
+
+        PlatformDependencyEditUtil.addIfMissing(edits, project, SAP_JCO, path);
+
+        TextEdit tomlEdit = edits.values().iterator().next().get(0);
+        Assert.assertTrue(tomlEdit.getNewText().contains(
+                "path = \"./resources/sap\\u0001jco\\u001B3\\u007F.jar\""),
+                "control characters without a named TOML escape must be unicode-escaped so the generated "
+                        + "TOML stays valid");
+    }
+
+    @Test
     public void testNoDuplicateWhenAlreadyDeclared() throws URISyntaxException {
         Project project = load("platform_dependency/already_declared");
         Map<String, List<TextEdit>> edits = new HashMap<>();

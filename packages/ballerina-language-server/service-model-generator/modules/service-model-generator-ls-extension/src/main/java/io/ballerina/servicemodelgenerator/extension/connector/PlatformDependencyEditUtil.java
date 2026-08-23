@@ -233,7 +233,12 @@ public final class PlatformDependencyEditUtil {
         return new TextEdit(new Range(dependencyStart, dependencyStart), dependencyText.toString());
     }
 
-    /** Escapes a value for a TOML basic string ({@code "..."}), per the TOML spec's escape rules. */
+    /**
+     * Escapes a value for a TOML basic string ({@code "..."}), per the TOML spec's escape rules.
+     * Every control character other than tab (U+0009) is disallowed unescaped in a basic string
+     * (U+0000-U+0008, U+000A-U+001F, and U+007F), so any not covered by a named escape falls
+     * through to a {@code \\uXXXX} escape.
+     */
     private static String tomlString(String raw) {
         StringBuilder escaped = new StringBuilder();
         for (int i = 0; i < raw.length(); i++) {
@@ -246,7 +251,13 @@ public final class PlatformDependencyEditUtil {
                 case '\t' -> escaped.append("\\t");
                 case '\b' -> escaped.append("\\b");
                 case '\f' -> escaped.append("\\f");
-                default -> escaped.append(c);
+                default -> {
+                    if (c < 0x20 || c == 0x7F) {
+                        escaped.append(String.format("\\u%04X", (int) c));
+                    } else {
+                        escaped.append(c);
+                    }
+                }
             }
         }
         return escaped.toString();
