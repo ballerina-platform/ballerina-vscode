@@ -142,6 +142,7 @@ export function OtherArtifactsPanel(props: OtherArtifactsPanelProps) {
                         icon={card.icon}
                         title={card.displayName}
                         onClick={() => handleClick(card.directoryKey)}
+                        tooltip={card.tooltip}
                         isBeta={card.isBeta}
                     />
                 ))}
