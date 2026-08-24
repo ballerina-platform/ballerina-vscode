@@ -332,6 +332,12 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
         }));
     };
 
+    const backButton = (
+        <VSCodeButton appearance="secondary" onClick={cancelLogin} disabled={isValidating}>
+            Back
+        </VSCodeButton>
+    );
+
     if (loginMethod === LoginMethod.ANTHROPIC_KEY) {
         return (
             <Container $embedded={embedded}>
@@ -370,13 +376,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                     )}
 
                     <ButtonContainer>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Back
-                        </VSCodeButton>
+                        {backButton}
                         <VSCodeButton
                             appearance="primary"
                             onClick={connectWithKey}
@@ -639,13 +639,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                     )}
 
                     <ButtonContainer>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Back
-                        </VSCodeButton>
+                        {backButton}
                         <VSCodeButton
                             appearance="primary"
                             onClick={awsServiceMode === 'bedrock' ? connectWithAwsCredentials : connectWithAnthropicAwsCredentials}
@@ -757,13 +751,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                     )}
 
                     <ButtonContainer>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Back
-                        </VSCodeButton>
+                        {backButton}
                         <VSCodeButton
                             appearance="primary"
                             onClick={connectWithAwsCredentials}
@@ -836,13 +824,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                     )}
 
                     <ButtonContainer>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Back
-                        </VSCodeButton>
+                        {backButton}
                         <VSCodeButton
                             appearance="primary"
                             onClick={connectWithVertexAi}
@@ -1009,13 +991,7 @@ const WaitingForLogin = ({ loginMethod, isValidating = false, errorMessage, embe
                     )}
 
                     <ButtonContainer>
-                        <VSCodeButton
-                            appearance="secondary"
-                            onClick={cancelLogin}
-                            disabled={isValidating}
-                        >
-                            Back
-                        </VSCodeButton>
+                        {backButton}
                         <VSCodeButton
                             appearance="primary"
                             onClick={connectWithAnthropicAwsCredentials}
