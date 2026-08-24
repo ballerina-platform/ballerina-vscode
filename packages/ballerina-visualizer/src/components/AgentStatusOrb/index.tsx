@@ -24,13 +24,12 @@ import { AgentRunStatus, AgentRunState } from "@wso2/ballerina-core";
 import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
 import { MiniChat } from "./MiniChat";
+import { useOrbColors } from "./orbTheme";
 import {
     Anchor,
     ANCHOR_STORAGE_KEY,
-    BRAND_ORANGE,
     EDGE_MARGIN,
     loadAnchor,
-    ORB_COLORS,
     ORB_ENERGY,
     ORB_SIZE,
     Sphere,
@@ -120,11 +119,6 @@ const fadeIn = keyframes`
     to { opacity: 1; transform: translateX(0); }
 `;
 
-const hueCycle = keyframes`
-    from { filter: blur(8px) hue-rotate(0deg); }
-    to { filter: blur(8px) hue-rotate(360deg); }
-`;
-
 const haloPulse = keyframes`
     0%, 100% { opacity: 0.25; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(1.18); }
@@ -132,7 +126,8 @@ const haloPulse = keyframes`
 
 const Wrapper = styled.div`
     position: fixed;
-    z-index: 10000;
+    /* Below side panels and modals (>=1900) so an open form keeps its controls reachable; above diagram content. */
+    z-index: 1800;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -267,7 +262,7 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
     ${(props: Pick<OrbStyleProps, "state">) =>
         props.state === "running"
-            ? css`animation: ${rotate} 2.8s linear infinite, ${hueCycle} 5s linear infinite;`
+            ? css`animation: ${rotate} 2.8s linear infinite;`
             : props.state === "idle"
                 ? css`animation: ${rotate} 14s linear infinite;`
                 : css`animation: ${rotate} 9s linear infinite;`}
@@ -276,12 +271,12 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     }
 `;
 
-/** Thin brand ring at the sphere's edge — the logo's circle as an accent. */
+/** Thin rim at the sphere's edge — a soft on-accent highlight, theme-driven. */
 const BrandRing = styled.div`
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1.5px solid rgba(241, 78, 35, 0.55);
+    border: 1.5px solid color-mix(in srgb, var(--vscode-button-foreground) 35%, transparent);
     pointer-events: none;
 `;
 
@@ -291,7 +286,7 @@ const SpinArc = styled.div`
     inset: -2px;
     border-radius: 50%;
     border: 2px solid transparent;
-    border-top-color: ${BRAND_ORANGE};
+    border-top-color: var(--vscode-button-foreground);
     animation: ${rotate} 1.1s linear infinite;
     pointer-events: none;
     @media (prefers-reduced-motion: reduce) {
@@ -367,12 +362,15 @@ export function AgentStatusOrb() {
         }
     }, [orbHidden]);
 
+    // Resolve orb colors before any early return so the hook order stays stable
+    // across renders (status is null while the orb is hidden).
+    const colors = useOrbColors(status?.state ?? "idle");
+
     if (orbHidden) {
         return null;
     }
 
     const state = status.state;
-    const colors = ORB_COLORS[state];
     const label = state === "idle" ? "Chat with WSO2 Integration Intelligence" : activeStateLabel(status);
     const dragging = dragPos !== null && !snapping;
     // Active states keep the pill visible the whole time. Idle shows the
@@ -547,7 +545,7 @@ export function AgentStatusOrb() {
                     <Icon
                         name="bi-ai-chat"
                         sx={{ width: 26, height: 26 }}
-                        iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "inherit" }}
+                        iconSx={{ fontSize: "26px", color: "var(--vscode-button-foreground)", cursor: "inherit" }}
                     />
                 </IconOverlay>
             </OrbButton>

@@ -21,6 +21,7 @@ import debounce from "lodash/debounce";
 import styled from "@emotion/styled";
 import { Button, DirectorySelector, Icon, TextField } from "@wso2/ui-toolkit";
 import { useVisualizerContext } from "./context/WsClientContext";
+import { useBrowsePick } from "./useBrowsePick";
 import { useCloudContext } from "./providers";
 import {
     joinPath,
@@ -229,6 +230,23 @@ export function CreateProjectChooser({
      *  re-run the preselect below. */
     const [preselectRequestId, setPreselectRequestId] = useState(0);
 
+    // Owns the Browse interaction and the name/folder memory that makes a pick reversible.
+    const browsePick = useBrowsePick({
+        wsClient,
+        dirCoupling,
+        projectName,
+        setProjectName,
+        projectNameTouchedRef,
+        setEditablePath,
+        setPathTouched,
+        setPathError,
+        startPath: editablePath || defaultPath,
+        // This screen's name field labels the project the integration lands in, so it shows
+        // an existing project's own title rather than a name to create.
+        adoptProjectName: true,
+        selectFailedMessage: "Failed to select the project folder. Please try again.",
+    });
+
     const debouncedSetProjectNameError = useMemo(
         () => debounce((error: string) => setProjectNameError(error), 300),
         []
@@ -278,10 +296,15 @@ export function CreateProjectChooser({
         (async () => {
             if (defaultPathInitialized.current) return;
             try {
+                // Re-checked before EVERY write below, not just once: this seed spans
+                // several round-trips, and a Browse that lands mid-flight has already
+                // retargeted the form — applying any part of a reading taken for the
+                // default location would drag it back, which is the very bug being fixed.
+                const superseded = () => !mounted || browsePick.pathPickedRef.current;
                 const { path: workspacePath } = await wsClient.getWorkspaceRoot();
-                if (!mounted) return;
+                if (superseded()) return;
                 const dp = workspacePath || (await wsClient.getDefaultCreationPath()).path;
-                if (!mounted) return;
+                if (superseded()) return;
                 defaultPathInitialized.current = true;
                 setDefaultPath(dp);
                 setEditablePath(dp);
@@ -291,10 +314,14 @@ export function CreateProjectChooser({
                 // Browse does. The folder stays "default"; only the display name changes.
                 const defaultProjectPath = joinPath(dp, directoryName);
                 const info = await wsClient.getExistingProjectInfo({ projectPath: defaultProjectPath });
-                if (!mounted) return;
+                if (superseded()) return;
                 if (info?.isProject && info.name && !projectNameTouchedRef.current) {
                     setProjectName(info.name);
                     dirCoupling.setDirTouched(true);
+                    // Same memory a Browse pick records: this name and folder are the
+                    // seeded project's, so browsing elsewhere restores the placeholder
+                    // instead of carrying them to the new location.
+                    browsePick.recordSeededAdoption({ name: DEFAULT_PROJECT_NAME, touched: false }, directoryName);
                     // This swap lands after the initial preselect has already run and
                     // silently collapses its selection, so ask for another one.
                     setPreselectRequestId((id) => id + 1);
@@ -438,6 +465,9 @@ export function CreateProjectChooser({
         // Editing the name (re)couples the folder to it — so renaming a browsed
         // existing project retargets to a NEW project at <parent>/<derived-name>.
         dirCoupling.handleDisplayNameChange(value, { recouple: true });
+        // Both the name and (via the recouple) the folder are the user's now, so a later
+        // Browse has nothing of the previous pick's left to undo.
+        browsePick.releaseName();
     };
 
     const handlePathChange = (value: string) => {
@@ -445,28 +475,23 @@ export function CreateProjectChooser({
         setPathTouched(true);
         setEditablePath(base);
         dirCoupling.handleDirectoryNameEdit(name, autoDirectoryName);
+        // Only an edit to the SEGMENT claims it from a pick — retyping the parent portion
+        // leaves the pinned folder exactly as the pick left it. Any adopted NAME is still
+        // the pick's either way, so that memory stands.
+        browsePick.releaseFolderIfSegmentEdited(name);
     };
 
     /**
-     * Browse: the picked folder is the parent LOCATION, not the project folder. The
-     * project keeps the name the user gave it and is targeted at `<picked>/<name>` —
-     * whether something already lives there is reported live by the path validation
-     * above, so nothing here needs to inspect the folder.
+     * Browse: the picked folder is normally the parent LOCATION, with the project targeted
+     * at `<picked>/<name-derived folder>`. Picking a folder that is ITSELF a project is the
+     * exception — appending a folder inside it would target `<project>/default`, which is
+     * neither the project the user pointed at nor a valid place for a new one (a project
+     * inside a project). The pick is taken as the project itself instead: its real name
+     * fills the name field and its own folder becomes the path's last segment, which is
+     * exactly what typing that same path into the field already does. Whether the resolved
+     * target exists is reported live by the path validation above.
      */
-    const handlePathSelection = async () => {
-        try {
-            const result = await wsClient.selectFileOrDirPath({ startPath: editablePath || defaultPath });
-            if (!result.path) return;
-            setEditablePath(result.path);
-            setPathTouched(true);
-            // Pin the name: the one-shot default-project lookup can still be in flight,
-            // and its result no longer describes the location just picked.
-            projectNameTouchedRef.current = true;
-        } catch (error) {
-            console.error("Failed to select path:", error);
-            setPathError("Failed to select the project folder. Please try again.");
-        }
-    };
+    const handlePathSelection = browsePick.selectPath;
 
     const startingPointNoun = isLibrary ? "library" : "integration";
 

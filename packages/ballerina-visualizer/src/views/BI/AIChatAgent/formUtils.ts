@@ -364,12 +364,10 @@ export function createRequiresApprovalField(
                 properties: {
                     approvalFunction: {
                         metadata: {
-                            // "(optional)" is appended by AutoCompleteEditor for optional fields; keeping
-                            // it here would double up (capitalize() = startCase would also mangle it).
                             label: "Approval Function",
                             description: allowCreate
-                                ? "Decides per call whether approval is needed. Pick one of your functions, or type a name to create one."
-                                : "Decides per call whether approval is needed. Pick one of your existing functions.",
+                                ? "Optional. Decides per call whether approval is needed. Pick one of your functions, or type a name to create one."
+                                : "Optional. Decides per call whether approval is needed. Pick one of your existing functions.",
                         },
                         // AUTOCOMPLETE (not EXPRESSION): the annotation slot takes a function *reference*
                         // (a bare name), never a call expression. `items` are injected at runtime once the
@@ -384,7 +382,6 @@ export function createRequiresApprovalField(
                             validations: [{ rule: "common.validate.identifier", message: "Invalid identifier" }],
                         }],
                         allowItemCreate: allowCreate,
-                        showOptionalSuffix: true,
                         value: existing?.functionName || "",
                         optional: true,
                         editable: true,

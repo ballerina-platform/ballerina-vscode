@@ -35,7 +35,7 @@ import {
     isAlreadyOpenFolder,
     openInVSCode,
     refreshProjectInfoAndWait,
-    resolveCreateLandingContext,
+    resolveCreateNamingContext,
 } from "../../utils/bi";
 import { generateArtifactInPlace, openPackageOverview, schedulePendingIntegration } from "./pending-artifact";
 import { extension } from "../../BalExtensionContext";
@@ -121,17 +121,16 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
     const { packageRoot, openRoot } = await createBIComponent(projectRequest);
     await cleanupStaging();
 
-    const landingContext = resolveCreateLandingContext(packageRoot, openRoot, projectRequest);
+    const namingContext = resolveCreateNamingContext(packageRoot, openRoot, projectRequest);
 
     // Live path only when the extension has ALREADY activated `openRoot` — a just-converted
     // workspace at the same path is open in VS Code but still needs the reload.
     const addedIntoActiveWorkspace = isAlreadyOpenFolder(openRoot) && isSamePath(StateMachine.context().workspacePath, openRoot);
 
     if (addedIntoActiveWorkspace) {
-        // The project was already open, so it cannot be new: the new integration is the
-        // news here and its own overview is where to land.
+        // The new integration is the news here, and its own overview is where to land.
         if (params.artifact) {
-            await generateArtifactInPlace(packageRoot, params.artifact, true);
+            await generateArtifactInPlace(packageRoot, params.artifact);
         } else {
             // Refresh BEFORE navigating: the package overview fetches project structure
             // on mount, so navigating first would show it a spinner instead of the page.
@@ -147,10 +146,9 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
         packageRoot,
         integrationName: params.project.integrationName,
         payload: params.artifact,
-        projectName: landingContext.projectName,
-        isNewProject: landingContext.isNewProject,
+        projectName: namingContext.projectName,
+        isNewProject: namingContext.isNewProject,
         componentLabel: "integration",
-        landing: landingContext.landing,
     });
     openInVSCode(openRoot);
 }
@@ -162,7 +160,7 @@ export async function createIntegration(params: CreateIntegrationRequest): Promi
  */
 export async function addIntegrationArtifact(params: AddIntegrationArtifactRequest): Promise<void> {
     await cleanupStaging();
-    await generateArtifactInPlace(params.packageRoot, params.artifact, true);
+    await generateArtifactInPlace(params.packageRoot, params.artifact);
 }
 
 /** Discards the session's temp staging package. Called on abandon and, race-free, on every (re)open. */

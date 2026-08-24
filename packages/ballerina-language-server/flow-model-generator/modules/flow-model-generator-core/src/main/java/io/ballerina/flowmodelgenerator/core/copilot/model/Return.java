@@ -18,6 +18,8 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.model;
 
+import java.util.List;
+
 /**
  * Represents a function return type.
  *
@@ -26,6 +28,23 @@ package io.ballerina.flowmodelgenerator.core.copilot.model;
 public class Return {
     private String description;
     private Type type;
+    // The spec at `attachPoint: "return"` — annotations the generated handler must or may carry on its
+    // return (`returns @http:Cache {...} T`). Nested here rather than on the method because that is the
+    // syntactic slot they attach to.
+    private List<ServiceAnnotationRef> annotationRefs;
+    /**
+     * The spec §9.1 — how the declared return type is projected on the way <i>out</i>.
+     *
+     * <p>The same shape a parameter's {@code binding} carries, read in the opposite direction: a parameter
+     * binds a wire payload into a declared type, a return serializes a declared type out to wire form. It
+     * is present only where one member of the return union is a builtin constraint the runtime converts
+     * through — an HTTP resource's {@code anydata} branch, graphql's streamed subscription element — and
+     * absent for a return whose members are all fixed types with no schema to bind.
+     *
+     * <p>Nested on the return rather than on the method for the reason {@link #annotationRefs} is: it
+     * describes the return slot, and the renderer states it beside the type it constrains.
+     */
+    private ParamBinding binding;
 
     public Return() {
     }
@@ -44,5 +63,21 @@ public class Return {
 
     public void setType(Type type) {
         this.type = type;
+    }
+
+    public List<ServiceAnnotationRef> getAnnotationRefs() {
+        return annotationRefs;
+    }
+
+    public void setAnnotationRefs(List<ServiceAnnotationRef> annotationRefs) {
+        this.annotationRefs = annotationRefs;
+    }
+
+    public ParamBinding getBinding() {
+        return binding;
+    }
+
+    public void setBinding(ParamBinding binding) {
+        this.binding = binding;
     }
 }

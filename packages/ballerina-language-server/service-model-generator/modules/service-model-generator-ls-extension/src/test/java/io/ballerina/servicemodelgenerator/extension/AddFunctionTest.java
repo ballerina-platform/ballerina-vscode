@@ -45,6 +45,8 @@ import java.util.Map;
  */
 public class AddFunctionTest extends AbstractLSTest {
 
+    private static final String NO_TYPES_BAL_CONFIG = "add_kafka_on_consumer_record_no_types_bal.json";
+
     private static final Type TEXT_EDIT_LIST_TYPE = new TypeToken<Map<String, List<TextEdit>>>() {
     }.getType();
 
@@ -55,6 +57,14 @@ public class AddFunctionTest extends AbstractLSTest {
         BufferedReader bufferedReader = Files.newBufferedReader(configJsonPath);
         TestConfig testConfig = gson.fromJson(bufferedReader, TestConfig.class);
         bufferedReader.close();
+
+        // The case covers the absence of types.bal. A file left behind by an interrupted run would let the test pass
+        // for the wrong reason, so its absence is asserted instead of assumed.
+        if (config.getFileName().toString().equals(NO_TYPES_BAL_CONFIG)) {
+            Path typesBal = sourceDir.resolve(Path.of("sample2", "types.bal"));
+            Assert.assertFalse(Files.exists(typesBal),
+                    "A types.bal of a previous run is present, and this test has to start without it: " + typesBal);
+        }
 
         FunctionSourceRequest request = new FunctionSourceRequest(
                 sourceDir.resolve(testConfig.filePath()).toAbsolutePath().toString(),

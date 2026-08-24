@@ -187,11 +187,11 @@ import io.ballerina.flowmodelgenerator.core.model.node.builtin.EmailActivityStra
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.RestActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.model.node.builtin.SoapActivityStrategy;
 import io.ballerina.flowmodelgenerator.core.utils.ConnectorUtil;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.FunctionDataBuilder;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
@@ -879,7 +879,7 @@ public class CodeAnalyzer extends NodeVisitor {
                 .build();
 
         Path agentFilePath =
-                FileSystemUtils.resolveFilePathFromCodedata(codedata, project.sourceRoot());
+                FileSystemUtils.resolveFilePathFromLineRange(codedata.lineRange(), project.sourceRoot());
 
         NodeBuilder.TemplateContext context =
                 new NodeBuilder.TemplateContext(workspaceManager, agentFilePath,

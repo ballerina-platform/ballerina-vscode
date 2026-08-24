@@ -40,8 +40,15 @@ import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind } f
 import { BallerinaExtension } from 'src/core';
 
 const config = workspace.getConfiguration('ballerina');
-const isDevantDev = process.env.CLOUD_ENV === "dev";
-export const BACKEND_URL: string = config.get('rootUrl') || (isDevantDev ? process.env.COPILOT_DEV_ROOT_URL : process.env.COPILOT_ROOT_URL);
+const PLATFORM_ENV_SETTING = "WSO2.WSO2-Platform.Advanced.ChoreoEnvironment";
+// Same order the WSO2 Platform extension resolves its environment in.
+const devantEnv = (process.env.CHOREO_ENV || process.env.CLOUD_ENV
+    || workspace.getConfiguration().get<string>(PLATFORM_ENV_SETTING) || "").trim().toLowerCase();
+const COPILOT_ROOT_URLS = new Map<string, string>([
+    ["dev", process.env.COPILOT_DEV_ROOT_URL],
+    ["stage", process.env.COPILOT_STAGE_ROOT_URL || process.env.COPILOT_DEV_ROOT_URL],
+]);
+export const BACKEND_URL: string = config.get('rootUrl') || COPILOT_ROOT_URLS.get(devantEnv) || process.env.COPILOT_ROOT_URL;
 
 export const DEVANT_TOKEN_EXCHANGE_URL: string = BACKEND_URL + "/auth-api/v1.0/auth/token-exchange";
 

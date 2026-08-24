@@ -179,9 +179,9 @@ When generating Ballerina code strictly follow these syntax and structure guidel
 - A submodule MUST BE imported before being used. The import statement should only contain the package name and submodule name. For package my_pkg, folder structure generated/fooApi, the import should be \`import my_pkg.fooApi;\`.
 - For GraphQL service related queries, if the user hasn't specified their own GraphQL Schema, write the proposed GraphQL schema for the user query right after the explanation before generating the Ballerina code. Use the same names as the GraphQL Schema when defining record types.
 - Some libaries has instructions fields in their API documentation. Follow those instructions strictly when using those libraries.
-- You should only generate tests if the user explicitly asks for them in the query. You must use the 'ballerina/test' and whatever services associated when writing tests. Respect the instructions field in ballerina/test library and testGenerationInstruction field in whatever library associated with the service in the library API documentation when writing tests.
+- You should only generate tests if the user explicitly asks for them in the query. You must use the 'ballerina/test' and whatever services associated when writing tests. Respect the instructions field in ballerina/test library when writing tests.
 - For workflow-based requirements involving long-running processes, state management, or orchestration of multiple steps, use the 'ballerina/workflow' module.
-- When writing tests, use the 'ballerina/test' module and any service-specific test libraries. Respect the instructions field in ballerina/test library and the testGenerationInstruction field in the associated service library API documentation when writing tests.
+- When writing tests, use the 'ballerina/test' module and any service-specific test libraries. Respect the instructions field in ballerina/test library when writing tests.
 - Some libraries may contain Readme field. This is generic information about the library. Avoid following links from the readme contents.
 ${getLanglibInstructions()}
 

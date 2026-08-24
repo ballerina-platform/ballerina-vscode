@@ -355,7 +355,8 @@ const spin = keyframes`
 
 const Panel = styled.div`
     position: fixed;
-    z-index: 10001;
+    /* One above the orb, still below panels/modals so an open panel takes priority. */
+    z-index: 1801;
     width: ${PANEL_WIDTH}px;
     max-width: calc(100vw - ${EDGE_MARGIN * 2}px);
     height: min(520px, calc(100vh - 150px));

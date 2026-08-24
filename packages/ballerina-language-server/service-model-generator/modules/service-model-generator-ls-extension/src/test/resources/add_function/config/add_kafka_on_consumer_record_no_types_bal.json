@@ -1,0 +1,343 @@
+{
+  "filePath": "sample2/main.bal",
+  "description": "Add onConsumerRecord remote method when types.bal is missing",
+  "codedata": {
+    "lineRange": {
+      "startLine": {
+        "line": 4,
+        "offset": 0
+      },
+      "endLine": {
+        "line": 6,
+        "offset": 1
+      }
+    }
+  },
+  "function": {
+    "metadata": {
+      "label": "onConsumerRecord",
+      "description": "The `onConsumerRecord` remote method will be triggered when a message is received from Kafka topic(s)"
+    },
+    "kind": "REMOTE",
+    "name": {
+      "metadata": {
+        "label": "onConsumerRecord",
+        "description": "The `onConsumerRecord` remote method will be triggered when a message is received from Kafka topic(s)"
+      },
+      "placeholder": "onConsumerRecord",
+      "value": "onConsumerRecord",
+      "types": [
+        {
+          "fieldType": "IDENTIFIER",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": false,
+      "optional": false,
+      "advanced": false
+    },
+    "documentation": {
+      "types": [
+        {
+          "fieldType": "TEXT",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": true,
+      "optional": true,
+      "advanced": false
+    },
+    "parameters": [
+      {
+        "metadata": {
+          "label": "Data Binding",
+          "description": "Data binding parameter"
+        },
+        "kind": "DATA_BINDING",
+        "type": {
+          "value": "string",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "name": {
+          "value": "payload",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": false,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      },
+      {
+        "metadata": {
+          "label": "messages",
+          "description": "The messages received for Kafka topic(s)"
+        },
+        "kind": "REQUIRED",
+        "type": {
+          "metadata": {
+            "label": "Parameter Type",
+            "description": "The type of the parameter"
+          },
+          "placeholder": "kafka:AnydataConsumerRecord[]",
+          "value": "kafka:AnydataConsumerRecord[]",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "name": {
+          "metadata": {
+            "label": "messages",
+            "description": "The messages received for Kafka topic(s)"
+          },
+          "placeholder": "messages",
+          "value": "messages",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "defaultValue": {
+          "metadata": {
+            "label": "Default Value",
+            "description": "The default value of the parameter"
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      },
+      {
+        "metadata": {
+          "label": "caller",
+          "description": "The Kafka caller object to commit the offsets"
+        },
+        "kind": "OPTIONAL",
+        "type": {
+          "metadata": {
+            "label": "Parameter Type",
+            "description": "The type of the parameter"
+          },
+          "placeholder": "kafka:Caller",
+          "value": "kafka:Caller",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "name": {
+          "metadata": {
+            "label": "caller",
+            "description": "The Kafka caller object to commit the offsets"
+          },
+          "placeholder": "caller",
+          "value": "caller",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "defaultValue": {
+          "metadata": {
+            "label": "Default Value",
+            "description": "The default value of the parameter"
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "EXPRESSION",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "documentation": {
+          "types": [
+            {
+              "fieldType": "TEXT",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false,
+        "hidden": false,
+        "isGraphqlId": false
+      }
+    ],
+    "returnType": {
+      "hasError": true,
+      "isGraphqlId": false,
+      "documentation": {
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
+        "advanced": false
+      },
+      "metadata": {
+        "label": "Return Type",
+        "description": "The return type of the function"
+      },
+      "placeholder": "error?",
+      "value": "error?",
+      "types": [
+        {
+          "fieldType": "TYPE",
+          "selected": true
+        }
+      ],
+      "enabled": true,
+      "editable": false,
+      "optional": true,
+      "advanced": false
+    },
+    "enabled": true,
+    "optional": false,
+    "editable": false,
+    "canAddParameters": false,
+    "codedata": {
+      "moduleName": "kafka"
+    },
+    "properties": {
+      "wrapperTypeName": {
+        "value": "KafkaAnydataConsumer",
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "payloadFieldName": {
+        "value": "value",
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "canDataBind": {
+        "value": "true",
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      }
+    }
+  },
+  "output": {
+    "sample2/main.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 40
+          },
+          "end": {
+            "line": 4,
+            "character": 40
+          }
+        },
+        "newText": "\n\tremote function onConsumerRecord(string payload, kafka:AnydataConsumerRecord[] messages, kafka:Caller caller) returns error? {\n\t\tdo {\n\t\t} on fail error err {\n\t\t\t// handle error\n\t\t\treturn error(\"unhandled error\", err);\n\t\t}\n\t}"
+      }
+    ]
+  }
+}

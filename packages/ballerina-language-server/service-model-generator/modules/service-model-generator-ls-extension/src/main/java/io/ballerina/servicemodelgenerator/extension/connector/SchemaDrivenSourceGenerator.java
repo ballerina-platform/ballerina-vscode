@@ -297,7 +297,8 @@ public final class SchemaDrivenSourceGenerator {
 
         /** Renders the attachment, mapping a self-module qualifier onto the emitted import alias. */
         private String render(String selfPrefix, String emitAlias) {
-            String qualifier = selfPrefix.equals(moduleName) ? emitAlias : moduleName;
+            String module = moduleName == null || moduleName.isBlank() ? null : aliasOf(moduleName);
+            String qualifier = module == null ? null : mapSelfModule(module, selfPrefix, emitAlias);
             String body = wholeValue != null ? wholeValue : renderFieldTree(buildFieldTree(fields));
             String prefix = qualifier == null || qualifier.isBlank()
                     ? "@" + originalName : "@" + qualifier + COLON + originalName;

@@ -21,12 +21,30 @@ Overall usage instructions about the library.
 ### Service writing instructions
 File name - service.md
 
-Instructions specific to writing services using the library. For fixed services which has a json, its automatically covered but for the generic triggers, you have to give instructions here.
+Instructions specific to writing services using the library.
 
-### Test Generation instructions
-File name - test.md
+**A service.md may state ONLY what neither `trigger-metadata.json` nor the semantic model can.**
+A library with a trigger-metadata document no longer has this file *replace* its synthesized service
+block — both are rendered, prose first, declaration second. So anything factual (types, presence,
+accessors, path forms, annotations, data binding, the listener signature) is already emitted and must
+not be restated here: two sources for one fact is how the two come to disagree, and a contradiction
+inside a single section is worse than either source alone.
 
-Instructions specific to generating tests for the library service usage.
+What belongs here, and nothing else:
+- project conventions (e.g. "declare the listener at module level as a variable")
+- compiler-plugin rules a document cannot express (e.g. "`@http:Payload` is optional for a lone
+  record parameter")
+- defaults and style preferences (e.g. "default the base path to `/graphql`")
+- worked examples
+
+Everything in this file is sent to the LLM verbatim, including any HTML comments — so keep
+maintainer notes out of it and put them here instead.
+
+### Test Generation instructions — retired
+
+`test.md` is no longer read. No instance had existed since the curated corpus was removed, and test
+conventions live in `ballerina/test`'s own `library.md`, which the test-writing prompt already names.
+Do not add this file; nothing loads it.
 
 ## Notes
 - All these extension points are optional. This will only be added on top of the overall information about the library. 
