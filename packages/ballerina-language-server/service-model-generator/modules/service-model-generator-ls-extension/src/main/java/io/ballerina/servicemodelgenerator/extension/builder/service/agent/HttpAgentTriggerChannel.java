@@ -88,20 +88,20 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String RESOURCE = """
             {{signature}}{
                 do {
-                    {{answerType}} answer = check {{agentRun}};
+                    {{answerType}} result = check {{agentRun}};
             {{return}}    } on fail error err {
                     // handle error
                     return error("unhandled error", err);
                 }
             }""";
 
-    private static final String RETURN_ANSWER = "        return answer;" + NEW_LINE;
+    private static final String RETURN_ANSWER = "        return result;" + NEW_LINE;
 
-    private static final String RETURN_ANSWER_AS_BODY = "        return {body: answer};" + NEW_LINE;
+    private static final String RETURN_ANSWER_AS_BODY = "        return {body: result};" + NEW_LINE;
 
     private static final String RETURN_ANSWER_UNMAPPED =
-            "        // TODO: map the agent's answer to the declared response type and return it" + NEW_LINE
-            + "        return error(\"response mapping not implemented\", answer = answer);" + NEW_LINE;
+            "        // TODO: map the agent's result to the declared response type and return it" + NEW_LINE
+            + "        return error(\"response mapping not implemented\", result = result);" + NEW_LINE;
 
     @Override
     public AgentTriggerKind kind() {
