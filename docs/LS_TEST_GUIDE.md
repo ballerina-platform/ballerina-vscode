@@ -11,7 +11,12 @@ value.
 > language-server package and run under Gradle.
 
 > **Scope.** Work only inside `packages/ballerina-language-server`. Do not edit the
-> `submodules/` tree. **All paths below are relative to that package.**
+> `submodules/` tree. **File paths in prose are relative to that package.**
+>
+> **Working directories.** Commands are not all run from the same place, so every
+> block below says which. `./gradlew` and anything under `build/` need
+> `packages/ballerina-language-server` (there is no `gradlew` at the repository
+> root); the repo-wide greps are written root-relative and need the repository root.
 
 For the Ballerina package versions the test fixtures compile against, see
 [LS_FIXTURE_DEPENDENCIES.md](LS_FIXTURE_DEPENDENCIES.md).
@@ -19,9 +24,11 @@ For the Ballerina package versions the test fixtures compile against, see
 ## 1. How an LS test is shaped
 
 A test is **data-driven**: it does not declare its own cases. The base class walks a
-config directory and feeds every `*.json` in it to a single `test(Path config)`
-method, one TestNG invocation per file. A case is a file, not a method — the number
-of tests a class reports is the number of `.json` files in its config directory.
+config directory with `Files.walk` and feeds every `*.json` it finds to a single
+`test(Path config)` method, one TestNG invocation per file. A case is a file, not a
+method — the number of tests a class reports is the number of `.json` files under its
+config directory, **recursively** (nested subdirectories are picked up), minus
+anything named in `skipList()` and anything whose name starts with `.`.
 
 ```text
 <module>/src/test/java/.../XyzTest.java          the test class - one per LSP method
@@ -38,15 +45,21 @@ Two `AbstractLSTest` classes exist, and they are not the same shape:
 | `org.ballerinalang.langserver.AbstractLSTest` | `langserver-core` | LS lifecycle and package mocking only; no config walker |
 
 ```bash
+# from the repository root
 # every class extending a base directly (read its import to see which of the two)
 grep -rnE 'class [A-Za-z0-9_]+ extends AbstractLSTest' --include='*.java' \
   packages/ballerina-language-server | grep -v '/build/'
 ```
 
 Everything below describes the model-generator base. In `langserver-core`, extend
-the feature-specific abstract test instead (`CompletionTest`,
-`AbstractCodeActionTest`) — those declare their own `dataProvider()` and
-`getTestResourceDir()`, still over a `config` directory.
+the feature-specific abstract test instead — those declare their own
+`dataProvider()` plus a resource-dir hook, still over a `config` directory. The hook
+is **not** named the same in both, so check the one you are extending:
+
+| base | resource-dir hook |
+|---|---|
+| `CompletionTest` | `getTestResourceDir()` |
+| `AbstractCodeActionTest` | `getResourceDir()` |
 
 If `config/` does not exist, `configDir` falls back to the resource dir itself.
 Prefer the `config/` + `source/` split; it is what every current test uses.
@@ -56,8 +69,11 @@ Prefer the `config/` + `source/` split; it is what every current test uses.
 **Find the closest existing test and copy its shape.** One of the existing classes
 almost certainly already calls a neighbouring API. Do not invent a new shape.
 
-**Implement the four hooks.** The whole pattern, modelled on
-`FindMatchingTypeTest`:
+**Implement the four hooks.** The whole pattern, adapted from
+`FindMatchingTypeTest`. Copy this rather than that file: the committed version reads
+the config as a one-line `gson.fromJson(Files.newBufferedReader(path), ...)` and
+never closes the reader, which most existing tests also do. Use the
+try-with-resources form below in anything new.
 
 ```java
 public class FindMatchingTypeTest extends AbstractLSTest {
@@ -117,7 +133,8 @@ classes explicitly, a class you forget to add **silently never runs**. In a
 package-covered suite, a redundant `<class>` entry makes the class run twice.
 
 ```bash
-grep -n '<packages>' -A20 <module>/src/test/resources/testng.xml
+# from packages/ballerina-language-server - prints the whole block, however long
+sed -n '/<packages>/,/<\/packages>/p' <module>/src/test/resources/testng.xml
 ```
 
 **Add the fixture** — a `.bal` under `source/`, and one `.json` per case under
@@ -127,6 +144,7 @@ never hand-write it.
 **Run just your class:**
 
 ```bash
+cd packages/ballerina-language-server
 ./gradlew :flow-model-generator:flow-model-generator-ls-extension:test \
     --tests "io.ballerina.flowmodelgenerator.extension.typesmanager.FindMatchingTypeTest"
 ```
@@ -158,6 +176,7 @@ Some call sites are currently live, so do not treat an uncommented one you find 
 precedent:
 
 ```bash
+# from the repository root
 # live call sites: the call at the start of a line, so neither the commented-out
 # form (//  updateConfig(...)) nor the method declaration matches
 grep -rnE '^[[:space:]]*updateConfig\(' --include='*.java' \
@@ -166,9 +185,10 @@ grep -rnE '^[[:space:]]*updateConfig\(' --include='*.java' \
 
 ## 4. Adding a case to a test that already exists
 
-Drop another `.json` into that `config/` directory. **There is nothing to register**
-— the data provider takes every file that ends in `.json` and does not start with
-`.`. Reuse an existing `source/` fixture when the scenario allows.
+Drop another `.json` into that `config/` directory, or into a subdirectory of it —
+the provider uses `Files.walk`, so nesting is fine. **There is nothing to register:**
+it takes every `.json` found recursively, except names starting with `.` and names
+listed in `skipList()`. Reuse an existing `source/` fixture when the scenario allows.
 
 ## 5. Skipping a case
 
@@ -193,6 +213,7 @@ applies it, so the diff normally appears on the console alongside the assertion.
 it does not, read it out of the results XML of a run that has already finished:
 
 ```bash
+# from packages/ballerina-language-server
 grep -o "Value mismatch at '[^']*'" \
   flow-model-generator/modules/flow-model-generator-ls-extension/build/test-results/test/TEST-*FindMatchingTypeTest.xml
 ```
@@ -224,6 +245,7 @@ Two paths are normalised before comparison, so differences there never surface:
   `extracted-distributions` (plural). Match on the name rather than one path:
 
   ```bash
+  # from packages/ballerina-language-server
   find . -type d \( -name 'extracted-distribution*' -o -name 'jballerina-tools-*' \) -prune -print
   ```
 
@@ -257,10 +279,18 @@ To check a run stayed offline: the home is provisioned from a lock with exactly 
 version per package, so a second version can only have been downloaded.
 
 ```bash
+# from packages/ballerina-language-server
 H=build/ballerina_dependencies/home/repositories/central.ballerina.io/bala
-for pkg in "$H"/*/*; do
-  [ "$(ls "$pkg" | wc -l)" -gt 1 ] && echo "PULLED: $pkg -> $(ls "$pkg" | tr '\n' ' ')"
-done
+# Guard the glob: with no provisioned home it stays literal and every ls fails.
+if [ ! -d "$H" ]; then
+  echo "no provisioned home at $H - run the tests first" >&2
+else
+  for pkg in "$H"/*/*; do
+    if [ "$(ls "$pkg" | wc -l)" -gt 1 ]; then
+      echo "PULLED: $pkg -> $(ls "$pkg" | tr '\n' ' ')"
+    fi
+  done
+fi
 ```
 
 No output means no package has more than one version.
