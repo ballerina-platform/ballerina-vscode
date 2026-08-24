@@ -54,7 +54,9 @@ import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.flowmodelgenerator.core.Constants;
 import io.ballerina.flowmodelgenerator.core.UserFacingException;
+import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Option;
+import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
@@ -77,6 +79,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -801,6 +804,83 @@ public class WorkflowUtil {
             return trimmed;
         }
         return quoteIfPlain(trimmed);
+    }
+
+    /**
+     * Node kinds whose generated source is a field of the durable agent's declaration — an entry in
+     * its {@code activities}/{@code tools}/{@code events} list, or a field of its config literal —
+     * rather than a statement in a function body.
+     */
+    private static final Set<NodeKind> AGENT_DECLARATION_NODES = Set.of(
+            NodeKind.DURABLE_AGENT_RUN,
+            NodeKind.DURABLE_AGENT_ADD_ACTIVITY,
+            NodeKind.DURABLE_AGENT_REGISTER_TOOL,
+            NodeKind.DURABLE_AGENT_REGISTER_EVENT,
+            NodeKind.DURABLE_AGENT_HUMAN_TASK,
+            NodeKind.DURABLE_AGENT_PEER);
+
+    /**
+     * Whether the node writes into the durable agent's declaration instead of emitting a statement.
+     * A caller that reads generated source back as a statement has nothing to read for these — the
+     * edit is a list entry or a record field, and parsing it on its own describes a broken
+     * statement rather than anything wrong with the edit.
+     *
+     * @param nodeKind the node kind to test
+     * @return whether the node's source belongs to the agent declaration
+     */
+    public static boolean editsAgentDeclaration(NodeKind nodeKind) {
+        return AGENT_DECLARATION_NODES.contains(nodeKind);
+    }
+
+    // A role field edits one role, a list of them, or an expression yielding either.
+    private static final String ROLE_TYPE = "string";
+    private static final String ROLE_LIST_TYPE = "string[]";
+    private static final String ROLE_UNION_TYPE = "string|string[]";
+
+    /**
+     * Declares the input modes a reviewer/user role field offers: a single role as text, a list of
+     * roles built item by item, and an expression producing either.
+     *
+     * <p>Await Human Task gets these three for free — its {@code userRoles} property is derived from
+     * {@code awaitHumanTask}'s own {@code string|string[]} parameter, and the union expansion in
+     * {@link Property.Builder#typeWithExpression} splits a union into one mode per member with the
+     * full type on the trailing expression entry. The role fields on the activity and agent forms are
+     * hand-built with no parameter symbol to derive from, so they declare the same three modes here
+     * instead of collapsing to expression-only — otherwise the same value is edited two different
+     * ways depending on which form it is opened from.
+     *
+     * @param builder the property builder to add the role input modes to
+     * @param <T>     the builder's step-out target
+     * @return the same builder, for fluent chaining
+     */
+    public static <T> Property.Builder<T> addRoleFieldTypes(Property.Builder<T> builder) {
+        Property listItem = new Property.Builder<>(null)
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_TYPE).stepOut()
+                .build();
+        return builder
+                .type().fieldType(Property.ValueType.TEXT).ballerinaType(ROLE_TYPE).stepOut()
+                .type().fieldType(Property.ValueType.REPEATABLE_LIST).ballerinaType(ROLE_LIST_TYPE)
+                    .template(listItem).stepOut()
+                .type().fieldType(Property.ValueType.EXPRESSION).ballerinaType(ROLE_UNION_TYPE).stepOut();
+    }
+
+    /**
+     * The role value as Ballerina source. The field is multi-mode, so the raw value is a string in
+     * expression mode, a string template in text mode, and a list of entries in list mode; going
+     * through {@link Property#toSourceCode()} renders each of those, and {@link #quoteIfBareRole}
+     * then quotes a bare word that arrived without a template wrapper (a value read back from
+     * source, say) while leaving a list or a reference alone.
+     *
+     * @param property the role property, or {@code null}
+     * @return the role expression, or an empty string when nothing was entered
+     */
+    public static String roleSource(Property property) {
+        if (property == null) {
+            return "";
+        }
+        String source = property.toSourceCode().trim();
+        return source.isEmpty() ? "" : quoteIfBareRole(source);
     }
 
     /**

@@ -29,6 +29,7 @@ import io.ballerina.flowmodelgenerator.core.model.NodeBuilder;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
+import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.projects.Document;
 import io.ballerina.projects.Project;
@@ -93,6 +94,14 @@ public class DiagnosticRequest implements Callable<JsonElement> {
         // Parse the flow node
         FlowNode flowNodeObj = gson.fromJson(flowNode, FlowNode.class);
         if (flowNodeObj == null || flowNodeObj.codedata() == null) {
+            return null;
+        }
+
+        // The analysis below reads the edited range back as a statement, which a node writing into
+        // the durable agent's declaration does not produce: its edit is a list entry or a record
+        // field, and read on its own it parses as a broken variable declaration. Reporting that
+        // would describe the reader, not the edit, so these kinds carry no diagnostics.
+        if (WorkflowUtil.editsAgentDeclaration(flowNodeObj.codedata().node())) {
             return null;
         }
 

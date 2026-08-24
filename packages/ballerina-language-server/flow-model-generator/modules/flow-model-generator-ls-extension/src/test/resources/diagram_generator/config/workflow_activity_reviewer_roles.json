@@ -1,29 +1,28 @@
 {
   "start": {
-    "line": 26,
+    "line": 53,
     "offset": 0
   },
   "end": {
-    "line": 34,
+    "line": 62,
     "offset": 1
   },
   "source": "workflow_operations.bal",
-  "description": "Test workflow process function with ctx->callActivity returns ACTIVITY_CALL and wait events returns WAIT_DATA",
+  "description": "Activity calls gated by a human review hydrate the reviewer role(s) for the form: a single role unquoted, a role list as its source",
   "diagram": {
     "fileName": "workflow_operations.bal",
     "nodes": [
       {
-        "id": "61071",
+        "id": "87266",
         "metadata": {
           "label": "Start",
           "data": {
             "kind": "Workflow",
-            "label": "orderWorkflow",
+            "label": "reviewedOrderWorkflow",
             "isServiceFunction": false,
             "parameters": [
               "workflow:Context ctx",
-              "OrderInput input",
-              "OrderWorkflowEvents events"
+              "OrderInput input"
             ],
             "return": "error?"
           }
@@ -33,15 +32,15 @@
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 26,
-              "offset": 106
+              "line": 53,
+              "offset": 86
             },
             "endLine": {
-              "line": 34,
+              "line": 62,
               "offset": 1
             }
           },
-          "sourceCode": "# Process an order workflow with events\n@workflow:Workflow\nfunction orderWorkflow(workflow:Context ctx, OrderInput input, OrderWorkflowEvents events) returns error? {\n    // Activity call - should be ACTIVITY_CALL\n    int intResult = check ctx->callActivity(calculateDiscount, {amount: 100.0});\n    io:println(\"Discount calculated: \" + intResult.toString());\n\n    // Wait for data - should be WAIT_DATA\n    ApprovalData approval = check wait events.approve;\n    io:println(\"Approved by: \" + approval.approverName);\n}"
+          "sourceCode": "# Activity calls gated by a human review, scoped to reviewer role(s)\n@workflow:Workflow\nfunction reviewedOrderWorkflow(workflow:Context ctx, OrderInput input) returns error? {\n    // Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");\n    io:println(single.toString());\n\n    // Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);\n    io:println(several.toString());\n}"
         },
         "returning": false,
         "diagnostics": {
@@ -50,25 +49,25 @@
         "flags": 0
       },
       {
-        "id": "58574",
+        "id": "85364",
         "metadata": {
           "label": "Comment",
-          "description": "Activity call - should be ACTIVITY_CALL"
+          "description": "Human review scoped to a single reviewer role"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 27,
+              "line": 54,
               "offset": 0
             },
             "endLine": {
-              "line": 27,
-              "offset": 46
+              "line": 54,
+              "offset": 52
             }
           },
-          "sourceCode": "Activity call - should be ACTIVITY_CALL"
+          "sourceCode": "Human review scoped to a single reviewer role"
         },
         "returning": false,
         "properties": {
@@ -83,7 +82,7 @@
                 "selected": true
               }
             ],
-            "value": "Activity call - should be ACTIVITY_CALL",
+            "value": "Human review scoped to a single reviewer role",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -93,7 +92,7 @@
         "flags": 0
       },
       {
-        "id": "59724",
+        "id": "86530",
         "metadata": {
           "label": "calculateDiscount",
           "description": "Activity function for calculating discount",
@@ -110,15 +109,15 @@
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 28,
+              "line": 55,
               "offset": 4
             },
             "endLine": {
-              "line": 28,
-              "offset": 80
+              "line": 55,
+              "offset": 102
             }
           },
-          "sourceCode": "// Activity call - should be ACTIVITY_CALL\n    int intResult = check ctx->callActivity(calculateDiscount, {amount: 100.0});"
+          "sourceCode": "// Human review scoped to a single reviewer role\n    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = \"Finance\");"
         },
         "returning": false,
         "properties": {
@@ -204,7 +203,7 @@
                 "selected": true
               }
             ],
-            "value": "NoRetry",
+            "value": "ManualRetry",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -400,7 +399,7 @@
                 "selected": true
               }
             ],
-            "value": "",
+            "value": "\"Finance\"",
             "optional": true,
             "editable": true,
             "advanced": false,
@@ -453,7 +452,7 @@
                 "selected": true
               }
             ],
-            "value": "intResult",
+            "value": "single",
             "optional": false,
             "editable": false,
             "advanced": false,
@@ -462,12 +461,12 @@
               "lineRange": {
                 "fileName": "workflow_operations.bal",
                 "startLine": {
-                  "line": 28,
+                  "line": 55,
                   "offset": 8
                 },
                 "endLine": {
-                  "line": 28,
-                  "offset": 17
+                  "line": 55,
+                  "offset": 14
                 }
               }
             }
@@ -498,7 +497,7 @@
         "flags": 1
       },
       {
-        "id": "60699",
+        "id": "87454",
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
@@ -514,15 +513,15 @@
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 29,
+              "line": 56,
               "offset": 4
             },
             "endLine": {
-              "line": 29,
-              "offset": 63
+              "line": 56,
+              "offset": 34
             }
           },
-          "sourceCode": "io:println(\"Discount calculated: \" + intResult.toString());"
+          "sourceCode": "io:println(single.toString());"
         },
         "returning": false,
         "properties": {
@@ -560,7 +559,7 @@
                     "selected": true
                   }
                 ],
-                "value": "\"Discount calculated: \" + intResult.toString()",
+                "value": "single.toString()",
                 "optional": false,
                 "editable": false,
                 "advanced": false,
@@ -581,25 +580,25 @@
         "flags": 0
       },
       {
-        "id": "61577",
+        "id": "88371",
         "metadata": {
           "label": "Comment",
-          "description": "Wait for data - should be WAIT_DATA"
+          "description": "Human review scoped to several reviewer roles"
         },
         "codedata": {
           "node": "COMMENT",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 30,
+              "line": 57,
               "offset": 0
             },
             "endLine": {
-              "line": 31,
-              "offset": 42
+              "line": 58,
+              "offset": 52
             }
           },
-          "sourceCode": "Wait for data - should be WAIT_DATA"
+          "sourceCode": "Human review scoped to several reviewer roles"
         },
         "returning": false,
         "properties": {
@@ -614,7 +613,7 @@
                 "selected": true
               }
             ],
-            "value": "Wait for data - should be WAIT_DATA",
+            "value": "Human review scoped to several reviewer roles",
             "optional": false,
             "editable": true,
             "advanced": false,
@@ -624,255 +623,412 @@
         "flags": 0
       },
       {
-        "id": "63666",
+        "id": "90477",
         "metadata": {
-          "label": "Await Data",
-          "description": "Wait for workflow data to be received"
+          "label": "calculateDiscount",
+          "description": "Activity function for calculating discount",
+          "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_workflow_0.8.3.png"
         },
         "codedata": {
-          "node": "WAIT_DATA",
+          "node": "ACTIVITY_CALL",
+          "org": "$anon",
+          "module": ".",
+          "packageName": ".",
+          "object": "Context",
+          "symbol": "calculateDiscount",
+          "version": "0.0.0",
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 32,
+              "line": 59,
               "offset": 4
             },
             "endLine": {
-              "line": 32,
-              "offset": 54
+              "line": 60,
+              "offset": 50
             }
           },
-          "sourceCode": "// Wait for data - should be WAIT_DATA\n    ApprovalData approval = check wait events.approve;"
+          "sourceCode": "// Human review scoped to several reviewer roles\n    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},\n            retryPolicy = [\"finance\", \"manager\"]);"
         },
         "returning": false,
         "properties": {
-          "dataWaits": {
+          "advanced": {
             "metadata": {
-              "label": "Data Waits",
-              "description": "Data to wait for (one or more)"
+              "label": "Activity call configurations",
+              "description": "Activity call configurations"
             },
             "types": [
               {
-                "fieldType": "REPEATABLE_PROPERTY",
-                "template": {
-                  "metadata": {
-                    "label": "Data Waits",
-                    "description": "Data to wait for (one or more)"
-                  },
-                  "types": [
-                    {
-                      "fieldType": "FIXED_PROPERTY",
-                      "selected": false
-                    }
-                  ],
-                  "value": {
-                    "variable": {
-                      "metadata": {
-                        "label": "Data Receive Variable Name",
-                        "description": "Variable name to receive the data"
-                      },
-                      "types": [
-                        {
-                          "fieldType": "IDENTIFIER",
-                          "scope": "Local",
-                          "selected": true
-                        }
-                      ],
-                      "value": "",
-                      "optional": false,
-                      "editable": true,
-                      "advanced": false,
-                      "hidden": false
-                    },
-                    "dataType": {
-                      "metadata": {
-                        "label": "Data Type",
-                        "description": "Type of the data to be received on successful wait"
-                      },
-                      "types": [
-                        {
-                          "fieldType": "TYPE",
-                          "ballerinaType": "anydata",
-                          "selected": true
-                        }
-                      ],
-                      "value": "",
-                      "optional": false,
-                      "editable": true,
-                      "advanced": false,
-                      "hidden": false
-                    },
-                    "dataName": {
-                      "metadata": {
-                        "label": "Data Name",
-                        "description": "Name of the data to reference when sending data to the workflow"
-                      },
-                      "types": [
-                        {
-                          "fieldType": "IDENTIFIER",
-                          "selected": true
-                        }
-                      ],
-                      "value": "",
-                      "optional": false,
-                      "editable": true,
-                      "advanced": false,
-                      "hidden": false
-                    }
-                  },
-                  "optional": false,
-                  "editable": false,
-                  "advanced": false,
-                  "hidden": false
-                },
+                "fieldType": "ADVANCE_PARAM_LIST",
                 "selected": false
               }
             ],
-            "value": {
-              "0": {
-                "metadata": {
-                  "label": "Data Waits",
-                  "description": "Data to wait for (one or more)"
-                },
-                "types": [
-                  {
-                    "fieldType": "FIXED_PROPERTY",
-                    "selected": false
-                  }
-                ],
-                "value": {
-                  "variable": {
-                    "metadata": {
-                      "label": "Data Receive Variable Name",
-                      "description": "Variable name to receive the data"
-                    },
-                    "value": "approval",
-                    "optional": false,
-                    "editable": true,
-                    "advanced": false,
-                    "hidden": false
-                  },
-                  "dataType": {
-                    "metadata": {
-                      "label": "Data Type",
-                      "description": "Type of the data to be received on successful wait"
-                    },
-                    "value": "// Wait for data - should be WAIT_DATA\n    ApprovalData",
-                    "optional": false,
-                    "editable": true,
-                    "advanced": false,
-                    "hidden": false
-                  },
-                  "dataName": {
-                    "metadata": {
-                      "label": "Data Name",
-                      "description": "Name of the data to reference when sending data to the workflow"
-                    },
-                    "value": "approve",
-                    "optional": false,
-                    "editable": true,
-                    "advanced": false,
-                    "hidden": false
-                  }
-                },
-                "optional": false,
-                "editable": false,
-                "advanced": false,
-                "hidden": false
-              }
-            },
+            "value": {},
             "optional": false,
             "editable": false,
             "advanced": false,
             "hidden": false
           },
-          "optional": {
+          "input": {
             "metadata": {
-              "label": "Optional Data Types",
-              "description": "When `minCount` is less than the number of data waits, all data wait types should be marked optional"
+              "label": "input",
+              "description": ""
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "record {|decimal amount; anydata...;|}",
+                "selected": false
+              }
+            ],
+            "placeholder": "record {|decimal amount; anydata...;|}",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {
+              "kind": "REQUIRED",
+              "originalName": "input"
+            }
+          },
+          "checkError": {
+            "metadata": {
+              "label": "Check Error",
+              "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
             },
             "types": [
               {
                 "fieldType": "FLAG",
-                "selected": false
+                "ballerinaType": "boolean",
+                "selected": true
               }
             ],
-            "value": false,
-            "optional": false,
+            "value": "true",
+            "optional": true,
             "editable": true,
             "advanced": true,
             "hidden": false
           },
-          "minCount": {
+          "retryPolicy": {
             "metadata": {
-              "label": "Min Count",
-              "description": "Minimum completions required (default: all)"
+              "label": "Retry Policy",
+              "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
             },
             "types": [
               {
-                "fieldType": "NUMBER",
-                "ballerinaType": "int:Unsigned32",
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "int:Unsigned32",
-                "selected": false
-              }
-            ],
-            "placeholder": "0",
-            "optional": true,
-            "editable": true,
-            "advanced": true,
-            "hidden": false,
-            "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "minCount"
-            },
-            "defaultValue": "<int:Unsigned32>futures.length()"
-          },
-          "timeout": {
-            "metadata": {
-              "label": "Timeout",
-              "description": "Maximum wait duration; returns an error on timeout"
-            },
-            "types": [
-              {
-                "fieldType": "RECORD_MAP_EXPRESSION",
-                "ballerinaType": "workflow:Duration",
-                "typeMembers": [
+                "fieldType": "DROPDOWN_CHOICE",
+                "options": [
                   {
-                    "type": "Duration",
-                    "packageInfo": "ballerina:workflow:0.8.3",
-                    "packageName": "workflow",
-                    "kind": "RECORD_TYPE",
-                    "selected": false
+                    "label": "No Automatic Retry",
+                    "value": "NoRetry"
+                  },
+                  {
+                    "label": "Auto Retry",
+                    "value": "AutoRetry"
+                  },
+                  {
+                    "label": "Human Review",
+                    "value": "ManualRetry"
                   }
                 ],
-                "selected": false
-              },
-              {
-                "fieldType": "EXPRESSION",
-                "ballerinaType": "workflow:Duration?",
-                "selected": false
+                "selected": true
               }
             ],
-            "placeholder": "()",
+            "value": "ManualRetry",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "dynamicFormFields": {
+              "NoRetry": {},
+              "AutoRetry": {
+                "maxRetries": {
+                  "metadata": {
+                    "label": "Max Retries",
+                    "description": "Maximum retry attempts (default: 3)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "int",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryDelay": {
+                  "metadata": {
+                    "label": "Retry Delay",
+                    "description": "Initial delay in seconds before the first retry (default: 1.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "retryBackoff": {
+                  "metadata": {
+                    "label": "Retry Backoff",
+                    "description": "Multiplier applied to delay after each retry (default: 2.0)"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                },
+                "maxRetryDelay": {
+                  "metadata": {
+                    "label": "Max Retry Delay",
+                    "description": "Cap on the delay between retries, in seconds"
+                  },
+                  "types": [
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "decimal",
+                      "selected": true
+                    }
+                  ],
+                  "value": "",
+                  "optional": true,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              },
+              "ManualRetry": {
+                "retryUserRoles": {
+                  "metadata": {
+                    "label": "Reviewer Roles",
+                    "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+                  },
+                  "types": [
+                    {
+                      "fieldType": "TEXT",
+                      "ballerinaType": "string",
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "REPEATABLE_LIST",
+                      "ballerinaType": "string[]",
+                      "template": {
+                        "types": [
+                          {
+                            "fieldType": "TEXT",
+                            "ballerinaType": "string",
+                            "selected": false
+                          },
+                          {
+                            "fieldType": "EXPRESSION",
+                            "ballerinaType": "string",
+                            "selected": false
+                          }
+                        ],
+                        "optional": false,
+                        "editable": false,
+                        "advanced": false,
+                        "hidden": false
+                      },
+                      "selected": false
+                    },
+                    {
+                      "fieldType": "EXPRESSION",
+                      "ballerinaType": "string|string[]",
+                      "selected": false
+                    }
+                  ],
+                  "value": "",
+                  "optional": false,
+                  "editable": true,
+                  "advanced": false,
+                  "hidden": false
+                }
+              }
+            },
+            "itemOptions": [
+              {
+                "id": "NoRetry",
+                "content": "No Automatic Retry",
+                "value": "NoRetry"
+              },
+              {
+                "id": "AutoRetry",
+                "content": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "id": "ManualRetry",
+                "content": "Human Review",
+                "value": "ManualRetry"
+              }
+            ]
+          },
+          "maxRetries": {
+            "metadata": {
+              "label": "Max Retries",
+              "description": "Maximum retry attempts (default: 3)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "int",
+                "selected": true
+              }
+            ],
+            "value": "",
             "optional": true,
             "editable": true,
-            "advanced": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryDelay": {
+            "metadata": {
+              "label": "Retry Delay",
+              "description": "Initial delay in seconds before the first retry (default: 1.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryUserRoles": {
+            "metadata": {
+              "label": "Reviewer Roles",
+              "description": "Role(s) permitted to decide the retry review"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "string|string[]",
+                "selected": true
+              }
+            ],
+            "value": "[\"finance\", \"manager\"]",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "retryBackoff": {
+            "metadata": {
+              "label": "Retry Backoff",
+              "description": "Multiplier applied to delay after each retry (default: 2.0)"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "maxRetryDelay": {
+            "metadata": {
+              "label": "Max Retry Delay",
+              "description": "Cap on the delay between retries, in seconds"
+            },
+            "types": [
+              {
+                "fieldType": "EXPRESSION",
+                "ballerinaType": "decimal",
+                "selected": true
+              }
+            ],
+            "value": "",
+            "optional": true,
+            "editable": true,
+            "advanced": false,
+            "hidden": true
+          },
+          "variable": {
+            "metadata": {
+              "label": "Variable Name",
+              "description": "Name of the variable"
+            },
+            "types": [
+              {
+                "fieldType": "IDENTIFIER",
+                "selected": true
+              }
+            ],
+            "value": "several",
+            "optional": false,
+            "editable": false,
+            "advanced": false,
             "hidden": false,
             "codedata": {
-              "kind": "DEFAULTABLE",
-              "originalName": "timeout"
+              "lineRange": {
+                "fileName": "workflow_operations.bal",
+                "startLine": {
+                  "line": 59,
+                  "offset": 8
+                },
+                "endLine": {
+                  "line": 59,
+                  "offset": 15
+                }
+              }
+            }
+          },
+          "type": {
+            "metadata": {
+              "label": "Variable Type",
+              "description": "Type of the variable"
             },
-            "defaultValue": "()"
+            "types": [
+              {
+                "fieldType": "TYPE",
+                "selected": true
+              }
+            ],
+            "value": "int",
+            "placeholder": "var",
+            "optional": false,
+            "editable": true,
+            "advanced": false,
+            "hidden": false,
+            "codedata": {}
           }
+        },
+        "diagnostics": {
+          "hasDiagnostics": true
         },
         "flags": 1
       },
       {
-        "id": "64660",
+        "id": "92415",
         "metadata": {
           "label": "println",
           "description": "Prints `any`, `error` or string templates value(s) to the standard output stream and terminates the line.\n```ballerina\nio:println(\"Start processing the CSV file from \", srcFileName);\n```\n",
@@ -888,15 +1044,15 @@
           "lineRange": {
             "fileName": "workflow_operations.bal",
             "startLine": {
-              "line": 33,
+              "line": 61,
               "offset": 4
             },
             "endLine": {
-              "line": 33,
-              "offset": 56
+              "line": 61,
+              "offset": 35
             }
           },
-          "sourceCode": "io:println(\"Approved by: \" + approval.approverName);"
+          "sourceCode": "io:println(several.toString());"
         },
         "returning": false,
         "properties": {
@@ -934,7 +1090,7 @@
                     "selected": true
                   }
                 ],
-                "value": "\"Approved by: \" + approval.approverName",
+                "value": "several.toString()",
                 "optional": false,
                 "editable": false,
                 "advanced": false,

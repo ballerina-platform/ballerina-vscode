@@ -48,3 +48,16 @@ public function main() returns error? {
     // Send data - should be SEND_DATA
     check workflow:sendData(orderWorkflow, "4422", {approved: true, approverName: "Admin"}, "approve");
 }
+
+# Activity calls gated by a human review, scoped to reviewer role(s)
+@workflow:Workflow
+function reviewedOrderWorkflow(workflow:Context ctx, OrderInput input) returns error? {
+    // Human review scoped to a single reviewer role
+    int single = check ctx->callActivity(calculateDiscount, {amount: 100.0}, retryPolicy = "Finance");
+    io:println(single.toString());
+
+    // Human review scoped to several reviewer roles
+    int several = check ctx->callActivity(calculateDiscount, {amount: 200.0},
+            retryPolicy = ["finance", "manager"]);
+    io:println(several.toString());
+}
