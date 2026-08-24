@@ -57,6 +57,20 @@ export function getDefaultResponse(httpMethod: HTTP_METHOD): string {
     }
 }
 
+export function applyMethod(model: FunctionModel, method: string): FunctionModel {
+    const updated = { ...model, accessor: { ...model.accessor, value: method } };
+    const responses = updated.returnType?.responses;
+    if (!responses?.length) {
+        return updated;
+    }
+    const success = {
+        ...responses[0],
+        statusCode: { ...responses[0].statusCode, value: getDefaultResponse(method as HTTP_METHOD) },
+    };
+    updated.returnType = { ...updated.returnType, responses: [success, ...responses.slice(1)] };
+    return updated;
+}
+
 export function getTitleFromStatusCodeAndType(responseCodes: VisibleTypesResponse, statusCode: string, type: string): string {
     let responseCode: VisibleTypeItem | undefined;
 

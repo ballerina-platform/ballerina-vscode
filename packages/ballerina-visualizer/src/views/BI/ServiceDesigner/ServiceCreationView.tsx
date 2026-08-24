@@ -31,6 +31,7 @@ import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { DownloadIcon } from "../../../components/DownloadIcon";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { applyMethod } from "./utils";
 import {
     applyFormValuesToModel,
     collectRecordTypeFields,
@@ -139,7 +140,7 @@ enum PullingStatus {
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName, isPopup, onCreated, defaultValues , collectEndpointShape } = props;
+        agentName, agentOrgName, isPopup, onCreated, defaultValues, collectEndpointShape } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);

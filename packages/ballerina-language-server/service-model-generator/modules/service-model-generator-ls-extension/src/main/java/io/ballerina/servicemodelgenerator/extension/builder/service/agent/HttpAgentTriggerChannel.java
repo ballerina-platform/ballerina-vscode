@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SPACE;
 
@@ -87,7 +88,6 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String RESOURCE = """
             {{signature}}{
                 do {
-                    {{prompt}}
                     {{answerType}} answer = check {{agentRun}};
             {{return}}    } on fail error err {
                     // handle error
@@ -214,12 +214,12 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static String body(AgentTriggerContext context, String header, Answer answer,
                                List<HandlerParameter> parameters) {
         String resource = RESOURCE.replace("{{return}}", returnStatement(answer));
+        String promptExpression = AgentPromptBuilder.promptExpression(context.formValue(INSTRUCTIONS),
+                DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters);
         return AgentTriggerChannel.indent(resource)
                 .replace("{{signature}}", header)
                 .replace("{{answerType}}", answer.type())
-                .replace("{{prompt}}", AgentPromptBuilder.promptStatement(context.formValue(INSTRUCTIONS),
-                        DEFAULT_INSTRUCTIONS, SOLE_PAYLOAD_LABEL, parameters))
-                .replace("{{agentRun}}", context.agentRun("prompt"));
+                .replace("{{agentRun}}", context.agentRun(promptExpression));
     }
 
     private record Answer(String type, boolean isBody, boolean deliverable) {
@@ -283,7 +283,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static List<HandlerParameter> promptParameters(Function shaped) {
         List<HandlerParameter> parameters = new ArrayList<>(pathParameters(shaped));
         for (Parameter parameter : shaped.getParameters() == null ? List.<Parameter>of() : shaped.getParameters()) {
-            if (!parameter.isEnabled()) {
+            if (!parameter.isEnabled() || HTTP_PARAM_TYPE_HEADER.equals(parameter.getHttpParamType())) {
                 continue;
             }
             String type = valueOf(parameter.getType());

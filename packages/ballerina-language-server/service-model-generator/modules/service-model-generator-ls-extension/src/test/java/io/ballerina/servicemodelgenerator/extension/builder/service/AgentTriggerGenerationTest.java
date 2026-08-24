@@ -249,12 +249,12 @@ public class AgentTriggerGenerationTest {
     public void testInstructionsAndTheEventBecomeThePrompt() {
         String src = generateForGitHub(INSTRUCTIONS);
 
-        Assert.assertTrue(src.contains("string prompt = string `" + INSTRUCTIONS),
-                "the user's instructions should open the prompt: " + src);
-        Assert.assertTrue(src.contains("${payload.toJsonString()}`;"),
+        Assert.assertTrue(src.contains("triageAgent.run(string `" + INSTRUCTIONS),
+                "the user's instructions should open the prompt, inline as the argument: " + src);
+        Assert.assertTrue(src.contains("${payload.toJsonString()}`)"),
                 "the whole event should be appended: " + src);
-        Assert.assertTrue(src.contains("triageAgent.run(prompt)"),
-                "the agent should be called with the composed prompt: " + src);
+        Assert.assertFalse(src.contains("string prompt ="),
+                "the prompt is not a separate declaration: " + src);
     }
 
     @Test
@@ -292,7 +292,7 @@ public class AgentTriggerGenerationTest {
                 "the primary handler should offload, using the schema's own payload name: " + src);
         Assert.assertTrue(src.contains("function runAgentOnOrdersCreate(shopify:OrderEvent event)"),
                 "the reply method should take the handler's own payload type: " + src);
-        Assert.assertTrue(src.contains("${event.toJsonString()}`;"),
+        Assert.assertTrue(src.contains("${event.toJsonString()}`)"),
                 "the whole event should be appended to the prompt: " + src);
     }
 
@@ -625,8 +625,10 @@ public class AgentTriggerGenerationTest {
                 "the user's path should be the service path, with '-' escaped: " + src);
         Assert.assertTrue(src.contains("resource function post ."),
                 "one endpoint should be one URL, so the resource sits on the base path: " + src);
-        Assert.assertTrue(src.contains("issueTriageAgent.run(prompt)"),
-                "the agent should be called with the assembled prompt: " + src);
+        Assert.assertTrue(src.contains("issueTriageAgent.run(string `Triage this issue."),
+                "the agent should be called with the assembled prompt, inline as the argument: " + src);
+        Assert.assertFalse(src.contains("string prompt ="),
+                "the prompt is not a separate declaration: " + src);
         Assert.assertTrue(src.contains("import ballerina/http;"),
                 "the endpoint needs ballerina/http: " + src);
     }
@@ -676,7 +678,7 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointLeavesAnUndeliverableAnswerToTheUser() {
         String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
 
-        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"),
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(string `Triage it.`);"),
                 "the answer is always a string, so no declared type is bound to run: " + src);
         Assert.assertTrue(src.contains("// TODO: map the agent's answer to the declared response type"),
                 "a record cannot take a string, so the mapping is the user's and has to be visible: " + src);
@@ -690,7 +692,7 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointDeliversTheAnswerWhenTheDeclaredTypeAcceptsIt() {
         String src = generateForShapedHttp("POST", ".", List.of(), "string");
 
-        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"), src);
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(string `Triage it.`);"), src);
         Assert.assertTrue(src.contains("return {body: answer};"),
                 "a string body takes the answer directly, wrapped by the status code record: " + src);
         Assert.assertFalse(src.contains("// TODO:"),
@@ -726,7 +728,7 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointReturnsTheBodyWhenTheStatusCodeWrapsIt() {
         String src = generateForShapedHttp("POST", "process", List.of(), "json");
 
-        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(prompt);"), src);
+        Assert.assertTrue(src.contains("string answer = check issueTriageAgent.run(string `Triage it.`);"), src);
         Assert.assertTrue(src.contains("return {body: answer};"),
                 "a wrapped return puts the answer in the body field: " + src);
     }
@@ -743,6 +745,19 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
+    public void testShapedHttpEndpointExcludesHeadersFromThePrompt() {
+        String src = generateForShapedHttp("POST", ".",
+                List.of(param("HEADER", "string", "authorization"), param("QUERY", "string", "region")), "string");
+
+        Assert.assertTrue(src.contains("@http:Header string authorization"),
+                "the header should still reach the resource signature: " + src);
+        Assert.assertFalse(src.contains("${authorization}"),
+                "a header is transport metadata, not agent input, and must not reach the prompt: " + src);
+        Assert.assertTrue(src.contains("${region}"),
+                "a query parameter should still reach the prompt: " + src);
+    }
+
+    @Test
     public void testHttpEndpointDoesNotOffloadTheAgentCall() {
         String src = generateForHttp("/issue-triage", "Triage this issue.", "\n");
 
@@ -756,7 +771,7 @@ public class AgentTriggerGenerationTest {
     public void testHttpEndpointCarriesTheUsersInstructions() {
         String src = generateForHttp("/triage", "Suggest a priority label.", "\n");
 
-        Assert.assertTrue(src.contains("string prompt = string `Suggest a priority label."),
+        Assert.assertTrue(src.contains("issueTriageAgent.run(string `Suggest a priority label."),
                 "the instructions should open the prompt: " + src);
         Assert.assertTrue(src.contains("Request payload:"),
                 "a single carried parameter gets a heading rather than its own name: " + src);
