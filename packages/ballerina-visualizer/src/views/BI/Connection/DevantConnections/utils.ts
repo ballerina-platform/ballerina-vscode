@@ -27,6 +27,10 @@ export const ProgressWrap = styled.div`
     padding: 40px;
 `;
 
+// Devant tags knowledge base services with this tag.
+export const KB_SERVICE_TAG = "knowledge-base-as-service";
+export const isKnowledgeBaseService = (item: MarketplaceItem) => item.tags?.includes(KB_SERVICE_TAG) ?? false;
+
 export enum DevantConnectionFlow {
     // Create related flows
     CREATE_INTERNAL_OAS = "CREATE_INTERNAL_OAS",

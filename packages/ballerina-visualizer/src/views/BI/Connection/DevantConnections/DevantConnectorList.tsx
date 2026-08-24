@@ -34,7 +34,7 @@ import {
     SectionHeader,
     SectionTitle,
 } from "../AddConnectionPopup/styles";
-import { DevantConnectionFlow, getKnownAvailableNode, ProgressWrap } from "./utils";
+import { DevantConnectionFlow, getKnownAvailableNode, isKnowledgeBaseService, ProgressWrap } from "./utils";
 
 interface DevantConnectorListProps {
     onItemSelect: (
@@ -160,6 +160,10 @@ export function DevantConnectorList(props: DevantConnectorListProps) {
         select: (data) => ({
             ...data,
             data: data.data.filter((item) => {
+                // Knowledge base services are listed under "Add Knowledge Base", not here.
+                if (isKnowledgeBaseService(item)) {
+                    return false;
+                }
                 if (filterType === "internal-services") {
                     return item.component?.componentId !== platformExtState?.selectedComponent?.metadata?.id;
                 }
