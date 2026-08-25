@@ -31,6 +31,7 @@ import { notifyEvaluationHistoryUpdated } from '../../RPCLayer';
 import { captureGitState, createSnapshot, pinSnapshot, ensureEvalReportsGitignored } from '../../utils/git-utils';
 import { quoteShellPath } from '../../utils/config';
 import { cleanAndValidateProject } from '../config-generator/configGenerator';
+import { refreshDefaultProviderToken } from '../ai/utils';
 
 /**
  * Extract project path from a test item
@@ -243,6 +244,7 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         if (token.isCancellationRequested) {
             break;
         }
+        await refreshDefaultProviderToken(projectPath);
         try {
             await cleanAndValidateProject(langClient, projectPath);
         } catch (err) {

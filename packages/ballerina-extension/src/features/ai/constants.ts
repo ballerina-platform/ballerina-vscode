@@ -31,4 +31,5 @@ export const LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL = "Please sign in to WSO2 
 export const LOGIN_REQUIRED_WARNING_FOR_DEFAULT_EMBEDDING = "Please sign in to WSO2 Integration Intelligence to configure the WSO2 default embedding provider.";
 export const DEFAULT_PROVIDER_ADDED = "WSO2 default model provider configuration values were added to the Config.toml file.";
 export const DEFAULT_EMBEDDING_PROVIDER_ADDED = "WSO2 default embedding provider configuration values were added to the Config.toml file.";
+export const DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED = "Could not refresh the WSO2 default model provider access token. The integration may fail with invalid credentials.";
 export const LLM_API_BASE_PATH = "/llm-api/v1.0";

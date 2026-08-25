@@ -33,6 +33,7 @@ import { discoverTests, gatherTestItems } from "./discover";
 import { testController, projectRoot } from "./activator";
 import { extension } from "../../BalExtensionContext";
 import { quoteShellPath } from "../../utils/config";
+import { refreshDefaultProviderToken } from "../ai/utils";
 
 enum EXEC_ARG {
     TESTS = '--tests',
@@ -62,6 +63,8 @@ export function runHandler(request: TestRunRequest, cancellation: CancellationTo
 
         try {
             if (request.profile?.kind == TestRunProfileKind.Run) {
+                await refreshDefaultProviderToken(projectRoot);
+
                 let testNames = "";
                 // mark tests as running in test explorer
                 for (const { test, } of queue) {

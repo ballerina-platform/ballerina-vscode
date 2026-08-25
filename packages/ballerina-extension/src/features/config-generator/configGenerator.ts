@@ -33,6 +33,7 @@ import * as path from "path";
 import { TracerMachine } from "../tracing";
 import { VisualizerWebview } from "../../views/visualizer/webview";
 import { selectIntegrationOrPrompt } from "../../utils/command-utils";
+import { refreshDefaultProviderToken } from "../ai/utils";
 
 const UNUSED_IMPORT_ERR_CODE = "BCE2002";
 
@@ -102,6 +103,8 @@ export async function prepareAndGenerateConfig(
             );
         }
     }
+
+    await refreshDefaultProviderToken(packagePath);
 
     const ignoreFile = path.join(packagePath, ".gitignore");
     const configFile = path.join(packagePath, BAL_CONFIG_FILE);

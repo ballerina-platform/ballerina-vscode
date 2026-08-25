@@ -19,6 +19,8 @@
 import * as fs from 'fs';
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
+import { parse as parseToml } from '@iarna/toml';
+import { removeConfigKeys } from '../../utils/toml-utils';
 
 import { StateMachine } from "../../stateMachine";
 import {
@@ -29,12 +31,13 @@ import {
     isDevantUserLoggedIn,
     getPlatformStsToken,
     exchangeStsToCopilotToken,
-    storeAuthCredentials, 
-    NO_AUTH_CREDENTIALS_FOUND
+    storeAuthCredentials,
+    NO_AUTH_CREDENTIALS_FOUND,
+    getAccessToken
 } from '../../utils/ai/auth';
 import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core/lib/state-machine-types';
-import { CONFIG_FILE_NAME, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL } from './constants';
+import { CONFIG_FILE_NAME, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL } from './constants';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
@@ -206,9 +209,11 @@ function addOrReplaceConfigLine(lines: string[], key: string, value: string) {
     }
 }
 
+const WSO2_PROVIDER_CONFIG_TABLE = `[ballerina.ai.wso2ProviderConfig]`;
+
 function addDefaultModelConfig(
     projectPath: string, token: string, backendUrl: string): boolean {
-    const targetTable = `[ballerina.ai.wso2ProviderConfig]`;
+    const targetTable = WSO2_PROVIDER_CONFIG_TABLE;
     const SERVICE_URL_KEY = 'serviceUrl';
     const ACCESS_TOKEN_KEY = 'accessToken';
     const urlLine = `${SERVICE_URL_KEY} = "${backendUrl}"`;
@@ -269,6 +274,19 @@ function addDefaultModelConfig(
     return true;
 }
 
+// Also writes to tests/Config.toml if that folder exists.
+function writeDefaultModelConfigToProject(projectPath: string, token: string): boolean {
+    const openAiEpUrl = BACKEND_URL + LLM_API_BASE_PATH + "/openai";
+    const success = addDefaultModelConfig(projectPath, token, openAiEpUrl);
+
+    const testsDir = path.join(projectPath, 'tests');
+    if (fs.existsSync(testsDir) && fs.statSync(testsDir).isDirectory()) {
+        addDefaultModelConfig(testsDir, token, openAiEpUrl);
+    }
+
+    return success;
+}
+
 /**
  * Options for {@link addConfigFile}.
  *
@@ -303,16 +321,8 @@ export async function addConfigFile(
                     }
                     throw new Error(TOKEN_NOT_AVAILABLE_ERROR_MESSAGE);
                 }
-                const openAiEpUrl = BACKEND_URL + LLM_API_BASE_PATH + "/openai";
-                const success = addDefaultModelConfig(configPath, token, openAiEpUrl);
 
-                // Also update tests/Config.toml if a tests folder exists
-                const testsDir = path.join(configPath, 'tests');
-                if (fs.existsSync(testsDir) && fs.statSync(testsDir).isDirectory()) {
-                    addDefaultModelConfig(testsDir, token, openAiEpUrl);
-                }
-
-                if (success) {
+                if (writeDefaultModelConfigToProject(configPath, token)) {
                     return true;
                 }
             } catch (error) {
@@ -324,6 +334,78 @@ export async function addConfigFile(
         }
     );
     return progress;
+}
+
+function readConfiguredProviderToken(projectPath: string): string | null {
+    const configFilePath = findFileCaseInsensitive(projectPath, CONFIG_FILE_NAME);
+    if (!fs.existsSync(configFilePath)) {
+        return null;
+    }
+
+    try {
+        const config = parseToml(fs.readFileSync(configFilePath, 'utf-8')) as any;
+        const accessToken = config?.ballerina?.ai?.wso2ProviderConfig?.accessToken;
+        return typeof accessToken === 'string' ? accessToken : null;
+    } catch (error) {
+        console.error('Failed to parse Config.toml while checking the WSO2 default provider token:', error);
+        return null;
+    }
+}
+
+// Calls that pull the WSO2 default provider into generated code.
+const DEFAULT_PROVIDER_SOURCE_MARKERS = ['getDefaultModelProvider', 'getDefaultEmbeddingProvider'];
+
+async function isDefaultProviderReferencedInSource(projectPath: string): Promise<boolean> {
+    const projectSource = await getProjectSourceWithTests(projectPath);
+    if (!projectSource) {
+        return false;
+    }
+
+    const allSourceFiles = [
+        ...projectSource.sourceFiles,
+        ...projectSource.projectModules.flatMap(m => m.sourceFiles),
+        ...projectSource.projectTests
+    ];
+    return allSourceFiles.some(({ content }) =>
+        DEFAULT_PROVIDER_SOURCE_MARKERS.some(marker => content.includes(marker)));
+}
+
+function removeDefaultProviderConfigFromProject(projectPath: string): void {
+    for (const dir of [projectPath, path.join(projectPath, 'tests')]) {
+        if (fs.existsSync(dir)) {
+            removeConfigKeys(findFileCaseInsensitive(dir, CONFIG_FILE_NAME), ['wso2ProviderConfig'], 'ballerina', 'ai');
+        }
+    }
+}
+
+// Refreshes the token if still used; removes the stale config entry otherwise.
+export async function refreshDefaultProviderToken(projectPath: string): Promise<void> {
+    const configuredToken = readConfiguredProviderToken(projectPath);
+    if (configuredToken === null) {
+        return;
+    }
+
+    try {
+        if (!(await isDefaultProviderReferencedInSource(projectPath))) {
+            removeDefaultProviderConfigFromProject(projectPath);
+            return;
+        }
+
+        const credentials = await getAccessToken();
+        if (credentials?.loginMethod !== LoginMethod.BI_INTEL) {
+            return;
+        }
+
+        const { accessToken } = credentials.secrets;
+        if (accessToken === configuredToken) {
+            return;
+        }
+
+        writeDefaultModelConfigToProject(projectPath, accessToken);
+    } catch (error) {
+        console.error('Failed to refresh the WSO2 default model provider token:', error);
+        vscode.window.showWarningMessage(DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED);
+    }
 }
 
 export async function isBallerinaProjectAsync(rootPath: string): Promise<boolean> {
