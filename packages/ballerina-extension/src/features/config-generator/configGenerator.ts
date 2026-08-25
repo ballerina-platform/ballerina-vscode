@@ -104,7 +104,9 @@ export async function prepareAndGenerateConfig(
         }
     }
 
-    await refreshDefaultProviderToken(packagePath);
+    if (!(await refreshDefaultProviderToken(packagePath))) {
+        return false;
+    }
 
     const ignoreFile = path.join(packagePath, ".gitignore");
     const configFile = path.join(packagePath, BAL_CONFIG_FILE);

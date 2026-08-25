@@ -20,7 +20,6 @@ import * as fs from 'fs';
 import path from "path";
 import vscode, { Uri, workspace } from 'vscode';
 import { parse as parseToml } from '@iarna/toml';
-import { removeConfigKeys } from '../../utils/toml-utils';
 
 import { StateMachine } from "../../stateMachine";
 import {
@@ -33,11 +32,12 @@ import {
     exchangeStsToCopilotToken,
     storeAuthCredentials,
     NO_AUTH_CREDENTIALS_FOUND,
-    getAccessToken
+    getAccessToken,
+    isNotLoggedInError
 } from '../../utils/ai/auth';
 import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core/lib/state-machine-types';
-import { CONFIG_FILE_NAME, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL } from './constants';
+import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_ADDED, DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL, SIGN_IN_BI_COPILOT } from './constants';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
 import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
@@ -226,7 +226,7 @@ function addDefaultModelConfig(
         fileContent = fs.readFileSync(configFilePath, 'utf-8');
     }
 
-    const tableStartIndex = fileContent.indexOf(targetTable);
+    const tableStartIndex = findTableHeaderIndex(fileContent);
 
     if (tableStartIndex === -1) {
         // Table doesn't exist, create it
@@ -354,50 +354,171 @@ function hasConfiguredProviderToken(projectPath: string): boolean {
 // Calls that pull the WSO2 default provider into generated code.
 const DEFAULT_PROVIDER_SOURCE_MARKERS = ['getDefaultModelProvider', 'getDefaultEmbeddingProvider'];
 
+function readBalFiles(dir: string): string[] {
+    if (!fs.existsSync(dir)) {
+        return [];
+    }
+    return fs.readdirSync(dir)
+        .filter(name => name.endsWith('.bal'))
+        .map(name => fs.readFileSync(path.join(dir, name), 'utf-8'));
+}
+
 async function isDefaultProviderReferencedInSource(projectPath: string): Promise<boolean> {
     const projectSource = await getProjectSourceWithTests(projectPath);
-    if (!projectSource) {
-        return false;
-    }
+    const contents = projectSource ? [
+        ...projectSource.sourceFiles.map(f => f.content),
+        ...projectSource.projectModules.flatMap(m => m.sourceFiles.map(f => f.content)),
+        ...projectSource.projectTests.map(f => f.content),
+        // getProjectSourceWithTests doesn't walk into per-module tests/ dirs.
+        ...projectSource.projectModules.flatMap(m => readBalFiles(path.join(projectPath, 'modules', m.moduleName, 'tests')))
+    ] : [];
 
-    const allSourceFiles = [
-        ...projectSource.sourceFiles,
-        ...projectSource.projectModules.flatMap(m => m.sourceFiles),
-        ...projectSource.projectTests
-    ];
-    return allSourceFiles.some(({ content }) =>
-        DEFAULT_PROVIDER_SOURCE_MARKERS.some(marker => content.includes(marker)));
+    return contents.some(content => DEFAULT_PROVIDER_SOURCE_MARKERS.some(marker => content.includes(marker)));
 }
 
-function removeDefaultProviderConfigFromProject(projectPath: string): void {
-    for (const dir of [projectPath, path.join(projectPath, 'tests')]) {
-        if (fs.existsSync(dir)) {
-            removeConfigKeys(findFileCaseInsensitive(dir, CONFIG_FILE_NAME), ['wso2ProviderConfig'], 'ballerina', 'ai');
-        }
+// Line-anchored, so a comment mentioning the table name isn't mistaken for the real header.
+function findTableHeaderIndex(fileContent: string): number {
+    if (fileContent.startsWith(WSO2_PROVIDER_CONFIG_TABLE)) {
+        return 0;
     }
+    const index = fileContent.indexOf('\n' + WSO2_PROVIDER_CONFIG_TABLE);
+    return index === -1 ? -1 : index + 1;
 }
 
-// Refreshes the token if still used; removes the stale config entry otherwise.
-export async function refreshDefaultProviderToken(projectPath: string): Promise<void> {
-    if (!hasConfiguredProviderToken(projectPath)) {
+// Manual splice, not a toml parse/stringify round-trip: that can corrupt Config.toml on re-add and strips comments.
+function removeDefaultProviderConfigTable(configDir: string): void {
+    if (!fs.existsSync(configDir)) {
+        return;
+    }
+    const configFilePath = findFileCaseInsensitive(configDir, CONFIG_FILE_NAME);
+    if (!fs.existsSync(configFilePath)) {
         return;
     }
 
-    try {
-        if (!(await isDefaultProviderReferencedInSource(projectPath))) {
-            removeDefaultProviderConfigFromProject(projectPath);
+    const fileContent = fs.readFileSync(configFilePath, 'utf-8');
+    const tableStartIndex = findTableHeaderIndex(fileContent);
+    if (tableStartIndex === -1) {
+        return;
+    }
+
+    const nextTableIndex = fileContent.indexOf('\n[', tableStartIndex);
+    const tableEndIndex = nextTableIndex === -1 ? fileContent.length : nextTableIndex;
+
+    let removeStart = tableStartIndex;
+    if (fileContent.substring(0, tableStartIndex).endsWith('\n\n')) {
+        removeStart -= 1;
+    }
+
+    fs.writeFileSync(configFilePath, fileContent.substring(0, removeStart) + fileContent.substring(tableEndIndex));
+}
+
+function removeDefaultProviderConfigFromProject(projectPath: string): void {
+    removeDefaultProviderConfigTable(projectPath);
+    const testsDir = path.join(projectPath, 'tests');
+    if (fs.existsSync(testsDir) && fs.statSync(testsDir).isDirectory()) {
+        removeDefaultProviderConfigTable(testsDir);
+    }
+}
+
+let lastAuthSubscription: { unsubscribe: () => void } | null = null;
+const AUTH_SUBSCRIPTION_TIMEOUT_MS = 5 * 60 * 1000;
+
+// Prompts to sign in, then runs onAuthenticated() once login completes (or times out).
+export function promptSignInAndRetry(loginWarning: string, onAuthenticated: () => void): void {
+    vscode.window.showWarningMessage(loginWarning, SIGN_IN_BI_COPILOT).then(selection => {
+        if (selection !== SIGN_IN_BI_COPILOT) {
             return;
+        }
+
+        if (lastAuthSubscription) {
+            lastAuthSubscription.unsubscribe();
+            lastAuthSubscription = null;
+        }
+
+        let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+        const subscription = AIStateMachine.service().subscribe((state) => {
+            if (state.value !== 'Authenticated') {
+                return;
+            }
+            if (timeoutHandle !== null) {
+                clearTimeout(timeoutHandle);
+            }
+            lastAuthSubscription = null;
+            subscription.unsubscribe();
+            onAuthenticated();
+        });
+        lastAuthSubscription = subscription;
+
+        timeoutHandle = setTimeout(() => {
+            if (lastAuthSubscription === subscription) {
+                lastAuthSubscription = null;
+            }
+            subscription.unsubscribe();
+        }, AUTH_SUBSCRIPTION_TIMEOUT_MS);
+
+        // Reset a login stuck in Authenticating from a previous cancelled attempt.
+        const currentState = AIStateMachine.state();
+        if (typeof currentState === 'object' && 'Authenticating' in currentState) {
+            AIStateMachine.service().send(AIMachineEventType.CANCEL_LOGIN);
+        }
+
+        AIStateMachine.service().send(AIMachineEventType.LOGIN);
+    });
+}
+
+// Returns whether the project is now configured (safe to proceed with the run).
+async function promptToConfigureDefaultProvider(projectPath: string): Promise<boolean> {
+    const selection = await vscode.window.showInformationMessage(DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, CONFIGURE_DEFAULT_PROVIDER_ACTION);
+    if (selection !== CONFIGURE_DEFAULT_PROVIDER_ACTION) {
+        return false;
+    }
+
+    try {
+        await addConfigFile(projectPath, "model", { signOutOnFailure: false });
+        return true;
+    } catch (error) {
+        if (!isNotLoggedInError(error)) {
+            throw error;
+        }
+        promptSignInAndRetry(LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, () => {
+            addConfigFile(projectPath, "model", { signOutOnFailure: false }).then(configured => {
+                if (configured) {
+                    vscode.window.showInformationMessage(DEFAULT_PROVIDER_ADDED);
+                }
+            }).catch(retryError => {
+                vscode.window.showErrorMessage(`Failed to configure default model: ${(retryError as Error).message}`);
+            });
+        });
+        return false;
+    }
+}
+
+// Refreshes the token if used, removes the stale entry if not, or offers to configure it if never set up.
+// Returns false when the provider is needed but unconfigured, so callers can skip the run. Never throws.
+export async function refreshDefaultProviderToken(projectPath: string): Promise<boolean> {
+    try {
+        const isReferenced = await isDefaultProviderReferencedInSource(projectPath);
+
+        if (!hasConfiguredProviderToken(projectPath)) {
+            return !isReferenced || await promptToConfigureDefaultProvider(projectPath);
+        }
+
+        if (!isReferenced) {
+            removeDefaultProviderConfigFromProject(projectPath);
+            return true;
         }
 
         const credentials = await getAccessToken();
         if (credentials?.loginMethod !== LoginMethod.BI_INTEL) {
-            return;
+            return true;
         }
 
         writeDefaultModelConfigToProject(projectPath, credentials.secrets.accessToken);
+        return true;
     } catch (error) {
         console.error('Failed to refresh the WSO2 default model provider token:', error);
         vscode.window.showWarningMessage(DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED);
+        return true;
     }
 }
 

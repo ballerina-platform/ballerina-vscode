@@ -36,7 +36,9 @@ function activateConfigRunCommand() {
     commands.registerCommand(PALETTE_COMMANDS.RUN_CONFIG, async (filePath: Uri) => {
         const currentProject = extension.ballerinaExtInstance.getDocumentContext().getCurrentProject();
         if (currentProject) {
-            await refreshDefaultProviderToken(currentProject.path!);
+            if (!(await refreshDefaultProviderToken(currentProject.path!))) {
+                return;
+            }
             runCommand(currentProject, extension.ballerinaExtInstance.getBallerinaCmd(),
                 getRunCommand(),
                 currentProject.path!);

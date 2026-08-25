@@ -45,11 +45,15 @@ export function activateTestRunner() {
                 getCurrentBallerinaProject(extension.ballerinaExtInstance.getDocumentContext().getLatestDocument()?.toString())
                 : await getCurrentBallerinaProject();
             if (currentProject.kind !== PROJECT_TYPE.SINGLE_FILE) {
-                await refreshDefaultProviderToken(currentProject.path!);
+                if (!(await refreshDefaultProviderToken(currentProject.path!))) {
+                    return;
+                }
                 runCommand(currentProject, extension.ballerinaExtInstance.getBallerinaCmd(), BALLERINA_COMMANDS.TEST,
                     ...args, currentProject.path!);
             } else {
-                await refreshDefaultProviderToken(getCurrenDirectoryPath());
+                if (!(await refreshDefaultProviderToken(getCurrenDirectoryPath()))) {
+                    return;
+                }
                 runCommand(getCurrenDirectoryPath(), extension.ballerinaExtInstance.getBallerinaCmd(),
                     BALLERINA_COMMANDS.TEST, ...args, getCurrentBallerinaFile());
             }

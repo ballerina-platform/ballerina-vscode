@@ -63,7 +63,12 @@ export function runHandler(request: TestRunRequest, cancellation: CancellationTo
 
         try {
             if (request.profile?.kind == TestRunProfileKind.Run) {
-                await refreshDefaultProviderToken(projectRoot);
+                if (!(await refreshDefaultProviderToken(projectRoot))) {
+                    for (const { test } of queue) {
+                        run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
+                    }
+                    return;
+                }
 
                 let testNames = "";
                 // mark tests as running in test explorer

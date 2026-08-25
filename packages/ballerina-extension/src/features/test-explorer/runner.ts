@@ -240,11 +240,15 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         }
     });
     const langClient = extension.ballerinaExtInstance.langClient;
+    const unconfiguredProjectPaths = new Set<string>();
     for (const projectPath of projectPaths) {
         if (token.isCancellationRequested) {
             break;
         }
-        await refreshDefaultProviderToken(projectPath);
+        if (!(await refreshDefaultProviderToken(projectPath))) {
+            unconfiguredProjectPaths.add(projectPath);
+            continue;
+        }
         try {
             await cleanAndValidateProject(langClient, projectPath);
         } catch (err) {
@@ -266,6 +270,10 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         if (!projectPath) {
             run.failed(test, new TestMessage('Could not determine project path for test'));
             run.end();
+            return;
+        }
+        if (unconfiguredProjectPaths.has(projectPath)) {
+            run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
             return;
         }
 
