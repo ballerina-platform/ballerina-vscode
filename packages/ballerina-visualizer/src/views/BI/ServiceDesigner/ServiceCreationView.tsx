@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, LineRange, ParameterModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ParameterModel, ProjectStructureArtifactResponse, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -124,6 +124,9 @@ export interface ServiceCreationViewProps {
 }
 
 const INSTRUCTIONS_KEY = "instructions";
+const CONFIGURE_ENDPOINT_KEY = "configureEndpoint";
+const EXISTING_SERVICE_KEY = "existingService";
+const JOIN_EXISTING_BRANCH = 1;
 
 interface HeaderInfo {
     title: string;
@@ -269,7 +272,7 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
             ...payload,
             enabled: true,
             httpParamType: "PAYLOAD",
-            name: { ...payload.name, value: "query" },
+            name: { ...payload.name, value: "payload" },
             type: { ...payload.type, value: "string" },
         }];
     }
@@ -278,6 +281,28 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
 
     const [endpointModel, setEndpointModel] = useState<FunctionModel>(undefined);
     const [endpointHasErrors, setEndpointHasErrors] = useState(false);
+    const [joinedService, setJoinedService] = useState<string>(undefined);
+    const [projectServices, setProjectServices] = useState<ProjectStructureArtifactResponse[]>([]);
+
+    useEffect(() => {
+        if (!collectEndpointShape) {
+            return;
+        }
+        rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
+            if (!isMountedRef.current) {
+                return;
+            }
+            const project = res.projects?.find((candidate) => isSamePath(candidate.projectPath, projectPath));
+            setProjectServices(project?.directoryMap?.[DIRECTORY_MAP.SERVICE] ?? []);
+        });
+    }, [collectEndpointShape, projectPath]);
+
+    const existingResources = useMemo(
+        () => joinedService
+            ? projectServices.find((service) => service.name === joinedService)?.resources
+            : undefined,
+        [joinedService, projectServices]
+    );
 
     useEffect(() => {
         if (!collectEndpointShape || endpointModel) {
@@ -292,7 +317,18 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
             });
     }, [collectEndpointShape, endpointModel]);
 
-    const handleOnChange = (fieldKey: string, value: any) => {
+    // The service the dropdown starts on. Picking the branch arrives before its dropdown has
+    // registered a value, so without this the first event reports "joining nothing" and the
+    // collision check never runs against the service the user can already see selected.
+    const defaultJoinedService = () => model?.properties?.[CONFIGURE_ENDPOINT_KEY]
+        ?.choices?.[JOIN_EXISTING_BRANCH]?.properties?.[EXISTING_SERVICE_KEY]?.value as string;
+
+    const handleOnChange = (fieldKey: string, value: any, allValues?: FormValues) => {
+        if (fieldKey === CONFIGURE_ENDPOINT_KEY || fieldKey === EXISTING_SERVICE_KEY) {
+            const joining = Number(allValues?.[CONFIGURE_ENDPOINT_KEY]) === JOIN_EXISTING_BRANCH;
+            const picked = (allValues?.[EXISTING_SERVICE_KEY] as string) || defaultJoinedService();
+            setJoinedService(joining ? picked : undefined);
+        }
         const wasUpdated = updateChoiceInModel(model.properties, fieldKey, value);
 
         if (wasUpdated) {
@@ -392,6 +428,7 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
             ? [
                 {
                     component: <AgentEndpointFields
+                        existingResources={existingResources}
                         model={endpointModel}
                         onChange={setEndpointModel}
                         onError={setEndpointHasErrors}
@@ -401,7 +438,7 @@ function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
                 { component: <PromptContinuation model={endpointModel} />, index: Infinity }
             ]
             : undefined,
-        [collectEndpointShape, endpointModel]
+        [collectEndpointShape, endpointModel, existingResources]
     );
 
     const form = !pullingStatus && formFields && formFields.length > 0 && filePath && targetLineRange && (

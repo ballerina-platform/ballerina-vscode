@@ -19,7 +19,7 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import { Divider, ThemeColors, Typography } from '@wso2/ui-toolkit';
-import { ConfigProperties, FunctionModel, ParameterModel, PropertyModel, ReturnTypeModel } from '@wso2/ballerina-core';
+import { ConfigProperties, FunctionModel, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, ReturnTypeModel } from '@wso2/ballerina-core';
 import { ResourcePath } from './ResourceForm/ResourcePath/ResourcePath';
 import { Parameters } from './ResourceForm/Parameters/Parameters';
 import { ResourceResponse } from './ResourceForm/ResourceResponse/ResourceResponse';
@@ -118,10 +118,11 @@ export interface AgentEndpointFieldsProps {
     model: FunctionModel;
     onChange: (model: FunctionModel) => void;
     onError: (hasErrors: boolean) => void;
+    existingResources?: ProjectStructureArtifactResponse[];
 }
 
 export function AgentEndpointFields(props: AgentEndpointFieldsProps) {
-    const { model, onChange, onError } = props;
+    const { model, onChange, onError, existingResources } = props;
 
     const update = (patch: Partial<FunctionModel>) => onChange({ ...model, ...patch });
 
@@ -139,6 +140,9 @@ export function AgentEndpointFields(props: AgentEndpointFieldsProps) {
                 path={model.name}
                 onChange={onPathChange}
                 onError={onError}
+                existingResources={existingResources}
+                isNew={true}
+                fixedMethod={false}
             />
             <Divider />
             <Parameters

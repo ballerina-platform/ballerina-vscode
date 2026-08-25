@@ -99,6 +99,12 @@ export interface ResourcePathProps {
 	onChange: (method: PropertyModel, path: PropertyModel) => void;
 	onError: (hasErros: boolean) => void;
 	isNew?: boolean;
+	/**
+	 * Whether the method renders as a fixed label instead of a dropdown. Defaults to `isNew`, which
+	 * is how the resource designer has always drawn its add form. `isNew` separately controls the
+	 * collision check, so a caller that adds a resource but lets the user pick the verb sets this.
+	 */
+	fixedMethod?: boolean;
 	readonly?: boolean;
 	existingResources?: ProjectStructureArtifactResponse[];
 }
@@ -148,6 +154,7 @@ function isDuplicateResourcePath(pathID: string, existingPathID: string): boolea
 
 export function ResourcePath(props: ResourcePathProps) {
 	const { method, path, onChange, onError, isNew, readonly, existingResources } = props;
+	const methodIsFixed = props.fixedMethod ?? isNew;
 
 	const [inputValue, setInputValue] = useState('');
 	const [initialPathID] = useState(() => getResourcePathId(method, path));
@@ -191,7 +198,7 @@ export function ResourcePath(props: ResourcePathProps) {
 		// Get the paths and split by # to lowercase the method and concat again to get the path ID
 		const existingResourcePaths = existingResources?.map((resource) => normalizeResourcePathId(resource.id));
 		if (existingResourcePaths?.some((existingPathID) => {
-			if (existingPathID === initialPathID) {
+			if (!isNew && existingPathID === initialPathID) {
 				return false;
 			}
 			return isDuplicateResourcePath(pathID, existingPathID);
@@ -279,10 +286,10 @@ export function ResourcePath(props: ResourcePathProps) {
 				<div
 					style={{
 						width: 100,
-						marginRight: isNew ? 10 : 0
+						marginRight: methodIsFixed ? 10 : 0
 					}}
 				>
-					{!isNew && !readonly && (
+					{!methodIsFixed && !readonly && (
 						<Dropdown
 							sx={{ width: 100, background: getColorByMethod(method.value?.toUpperCase()), color: "#fff" }}
 							isRequired
@@ -294,7 +301,7 @@ export function ResourcePath(props: ResourcePathProps) {
 							value={method.value.toUpperCase() || method.placeholder.toUpperCase()}
 						/>
 					)}
-					{(isNew || readonly) && (
+					{(methodIsFixed || readonly) && (
 						<>
 							<MethodLabel>HTTP Method</MethodLabel>
 							<MethodBox color={getColorByMethod(method.value?.toUpperCase())}>
@@ -304,7 +311,7 @@ export function ResourcePath(props: ResourcePathProps) {
 					)}
 				</div>
 				<TextField
-					sx={{ marginLeft: isNew ? 0 : 15, flexGrow: 1 }}
+					sx={{ marginLeft: methodIsFixed ? 0 : 15, flexGrow: 1 }}
 					autoFocus
 					required
 					errorMsg={resourcePathErrors}

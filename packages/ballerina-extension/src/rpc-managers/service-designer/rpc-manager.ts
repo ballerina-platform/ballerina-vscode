@@ -68,13 +68,15 @@ import { StateMachine } from "../../stateMachine";
 import { writeBallerinaFileDidOpen } from "../../utils/modification";
 import { updateSourceCode } from "../../utils/source-utils";
 import { generateExamplePayload } from "../../features/ai/payload-generator/payload_json";
+import { isBlockingSeverity, withNamedSeverity } from "./validationSeverity";
 
 /**
  * The ERROR-severity subset of a save-time validation response. Only these mean the language server
  * refused to generate source; WARNINGs accompany a successful generation and must not block it.
  */
 function getBlockingValidationErrors(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity === "ERROR");
+    return (validationErrors ?? []).filter((error) => isBlockingSeverity(error.severity))
+        .map(withNamedSeverity);
 }
 
 /**
@@ -83,7 +85,8 @@ function getBlockingValidationErrors(validationErrors?: ValidationResult[]): Val
  * rather than being dropped once the ERROR check passes.
  */
 function getValidationWarnings(validationErrors?: ValidationResult[]): ValidationResult[] {
-    return (validationErrors ?? []).filter((error) => error.severity !== "ERROR");
+    return (validationErrors ?? []).filter((error) => !isBlockingSeverity(error.severity))
+        .map(withNamedSeverity);
 }
 
 export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
@@ -468,6 +471,11 @@ export class ServiceDesignerRpcManager implements ServiceDesignerAPI {
                 // failures instead of reporting an empty success.
                 const blockingErrors = getBlockingValidationErrors(res.validationErrors);
                 if (blockingErrors.length > 0) {
+                    // The form's own banner renders above every field, so it is off screen for a user
+                    // who has scrolled to Create, and a CHOICE-nested field cannot receive the error at
+                    // all (collectFieldKeys does not walk `choices`, and DropdownEditor renders none).
+                    // A notification is the only channel that is certain to be seen.
+                    window.showErrorMessage(blockingErrors.map((error) => error.message).join("\n"));
                     resolve({ artifacts: [], validationErrors: blockingErrors });
                     return;
                 }

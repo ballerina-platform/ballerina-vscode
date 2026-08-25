@@ -1,6 +1,6 @@
 ---
 name: agent-builder
-description: Use this skill whenever you are writing or modifying Ballerina AI agent code — declaring an `ai:Agent`, its system prompt or model provider, adding agent tools, wiring subagents, or attaching a chat trigger. Applies to every `.bal` file that declares or edits an agent, including `agents.bal`.
+description: Use this skill whenever you are writing or modifying Ballerina AI agent code — declaring an `ai:Agent`, its system prompt or model provider, adding agent tools, gating a tool behind human approval, wiring subagents, or putting an agent behind any trigger: a chat service, a messaging channel such as Slack, WhatsApp or Telegram, a webhook, an event source such as Kafka or GitHub, or an HTTP endpoint. Applies to every `.bal` file that declares or edits an agent, including `agents.bal`.
 ---
 
 # Agent Builder
@@ -37,41 +37,22 @@ final ai:Agent <agent>Agent = check new (
 );
 ```
 
-Wrong — the prompt is hoisted into a variable, so the diagram loses it:
-
-```ballerina
-final ai:SystemPrompt <agent>SystemPrompt = {
-    role: "<short role name>",
-    instructions: string `<instructions>`
-};
-
-final ai:Agent <agent>Agent = check new (systemPrompt = <agent>SystemPrompt, ...);
-```
-
 Do not indent the continuation lines of `instructions` to match the surrounding code — the leading
 whitespace is part of the string and is shown to the user in the prompt editor. Start every
 continuation line at column 0, as above.
 
 ## Model provider — declare the concrete type
 
-Use `ai:Wso2ModelProvider` unless the user asks for a specific provider (OpenAI, Azure, Anthropic,
-Ollama, …). Declare the variable with the **concrete class**, never the `ai:ModelProvider`
-abstract type — the model node is identified by the declared type name, so the abstract type
-renders as an unresolved model.
+Every `ai` component is identified in the diagram by its **declared type**, so always declare the
+concrete class. An abstract type renders as an unresolved node.
 
 ```ballerina
 final ai:Wso2ModelProvider <agent>Model = check ai:getDefaultModelProvider();
 ```
 
-Not `final ai:ModelProvider <agent>Model = check ai:getDefaultModelProvider();`.
-
-When the user does name a provider, the same rule holds — declare the provider's own class, not
-`ai:ModelProvider`.
-
-The same applies to every `ai` component the diagram identifies by declared type. An embedding
-provider is `ai:Wso2EmbeddingProvider`, never `ai:EmbeddingProvider`; a vector store is
-`ai:InMemoryVectorStore`, never `ai:VectorStore`. The abstract type renders as an unresolved node in
-each case.
+`ai:Wso2ModelProvider` not `ai:ModelProvider`; `ai:Wso2EmbeddingProvider` not
+`ai:EmbeddingProvider`; `ai:InMemoryVectorStore` not `ai:VectorStore`. When the user names a
+provider (OpenAI, Azure, Anthropic, Ollama, …) declare that provider's own class, same rule.
 
 ## Agent tools
 
@@ -133,6 +114,38 @@ underscore-joined. Use the version actually resolved for the dependency, not a g
 `label` as the empty string.
 
 Only add `@display` to tools that call a connector. Plain computation tools take no `@display`.
+
+### Human approval before a tool runs
+
+Gate a tool the user describes as needing sign-off — anything that moves money, deletes data,
+grants access, or contacts someone outside the team. `requiresApproval` defaults to `false`, so
+leave the annotation bare on everything else.
+
+`requiresApproval: true` gates every call. A predicate gates only some: it MUST be `isolated`, take
+**the same parameter list as the tool**, and return `boolean` — the compiler rejects any other
+signature. Return `true` to pause.
+
+```ballerina
+@ai:AgentTool {
+    requiresApproval: <predicateName>
+}
+isolated function <toolName>(<params>) returns <Type>|error { ... }
+
+isolated function <predicateName>(<the same params>) returns boolean {
+    return <condition that means this call needs review>;
+}
+```
+
+**A gated tool needs a human to ask.** Approval resolves only over the chat trigger. An agent whose
+only entry point is an event source, a queue or an HTTP endpoint has nobody to ask, so its run
+fails instead of pausing — say so, and either put the gated action behind a chat-triggered agent or
+leave it ungated and have the agent recommend the action rather than take it.
+
+Toolkit-derived tools (MCP, OpenAPI) cannot be gated.
+
+**Never put a blank `#` line in the doc comment above a record-valued `@ai:AgentTool {...}`.** It
+does not compile, and the errors point at unrelated lines (`annotation ... is not allowed on type`,
+`missing double quote`).
 
 ### Subagents
 
@@ -207,22 +220,9 @@ directory compiles, and its constructor accepts it, because construction only ch
 exists. It fails later, at `load()`, with `Unsupported file type: <name>` — so a folder path surfaces as
 a runtime error that names a file type rather than the real problem.
 
-To ingest a folder, enumerate it and spread the result:
-
-```ballerina
-function <ingestFunction>() returns error? {
-    file:MetaData[] entries = check file:readDir(<docsPath>);
-    string[] paths = from file:MetaData entry in entries
-        where !entry.dir
-        select entry.absPath;
-    ai:DataLoader loader = check new ai:TextDataLoader(...paths);
-    ai:Document|ai:Document[] documents = check loader.load();
-    check <knowledgeBase>.ingest(documents);
-}
-```
-
-That needs `import ballerina/file;`. Enumerating the folder is correct whether or not the loader later
-accepts one directly, so prefer it over passing a path you have not verified.
+To ingest a folder, enumerate it with `file:readDir`, drop the directory entries, and spread the
+`absPath`s: `check new ai:TextDataLoader(...paths)`. Do this even if the loader later accepts a
+folder directly — it is correct either way.
 
 Only these extensions load as of `ballerina/ai` 1.13.0: `md`, `html`, `htm`, `pdf`, `docx`, `pptx`.
 **`.txt` is not supported** — despite the type's name, a plain text file fails with
@@ -242,27 +242,11 @@ final ai:KnowledgeBase <agent>KnowledgeBase =
 ```
 
 `ingest` accepts `Document`, `Document[]` or `Chunk[]` — pass the loader's result straight through
-without unwrapping it. `retrieve` takes the query and a result limit and returns `QueryMatch[]`,
-where each match carries its text at `chunk.content`:
+without unwrapping it. `retrieve(query, <limit>)` returns `ai:QueryMatch[]`, each carrying its text
+at `chunk.content`.
 
-```ballerina
-# <what this searches, one line>
-# + query - <what to search for>
-# + return - the matched excerpts, or an error if the search fails
-@ai:AgentTool
-isolated function <toolName>(string query) returns string|error {
-    ai:QueryMatch[] matches = check <agent>KnowledgeBase.retrieve(query, 5);
-    if matches.length() == 0 {
-        return "<no relevant information was found>";
-    }
-    string[] excerpts = from ai:QueryMatch match in matches
-        select match.chunk.content.toString();
-    return string:'join("\n", ...excerpts);
-}
-```
-
-Return the excerpts as text and let the agent read them. Do not have the tool answer the question
-itself — the agent's own instructions decide how the excerpts are used.
+The retrieval tool returns those excerpts as text and stops there. Do not have it answer the
+question itself — the agent's own instructions decide how the excerpts are used.
 
 Ingestion is startup work, so it belongs in `main`, never in `init` — see above. A knowledge base
 that is never ingested retrieves nothing and the agent answers from the model alone, with no error
@@ -304,9 +288,95 @@ because a Ballerina identifier cannot contain a bare hyphen, **every hyphen in t
 escaped with a backslash** (`\-`). The escape is syntax only — it does not appear in the URL the
 client calls.
 
-Do not add extra resources to this service, and do not change the `chat` resource signature — the
-trigger node is matched on it.
+Do not change the `chat` resource signature — the trigger node is matched on it. Add no resource
+other than `decision` below.
+
+### Resuming an approval
+
+When any tool on the agent is gated, the service MUST also carry a `decision` resource. Without it
+the human's answer has nowhere to go and the paused run can never continue.
+
+A paused run is not a blocked call — `run` returns immediately, and `check` propagates the pause to
+the caller, which the runtime turns into the response the chat client expects. Both resources
+therefore stay ordinary two-line bodies. Resuming is the **same `run` method**: passing a record of
+decisions instead of a message is what makes it a resume.
+
+```ballerina
+    resource function post decision(@http:Payload ai:DecisionMessage request) returns ai:ChatRespMessage|error {
+        string stringResult = check <agent>Agent.run({decisions: request.decisions}, request.sessionId);
+        return {message: stringResult};
+    }
+```
+
+Never hand-write the approval wire format — no HTTP status codes, no error mapping, no own
+`DecisionMessage` type. `ai:DecisionMessage` is provided, and the runtime maps a pause and a stale
+resume onto their responses. Omit this resource when no tool on the agent is gated.
+
+`ai:DecisionMessage` arrives in `ballerina/ai` 1.14.0. On an older version there is no supported
+resume path, so say that rather than hand-rolling one.
 
 This trigger is a normal, deployable service. It is not the same as `_agent_chat.bal`, which the
 low-code side generates on its own for try-it testing and marks as not for production. Never
 create, edit or imitate that file.
+
+## Any other trigger — never block the handler
+
+A messaging channel, a webhook or an event source delivers to a `remote function`, and an agent
+with tools takes 10–30 seconds. A connector's dispatcher is usually not `isolated`, so the listener
+calls it serially and one blocking run stalls every later delivery. The handler hands the work off
+and returns:
+
+```ballerina
+remote function <onEvent>(<channel>:<Payload> payload) returns error? {
+    _ = start self.replyTo<Channel>(payload);
+}
+```
+
+Five rules shape the rest:
+
+- **Acknowledge first when the connector does not.** Some respond before dispatching, so the
+  handler's latency never reaches the sender; others pass in a caller and wait on it with a
+  timeout. Check which before writing the handler. When a caller is passed in, `check
+  caller-><ack>()` **before** the `start` and reply through its asynchronous send — otherwise the
+  sender times out and redelivers, and the user gets the same answer twice.
+- **One strand per batch, not per message.** When a payload carries several messages, `start` once
+  and loop inside the reply method. Per-message strands race the same `sessionId`, corrupting the
+  conversation memory and reordering replies.
+- **Namespace the session id** with the channel (`"slack:"`, `"telegram:"`) so one agent on two
+  channels cannot collide a phone number with a chat id. Key on the conversation, or on the sender
+  only when the channel is one-to-one.
+- **Keep everything inside the service** — the reply method private, and the reply client, if the
+  channel needs one, a `final` field initialised in `init()`. Deleting the trigger from the diagram
+  removes the service, so anything left at module level is orphaned.
+- **Catch the agent's error and reply with a fallback.** Propagating it is silence on the channel,
+  which reads as a dead bot. Reply to a non-text message explicitly too — a silent drop looks
+  identical to a crash.
+
+An event source is not a webhook: there is no acknowledgement, so blocking slows consumption and,
+past the poll deadline, rebalances the group and reprocesses the events. Keep the `start` and the
+error handling, drop the session id (events are not conversations), and end the reply method with a
+`// TODO:` comment above a `log:printInfo` of the result so the unfinished step shows in the diagram.
+
+### HTTP endpoints are the exception
+
+An HTTP caller is waiting for the answer, so an HTTP resource **does not** offload and has no reply
+client — it returns the agent's result as the response:
+
+```ballerina
+resource function post <path>(@http:Payload <RequestType> request) returns <ResponseType>|error {
+    string prompt = string `<what the agent should do>
+
+Request payload:
+${request.toJsonString()}`;
+    <ResponseType>|error response = <agent>Agent.run(prompt);
+    return response;
+}
+```
+
+**Assign the agent call to a variable.** `return <agent>Agent.run(prompt);` compiles, but the flow
+model only recognises an agent call as a node when it initialises a variable — inlined in a return,
+the Agent Call node disappears from the diagram and the user is left with a bare Return.
+
+`run` is dependently typed, so `<ResponseType>` may be a record and the agent will derive a JSON
+schema and bind the answer to it. The type MUST be a subtype of `json`; a violation is a runtime
+error, not a compile error.

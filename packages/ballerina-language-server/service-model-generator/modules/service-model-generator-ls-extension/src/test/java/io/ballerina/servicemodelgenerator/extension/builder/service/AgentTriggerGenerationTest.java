@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.HttpAgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -31,10 +32,13 @@ import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
@@ -615,6 +619,223 @@ public class AgentTriggerGenerationTest {
     private String generateForHttp(String basePath, String instructions, String existingSource) {
         return render(AgentTriggerServiceBuilder.buildEdits(httpForm(basePath, instructions), null,
                 channel("ballerina", "http"), rootOf(existingSource), "main.bal"));
+    }
+
+    private static final String ORDERS_SERVICE = """
+            listener http:Listener httpListener = new (9090);
+
+            service /orders on httpListener {
+
+                resource function get .() returns string|error {
+                    return "ok";
+                }
+            }
+            """;
+
+    /** The form as the wizard submits it when the user picked "Use an existing service". */
+    private ServiceInitModel reuseForm(String basePath) {
+        ServiceInitModel form = httpForm("/ownService", "Triage this issue.");
+        form.addProperty(ServiceInitModel.KEY_EXISTING_SERVICE,
+                new Value.ValueBuilder().enabled(true).value(basePath).build());
+        return form;
+    }
+
+    private String generateReusing(String basePath, String existingSource) {
+        return render(AgentTriggerServiceBuilder.buildEdits(reuseForm(basePath), null,
+                channel("ballerina", "http"), rootOf(existingSource), "main.bal"));
+    }
+
+    @Test
+    public void testHttpEndpointJoinsTheSelectedService() {
+        String src = generateReusing("/orders", ORDERS_SERVICE);
+
+        Assert.assertFalse(src.contains("service /orders"),
+                "the service is already there; a second one on the same path compiles and then fails to "
+                        + "start: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should arrive as a member of the service that exists: " + src);
+        Assert.assertTrue(src.contains("issueTriageAgent.run("),
+                "a joined resource still has to call the agent: " + src);
+    }
+
+    @Test
+    public void testSelectingAServiceOverridesTheListenerChooser() {
+        ServiceInitModel form = reuseForm("/orders");
+        form.addProperty("port", new Value.ValueBuilder().enabled(true).value("8080").build());
+        form.addProperty(ServiceInitModel.KEY_LISTENER_VAR_NAME,
+                new Value.ValueBuilder().enabled(true).value("ordersListener").build());
+
+        String src = render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
+                rootOf(ORDERS_SERVICE), "main.bal"));
+
+        Assert.assertFalse(src.contains("ordersListener"),
+                "naming a service names its listener too, so a stale listener choice must not split the "
+                        + "endpoint into a second service: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should join the selected service: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointDeclaresItsOwnServiceWhenCreatingNew() {
+        String src = generateForHttp("/triage", "Triage this issue.", ORDERS_SERVICE);
+
+        Assert.assertTrue(src.contains("service /triage on"),
+                "a path nothing serves yet should still get its own service: " + src);
+    }
+
+    @Test
+    public void testJoiningRefusesToDuplicateAResourceThatExists() {
+        String source = """
+                listener http:Listener httpListener = new (9090);
+
+                service /orders on httpListener {
+
+                    resource function post .(@http:Payload string payload) returns string|error {
+                        return "ok";
+                    }
+                }
+                """;
+
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> AgentTriggerServiceBuilder.buildEdits(reuseForm("/orders"), null,
+                        channel("ballerina", "http"), rootOf(source), "main.bal"));
+
+        Assert.assertTrue(thrown.getMessage().contains("post ."),
+                "two resources with the same accessor and path do not compile, so the message has to name "
+                        + "the one that clashes: " + thrown.getMessage());
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "existingService",
+                "the failure has to land on a field the user can see, or the form closes on a submit that "
+                        + "wrote nothing");
+        Assert.assertTrue(thrown.toValidationResult().isError(),
+                "a warning would not stop generation");
+    }
+
+    @Test
+    public void testJoiningAllowsADifferentMethodOnTheSamePath() {
+        String source = """
+                listener http:Listener httpListener = new (9090);
+
+                service /orders on httpListener {
+
+                    resource function get .() returns string|error {
+                        return "ok";
+                    }
+                }
+                """;
+
+        Assert.assertTrue(render(AgentTriggerServiceBuilder.buildEdits(reuseForm("/orders"), null,
+                        channel("ballerina", "http"), rootOf(source), "main.bal"))
+                        .contains("resource function post ."),
+                "only the accessor and path together identify a resource");
+    }
+
+    @Test
+    public void testHttpEndpointJoinsAKebabPathThroughItsEscape() {
+        String src = generateReusing("/order-tracker", """
+                listener http:Listener httpListener = new (9090);
+
+                service /order\\-tracker on httpListener {
+                }
+                """);
+
+        Assert.assertFalse(src.contains("service /order"),
+                "the escape is source syntax, so the typed URL and the declared path are the same "
+                        + "service: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should join it: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointDoesNotJoinAServiceOfAnotherKind() {
+        String src = generateReusing("/orders", """
+                service graphql:Service /orders on httpListener {
+                }
+                """);
+
+        Assert.assertTrue(src.contains("service /ownService on"),
+                "a service that declares a type descriptor is not somewhere an HTTP resource can go, so "
+                        + "the endpoint falls back to declaring its own: " + src);
+    }
+
+    @Test
+    public void testAnEmptyProjectIsNotAskedToChoose() {
+        ServiceInitModel form = httpForm("/agent", "Triage this issue.");
+
+        Assert.assertNull(form.getProperties().get(ServiceInitModel.KEY_CONFIGURE_ENDPOINT),
+                "with nothing to reuse there is no choice to make, so the radio must not appear");
+        Assert.assertNull(HttpAgentTriggerChannel.pathField(List.of()).getTypes().getFirst().validations(),
+                "and the path carries no collision rule, because nothing can collide");
+    }
+
+    @Test
+    public void testATakenPathIsRefusedWhenCreatingNew() {
+        Value path = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), null)
+                .getChoices().getFirst().getProperties().get("basePath");
+        ValidationRule rule = path.getTypes().getFirst().validations().getFirst();
+
+        Assert.assertEquals(rule.getRule(), "common.validate.not.one.of");
+        Assert.assertEquals(rule.getArgs().get("values"), List.of("/orders"),
+                "the rule has to carry the paths that are actually taken");
+        Assert.assertNotNull(rule.getMessage(), "a generic rule message would not tell the user what to do");
+    }
+
+    @Test
+    public void testReusingAServiceIsNotAskedAboutListeners() {
+        Value chooser = new Value.ValueBuilder()
+                .metadata("Listener Configuration", "")
+                .types(List.of(PropertyType.types(Value.FieldType.CHOICE)))
+                .enabled(true).editable(true).build();
+        List<Value> branches = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), chooser).getChoices();
+
+        Assert.assertTrue(branches.getFirst().getProperties()
+                        .containsKey(ServiceInitModel.KEY_CONFIGURE_LISTENER),
+                "creating a service is where the listener is decided");
+        Assert.assertFalse(branches.get(1).getProperties()
+                        .containsKey(ServiceInitModel.KEY_CONFIGURE_LISTENER),
+                "the chosen service already has a listener, so the question does not apply");
+    }
+
+    @Test
+    public void testAnExistingServiceIsOfferedForReuse() {
+        List<Value> branches = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), null).getChoices();
+
+        Assert.assertTrue(branches.getFirst().isEnabled(), "creating a new service stays the default");
+        Assert.assertFalse(branches.get(1).isEnabled(), "reuse is opt-in");
+        Value selector = branches.get(1).getProperties().get(ServiceInitModel.KEY_EXISTING_SERVICE);
+        Assert.assertEquals(selector.getTypes().getFirst().fieldType(), Value.FieldType.SINGLE_SELECT,
+                "reuse is a plain select box, not a free-text field");
+        Assert.assertNull(selector.getTypes().getFirst().options(),
+                "options route a SINGLE_SELECT to the expression editor, which renders it as an enum with "
+                        + "a 'No Selection' entry instead of a plain dropdown");
+        Assert.assertEquals(selector.getItems(), List.of("/orders"));
+        Assert.assertEquals(selector.getValue(), "/orders", "the first service is preselected");
+    }
+
+    @Test
+    public void testOnlyJoinableServicesAreOfferedAsPaths() {
+        List<String> paths = HttpAgentTriggerChannel.servedPaths(rootOf("""
+                service /orders on httpListener {
+                }
+
+                service /order\\-tracker on httpListener {
+                }
+
+                service graphql:Service /graph on httpListener {
+                }
+
+                service telegram:TelegramService on telegramListener {
+                }
+                """));
+
+        Assert.assertEquals(paths, List.of("/orders", "/order-tracker"),
+                "the list must offer exactly what appendToExistingService can join, and offer it as a URL "
+                        + "rather than as source: " + paths);
+    }
+
+    @Test
+    public void testNoDocumentOffersNoPaths() {
+        Assert.assertTrue(HttpAgentTriggerChannel.servedPaths(null).isEmpty(),
+                "a missing document must degrade to 'declare a new service', not fail");
     }
 
     @Test

@@ -18,9 +18,15 @@
 
 package io.ballerina.servicemodelgenerator.extension.builder.service.agent;
 
+import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.ListenerDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModuleMemberDeclarationNode;
 import io.ballerina.compiler.syntax.tree.ModulePartNode;
+import io.ballerina.compiler.syntax.tree.Node;
+import io.ballerina.compiler.syntax.tree.NodeList;
+import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
+import io.ballerina.compiler.syntax.tree.Token;
+import io.ballerina.projects.Document;
 import io.ballerina.servicemodelgenerator.extension.builder.service.HttpServiceBuilder;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator.HandlerParameter;
@@ -33,7 +39,12 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.util.Constants;
 import io.ballerina.servicemodelgenerator.extension.util.HttpUtil;
+import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
+import io.ballerina.tools.text.LineRange;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,6 +56,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel.KEY_CONFIGURE_ENDPOINT;
+import static io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel.KEY_EXISTING_SERVICE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.HTTP_PARAM_TYPE_HEADER;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.SPACE;
@@ -66,6 +79,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String DEFAULT_BASE_PATH = "/agent";
     private static final String DEFAULT_INSTRUCTIONS = "Answer the request.";
     private static final String SOLE_PAYLOAD_LABEL = "Request payload";
+    private static final String DEFAULT_PAYLOAD_NAME = "payload";
     private static final String STRING_TYPE = "string";
     private static final String ERROR_TYPE = "error";
     private static final String BODY_FIELD = " body;";
@@ -83,7 +97,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
             """;
 
     private static final String DEFAULT_SIGNATURE =
-            "resource function post .(@http:Payload string query) returns string|error ";
+            "resource function post .(@http:Payload string payload) returns string|error ";
 
     private static final String RESOURCE = """
             {{signature}}{
@@ -128,7 +142,21 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         ServiceInitModel model = new ServiceInitModel("http-agent", "HTTP Endpoint",
                 "Expose the agent at a URL, so anything that can call an API can reach it.",
                 context.orgName(), context.packageName(), MODULE_NAME, context.version(), "agent-http", "");
-        model.addProperty(BASE_PATH, new Value.ValueBuilder()
+        List<String> served = servedPaths(rootNodeOf(context.document()));
+        Value chooser = listenerChooser(context);
+        if (served.isEmpty()) {
+            model.addProperty(BASE_PATH, pathField(served));
+            if (chooser != null) {
+                model.addProperty(ServiceInitModel.KEY_CONFIGURE_LISTENER, chooser);
+            }
+        } else {
+            model.addProperty(KEY_CONFIGURE_ENDPOINT, endpointChoice(served, chooser));
+        }
+        return Optional.of(model);
+    }
+
+    public static Value pathField(List<String> served) {
+        Value field = new Value.ValueBuilder()
                 .metadata("Endpoint Path", "The HTTP path this endpoint is served on.")
                 .setCodedata(new Codedata("SERVICE_BASE_PATH"))
                 .types(List.of(PropertyType.types(Value.FieldType.SERVICE_PATH, "string")))
@@ -136,11 +164,118 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 .editable(true)
                 .optional(false)
                 .value(DEFAULT_BASE_PATH)
-                .setValidations(List.of(new ValidationRule("common.validate.required"),
-                        new ValidationRule("common.validate.service.path")))
-                .build());
-        addListenerChooser(model, context);
-        return Optional.of(model);
+                .build();
+        if (!served.isEmpty()) {
+            field.getTypes().getFirst().setValidations(List.of(pathIsFree(served)));
+        }
+        return field;
+    }
+
+    private static ValidationRule pathIsFree(List<String> served) {
+        ValidationRule rule = new ValidationRule("common.validate.not.one.of");
+        rule.setArgs(Map.of("values", served));
+        rule.setMessage("A service already serves this path. Choose \"Use an existing service\" instead.");
+        return rule;
+    }
+
+    public static Value endpointChoice(List<String> served, Value listenerChooser) {
+        Value choice = new Value.ValueBuilder()
+                .metadata("Endpoint", "Serve the agent from a new service or one that already exists.")
+                .types(List.of(PropertyType.types(Value.FieldType.CHOICE)))
+                .enabled(true)
+                .editable(true)
+                .value("")
+                .build();
+        choice.setChoices(List.of(createNewChoice(served, listenerChooser), useExistingChoice(served)));
+        return choice;
+    }
+
+    private static Value createNewChoice(List<String> served, Value listenerChooser) {
+        Map<String, Value> properties = new LinkedHashMap<>();
+        properties.put(BASE_PATH, pathField(served));
+        if (listenerChooser != null) {
+            properties.put(ServiceInitModel.KEY_CONFIGURE_LISTENER, listenerChooser);
+        }
+        return new Value.ValueBuilder()
+                .metadata("Create a new service", "Serve the agent at its own path.")
+                .types(List.of(PropertyType.types(Value.FieldType.FORM)))
+                .enabled(true)
+                .editable(true)
+                .setProperties(properties)
+                .build();
+    }
+
+    private static Value useExistingChoice(List<String> served) {
+        Value selector = new Value.ValueBuilder()
+                .metadata("Select Service", "The endpoint is added to this service, which keeps its path.")
+                .types(List.of(PropertyType.types(Value.FieldType.SINGLE_SELECT)))
+                .enabled(true)
+                .editable(true)
+                .optional(false)
+                .value(served.getFirst())
+                .setItems(new ArrayList<>(served))
+                .build();
+        return new Value.ValueBuilder()
+                .metadata("Use an existing service", "Add the endpoint to a service already in this project.")
+                .types(List.of(PropertyType.types(Value.FieldType.FORM)))
+                .enabled(false)
+                .editable(true)
+                .setProperties(new LinkedHashMap<>(Map.of(KEY_EXISTING_SERVICE, selector)))
+                .build();
+    }
+
+    private static String resourceSignature(Function shaped) {
+        return shaped == null ? "post#." : accessor(shaped) + "#" + unescape(resourcePath(shaped));
+    }
+
+    private static List<String> declaredResources(NodeList<Node> members) {
+        List<String> declared = new ArrayList<>();
+        for (Node member : members) {
+            if (member instanceof FunctionDefinitionNode function && isResource(function)) {
+                declared.add(function.functionName().text().trim().toLowerCase(Locale.ROOT) + "#"
+                        + unescape(Utils.getPath(function.relativeResourcePath())));
+            }
+        }
+        return declared;
+    }
+
+    private static boolean isResource(FunctionDefinitionNode function) {
+        for (Token qualifier : function.qualifierList()) {
+            if (Constants.RESOURCE.equals(qualifier.text().trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String unescape(String text) {
+        return text.replace("\\", "").strip();
+    }
+
+    public static List<String> servedPaths(ModulePartNode rootNode) {
+        List<String> paths = new ArrayList<>();
+        if (rootNode == null) {
+            return paths;
+        }
+        for (ModuleMemberDeclarationNode member : rootNode.members()) {
+            if (!(member instanceof ServiceDeclarationNode service) || service.typeDescriptor().isPresent()) {
+                continue;
+            }
+            String path = servedPath(service);
+            if (!path.isEmpty() && !paths.contains(path)) {
+                paths.add(path);
+            }
+        }
+        return paths;
+    }
+
+    private static ModulePartNode rootNodeOf(Document document) {
+        return document != null && document.syntaxTree().rootNode() instanceof ModulePartNode rootNode
+                ? rootNode : null;
+    }
+
+    private static String servedPath(ServiceDeclarationNode service) {
+        return unescape(Utils.getPath(service.absoluteResourcePath()));
     }
 
     @Override
@@ -149,18 +284,13 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 "What the agent should do with each request.", DEFAULT_INSTRUCTIONS));
     }
 
-    private static void addListenerChooser(ServiceInitModel model, GetServiceInitModelContext context) {
+    private static Value listenerChooser(GetServiceInitModelContext context) {
         if (context.document() == null) {
-            return;
+            return null;
         }
         ServiceInitModel httpModel = new HttpServiceBuilder().getServiceInitModel(context);
-        if (httpModel == null) {
-            return;
-        }
-        Value chooser = httpModel.getProperties().get(ServiceInitModel.KEY_CONFIGURE_LISTENER);
-        if (chooser != null) {
-            model.addProperty(ServiceInitModel.KEY_CONFIGURE_LISTENER, chooser);
-        }
+        return httpModel == null ? null
+                : httpModel.getProperties().get(ServiceInitModel.KEY_CONFIGURE_LISTENER);
     }
 
     @Override
@@ -181,6 +311,33 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
         }
         return Optional.of(new SchemaDrivenSourceGenerator.ResolvedListener(LISTENER_VAR_NAME,
                 LISTENER_DECLARATION));
+    }
+
+    @Override
+    public Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode,
+                                                            AgentTriggerContext context) {
+        String wanted = context.formValue(KEY_EXISTING_SERVICE).strip();
+        if (wanted.isEmpty()) {
+            return Optional.empty();
+        }
+        for (ModuleMemberDeclarationNode member : rootNode.members()) {
+            if (!(member instanceof ServiceDeclarationNode service) || service.typeDescriptor().isPresent()
+                    || !wanted.equals(servedPath(service))) {
+                continue;
+            }
+            NodeList<Node> members = service.members();
+            String signature = resourceSignature(context.initForm().getResource());
+            if (declaredResources(members).contains(signature)) {
+                throw new GenerationRefusedException(KEY_EXISTING_SERVICE, wanted
+                        + " already has a '" + signature.replace('#', ' ')
+                        + "' resource. Change the HTTP method or the resource path.");
+            }
+            LineRange lastMember = members.isEmpty() ? service.openBraceToken().lineRange()
+                    : members.get(members.size() - 1).lineRange();
+            return Optional.of(List.of(new TextEdit(Utils.toRange(lastMember.endLine()),
+                    NEW_LINE + NEW_LINE + resource(context))));
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -208,7 +365,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
 
     private static String defaultResource(AgentTriggerContext context) {
         return body(context, DEFAULT_SIGNATURE, new Answer(STRING_TYPE, false, true),
-                List.of(new HandlerParameter(STRING_TYPE, "query", true)));
+                List.of(new HandlerParameter(STRING_TYPE, DEFAULT_PAYLOAD_NAME, true)));
     }
 
     private static String body(AgentTriggerContext context, String header, Answer answer,

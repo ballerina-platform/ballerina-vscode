@@ -18,6 +18,7 @@
 
 import { Dropdown, OptionProps } from "@wso2/ui-toolkit";
 import React, { ChangeEvent, useMemo } from "react"
+import { unwrapBallerinaString } from "@wso2/ballerina-core";
 import { FormField } from "../../../Form/types";
 
 interface EnumEditorProps {
@@ -33,17 +34,20 @@ export const EnumEditor = (props: EnumEditorProps) => {
     // Ensure value is in items, otherwise use first item's value
     const itemsList = useMemo(() => {
         const baseItems = props.items.length > 0 ? props.items : (props.field.itemOptions ?? []);
+        // A placeholder only describes an empty selection on an optional field (e.g. "(default)").
+        // On a required one it is a sample value, and would read as a selection the form does not have.
+        const noneContent = props.field.optional
+            ? unwrapBallerinaString(props.field.placeholder?.toString()) || "No Selection"
+            : "No Selection";
         return [
             ...baseItems,
             {
                 id: "default-option",
-                // A field-provided placeholder (e.g. "(default)") describes what an empty
-                // selection means; fall back to the generic label otherwise.
-                content: props.field.placeholder?.toString() || "No Selection",
+                content: noneContent,
                 value: DEFAULT_NONE_SELECTED_VALUE
             }
         ];
-    }, [props.items, props.field.itemOptions]);
+    }, [props.items, props.field.itemOptions, props.field.placeholder, props.field.optional]);
 
     const selectedValue = useMemo(() => {
         if (props.value === undefined || props.value === null || props.value === "") {

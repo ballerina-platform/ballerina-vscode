@@ -310,6 +310,15 @@ export const CLIENT_VALIDATION_RULES: Record<string, ClientRule> = {
         return isValidServicePath(raw) ? undefined : "{label} must be a valid service path";
     },
 
+    "common.validate.not.one.of": (value, args) => {
+        const values = Array.isArray(args?.values) ? (args.values as unknown[]).map(asString) : undefined;
+        const raw = asString(value).trim();
+        if (!values?.length || raw === "") {
+            return undefined;
+        }
+        return values.includes(raw) ? "{label} must not be one of: {values}" : undefined;
+    },
+
     "common.validate.enum": (value, args) => {
         const values = Array.isArray(args?.values) ? (args.values as unknown[]).map(asString) : undefined;
         if (!values?.length) {
