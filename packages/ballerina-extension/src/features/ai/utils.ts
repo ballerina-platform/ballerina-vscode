@@ -336,19 +336,18 @@ export async function addConfigFile(
     return progress;
 }
 
-function readConfiguredProviderToken(projectPath: string): string | null {
+function hasConfiguredProviderToken(projectPath: string): boolean {
     const configFilePath = findFileCaseInsensitive(projectPath, CONFIG_FILE_NAME);
     if (!fs.existsSync(configFilePath)) {
-        return null;
+        return false;
     }
 
     try {
         const config = parseToml(fs.readFileSync(configFilePath, 'utf-8')) as any;
-        const accessToken = config?.ballerina?.ai?.wso2ProviderConfig?.accessToken;
-        return typeof accessToken === 'string' ? accessToken : null;
+        return typeof config?.ballerina?.ai?.wso2ProviderConfig?.accessToken === 'string';
     } catch (error) {
         console.error('Failed to parse Config.toml while checking the WSO2 default provider token:', error);
-        return null;
+        return false;
     }
 }
 
@@ -380,8 +379,7 @@ function removeDefaultProviderConfigFromProject(projectPath: string): void {
 
 // Refreshes the token if still used; removes the stale config entry otherwise.
 export async function refreshDefaultProviderToken(projectPath: string): Promise<void> {
-    const configuredToken = readConfiguredProviderToken(projectPath);
-    if (configuredToken === null) {
+    if (!hasConfiguredProviderToken(projectPath)) {
         return;
     }
 
@@ -396,12 +394,7 @@ export async function refreshDefaultProviderToken(projectPath: string): Promise<
             return;
         }
 
-        const { accessToken } = credentials.secrets;
-        if (accessToken === configuredToken) {
-            return;
-        }
-
-        writeDefaultModelConfigToProject(projectPath, accessToken);
+        writeDefaultModelConfigToProject(projectPath, credentials.secrets.accessToken);
     } catch (error) {
         console.error('Failed to refresh the WSO2 default model provider token:', error);
         vscode.window.showWarningMessage(DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED);
