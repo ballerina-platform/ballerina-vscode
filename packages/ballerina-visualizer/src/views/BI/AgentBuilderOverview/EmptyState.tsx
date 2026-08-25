@@ -699,6 +699,12 @@ export function EmptyState({ onCreateFromScratch, isLibrary }: EmptyStateProps) 
         dispatch(text.trim() || pendingPrompt);
     }, [authState, pendingPrompt, text]);
 
+    useEffect(() => {
+        if (authState === "authenticated") {
+            setSetupRequested(false);
+        }
+    }, [authState]);
+
     const fillExample = (prompt: string) => {
         focusOnTextRef.current = true;
         setText(prompt);
