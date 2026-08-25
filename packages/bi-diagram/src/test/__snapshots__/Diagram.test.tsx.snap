@@ -13,6 +13,7 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-27 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-39 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 2px; width: 100%; padding: 8px; margin-top: 2px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
@@ -48,7 +49,6 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
 .css-44:hover [data-agent-name] {opacity: 0.7;}
 .css-44:hover {background-color: transparent;}
 .css-49 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); cursor: pointer;}
-.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-17 {margin-top: -3px;}
 .css-30 {position: absolute; top: -1px; left: -1px; right: -1px; bottom: -1px; border-radius: 10px; border: 2px solid var(--vscode-terminal-ansiCyan); opacity: 0; -webkit-transition: opacity 0.4s ease-out; transition: opacity 0.4s ease-out; -webkit-animation: animation-1knexeq 1.5s ease-in-out infinite alternate; animation: animation-1knexeq 1.5s ease-in-out infinite alternate; pointer-events: none; z-index: 1;}
@@ -1310,7 +1310,7 @@ exports[`BI Diagram - Snapshot Tests renders AI agent flow correctly: ai-agent-f
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -1650,6 +1650,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-36 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-69 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 2px; width: 100%; padding: 8px; margin-top: 2px;}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
@@ -1667,6 +1668,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-75 {margin-bottom: -2px; z-index: 2;}
 .css-90 {display: none; -webkit-animation: animation-1l5m1tj 0.2s ease-out forwards; animation: animation-1l5m1tj 0.2s ease-out forwards; cursor: pointer;}
 .css-78 {height: 24px; width: 24px; cursor: pointer; font-size: 24px; color: var(--vscode-terminal-ansiMagenta);}
+.css-40 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 10px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-74 {-webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; color: var(--vscode-foreground); opacity: 0.7; font-family: monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
 .css-21 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; position: absolute; padding: 8px; left: 52px; width: max-content;}
 .css-48 {border-radius: 5px; position: absolute; top: -6px; left: 46px;}
@@ -1696,18 +1698,15 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-73:hover [data-agent-name] {opacity: 0.7;}
 .css-73:hover {background-color: transparent;}
 .css-44 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); cursor: pointer;}
-.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-17 {margin-top: -3px;}
 .css-60 {position: absolute; top: -1px; left: -1px; right: -1px; bottom: -1px; border-radius: 10px; border: 2px solid var(--vscode-terminal-ansiCyan); opacity: 0; -webkit-transition: opacity 0.4s ease-out; transition: opacity 0.4s ease-out; -webkit-animation: animation-1knexeq 1.5s ease-in-out infinite alternate; animation: animation-1knexeq 1.5s ease-in-out infinite alternate; pointer-events: none; z-index: 1;}
 .css-25 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 10px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-82 {position: fixed; width: 230px; height: 208px; top: 2169.6px; left: -245px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-67 {position: absolute; bottom: -5px; right: -5px; display: flex; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; border-radius: 50%;}
-.css-40 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 10px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-92 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}
 .css-5 {position: relative; cursor: move; overflow: unset; height: unset !important;}
 .css-79 {position: fixed; width: 490px; height: 648.6px; top: 1931px; left: -275px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
-.css-50 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-46 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; width: 100%; padding: 8px;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
 .css-33 {height: 16px; width: 16px; cursor: pointer;}
@@ -1716,6 +1715,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
 .css-22 {font-size: 14px; max-width: 230px; font-family: "GilmerMedium";}
 .css-20 {margin-bottom: -2px;}
 .css-87 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 8px; height: 8px; border: 2px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); border-radius: 50%; cursor: not-allowed;}
+.css-50 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-28 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 2px; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; padding: 8px;}
 .css-72 {font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--vscode-foreground); opacity: 0.7; margin-top: -2px;}
 .css-42 {font-size: 12px; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; color: var(--vscode-foreground); opacity: 0.7;}
@@ -6603,7 +6603,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -6903,7 +6903,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -8120,7 +8120,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -8391,7 +8391,7 @@ exports[`BI Diagram - Snapshot Tests renders all nodes flow correctly: all-nodes
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -9132,6 +9132,7 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-27 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
@@ -9144,6 +9145,7 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
 .css-54 {font-size: 12px; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;}
 .css-50 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; width: 100%; position: absolute; padding: 8px; left: 52px;}
 .css-62 {display: none; -webkit-animation: animation-1l5m1tj 0.2s ease-out forwards; animation: animation-1l5m1tj 0.2s ease-out forwards; cursor: pointer;}
+.css-36 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 10px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-21 {display: flex; -webkit-flex-direction: row; -ms-flex-direction: row; flex-direction: row; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; position: absolute; padding: 8px; left: 52px; width: max-content;}
 .css-45 {border-radius: 5px; position: absolute; top: -6px; left: 46px;}
 .css-60 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 8px; height: 8px; border: 2px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); border-radius: 50%; cursor: pointer;}
@@ -9164,14 +9166,11 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
 .css-51 {font-size: 14px; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-55 {position: fixed; width: 500px; height: 261.6px; top: 1254.2px; left: -185px; border: 2px dashed var(--vscode-foreground); border-radius: 10px; background-color: transparent; z-index: -1; display: flex; -webkit-align-items: flex-end; -webkit-box-align: flex-end; -ms-flex-align: flex-end; align-items: flex-end; pointer-events: none;}
 .css-41 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; color: var(--vscode-foreground); cursor: pointer;}
-.css-16 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-17 {margin-top: -3px;}
 .css-28 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 10px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
-.css-36 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 280px; min-height: 50px; padding: 0 8px; opacity: 1; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 10px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-64 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}
 .css-5 {position: relative; cursor: move; overflow: unset; height: unset !important;}
-.css-49 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-43 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; width: 100%; padding: 8px;}
 .css-2 {height: 16px; width: 16px; cursor: pointer; font-size: 16px;}
 .css-52 {border-radius: 5px; -webkit-flex-shrink: 0; -ms-flex-negative: 0; flex-shrink: 0;}
@@ -9179,6 +9178,7 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
 .css-22 {font-size: 14px; max-width: 230px; font-family: "GilmerMedium";}
 .css-20 {margin-bottom: -2px;}
 .css-59 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 8px; height: 8px; border: 2px solid var(--vscode-foreground); background-color: var(--vscode-sideBar-background); border-radius: 50%; cursor: not-allowed;}
+.css-49 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; cursor: pointer; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-31 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: flex-start; -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start; gap: 2px; -webkit-flex: 1; -ms-flex: 1; flex: 1; min-width: 0; padding: 8px;}
 .css-39 {font-size: 12px; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: monospace; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; color: var(--vscode-foreground); opacity: 0.7;}
 .css-48 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; color: var(--vscode-foreground); cursor: default;}
@@ -11378,7 +11378,7 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -11565,7 +11565,7 @@ exports[`BI Diagram - Snapshot Tests renders complex flow correctly: complex-flo
                     opacity="1"
                     rx="5"
                     ry="5"
-                    stroke="var(--vscode-dropdown-border)"
+                    stroke="var(--vscode-foreground)"
                     stroke-width="1.8"
                     transform="rotate(45 28 28)"
                     width="50"
@@ -12439,6 +12439,7 @@ exports[`BI Diagram - Snapshot Tests renders flow with diagnostics correctly: fl
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-33 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
@@ -12458,7 +12459,6 @@ exports[`BI Diagram - Snapshot Tests renders flow with diagnostics correctly: fl
 .css-32 {position: relative; display: inline-block; cursor: default; pointer-events: auto;}
 .css-22 {border-radius: 5px;}
 .css-26 svg {fill: var(--vscode-terminal-ansiMagenta);}
-.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-14 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-16 {margin-top: -3px;}
 .css-40 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}
@@ -13140,6 +13140,7 @@ exports[`BI Diagram - Snapshot Tests renders flow with error handler correctly: 
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-26 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
@@ -13160,7 +13161,6 @@ exports[`BI Diagram - Snapshot Tests renders flow with error handler correctly: 
 .css-24 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 93.33333333333333px; min-height: 33.333333333333336px; padding: 0 8px; border: 1.8px solid var(--vscode-foreground); border-radius: 40px; background-color: var(--vscode-menu-background); color: var(--vscode-foreground); cursor: default; position: relative;}
 .css-25 {position: relative; display: inline-block; cursor: default; pointer-events: auto;}
 .css-22 {border-radius: 5px;}
-.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-14 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-16 {margin-top: -3px;}
 .css-34 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}
@@ -13650,6 +13650,7 @@ exports[`BI Diagram - Snapshot Tests renders flow with suggestions correctly: fl
 .css-1 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; padding: 8px; border-radius: 4px; background-color: var(--vscode-sideBar-background); fill: var(--vscode-foreground); width: 32px; height: 32px; cursor: pointer;}
 .css-1:active {background-color: var(--vscode-editor-inactiveSelectionBackground);}
 .css-1:hover {background-color: var(--vscode-editor-inactiveSelectionBackground);}
+.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-foreground); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-26 {font-size: 14px; max-width: 81.33333333333333px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: "GilmerMedium";}
 .css-3 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; gap: 0;}
 .css-3>*:first-child {border-bottom-left-radius: 0; border-bottom-right-radius: 0;}
@@ -13669,7 +13670,6 @@ exports[`BI Diagram - Snapshot Tests renders flow with suggestions correctly: fl
 .css-25 {position: relative; display: inline-block; cursor: default; pointer-events: auto;}
 .css-22 {border-radius: 5px;}
 .css-29 svg {fill: var(--vscode-terminal-ansiMagenta);}
-.css-15 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; border: 1.8px; border-style: solid; border-color: var(--vscode-dropdown-border); border-radius: 8px; background-color: var(--vscode-menu-background); width: 52px; height: 52px; box-shadow: none; -webkit-transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease; transition: box-shadow 0.1s ease,background-color 0.1s ease,border-color 0.1s ease;}
 .css-14 {display: flex; -webkit-flex-direction: column; -ms-flex-direction: column; flex-direction: column; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center;}
 .css-16 {margin-top: -3px;}
 .css-40 {display: flex; -webkit-box-pack: center; -ms-flex-pack: center; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 20px; height: 20px;}

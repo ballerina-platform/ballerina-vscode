@@ -23,6 +23,7 @@ import {
 } from "@wso2/ui-toolkit";
 import { EvalNodeModel } from "./EvalNodeModel";
 import {
+    NODE_BORDER_COLOR, NODE_BORDER_ERROR_COLOR, NODE_BORDER_SELECTED_COLOR,
     NODE_BORDER_WIDTH, NODE_HEIGHT, NODE_PADDING, NODE_WIDTH,
 } from "../../../resources/constants";
 import { MoreVertIcon } from "../../../resources/icons";
@@ -61,10 +62,10 @@ const Box = styled.div<BoxProps>`
     border: ${NODE_BORDER_WIDTH}px solid
         ${(props: BoxProps) =>
         props.hasError
-            ? ThemeColors.ERROR
+            ? NODE_BORDER_ERROR_COLOR
             : props.isSelected || props.hovered
-                ? ThemeColors.SECONDARY
-                : ThemeColors.OUTLINE_VARIANT};
+                ? NODE_BORDER_SELECTED_COLOR
+                : NODE_BORDER_COLOR};
     border-radius: 10px;
     background-color: ${(props: BoxProps) =>
         props.isActiveBreakpoint ? ThemeColors.DEBUGGER_BREAKPOINT_BACKGROUND : ThemeColors.SURFACE_DIM};
