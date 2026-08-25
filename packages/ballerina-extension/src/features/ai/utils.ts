@@ -39,7 +39,7 @@ import { AIStateMachine } from '../../views/ai-panel/aiMachine';
 import { AIMachineEventType } from '@wso2/ballerina-core/lib/state-machine-types';
 import { CONFIG_FILE_NAME, CONFIGURE_DEFAULT_PROVIDER_ACTION, DEFAULT_PROVIDER_ADDED, DEFAULT_PROVIDER_NOT_CONFIGURED_PROMPT, DEFAULT_PROVIDER_TOKEN_REFRESH_FAILED, ERROR_NO_BALLERINA_SOURCES, LLM_API_BASE_PATH, LOGIN_REQUIRED_WARNING_FOR_DEFAULT_MODEL, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_EMBEDDING, PROGRESS_BAR_MESSAGE_FROM_WSO2_DEFAULT_MODEL, SIGN_IN_BI_COPILOT } from './constants';
 import { getCurrentBallerinaProjectFromContext } from '../config-generator/configGenerator';
-import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind } from '@wso2/ballerina-core';
+import { BallerinaProject, LoginMethod, AuthCredentials, DefaultProviderKind, GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER } from '@wso2/ballerina-core';
 import { BallerinaExtension } from 'src/core';
 
 const config = workspace.getConfiguration('ballerina');
@@ -352,7 +352,7 @@ function hasConfiguredProviderToken(projectPath: string): boolean {
 }
 
 // Calls that pull the WSO2 default provider into generated code.
-const DEFAULT_PROVIDER_SOURCE_MARKERS = ['getDefaultModelProvider', 'getDefaultEmbeddingProvider'];
+const DEFAULT_PROVIDER_SOURCE_MARKERS = [GET_DEFAULT_MODEL_PROVIDER, GET_DEFAULT_EMBEDDING_PROVIDER];
 
 function readBalFiles(dir: string): string[] {
     if (!fs.existsSync(dir)) {
@@ -499,6 +499,11 @@ async function promptToConfigureDefaultProvider(projectPath: string): Promise<bo
 // Returns false when the provider is needed but unconfigured, so callers can skip the run. Never throws.
 export async function refreshDefaultProviderToken(projectPath: string): Promise<boolean> {
     try {
+        // Single-file projects report the .bal file as their path; nothing to scan or refresh.
+        if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+            return true;
+        }
+
         const isReferenced = await isDefaultProviderReferencedInSource(projectPath);
 
         if (!hasConfiguredProviderToken(projectPath)) {
