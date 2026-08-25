@@ -1,0 +1,136 @@
+{
+  "description": "Sample flow model",
+  "kind": "CONNECTOR",
+  "source": "agent_project/connections.bal",
+  "queryMap": {
+    "q": "caller"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Solace Caller",
+        "description": "Represents a Solace caller, which can be used to mark Solace message as received.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_solace_0.3.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "solace",
+        "packageName": "solace",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "0.3.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "AWS SQS Caller",
+        "description": "Provides control over message deletion from the queue after processing.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_aws.sqs_4.1.3.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "aws.sqs",
+        "packageName": "aws.sqs",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "4.1.3",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "IBM MQ Caller",
+        "description": "Represents a IBM MQ caller, which can be used to mark IBM MQ message as received.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_ibm.ibmmq_1.4.4.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "ibm.ibmmq",
+        "packageName": "ibm.ibmmq",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.4.4",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Google Pub/Sub Caller",
+        "description": "Provides functionality to acknowledge or reject messages received by the listener service.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_gcloud.pubsub_0.1.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "gcloud.pubsub",
+        "packageName": "gcloud.pubsub",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "0.1.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "SMB Caller",
+        "description": "SMB caller for interacting with SMB servers from within file handlers.\nProvides a convenience wrapper around the Client class with simplified method signatures.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_smb_1.0.2.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerina",
+        "module": "smb",
+        "packageName": "smb",
+        "object": "Caller",
+        "symbol": "init",
+        "version": "1.0.2",
+        "isGenerated": false
+      },
+      "enabled": true
+    },
+    {
+      "metadata": {
+        "label": "Siemens Identity",
+        "description": "This is a generated connector from [Siemens identity management API](https://developer.mindsphere.io/apis/core-identitymanagement/api-identitymanagement-overview.html) OpenAPI Specification.\nThe Identity Management API provides a means form managing users, groups and OAuth clients.<br> The user and group management is based on SCIM (System for Cross-domain Identity Management).<br><br> <i>Note:</i> Unless stated otherwise the Identity Management APIs allow each caller only to act within the context of the tenant to which the caller belong's to.</br>\n<i>Note2:</i> UIAM stands for User Identity Access Management, since users and providers are separated in system. Therefore this API documentation is related to users generally.",
+        "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_siemens.platformcore.identitymanagement_1.5.1.png",
+        "data": {
+          "isAgentSupport": false
+        }
+      },
+      "codedata": {
+        "node": "NEW_CONNECTION",
+        "org": "ballerinax",
+        "module": "siemens.platformcore.identitymanagement",
+        "packageName": "siemens.platformcore.identitymanagement",
+        "object": "Client",
+        "symbol": "init",
+        "version": "1.5.1",
+        "isGenerated": false
+      },
+      "enabled": true
+    }
+  ]
+}

@@ -63,7 +63,6 @@ const BoxGroup = styled.div`
     flex-direction: row;
     width: 100%;
     align-items: flex-start;
-    gap: 10px;
 `;
 
 interface CheckBoxConditionalEditorProps {
@@ -213,7 +212,6 @@ function mapPropertiesToFormFields(properties: { [key: string]: PropertyModel; }
             diagnostics: [],
             items,
             allowItemCreate: property.allowItemCreate,
-            showOptionalSuffix: property.showOptionalSuffix,
             choices: property.choices,
             placeholder: property.placeholder,
             addNewButton: property.addNewButton,

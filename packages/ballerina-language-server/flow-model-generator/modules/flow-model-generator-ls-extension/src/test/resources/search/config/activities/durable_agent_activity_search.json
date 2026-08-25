@@ -1,0 +1,100 @@
+{
+  "description": "Durable agent Add Activity list: project activities carry the agent registration kind",
+  "kind": "ACTIVITY_CALL",
+  "source": "workflow_proj/main.bal",
+  "position": {
+    "startLine": {
+      "line": 40,
+      "offset": 0
+    },
+    "endLine": {
+      "line": 42,
+      "offset": 1
+    }
+  },
+  "queryMap": {
+    "q": "",
+    "excludeBuiltins": "true",
+    "nodeKind": "DURABLE_AGENT_ADD_ACTIVITY"
+  },
+  "categories": [
+    {
+      "metadata": {
+        "label": "Activities",
+        "description": "Activities defined within the current integration",
+        "keywords": [
+          "Project",
+          "Local",
+          "Activity"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "sendNotification",
+            "description": "Workflow activity function",
+            "icon": "bi-task"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_ADD_ACTIVITY",
+            "org": "test",
+            "module": "workflow_proj",
+            "symbol": "sendNotification",
+            "version": "0.1.0"
+          },
+          "enabled": true
+        },
+        {
+          "metadata": {
+            "label": "sendEmail",
+            "description": "Workflow activity function",
+            "icon": "bi-task"
+          },
+          "codedata": {
+            "node": "DURABLE_AGENT_ADD_ACTIVITY",
+            "org": "test",
+            "module": "workflow_proj",
+            "symbol": "sendEmail",
+            "version": "0.1.0"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "MCP Tools",
+        "description": "MCP servers exposing tools to the durable agent",
+        "keywords": [
+          "MCP",
+          "Tool",
+          "Agent"
+        ]
+      },
+      "items": [
+        {
+          "metadata": {
+            "label": "Use MCP Server",
+            "description": "Connect to an MCP server and expose its tools to the agent",
+            "icon": "bi-plus"
+          },
+          "codedata": {
+            "node": "MCP_TOOL_KIT"
+          },
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "label": "Tools",
+        "description": "AI tools usable by the durable agent",
+        "keywords": [
+          "Tool",
+          "Agent"
+        ]
+      },
+      "items": []
+    }
+  ]
+}

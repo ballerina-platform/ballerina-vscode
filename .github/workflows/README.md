@@ -332,6 +332,33 @@ Gradle's `mavenJava` publication and does not run Gradle's `release` task: that 
 rewrote the `version=` key in `gradle.properties`, which no longer exists now that the
 extension manifest owns the version.
 
+## Language server test coverage
+
+Every LS test run reports coverage to [Codecov](https://codecov.io/gh/ballerina-platform/ballerina-vscode)
+under the `language-server` flag. `.github/actions/ls-test` owns the whole flow, so any
+workflow that runs LS tests gets it: after `./gradlew test` it runs
+`./gradlew createCodeCoverageReport` (defined in the LS root `build.gradle`, modelled on
+ballerina-lang's task of the same name), which merges every module's JaCoCo execution data
+into `.jacoco/reports/jacoco/report.xml`, then uploads that file and attaches the report
+directory as the `ls-coverage-<branch>` artifact.
+
+Three details worth knowing:
+
+- **Linux only.** The Windows matrix leg runs the same suite over the same sources, so a
+  second upload would only duplicate the report and its paths do not map onto the repo layout.
+- **Runs even when tests fail** (`if: !cancelled()`), because a partial number beats none. A
+  cancelled run is excluded — a superseded run should not publish a half-finished report.
+  Report generation is `continue-on-error`, so it cannot turn a passing suite red.
+- **`schedule.yml` passes `codecov-branch`.** Its matrix checks out `matrix.branch` rather
+  than the ref the schedule fired on, so the upload has to be attributed explicitly. These
+  nightly runs are what give `main` and each release line the baseline that PR comparisons
+  need — PR builds only run LS tests when language server files change.
+
+Coverage thresholds are informational in `codecov.yml` (repository root — Codecov reads it
+from nowhere else): coverage is reported but never fails a build. To flip it to a merge gate,
+set `informational: false` on the statuses there — worth doing only after the first full CI
+run establishes the real baseline, since the `range` there is currently a placeholder.
+
 ## Required GitHub secrets for publishing and notifications
 
 - `BALLERINA_BOT_USERNAME` / `BALLERINA_BOT_TOKEN` — `release-pre-release.yml`, when
@@ -349,6 +376,10 @@ extension manifest owns the version.
 - `COPILOT_ROOT_URL` / `COPILOT_DEV_ROOT_URL` / `APPINSIGHTS_INSTRUMENTATION_KEY` —
   `schedule.yml`, `devBuild.yml`, and `release-pre-release.yml`: optional build-time
   endpoint and telemetry configuration. Pull-request builds receive none of these secrets.
+- `CODECOV_TOKEN` — every workflow that runs LS tests: authenticates the language server
+  coverage upload. Unset, the upload falls back to Codecov's tokenless flow for public
+  repositories; either way it never fails a build. See
+  [Language server test coverage](#language-server-test-coverage).
 
 Configure these in the new repo's settings before triggering anything.
 
@@ -370,6 +401,7 @@ configured.
 |---|---|
 | `build` | `reusable-build.yml` — runs rush install + `rush build --to ballerina` |
 | `setup-ballerina` | Build and LS workflows — installs the distribution version declared by the LS `gradle.properties`; accepts an optional `gradlePropertiesRef` to read that file from a git tag instead of the checkout (used by `e2e-scheduled.yml` to pin to the `nightly` tag) |
+| `ls-test` | `reusable-build.yml`, `schedule.yml` — runs the LS gradle suite, then aggregates and uploads coverage (see [Language server test coverage](#language-server-test-coverage)) |
 | `updateVersion` | `build`, `schedule.yml` — resolves and writes the version in the extension manifest |
 | `resolve-source-branch` | `schedule.yml` — the latest-`staging/*`-else-`main` resolution described under [The nightly branch](#the-nightly-branch) |
 | `run-e2e-group` | `reusable-build.yml`, `e2e-scheduled.yml` — runs one matrix group of the E2E suite (first attempt + `--last-failed` re-run) and uploads its artifacts; see [Scheduled E2E testing](#scheduled-e2e-testing) |

@@ -20,7 +20,7 @@
     "metadata": {
       "label": "query",
       "description": "Executes a SQL query and returns multiple results as a stream.\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.17.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.0.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",

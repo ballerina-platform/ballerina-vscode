@@ -5,7 +5,7 @@
     "orgName": "ballerina",
     "packageName": "ftp",
     "moduleName": "ftp",
-    "version": "2.16.0"
+    "version": "2.20.1"
   },
   "filePath": "sample2/main.bal",
   "removeDeprecated": false,
@@ -17,10 +17,10 @@
       "description": "Gets invoked during object initialization.\n",
       "moduleName": "ftp",
       "orgName": "ballerina",
-      "version": "2.16.0",
+      "version": "2.20.1",
       "packageName": "ftp",
       "listenerProtocol": "ftp",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.16.0.png",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_ftp_2.20.1.png",
       "properties": {
         "host": {
           "metadata": {
@@ -96,7 +96,7 @@
               "typeMembers": [
                 {
                   "type": "AuthConfiguration",
-                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageInfo": "ballerina:ftp:2.20.1",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -118,7 +118,7 @@
         "path": {
           "metadata": {
             "label": "Path",
-            "description": "Directory path on the FTP server to monitor for file changes"
+            "description": "Directory path on the FTP server to monitor for file changes.\nDeprecated: Use `@ftp:ServiceConfig` annotation on the service instead"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -183,7 +183,7 @@
         "protocol": {
           "metadata": {
             "label": "Protocol",
-            "description": "Protocol to use for the connection: FTP (unsecure) or SFTP (over SSH)"
+            "description": "Protocol to use for the connection: FTP (unsecure), SFTP (over SSH), or FTPS (FTP over SSL/TLS)"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -225,7 +225,7 @@
         "fileNamePattern": {
           "metadata": {
             "label": "File Name Pattern",
-            "description": "File name pattern (regex) to filter which files trigger events"
+            "description": "File name pattern (regex) to filter which files trigger events.\nDeprecated: Use `@ftp:ServiceConfig` annotation on the service instead"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -281,7 +281,7 @@
         "userDirIsRoot": {
           "metadata": {
             "label": "User Dir Is Root",
-            "description": "If set to `true`, treats the login home directory as the root (`/`) and\nprevents the underlying VFS from attempting to change to the actual server root.\nIf `false`, treats the actual server root as `/`, which may cause a `CWD /` command\nthat can fail on servers restricting root access (e.g., chrooted environments)."
+            "description": "If `true`, treats the login home directory as the root (`/`) and prevents the underlying VFS from\nattempting to change to the actual server root. Set to `true` for chrooted/jailed environments"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -309,7 +309,7 @@
         "fileAgeFilter": {
           "metadata": {
             "label": "File Age Filter",
-            "description": "Configuration for filtering files based on age (optional)"
+            "description": "Configuration for filtering files based on age.\nDeprecated: Use `@ftp:ServiceConfig` annotation on the service instead"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -324,7 +324,7 @@
               "typeMembers": [
                 {
                   "type": "FileAgeFilter",
-                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageInfo": "ballerina:ftp:2.20.1",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -346,7 +346,7 @@
         "fileDependencyConditions": {
           "metadata": {
             "label": "File Dependency Conditions",
-            "description": "Array of dependency conditions for conditional file processing (default: [])"
+            "description": "Dependency conditions for conditional file processing.\nDeprecated: Use `@ftp:ServiceConfig` annotation on the service instead"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -366,7 +366,7 @@
                     "typeMembers": [
                       {
                         "type": "FileDependencyCondition",
-                        "packageInfo": "ballerina:ftp:2.16.0",
+                        "packageInfo": "ballerina:ftp:2.20.1",
                         "packageName": "ftp",
                         "kind": "RECORD_TYPE",
                         "selected": false
@@ -401,7 +401,7 @@
         "laxDataBinding": {
           "metadata": {
             "label": "Lax Data Binding",
-            "description": "If set to `true`, enables relaxed data binding for XML and JSON responses.\nnull values in JSON/XML are allowed to be mapped to optional fields\nmissing fields in JSON/XML are allowed to be mapped as null values"
+            "description": "If `true`, enables relaxed data binding: null values in JSON/XML map to optional fields,\nand missing fields map to null values"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -429,7 +429,7 @@
         "connectTimeout": {
           "metadata": {
             "label": "Connect Timeout",
-            "description": "Connection timeout in seconds "
+            "description": "Connection timeout in seconds"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -457,7 +457,7 @@
         "socketConfig": {
           "metadata": {
             "label": "Socket Config",
-            "description": "Socket timeout configurations "
+            "description": "Socket timeout configurations"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -472,7 +472,7 @@
               "typeMembers": [
                 {
                   "type": "SocketConfig",
-                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageInfo": "ballerina:ftp:2.20.1",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -509,7 +509,7 @@
               "typeMembers": [
                 {
                   "type": "ProxyConfiguration",
-                  "packageInfo": "ballerina:ftp:2.16.0",
+                  "packageInfo": "ballerina:ftp:2.20.1",
                   "packageName": "ftp",
                   "kind": "RECORD_TYPE",
                   "selected": false
@@ -569,7 +569,7 @@
         "sftpCompression": {
           "metadata": {
             "label": "Sftp Compression",
-            "description": "Compression algorithms (SFTP only)"
+            "description": "Compression algorithms to use (SFTP only)"
           },
           "codedata": {
             "type": "LISTENER_INIT_PARAM",
@@ -646,6 +646,117 @@
             {
               "fieldType": "EXPRESSION",
               "ballerinaType": "string",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "csvFailSafe": {
+          "metadata": {
+            "label": "Csv Fail Safe",
+            "description": "Configuration for fail-safe CSV content processing. In fail-safe mode,\nmalformed CSV records are skipped and written to a separate file in the current directory"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "csvFailSafe"
+          },
+          "placeholder": "{}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:FailSafeOptions",
+              "typeMembers": [
+                {
+                  "type": "FailSafeOptions",
+                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:FailSafeOptions",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "coordination": {
+          "metadata": {
+            "label": "Coordination",
+            "description": "Configuration for distributed task coordination. When configured, only one member\nin the group actively polls while others act as warm standby"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "coordination"
+          },
+          "placeholder": "{memberId: \"\", coordinationGroup: \"\"}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:CoordinationConfig",
+              "typeMembers": [
+                {
+                  "type": "CoordinationConfig",
+                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:CoordinationConfig",
+              "selected": false
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": true,
+          "advanced": true
+        },
+        "retryConfig": {
+          "metadata": {
+            "label": "Retry Config",
+            "description": "Configuration for retry behavior when retrieving file content from the server.\nWhen configured, transient failures during file retrieval are automatically retried\nwith exponential backoff before the error is logged or otherwise handled"
+          },
+          "codedata": {
+            "type": "LISTENER_INIT_PARAM",
+            "originalName": "retryConfig"
+          },
+          "placeholder": "{}",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "RECORD_MAP_EXPRESSION",
+              "ballerinaType": "ftp:RetryConfig",
+              "typeMembers": [
+                {
+                  "type": "RetryConfig",
+                  "packageInfo": "ballerina:ftp:2.20.1",
+                  "packageName": "ftp",
+                  "kind": "RECORD_TYPE",
+                  "selected": false
+                }
+              ],
+              "selected": true
+            },
+            {
+              "fieldType": "EXPRESSION",
+              "ballerinaType": "ftp:RetryConfig",
               "selected": false
             }
           ],

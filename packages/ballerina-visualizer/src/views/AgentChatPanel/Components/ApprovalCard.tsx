@@ -103,17 +103,60 @@ const ToolDescription = styled.div`
     color: var(--vscode-descriptionForeground);
 `;
 
-const ArgumentsBlock = styled.pre`
-    margin: 0;
-    font-family: var(--vscode-editor-font-family);
-    font-size: 11px;
+const ArgumentsContainer = styled.div`
     background: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
     border-radius: 4px;
     padding: 6px 8px;
-    overflow-x: auto;
-    white-space: pre-wrap;
+`;
+
+const ArgumentsTable = styled.div`
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 12px;
+    row-gap: 4px;
+    align-items: baseline;
+`;
+
+const ArgumentLabel = styled.span`
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+`;
+
+const ArgumentValue = styled.span`
+    font-size: 11px;
+    color: var(--vscode-foreground);
     word-break: break-word;
+`;
+
+const EmptyValue = styled.span`
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+`;
+
+const NoArguments = styled.div`
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+`;
+
+const NestedBlock = styled.div`
+    padding-left: 8px;
+    border-left: 2px solid var(--vscode-panel-border);
+`;
+
+const NestedList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+`;
+
+const NestedItemLabel = styled.div`
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 2px;
 `;
 
 const RowActions = styled.div`
@@ -233,12 +276,61 @@ const SummaryItem = styled.span<{ decision: "APPROVE" | "REJECT" }>`
         decision === "APPROVE" ? "var(--vscode-terminal-ansiGreen)" : "var(--vscode-errorForeground)"};
 `;
 
-function formatArguments(args: Record<string, any>): string {
-    try {
-        return JSON.stringify(args, null, 2);
-    } catch {
-        return String(args);
+function isPlainObject(value: unknown): value is Record<string, any> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// Renders a tool call's arguments as label/value rows instead of raw JSON, so a
+// non-technical reviewer can tell what they're approving. Nested objects/arrays recurse into
+// indented sub-tables rather than falling back to a JSON dump.
+function renderArguments(args: Record<string, any>): React.ReactNode {
+    const entries = Object.entries(args);
+    if (entries.length === 0) {
+        return <NoArguments>No arguments</NoArguments>;
     }
+    return (
+        <ArgumentsTable>
+            {entries.map(([key, value]) => (
+                <React.Fragment key={key}>
+                    <ArgumentLabel>{key}</ArgumentLabel>
+                    <ArgumentValue>{renderArgumentValue(value)}</ArgumentValue>
+                </React.Fragment>
+            ))}
+        </ArgumentsTable>
+    );
+}
+
+function renderArgumentValue(value: unknown): React.ReactNode {
+    if (value === undefined || value === null) {
+        return <EmptyValue>—</EmptyValue>;
+    }
+    if (typeof value === "boolean") {
+        return value ? "Yes" : "No";
+    }
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            return <EmptyValue>—</EmptyValue>;
+        }
+        if (value.every(item => !isPlainObject(item) && !Array.isArray(item))) {
+            return value.map(item => String(item)).join(", ");
+        }
+        return (
+            <NestedList>
+                {value.map((item, idx) => (
+                    <div key={idx}>
+                        <NestedItemLabel>Item {idx + 1}</NestedItemLabel>
+                        <NestedBlock>
+                            {isPlainObject(item) ? renderArguments(item) : String(item)}
+                        </NestedBlock>
+                    </div>
+                ))}
+            </NestedList>
+        );
+    }
+    if (isPlainObject(value)) {
+        return <NestedBlock>{renderArguments(value)}</NestedBlock>;
+    }
+    return String(value);
 }
 
 export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions, unresolvable, onSubmit, onDismiss }) => {
@@ -353,7 +445,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
         <Card>
             <CardHeader>
                 <WarnIconWrapper>
-                    <Icon name="bi-shield-lock" sx={{ width: 14, height: 14 }} iconSx={{ fontSize: "14px" }} />
+                    <Icon name="user-fill" sx={{ width: 14, height: 14 }} iconSx={{ fontSize: "14px" }} />
                 </WarnIconWrapper>
                 Approval required &middot; {pendingRequests.length} pending
                 <HeaderSpacer />
@@ -379,7 +471,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({ requests, decisions,
                             {expandedArgs[req.id] ? "Hide arguments" : "Show arguments"}
                         </TextLinkButton>
                         {expandedArgs[req.id] && (
-                            <ArgumentsBlock>{formatArguments(req.arguments)}</ArgumentsBlock>
+                            <ArgumentsContainer>{renderArguments(req.arguments)}</ArgumentsContainer>
                         )}
                         {decided ? (
                             <DecidedBadge decision={decided.decision}>

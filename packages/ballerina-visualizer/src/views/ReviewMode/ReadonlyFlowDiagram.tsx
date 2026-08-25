@@ -210,7 +210,7 @@ export function ReadonlyFlowDiagram(props: ReadonlyFlowDiagramProps): JSX.Elemen
     }, [filePath, position, oldPosition, viewMode, expectedMetadata, changeType, rpcClient]);
 
     // Fetch one version of the enclosing function's flow model.
-    // useFileSchema=true reads the frozen original (file://); false reads the modified temp content (ai://).
+    // useFileSchema=true reads the frozen original (ai://); false reads the live edits (file://).
     const fetchFlowModelVersion = async (useFileSchema: boolean): Promise<Flow | null> => {
         const lookupPosition = getFlowLookupPosition(position, oldPosition, useFileSchema);
         const cacheKey = `${filePath}:${position.startLine}:${position.startColumn}:${position.endLine}:` +

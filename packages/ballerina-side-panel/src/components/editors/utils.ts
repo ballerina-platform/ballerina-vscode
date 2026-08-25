@@ -147,6 +147,24 @@ export const getFieldKeyForAdvanceProp = (fieldKey: string, advancePropKey: stri
     return `${fieldKey}.advanceProperties.${advancePropKey}`;
 }
 
+/**
+ * A field that belongs to one branch of a choice — a dropdown option's fields, a checkbox state's — is a
+ * definition: the value for its key lives in a property of its own, which the edit form fills in from the
+ * node being edited. Returns the field carrying whatever the form currently holds for its key, since
+ * without it the field's editor mounts with the definition's empty value and overwrites what was loaded.
+ * Nested advanced children follow the same rule.
+ */
+export function withHeldValue(field: FormField, values: Record<string, any> | undefined): FormField {
+    const held = values?.[field.key];
+    const withChildren = field.advanceProps
+        ? { ...field, advanceProps: field.advanceProps.map((child) => withHeldValue(child, values)) }
+        : field;
+    // Only an absent key means "never set". An empty string is a value the form holds — a cleared
+    // field — and folding it in with undefined would snap it back to the definition's default on the
+    // next render. Indistinguishable today, since every branch definition defaults to "".
+    return held === undefined ? withChildren : { ...withChildren, value: held };
+}
+
 
 export const isRecord = (value: unknown): value is Record<string, unknown> => {
     return (

@@ -22,9 +22,7 @@ import { keyframes } from "@emotion/react";
 import { AgentRunState, AgentRunStatus, ChatNotify, MACHINE_VIEW, ProductMode, assistantName, shortAssistantName } from "@wso2/ballerina-core";
 import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import type { MiniChatPrompt } from "./promptHandoff";
-
-/** WSO2 brand orange — the pulse-icon color from wso2.com/about/brand. */
-export const BRAND_ORANGE = "#F14E23";
+import { ambientBorderColor } from "./orbTheme";
 
 /** Floating orb geometry, shared with the mini chat for anchor-relative placement. */
 export const ORB_SIZE = 56;
@@ -50,14 +48,6 @@ export function loadAnchor(): Anchor {
     // to bottom-right instead; users can still drag the orb to any anchor.
     return stored && (ANCHORS as readonly string[]).includes(stored) ? (stored as Anchor) : "bottom-right";
 }
-
-export const ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
-    "idle": ["#6b5ce8", BRAND_ORANGE, "#ffb199"],
-    "running": ["#4facfe", "#a78bfa", "#f472b6"],
-    "awaiting-input": ["#fbbf24", "#f59e0b", "#fb923c"],
-    "completed": ["#34d399", "#10b981", "#6ee7b7"],
-    "error": ["#f87171", "#ef4444", "#fb7185"],
-};
 
 /** [base, darker-shade, lighter-shade] from one theme color, mirroring ACCENT_SPHERE. */
 function shadeTriple(base: string): [string, string, string] {
@@ -92,7 +82,7 @@ export const ACCENT_SPHERE: [string, string, string] = [
 
 export const ACCENT_CORE = `color-mix(in srgb, ${PRIMARY} 70%, transparent)`;
 
-/** Agent Builder's own palette — theme-variable-based; Integrator keeps ORB_COLORS above as-is. */
+/** Agent Builder's own palette — theme-variable-based; Integrator uses orbTheme's instead. */
 export const AGENT_BUILDER_ORB_COLORS: Record<AgentRunState, [string, string, string]> = {
     "idle": ACCENT_SPHERE,
     "running": shadeTriple(STATE_BASE.running),
@@ -110,20 +100,15 @@ export const AGENT_BUILDER_FRAME_COLORS: Record<AgentRunState, [string, string, 
     "error": frameTriple(STATE_BASE.error),
 };
 
-export function orbColors(state: AgentRunState, agentBuilder: boolean): [string, string, string] {
-    if (!agentBuilder) {
-        return ORB_COLORS[state];
-    }
-    return AGENT_BUILDER_ORB_COLORS[state];
-}
-
 /** Flow speed / contrast of the shader per state (0 = still, 1 = lively). */
 export const ORB_ENERGY: Record<AgentRunState, number> = {
-    "idle": 0.35,
+    // Raised across the board so the single-hue orb visibly flows (the motion,
+    // not the color, is what carries "alive"). Running stays at the ceiling.
+    "idle": 0.6,
     "running": 1.0,
-    "awaiting-input": 0.55,
-    "completed": 0.45,
-    "error": 0.5,
+    "awaiting-input": 0.72,
+    "completed": 0.6,
+    "error": 0.65,
 };
 
 const ambientGradientShift = keyframes`
@@ -158,13 +143,18 @@ export function ambientGlow(colors: [string, string, string], spec: AmbientGlowS
 
 export const HERO_GLOW: AmbientGlowSpec = { outerSize: 28, outerStrength: 34, innerSize: 14, innerStrength: 20 };
 
-function ambientColors(props: AmbientFrameProps): [string, string, string] {
+/** Agent Builder's own frame palette — its own accent-derived triad, kept separate from Integrator's. */
+function agentBuilderFrameColors(props: AmbientFrameProps): [string, string, string] {
     const state = props.$state ?? "idle";
     if (state === "idle") {
-        return props.$colors ?? ORB_COLORS.idle;
+        return props.$colors ?? ACCENT_FRAME;
     }
-    // Agent Builder tracks the orb's palette; Integrator keeps its own per-state colors.
-    return props.$agentBuilder ? AGENT_BUILDER_FRAME_COLORS[state] : ORB_COLORS[state];
+    return AGENT_BUILDER_FRAME_COLORS[state];
+}
+
+/** The frame's base color (accent floored to focusBorder for visibility); tinted in CSS. */
+function ambientBase(props: AmbientFrameProps): string {
+    return ambientBorderColor(props.$state ?? "idle");
 }
 
 /**
@@ -178,28 +168,52 @@ export const AmbientFrame = styled.div<AmbientFrameProps>`
     padding: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "1.5px" : "1px"};
     border-radius: ${(props: AmbientFrameProps) => props.$variant === "hero" ? "14px" : "10px"};
     background: ${(props: AmbientFrameProps) => {
-        const [first, second, third] = ambientColors(props);
-        return `linear-gradient(120deg, ${first}, ${second}, ${third}, ${first})`;
+        if (props.$agentBuilder) {
+            const [first, second, third] = agentBuilderFrameColors(props);
+            return `linear-gradient(120deg, ${first}, ${second}, ${third}, ${first})`;
+        }
+        // Monochromatic gradient tinted from the state's accent so the frame
+        // reads as one theme color (light stop → base → dark stop).
+        const base = ambientBase(props);
+        return `linear-gradient(120deg,`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff),`
+            + ` ${base},`
+            + ` color-mix(in srgb, ${base} 80%, #000000),`
+            + ` color-mix(in srgb, ${base} 82%, #ffffff))`;
     }};
     background-size: 300% 300%;
     animation: ${ambientGradientShift} 9s ease infinite;
     box-shadow: ${(props: AmbientFrameProps) => {
         const hero = props.$variant === "hero";
         const active = !!props.$state && props.$state !== "idle";
-        return ambientGlow(ambientColors(props), {
-            outerSize: hero ? 18 : active ? 16 : 12,
-            outerStrength: hero ? 25 : active ? 20 : 12,
-            innerSize: hero ? 10 : active ? 10 : 8,
-            innerStrength: hero ? 12 : active ? 13 : 7,
-        });
+        if (props.$agentBuilder) {
+            return ambientGlow(agentBuilderFrameColors(props), {
+                outerSize: hero ? 18 : active ? 16 : 12,
+                outerStrength: hero ? 25 : active ? 20 : 12,
+                innerSize: hero ? 10 : active ? 10 : 8,
+                innerStrength: hero ? 12 : active ? 13 : 7,
+            });
+        }
+        const base = ambientBase(props);
+        // Idle composer used to be the faintest (12/7); bump it so the frame
+        // stays legible where the accent is muted or near the panel background.
+        const outerStrength = hero ? 25 : active ? 20 : 18;
+        const innerStrength = hero ? 12 : active ? 13 : 11;
+        const outerSize = hero ? 18 : active ? 16 : 14;
+        const innerSize = hero ? 10 : active ? 10 : 9;
+        return `0 0 ${outerSize}px color-mix(in srgb, ${base} ${outerStrength}%, transparent), 0 0 ${innerSize}px color-mix(in srgb, ${base} ${innerStrength}%, transparent)`;
     }};
     transition: box-shadow 0.25s ease;
 
     &:focus-within {
         box-shadow: ${(props: AmbientFrameProps) => {
-        const [first, second] = ambientColors(props);
-        return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
-    }};
+            if (props.$agentBuilder) {
+                const [first, second] = agentBuilderFrameColors(props);
+                return `0 0 22px color-mix(in srgb, ${first} 34%, transparent), 0 0 13px color-mix(in srgb, ${second} 20%, transparent)`;
+            }
+            const base = ambientBase(props);
+            return `0 0 22px color-mix(in srgb, ${base} 34%, transparent), 0 0 13px color-mix(in srgb, ${base} 20%, transparent)`;
+        }};
     }
 
     @media (prefers-reduced-motion: reduce) {

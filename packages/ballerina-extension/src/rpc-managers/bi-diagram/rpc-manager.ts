@@ -1950,6 +1950,9 @@ export class BiDiagramRpcManager implements BIDiagramAPI {
             StateMachine.langClient()
                 .getTypes({ filePath })
                 .then(async (types) => {
+                    if (types?.errorMsg) {
+                        console.log(">>> error fetching types from ls", types.errorMsg, types.stacktrace);
+                    }
                     if (types?.types && !(await isAiSourceParseable([filePath]))) {
                         resolve(undefined);
                         return;

@@ -18,7 +18,7 @@
     "metadata": {
       "label": "MS SQL",
       "description": "MSSQL (Microsoft SQL) client that enables interaction with MSSQL servers and supports standard SQL operations.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.17.0.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_mssql_1.19.0.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -27,7 +27,7 @@
       "packageName": "mssql",
       "object": "Client",
       "symbol": "init",
-      "version": "1.17.0",
+      "version": "1.19.0",
       "isNew": true
     },
     "returning": false,
@@ -212,7 +212,7 @@
             "typeMembers": [
               {
                 "type": "Options",
-                "packageInfo": "ballerinax:mssql:1.17.0",
+                "packageInfo": "ballerinax:mssql:1.19.0",
                 "packageName": "mssql",
                 "kind": "RECORD_TYPE",
                 "selected": false

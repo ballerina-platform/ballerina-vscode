@@ -51,7 +51,7 @@ import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_M
 import static io.ballerina.flowmodelgenerator.core.Constants.Workflow.WORKFLOW_ORG;
 
 /**
- * Registers a workflow activity as a durable agent tool. Generates
+ * Registers a workflow activity as a durable agent activity. Generates
  * {@code check durableAgentContext.registerActivity(<activity>);}.
  *
  * <p>Built-in activities (Call REST API, Call SOAP API, Send Email) are registered as-is — no wrapper
@@ -72,13 +72,15 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
     public static final String ACTIVITY_LABEL = "Activity";
     public static final String ACTIVITY_DOC = "The @workflow:Activity function to expose as an agent tool";
 
-    public static final String TOOL_NAME_KEY = "name";
-    public static final String TOOL_NAME_LABEL = "Tool Name";
-    public static final String TOOL_NAME_DOC = "The tool name advertised to the model. Defaults to the function name";
-    public static final String TOOL_DESCRIPTION_KEY = "description";
-    public static final String TOOL_DESCRIPTION_LABEL = "Description";
-    public static final String TOOL_DESCRIPTION_DOC =
-            "Tells the model what this tool does and when to use it";
+    // Keyed by the declaration field they write: an entry's optional `name`/`description`.
+    public static final String ACTIVITY_NAME_KEY = "name";
+    public static final String ACTIVITY_NAME_LABEL = "Activity Name";
+    public static final String ACTIVITY_NAME_DOC =
+            "The activity name advertised to the model. Defaults to the function name";
+    public static final String ACTIVITY_DESCRIPTION_KEY = "description";
+    public static final String ACTIVITY_DESCRIPTION_LABEL = "Activity Description";
+    public static final String ACTIVITY_DESCRIPTION_DOC =
+            "Tells the model what this activity does and when to use it";
 
     public static final String REQUIRES_APPROVAL_KEY = "requiresApproval";
     public static final String USER_ROLES_KEY = "userRoles";
@@ -123,6 +125,8 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
             preSelected = contextSymbol;
         }
 
+        // A pre-selected activity is the form's subject, not a choice: the selector is hidden and
+        // the value only travels for source generation.
         properties().custom()
                 .metadata()
                     .label(ACTIVITY_LABEL)
@@ -138,10 +142,11 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     .stepOut()
                 .value(preSelected)
                 .editable(true)
+                .hidden(!preSelected.isEmpty())
                 .stepOut()
                 .addProperty(ACTIVITY_KEY);
         addBindingProperties(context, preSelected);
-        addToolIdentityProperties();
+        addActivityIdentityProperties();
         addRequiresApprovalProperty();
         properties().checkError(true);
     }
@@ -151,11 +156,17 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
      * client, typically. Their values are fixed at registration through {@code bindings}, and the
      * remaining data parameters stay model-controlled. Options are the module-level variables
      * assignable to the parameter, so a connection is picked rather than typed.
+     *
+     * <p>An entry declared with a module-qualified reference ({@code mod:validate}) arrives here as
+     * written, while symbols carry the bare name — so the qualifier is stripped before the lookup.
+     * Without that, no binding selector is built, the values the analysis hydrated for them have
+     * nowhere to land, and saving the edit drops the entry's {@code bindings} field.
      */
     private void addBindingProperties(TemplateContext context, String activityName) {
         if (activityName == null || activityName.isEmpty()) {
             return;
         }
+        String unqualifiedName = WorkflowUtil.stripModulePrefix(activityName);
         Package currentPackage = PackageUtil.loadProject(context.workspaceManager(), context.filePath())
                 .currentPackage();
         PackageUtil.getCompilation(currentPackage);
@@ -170,7 +181,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     .filter(symbol -> symbol.kind() == SymbolKind.FUNCTION)
                     .map(symbol -> (FunctionSymbol) symbol)
                     .filter(WorkflowUtil::isActivityFunction)
-                    .filter(symbol -> activityName.equals(symbol.getName().orElse("")))
+                    .filter(symbol -> unqualifiedName.equals(symbol.getName().orElse("")))
                     .findFirst();
             if (activity.isEmpty()) {
                 continue;
@@ -221,13 +232,14 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         return options;
     }
 
-    // The name/description advertised to the model, mirroring the workflow activity form's
-    // identity fields; both default to the function's own name and doc comment.
-    private void addToolIdentityProperties() {
+    // The declaration's optional name/description. The activity's own identity is enough for the
+    // common case, so they sit in the advanced section — but they are the model's view of the
+    // activity, and an entry declared with them in source must round-trip through an edit-save.
+    private void addActivityIdentityProperties() {
         properties().custom()
                 .metadata()
-                    .label(TOOL_NAME_LABEL)
-                    .description(TOOL_NAME_DOC)
+                    .label(ACTIVITY_NAME_LABEL)
+                    .description(ACTIVITY_NAME_DOC)
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.TEXT)
@@ -239,11 +251,11 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .optional(true)
                 .advanced(true)
                 .stepOut()
-                .addProperty(TOOL_NAME_KEY);
+                .addProperty(ACTIVITY_NAME_KEY);
         properties().custom()
                 .metadata()
-                    .label(TOOL_DESCRIPTION_LABEL)
-                    .description(TOOL_DESCRIPTION_DOC)
+                    .label(ACTIVITY_DESCRIPTION_LABEL)
+                    .description(ACTIVITY_DESCRIPTION_DOC)
                     .stepOut()
                 .type()
                     .fieldType(Property.ValueType.DOC_TEXT)
@@ -255,7 +267,7 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                 .optional(true)
                 .advanced(true)
                 .stepOut()
-                .addProperty(TOOL_DESCRIPTION_KEY);
+                .addProperty(ACTIVITY_DESCRIPTION_KEY);
     }
 
     // A FLAG that, when true, emits `requiresApproval = true` so the tool is gated by a review activity.
@@ -304,9 +316,9 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
         if (activityRef.isBlank()) {
             throw new UserFacingException("An activity function must be selected");
         }
-        String toolName = sourceBuilder.getProperty(TOOL_NAME_KEY)
+        String activityName = sourceBuilder.getProperty(ACTIVITY_NAME_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
-        String toolDescription = sourceBuilder.getProperty(TOOL_DESCRIPTION_KEY)
+        String activityDescription = sourceBuilder.getProperty(ACTIVITY_DESCRIPTION_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
         String userRoles = sourceBuilder.getProperty(USER_ROLES_KEY)
                 .map(p -> p.value() == null ? "" : p.value().toString().trim()).orElse("");
@@ -323,16 +335,16 @@ public class DurableAgentAddActivityBuilder extends CallBuilder {
                     + property.value().toString().trim());
         });
         String entry;
-        if (toolName.isBlank() && toolDescription.isBlank() && !requiresApproval && userRoles.isBlank()
-                && retryPolicyValue == null && bindings.isEmpty()) {
+        if (activityName.isBlank() && activityDescription.isBlank() && !requiresApproval
+                && userRoles.isBlank() && retryPolicyValue == null && bindings.isEmpty()) {
             entry = activityRef;
         } else {
             StringBuilder mapping = new StringBuilder("{activity: ").append(activityRef);
-            if (!toolName.isBlank()) {
-                mapping.append(", name: ").append(WorkflowUtil.quoteIfPlain(toolName));
+            if (!activityName.isBlank()) {
+                mapping.append(", name: ").append(WorkflowUtil.quoteIfPlain(activityName));
             }
-            if (!toolDescription.isBlank()) {
-                mapping.append(", description: ").append(WorkflowUtil.quoteIfPlain(toolDescription));
+            if (!activityDescription.isBlank()) {
+                mapping.append(", description: ").append(WorkflowUtil.quoteIfPlain(activityDescription));
             }
             if (requiresApproval) {
                 mapping.append(", requiresApproval: true");

@@ -215,6 +215,10 @@ Rules:
                     tasks: allTasks
                 };
             } catch (error) {
+                // Let an abort propagate as a tool-error instead of a raw "Failed to process tasks" message.
+                if ((error as any)?.name === 'AbortError') {
+                    throw error;
+                }
                 console.error("Error in TaskWrite tool:", error);
                 return {
                     success: false,
