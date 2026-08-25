@@ -274,6 +274,7 @@ export async function runHandler(request: TestRunRequest, token: CancellationTok
         }
         if (unconfiguredProjectPaths.has(projectPath)) {
             run.failed(test, new TestMessage('The WSO2 default AI provider is not configured for this project.'));
+            run.end();
             return;
         }
 

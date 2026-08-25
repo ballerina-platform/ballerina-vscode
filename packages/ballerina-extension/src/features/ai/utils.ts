@@ -420,7 +420,7 @@ function removeDefaultProviderConfigFromProject(projectPath: string): void {
     }
 }
 
-let lastAuthSubscription: { unsubscribe: () => void } | null = null;
+let pendingAuthRetries: Array<() => void> | null = null;
 const AUTH_SUBSCRIPTION_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Prompts to sign in, then runs onAuthenticated() once login completes (or times out).
@@ -430,10 +430,13 @@ export function promptSignInAndRetry(loginWarning: string, onAuthenticated: () =
             return;
         }
 
-        if (lastAuthSubscription) {
-            lastAuthSubscription.unsubscribe();
-            lastAuthSubscription = null;
+        // Join a login already in flight, so this caller doesn't cancel the other one's retry.
+        if (pendingAuthRetries) {
+            pendingAuthRetries.push(onAuthenticated);
+            return;
         }
+        const retries = [onAuthenticated];
+        pendingAuthRetries = retries;
 
         let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
         const subscription = AIStateMachine.service().subscribe((state) => {
@@ -443,15 +446,14 @@ export function promptSignInAndRetry(loginWarning: string, onAuthenticated: () =
             if (timeoutHandle !== null) {
                 clearTimeout(timeoutHandle);
             }
-            lastAuthSubscription = null;
+            pendingAuthRetries = null;
             subscription.unsubscribe();
-            onAuthenticated();
+            retries.forEach(retry => retry());
         });
-        lastAuthSubscription = subscription;
 
         timeoutHandle = setTimeout(() => {
-            if (lastAuthSubscription === subscription) {
-                lastAuthSubscription = null;
+            if (pendingAuthRetries === retries) {
+                pendingAuthRetries = null;
             }
             subscription.unsubscribe();
         }, AUTH_SUBSCRIPTION_TIMEOUT_MS);
