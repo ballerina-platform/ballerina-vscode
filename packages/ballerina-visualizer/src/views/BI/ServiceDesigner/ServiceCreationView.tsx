@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ParameterModel, ProjectStructureArtifactResponse, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -127,6 +127,7 @@ const INSTRUCTIONS_KEY = "instructions";
 const CONFIGURE_ENDPOINT_KEY = "configureEndpoint";
 const EXISTING_SERVICE_KEY = "existingService";
 const JOIN_EXISTING_BRANCH = 1;
+const BASE_PATH_KEY = "basePath";
 
 interface HeaderInfo {
     title: string;
@@ -138,6 +139,45 @@ enum PullingStatus {
     PULLING = "pulling",
     SUCCESS = "success",
     ERROR = "error",
+}
+
+function findSeedableField(properties: Record<string, PropertyModel>, key: string): PropertyModel | undefined {
+    if (!properties) {
+        return undefined;
+    }
+    if (properties[key]) {
+        return properties[key];
+    }
+    for (const property of Object.values(properties)) {
+        for (const branch of property.choices ?? []) {
+            const found = findSeedableField(branch.properties as Record<string, PropertyModel>, key);
+            if (found) {
+                return found;
+            }
+        }
+        const found = findSeedableField(property.properties as Record<string, PropertyModel>, key);
+        if (found) {
+            return found;
+        }
+    }
+    return undefined;
+}
+
+function servedPathsOf(initModel: ServiceInitModel): string[] {
+    return (initModel.properties?.[CONFIGURE_ENDPOINT_KEY]?.choices?.[JOIN_EXISTING_BRANCH]
+        ?.properties?.[EXISTING_SERVICE_KEY]?.items ?? []) as string[];
+}
+
+function untakenPath(seed: string, taken: string[]): string {
+    if (!taken.includes(seed)) {
+        return seed;
+    }
+    for (let suffix = 2; ; suffix++) {
+        const candidate = `${seed}-${suffix}`;
+        if (!taken.includes(candidate)) {
+            return candidate;
+        }
+    }
 }
 
 export function ServiceCreationView(props: ServiceCreationViewProps) {
@@ -207,10 +247,11 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 return;
             }
 
+            const takenPaths = servedPathsOf(initModel);
             Object.entries(defaultValues ?? {}).forEach(([key, value]) => {
-                const field = initModel.properties?.[key];
+                const field = findSeedableField(initModel.properties, key);
                 if (field) {
-                    field.value = value;
+                    field.value = key === BASE_PATH_KEY ? untakenPath(value, takenPaths) : value;
                 }
             });
 
