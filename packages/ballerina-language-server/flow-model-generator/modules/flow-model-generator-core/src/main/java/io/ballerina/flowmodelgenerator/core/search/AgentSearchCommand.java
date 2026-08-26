@@ -21,6 +21,9 @@ package io.ballerina.flowmodelgenerator.core.search;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.reflect.TypeToken;
+import io.ballerina.centralconnector.CentralAPI;
+import io.ballerina.centralconnector.RemoteCentral;
+import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.compiler.api.ModuleID;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
@@ -47,6 +50,7 @@ import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -60,6 +64,7 @@ import java.util.Optional;
 public class AgentSearchCommand extends SearchCommand {
 
     private static final Gson GSON = new Gson();
+    private static final String AGENT_KEYWORD_FILTER = "keywords:\"Type/Agent\"";
     private static final String CENTRAL_AGENTS_CATEGORY = "Central Agents";
     private static final String LOCAL_AGENTS_CATEGORY = "Local Agents";
     private static final String INIT_SYMBOL = "init";
@@ -152,7 +157,10 @@ public class AgentSearchCommand extends SearchCommand {
         }
     }
     private List<Item> getAllAgents(String searchQuery) {
-        addCategory(CENTRAL_AGENTS_CATEGORY, filterAgents(getLandingAgents(), searchQuery));
+        List<AvailableNode> centralAgents = searchQuery == null || searchQuery.isEmpty()
+                ? filterAgents(getLandingAgents(), searchQuery)
+                : fetchAgentsFromCentral(searchQuery, null);
+        addCategory(CENTRAL_AGENTS_CATEGORY, centralAgents);
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
     }
@@ -163,10 +171,57 @@ public class AgentSearchCommand extends SearchCommand {
 
     private List<Item> getOrganizationAgents(String searchQuery) {
         String currentOrg = project.currentPackage().packageOrg().value();
-        addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery).stream()
-                .filter(agent -> agent.codedata().org().equalsIgnoreCase(currentOrg))
-                .toList());
+        if (currentOrg != null && !currentOrg.isEmpty()) {
+            addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, currentOrg));
+        }
         return rootBuilder.build().items();
+    }
+
+    private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, String org) {
+        try {
+            PackageResponse response = getPackageResponse(searchQuery, org);
+            if (response == null || response.packages() == null) {
+                return List.of();
+            }
+            return response.packages().stream().map(AgentSearchCommand::generateCentralAgentNode).toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private PackageResponse getPackageResponse(String searchQuery, String org) {
+        CentralAPI centralClient = RemoteCentral.getInstance();
+        Map<String, String> centralQueryMap = new HashMap<>();
+        // Keyword must lead: `<text> AND keywords:"..."` mis-associates on multi-word text and returns nothing.
+        String q = searchQuery == null || searchQuery.isEmpty()
+                ? AGENT_KEYWORD_FILTER
+                : AGENT_KEYWORD_FILTER + " AND " + searchQuery;
+        centralQueryMap.put("q", q);
+        centralQueryMap.put("limit", String.valueOf(limit));
+        centralQueryMap.put("offset", String.valueOf(offset));
+        if (org != null && !org.isEmpty()) {
+            centralQueryMap.put("org", org);
+        }
+        return centralClient.searchPackages(centralQueryMap);
+    }
+
+    private static AvailableNode generateCentralAgentNode(PackageResponse.Package pkg) {
+        Metadata metadata = new Metadata.Builder<>(null)
+                .label(pkg.name())
+                .description(pkg.summary())
+                .icon(CommonUtils.generateIcon(pkg.organization(), pkg.name(), pkg.version()))
+                .build();
+
+        Codedata codedata = new Codedata.Builder<>(null)
+                .node(NodeKind.TYPED_AGENT)
+                .org(pkg.organization())
+                .module(pkg.name())
+                .packageName(pkg.name())
+                .symbol(INIT_SYMBOL)
+                .version(pkg.version())
+                .build();
+
+        return new AvailableNode(metadata, codedata, true);
     }
 
     private void addCategory(String name, List<AvailableNode> agents) {

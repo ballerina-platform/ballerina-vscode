@@ -18,12 +18,20 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
+import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.symbols.Symbol;
+import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
+import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
+import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
+import io.ballerina.projects.Package;
+import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -31,6 +39,7 @@ import org.ballerinalang.langserver.commons.workspace.WorkspaceDocumentException
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class TypedAgentBuilder extends ClassInitBuilder {
 
@@ -49,7 +58,7 @@ public class TypedAgentBuilder extends ClassInitBuilder {
 
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
-        TemplateContext resolvedContext = anchorToExistingFile(context);
+        TemplateContext resolvedContext = resolveAgentClass(anchorToExistingFile(context));
         super.setConcreteTemplateData(resolvedContext);
         suggestResultVariableName(resolvedContext);
         try {
@@ -59,6 +68,41 @@ public class TypedAgentBuilder extends ClassInitBuilder {
             AiUtils.markAgentParams(this, resolvedContext.codedata(), project);
         } catch (RuntimeException ignored) {
         }
+    }
+
+    // Central search results carry no class name, so resolve it from the package before the init form is built.
+    private TemplateContext resolveAgentClass(TemplateContext context) {
+        Codedata codedata = context == null ? null : context.codedata();
+        if (codedata == null || (codedata.object() != null && !codedata.object().isEmpty())) {
+            return context;
+        }
+
+        try {
+            ModuleInfo moduleInfo = new ModuleInfo(codedata.org(), codedata.packageName(), codedata.module(),
+                    codedata.version());
+            Optional<String> agentClass = PackageUtil.pullModuleAndNotify(context.lsClientLogger(), moduleInfo)
+                    .flatMap(TypedAgentBuilder::findAgentClass);
+            if (agentClass.isPresent()) {
+                Codedata resolved = new Codedata.Builder<>(null).from(codedata).object(agentClass.get()).build();
+                return new TemplateContext(context.workspaceManager(), context.filePath(), context.position(),
+                        resolved, context.lsClientLogger());
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return context;
+    }
+
+    private static Optional<String> findAgentClass(Package agentPackage) {
+        PackageCompilation compilation = PackageUtil.getCompilation(agentPackage);
+        for (Module module : agentPackage.modules()) {
+            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
+            for (Symbol symbol : semanticModel.moduleSymbols()) {
+                if (symbol.kind() == SymbolKind.CLASS && CommonUtils.isAiAgentType(symbol)) {
+                    return symbol.getName();
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private TemplateContext anchorToExistingFile(TemplateContext context) {
