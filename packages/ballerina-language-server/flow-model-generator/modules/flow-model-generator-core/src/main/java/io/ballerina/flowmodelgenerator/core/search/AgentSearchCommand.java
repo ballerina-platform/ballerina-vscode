@@ -25,12 +25,10 @@ import io.ballerina.centralconnector.CentralAPI;
 import io.ballerina.centralconnector.RemoteCentral;
 import io.ballerina.centralconnector.response.PackageResponse;
 import io.ballerina.compiler.api.ModuleID;
-import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
-import io.ballerina.compiler.api.symbols.Symbol;
-import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.LocalIndexCentral;
 import io.ballerina.flowmodelgenerator.core.model.AvailableNode;
 import io.ballerina.flowmodelgenerator.core.model.Category;
@@ -39,10 +37,10 @@ import io.ballerina.flowmodelgenerator.core.model.Item;
 import io.ballerina.flowmodelgenerator.core.model.Metadata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.modelgenerator.commons.SearchResult;
-import io.ballerina.projects.Module;
-import io.ballerina.projects.PackageCompilation;
+import io.ballerina.projects.Package;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LineRange;
 import org.ballerinalang.langserver.commons.BallerinaCompilerApi;
@@ -55,6 +53,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Handles the search command for agents.
@@ -79,10 +79,12 @@ public class AgentSearchCommand extends SearchCommand {
     private List<Item> cachedDefaultAgents;
     private final String orgName;
     private final String source;
+    private final String packageId;
 
     public AgentSearchCommand(Project project, LineRange position, Map<String, String> queryMap) {
         super(project, position, queryMap);
         orgName = queryMap.get("orgName");
+        packageId = queryMap.get("package");
         String requestedSource = queryMap.getOrDefault("source", SOURCE_DEFAULT);
         source = SOURCE_ALL.equals(requestedSource) || SOURCE_ORGANIZATION.equals(requestedSource)
                 || SOURCE_LOCAL.equals(requestedSource)
@@ -116,6 +118,10 @@ public class AgentSearchCommand extends SearchCommand {
 
     @Override
     public JsonArray execute() {
+        if (packageId != null && !packageId.isEmpty()) {
+            return GSON.toJsonTree(getPackageAgents()).getAsJsonArray();
+        }
+
         List<Item> items;
         if (SOURCE_DEFAULT.equals(source)) {
             items = (query.isEmpty() && orgName == null) ? defaultView() : search();
@@ -157,29 +163,38 @@ public class AgentSearchCommand extends SearchCommand {
         }
     }
     private List<Item> getAllAgents(String searchQuery) {
-        List<AvailableNode> centralAgents = searchQuery == null || searchQuery.isEmpty()
-                ? filterAgents(getLandingAgents(), searchQuery)
-                : fetchAgentsFromCentral(searchQuery, null);
-        addCategory(CENTRAL_AGENTS_CATEGORY, centralAgents);
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
+        addCategory(CENTRAL_AGENTS_CATEGORY, searchQuery == null || searchQuery.isEmpty()
+                ? defaultCentralAgents()
+                : fetchAgentsFromCentral(searchQuery, false));
         return rootBuilder.build().items();
     }
+
+    private List<AvailableNode> defaultCentralAgents() {
+        List<AvailableNode> agents = new ArrayList<>(filterAgents(getLandingAgents(), null));
+        Set<String> seen = agents.stream().map(agent -> agent.codedata().getModuleId()).collect(Collectors.toSet());
+        for (AvailableNode agent : fetchAgentsFromCentral(null, true)) {
+            if (seen.add(agent.codedata().getModuleId())) {
+                agents.add(agent);
+            }
+        }
+        return agents;
+    }
+
+
     private List<Item> getLocalAgents(String searchQuery) {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
         return rootBuilder.build().items();
     }
 
     private List<Item> getOrganizationAgents(String searchQuery) {
-        String currentOrg = project.currentPackage().packageOrg().value();
-        if (currentOrg != null && !currentOrg.isEmpty()) {
-            addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, currentOrg));
-        }
+        addCategory(CENTRAL_AGENTS_CATEGORY, fetchAgentsFromCentral(searchQuery, true));
         return rootBuilder.build().items();
     }
 
-    private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, String org) {
+    private List<AvailableNode> fetchAgentsFromCentral(String searchQuery, boolean orgScoped) {
         try {
-            PackageResponse response = getPackageResponse(searchQuery, org);
+            PackageResponse response = getPackageResponse(searchQuery, orgScoped);
             if (response == null || response.packages() == null) {
                 return List.of();
             }
@@ -189,7 +204,7 @@ public class AgentSearchCommand extends SearchCommand {
         }
     }
 
-    private PackageResponse getPackageResponse(String searchQuery, String org) {
+    private PackageResponse getPackageResponse(String searchQuery, boolean orgScoped) {
         CentralAPI centralClient = RemoteCentral.getInstance();
         Map<String, String> centralQueryMap = new HashMap<>();
         // Keyword must lead: `<text> AND keywords:"..."` mis-associates on multi-word text and returns nothing.
@@ -199,10 +214,25 @@ public class AgentSearchCommand extends SearchCommand {
         centralQueryMap.put("q", q);
         centralQueryMap.put("limit", String.valueOf(limit));
         centralQueryMap.put("offset", String.valueOf(offset));
-        if (org != null && !org.isEmpty()) {
-            centralQueryMap.put("org", org);
+
+        if (orgScoped && !addOrgScope(centralQueryMap, centralClient)) {
+            return null;
         }
         return centralClient.searchPackages(centralQueryMap);
+    }
+
+    // Central ANDs `org` with `user-packages`, so sending both drops everything the user owns under another org.
+    private boolean addOrgScope(Map<String, String> centralQueryMap, CentralAPI centralClient) {
+        if (centralClient.hasAuthorizedAccess()) {
+            centralQueryMap.put("user-packages", "true");
+            return true;
+        }
+        String currentOrg = project.currentPackage().packageOrg().value();
+        if (currentOrg == null || currentOrg.isEmpty()) {
+            return false;
+        }
+        centralQueryMap.put("org", currentOrg);
+        return true;
     }
 
     private static AvailableNode generateCentralAgentNode(PackageResponse.Package pkg) {
@@ -253,31 +283,28 @@ public class AgentSearchCommand extends SearchCommand {
                 .toList();
     }
 
-    private static List<AvailableNode> findAgentClasses(Project project) {
-        PackageCompilation compilation = PackageUtil.getCompilation(project);
-        List<AvailableNode> localAgents = new ArrayList<>();
-
-        for (Module module : project.currentPackage().modules()) {
-            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
-            for (Symbol symbol : semanticModel.moduleSymbols()) {
-                if (symbol.kind() != SymbolKind.CLASS) {
-                    continue;
-                }
-
-                ClassSymbol classSymbol = (ClassSymbol) symbol;
-                if (!CommonUtils.isAiAgentType(classSymbol)) {
-                    continue;
-                }
-
-                Optional<ModuleSymbol> optModule = symbol.getModule();
-                if (optModule.isEmpty()) {
-                    continue;
-                }
-
-                localAgents.add(buildLocalAgentNode(classSymbol, optModule.get()));
+    // Central results name a package, not a class; expanding one lists every agent it defines.
+    private List<Item> getPackageAgents() {
+        try {
+            ModuleInfo moduleInfo = ModuleInfo.from(packageId);
+            if (moduleInfo.isComplete()) {
+                PackageUtil.pullModuleAndNotify(null, moduleInfo)
+                        .ifPresent(pkg -> addCategory(CENTRAL_AGENTS_CATEGORY, findAgentClasses(pkg)));
             }
+        } catch (RuntimeException ignored) {
         }
+        return rootBuilder.build().items();
+    }
 
+    private static List<AvailableNode> findAgentClasses(Project project) {
+        return findAgentClasses(project.currentPackage());
+    }
+
+    private static List<AvailableNode> findAgentClasses(Package agentPackage) {
+        List<AvailableNode> localAgents = new ArrayList<>();
+        for (ClassSymbol classSymbol : AiUtils.findAgentClasses(agentPackage)) {
+            classSymbol.getModule().ifPresent(module -> localAgents.add(buildLocalAgentNode(classSymbol, module)));
+        }
         return localAgents;
     }
 

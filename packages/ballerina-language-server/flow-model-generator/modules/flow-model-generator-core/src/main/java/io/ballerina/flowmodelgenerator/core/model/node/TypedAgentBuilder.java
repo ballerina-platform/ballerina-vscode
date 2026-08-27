@@ -18,20 +18,16 @@
 
 package io.ballerina.flowmodelgenerator.core.model.node;
 
-import io.ballerina.compiler.api.SemanticModel;
-import io.ballerina.compiler.api.symbols.Symbol;
-import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.flowmodelgenerator.core.AiUtils;
 import io.ballerina.flowmodelgenerator.core.model.Codedata;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
-import io.ballerina.modelgenerator.commons.CommonUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DocumentId;
 import io.ballerina.projects.Module;
 import io.ballerina.projects.Package;
-import io.ballerina.projects.PackageCompilation;
 import io.ballerina.projects.Project;
 import org.ballerinalang.langserver.common.utils.NameUtil;
 import org.ballerinalang.langserver.commons.eventsync.exceptions.EventSyncException;
@@ -72,37 +68,35 @@ public class TypedAgentBuilder extends ClassInitBuilder {
 
     // Central search results carry no class name, so resolve it from the package before the init form is built.
     private TemplateContext resolveAgentClass(TemplateContext context) {
-        Codedata codedata = context == null ? null : context.codedata();
-        if (codedata == null || (codedata.object() != null && !codedata.object().isEmpty())) {
+        if (context == null || !needsAgentClass(context.codedata())) {
             return context;
         }
 
+        Codedata codedata = context.codedata();
+        ModuleInfo moduleInfo = new ModuleInfo(codedata.org(), codedata.packageName(), codedata.module(),
+                codedata.version());
         try {
-            ModuleInfo moduleInfo = new ModuleInfo(codedata.org(), codedata.packageName(), codedata.module(),
-                    codedata.version());
-            Optional<String> agentClass = PackageUtil.pullModuleAndNotify(context.lsClientLogger(), moduleInfo)
-                    .flatMap(TypedAgentBuilder::findAgentClass);
-            if (agentClass.isPresent()) {
-                Codedata resolved = new Codedata.Builder<>(null).from(codedata).object(agentClass.get()).build();
-                return new TemplateContext(context.workspaceManager(), context.filePath(), context.position(),
-                        resolved, context.lsClientLogger());
-            }
+            return PackageUtil.pullModuleAndNotify(context.lsClientLogger(), moduleInfo)
+                    .flatMap(TypedAgentBuilder::findAgentClass)
+                    .map(className -> withAgentClass(context, className))
+                    .orElse(context);
         } catch (RuntimeException ignored) {
+            return context;
         }
-        return context;
+    }
+
+    private static boolean needsAgentClass(Codedata codedata) {
+        return codedata != null && (codedata.object() == null || codedata.object().isEmpty());
+    }
+
+    private static TemplateContext withAgentClass(TemplateContext context, String className) {
+        Codedata resolved = new Codedata.Builder<>(null).from(context.codedata()).object(className).build();
+        return new TemplateContext(context.workspaceManager(), context.filePath(), context.position(), resolved,
+                context.lsClientLogger());
     }
 
     private static Optional<String> findAgentClass(Package agentPackage) {
-        PackageCompilation compilation = PackageUtil.getCompilation(agentPackage);
-        for (Module module : agentPackage.modules()) {
-            SemanticModel semanticModel = compilation.getSemanticModel(module.moduleId());
-            for (Symbol symbol : semanticModel.moduleSymbols()) {
-                if (symbol.kind() == SymbolKind.CLASS && CommonUtils.isAiAgentType(symbol)) {
-                    return symbol.getName();
-                }
-            }
-        }
-        return Optional.empty();
+        return AiUtils.findAgentClasses(agentPackage).stream().findFirst().flatMap(ClassSymbol::getName);
     }
 
     private TemplateContext anchorToExistingFile(TemplateContext context) {

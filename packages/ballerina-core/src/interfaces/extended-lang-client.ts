@@ -979,6 +979,8 @@ export type SearchQueryParams = {
     /** ACTIVITY_CALL search: node kind stamped on result items (e.g. DURABLE_AGENT_ADD_ACTIVITY). */
     nodeKind?: string;
     source?: string;
+    /** AGENT search: `org/name:version` — lists the agent definitions inside that package. */
+    package?: string;
     connectorSet?: "GROUPED";
 }
 
