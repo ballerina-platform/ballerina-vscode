@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import { DIRECTORY_MAP, EVENT_TYPE, isSamePath, MACHINE_VIEW, ProjectStructureArtifactResponse } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
-import { Button, Codicon, TextField, Typography } from "@wso2/ui-toolkit";
+import { Button, Codicon, LinkButton, TextField, ThemeColors, Typography } from "@wso2/ui-toolkit";
 import { URI, Utils } from "vscode-uri";
 import { IntroText } from "./AddAgentPopup/styles";
 import {
@@ -52,24 +52,19 @@ const FormFields = styled.div`
     flex-direction: column;
     gap: 16px;
     overflow-y: auto;
-    padding: 24px 36px 16px;
 `;
 
 const Actions = styled.div`
     display: flex;
-    justify-content: center;
     align-items: center;
     box-sizing: border-box;
     flex-shrink: 0;
     width: 100%;
-    padding: 16px 36px;
     background: var(--vscode-editor-background);
-    border-top: 1px solid var(--vscode-panel-border);
     z-index: 10;
 `;
 
 const SubmitButton = styled(Button)`
-    width: 100% !important;
     min-width: 0 !important;
     display: flex !important;
     justify-content: center;
@@ -93,33 +88,19 @@ const LibraryDetails = styled.div`
     gap: 16px;
 `;
 
-const PackageSettings = styled.div`
-    border-top: 1px solid var(--vscode-panel-border);
-    padding-top: 12px;
-`;
-
-const PackageSettingsButton = styled.button`
+const AdvancedRow = styled.div`
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 0;
-    color: var(--vscode-foreground);
-    background: none;
-    border: 0;
-    cursor: pointer;
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-`;
-
-const PackageSettingsContent = styled(LibraryDetails)`
-    margin-top: 16px;
+    justify-content: space-between;
+    width: 100%;
 `;
 
 interface AgentDefinitionFormProps {
     projectPath: string;
     submitText?: string;
     onCreated?: () => void;
+    /** Modals get padded edges, a footer divider and a stretched button; full-screen views do not. */
+    inModal?: boolean;
 }
 
 interface LibraryFormData {
@@ -152,7 +133,7 @@ function LibraryDetailsForm({
     touchedFields,
     hasAttemptedSubmit,
 }: LibraryDetailsFormProps) {
-    const [showPackageSettings, setShowPackageSettings] = useState(false);
+    const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
     const libraryNameError = validateComponentName(data.name, true);
     const packageNameError = validatePackageName(data.packageName, data.name);
     const orgNameError = validateOrgName(data.orgName);
@@ -161,72 +142,84 @@ function LibraryDetailsForm({
 
     return (
         <LibraryDetails>
-            <TextField
-                label="Library Name"
-                required
-                placeholder="Meeting Notes Agent"
-                description="The reusable library package created in this workspace."
-                value={data.name}
-                errorMsg={visibleError(libraryNameError, "name")}
-                onTextChange={(name) => {
-                    onFieldTouched("name");
-                    onChange({ name });
-                }}
-                onBlur={() => onFieldTouched("name")}
-                sx={{ width: "100%" }}
-            />
-            <PackageSettings>
-                <PackageSettingsButton type="button" onClick={() => setShowPackageSettings((current) => !current)}>
-                    <Codicon name="settings-gear" iconSx={{ fontSize: 14 }} />
-                    Package settings (optional)
-                    <Codicon name={showPackageSettings ? "chevron-up" : "chevron-down"} iconSx={{ fontSize: 14 }} />
-                </PackageSettingsButton>
-                {showPackageSettings && (
-                    <PackageSettingsContent>
-                        <TextField
-                            label="Package Name"
-                            required
-                            description="Specify the package name."
-                            value={data.packageName}
-                            errorMsg={visibleError(packageNameError, "packageName")}
-                            onTextChange={(packageName) => {
-                                onFieldTouched("packageName");
-                                onPackageNameTouched();
-                                onChange({ packageName });
-                            }}
-                            onBlur={() => onFieldTouched("packageName")}
-                            sx={{ width: "100%" }}
-                        />
-                        <TextField
-                            label="Organization"
-                            required
-                            description="The organization that owns this package."
-                            value={data.orgName}
-                            disabled={isOrgLocked}
-                            errorMsg={visibleError(orgNameError, "orgName")}
-                            onTextChange={(orgName) => {
-                                onFieldTouched("orgName");
-                                onChange({ orgName });
-                            }}
-                            onBlur={() => onFieldTouched("orgName")}
-                            sx={{ width: "100%" }}
-                        />
-                        <TextField
-                            label="Package Version"
-                            placeholder="0.1.0"
-                            description="Version of the package."
-                            value={data.version}
-                            onTextChange={(version) => onChange({ version })}
-                            sx={{ width: "100%" }}
-                        />
-                    </PackageSettingsContent>
-                )}
-            </PackageSettings>
+            <AdvancedRow>
+                Advanced Configurations
+                <LinkButton
+                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    sx={{ fontSize: 12, padding: 8, color: ThemeColors.PRIMARY, gap: 4 }}
+                >
+                    <Codicon
+                        name={showAdvancedOptions ? "chevron-up" : "chevron-down"}
+                        iconSx={{ fontSize: 12 }}
+                        sx={{ height: 12 }}
+                    />
+                    {showAdvancedOptions ? "Collapse" : "Expand"}
+                </LinkButton>
+            </AdvancedRow>
+            {showAdvancedOptions && (
+                <LibraryDetails>
+                    <TextField
+                        label="Library Name"
+                        required
+                        placeholder="Meeting Notes Agent"
+                        description="The reusable library package created in this workspace."
+                        value={data.name}
+                        errorMsg={visibleError(libraryNameError, "name")}
+                        onTextChange={(name) => {
+                            onFieldTouched("name");
+                            onChange({ name });
+                        }}
+                        onBlur={() => onFieldTouched("name")}
+                        sx={{ width: "100%" }}
+                    />
+                    <TextField
+                        label="Package Name"
+                        required
+                        description="Specify the package name."
+                        value={data.packageName}
+                        errorMsg={visibleError(packageNameError, "packageName")}
+                        onTextChange={(packageName) => {
+                            onFieldTouched("packageName");
+                            onPackageNameTouched();
+                            onChange({ packageName });
+                        }}
+                        onBlur={() => onFieldTouched("packageName")}
+                        sx={{ width: "100%" }}
+                    />
+                    <TextField
+                        label="Organization"
+                        required
+                        description="The organization that owns this package."
+                        value={data.orgName}
+                        disabled={isOrgLocked}
+                        errorMsg={visibleError(orgNameError, "orgName")}
+                        onTextChange={(orgName) => {
+                            onFieldTouched("orgName");
+                            onChange({ orgName });
+                        }}
+                        onBlur={() => onFieldTouched("orgName")}
+                        sx={{ width: "100%" }}
+                    />
+                    <TextField
+                        label="Package Version"
+                        placeholder="0.1.0"
+                        description="Version of the package."
+                        value={data.version}
+                        onTextChange={(version) => onChange({ version })}
+                        sx={{ width: "100%" }}
+                    />
+                </LibraryDetails>
+            )}
         </LibraryDetails>
     );
 }
 
-export function AgentDefinitionForm({ projectPath, submitText = "Create Agent Definition", onCreated }: AgentDefinitionFormProps) {
+export function AgentDefinitionForm({
+    projectPath,
+    submitText = "Create Agent Definition",
+    onCreated,
+    inModal = true,
+}: AgentDefinitionFormProps) {
     const { rpcClient } = useRpcContext();
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
@@ -397,7 +390,7 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
 
     return (
         <FormLayout>
-            <FormFields>
+            <FormFields style={inModal ? { padding: "24px 36px 16px" } : undefined}>
                 <IntroText>
                     Create a reusable agent template that you can share with others and instantiate across projects.
                 </IntroText>
@@ -470,16 +463,26 @@ export function AgentDefinitionForm({ projectPath, submitText = "Create Agent De
                     />
                 )}
             </FormFields>
-            <Actions>
-                <SubmitButton
-                    appearance="primary"
-                    disabled={creating}
-                    onClick={handleCreate}
-                    sx={{ width: "100%" }}
-                    buttonSx={{ width: "100%", height: "35px" }}
-                >
-                    {creating ? <Typography variant="progress">Creating...</Typography> : submitText}
-                </SubmitButton>
+            <Actions
+                style={inModal
+                    ? { justifyContent: "center", padding: "16px 36px", borderTop: "1px solid var(--vscode-panel-border)" }
+                    : { justifyContent: "flex-end", marginTop: 20 }}
+            >
+                {inModal ? (
+                    <SubmitButton
+                        appearance="primary"
+                        disabled={creating}
+                        onClick={handleCreate}
+                        sx={{ width: "100%" }}
+                        buttonSx={{ width: "100%", height: "35px" }}
+                    >
+                        {creating ? <Typography variant="progress">Creating...</Typography> : submitText}
+                    </SubmitButton>
+                ) : (
+                    <Button appearance="primary" disabled={creating} onClick={handleCreate}>
+                        {creating ? <Typography variant="progress">Creating...</Typography> : submitText}
+                    </Button>
+                )}
             </Actions>
         </FormLayout>
     );
