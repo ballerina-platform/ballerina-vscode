@@ -131,7 +131,10 @@ export interface TomlPackage {
     version: string;
     title: string;
     library?: boolean;
+    visibility?: PackageVisibility;
 }
+
+export type PackageVisibility = 'public' | 'private';
 
 export interface WorkspaceTomlValues {
     workspace: TomlWorkspace;
