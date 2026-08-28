@@ -3007,8 +3007,8 @@
                 "label": "FTP Error",
                 "description": "The error that occurred while processing the file."
               },
-              "placeholder": "ftpError",
-              "value": "ftpError",
+              "placeholder": "err",
+              "value": "err",
               "types": [
                 {
                   "fieldType": "IDENTIFIER",

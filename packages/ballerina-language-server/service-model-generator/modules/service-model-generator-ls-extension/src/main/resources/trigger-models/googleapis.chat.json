@@ -195,7 +195,7 @@
                   "enabled": true,
                   "editable": true,
                   "optional": true,
-                  "advanced": false,
+                  "advanced": true,
                   "codedata": {
                     "argType": "LISTENER_PARAM_INCLUDED_DEFAULTABLE_FIELD",
                     "originalName": "httpListenerConfig",

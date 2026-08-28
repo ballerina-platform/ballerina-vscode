@@ -17,9 +17,9 @@
       "doc": "Receives files detected on the watched Azure Files share, typed by extension, with an untyped fallback and an error handler.",
       "type": { "name": "Service" },
       "concrete": false,
-      "multipleListenersAllowed": true,
+      "multipleListenersAllowed": false,
       "annotations": ["$serviceConfig"],
-      "identifier": { "presence": "optional", "form": ["basePath"] },
+      "identifier": { "presence": "required", "form": ["basePath"] },
       "handlers": {
         "backedByConcreteType": false,
         "options": [
@@ -233,6 +233,7 @@
             "kind": "remote",
             "doc": "Invoked when a poll, download, or content-binding failure occurs. Without it, the failure is logged and polling continues.",
             "presence": "optional",
+            "annotations": ["$functionConfig"],
             "params": [
               {
                 "id": "$service.onError.err",

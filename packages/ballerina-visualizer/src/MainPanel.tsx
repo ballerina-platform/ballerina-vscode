@@ -18,6 +18,7 @@
 
 import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import {
+    PRODUCT_INTEGRATOR_ISSUES_URL,
     KeyboardNavigationManager,
     MachineStateValue,
     STModification,
@@ -211,8 +212,6 @@ const MainPanel = () => {
     const previousNavTargetRef = useRef<string | undefined>(undefined);
 
     useSuppressAgentStatusOrb(viewHidesAgentStatusOrb(activeView) || !!viewError);
-
-    const gitIssueUrl = "https://github.com/wso2/product-integrator/issues";
 
     // Leading edge so an ordinary navigation fetches immediately; trailing kept for bursts.
     const debounceFetchContext = useCallback(
@@ -1052,7 +1051,7 @@ const MainPanel = () => {
         <>
             <Global styles={globalStyles} />
             <VisualizerContainer id="visualizer-container">
-                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={gitIssueUrl} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
+                <ErrorBoundary goHome={handleNavigateToOverview} errorMsg="An error occurred in the visualizer" issueUrl={PRODUCT_INTEGRATOR_ISSUES_URL} ref={errorBoundaryRef} resetKeys={[viewComponent]}>
                     {/* {navActive && <NavigationBar showHome={showHome} />} */}
                     {showNavProgress && <ProgressIndicator id="visualizer-nav-progress" />}
                     {(showOverlay || modalStack.length > 0) && <Overlay />}

@@ -1091,7 +1091,7 @@
           "selected": false
         }
       ],
-      "value": "\"/\"",
+      "value": "/",
       "enabled": true,
       "editable": true,
       "optional": false,
@@ -4094,10 +4094,9 @@
   ],
   "readOnlyMetadata": [
     {
-      "key": "path",
+      "key": "basePath",
       "displayName": "Monitored Path",
-      "kind": "SERVICE_ANNOTATION",
-      "path": "ServiceConfig.path"
+      "kind": "SERVICE_BASE_PATH"
     }
   ],
   "importStatements": []

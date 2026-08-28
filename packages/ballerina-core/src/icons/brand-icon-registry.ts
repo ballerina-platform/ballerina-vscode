@@ -64,6 +64,9 @@ export const BRAND_ICON_REGISTRY: Record<string, BrandIcon> = {
     "trigger.shopify": { glyph: "bi-shopify", color: "#95BF47" },
     hubspot: { glyph: "bi-hubspot", color: "#FF7A59" },
     "trigger.hubspot": { glyph: "bi-hubspot", color: "#FF7A59" },
+    telegram: { glyph: "bi-telegram", color: "#26A5E4" },
+    "whatsapp.business": { glyph: "bi-whatsapp", color: "#25D366" },
+    "googleapis.chat": { glyph: "bi-google-chat", color: "#00AC47" },
 };
 
 /** Looks up the brand glyph override for a module/type identifier; `undefined` when there is none. */
