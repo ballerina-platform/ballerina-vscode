@@ -105,11 +105,14 @@ void main() {
     // Narrow mix bands + a luminance term keep the flow visible even when
     // the palette hues are close (the structure reads as light/dark, not
     // just hue shifts).
-    float band = smoothstep(0.3, 0.72, f);
+    // Narrower bands => crisper light/dark boundaries that sweep as the field
+    // flows, so the motion reads even when the palette is a single hue.
+    float band = smoothstep(0.36, 0.66, f);
     vec3 col = mix(u_c0, u_c1, band);
     float f2 = fbm(uv * 3.0 - q + vec2(-t * 0.25, t * 0.35));
-    col = mix(col, u_c2, smoothstep(0.42, 0.8, f2) * (0.6 + 0.4 * u_energy));
-    col *= 0.62 + 0.85 * f;
+    col = mix(col, u_c2, smoothstep(0.4, 0.74, f2) * (0.6 + 0.4 * u_energy));
+    // Wider brightness swing tracking the flow => more visible movement.
+    col *= 0.48 + 1.15 * f;
 
     // Slight glass highlight (the Gloss overlay adds the main reflection)
     // and gentle spherical shading toward the rim.

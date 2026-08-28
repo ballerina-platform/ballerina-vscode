@@ -83,7 +83,8 @@ public class FunctionBuilderRouter {
      * has no org field to resolve a {@code .bala} with.
      */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName) {
-        if (moduleName == null) {
+        // CONSTRUCTOR_MAP entries always keep their dedicated builder.
+        if (moduleName == null || CONSTRUCTOR_MAP.containsKey(moduleName)) {
             return false;
         }
         return TriggerModelReader.getInstance().hasSchemaDrivenModel(orgName, moduleName);

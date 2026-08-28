@@ -22,6 +22,7 @@ import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ReadonlyComponentDiagram } from "./ReadonlyComponentDiagram";
 import { ExpectedFlowMetadata, ReadonlyFlowDiagram, ReviewViewMode, getVersionsForChangeType } from "./ReadonlyFlowDiagram";
+import { diffBelongsToPackage } from "./path-utils";
 import { ReadonlyTypeDiagram } from "./ReadonlyTypeDiagram";
 import { ReviewNavigation } from "./ReviewNavigation";
 import { Codicon, Icon, ThemeColors } from "@wso2/ui-toolkit";
@@ -285,10 +286,8 @@ export function ReviewMode(): JSX.Element {
             if (loadDesignDiagrams && semanticDiffs.length > 0) {
                 const pkgsWithDiffs = new Set<string>();
                 for (const diff of semanticDiffs) {
-                    const uriPath = diff.uri.replace(/^[a-z][a-z0-9+.-]*:\/\//, "").replace(/\\/g, "/");
                     for (const pkgPath of filteredPackages) {
-                        const normalizedPkgPath = pkgPath.replace(/\\/g, "/");
-                        if (uriPath.startsWith(normalizedPkgPath + "/") || uriPath === normalizedPkgPath) {
+                        if (diffBelongsToPackage(diff.uri, pkgPath)) {
                             pkgsWithDiffs.add(pkgPath);
                             break;
                         }
@@ -314,9 +313,7 @@ export function ReviewMode(): JSX.Element {
                 let packageName: string | undefined;
                 if (isWorkspaceProject) {
                     for (const pkgPath of filteredPackages) {
-                        const normalizedUri = diff.uri.replace(/\\/g, "/");
-                        const normalizedPkgPath = pkgPath.replace(/\\/g, "/");
-                        if (normalizedUri.startsWith(normalizedPkgPath + "/") || normalizedUri === normalizedPkgPath) {
+                        if (diffBelongsToPackage(diff.uri, pkgPath)) {
                             belongsToPackage = pkgPath;
                             packageName = getPackageName(pkgPath);
                             break;

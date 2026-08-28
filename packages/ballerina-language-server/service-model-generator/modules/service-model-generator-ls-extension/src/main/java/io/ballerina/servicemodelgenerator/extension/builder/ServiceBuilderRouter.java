@@ -97,6 +97,10 @@ public class ServiceBuilderRouter {
     /** {@code isLocalRepository} variant, checking the Ballerina local repository instead. */
     private static boolean useSchemaDrivenPath(String orgName, String moduleName, String version,
                                                boolean isLocalRepository) {
+        // CONSTRUCTOR_MAP entries always keep their dedicated builder.
+        if (CONSTRUCTOR_MAP.containsKey(moduleName)) {
+            return false;
+        }
         return TriggerModelReader.getInstance()
                 .hasSchemaDrivenModel(orgName, moduleName, version, isLocalRepository);
     }

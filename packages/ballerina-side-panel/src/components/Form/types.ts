@@ -56,9 +56,6 @@ export type FormField = {
     /** AUTOCOMPLETE only: allow typing a value not in `items` (creates a new entry). Defaults to
      * true when unset, preserving the editor's original behavior; set false for a strict pick-list. */
     allowItemCreate?: boolean;
-    /** AUTOCOMPLETE only: append "(Optional)" to the label when `optional` is true. Off by default —
-     * opt in per field rather than changing every optional autocomplete's label at once. */
-    showOptionalSuffix?: boolean;
     itemOptions?: OptionProps[]
     choices?: PropertyModel[];
     dynamicFormFields?: { [key: string]: FormField[] }

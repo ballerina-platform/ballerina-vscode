@@ -1,163 +1,306 @@
 {
+  "version": "v1.0",
+
   "listeners": [
     {
+      "id": "$listener",
+      "doc": "Polls the watched directory on its configured interval and dispatches each file event to the attached service.",
       "type": { "name": "Listener" },
-      "services": ["service"]
+      "services": ["$service"],
+      "multipleServicesAllowed": true
     }
   ],
 
   "serviceTypes": [
     {
-      "id": "service",
+      "id": "$service",
+      "doc": "Consumes files found in the watched directory, dispatching each to the handler matching its content type.",
       "type": { "name": "Service" },
       "concrete": false,
       "multipleListenersAllowed": true,
-      "multipleServicesPerListenerAllowed": true,
-
+      "annotations": ["$serviceConfig"],
       "handlers": {
         "backedByConcreteType": false,
-        "addMode": "subset",
         "options": [
           {
+            "id": "$service.onFileCsv",
             "name": "onFileCsv",
             "kind": "remote",
+            "doc": "Invoked for each .csv file found in the watched directory. Declaring a stream parameter reads the file in chunks instead of loading it into memory.",
             "presence": "optional",
-            "annotations": ["functionConfig"],
+            "annotations": ["$functionConfig"],
             "params": [
               {
+                "id": "$service.onFileCsv.contents",
                 "name": "contents",
+                "doc": "The parsed rows, see the csvContent data-binding rule for the batched and streamed forms.",
                 "type": [
-                  { "name": "string[][]" }, { "name": "record {}[]" },
-                  { "name": "stream<string[], error?>" }, { "name": "stream<record {}, error?>" }
+                  { "shape": "array", "elementType": { "shape": "array", "elementType": { "name": "string", "builtin": true } } },
+                  { "shape": "array", "elementType": { "name": "record {}", "builtin": true } },
+                  {
+                    "shape": "stream",
+                    "elementType": { "shape": "array", "elementType": { "name": "string", "builtin": true } },
+                    "completionType": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+                  },
+                  {
+                    "shape": "stream",
+                    "elementType": { "name": "record {}", "builtin": true },
+                    "completionType": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+                  }
                 ],
                 "presence": "required",
-                "dataBinding": "csvContent"
+                "dataBinding": {
+                  "typedescs": [
+                    {
+                      "constraint": { "shape": "array", "elementType": { "name": "string", "builtin": true } },
+                      "shapes": [
+                        { "form": "array", "element": "bare" },
+                        { "form": "stream", "element": "bare", "completionType": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+                      ]
+                    },
+                    {
+                      "constraint": { "name": "record {}", "builtin": true },
+                      "shapes": [
+                        { "form": "array", "element": "bare" },
+                        { "form": "stream", "element": "bare", "completionType": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+                      ]
+                    }
+                  ]
+                }
               },
-              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" },
-              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
-            ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
-          },
-          {
-            "name": "onFileJson",
-            "kind": "remote",
-            "presence": "optional",
-            "annotations": ["functionConfig"],
-            "params": [
-              { "name": "content", "type": { "name": "json" }, "presence": "required", "dataBinding": "jsonContent" },
-              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
-            ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
-          },
-          {
-            "name": "onFileXml",
-            "kind": "remote",
-            "presence": "optional",
-            "annotations": ["functionConfig"],
-            "params": [
-              { "name": "content", "type": { "name": "xml" }, "presence": "required", "dataBinding": "xmlContent" },
-              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
-            ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
-          },
-          {
-            "name": "onFileText",
-            "kind": "remote",
-            "presence": "optional",
-            "annotations": ["functionConfig"],
-            "params": [
-              { "name": "content", "type": { "name": "string" }, "presence": "required" },
-              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
-            ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
-          },
-          {
-            "name": "onFile",
-            "kind": "remote",
-            "presence": "optional",
-            "annotations": ["functionConfig"],
-            "params": [
               {
-                "name": "content",
-                "type": [{ "name": "byte[]" }, { "name": "stream<byte[], error?>" }],
+                "id": "$service.onFileCsv.fileInfo",
+                "name": "fileInfo",
+                "doc": "The file's name, path, size, and timestamps.",
+                "type": { "name": "FileInfo" },
                 "presence": "required"
               },
-              { "name": "fileInfo", "type": { "name": "FileInfo" }, "presence": "required" }
+              {
+                "id": "$service.onFileCsv.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for reading or writing other files while this one is being processed.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
+              }
             ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
+            "returns": { "id": "$service.onFileCsv.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
           },
           {
+            "id": "$service.onFileJson",
+            "name": "onFileJson",
+            "kind": "remote",
+            "doc": "Invoked for each .json file found in the watched directory.",
+            "presence": "optional",
+            "annotations": ["$functionConfig"],
+            "params": [
+              {
+                "id": "$service.onFileJson.content",
+                "name": "content",
+                "doc": "The parsed content, bind a record type to project it, see the jsonContent data-binding rule.",
+                "type": { "name": "json", "builtin": true },
+                "presence": "required",
+                "dataBinding": {
+                  "typedescs": [
+                    { "constraint": { "name": "json", "builtin": true }, "shapes": [{ "form": "bare" }] },
+                    { "constraint": { "name": "record {}", "builtin": true }, "shapes": [{ "form": "bare" }] }
+                  ]
+                }
+              },
+              {
+                "id": "$service.onFileJson.fileInfo",
+                "name": "fileInfo",
+                "doc": "The file's name, path, size, and timestamps.",
+                "type": { "name": "FileInfo" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onFileJson.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onFileXml",
+            "name": "onFileXml",
+            "kind": "remote",
+            "doc": "Invoked for each .xml file found in the watched directory.",
+            "presence": "optional",
+            "annotations": ["$functionConfig"],
+            "params": [
+              {
+                "id": "$service.onFileXml.content",
+                "name": "content",
+                "doc": "The parsed content, bind a record type to project it, see the xmlContent data-binding rule.",
+                "type": { "name": "xml", "builtin": true },
+                "presence": "required",
+                "dataBinding": {
+                  "typedescs": [
+                    { "constraint": { "name": "xml", "builtin": true }, "shapes": [{ "form": "bare" }] },
+                    { "constraint": { "name": "record {}", "builtin": true }, "shapes": [{ "form": "bare" }] }
+                  ]
+                }
+              },
+              {
+                "id": "$service.onFileXml.fileInfo",
+                "name": "fileInfo",
+                "doc": "The file's name, path, size, and timestamps.",
+                "type": { "name": "FileInfo" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onFileXml.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onFileText",
+            "name": "onFileText",
+            "kind": "remote",
+            "doc": "Invoked for each plain-text file found in the watched directory.",
+            "presence": "optional",
+            "annotations": ["$functionConfig"],
+            "params": [
+              {
+                "id": "$service.onFileText.content",
+                "name": "content",
+                "doc": "The file's text content.",
+                "type": { "name": "string", "builtin": true },
+                "presence": "required"
+              },
+              {
+                "id": "$service.onFileText.fileInfo",
+                "name": "fileInfo",
+                "doc": "The file's name, path, size, and timestamps.",
+                "type": { "name": "FileInfo" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onFileText.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onFile",
+            "name": "onFile",
+            "kind": "remote",
+            "doc": "Invoked for any file no typed handler matched, and as the fallback when a typed handler is not declared. Content arrives as raw bytes.",
+            "presence": "optional",
+            "annotations": ["$functionConfig"],
+            "params": [
+              {
+                "id": "$service.onFile.content",
+                "name": "content",
+                "doc": "The file's bytes. Declare the stream form to read large files in chunks rather than loading them into memory.",
+                "type": [
+                  { "shape": "array", "elementType": { "name": "byte", "builtin": true } },
+                  {
+                    "shape": "stream",
+                    "elementType": { "shape": "array", "elementType": { "name": "byte", "builtin": true } },
+                    "completionType": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+                  }
+                ],
+                "presence": "required"
+              },
+              {
+                "id": "$service.onFile.fileInfo",
+                "name": "fileInfo",
+                "doc": "The file's name, path, size, and timestamps.",
+                "type": { "name": "FileInfo" },
+                "presence": "required"
+              }
+            ],
+            "returns": { "id": "$service.onFile.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
+          },
+          {
+            "id": "$service.onFileDelete",
             "name": "onFileDelete",
             "kind": "remote",
+            "doc": "Invoked when a file disappears from the watched directory. There is no content or file metadata, because the file is already gone.",
             "presence": "optional",
-            "annotations": ["functionConfig"],
+            "annotations": ["$functionConfig"],
             "params": [
-              { "name": "deleteFiles", "type": { "name": "string" }, "presence": "required" },
-              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
+              {
+                "id": "$service.onFileDelete.deleteFiles",
+                "name": "deleteFiles",
+                "doc": "Path of the file that was deleted.",
+                "type": { "name": "string", "builtin": true },
+                "presence": "required"
+              },
+              {
+                "id": "$service.onFileDelete.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for acting on the share in response to the deletion.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
+              }
             ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
+            "returns": {
+              "id": "$service.onFileDelete.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
           },
           {
+            "id": "$service.onError",
             "name": "onError",
             "kind": "remote",
+            "doc": "Invoked when the listener fails to poll, read, or bind a file, and when a handler itself returns an error. Without it, failures are logged and polling continues.",
             "presence": "optional",
-            "annotations": ["functionConfig"],
+            "annotations": ["$functionConfig"],
             "params": [
-              { "name": "ftpError", "type": { "name": "Error" }, "presence": "required" },
-              { "name": "caller", "type": { "name": "Caller" }, "presence": "optional" }
+              {
+                "id": "$service.onError.ftpError",
+                "name": "ftpError",
+                "doc": "The failure that interrupted processing.",
+                "type": { "name": "Error" },
+                "presence": "required"
+              },
+              {
+                "id": "$service.onError.caller",
+                "name": "caller",
+                "doc": "The FTP connection, for acting on the share while handling the failure.",
+                "type": { "name": "Caller" },
+                "presence": "optional"
+              }
             ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
+            "returns": { "id": "$service.onError.returns", "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }] }
           },
-                    {
+          {
+            "id": "$service.onFileChange",
             "name": "onFileChange",
             "kind": "remote",
+            "doc": "Invoked once per poll with the complete set of files added and deleted since the previous poll.",
+            "deprecated": "Superseded by the typed content handlers. onFileChange only reports which files changed, leaving the read and the parse to the handler, whereas onFileText, onFileJson, onFileXml, onFileCsv and onFile deliver the file body already bound to a declared type.",
             "presence": "optional",
-            "annotations": ["functionConfig"],
+            "annotations": ["$functionConfig"],
             "params": [
-              { "type": { "name": "WatchEvent" }, "presence": "required" }
+              {
+                "id": "$service.onFileChange.watchEvent",
+                "name": "watchEvent",
+                "doc": "The files added and deleted in this poll.",
+                "type": { "name": "WatchEvent" },
+                "presence": "required"
+              }
             ],
-            "returns": [{ "name": "error" }, { "name": "()" }]
+            "returns": {
+              "id": "$service.onFileChange.returns",
+              "type": [{ "name": "error", "builtin": true }, { "name": "()", "builtin": true }]
+            }
           }
         ]
-      }
+      },
+      "rules": [
+        {
+          "id": "$atLeastOneFileHandler",
+          "rule": "structure.atLeastOne",
+          "message": "An FTP service must declare at least one file handler. onError alone never receives a file, so the service would do nothing.",
+          "subjects": [
+            { "kind": "handler", "id": "$service.onFileCsv" },
+            { "kind": "handler", "id": "$service.onFileJson" },
+            { "kind": "handler", "id": "$service.onFileXml" },
+            { "kind": "handler", "id": "$service.onFileText" },
+            { "kind": "handler", "id": "$service.onFile" },
+            { "kind": "handler", "id": "$service.onFileDelete" }
+          ]
+        }
+      ]
     }
   ],
 
   "annotations": [
-    {
-      "id": "serviceConfig",
-      "type": { "name": "ServiceConfig" },
-      "attachPoint": "service",
-      "appliesTo": ["service"],
-      "presence": "required"
-    },
-    {
-      "id": "functionConfig",
-      "type": { "name": "FunctionConfig" },
-      "attachPoint": "function",
-      "presence": "optional"
-    }
-  ],
-
-  "dataBindingRules": [
-    {
-      "id": "jsonContent",
-      "supportedModes": [
-        { "mode": "direct", "typeConstraint": [{ "name": "json" }, { "name": "record {}" }] }
-      ]
-    },
-    {
-      "id": "xmlContent",
-      "supportedModes": [
-        { "mode": "direct", "typeConstraint": [{ "name": "xml" }, { "name": "record {}" }] }
-      ]
-    },
-    {
-      "id": "csvContent",
-      "supportedModes": [
-        { "mode": "direct", "typeConstraint": [{ "name": "string[][]" }, { "name": "record {}[]" }] },
-        { "mode": "streamable", "typeConstraint": [{ "name": "stream<string[], error?>" }, { "name": "stream<record {}, error?>" }] }
-      ]
-    }
+    { "id": "$serviceConfig", "type": { "name": "ServiceConfig" }, "attachPoint": "service", "presence": "required" },
+    { "id": "$functionConfig", "type": { "name": "FunctionConfig" }, "attachPoint": "function", "presence": "optional" }
   ]
 }

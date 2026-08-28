@@ -98,7 +98,7 @@ public class ModelProviderBuilder extends CallBuilder {
     @Override
     public void setConcreteTemplateData(TemplateContext context) {
         Codedata codedata = context.codedata();
-        ModuleInfo codedataModuleInfo = new ModuleInfo(codedata.org(), codedata.packageName(),
+        ModuleInfo codedataModuleInfo = new ModuleInfo(codedata.org(), codedata.resolvePackageName(),
                 codedata.module(), codedata.version());
 
         FunctionData functionData = new FunctionDataBuilder().moduleInfo(codedataModuleInfo).userModuleInfo(moduleInfo)

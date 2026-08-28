@@ -51,7 +51,7 @@ import { extension } from "../BalExtensionContext";
 import { scheduleMigrationEnhancement, writeEnhanceToml } from "../features/ai/migration/orchestrator";
 // Imported from `startup-progress` rather than `pending-artifact`: that module pulls in the
 // RPC managers, which import this file back.
-import { PendingIntegrationLanding, writePendingIntegrationPointer } from "../features/bi/startup-progress";
+import { writePendingIntegrationPointer } from "../features/bi/startup-progress";
 import { runBackgroundTerminalCommand } from "./runCommand";
 import { stringify as stringifyYaml } from "yaml";
 
@@ -957,37 +957,32 @@ export async function createBIComponent(projectRequest: ProjectRequest): Promise
 }
 
 /**
- * Naming and landing for a create, resolved once at submit time (the only point that knows
- * whether the project was created by this same submit) and carried across the reload.
+ * Naming for a create, resolved once at submit time — the only point that knows whether the
+ * project was created by this same submit — and carried across the reload for the startup
+ * progress screen. Where the window lands is not part of it: every create opens the new
+ * integration, whether or not it also made the project.
  */
-export interface CreateLandingContext {
+export interface CreateNamingContext {
     /** Display name of the project the package went into; undefined for a standalone package. */
     projectName?: string;
     /** Whether this submit created the project too. */
     isNewProject: boolean;
-    /**
-     * A brand-new project lands on the project overview — the project is what the user just
-     * made. Adding into a project that already existed lands on the new package instead.
-     */
-    landing: PendingIntegrationLanding;
 }
 
-export function resolveCreateLandingContext(
+export function resolveCreateNamingContext(
     packageRoot: string,
     openRoot: string,
     request: Pick<ProjectRequest, 'newProject' | 'convertToWorkspace' | 'workspaceName'>
-): CreateLandingContext {
+): CreateNamingContext {
     // The folder to open being the package itself means no project was involved.
     if (isSamePath(packageRoot, openRoot)) {
-        return { isNewProject: false, landing: "package" };
+        return { isNewProject: false };
     }
-    const isNewProject = !!request.newProject || !!request.convertToWorkspace;
     return {
         // The form's project name is authoritative for a new project; for an existing one
         // read the title it was actually created with.
         projectName: request.workspaceName?.trim() || getExistingProjectInfo(openRoot).name || path.basename(openRoot),
-        isNewProject,
-        landing: isNewProject ? "project" : "package",
+        isNewProject: !!request.newProject || !!request.convertToWorkspace,
     };
 }
 
@@ -1465,18 +1460,17 @@ export async function createBIProject(params: any): Promise<void> {
     }
     // Components go into an existing workspace when the target resolves inside one, else standalone.
     const { packageRoot, openRoot } = await createBIComponent(params);
-    // No artifact is configured on this path, so the pointer carries only the narration
-    // and the landing view for the window that opens next.
-    const landingContext = resolveCreateLandingContext(packageRoot, openRoot, params);
+    // No artifact is configured on this path, so the pointer carries only the narration for
+    // the window that opens next.
+    const namingContext = resolveCreateNamingContext(packageRoot, openRoot, params);
     const componentLabel: IntegrationComponentLabel = params.isLibrary ? "library" : "integration";
     await writePendingIntegrationPointer({
         projectRoot: packageRoot,
         timestamp: Date.now(),
         integrationName: params.projectName,
-        projectName: landingContext.projectName,
-        isNewProject: landingContext.isNewProject,
+        projectName: namingContext.projectName,
+        isNewProject: namingContext.isNewProject,
         componentLabel,
-        landing: landingContext.landing,
     });
     openInVSCode(openRoot);
 }

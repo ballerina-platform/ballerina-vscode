@@ -26,6 +26,7 @@ import { getHashedProjectId } from "../../telemetry/common/project-id";
 import { Command } from "@wso2/ballerina-core";
 import { chatStateStorage } from "../../../views/ai-panel/chatStateStorage";
 import { sendSaveChatNotification } from "./ai-utils";
+import { approvalViewManager } from "../state/ApprovalViewManager";
 
 /**
  * Implicitly accept whichever generation is still revertible, with the reporting that goes with
@@ -35,6 +36,9 @@ import { sendSaveChatNotification } from "./ai-utils";
  * @returns true if a generation was finalized
  */
 export function finalizeRevertibleGeneration(projectRootPath: string, threadId: string): boolean {
+    // Runs before the early return: the open review belongs to the previous turn either way.
+    approvalViewManager.closeReviewModeIfOpen();
+
     const finalized = chatStateStorage.finalizeLastGenerationIfDone(projectRootPath, threadId);
     if (!finalized) {
         return false;

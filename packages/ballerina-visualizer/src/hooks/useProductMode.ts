@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
+import { type BallerinaRpcClient, useRpcContext } from "@wso2/ballerina-rpc-client";
 import { ProductMode, assistantName, assistantTagline, shortAssistantName } from "@wso2/ballerina-core";
 
 function seededMode(): ProductMode | undefined {

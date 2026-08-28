@@ -63,6 +63,12 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
     // created here and one created from the AI chat agent wizard converge on the same variable.
     private static final String DEFAULT_MODEL_PROVIDER_VAR = "wso2ModelProvider";
 
+    // The name identifies the agent (used to reference it in management and execution), not a
+    // function — the generic "Name of the function" doc would be wrong here.
+    public static final String NAME_DOC =
+            "Unique name of the Durable Agentic Workflow, used to reference it in workflow "
+                    + "management and execution.";
+
     @Override
     public void setConcreteConstData() {
         metadata().label(LABEL).description(DESCRIPTION);
@@ -78,7 +84,8 @@ public class DurableAgentBuilder extends FunctionDefinitionBuilder {
         PackageUtil.pullModuleAndNotify(context.lsClientLogger(), workflowModuleInfo);
         // The creation form asks only for a name; the input is always a json payload
         // named "input".
-        properties().functionNameTemplate("durableAgenticWorkflow", context.getAllVisibleSymbolNames());
+        properties().functionNameTemplate("durableAgenticWorkflow", context.getAllVisibleSymbolNames(),
+                FunctionDefinitionBuilder.FUNCTION_NAME_LABEL, NAME_DOC);
         WorkflowBuilder.setMandatoryProperties(this, RETURN_TYPE, "", "");
     }
 

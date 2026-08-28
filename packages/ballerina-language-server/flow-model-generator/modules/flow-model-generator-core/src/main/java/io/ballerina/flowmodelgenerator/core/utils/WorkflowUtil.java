@@ -57,6 +57,7 @@ import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.Option;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.PackageUtil;
 import io.ballerina.projects.DependencyManifest;
 import io.ballerina.projects.Document;
@@ -757,6 +758,19 @@ public class WorkflowUtil {
             return trimmed;
         }
         return quoteIfPlain(trimmed);
+    }
+
+    /**
+     * Strips a module qualifier from a written reference: {@code mod:validate} reads as
+     * {@code validate}, and a bare name passes through. Source carries the qualifier while symbols
+     * carry the bare name, so every lookup that crosses that boundary goes through here.
+     *
+     * @param value the reference as written in source
+     * @return the reference without its module qualifier
+     */
+    public static String stripModulePrefix(String value) {
+        int colon = value.lastIndexOf(':');
+        return colon >= 0 ? value.substring(colon + 1) : value;
     }
 
     /** Property key the front end sets to request removal of a capability entry. */

@@ -54,10 +54,10 @@ import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.PropertyCodedata;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.ParamUtils;
 import io.ballerina.modelgenerator.commons.CommonUtils;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ModuleInfo;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.projects.Document;
@@ -703,9 +703,12 @@ public class AgentToolBuilder extends NodeBuilder {
         // (stashed on ctx) — each ToolKind resolves params differently, so this must not recompute
         // with a fixed kind. The leading `ai:Context ctx` param is excluded: the `ai` compiler
         // plugin strips it from the tool's own signature before comparing against the predicate's,
-        // so including it here would make the predicate's signature look mismatched.
+        // so including it here would make the predicate's signature look mismatched. Every ToolKind
+        // prepends it at index 0 when includeContext is set (and rejects a user param named "ctx"
+        // up front), so skipping by position ties this to the invariant that's actually guaranteed,
+        // rather than to the param's name.
         String paramDecls = ctx.resolvedParams.stream()
-                .filter(param -> !(ctx.includeContext && "ctx".equals(param.name())))
+                .skip(ctx.includeContext ? 1 : 0)
                 .map(ToolParam::decl)
                 .collect(Collectors.joining(", "));
         ctx.sb.token()
