@@ -26,9 +26,10 @@ import { useAssistantName } from "../../../hooks/useProductMode";
 const Container = styled.div`
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding: 10px;
-    gap: 8px;
+    align-items: center;
+    width: 100%;
+    padding: 16px;
+    box-sizing: border-box;
 `;
 
 export const DisabledWindow = () => {

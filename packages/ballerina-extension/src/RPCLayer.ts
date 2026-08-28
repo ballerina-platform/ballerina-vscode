@@ -60,6 +60,7 @@ const DISRUPTIVE_TRANSITION_EVENTS = new Set(['VIEW_UPDATE', 'UPDATE_PROJECT_STR
 
 export class RPCLayer {
     static _messenger: Messenger = new Messenger({ ignoreHiddenViews: false });
+    private static _aiForwardingBound = false;
 
     constructor(webViewPanel: WebviewPanel | WebviewView) {
         if (isWebviewPanel(webViewPanel)) {
@@ -77,6 +78,13 @@ export class RPCLayer {
             window.onDidChangeActiveColorTheme((theme) => {
                 RPCLayer._messenger.sendNotification(currentThemeChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, theme.kind);
             });
+            // Register once: onTransition has no unsubscribe, and each delivery costs the visualizer an RPC.
+            if (!RPCLayer._aiForwardingBound) {
+                RPCLayer._aiForwardingBound = true;
+                AIStateMachine.service().onTransition((state) => {
+                    RPCLayer._messenger.sendNotification(aiStateChanged, { type: 'webview', webviewType: VisualizerWebview.viewType }, state.value);
+                });
+            }
         } else if (isMigrationPanel(webViewPanel)) {
             // Migration panel is a WebviewPanel but does not use the AI state machine.
             RPCLayer._messenger.registerWebviewPanel(webViewPanel as WebviewPanel);

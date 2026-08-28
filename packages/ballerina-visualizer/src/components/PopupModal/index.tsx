@@ -49,11 +49,15 @@ const Backdrop = styled(PopupOverlay)`
     }
 `;
 
-const Box = styled(PopupContainer) <{ $expanded?: boolean }>`
-    width: ${(props: { $expanded?: boolean }) => props.$expanded ? "90%" : "80%"};
-    max-width: ${(props: { $expanded?: boolean }) => props.$expanded ? "1000px" : "800px"};
-    height: ${(props: { $expanded?: boolean }) => props.$expanded ? "90vh" : "80vh"};
-    max-height: ${(props: { $expanded?: boolean }) => props.$expanded ? "none" : "800px"};
+type BoxProps = { $expanded?: boolean; $autoHeight?: boolean; $maxWidth?: number };
+
+const Box = styled(PopupContainer) <BoxProps>`
+    width: ${(props: BoxProps) => props.$expanded ? "90%" : "80%"};
+    max-width: ${(props: BoxProps) => props.$maxWidth ? `${props.$maxWidth}px` : props.$expanded ? "1000px" : "800px"};
+    transition: max-height 180ms ease, max-width 180ms ease;
+    height: ${(props: BoxProps) => props.$autoHeight ? "auto" : props.$expanded ? "90vh" : "80vh"};
+    max-height: ${(props: BoxProps) => props.$autoHeight ? "80vh" : props.$expanded ? "none" : "800px"};
+    min-height: ${(props: BoxProps) => props.$autoHeight ? "0" : "480px"};
     animation: ${popIn} ${ENTER_MS}ms cubic-bezier(0.16, 1, 0.3, 1) both;
     &.closing {
         animation-duration: ${EXIT_MS}ms;
@@ -98,13 +102,15 @@ export interface PopupModalProps {
     dismissOnBackdropClick?: boolean;
     dismissOnEscape?: boolean;
     expanded?: boolean;
+    autoHeight?: boolean;
+    maxWidth?: number;
     zIndexBase?: number;
     ariaLabelledBy?: string;
     children: (close: () => void) => ReactNode;
 }
 
 export function PopupModal(props: PopupModalProps) {
-    const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, zIndexBase, ariaLabelledBy, children } = props;
+    const { onClose, dismissOnBackdropClick, dismissOnEscape, expanded, autoHeight, maxWidth, zIndexBase, ariaLabelledBy, children } = props;
     const [closing, setClosing] = useState(false);
     const exitTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -145,6 +151,8 @@ export function PopupModal(props: PopupModalProps) {
                 aria-modal="true"
                 aria-labelledby={ariaLabelledBy}
                 $expanded={expanded}
+                $autoHeight={autoHeight}
+                $maxWidth={maxWidth}
                 className={closingClass}
                 style={zIndexBase ? { zIndex: zIndexBase + 1 } : undefined}
             >

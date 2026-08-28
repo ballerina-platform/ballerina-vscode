@@ -52,6 +52,15 @@ export function shortAssistantName(mode: ProductMode): string {
     return SHORT_ASSISTANT_NAMES[mode];
 }
 
+const ASSISTANT_TAGLINES: Record<ProductMode, string> = {
+    [ProductMode.INTEGRATOR]: 'Your AI pair programmer for integration development',
+    [ProductMode.AGENT_BUILDER]: 'Your AI partner for building agents'
+};
+
+export function assistantTagline(mode: ProductMode): string {
+    return ASSISTANT_TAGLINES[mode];
+}
+
 export type MachineStateValue =
     | 'initialize'
     | 'lsError'

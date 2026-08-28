@@ -353,6 +353,56 @@ export const IconOverlay = styled.div`
     pointer-events: none;
 `;
 
+const auraBreathe = keyframes`
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50% { transform: scale(1.15); opacity: 0.7; }
+`;
+
+const ACTIVE_GLOW: AmbientGlowSpec = { outerSize: 40, outerStrength: 48, innerSize: 20, innerStrength: 30 };
+
+interface OrbAuraProps {
+    $active?: boolean;
+    $colors: [string, string, string];
+}
+
+export const OrbAura = styled.div<OrbAuraProps>`
+    position: relative;
+    width: ${ORB_SIZE}px;
+    height: ${ORB_SIZE}px;
+    flex: none;
+    border-radius: 50%;
+    box-shadow: ${(props: OrbAuraProps) =>
+        ambientGlow(props.$colors, props.$active ? ACTIVE_GLOW : HERO_GLOW)};
+    transform: scale(${(props: OrbAuraProps) => (props.$active ? 1.12 : 1)});
+    transition: transform 620ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 620ms ease;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: -75%;
+        border-radius: 50%;
+        background: ${(props: OrbAuraProps) => `radial-gradient(
+            circle,
+            color-mix(in srgb, ${props.$colors[1]} 32%, transparent) 0%,
+            color-mix(in srgb, ${props.$colors[0]} 12%, transparent) 45%,
+            transparent 70%
+        )`};
+        filter: blur(12px);
+        animation: ${auraBreathe} ${(props: OrbAuraProps) => (props.$active ? "2.6s" : "5.5s")} ease-in-out
+            infinite;
+        pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+
+        &::before {
+            animation: none;
+            opacity: 0.75;
+        }
+    }
+`;
+
 // ---------------------------------------------------------------------------
 // Agent-run-status fan-out.
 //
