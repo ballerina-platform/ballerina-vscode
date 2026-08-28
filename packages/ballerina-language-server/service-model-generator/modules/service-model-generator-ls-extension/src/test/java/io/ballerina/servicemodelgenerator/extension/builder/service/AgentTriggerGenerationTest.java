@@ -45,6 +45,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -855,14 +856,25 @@ public class AgentTriggerGenerationTest {
     }
 
     private String generateForShapedHttp(String accessor, String path, List<Parameter> parameters,
-                                         String responseBodyType) {
+                                         String... responseBodyTypes) {
+        return generateForHttpResponding(accessor, path, parameters, "200", responseBodyTypes);
+    }
+
+    /** The status code the creation form seeds, so nothing is wrapped in a status-code record. */
+    private String generateForUnwrappedHttp(String accessor, String... responseBodyTypes) {
+        return generateForHttpResponding(accessor, ".", List.of(),
+                "post".equalsIgnoreCase(accessor) ? "201" : "200", responseBodyTypes);
+    }
+
+    private String generateForHttpResponding(String accessor, String path, List<Parameter> parameters,
+                                             String statusCode, String... responseBodyTypes) {
         ServiceInitModel form = httpForm("/triage", "Triage it.");
         FunctionReturnType returnType = new FunctionReturnType(
                 new Value.ValueBuilder().enabled(true).value("").build());
-        returnType.setResponses(List.of(new HttpResponse(
-                new Value.ValueBuilder().enabled(true).value("200").build(),
-                new Value.ValueBuilder().enabled(true).value(responseBodyType).build(),
-                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)));
+        returnType.setResponses(Arrays.stream(responseBodyTypes).map(body -> new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
+                new Value.ValueBuilder().enabled(true).value(body).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)).toList());
         Function shaped = new Function.FunctionBuilder()
                 .kind("RESOURCE")
                 .accessor(new Value.ValueBuilder().enabled(true).value(accessor).build())
@@ -897,16 +909,93 @@ public class AgentTriggerGenerationTest {
 
     @Test
     public void testShapedHttpEndpointLeavesAnUndeliverableAnswerToTheUser() {
-        String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
+        String src = generateForShapedHttp("POST", ".", List.of(), "xml");
 
         Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"),
-                "the answer is always a string, so no declared type is bound to run: " + src);
+                "xml is not a subtype of json, so run cannot bind it: " + src);
         Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"),
-                "a record cannot take a string, so the mapping is the user's and has to be visible: " + src);
+                "the mapping is the user's and has to be visible: " + src);
         Assert.assertTrue(src.contains("return error(\"response mapping not implemented\", result = result);"),
                 "the placeholder still has to compile, so it returns an error rather than the answer: " + src);
         Assert.assertFalse(src.contains("return {body: result};"),
                 "a body field the answer cannot fill must not be generated: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheAnswerToADeclaredRecordType() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
+
+        Assert.assertTrue(src.contains("IssueSummary result = check issueTriageAgent.run(string `Triage it.`);"),
+                "run is dependently typed, so a json-compatible record binds the answer directly: " + src);
+        Assert.assertTrue(src.contains("return {body: result};"),
+                "the bound answer fills the status code record's body: " + src);
+        Assert.assertFalse(src.contains("// TODO:"),
+                "nothing is left for the user to map: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheAnswerToADeclaredArrayType() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary[]");
+
+        Assert.assertTrue(src.contains("IssueSummary[] result = check issueTriageAgent.run(string `Triage it.`);"),
+                "an array of a json-compatible type binds too: " + src);
+        Assert.assertFalse(src.contains("// TODO:"), src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheUnionOfEverySuccessResponse() {
+        String src = generateForUnwrappedHttp("POST", "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains(
+                        "OpportunityRecord|AccountRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "run derives an anyOf schema from a union, so every declared response is reachable: " + src);
+        Assert.assertFalse(src.contains("// TODO:"), src);
+    }
+
+    @Test
+    public void testACatchAllResponseYieldsToTheSpecificOnesItWouldSubsume() {
+        String src = generateForUnwrappedHttp("POST", "json", "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains(
+                        "OpportunityRecord|AccountRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "json matches any payload first, so binding it would make the records unreachable: " + src);
+        Assert.assertTrue(src.contains("returns error|json|OpportunityRecord|AccountRecord"),
+                "the declared contract still offers every response the user added: " + src);
+    }
+
+    @Test
+    public void testACatchAllResponseIsStillBoundWhenItIsTheOnlyKind() {
+        String src = generateForUnwrappedHttp("POST", "json", "json");
+
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"),
+                "with nothing specific to yield to, the catch-all is the answer type: " + src);
+    }
+
+    @Test
+    public void testAnUnbindableSiblingLeavesTheUnionAlone() {
+        String src = generateForUnwrappedHttp("POST", "OpportunityRecord", "xml");
+
+        Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "one member run cannot bind would poison the whole union, so the first response wins: " + src);
+        Assert.assertFalse(src.contains("|xml result"), "xml must not reach the binding: " + src);
+    }
+
+    @Test
+    public void testStatusCodeWrappedSuccessResponsesAreNotUnioned() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "a status code record carries http:Status, an object, so run cannot bind it: " + src);
+        Assert.assertTrue(src.contains("return {body: result};"), src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointDoesNotBindAnydata() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "anydata");
+
+        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"),
+                "anydata admits xml and byte[], so it is not a json subtype and fails at request time: " + src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"), src);
     }
 
     @Test
@@ -949,7 +1038,7 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointReturnsTheBodyWhenTheStatusCodeWrapsIt() {
         String src = generateForShapedHttp("POST", "process", List.of(), "json");
 
-        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"), src);
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"), src);
         Assert.assertTrue(src.contains("return {body: result};"),
                 "a wrapped return puts the answer in the body field: " + src);
     }

@@ -85,7 +85,12 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     private static final String BODY_FIELD = " body;";
     private static final Pattern PATH_PARAM =
             Pattern.compile("^\\[\\s*([A-Za-z_][A-Za-z0-9_:]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*]$");
-    private static final List<String> STRING_TYPE_ALIASES = List.of(STRING_TYPE, "json", "anydata");
+    private static final List<String> JSON_SCALARS = List.of("json", STRING_TYPE, "int", "float", "decimal",
+            "boolean");
+    private static final List<String> NON_JSON_TYPES = List.of("anydata", "any", "xml", "byte", "table", "error",
+            "handle", "stream", "future", "map", "readonly");
+    private static final List<String> CATCH_ALL_TYPES = List.of("json", "anydata");
+    private static final Pattern TYPE_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     private static final String LISTENER_TYPE = MODULE_NAME + ":Listener";
     private static final String LISTENER_DECLARATION =
             "listener " + LISTENER_TYPE + " " + LISTENER_VAR_NAME + " = http:getDefaultListener();";
@@ -364,7 +369,7 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static String defaultResource(AgentTriggerContext context) {
-        return body(context, DEFAULT_SIGNATURE, new Answer(STRING_TYPE, false, true),
+        return body(context, DEFAULT_SIGNATURE, Answer.text(false),
                 List.of(new HandlerParameter(STRING_TYPE, DEFAULT_PAYLOAD_NAME, true)));
     }
 
@@ -379,14 +384,32 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
                 .replace("{{agentRun}}", context.agentRun(promptExpression));
     }
 
-    private record Answer(String type, boolean isBody, boolean deliverable) {
+    private record Answer(String type, boolean wrapped, boolean deliverable) {
+
+        static Answer text(boolean wrapped) {
+            return new Answer(STRING_TYPE, wrapped, true);
+        }
+
+        // `run` is dependently typed, so the declared type binds the answer — but only a subtype of `json`.
+        static Answer of(String declared, boolean wrapped) {
+            if (declared == null || declared.isBlank()) {
+                return text(wrapped);
+            }
+            String type = declared.strip();
+            return isJsonBindable(type) ? new Answer(type, wrapped, true)
+                    : new Answer(STRING_TYPE, wrapped, false);
+        }
+
+        static Answer union(List<Answer> members) {
+            return new Answer(String.join("|", members.stream().map(Answer::type).distinct().toList()), false, true);
+        }
     }
 
     private static String returnStatement(Answer answer) {
         if (!answer.deliverable()) {
             return RETURN_ANSWER_UNMAPPED;
         }
-        return answer.isBody() ? RETURN_ANSWER_AS_BODY : RETURN_ANSWER;
+        return answer.wrapped() ? RETURN_ANSWER_AS_BODY : RETURN_ANSWER;
     }
 
     private static String accessor(Function shaped) {
@@ -402,35 +425,65 @@ public class HttpAgentTriggerChannel implements AgentTriggerChannel {
     }
 
     private static Answer answer(Function shaped) {
-        HttpResponse response = firstAnswerResponse(shaped);
-        if (response == null) {
-            return new Answer(STRING_TYPE, false, true);
+        List<HttpResponse> responses = narrowed(answerResponses(shaped));
+        if (responses.isEmpty()) {
+            return Answer.text(false);
         }
+        List<Answer> candidates = responses.stream().map(response -> answerFor(response, shaped)).toList();
+        // A status-code record is not `anydata`, and one unbindable member would poison the whole union.
+        boolean unionable = candidates.size() > 1
+                && candidates.stream().noneMatch(candidate -> candidate.wrapped() || !candidate.deliverable());
+        return unionable ? Answer.union(candidates) : candidates.getFirst();
+    }
+
+    // A catch-all subsumes every specific member, leaving it unreachable, so it yields to them.
+    private static List<HttpResponse> narrowed(List<HttpResponse> responses) {
+        List<HttpResponse> specific = responses.stream()
+                .filter(response -> !CATCH_ALL_TYPES.contains(valueOf(response.getBody())))
+                .toList();
+        return specific.isEmpty() ? responses : specific;
+    }
+
+    private static Answer answerFor(HttpResponse response, Function shaped) {
         String emitted = HttpUtil.getStatusCodeResponse(response, new ArrayList<>(), new LinkedHashMap<>(),
                 new LinkedHashMap<>(), defaultStatusCode(shaped));
         String body = valueOf(response.getBody());
         if (emitted != null && body != null && !emitted.equals(body) && emitted.contains(BODY_FIELD)) {
-            return new Answer(STRING_TYPE, true, acceptsString(body));
+            return Answer.of(body, true);
         }
-        String declared = emitted != null && !emitted.isBlank() ? emitted.strip() : body;
-        return new Answer(STRING_TYPE, false, acceptsString(declared));
+        return Answer.of(emitted != null && !emitted.isBlank() ? emitted : body, false);
     }
 
-    private static boolean acceptsString(String type) {
-        return type == null || type.isBlank() || STRING_TYPE_ALIASES.contains(type.strip());
+    private static boolean isJsonBindable(String declared) {
+        String element = elementType(declared);
+        // A named type is taken on trust: only the semantic model can tell whether its fields are json-compatible.
+        return JSON_SCALARS.contains(element)
+                || TYPE_NAME.matcher(element).matches() && !NON_JSON_TYPES.contains(element);
     }
 
-    private static HttpResponse firstAnswerResponse(Function shaped) {
+    private static String elementType(String declared) {
+        String element = declared.strip();
+        while (true) {
+            if (element.endsWith("[]")) {
+                element = element.substring(0, element.length() - 2).strip();
+            } else if (element.endsWith("?")) {
+                element = element.substring(0, element.length() - 1).strip();
+            } else {
+                return element;
+            }
+        }
+    }
+
+    private static List<HttpResponse> answerResponses(Function shaped) {
         if (shaped.getReturnType() == null || shaped.getReturnType().getResponses() == null) {
-            return null;
+            return List.of();
         }
         return shaped.getReturnType().getResponses().stream()
                 .filter(HttpResponse::isEnabled)
                 .filter(response -> !ERROR_TYPE.equals(valueOf(response.getBody()))
                         && !ERROR_TYPE.equals(valueOf(response.getType())))
                 .filter(response -> Objects.nonNull(valueOf(response.getStatusCode())))
-                .findFirst()
-                .orElse(null);
+                .toList();
     }
 
     private static int defaultStatusCode(Function shaped) {

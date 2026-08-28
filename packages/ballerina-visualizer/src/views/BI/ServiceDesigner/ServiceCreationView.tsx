@@ -299,12 +299,12 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
     }, [model]);
 
 function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
-    const seeded = { ...shaped };
+    let seeded = { ...shaped };
     if (seeded.name && !seeded.name.value) {
         seeded.name = { ...seeded.name, value: "." };
     }
     if (seeded.accessor) {
-        seeded.accessor = { ...seeded.accessor, value: "POST" };
+        seeded = applyMethod(seeded, "POST");
     }
     const payload = (seeded.schema as Record<string, ParameterModel>)?.["payload"];
     const carries = (seeded.parameters ?? []).some((parameter) => parameter.httpParamType === "PAYLOAD");
