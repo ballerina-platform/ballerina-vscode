@@ -17,7 +17,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Codicon, Icon } from "@wso2/ui-toolkit";
+import { Button, Codicon, Icon, ProgressRing, ThemeColors } from "@wso2/ui-toolkit";
 import { ConnectorIcon } from "@wso2/bi-diagram";
 import { AvailableNode, BISearchResponse, EVENT_TYPE, FlowNode, LineRange, isDefaultModelProviderExpr } from "@wso2/ballerina-core";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -37,6 +37,7 @@ import {
     AgentOptionIcon,
     AgentOptionTitle,
     AgentsGrid,
+    AgentsLoadingCard,
     ArrowIcon,
     EmptyState,
     FilterButton,
@@ -75,6 +76,9 @@ export interface AddAgentPopupContentProps {
 const toAgents = (model: BISearchResponse): AvailableNode[] =>
     (model.categories ?? []).flatMap((category) => (category.items ?? []) as AvailableNode[]);
 
+const moduleId = (agent: AvailableNode): string =>
+    `${agent.codedata.org}/${agent.codedata.module}:${agent.codedata.version}`;
+
 const FILTER_TO_SOURCE: Record<AgentFilter, string> = {
     All: "all",
     Project: "local",
@@ -103,6 +107,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
     const [packageAgents, setPackageAgents] = useState<AvailableNode[]>([]);
     const [isExpanding, setIsExpanding] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingOrgAgents, setIsLoadingOrgAgents] = useState(false);
     const [isWorkspace, setIsWorkspace] = useState(false);
     const searchRequestRef = useRef(0);
     const previousFilterRef = useRef<AgentFilter | undefined>(undefined);
@@ -186,6 +191,33 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         };
     }, [view, pendingAgent, rpcClient, projectPath, loadAttempt]);
 
+    // Org packages need a Central round trip, so they are merged in after the offline results render.
+    const loadOrganizationAgents = (request: number) => {
+        setIsLoadingOrgAgents(true);
+        rpcClient
+            .getBIDiagramRpcClient()
+            .search({
+                filePath: projectPath,
+                queryMap: { limit: 60, source: FILTER_TO_SOURCE.Organization },
+                searchKind: "AGENT",
+            })
+            .then((model) => {
+                if (request !== searchRequestRef.current) {
+                    return;
+                }
+                const orgAgents = toAgents(model);
+                setAgents((current) => {
+                    const seen = new Set(current.map(moduleId));
+                    return [...current, ...orgAgents.filter((agent) => !seen.has(moduleId(agent)))];
+                });
+            })
+            .finally(() => {
+                if (request === searchRequestRef.current) {
+                    setIsLoadingOrgAgents(false);
+                }
+            });
+    };
+
     const runSearch = (text: string, filter: AgentFilter) => {
         const request = ++searchRequestRef.current;
         setIsSearching(true);
@@ -203,6 +235,9 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
             .then((model) => {
                 if (request === searchRequestRef.current) {
                     setAgents(toAgents(model));
+                    if (!text && filter === "All") {
+                        loadOrganizationAgents(request);
+                    }
                 }
             })
             .finally(() => {
@@ -221,6 +256,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
         }
         const filterChanged = previousFilterRef.current !== filterType;
         previousFilterRef.current = filterType;
+        setIsLoadingOrgAgents(false);
         if (!searchText || filterChanged) {
             runSearch(searchText, filterType);
             return;
@@ -485,7 +521,7 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                         </FilterButton>
                     </FilterButtons>
                 </SectionHeader>
-                {isExpanding || (isSearching && agents.length === 0) ? (
+                {isExpanding || ((isSearching || isLoadingOrgAgents) && agents.length === 0) ? (
                     <LoaderWrapper>
                         <RelativeLoader />
                     </LoaderWrapper>
@@ -523,6 +559,11 @@ export function AddAgentPopupContent(props: AddAgentPopupContentProps) {
                                 />
                             );
                         })}
+                        {isLoadingOrgAgents && (
+                            <AgentsLoadingCard>
+                                <ProgressRing color={ThemeColors.PRIMARY} sx={{ width: 16, height: 16 }} />
+                            </AgentsLoadingCard>
+                        )}
                     </AgentsGrid>
                 )}
             </ResultsSection>

@@ -53,8 +53,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Handles the search command for agents.
@@ -162,25 +160,14 @@ public class AgentSearchCommand extends SearchCommand {
             return List.of();
         }
     }
+    // The default view stays offline; org packages arrive later via a separate `organization` source request.
     private List<Item> getAllAgents(String searchQuery) {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
         addCategory(CENTRAL_AGENTS_CATEGORY, searchQuery == null || searchQuery.isEmpty()
-                ? defaultCentralAgents()
+                ? filterAgents(getLandingAgents(), null)
                 : fetchAgentsFromCentral(searchQuery, false));
         return rootBuilder.build().items();
     }
-
-    private List<AvailableNode> defaultCentralAgents() {
-        List<AvailableNode> agents = new ArrayList<>(filterAgents(getLandingAgents(), null));
-        Set<String> seen = agents.stream().map(agent -> agent.codedata().getModuleId()).collect(Collectors.toSet());
-        for (AvailableNode agent : fetchAgentsFromCentral(null, true)) {
-            if (seen.add(agent.codedata().getModuleId())) {
-                agents.add(agent);
-            }
-        }
-        return agents;
-    }
-
 
     private List<Item> getLocalAgents(String searchQuery) {
         addCategory(LOCAL_AGENTS_CATEGORY, filterAgents(getWorkspaceAgents(), searchQuery));
