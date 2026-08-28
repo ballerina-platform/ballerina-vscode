@@ -67,7 +67,10 @@ function matchesPrompt(systemInstructions: string, systemPrompt?: AgentData): bo
     const instructions = systemInstructions.match(INSTRUCTIONS_PATTERN)?.[1]
         ?.replace(TOOL_VALIDATION_PATTERN, '')
         ?.trim();
-    return role === (agent?.role || '').trim() && instructions === (agent?.instructions || '').trim();
+    const nodeInstructions = (agent?.instructions || '').trim();
+    const instructionsMatch = instructions === nodeInstructions
+        || Boolean(nodeInstructions && instructions?.startsWith(nodeInstructions));
+    return role === (agent?.role || '').trim() && instructionsMatch;
 }
 
 function matchesTools(trace: TraceAnimationState, toolNames: string[]): boolean {
@@ -86,9 +89,9 @@ export function getAgentTraceState(params: AgentTraceParams): AgentTraceState {
     }
 
     const toolNames = tools.map(tool => tool.name);
-    const matched = traceAnimation.systemInstructions
-        ? matchesPrompt(traceAnimation.systemInstructions, systemPrompt)
-        : matchesTools(traceAnimation, toolNames);
+    const usedPrompt = Boolean(traceAnimation.systemInstructions);
+    const matched = (usedPrompt && matchesPrompt(traceAnimation.systemInstructions, systemPrompt))
+        || matchesTools(traceAnimation, toolNames);
     if (!matched) {
         return INACTIVE;
     }
@@ -116,7 +119,10 @@ export function matchesUsageEntrypoint(
     usage: { serviceName?: string; functionName?: string },
     entrypoint?: EntrypointContext,
 ): boolean {
-    const normalize = (value?: string) => (value ?? '').trim().replace(/^\//, '');
+    const normalize = (value?: string) => {
+        const path = (value ?? '').trim().replace(/^\//, '');
+        return path === '.' ? '' : path;
+    };
     const traceService = normalize(entrypoint?.serviceName);
     const usageService = normalize(usage.serviceName);
     if (!traceService || traceService !== usageService) {

@@ -167,6 +167,8 @@ async function openTryItView(withNotice: boolean = false, resourceMetadata?: Res
             fs.mkdirSync(targetDir);
         }
 
+        TracerMachine.startServer();
+
         if (selectedService.type === ServiceType.HTTP) {
             const openapiSpec: OAISpec = await getOpenAPIDefinition(selectedService);
             const selectedPort: number = await getServicePort(projectPath, selectedService, openapiSpec);
@@ -192,9 +194,6 @@ async function openTryItView(withNotice: boolean = false, resourceMetadata?: Res
 
             await openMcpInspector(serviceUrl);
         } else {
-            // AI Agent service - start the tracing server if enabled
-            TracerMachine.startServer();
-
             // Gather all agent services for multi-agent support
             const allAgentServices = services.filter(s => s.type === ServiceType.AGENT);
             const agentServicesWithPorts: { service: ServiceInfo; port: number }[] = [];
