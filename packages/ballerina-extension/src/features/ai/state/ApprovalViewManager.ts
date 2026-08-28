@@ -22,7 +22,7 @@ import { AiPanelWebview } from '../../../views/ai-panel/webview';
 import { chatStateStorage } from '../../../views/ai-panel/chatStateStorage';
 import { sendReviewRestoreDidOpenBatch } from '../utils/project/ls-schema-notifications';
 import { VisualizerWebview } from '../../../views/visualizer/webview';
-import { openView as openMainView, StateMachine } from '../../../stateMachine';
+import { history, openView as openMainView, StateMachine, updateView } from '../../../stateMachine';
 import { openPopupView, StateMachinePopup } from '../../../stateMachinePopup';
 import { notifyApprovalOverlayState, RPCLayer } from '../../../RPCLayer';
 
@@ -583,6 +583,7 @@ export class ApprovalViewManager {
         return {
             views: [],
             currentIndex: 0,
+            generationId,
             semanticDiffs: review.reviewView.semanticDiffs,
             loadDesignDiagrams: review.reviewView.loadDesignDiagrams,
             affectedPackages: review.affectedPackagePaths
@@ -591,6 +592,17 @@ export class ApprovalViewManager {
             tempProjectPath,
             isWorkspace: review.reviewView.isWorkspace,
         };
+    }
+
+    /** Same steps as the panel's own Close (`goBack`): a review belongs to one generation. */
+    closeReviewModeIfOpen(): void {
+        if (StateMachine.context().view !== MACHINE_VIEW.ReviewMode) {
+            return;
+        }
+        console.log('[ApprovalViewManager] Closing ReviewMode — a new generation is starting');
+        history.pop();
+        updateView(false);
+        this.notifyReviewModeClosed();
     }
 
     /**

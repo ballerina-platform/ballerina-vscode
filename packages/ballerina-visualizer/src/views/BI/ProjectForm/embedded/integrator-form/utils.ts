@@ -167,6 +167,146 @@ export const splitPath = (fullPath: string): { base: string; name: string } => {
     return { base, name: fullPath.slice(lastSep + 1) };
 };
 
+/** What a Browse pick resolves to in a Create form's location field. */
+export interface ResolvedBrowsePick {
+    /** Value for the parent-location state. */
+    base: string;
+    /**
+     * Last segment of the target path, set only when the pick must be held verbatim
+     * (it IS a project). Left undefined to keep the segment name-derived, which is the
+     * reading every non-project pick gets.
+     */
+    directoryName?: string;
+    /** The picked project's own title, when it has one. */
+    projectName?: string;
+}
+
+/**
+ * Resolves a browsed folder into the location field's parent + last segment.
+ *
+ * A pick is normally the PARENT location, with the target folder derived from the
+ * project name (`<picked>/<name>`). A pick that is itself a project is the exception:
+ * appending a folder inside it would target `<project>/<name>` — a project nested in a
+ * project, which is not a supported layout — so the pick is held as the target itself.
+ * That makes Browse agree with typing the same path into the field by hand.
+ *
+ * Invariant for a project pick: `joinPath(base, directoryName)` is the pick itself, so
+ * the resolved target can never sit below the folder the user chose.
+ */
+export const resolveBrowsePick = (
+    pickedPath: string,
+    existingProject: { isProject?: boolean; name?: string } | null | undefined
+): ResolvedBrowsePick => {
+    if (!existingProject?.isProject) {
+        return { base: pickedPath };
+    }
+    // A trailing separator would split into an empty segment and collapse the target onto
+    // the parent — drop it so the project's own folder survives as the last segment.
+    const trimmed = pickedPath.replace(/[/\\]+$/, '');
+    const { base, name } = splitPath(trimmed);
+    if (!name) {
+        // No segment to hold (a root-only pick): keep it as the location. No target both
+        // holds the pick and has a folder of its own, so leave the segment name-derived.
+        return { base: trimmed || pickedPath, projectName: existingProject.name || undefined };
+    }
+    if (!base) {
+        // A bare relative pick has no parent to hold. Held as the location with an EMPTY
+        // segment, which `joinPath` renders as the pick itself — letting it fall through to
+        // the parent-location reading would instead nest below it, the one thing this
+        // function exists to prevent.
+        return { base: trimmed, directoryName: '', projectName: existingProject.name || undefined };
+    }
+    return { base, directoryName: name, projectName: existingProject.name || undefined };
+};
+
+/**
+ * The Project-name and path-segment state a Browse pick reads and rewrites.
+ *
+ * `displacedName` and `folderPinnedByPick` are the memory that makes a pick REVERSIBLE:
+ * without them, moving off an existing project leaves that project's title in the name
+ * field and its folder on the end of the path, so the next location silently inherits
+ * both.
+ */
+export interface BrowsePickState {
+    projectName: string;
+    /** Whether the name is user-authored, as opposed to a default or an adopted title. */
+    projectNameTouched: boolean;
+    /** What an adopted project title pushed aside; restored when a pick moves away again. */
+    displacedName: { name: string; touched: boolean } | null;
+    /** Whether the path's last segment was pinned by a pick — NOT by a manual path edit. */
+    folderPinnedByPick: boolean;
+}
+
+/** What a Browse pick does to the path's last segment. */
+export type BrowsePickFolderAction =
+    | { action: 'pin'; directoryName: string }
+    | { action: 'recouple'; displayName: string }
+    | { action: 'keep' };
+
+export interface AppliedBrowsePick extends BrowsePickState {
+    /** Parent directory for the location field. */
+    base: string;
+    folder: BrowsePickFolderAction;
+}
+
+/**
+ * Folds a browsed folder into the location + name state of a Create form.
+ *
+ * Landing ON a project pins that project's own folder as the path's last segment, and
+ * (for forms that show which project they are adding to, `adoptProjectName`) shows its
+ * title. Landing anywhere else undoes both — but only what a PICK imposed: a segment the
+ * user typed into the path field by hand, or a name they authored, is left alone.
+ */
+export const applyBrowsePick = (
+    pickedPath: string,
+    existingProject: { isProject?: boolean; name?: string } | null | undefined,
+    current: BrowsePickState,
+    options: { adoptProjectName?: boolean } = {}
+): AppliedBrowsePick => {
+    const pick = resolveBrowsePick(pickedPath, existingProject);
+
+    // Checked against undefined, not truthiness: a bare pick pins an EMPTY segment, which
+    // still means "the pick IS the target" rather than "no segment was pinned".
+    if (pick.directoryName !== undefined) {
+        // Fall back to the folder when a project reports no title: keeping the PREVIOUS
+        // project's adopted title would label a project that is no longer the target.
+        const adoptedName = options.adoptProjectName ? pick.projectName || pick.directoryName || undefined : undefined;
+        return {
+            base: pick.base,
+            folder: { action: 'pin', directoryName: pick.directoryName },
+            folderPinnedByPick: true,
+            projectName: adoptedName ?? current.projectName,
+            // An adopted title is the project's, not the user's — so it stays replaceable
+            // by a later pick, and reverts rather than persisting when one moves away.
+            projectNameTouched: adoptedName ? false : current.projectNameTouched,
+            displacedName: adoptedName
+                // Only the FIRST adoption displaces something the user could want back;
+                // picking a second project merely replaces the first project's title.
+                ? current.displacedName ?? { name: current.projectName, touched: current.projectNameTouched }
+                : current.displacedName,
+        };
+    }
+
+    // Moved off a project. The folder and the name are undone INDEPENDENTLY: the user can
+    // have taken over one without the other (typing a name recouples the folder; editing
+    // the path's last segment claims the folder), and only what a pick still owns reverts.
+    if (!current.folderPinnedByPick && !current.displacedName) {
+        return { ...current, base: pick.base, folder: { action: 'keep' } };
+    }
+
+    const restored = current.displacedName ?? { name: current.projectName, touched: current.projectNameTouched };
+    return {
+        base: pick.base,
+        folder: current.folderPinnedByPick
+            ? { action: 'recouple', displayName: restored.name }
+            : { action: 'keep' },
+        projectName: restored.name,
+        projectNameTouched: restored.touched,
+        displacedName: null,
+        folderPinnedByPick: false,
+    };
+};
+
 export const sanitizePackageName = (name: string): string => {
     // Allow dots/underscores but sanitize other characters, then convert consecutive dots/underscores to single ones
     return name

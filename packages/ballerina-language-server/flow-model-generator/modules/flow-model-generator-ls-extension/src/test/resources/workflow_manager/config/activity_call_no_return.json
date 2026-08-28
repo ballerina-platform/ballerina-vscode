@@ -1,0 +1,370 @@
+{
+  "source": "workflow_function/functions.bal",
+  "position": {
+    "line": 15,
+    "offset": 0
+  },
+  "description": "Activity call node template for an activity with no return value",
+  "codedata": {
+    "node": "ACTIVITY_CALL",
+    "org": "test",
+    "module": "workflow_function",
+    "symbol": "logEvent",
+    "version": "0.1.0"
+  },
+  "output": {
+    "id": "31",
+    "metadata": {
+      "label": "logEvent",
+      "description": "Activity with no return value",
+      "icon": "https://bcentral-packageicons.azureedge.net/images/test_workflow_function_0.1.0.png"
+    },
+    "codedata": {
+      "node": "ACTIVITY_CALL",
+      "org": "test",
+      "module": "workflow_function",
+      "symbol": "logEvent",
+      "version": "0.1.0",
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "message": {
+        "metadata": {
+          "label": "Message"
+        },
+        "types": [
+          {
+            "fieldType": "TEXT",
+            "ballerinaType": "string",
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string",
+            "selected": false
+          }
+        ],
+        "placeholder": "\"\"",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "codedata": {
+          "kind": "REQUIRED",
+          "originalName": "message"
+        }
+      },
+      "checkError": {
+        "metadata": {
+          "label": "Check Error",
+          "description": "Add 'check' to propagate errors. Uncheck to handle errors manually."
+        },
+        "types": [
+          {
+            "fieldType": "FLAG",
+            "ballerinaType": "boolean",
+            "selected": true
+          }
+        ],
+        "value": "true",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "dynamicFormFields": {
+          "true": {},
+          "false": {
+            "variable": {
+              "metadata": {
+                "label": "Result",
+                "description": "Name of the variable that receives the error the activity failed with, or nil when it succeeded"
+              },
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          }
+        }
+      },
+      "variable": {
+        "metadata": {
+          "label": "Result",
+          "description": "Name of the result variable"
+        },
+        "types": [
+          {
+            "fieldType": "IDENTIFIER",
+            "selected": true
+          }
+        ],
+        "value": "activityResult",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy",
+          "description": "Engine retry strategy when the activity fails: no automatic retry (an AI agent may still re-invoke it), automatic backoff retries, or a human review task"
+        },
+        "types": [
+          {
+            "fieldType": "DROPDOWN_CHOICE",
+            "options": [
+              {
+                "label": "No Automatic Retry",
+                "value": "NoRetry"
+              },
+              {
+                "label": "Auto Retry",
+                "value": "AutoRetry"
+              },
+              {
+                "label": "Human Review",
+                "value": "ManualRetry"
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "value": "NoRetry",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false,
+        "dynamicFormFields": {
+          "NoRetry": {},
+          "AutoRetry": {
+            "maxRetries": {
+              "metadata": {
+                "label": "Max Retries",
+                "description": "Maximum retry attempts (default: 3)"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "int",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "retryDelay": {
+              "metadata": {
+                "label": "Retry Delay",
+                "description": "Initial delay in seconds before the first retry (default: 1.0)"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "retryBackoff": {
+              "metadata": {
+                "label": "Retry Backoff",
+                "description": "Multiplier applied to delay after each retry (default: 2.0)"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            },
+            "maxRetryDelay": {
+              "metadata": {
+                "label": "Max Retry Delay",
+                "description": "Cap on the delay between retries, in seconds"
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "decimal",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": true,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          },
+          "ManualRetry": {
+            "retryUserRoles": {
+              "metadata": {
+                "label": "Reviewer Roles",
+                "description": "Role(s) permitted to decide the human review, e.g. \"manager\" or [\"finance\", \"manager\"]. Leave empty to allow any role."
+              },
+              "types": [
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "string|string[]",
+                  "selected": true
+                }
+              ],
+              "value": "",
+              "optional": false,
+              "editable": true,
+              "advanced": false,
+              "hidden": false
+            }
+          }
+        },
+        "itemOptions": [
+          {
+            "id": "NoRetry",
+            "content": "No Automatic Retry",
+            "value": "NoRetry"
+          },
+          {
+            "id": "AutoRetry",
+            "content": "Auto Retry",
+            "value": "AutoRetry"
+          },
+          {
+            "id": "ManualRetry",
+            "content": "Human Review",
+            "value": "ManualRetry"
+          }
+        ]
+      },
+      "maxRetries": {
+        "metadata": {
+          "label": "Max Retries",
+          "description": "Maximum retry attempts (default: 3)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "int",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryDelay": {
+        "metadata": {
+          "label": "Retry Delay",
+          "description": "Initial delay in seconds before the first retry (default: 1.0)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryUserRoles": {
+        "metadata": {
+          "label": "Reviewer Roles",
+          "description": "Role(s) permitted to decide the retry review"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "string|string[]",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "retryBackoff": {
+        "metadata": {
+          "label": "Retry Backoff",
+          "description": "Multiplier applied to delay after each retry (default: 2.0)"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "maxRetryDelay": {
+        "metadata": {
+          "label": "Max Retry Delay",
+          "description": "Cap on the delay between retries, in seconds"
+        },
+        "types": [
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "decimal",
+            "selected": true
+          }
+        ],
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "advanced": {
+        "metadata": {
+          "label": "Activity call configurations",
+          "description": "Activity call configurations"
+        },
+        "types": [
+          {
+            "fieldType": "ADVANCE_PARAM_LIST",
+            "selected": false
+          }
+        ],
+        "value": {},
+        "optional": false,
+        "editable": false,
+        "advanced": false,
+        "hidden": false
+      }
+    },
+    "flags": 0
+  }
+}

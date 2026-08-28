@@ -102,17 +102,6 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             functionBuilder
                     .name(AUTOMATION_FUNCTION_NAME)
                     .type(Artifact.Type.AUTOMATION);
-        } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXPRESSION_FUNCTION_BODY) {
-            if (BallerinaCompilerApi.getInstance()
-                    .isNaturalExpressionBody((ExpressionFunctionBodyNode) functionDefinitionNode.functionBody())) {
-                functionBuilder
-                        .name(functionName)
-                        .type(Artifact.Type.NP_FUNCTION);
-            } else {
-                functionBuilder
-                        .name(functionName)
-                        .type(Artifact.Type.DATA_MAPPER);
-            }
         } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXTERNAL_FUNCTION_BODY) {
             return Optional.empty();
         } else if (functionDefinitionNode.kind() == SyntaxKind.RESOURCE_ACCESSOR_DEFINITION) {
@@ -132,6 +121,17 @@ public class ModuleNodeTransformer extends NodeTransformer<Optional<Artifact>> {
             functionBuilder
                     .name(functionName)
                     .type(Artifact.Type.ACTIVITY);
+        } else if (functionDefinitionNode.functionBody().kind() == SyntaxKind.EXPRESSION_FUNCTION_BODY) {
+            if (BallerinaCompilerApi.getInstance()
+                    .isNaturalExpressionBody((ExpressionFunctionBodyNode) functionDefinitionNode.functionBody())) {
+                functionBuilder
+                        .name(functionName)
+                        .type(Artifact.Type.NP_FUNCTION);
+            } else {
+                functionBuilder
+                        .name(functionName)
+                        .type(Artifact.Type.DATA_MAPPER);
+            }
         } else {
             functionBuilder
                     .name(functionName)

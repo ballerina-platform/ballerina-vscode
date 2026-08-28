@@ -1,0 +1,60 @@
+{
+  "version": "v1.0",
+
+  "listeners": [
+    {
+      "id": "$listener",
+      "doc": "SAP JCo server that receives inbound IDocs and RFC calls from the SAP system and dispatches each to the attached IDocService or RfcService instance.",
+      "type": { "name": "Listener" },
+      "services": ["$idocService", "$rfcService"],
+      "multipleServicesAllowed": true,
+      "multipleServicesOfSameTypeAllowed": false,
+      "platformDependencies": [
+        {
+          "groupId": "com.sap",
+          "artifactId": "com.sap.conn.idoc",
+          "version": "3.1.*",
+          "scope": "provided",
+          "acquisition": {
+            "url": "https://support.sap.com/en/index.html",
+            "note": "Download sapidoc3.jar from the SAP Service Marketplace. Licensed, not resolvable from any public Maven repository."
+          }
+        },
+        {
+          "groupId": "com.sap",
+          "artifactId": "com.sap.conn.jco",
+          "version": "3.1.*",
+          "scope": "provided",
+          "acquisition": {
+            "url": "https://support.sap.com/en/index.html",
+            "note": "Download sapjco3.jar from the SAP Service Marketplace, together with the native library for each OS you deploy to. Licensed, not resolvable from any public Maven repository."
+          },
+          "nativeLibraries": [
+            { "os": "linux", "file": "libsapjco3.so" },
+            { "os": "windows", "file": "sapjco3.dll" },
+            { "os": "macos", "file": "libsapjco3.dylib" }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "serviceTypes": [
+    {
+      "id": "$idocService",
+      "doc": "Receives inbound IDocs dispatched from the SAP system to this server.",
+      "type": { "name": "IDocService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "handlers": { "backedByConcreteType": true }
+    },
+    {
+      "id": "$rfcService",
+      "doc": "Receives inbound RFC calls dispatched from the SAP system for registered function modules on this server.",
+      "type": { "name": "RfcService" },
+      "concrete": true,
+      "multipleListenersAllowed": true,
+      "handlers": { "backedByConcreteType": true }
+    }
+  ]
+}

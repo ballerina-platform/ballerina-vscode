@@ -31,7 +31,9 @@ import {
     getAgentDataEventName,
     getDiffContainerStyles,
     getDiffTitleStyles,
+    getWorkflowFunctionName,
     nodeHasError,
+    normalizeNodePropertyValue,
 } from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import {
@@ -168,23 +170,6 @@ interface SendDataNodeWidgetProps {
     onClick?: (node: FlowNode) => void;
 }
 
-function normalizeNodePropertyValue(value?: string): string {
-    if (typeof value !== "string") {
-        return "";
-    }
-
-    return value.trim().replace(/^["']|["']$/g, "");
-}
-
-function getWorkflowName(value?: string): string {
-    const normalizedValue = normalizeNodePropertyValue(value);
-    if (!normalizedValue) {
-        return "";
-    }
-
-    return normalizedValue.split(":").pop()?.split("(")[0]?.trim() ?? normalizedValue;
-}
-
 export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
     const { model, engine, onClick } = props;
     const {
@@ -245,7 +230,7 @@ export function SendDataNodeWidget(props: SendDataNodeWidgetProps) {
     const agentDataEvent = getAgentDataEventName(model.node);
     const agentName = (model.node.metadata?.data as { agentName?: string } | undefined)?.agentName;
     const dataName = normalizeNodePropertyValue(dataNameProperty?.value as string | undefined) || agentDataEvent;
-    const workflowName = getWorkflowName(
+    const workflowName = getWorkflowFunctionName(
         (workflowProperty?.value as string | undefined) ?? connectionValue ?? fallbackWorkflowValue ?? agentName
     );
     const nodeTitle = dataName ? `Send to ${dataName}` : "Send Data";

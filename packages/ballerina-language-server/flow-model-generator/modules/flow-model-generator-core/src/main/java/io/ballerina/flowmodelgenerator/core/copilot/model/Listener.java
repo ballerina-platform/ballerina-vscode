@@ -18,6 +18,8 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +30,22 @@ import java.util.List;
  */
 public class Listener {
     private String name;
+    /**
+     * The spec §2 {@code doc} — what this listener is and when a service attaches to it.
+     *
+     * <p>Required by the spec on every listener. The listener's <i>parameters</i> already carry their own
+     * doc comments from the semantic model, but nothing states what attaching to the listener at all
+     * accomplishes: a class named {@code Listener} in a package named {@code kafka} says only that
+     * something listens, not that it polls the subscribed topics and dispatches each poll's batch.
+     */
+    private String description;
+    /**
+     * Spec's {@code deprecated} — why this construct is superseded, as the document's own prose. Text
+     * rather than a flag: the sentence names the replacement, which is the only part a reader can act on.
+     */
+    @SerializedName("deprecated")
+    private String deprecationNote;
+
     private List<Parameter> parameters;
 
     public Listener() {
@@ -40,6 +58,22 @@ public class Listener {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getDeprecationNote() {
+        return deprecationNote;
+    }
+
+    public void setDeprecationNote(String deprecationNote) {
+        this.deprecationNote = deprecationNote;
     }
 
     public List<Parameter> getParameters() {

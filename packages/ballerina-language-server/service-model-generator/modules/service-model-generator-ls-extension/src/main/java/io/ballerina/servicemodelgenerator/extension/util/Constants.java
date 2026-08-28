@@ -279,6 +279,7 @@ public class Constants {
     public static final String WRAPPER_TYPE_NAME_PROPERTY = "wrapperTypeName";
 
     public static final String TYPES_BAL = "types.bal";
+    public static final String MAIN_BAL = "main.bal";
 
     private Constants() {
     }

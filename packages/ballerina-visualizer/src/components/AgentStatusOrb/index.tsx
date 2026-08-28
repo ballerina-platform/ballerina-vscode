@@ -25,16 +25,16 @@ import { Icon } from "@wso2/ui-toolkit";
 import { ShaderOrb } from "./ShaderOrb";
 import { useAssistantName, useProductMode, useShortAssistantName } from "../../hooks/useProductMode";
 import { MiniChat } from "./MiniChat";
+import { useOrbColors } from "./orbTheme";
 import {
     Anchor,
     ANCHOR_STORAGE_KEY,
-    BRAND_ORANGE,
     EDGE_MARGIN,
     loadAnchor,
     ACCENT_CORE,
-    SpinArc,
     ACCENT_FRAME,
-    orbColors,
+    AGENT_BUILDER_ORB_COLORS,
+    SpinArc as AgentSpinArc,
     ORB_ENERGY,
     ORB_SIZE,
     Sphere,
@@ -124,11 +124,6 @@ const fadeIn = keyframes`
     to { opacity: 1; transform: translateX(0); }
 `;
 
-const hueCycle = keyframes`
-    from { filter: blur(8px) hue-rotate(0deg); }
-    to { filter: blur(8px) hue-rotate(360deg); }
-`;
-
 const haloPulse = keyframes`
     0%, 100% { opacity: 0.25; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(1.18); }
@@ -136,7 +131,8 @@ const haloPulse = keyframes`
 
 const Wrapper = styled.div`
     position: fixed;
-    z-index: 10000;
+    /* Below side panels and modals (>=1900) so an open form keeps its controls reachable; above diagram content. */
+    z-index: 1800;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -261,7 +257,7 @@ const Halo = styled.div<{ colors: [string, string, string] }>`
     }
 `;
 
-const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState; agentBuilder: boolean }>`
+const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState }>`
     position: absolute;
     inset: -6px;
     border-radius: 50%;
@@ -271,11 +267,9 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     );
     filter: blur(8px);
     opacity: ${(props: Pick<OrbStyleProps, "state">) => (props.state === "idle" ? 0.45 : props.state === "running" ? 1 : 0.85)};
-    ${(props: Pick<OrbStyleProps, "state" | "agentBuilder">) =>
+    ${(props: Pick<OrbStyleProps, "state">) =>
         props.state === "running"
-            ? props.agentBuilder
-                ? css`animation: ${rotate} 2.8s linear infinite;`
-                : css`animation: ${rotate} 2.8s linear infinite, ${hueCycle} 5s linear infinite;`
+            ? css`animation: ${rotate} 2.8s linear infinite;`
             : props.state === "idle"
                 ? css`animation: ${rotate} 14s linear infinite;`
                 : css`animation: ${rotate} 9s linear infinite;`}
@@ -284,15 +278,28 @@ const Aura = styled.div<{ colors: [string, string, string]; state: AgentRunState
     }
 `;
 
-const BrandRing = styled.div<{ ringColor: string }>`
+/** Thin rim at the sphere's edge — a soft on-accent highlight, theme-driven for Integrator; accent-colored for Agent Builder. */
+const BrandRing = styled.div<{ ringColor?: string }>`
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1.5px solid ${(props: { ringColor: string }) => props.ringColor};
+    border: 1.5px solid ${(props: { ringColor?: string }) => props.ringColor ?? "color-mix(in srgb, var(--vscode-button-foreground) 35%, transparent)"};
     pointer-events: none;
 `;
 
-/** Brighter arc traveling the ring while the agent runs. */
+/** Brighter arc traveling the ring while the agent runs — Integrator's own, theme-driven variant. */
+const SpinArc = styled.div`
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: var(--vscode-button-foreground);
+    animation: ${rotate} 1.1s linear infinite;
+    pointer-events: none;
+    @media (prefers-reduced-motion: reduce) {
+        display: none;
+    }
+`;
 export function AgentStatusOrb() {
     const productMode = useProductMode();
     const assistantName = useAssistantName();
@@ -364,12 +371,16 @@ export function AgentStatusOrb() {
         }
     }, [orbHidden]);
 
+    // Resolve orb colors before any early return so the hook order stays stable
+    // across renders (status is null while the orb is hidden).
+    const themeColors = useOrbColors(status?.state ?? "idle");
+
     if (orbHidden) {
         return null;
     }
 
     const state = status.state;
-    const colors = orbColors(state, agentBuilder);
+    const colors = agentBuilder ? AGENT_BUILDER_ORB_COLORS[state] : themeColors;
     const cssSphere = agentBuilder || webglFailed;
     const sphereHighlight = !agentBuilder
         ? undefined
@@ -533,7 +544,7 @@ export function AgentStatusOrb() {
                     aria-label={label ? `${assistantName}: ${label}. Open the ${shortName} mini chat.` : `Open the ${assistantName} mini chat`}
                 >
                     {(state === "running" || state === "awaiting-input") && <Halo colors={colors} />}
-                    <Aura colors={colors} state={state} agentBuilder={agentBuilder} />
+                    <Aura colors={colors} state={state} />
                     {cssSphere ? (
                         <Sphere
                             colors={colors}
@@ -550,18 +561,20 @@ export function AgentStatusOrb() {
                     )}
                     {!agentBuilder && <Gloss />}
                     <BrandRing
-                        ringColor={
-                            agentBuilder
-                                ? `color-mix(in srgb, ${colors[0]} 55%, transparent)`
-                                : "rgba(241, 78, 35, 0.55)"
-                        }
+                        ringColor={agentBuilder ? `color-mix(in srgb, ${colors[0]} 55%, transparent)` : undefined}
                     />
-                    {state === "running" && <SpinArc color={agentBuilder ? ACCENT_FRAME[1] : BRAND_ORANGE} />}
+                    {state === "running" && (
+                        agentBuilder ? <AgentSpinArc color={ACCENT_FRAME[1]} /> : <SpinArc />
+                    )}
                     <IconOverlay>
                         <Icon
                             name="bi-ai-chat"
                             sx={{ width: 26, height: 26 }}
-                            iconSx={{ fontSize: "26px", color: "#ffffff", cursor: "inherit" }}
+                            iconSx={{
+                                fontSize: "26px",
+                                color: agentBuilder ? "#ffffff" : "var(--vscode-button-foreground)",
+                                cursor: "inherit",
+                            }}
                         />
                     </IconOverlay>
                 </OrbButton>

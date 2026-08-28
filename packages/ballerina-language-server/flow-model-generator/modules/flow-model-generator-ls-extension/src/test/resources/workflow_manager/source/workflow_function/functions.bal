@@ -34,3 +34,9 @@ function myActivity() returns int {
 public function main() {
     io:println("Workflow function project");
 }
+
+# Activity with no return value
+@workflow:Activity
+function logEvent(string message) returns error? {
+    io:println(message);
+}

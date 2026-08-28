@@ -1,0 +1,162 @@
+{
+  "source": "workflow_function/agent.bal",
+  "description": "Append an activity entry (auto-retry defaults + connection binding) to the agent declaration",
+  "diagram": {
+    "id": "1",
+    "metadata": {
+      "label": "fetchClaim",
+      "description": "Register a workflow activity as a durable agent activity"
+    },
+    "codedata": {
+      "node": "DURABLE_AGENT_ADD_ACTIVITY",
+      "org": "ballerina",
+      "module": "workflow",
+      "object": "DurableAgent",
+      "symbol": "registerActivity",
+      "parentSymbol": "claimAgent",
+      "lineRange": {
+        "fileName": "agent.bal",
+        "startLine": {
+          "line": 21,
+          "offset": 0
+        },
+        "endLine": {
+          "line": 21,
+          "offset": 0
+        }
+      },
+      "isNew": true
+    },
+    "returning": false,
+    "properties": {
+      "activity": {
+        "metadata": {
+          "label": "Activity"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "fetchClaim",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": true
+      },
+      "bindings.api": {
+        "metadata": {
+          "label": "Api"
+        },
+        "valueType": "SINGLE_SELECT",
+        "value": "claimApi",
+        "optional": false,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "name": {
+        "metadata": {
+          "label": "Activity Name"
+        },
+        "valueType": "TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "description": {
+        "metadata": {
+          "label": "Activity Description"
+        },
+        "valueType": "DOC_TEXT",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "requiresApproval": {
+        "metadata": {
+          "label": "Requires Approval"
+        },
+        "valueType": "FLAG",
+        "value": "false",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false
+      },
+      "retryPolicy": {
+        "metadata": {
+          "label": "Retry Policy"
+        },
+        "valueType": "DROPDOWN_CHOICE",
+        "value": "AutoRetry",
+        "optional": true,
+        "editable": true,
+        "advanced": false,
+        "hidden": false
+      },
+      "maxRetries": {
+        "metadata": {
+          "label": "Max Retries"
+        },
+        "valueType": "EXPRESSION",
+        "value": "3",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "retryDelay": {
+        "metadata": {
+          "label": "Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "1.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "retryBackoff": {
+        "metadata": {
+          "label": "Retry Backoff"
+        },
+        "valueType": "EXPRESSION",
+        "value": "2.0",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      },
+      "maxRetryDelay": {
+        "metadata": {
+          "label": "Max Retry Delay"
+        },
+        "valueType": "EXPRESSION",
+        "value": "",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": true
+      }
+    },
+    "flags": 0
+  },
+  "output": {
+    "workflow_function/agent.bal": [
+      {
+        "range": {
+          "start": {
+            "line": 20,
+            "character": 4
+          },
+          "end": {
+            "line": 20,
+            "character": 4
+          }
+        },
+        "newText": "\n, {activity: fetchClaim, retryPolicy: {maxRetries: 3, retryDelay: 1.0, retryBackoff: 2.0}, bindings: {api: claimApi}}"
+      }
+    ]
+  }
+}

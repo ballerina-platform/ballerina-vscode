@@ -45,7 +45,14 @@ import { useDiagramContext } from "../../DiagramContext";
 import { BaseNodeModel } from "./BaseNodeModel";
 import { ELineRange, FlowNode } from "@wso2/ballerina-core";
 import { DiagnosticsPopUp } from "../../DiagnosticsPopUp";
-import { getDiffContainerStyles, getDiffTitleStyles, getNodeTitle, isWorkflowNode, nodeHasError } from "../../../utils/node";
+import {
+    getDiffContainerStyles,
+    getDiffTitleStyles,
+    getNodeTitle,
+    getWorkflowFunctionName,
+    isWorkflowNode,
+    nodeHasError,
+} from "../../../utils/node";
 import { BreakpointMenu } from "../../BreakNodeMenu/BreakNodeMenu";
 import { NodeNoteChip } from "../../NodeNoteChip";
 
@@ -255,16 +262,7 @@ export function BaseNodeWidget(props: BaseNodeWidgetProps) {
     const functionViewRange = model.node.properties?.view?.value as ELineRange | undefined;
     const hasViewRange = Boolean(functionViewRange);
     const processFunctionValue = (model.node.properties as any)?.processFunction?.value as string | undefined;
-    const workflowStartFunctionName =
-        typeof processFunctionValue === "string"
-            ? processFunctionValue
-                .trim()
-                .replace(/^["']|["']$/g, "")
-                .split(":")
-                .pop()
-                ?.split("(")[0]
-                ?.trim()
-            : undefined;
+    const workflowStartFunctionName = getWorkflowFunctionName(processFunctionValue) || undefined;
     const canViewProjectFunction =
         hasViewRange &&
         model.node.codedata.node === "FUNCTION_CALL" &&

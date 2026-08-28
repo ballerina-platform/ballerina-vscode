@@ -817,6 +817,16 @@ export class NodeFactoryVisitor implements BaseVisitor {
         }
     }
 
+    // A human task is a wait on the outside world just like a data-event wait — the workflow
+    // suspends until a person acts — so it takes the wait shape with the person as the source.
+    beginVisitHumanTask(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        if (node.id) {
+            this.createWaitDataNode(node);
+            this.addSuggestionsButton(node);
+        }
+    }
+
     // A child workflow is still a workflow being run, so it uses the workflow-run node with its
     // target beside it rather than a generic call box titled with the truncated method name.
     beginVisitChildWorkflowRun(node: FlowNode, parent?: FlowNode): void {

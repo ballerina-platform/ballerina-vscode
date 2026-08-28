@@ -3834,7 +3834,7 @@
     },
     {
       "name": "zip",
-      "version": "0.9.0",
+      "version": "1.0.0",
       "description": "The `zip` library provides APIs to create and read ZIP archives from Ballerina."
     }
   ]

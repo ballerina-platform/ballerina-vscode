@@ -362,10 +362,14 @@ export function SessionHistoryDropdown({
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') { return; }
+            // Claim the key so a footer's Escape-to-stop does not also abort the run behind us.
+            e.preventDefault();
             if (confirmDelete) { setConfirmDelete(null); } else if (renaming) { cancelRename(); } else { onClose(); }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        // Capture runs before any bubble-phase handler, so the dropdown claims Escape ahead of the
+        // approval footers' window listener.
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => document.removeEventListener('keydown', handleKeyDown, true);
     }, [onClose, confirmDelete, renaming]);
 
     const filtered = search.trim()

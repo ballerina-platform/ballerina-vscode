@@ -48,3 +48,7 @@ function processEmployeeStatus(Status status, Department dept, Priority priority
     string statusMsg = string `Status: ${status}, Department: ${dept}, Priority: ${priority}, Value: ${value.toString()}`;
     return statusMsg;
 }
+
+function testHttp() returns error? {
+    http:Client ordersClient = check new ("http://localhost:9090");
+}

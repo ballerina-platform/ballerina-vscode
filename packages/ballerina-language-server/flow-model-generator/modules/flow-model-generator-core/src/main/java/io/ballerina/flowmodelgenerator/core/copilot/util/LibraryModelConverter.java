@@ -22,6 +22,7 @@ import io.ballerina.compiler.api.symbols.ClassSymbol;
 import io.ballerina.compiler.api.symbols.Documentation;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.MethodSymbol;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.flowmodelgenerator.core.copilot.builder.TypeLinkBuilder;
 import io.ballerina.flowmodelgenerator.core.copilot.model.EnumValue;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Field;
@@ -46,6 +47,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static io.ballerina.flowmodelgenerator.core.copilot.util.TypeSymbolExtractor.extractRecordName;
 import static io.ballerina.flowmodelgenerator.core.copilot.util.TypeSymbolExtractor.extractTypeLinksFromSymbol;
@@ -58,6 +61,14 @@ import static io.ballerina.modelgenerator.commons.FunctionDataBuilder.REST_RESOU
  * @since 1.7.0
  */
 public class LibraryModelConverter {
+
+    // A fully-qualified compiler type reference. The compiler emits two shapes and both must be
+    // rewritten: "ballerinax/kafka:4.6.5:TopicPartition" and, from some symbol paths,
+    // "ballerina/sql:CursorOutParameter" with no version at all. The version segment is therefore
+    // optional, and anchored on a leading digit so a module name containing a dot
+    // (ballerina/lang.value) can never be mistaken for one.
+    private static final Pattern QUALIFIED_TYPE_PREFIX =
+            Pattern.compile("([A-Za-z0-9_.]+)/([A-Za-z0-9_.]+):(?:[0-9][A-Za-z0-9.\\-+]*:)?");
 
     private LibraryModelConverter() {
         // Prevent instantiation
@@ -138,6 +149,13 @@ public class LibraryModelConverter {
         if (functionData.parameters() != null) {
             List<Parameter> parametersList = new ArrayList<>();
             for (Map.Entry<String, ParameterData> entry : functionData.parameters().entrySet()) {
+                // INCLUDED_RECORD_REST is a form-builder construct, not a declarable parameter: it
+                // represents "any further fields of the included record" and its name is a display
+                // label ("Additional Values"), not an identifier. Ballerina has no syntax for it, so
+                // emitting it produces a signature that cannot compile.
+                if (entry.getValue().kind() == ParameterData.Kind.INCLUDED_RECORD_REST) {
+                    continue;
+                }
                 Parameter param = parameterDataToModel(entry.getValue(), currentOrg, currentPackage);
                 parametersList.add(param);
             }
@@ -155,11 +173,9 @@ public class LibraryModelConverter {
             ReturnTypeData returnTypeData = functionData.returnTypeData();
             String typeName = returnTypeData.typeSymbol().signature();
 
-            // Extract just the type name if it has module prefix (e.g., "http:Request" -> "Request")
-            String simpleTypeName = typeName;
-            if (typeName != null && typeName.contains(":")) {
-                simpleTypeName = typeName.substring(typeName.lastIndexOf(':') + 1);
-            }
+            // Reduce to the short name; a composite signature is rewritten in place rather than
+            // truncated (see shortenTypeName).
+            String simpleTypeName = shortenTypeName(typeName, currentOrg, currentPackage);
 
             String nameToUse = simpleTypeName;
             List<TypeLink> links = null;
@@ -181,7 +197,8 @@ public class LibraryModelConverter {
 
                 // Use recordName if we have links after filtering
                 if (links != null && !links.isEmpty()) {
-                    nameToUse = extractRecordName(returnTypeData.typeSymbol());
+                    nameToUse = simplifyTypeSignature(
+                            extractRecordName(returnTypeData.typeSymbol()), currentOrg, currentPackage);
                 }
             }
 
@@ -247,7 +264,12 @@ public class LibraryModelConverter {
         if (category == TypeDefData.TypeCategory.UNION && typeDefData.fields() != null) {
             List<TypeDefMember> members = new ArrayList<>();
             for (FieldData field : typeDefData.fields()) {
-                String typeName = field.type() != null ? field.type().name() : field.name();
+                // A member's name is the raw compiler signature; a module reference in it must be
+                // reduced to import-alias form. No-op when there is none, so a name the links
+                // mechanism re-qualifies downstream is untouched.
+                String typeName = simplifyTypeSignature(
+                        field.type() != null ? field.type().name() : field.name(),
+                        currentOrg, currentPackage);
                 Type type = new Type(typeName);
 
                 if (field.type() != null && field.type().typeSymbol() != null
@@ -258,13 +280,17 @@ public class LibraryModelConverter {
                         List<TypeLink> links = extractTypeLinksFromSymbol(
                                 field.type().typeSymbol(), currentOrg, currentPackage);
                         if (!links.isEmpty()) {
-                            type.setName(extractRecordName(field.type().typeSymbol()));
+                            type.setName(simplifyTypeSignature(
+                                    extractRecordName(field.type().typeSymbol()), currentOrg, currentPackage));
                             type.setLinks(links);
                         }
                     }
                 }
 
-                UnionValue unionValue = new UnionValue(field.name(), type);
+                // The renderer prints a union member by its name, so it needs the same reduction
+                // as the type it carries.
+                UnionValue unionValue = new UnionValue(
+                        simplifyTypeSignature(field.name(), currentOrg, currentPackage), type);
                 members.add(unionValue);
             }
             typeDef.setMembers(members);
@@ -291,7 +317,99 @@ public class LibraryModelConverter {
             return typeDef;
         }
 
+        // 6. ERROR / OTHER - the extractor decomposes neither into fields or members, so the type's
+        // own signature is the only description of its shape available: an error's detail record, a
+        // tuple's element types, a map/table/stream constraint. Without it these reach the renderer
+        // carrying nothing but a name.
+        if (category == TypeDefData.TypeCategory.ERROR || category == TypeDefData.TypeCategory.OTHER) {
+            typeDef.setBaseType(simplifyTypeSignature(typeDefData.baseType(), currentOrg, currentPackage));
+            return typeDef;
+        }
+
         return typeDef;
+    }
+
+    /**
+     * Rewrites the fully-qualified type references the compiler emits inside a signature
+     * ({@code ballerinax/kafka:4.6.5:TopicPartition}) into the form a Ballerina source file would
+     * use: bare for a type belonging to the library being rendered, module-prefixed otherwise
+     * ({@code sql:Error}). The prefix is the module name's last dot-segment, matching the import
+     * alias Ballerina assigns by default ({@code ballerina/lang.value} -> {@code value}).
+     *
+     * <p>Operates on the whole signature rather than a single name, so composite shapes
+     * ({@code [a/b:1.0:X, int]}, {@code error<record {|a/b:1.0:Y f;|}>}) are rewritten in place.
+     *
+     * @param signature      the compiler signature (may be {@code null})
+     * @param currentOrg     the organization of the library being rendered
+     * @param currentPackage the package name of the library being rendered
+     * @return the simplified signature, or the input unchanged when there is nothing to rewrite
+     */
+    /**
+     * Reduces a compiler type signature to the short name the rest of the model expects.
+     *
+     * <p>Historically this was {@code substring(lastIndexOf(':') + 1)}, which is correct only for a bare
+     * qualified name ({@code ballerina/http:2.15.0:Request} -> {@code Request}). Applied to a composite
+     * signature it discards everything before the last module reference, so
+     * {@code stream<rowType, ballerina/sql:1.19.0:Error?>} became {@code Error?>}.
+     *
+     * <p>The truncation is therefore kept only when its result is well-formed; otherwise the whole signature
+     * is rewritten in place, preserving the construct and aliasing each module reference. Restricting the new
+     * path to signatures the old one provably mangles keeps every currently correct name byte-identical.
+     */
+    private static String shortenTypeName(String signature, String currentOrg, String currentPackage) {
+        if (signature == null || !signature.contains(":")) {
+            return signature;
+        }
+        String truncated = signature.substring(signature.lastIndexOf(':') + 1);
+        return isBalanced(truncated) ? truncated
+                : simplifyTypeSignature(signature, currentOrg, currentPackage);
+    }
+
+    /** Whether every bracketing construct in the text is closed — the test for a usable truncation. */
+    private static boolean isBalanced(String text) {
+        int angle = 0;
+        int square = 0;
+        int paren = 0;
+        int brace = 0;
+        for (int i = 0; i < text.length(); i++) {
+            switch (text.charAt(i)) {
+                case '<' -> angle++;
+                case '>' -> angle--;
+                case '[' -> square++;
+                case ']' -> square--;
+                case '(' -> paren++;
+                case ')' -> paren--;
+                case '{' -> brace++;
+                case '}' -> brace--;
+                default -> { }
+            }
+            if (angle < 0 || square < 0 || paren < 0 || brace < 0) {
+                return false;
+            }
+        }
+        return angle == 0 && square == 0 && paren == 0 && brace == 0;
+    }
+
+    static String simplifyTypeSignature(String signature, String currentOrg, String currentPackage) {
+        if (signature == null || signature.isEmpty()) {
+            return signature;
+        }
+        Matcher matcher = QUALIFIED_TYPE_PREFIX.matcher(signature);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            String org = matcher.group(1);
+            String module = matcher.group(2);
+            boolean sameLibrary = org.equals(currentOrg) && module.equals(currentPackage);
+            String replacement = sameLibrary ? "" : moduleAlias(module) + ":";
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private static String moduleAlias(String moduleName) {
+        int lastDot = moduleName.lastIndexOf('.');
+        return lastDot >= 0 ? moduleName.substring(lastDot + 1) : moduleName;
     }
 
     /**
@@ -313,7 +431,7 @@ public class LibraryModelConverter {
 
         // Add type object
         if (fieldData.type() != null) {
-            String typeName = fieldData.type().name();
+            String typeName = simplifyTypeSignature(fieldData.type().name(), currentOrg, currentPackage);
 
             // Skip link creation for generic/parameterized types and primitive types
             boolean isGenericType = typeName != null && typeName.contains("<");
@@ -330,7 +448,8 @@ public class LibraryModelConverter {
 
                 // Use recordName if we have links
                 if (!links.isEmpty()) {
-                    nameToUse = extractRecordName(fieldData.type().typeSymbol());
+                    nameToUse = simplifyTypeSignature(
+                            extractRecordName(fieldData.type().typeSymbol()), currentOrg, currentPackage);
                 }
             }
 
@@ -366,7 +485,7 @@ public class LibraryModelConverter {
 
         // Add type object
         if (paramData.type() != null) {
-            String typeName = paramData.type();
+            String typeName = simplifyTypeSignature(paramData.type(), currentOrg, currentPackage);
 
             if (!typeName.isEmpty()) {
                 // Skip link creation for generic/parameterized types and primitive types
@@ -383,7 +502,8 @@ public class LibraryModelConverter {
 
                     // Use recordName if we have links
                     if (!links.isEmpty()) {
-                        nameToUse = extractRecordName(paramData.typeSymbol());
+                        nameToUse = simplifyTypeSignature(
+                                extractRecordName(paramData.typeSymbol()), currentOrg, currentPackage);
                     }
                 }
 
@@ -399,35 +519,82 @@ public class LibraryModelConverter {
     }
 
     /**
+     * Converts a {@link TypeSymbol} to a {@link Type} POJO with internal/external type links.
+     * Used for annotation constraint types in the definition catalog; mirrors the return-type
+     * handling in {@link #functionDataToModel}.
+     *
+     * @param typeSymbol     the type symbol to convert
+     * @param currentOrg     the current package organization
+     * @param currentPackage the current package name
+     * @return the Type POJO, or {@code null} when the symbol is {@code null}
+     */
+    public static Type typeSymbolToModel(TypeSymbol typeSymbol, String currentOrg, String currentPackage) {
+        if (typeSymbol == null) {
+            return null;
+        }
+
+        String typeName = typeSymbol.signature();
+        String simpleTypeName = shortenTypeName(typeName, currentOrg, currentPackage);
+
+        boolean isGenericType = simpleTypeName != null && simpleTypeName.contains("<");
+        boolean isPrimitiveType = isPrimitiveOrDefaultType(simpleTypeName);
+
+        String nameToUse = simpleTypeName;
+        List<TypeLink> links = null;
+        if (!isGenericType && !isPrimitiveType && currentOrg != null && currentPackage != null) {
+            links = extractTypeLinksFromSymbol(typeSymbol, currentOrg, currentPackage);
+            links = TypeLinkBuilder.filterInternalExternal(links);
+            if (links != null && !links.isEmpty()) {
+                nameToUse = simplifyTypeSignature(
+                        extractRecordName(typeSymbol), currentOrg, currentPackage);
+            }
+        }
+
+        Type type = new Type(nameToUse);
+        if (links != null && !links.isEmpty()) {
+            type.setLinks(links);
+        }
+        return type;
+    }
+
+    /**
      * Converts an init method (constructor) to LibraryFunction POJO.
      *
      * @param classSymbol    the class symbol
      * @return LibraryFunction POJO for the constructor
      */
-    public static LibraryFunction initMethodToModel(ClassSymbol classSymbol,
-                                                    LibraryFunction constructor) {
+    public static Optional<LibraryFunction> initMethodToModel(ClassSymbol classSymbol,
+                                                              LibraryFunction constructor,
+                                                              String currentOrg,
+                                                              String currentPackage) {
+        Optional<MethodSymbol> initMethod = classSymbol.initMethod();
+        if (initMethod.isEmpty()) {
+            // The class declares no constructor: it is instantiated inside the module (typically by
+            // an `external` implementation), so there is nothing a caller could invoke. The
+            // constructor passed in was derived from class-level data and carries the class's own
+            // type as its "return", which would advertise a public constructor that does not exist.
+            return Optional.empty();
+        }
+
         // Set name to "init"
         constructor.setName("init");
 
-        Optional<MethodSymbol> initMethod = classSymbol.initMethod();
-        if (initMethod.isPresent()) {
-            FunctionSymbol functionSymbol = initMethod.get();
-            // Set return description from documentation
-            constructor.setDescription(functionSymbol.documentation().
-                    flatMap(Documentation::description).orElse(""));
-            // Create and set return info using the helper method
-            functionSymbol.documentation().ifPresent(doc -> {
-                Return returnInfo = createReturnInfo(doc);
-                // Add type information
-                Type returnType = new Type();
-                functionSymbol.typeDescriptor().returnTypeDescriptor().ifPresent(returnTypeSymbol -> {
-                    returnType.setName(returnTypeSymbol.signature());
-                });
-                returnInfo.setType(returnType);
-                constructor.setReturnInfo(returnInfo);
-            });
-        }
-        return constructor;
+        FunctionSymbol functionSymbol = initMethod.get();
+        // Set return description from documentation
+        constructor.setDescription(functionSymbol.documentation().
+                flatMap(Documentation::description).orElse(""));
+        // Create and set return info using the helper method
+        functionSymbol.documentation().ifPresent(doc -> {
+            Return returnInfo = createReturnInfo(doc);
+            // Add type information
+            Type returnType = new Type();
+            functionSymbol.typeDescriptor().returnTypeDescriptor().ifPresent(returnTypeSymbol ->
+                    returnType.setName(simplifyTypeSignature(returnTypeSymbol.signature(),
+                            currentOrg, currentPackage)));
+            returnInfo.setType(returnType);
+            constructor.setReturnInfo(returnInfo);
+        });
+        return Optional.of(constructor);
     }
 
     /**

@@ -20,7 +20,7 @@
     "metadata": {
       "label": "basicAck",
       "description": "Acknowledges one or several received messages.\n```ballerina\ncheck caller->basicAck(true);\n```\n",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.3.1.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png"
     },
     "codedata": {
       "node": "REMOTE_ACTION_CALL",
