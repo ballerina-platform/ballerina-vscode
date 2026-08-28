@@ -438,11 +438,9 @@ const USAGE_MENU_SIZE = 24;
 const USAGE_ROW_HIT_RIGHT_X = 243;
 const USAGE_ROW_HIT_HEIGHT = 48;
 const TOOL_LABEL_X = 110;
-const TOOL_LABEL_CHAR_WIDTH = 7.4;
-const TOOL_LABEL_MAX_CHARS = 21;
+const TOOL_ROW_RIGHT_X = 300;
 const TOOL_MENU_SIZE = 24;
 const TOOL_MENU_GAP = 6;
-const TOOL_COLUMN_RIGHT_X = 300;
 const NODE_EDGE_LEFT_X = 300;
 const NODE_EDGE_RIGHT_X = 0;
 const EDGE_ADD_DOT_R = 3;
@@ -451,15 +449,6 @@ const EDGE_ADD_PLUS_CX = 31;
 const EDGE_ADD_PLUS_R = 9;
 const EDGE_ADD_LABEL_GAP = 8;
 const EDGE_ADD_HIT_WIDTH = 170;
-
-const toolLabel = (name: string) =>
-    name.length > TOOL_LABEL_MAX_CHARS ? `${name.slice(0, TOOL_LABEL_MAX_CHARS - 3)}...` : name;
-
-const toolMenuX = (name: string) =>
-    Math.min(
-        TOOL_LABEL_X + toolLabel(name).length * TOOL_LABEL_CHAR_WIDTH + TOOL_MENU_GAP,
-        TOOL_COLUMN_RIGHT_X - TOOL_MENU_SIZE - TOOL_MENU_GAP
-    );
 
 const usageFadeIn = (delay: number) => css`
     animation: ${usageRowFadeIn} 260ms ease-out both;
@@ -1610,8 +1599,8 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                             &:hover foreignObject .connector-icon path {
                                 fill: ${ThemeColors.SECONDARY};
                             }
-                            &:hover text {
-                                fill: ${ThemeColors.SECONDARY};
+                            &:hover .tool-label {
+                                color: ${ThemeColors.SECONDARY};
                             }
                             &:hover .tool-tooltip {
                                 opacity: 1;
@@ -1677,68 +1666,71 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                 </div>
                             </foreignObject>
 
-                            <text
-                                x={TOOL_LABEL_X}
-                                y="28"
-                                textAnchor="start"
-                                fill={ThemeColors.ON_SURFACE}
-                                fontSize="14px"
-                                fontFamily="GilmerRegular"
-                                dominantBaseline="middle"
-                            >
-                                {toolLabel(tool.name)}
-                                <title>{tool.name}</title>
-                            </text>
-
                             {!toolsReadOnly && (
-                                <>
-                                    <foreignObject
-                                        x="60"
-                                        y="0"
-                                        width="220"
-                                        height="48"
-                                        css={css`
+                                <foreignObject
+                                    x="60"
+                                    y="0"
+                                    width="220"
+                                    height="48"
+                                    css={css`
                                         pointer-events: all;
-                                        &:hover + .tool-menu-button {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
                                     `}
-                                    >
-                                        <div style={{ width: "100%", height: "100%" }} />
-                                    </foreignObject>
-                                    <foreignObject
-                                        x={toolMenuX(tool.name)}
-                                        y="14"
-                                        width={TOOL_MENU_SIZE}
-                                        height={TOOL_MENU_SIZE}
-                                        className="tool-menu-button"
+                                >
+                                    <div style={{ width: "100%", height: "100%" }} />
+                                </foreignObject>
+                            )}
+
+                            <foreignObject
+                                x={TOOL_LABEL_X}
+                                y="4"
+                                width={TOOL_ROW_RIGHT_X - TOOL_LABEL_X}
+                                height="48"
+                            >
+                                <div
+                                    css={css`
+                                        display: flex;
+                                        align-items: center;
+                                        gap: ${TOOL_MENU_GAP}px;
+                                        height: 100%;
+                                        font-family: "GilmerRegular";
+                                        font-size: 14px;
+                                    `}
+                                >
+                                    <span
+                                        className="tool-label"
+                                        title={tool.name}
                                         css={css`
-                                        opacity: 0;
-                                        visibility: hidden;
-                                        transition: opacity 0.2s ease-in-out;
-                                        pointer-events: all;
-                                        &:hover {
-                                            opacity: 1;
-                                            visibility: visible;
-                                        }
-                                    `}
+                                            min-width: 0;
+                                            overflow: hidden;
+                                            text-overflow: ellipsis;
+                                            white-space: nowrap;
+                                            color: ${ThemeColors.ON_SURFACE};
+                                        `}
                                     >
+                                        {tool.name}
+                                    </span>
+                                    {!toolsReadOnly && (
                                         <NodeStyles.MenuButton
                                             appearance="icon"
+                                            className="tool-menu-button"
                                             onClick={(e) => handleToolMenuClick(e, tool)}
                                             css={css`
-                                            padding: 2px;
-                                            height: 24px;
-                                            width: 24px;
-                                            min-width: 24px;
-                                        `}
+                                                flex-shrink: 0;
+                                                padding: 2px;
+                                                height: ${TOOL_MENU_SIZE}px;
+                                                width: ${TOOL_MENU_SIZE}px;
+                                                min-width: ${TOOL_MENU_SIZE}px;
+                                                opacity: 0;
+                                                visibility: hidden;
+                                                transition: opacity 0.2s ease-in-out;
+                                                pointer-events: all;
+                                            `}
                                         >
                                             <MoreVertIcon />
                                         </NodeStyles.MenuButton>
-                                    </foreignObject>
-                                </>
-                            )}
+                                    )}
+                                </div>
+                            </foreignObject>
 
                             {/* Rendered after the hover-detection overlay above (it spans the same corner
                                 with pointer-events: all) so the badge paints on top and still gets hover. */}
