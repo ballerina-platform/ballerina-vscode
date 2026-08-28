@@ -78,7 +78,7 @@ import { EntryPointTypeCreator } from "../../../../components/EntryPointTypeCrea
 import React from "react";
 import { BreadcrumbContainer, BreadcrumbItem, BreadcrumbSeparator } from "../FlowNodeForm";
 import { EditorContext, StackItem } from "@wso2/type-editor";
-import DynamicModal from "../../../../components/Modal";
+import DynamicModal, { MODAL_BACKDROP } from "../../../../components/Modal";
 import { useModalStack } from "../../../../Context";
 import { deserializeForDiagnosticsAPI } from "../form-utils";
 import { FormHostCapabilitiesContext } from "../formHostCapabilities";
@@ -1156,6 +1156,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
                     anchorRef={undefined}
                     title="Create New Type"
                     openState={typeEditorState.isOpen}
+                    sx={i === 0 ? { backgroundColor: MODAL_BACKDROP } : undefined}
                     setOpenState={handleTypeEditorStateChange}>
                     {stack.slice(0, i + 1).length > 1 && (
                         <BreadcrumbContainer>

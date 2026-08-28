@@ -10,39 +10,21 @@
     "offset": 0
   },
   "response": {
-    "id": "grpc",
-    "name": "GRPC Service",
+    "id": "0",
+    "name": "Grpc",
     "type": "grpc",
-    "displayName": "GRPC Service",
+    "displayName": "Grpc",
     "moduleName": "grpc",
     "orgName": "ballerina",
+    "version": "1.14.2",
     "packageName": "grpc",
     "listenerProtocol": "grpc",
     "icon": "https://bcentral-packageicons.azureedge.net/images/ballerina_grpc_1.14.2.png",
-    "documentation": {
-      "metadata": {
-        "label": "Description",
-        "description": "The description of the class"
-      },
-      "codedata": {
-        "type": "DOCUMENTATION"
-      },
-      "types": [
-        {
-          "fieldType": "TEXT",
-          "selected": true
-        }
-      ],
-      "enabled": true,
-      "editable": true,
-      "optional": true,
-      "advanced": false
-    },
     "properties": {
       "listener": {
         "metadata": {
-          "label": "Listener",
-          "description": "The Listener to be bound with the service"
+          "label": "Listeners",
+          "description": "The Listeners to be bound with the service"
         },
         "codedata": {
           "type": "LISTENER"
@@ -73,14 +55,107 @@
         },
         "types": [
           {
-            "fieldType": "SINGLE_SELECT_LISTENER",
-            "options": [],
+            "fieldType": "MULTIPLE_SELECT_LISTENER",
+            "options": [
+              {
+                "label": "new grpc:Listener(9090)",
+                "value": "new grpc:Listener(9090)"
+              }
+            ],
             "selected": true
           }
         ],
         "enabled": true,
         "editable": true,
         "optional": false,
+        "advanced": false
+      },
+      "serviceType": {
+        "metadata": {
+          "label": "Service",
+          "description": "A gRPC service generated from a proto definition. One remote method per RPC, its calling convention (unary or streaming in either direction) determined by its params and return shape."
+        },
+        "placeholder": "grpc:Service",
+        "value": "Service",
+        "types": [
+          {
+            "fieldType": "TYPE",
+            "selected": true
+          }
+        ],
+        "enabled": false,
+        "editable": false,
+        "optional": false,
+        "advanced": false
+      },
+      "descriptor": {
+        "metadata": {
+          "label": "Descriptor",
+          "description": "Configuration for this service"
+        },
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "Descriptor",
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "optional": false
+        },
+        "placeholder": "{}",
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "grpc:DescriptorData",
+            "typeMembers": [
+              {
+                "type": "DescriptorData",
+                "packageInfo": "ballerina:grpc:1.14.2",
+                "packageName": "grpc",
+                "kind": "RECORD_TYPE",
+                "selected": true
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": false,
+        "advanced": false
+      },
+      "serviceConfig": {
+        "metadata": {
+          "label": "Service Config",
+          "description": "Configuration for this service"
+        },
+        "codedata": {
+          "type": "ANNOTATION_ATTACHMENT",
+          "originalName": "ServiceConfig",
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "optional": true
+        },
+        "placeholder": "{}",
+        "types": [
+          {
+            "fieldType": "RECORD_MAP_EXPRESSION",
+            "ballerinaType": "grpc:GrpcServiceConfig",
+            "typeMembers": [
+              {
+                "type": "GrpcServiceConfig",
+                "packageInfo": "ballerina:grpc:1.14.2",
+                "packageName": "grpc",
+                "kind": "RECORD_TYPE",
+                "selected": true
+              }
+            ],
+            "selected": true
+          }
+        ],
+        "enabled": true,
+        "editable": true,
+        "optional": true,
         "advanced": false
       },
       "stringLiteral": {
@@ -358,7 +433,7 @@
           "advanced": false
         },
         "enabled": true,
-        "optional": false,
+        "optional": true,
         "editable": false,
         "canAddParameters": true,
         "codedata": {
@@ -375,6 +450,648 @@
           }
         },
         "properties": {}
+      }
+    ],
+    "schemaFunctions": [
+      {
+        "metadata": {
+          "label": "Handler",
+          "description": "Handles a simple RPC, one request message in and one response message out. The method name is the RPC name from the proto definition. Return the response directly, or take a caller and send through it, in which case the method returns error? instead."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "Handler",
+            "description": "Handles a simple RPC, one request message in and one response message out. The method name is the RPC name from the proto definition. Return the response directly, or take a caller and send through it, in which case the method returns error? instead."
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Caller",
+              "description": "The caller object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "grpc:Caller",
+              "value": "grpc:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Caller",
+                "description": "The caller object."
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
+          {
+            "metadata": {
+              "label": "Request",
+              "description": "The request object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "anydata",
+              "value": "anydata",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Request",
+                "description": "The request object."
+              },
+              "placeholder": "request",
+              "value": "request",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "anydata|error|()?",
+          "value": "anydata|error|()?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "version": "1.14.2"
+        },
+        "properties": {},
+        "group": "",
+        "addLabel": "Add Handler",
+        "repeatable": "FALSE",
+        "nameEditable": true
+      },
+      {
+        "metadata": {
+          "label": "Handler",
+          "description": "Handles a server streaming RPC, one request message in and a stream of response messages out. Return the stream directly, or take a caller and send each message through it, in which case the method returns error? instead."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "Handler",
+            "description": "Handles a server streaming RPC, one request message in and a stream of response messages out. Return the stream directly, or take a caller and send each message through it, in which case the method returns error? instead."
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Caller",
+              "description": "The caller object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "grpc:Caller",
+              "value": "grpc:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Caller",
+                "description": "The caller object."
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
+          {
+            "metadata": {
+              "label": "Request",
+              "description": "The request object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "anydata",
+              "value": "anydata",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Request",
+                "description": "The request object."
+              },
+              "placeholder": "request",
+              "value": "request",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "stream<anydata, grpc:Error|()>|error|()?",
+          "value": "stream<anydata, grpc:Error|()>|error|()?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "version": "1.14.2"
+        },
+        "properties": {},
+        "group": "",
+        "addLabel": "Add Handler",
+        "repeatable": "FALSE",
+        "nameEditable": true
+      },
+      {
+        "metadata": {
+          "label": "Handler",
+          "description": "Handles a client streaming RPC, a stream of request messages in and one response message out. Return the response directly, or take a caller and send through it, in which case the method returns error? instead."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "Handler",
+            "description": "Handles a client streaming RPC, a stream of request messages in and one response message out. Return the response directly, or take a caller and send through it, in which case the method returns error? instead."
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Caller",
+              "description": "The caller object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "grpc:Caller",
+              "value": "grpc:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Caller",
+                "description": "The caller object."
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
+          {
+            "metadata": {
+              "label": "Client Stream",
+              "description": "The inbound request messages, consumed as a stream."
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "stream<anydata, grpc:Error|()>",
+              "value": "stream<anydata, grpc:Error|()>",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Client Stream",
+                "description": "The inbound request messages, consumed as a stream."
+              },
+              "placeholder": "clientStream",
+              "value": "clientStream",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "anydata|error|()?",
+          "value": "anydata|error|()?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "version": "1.14.2"
+        },
+        "properties": {},
+        "group": "",
+        "addLabel": "Add Handler",
+        "repeatable": "FALSE",
+        "nameEditable": true
+      },
+      {
+        "metadata": {
+          "label": "Handler",
+          "description": "Handles a bidirectional streaming RPC, with request and response messages flowing independently in both directions. Taking a caller is the practical form here, since it lets responses be sent while the request stream is still being consumed."
+        },
+        "kind": "REMOTE",
+        "name": {
+          "metadata": {
+            "label": "Handler",
+            "description": "Handles a bidirectional streaming RPC, with request and response messages flowing independently in both directions. Taking a caller is the practical form here, since it lets responses be sent while the request stream is still being consumed."
+          },
+          "placeholder": "",
+          "value": "",
+          "types": [
+            {
+              "fieldType": "IDENTIFIER",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": true,
+          "optional": false,
+          "advanced": false
+        },
+        "parameters": [
+          {
+            "metadata": {
+              "label": "Caller",
+              "description": "The caller object."
+            },
+            "kind": "OPTIONAL",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "grpc:Caller",
+              "value": "grpc:Caller",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Caller",
+                "description": "The caller object."
+              },
+              "placeholder": "caller",
+              "value": "caller",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": false,
+            "editable": true,
+            "optional": true,
+            "advanced": true,
+            "hidden": false,
+            "isGraphqlId": false
+          },
+          {
+            "metadata": {
+              "label": "Client Stream",
+              "description": "The inbound request messages, consumed as a stream."
+            },
+            "kind": "REQUIRED",
+            "type": {
+              "metadata": {
+                "label": "Parameter Type",
+                "description": "The type of the parameter"
+              },
+              "placeholder": "stream<anydata, grpc:Error|()>",
+              "value": "stream<anydata, grpc:Error|()>",
+              "types": [
+                {
+                  "fieldType": "TYPE",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": true,
+              "advanced": false
+            },
+            "name": {
+              "metadata": {
+                "label": "Client Stream",
+                "description": "The inbound request messages, consumed as a stream."
+              },
+              "placeholder": "clientStream",
+              "value": "clientStream",
+              "types": [
+                {
+                  "fieldType": "IDENTIFIER",
+                  "selected": true
+                }
+              ],
+              "enabled": true,
+              "editable": false,
+              "optional": false,
+              "advanced": false
+            },
+            "enabled": true,
+            "editable": true,
+            "optional": false,
+            "advanced": false,
+            "hidden": false,
+            "isGraphqlId": false
+          }
+        ],
+        "returnType": {
+          "hasError": true,
+          "isGraphqlId": false,
+          "metadata": {
+            "label": "Return Type",
+            "description": "The return type of the function."
+          },
+          "placeholder": "stream<anydata, grpc:Error|()>|error|()?",
+          "value": "stream<anydata, grpc:Error|()>|error|()?",
+          "types": [
+            {
+              "fieldType": "TYPE",
+              "selected": true
+            }
+          ],
+          "enabled": true,
+          "editable": false,
+          "optional": true,
+          "advanced": false
+        },
+        "enabled": false,
+        "optional": true,
+        "editable": true,
+        "canAddParameters": false,
+        "codedata": {
+          "orgName": "ballerina",
+          "packageName": "grpc",
+          "moduleName": "grpc",
+          "version": "1.14.2"
+        },
+        "properties": {},
+        "group": "",
+        "addLabel": "Add Handler",
+        "repeatable": "FALSE",
+        "nameEditable": true
       }
     ]
   }

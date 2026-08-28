@@ -18,8 +18,11 @@
 
 package io.ballerina.flowmodelgenerator.core.copilot.service;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Listener;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Parameter;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Return;
+import io.ballerina.flowmodelgenerator.core.copilot.model.Service;
+import io.ballerina.flowmodelgenerator.core.copilot.model.ServiceRemoteFunction;
 import io.ballerina.modelgenerator.commons.FunctionData;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import io.ballerina.modelgenerator.commons.ServiceDatabaseManager;
@@ -59,10 +62,10 @@ class ServiceIndexLoader {
      * deprecation flags post-load; the SQLite index does not store deprecation.
      *
      * @param libraryName the library name (e.g., "ballerinax/kafka")
-     * @return JsonArray containing services, or empty array on failure
+     * @return the services, or an empty list on failure
      */
-    static JsonArray loadFromServiceIndex(String libraryName) {
-        JsonArray services = new JsonArray();
+    static List<Service> loadFromServiceIndex(String libraryName) {
+        List<Service> services = new ArrayList<>();
 
         String packageName = stripOrg(libraryName);
         String org = libraryName.contains("/")
@@ -82,28 +85,29 @@ class ServiceIndexLoader {
             int listenerId = listenerData.functionId();
             int packageId = Integer.parseInt(listenerData.packageId());
 
-            JsonObject listenerJson = buildListenerFromDb(db, packageName, listenerId);
+            Listener listener = buildListenerFromDb(db, packageName, listenerId);
 
             List<String> serviceTypes = db.getServiceTypes(packageId);
 
             if (serviceTypes.isEmpty()) {
                 // No service types: emit single entry with just listener, no methods
-                JsonObject svc = new JsonObject();
-                svc.addProperty("type", "fixed");
-                svc.add("listener", listenerJson);
+                Service svc = new Service();
+                svc.setType("fixed");
+                svc.setListener(listener);
                 services.add(svc);
                 return services;
             }
 
             for (String serviceTypeName : serviceTypes) {
-                JsonObject svc = new JsonObject();
-                svc.addProperty("type", "fixed");
-                svc.addProperty("name", serviceTypeName);
-                svc.add("listener", listenerJson);
+                Service svc = new Service();
+                svc.setType("fixed");
+                svc.setName(serviceTypeName);
+                svc.setListener(listener);
 
-                JsonArray methods = buildMethodsFromDb(db, packageId, serviceTypeName, packageName);
+                List<ServiceRemoteFunction> methods =
+                        buildMethodsFromDb(db, packageId, serviceTypeName, packageName);
                 if (!methods.isEmpty()) {
-                    svc.add("methods", methods);
+                    svc.setMethods(methods);
                 }
 
                 services.add(svc);
@@ -111,18 +115,18 @@ class ServiceIndexLoader {
         } catch (RuntimeException e) {
             LOGGER.warning("Failed to load services from service-index for " + libraryName
                     + ": " + e.getMessage());
-            return new JsonArray();
+            return new ArrayList<>();
         }
 
         return services;
     }
 
-    private static JsonObject buildListenerFromDb(ServiceDatabaseManager db, String packageName,
+    private static Listener buildListenerFromDb(ServiceDatabaseManager db, String packageName,
                                                    int listenerId) {
-        JsonObject listenerObj = new JsonObject();
-        listenerObj.addProperty("name", getAlias(packageName) + ":Listener");
+        Listener listener = new Listener();
+        listener.setName(getAlias(packageName) + ":Listener");
 
-        JsonArray parametersArray = new JsonArray();
+        List<Parameter> parameters = new ArrayList<>();
         LinkedHashMap<String, ParameterData> params = db.getFunctionParametersAsMap(listenerId);
 
         for (ParameterData param : params.values()) {
@@ -131,81 +135,82 @@ class ServiceIndexLoader {
                 continue;
             }
 
-            JsonObject paramObj = new JsonObject();
-            paramObj.addProperty("name", param.name());
-            paramObj.addProperty("description", param.description() != null ? param.description() : "");
+            Parameter parameter = new Parameter();
+            parameter.setName(param.name());
+            parameter.setDescription(param.description() != null ? param.description() : "");
 
             String typeStr = param.type() != null ? param.type() : "";
-            paramObj.add("type", TypeResolver.resolveTypeWithLinks(typeStr, packageName));
+            parameter.setType(TypeResolver.resolveTypeWithLinks(typeStr, packageName));
 
             if (param.optional()) {
-                paramObj.addProperty("optional", true);
+                parameter.setOptional(true);
             }
 
             // Use placeholder as "default" (matching how the old path maps placeholder → default)
             if (param.placeholder() != null && !param.placeholder().isEmpty()) {
-                paramObj.addProperty("default", param.placeholder());
+                parameter.setDefaultValue(param.placeholder());
             }
 
-            parametersArray.add(paramObj);
+            parameters.add(parameter);
         }
 
-        listenerObj.add("parameters", parametersArray);
-        return listenerObj;
+        listener.setParameters(parameters);
+        return listener;
     }
 
-    private static JsonArray buildMethodsFromDb(ServiceDatabaseManager db, int packageId,
+    private static List<ServiceRemoteFunction> buildMethodsFromDb(ServiceDatabaseManager db, int packageId,
                                                  String serviceTypeName, String packageName) {
-        JsonArray methods = new JsonArray();
+        List<ServiceRemoteFunction> methods = new ArrayList<>();
 
         List<ServiceTypeFunction> functions = db.getMatchingServiceTypeFunctions(packageId, serviceTypeName);
 
         for (ServiceTypeFunction fn : functions) {
-            JsonObject method = new JsonObject();
+            ServiceRemoteFunction method = new ServiceRemoteFunction();
 
             // Method name
             if (fn.name() != null && !fn.name().isEmpty()) {
-                method.addProperty("name", fn.name());
+                method.setName(fn.name());
             }
 
             // Map kind to lowercase type
             String methodType = "RESOURCE".equalsIgnoreCase(fn.kind()) ? "resource" : "remote";
-            method.addProperty("type", methodType);
+            method.setType(methodType);
 
             if (fn.description() != null && !fn.description().isEmpty()) {
-                method.addProperty("description", fn.description());
+                method.setDescription(fn.description());
             }
 
-            // Parameters
+            // Parameters. Left as the constructor's empty list when the index reports none, which is how
+            // the wire has always carried a param-less index method.
             if (fn.parameters() != null && !fn.parameters().isEmpty()) {
-                JsonArray paramsArray = new JsonArray();
+                List<Parameter> parameters = new ArrayList<>();
                 for (ServiceTypeFunction.ServiceTypeFunctionParameter p : fn.parameters()) {
-                    JsonObject paramObj = new JsonObject();
-                    paramObj.addProperty("name", p.name());
+                    Parameter parameter = new Parameter();
+                    parameter.setName(p.name());
 
                     if (p.description() != null && !p.description().isEmpty()) {
-                        paramObj.addProperty("description", p.description());
+                        parameter.setDescription(p.description());
                     }
 
                     String typeStr = p.type() != null ? p.type() : "";
-                    paramObj.add("type", TypeResolver.resolveTypeWithLinks(typeStr, packageName));
+                    parameter.setType(TypeResolver.resolveTypeWithLinks(typeStr, packageName));
 
                     // Map kind to optional flag
                     if ("OPTIONAL".equalsIgnoreCase(p.kind()) || "DEFAULTABLE".equalsIgnoreCase(p.kind())) {
-                        paramObj.addProperty("optional", true);
+                        parameter.setOptional(true);
                     }
 
-                    paramsArray.add(paramObj);
+                    parameters.add(parameter);
                 }
-                method.add("parameters", paramsArray);
+                method.setParameters(parameters);
             }
 
             // Return type
             if (fn.returnType() != null && !fn.returnType().isEmpty()) {
                 String canonicalized = canonicalizeReturnType(fn.returnType());
-                JsonObject returnObj = new JsonObject();
-                returnObj.add("type", TypeResolver.resolveTypeWithLinks(canonicalized, packageName));
-                method.add("return", returnObj);
+                Return returnValue = new Return();
+                returnValue.setType(TypeResolver.resolveTypeWithLinks(canonicalized, packageName));
+                method.setReturnInfo(returnValue);
             }
 
             methods.add(method);

@@ -33,7 +33,8 @@ import { AttachmentOptions } from "../../AIChatInput/hooks/useAttachments";
 import { getTemplateTextById } from "../../../commandTemplates/utils/utils";
 import CodeContextCard from "../../CodeContextCard";
 import { AgentMode } from "../../AIChatInput/ModeToggle";
-import { Gloss, ORB_ENERGY, Sphere, orbColors } from "../../../../../components/AgentStatusOrb/shared";
+import { AGENT_BUILDER_ORB_COLORS, Gloss, ORB_ENERGY, Sphere } from "../../../../../components/AgentStatusOrb/shared";
+import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 
 export const FooterContainer = styled.footer({
     padding: "20px 20px 12px",
@@ -172,12 +173,13 @@ function useStickyLabel(value: string, minVisibleMs = MIN_LABEL_VISIBLE_MS): str
 const LoadingIndicator: React.FC<{ label: string }> = React.memo(({ label }) => {
     const shownLabel = useStickyLabel(label);
     const agentBuilder = useProductMode() === ProductMode.AGENT_BUILDER;
+    const runningColors = useOrbColors("running");
     return (
         // aria-live sits on the stable container: the label itself remounts on
         // every change, and a replaced node is not announced.
         <LoadingIndicatorContainer aria-live="polite">
             <LoadingOrb aria-hidden="true">
-                <Sphere colors={orbColors("running", agentBuilder)} energy={ORB_ENERGY.running} />
+                <Sphere colors={agentBuilder ? AGENT_BUILDER_ORB_COLORS.running : runningColors} energy={ORB_ENERGY.running} />
                 <Gloss />
             </LoadingOrb>
             {/* Keyed so a changed label remounts and replays the enter animation. */}
@@ -249,6 +251,7 @@ type FooterProps = {
     runningServicesPanel?: RunningServicesPanel;
     skills?: SkillEntry[];
     ambientState?: AgentRunState;
+    hidden?: boolean;
 };
 
 const Footer: React.FC<FooterProps> = ({
@@ -277,6 +280,7 @@ const Footer: React.FC<FooterProps> = ({
     runningServicesPanel,
     skills,
     ambientState,
+    hidden,
 }) => {
     const productMode = useProductMode();
     const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
@@ -284,7 +288,7 @@ const Footer: React.FC<FooterProps> = ({
         suggestedCommandTemplates ?? (agentBuilder ? agentBuilderSuggestedCommandTemplates : defaultSuggestedCommandTemplates);
 
     return (
-        <FooterContainer>
+        <FooterContainer style={hidden ? { display: "none" } : undefined}>
             {showSuggestedCommands && (
                 <SuggestedCommandsWrapper>
                     {footerSuggestedCommandTemplates.map((item, index) => renderPrompt(item, index, aiChatInputRef))}

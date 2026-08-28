@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 import static io.ballerina.servicemodelgenerator.extension.util.Constants.NEW_LINE;
 
 /**
- * Builds the {@code string prompt} statement an agent trigger passes to {@code agent.run}.
+ * Builds the prompt expression an agent trigger passes directly to {@code agent.run}.
  *
  * @since 1.9.0
  */
@@ -35,19 +35,13 @@ final class AgentPromptBuilder {
     private static final String XML_TYPE = "xml";
     private static final String STRING_TYPE = "string";
 
-    private static final String PROMPT_STATEMENT = """
-            string prompt = string `{{instructions}}
-
-            {{payload}}`;""";
-
     private AgentPromptBuilder() {
     }
 
-    static String promptStatement(String instructions, String defaultInstructions, String soleLabel,
-                                  List<HandlerParameter> parameters) {
-        return PROMPT_STATEMENT
-                .replace("{{instructions}}", escapeTemplate(instructions, defaultInstructions))
-                .replace("{{payload}}", payloadSection(parameters, soleLabel));
+    static String promptExpression(String instructions, String defaultInstructions, String soleLabel,
+                                   List<HandlerParameter> parameters) {
+        return "string `" + escapeTemplate(instructions, defaultInstructions)
+                + payloadSection(parameters, soleLabel) + "`";
     }
 
     private static String payloadSection(List<HandlerParameter> parameters, String soleLabel) {
@@ -55,12 +49,13 @@ final class AgentPromptBuilder {
         if (carried.isEmpty()) {
             return "";
         }
+        String separator = NEW_LINE + NEW_LINE;
         if (carried.size() == 1) {
-            return soleLabel + ":" + NEW_LINE + interpolate(carried.getFirst());
+            return separator + soleLabel + ":" + NEW_LINE + interpolate(carried.getFirst());
         }
-        return carried.stream()
+        return separator + carried.stream()
                 .map(parameter -> parameter.name() + ":" + NEW_LINE + interpolate(parameter))
-                .collect(Collectors.joining(NEW_LINE + NEW_LINE));
+                .collect(Collectors.joining(separator));
     }
 
     private static String interpolate(HandlerParameter parameter) {

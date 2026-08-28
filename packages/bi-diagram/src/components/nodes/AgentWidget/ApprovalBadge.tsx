@@ -49,7 +49,7 @@ export function ApprovalBadge({ background }: ApprovalBadgeProps) {
                         color: ${ThemeColors.SECONDARY};
                     `}
                 >
-                    <Icon name="bi-shield" sx={{ fontSize: 10, width: 10, height: 10 }} iconSx={{ fontSize: "10px" }} />
+                    <Icon name="user-fill" sx={{ fontSize: 11, width: 11, height: 11 }} iconSx={{ fontSize: "11px" }} />
                 </div>
             </Tooltip>
         </foreignObject>

@@ -19,10 +19,11 @@
 import React from 'react';
 import styled from '@emotion/styled';
 import { Divider, ThemeColors, Typography } from '@wso2/ui-toolkit';
-import { ConfigProperties, FunctionModel, ParameterModel, PropertyModel, ReturnTypeModel } from '@wso2/ballerina-core';
+import { ConfigProperties, FunctionModel, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, ReturnTypeModel } from '@wso2/ballerina-core';
 import { ResourcePath } from './ResourceForm/ResourcePath/ResourcePath';
 import { Parameters } from './ResourceForm/Parameters/Parameters';
 import { ResourceResponse } from './ResourceForm/ResourceResponse/ResourceResponse';
+import { applyMethod } from '../utils';
 import { HTTP_METHOD } from '../utils';
 
 const Fields = styled.div`
@@ -88,7 +89,7 @@ export function PromptContinuation(props: PromptContinuationProps) {
                             {` \u27e8${type} value at request time\u27e9`}
                         </React.Fragment>
                     ))
-                    : <Placeholder>{"\u27e8 nothing - add a parameter above to send request data \u27e9"}</Placeholder>}
+                    : <Placeholder>Add a parameter to send request data to the agent.</Placeholder>}
             </ContinuationBody>
         </Continuation>
     );
@@ -105,7 +106,8 @@ function appendedParameters(model: FunctionModel): { name: string; type: string 
 
     const seen = new Set(fromPath.map((parameter) => parameter.name));
     const fromList = (model.parameters ?? [])
-        .filter((parameter) => parameter.enabled && parameter.name?.value && parameter.type?.value)
+        .filter((parameter) => parameter.enabled && parameter.httpParamType !== "HEADER"
+            && parameter.name?.value && parameter.type?.value)
         .map((parameter) => ({ name: parameter.name.value, type: parameter.type.value }))
         .filter((parameter) => !seen.has(parameter.name));
 
@@ -116,15 +118,18 @@ export interface AgentEndpointFieldsProps {
     model: FunctionModel;
     onChange: (model: FunctionModel) => void;
     onError: (hasErrors: boolean) => void;
+    existingResources?: ProjectStructureArtifactResponse[];
 }
 
 export function AgentEndpointFields(props: AgentEndpointFieldsProps) {
-    const { model, onChange, onError } = props;
+    const { model, onChange, onError, existingResources } = props;
 
     const update = (patch: Partial<FunctionModel>) => onChange({ ...model, ...patch });
 
-    const onPathChange = (method: PropertyModel, path: PropertyModel) =>
-        update({ accessor: method, name: path });
+    const onPathChange = (method: PropertyModel, path: PropertyModel) => {
+        const withMethod = applyMethod({ ...model, name: path }, method.value ?? "");
+        onChange({ ...withMethod, accessor: method });
+    };
 
     const acceptsPayload = Boolean(model.accessor?.value) && model.accessor.value.toUpperCase() !== "GET";
 
@@ -135,6 +140,9 @@ export function AgentEndpointFields(props: AgentEndpointFieldsProps) {
                 path={model.name}
                 onChange={onPathChange}
                 onError={onError}
+                existingResources={existingResources}
+                isNew={true}
+                fixedMethod={false}
             />
             <Divider />
             <Parameters

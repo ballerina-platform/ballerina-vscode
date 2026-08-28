@@ -21,15 +21,15 @@ import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { Icon, Typography } from "@wso2/ui-toolkit";
 import React, { useCallback, useState } from "react";
 import { ShaderOrb } from "../../../../../components/AgentStatusOrb/ShaderOrb";
+import { useOrbColors } from "../../../../../components/AgentStatusOrb/orbTheme";
 import {
     ACCENT_CORE,
     ACCENT_FRAME,
+    AGENT_BUILDER_ORB_COLORS,
     Gloss,
     IconOverlay,
-    ORB_COLORS,
     ORB_ENERGY,
     Sphere,
-    orbColors,
 } from "../../../../../components/AgentStatusOrb/shared";
 import { useAssistantName, useProductMode } from "../../../../../hooks/useProductMode";
 import { ProductMode } from "@wso2/ballerina-core";
@@ -79,7 +79,7 @@ const WelcomeOrbHalo = styled.div<{ accent?: boolean }>`
         background: ${(props: { accent?: boolean }) =>
         props.accent
             ? `radial-gradient(circle, color-mix(in srgb, ${ACCENT_FRAME[1]} 30%, transparent), color-mix(in srgb, ${ACCENT_FRAME[0]} 12%, transparent) 42%, transparent 70%)`
-            : "radial-gradient(circle, rgba(107, 92, 232, 0.28), rgba(241, 78, 35, 0.12) 42%, transparent 70%)"};
+            : "radial-gradient(circle, color-mix(in srgb, var(--vscode-button-background) 28%, transparent), transparent 70%)"};
         filter: blur(8px);
         pointer-events: none;
     }
@@ -142,6 +142,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
     const productMode = useProductMode();
     const agentBuilder = productMode === ProductMode.AGENT_BUILDER;
     const assistantName = useAssistantName();
+    const idleColors = useOrbColors("idle");
 
     return (
         <PanelWrapper>
@@ -151,13 +152,13 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                     <WelcomeOrb role="img" aria-label={assistantName}>
                         {webglFailed || agentBuilder ? (
                             <Sphere
-                                colors={orbColors("idle", agentBuilder)}
+                                colors={agentBuilder ? AGENT_BUILDER_ORB_COLORS.idle : idleColors}
                                 energy={ORB_ENERGY.idle}
                                 highlightColor={agentBuilder ? ACCENT_CORE : undefined}
                             />
                         ) : (
                             <ShaderOrb
-                                colors={ORB_COLORS.idle}
+                                colors={idleColors}
                                 energy={ORB_ENERGY.idle}
                                 size={WELCOME_ORB_SIZE}
                                 onContextFailed={handleWebglFailed}
@@ -168,7 +169,7 @@ const WelcomeMessage: React.FC<WelcomeMessageProps> = ({ isOnboarding = false })
                             <Icon
                                 name="bi-ai-chat"
                                 sx={{ width: 24, height: 24 }}
-                                iconSx={{ fontSize: "24px", color: "#ffffff", cursor: "default" }}
+                                iconSx={{ fontSize: "24px", color: "var(--vscode-button-foreground)", cursor: "default" }}
                             />
                         </IconOverlay>
                     </WelcomeOrb>

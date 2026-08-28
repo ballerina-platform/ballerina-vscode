@@ -1785,6 +1785,8 @@ export interface VerifyTypeDeleteResponse {
 
 export interface GetTypesResponse {
     types: Type[];
+    errorMsg?: string;
+    stacktrace?: string;
 }
 
 export interface GetTypeResponse {

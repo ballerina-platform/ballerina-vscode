@@ -19,6 +19,7 @@
 package io.ballerina.servicemodelgenerator.extension.connector;
 
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
+import io.ballerina.servicemodelgenerator.extension.util.ModuleAliasResolver;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,10 +79,15 @@ public final class AnnotationEmitter {
     /** {@code @<module>:<name> <value>} — the node's own value is already the complete attachment body. */
     private static String emitWholeValueAnnotation(TriggerUISchemaModel.Property node) {
         TriggerUISchemaModel.Codedata cd = node.codedata();
-        String module = cd.moduleName();
+        String module = qualifierModule(cd.moduleName());
         String name = cd.originalName();
         String prefix = module == null || module.isBlank() ? "@" + name : "@" + module + ":" + name;
         return prefix + " " + node.value();
+    }
+
+    /** A module's natural import prefix (last dot-segment, e.g. {@code aws.sqs} -> {@code sqs}). */
+    private static String qualifierModule(String moduleName) {
+        return moduleName == null || moduleName.isBlank() ? null : ModuleAliasResolver.selfPrefix(moduleName);
     }
 
     /** The rendered annotation attachment, or empty when {@link #annotationBody} has nothing to emit. */
@@ -91,7 +97,7 @@ public final class AnnotationEmitter {
             return Optional.empty();
         }
         TriggerUISchemaModel.Codedata cd = node.codedata();
-        String module = cd.moduleName();
+        String module = qualifierModule(cd.moduleName());
         String name = cd.originalName();
         String prefix = module == null || module.isBlank() ? "@" + name : "@" + module + ":" + name;
         return Optional.of(prefix + " " + body.get());

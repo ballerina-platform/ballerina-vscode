@@ -153,6 +153,12 @@ public class AgentTriggerServiceBuilder extends SchemaDrivenServiceBuilder {
                 formValues.get(AGENT_NAME_PROPERTY), formValues.getOrDefault(AGENT_ORG_PROPERTY, BALLERINA_ORG),
                 formValues, filledModel, triggerModel);
 
+        Optional<List<TextEdit>> appended = channel.appendToExistingService(rootNode, channelContext);
+        if (appended.isPresent()) {
+            edits.addAll(appended.get());
+            return withAuxiliaryEdits(filePath, edits, channelContext);
+        }
+
         Optional<ServiceDeclarationNode> existing = listener.declaration() != null ? Optional.empty()
                 : findService(rootNode, listener.varName(), channelContext.serviceDescriptor());
         Optional<AgentTriggerChannel.HandlerBinding> binding = channel.handlerBinding(channelContext);

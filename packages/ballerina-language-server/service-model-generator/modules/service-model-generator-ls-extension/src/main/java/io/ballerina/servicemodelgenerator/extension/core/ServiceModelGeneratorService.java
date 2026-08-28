@@ -102,6 +102,7 @@ import io.ballerina.servicemodelgenerator.extension.util.ServiceClassUtil;
 import io.ballerina.servicemodelgenerator.extension.util.TriggerSearchUtil;
 import io.ballerina.servicemodelgenerator.extension.util.TypeCompletionGenerator;
 import io.ballerina.servicemodelgenerator.extension.util.Utils;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 import io.ballerina.servicemodelgenerator.extension.validation.SaveTimeValidator;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationContext;
 import io.ballerina.servicemodelgenerator.extension.validation.ValidationEngine;
@@ -1170,6 +1171,8 @@ public class ServiceModelGeneratorService implements ExtendedLanguageServerServi
                         request.serviceInitModel(), semanticModel.get(), project, workspaceManager,
                         request.filePath(), document.get());
                 return new CommonSourceResponse(textEdits, validations);
+            } catch (GenerationRefusedException e) {
+                return CommonSourceResponse.validationFailure(List.of(e.toValidationResult()));
             } catch (Throwable e) {
                 return new CommonSourceResponse(e);
             }

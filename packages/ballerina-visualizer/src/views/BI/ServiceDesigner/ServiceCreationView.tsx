@@ -23,7 +23,7 @@ import { TitleBar } from "../../../components/TitleBar";
 import { isBetaModule } from "../ComponentListView/componentListUtils";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
 import { FormField, FormImports, FormValues } from "@wso2/ballerina-side-panel";
-import { EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, LineRange, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
+import { DIRECTORY_MAP, EVENT_TYPE, FunctionModel, hasBlockingValidationErrors, isSamePath, LineRange, ParameterModel, ProjectStructureArtifactResponse, PropertyModel, RecordTypeField, ServiceInitModel, ValidationResult } from "@wso2/ballerina-core";
 import { FormHeader } from "../../../components/FormHeader";
 import ArtifactForm from "../Forms/ArtifactForm";
 import { AgentEndpointFields, PromptContinuation } from "./Forms/AgentEndpointFields";
@@ -31,6 +31,7 @@ import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 import { DownloadIcon } from "../../../components/DownloadIcon";
 import { RelativeLoader } from "../../../components/RelativeLoader";
+import { applyMethod } from "./utils";
 import {
     applyFormValuesToModel,
     collectRecordTypeFields,
@@ -123,6 +124,10 @@ export interface ServiceCreationViewProps {
 }
 
 const INSTRUCTIONS_KEY = "instructions";
+const CONFIGURE_ENDPOINT_KEY = "configureEndpoint";
+const EXISTING_SERVICE_KEY = "existingService";
+const JOIN_EXISTING_BRANCH = 1;
+const BASE_PATH_KEY = "basePath";
 
 interface HeaderInfo {
     title: string;
@@ -136,10 +141,49 @@ enum PullingStatus {
     ERROR = "error",
 }
 
+function findSeedableField(properties: Record<string, PropertyModel>, key: string): PropertyModel | undefined {
+    if (!properties) {
+        return undefined;
+    }
+    if (properties[key]) {
+        return properties[key];
+    }
+    for (const property of Object.values(properties)) {
+        for (const branch of property.choices ?? []) {
+            const found = findSeedableField(branch.properties as Record<string, PropertyModel>, key);
+            if (found) {
+                return found;
+            }
+        }
+        const found = findSeedableField(property.properties as Record<string, PropertyModel>, key);
+        if (found) {
+            return found;
+        }
+    }
+    return undefined;
+}
+
+function servedPathsOf(initModel: ServiceInitModel): string[] {
+    return (initModel.properties?.[CONFIGURE_ENDPOINT_KEY]?.choices?.[JOIN_EXISTING_BRANCH]
+        ?.properties?.[EXISTING_SERVICE_KEY]?.items ?? []) as string[];
+}
+
+function untakenPath(seed: string, taken: string[]): string {
+    if (!taken.includes(seed)) {
+        return seed;
+    }
+    for (let suffix = 2; ; suffix++) {
+        const candidate = `${seed}-${suffix}`;
+        if (!taken.includes(candidate)) {
+            return candidate;
+        }
+    }
+}
+
 export function ServiceCreationView(props: ServiceCreationViewProps) {
 
     const { projectPath, orgName, packageName, moduleName, version, isLocalRepository,
-        agentName, agentOrgName, isPopup, onCreated, defaultValues , collectEndpointShape } = props;
+        agentName, agentOrgName, isPopup, onCreated, defaultValues, collectEndpointShape } = props;
     const { rpcClient } = useRpcContext();
 
     const [headerInfo, setHeaderInfo] = useState<HeaderInfo>(null);
@@ -203,10 +247,11 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 return;
             }
 
+            const takenPaths = servedPathsOf(initModel);
             Object.entries(defaultValues ?? {}).forEach(([key, value]) => {
-                const field = initModel.properties?.[key];
+                const field = findSeedableField(initModel.properties, key);
                 if (field) {
-                    field.value = value;
+                    field.value = key === BASE_PATH_KEY ? untakenPath(value, takenPaths) : value;
                 }
             });
 
@@ -253,8 +298,52 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
         }
     }, [model]);
 
+function seedAgentEndpoint(shaped: FunctionModel): FunctionModel {
+    let seeded = { ...shaped };
+    if (seeded.name && !seeded.name.value) {
+        seeded.name = { ...seeded.name, value: "." };
+    }
+    if (seeded.accessor) {
+        seeded = applyMethod(seeded, "POST");
+    }
+    const payload = (seeded.schema as Record<string, ParameterModel>)?.["payload"];
+    const carries = (seeded.parameters ?? []).some((parameter) => parameter.httpParamType === "PAYLOAD");
+    if (payload && !carries) {
+        seeded.parameters = [...(seeded.parameters ?? []), {
+            ...payload,
+            enabled: true,
+            httpParamType: "PAYLOAD",
+            name: { ...payload.name, value: "payload" },
+            type: { ...payload.type, value: "string" },
+        }];
+    }
+    return seeded;
+}
+
     const [endpointModel, setEndpointModel] = useState<FunctionModel>(undefined);
     const [endpointHasErrors, setEndpointHasErrors] = useState(false);
+    const [joinedService, setJoinedService] = useState<string>(undefined);
+    const [projectServices, setProjectServices] = useState<ProjectStructureArtifactResponse[]>([]);
+
+    useEffect(() => {
+        if (!collectEndpointShape) {
+            return;
+        }
+        rpcClient.getBIDiagramRpcClient().getProjectStructure().then((res) => {
+            if (!isMountedRef.current) {
+                return;
+            }
+            const project = res.projects?.find((candidate) => isSamePath(candidate.projectPath, projectPath));
+            setProjectServices(project?.directoryMap?.[DIRECTORY_MAP.SERVICE] ?? []);
+        });
+    }, [collectEndpointShape, projectPath]);
+
+    const existingResources = useMemo(
+        () => joinedService
+            ? projectServices.find((service) => service.name === joinedService)?.resources
+            : undefined,
+        [joinedService, projectServices]
+    );
 
     useEffect(() => {
         if (!collectEndpointShape || endpointModel) {
@@ -264,16 +353,23 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             .getHttpResourceModel({ type: "http", functionName: "resource" })
             .then((res) => {
                 if (isMountedRef.current && res?.function) {
-                    const shaped = res.function;
-                    if (shaped.name && !shaped.name.value) {
-                        shaped.name = { ...shaped.name, value: "." };
-                    }
-                    setEndpointModel(shaped);
+                    setEndpointModel(seedAgentEndpoint(res.function));
                 }
             });
     }, [collectEndpointShape, endpointModel]);
 
-    const handleOnChange = (fieldKey: string, value: any) => {
+    // The service the dropdown starts on. Picking the branch arrives before its dropdown has
+    // registered a value, so without this the first event reports "joining nothing" and the
+    // collision check never runs against the service the user can already see selected.
+    const defaultJoinedService = () => model?.properties?.[CONFIGURE_ENDPOINT_KEY]
+        ?.choices?.[JOIN_EXISTING_BRANCH]?.properties?.[EXISTING_SERVICE_KEY]?.value as string;
+
+    const handleOnChange = (fieldKey: string, value: any, allValues?: FormValues) => {
+        if (fieldKey === CONFIGURE_ENDPOINT_KEY || fieldKey === EXISTING_SERVICE_KEY) {
+            const joining = Number(allValues?.[CONFIGURE_ENDPOINT_KEY]) === JOIN_EXISTING_BRANCH;
+            const picked = (allValues?.[EXISTING_SERVICE_KEY] as string) || defaultJoinedService();
+            setJoinedService(joining ? picked : undefined);
+        }
         const wasUpdated = updateChoiceInModel(model.properties, fieldKey, value);
 
         if (wasUpdated) {
@@ -373,6 +469,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
             ? [
                 {
                     component: <AgentEndpointFields
+                        existingResources={existingResources}
                         model={endpointModel}
                         onChange={setEndpointModel}
                         onError={setEndpointHasErrors}
@@ -382,7 +479,7 @@ export function ServiceCreationView(props: ServiceCreationViewProps) {
                 { component: <PromptContinuation model={endpointModel} />, index: Infinity }
             ]
             : undefined,
-        [collectEndpointShape, endpointModel]
+        [collectEndpointShape, endpointModel, existingResources]
     );
 
     const form = !pullingStatus && formFields && formFields.length > 0 && filePath && targetLineRange && (

@@ -94,7 +94,8 @@ public record AgentTriggerContext(String emitAlias, String listenerVarName, Stri
         if (path.isEmpty()) {
             path = fallback;
         }
-        return (path.startsWith("/") ? path : "/" + path).replace("-", "\\-");
+        String absolute = path.startsWith("/") ? path : "/" + path;
+        return absolute.replace("\\", "").replace("-", "\\-").replace(".", "\\.");
     }
 
     public List<String> serviceAnnotations() {

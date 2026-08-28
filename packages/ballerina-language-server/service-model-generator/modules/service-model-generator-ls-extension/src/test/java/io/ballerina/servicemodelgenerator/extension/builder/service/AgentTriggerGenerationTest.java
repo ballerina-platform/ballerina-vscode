@@ -24,6 +24,7 @@ import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.modelgenerator.commons.trigger.models.TriggerUISchemaModel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.builder.service.agent.AgentTriggerChannels;
+import io.ballerina.servicemodelgenerator.extension.builder.service.agent.HttpAgentTriggerChannel;
 import io.ballerina.servicemodelgenerator.extension.connector.SchemaDrivenSourceGenerator;
 import io.ballerina.servicemodelgenerator.extension.connector.TriggerModelReader;
 import io.ballerina.servicemodelgenerator.extension.model.Function;
@@ -31,16 +32,20 @@ import io.ballerina.servicemodelgenerator.extension.model.FunctionReturnType;
 import io.ballerina.servicemodelgenerator.extension.model.HttpResponse;
 import io.ballerina.servicemodelgenerator.extension.model.Option;
 import io.ballerina.servicemodelgenerator.extension.model.Parameter;
+import io.ballerina.servicemodelgenerator.extension.model.PropertyType;
 import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.TriggerBasicInfo;
+import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import io.ballerina.servicemodelgenerator.extension.validation.GenerationRefusedException;
 import io.ballerina.tools.text.TextDocuments;
 import org.eclipse.lsp4j.TextEdit;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -249,12 +254,12 @@ public class AgentTriggerGenerationTest {
     public void testInstructionsAndTheEventBecomeThePrompt() {
         String src = generateForGitHub(INSTRUCTIONS);
 
-        Assert.assertTrue(src.contains("string prompt = string `" + INSTRUCTIONS),
-                "the user's instructions should open the prompt: " + src);
-        Assert.assertTrue(src.contains("${payload.toJsonString()}`;"),
+        Assert.assertTrue(src.contains("triageAgent.run(string `" + INSTRUCTIONS),
+                "the user's instructions should open the prompt, inline as the argument: " + src);
+        Assert.assertTrue(src.contains("${payload.toJsonString()}`)"),
                 "the whole event should be appended: " + src);
-        Assert.assertTrue(src.contains("triageAgent.run(prompt)"),
-                "the agent should be called with the composed prompt: " + src);
+        Assert.assertFalse(src.contains("string prompt ="),
+                "the prompt is not a separate declaration: " + src);
     }
 
     @Test
@@ -292,7 +297,7 @@ public class AgentTriggerGenerationTest {
                 "the primary handler should offload, using the schema's own payload name: " + src);
         Assert.assertTrue(src.contains("function runAgentOnOrdersCreate(shopify:OrderEvent event)"),
                 "the reply method should take the handler's own payload type: " + src);
-        Assert.assertTrue(src.contains("${event.toJsonString()}`;"),
+        Assert.assertTrue(src.contains("${event.toJsonString()}`)"),
                 "the whole event should be appended to the prompt: " + src);
     }
 
@@ -617,6 +622,223 @@ public class AgentTriggerGenerationTest {
                 channel("ballerina", "http"), rootOf(existingSource), "main.bal"));
     }
 
+    private static final String ORDERS_SERVICE = """
+            listener http:Listener httpListener = new (9090);
+
+            service /orders on httpListener {
+
+                resource function get .() returns string|error {
+                    return "ok";
+                }
+            }
+            """;
+
+    /** The form as the wizard submits it when the user picked "Use an existing service". */
+    private ServiceInitModel reuseForm(String basePath) {
+        ServiceInitModel form = httpForm("/ownService", "Triage this issue.");
+        form.addProperty(ServiceInitModel.KEY_EXISTING_SERVICE,
+                new Value.ValueBuilder().enabled(true).value(basePath).build());
+        return form;
+    }
+
+    private String generateReusing(String basePath, String existingSource) {
+        return render(AgentTriggerServiceBuilder.buildEdits(reuseForm(basePath), null,
+                channel("ballerina", "http"), rootOf(existingSource), "main.bal"));
+    }
+
+    @Test
+    public void testHttpEndpointJoinsTheSelectedService() {
+        String src = generateReusing("/orders", ORDERS_SERVICE);
+
+        Assert.assertFalse(src.contains("service /orders"),
+                "the service is already there; a second one on the same path compiles and then fails to "
+                        + "start: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should arrive as a member of the service that exists: " + src);
+        Assert.assertTrue(src.contains("issueTriageAgent.run("),
+                "a joined resource still has to call the agent: " + src);
+    }
+
+    @Test
+    public void testSelectingAServiceOverridesTheListenerChooser() {
+        ServiceInitModel form = reuseForm("/orders");
+        form.addProperty("port", new Value.ValueBuilder().enabled(true).value("8080").build());
+        form.addProperty(ServiceInitModel.KEY_LISTENER_VAR_NAME,
+                new Value.ValueBuilder().enabled(true).value("ordersListener").build());
+
+        String src = render(AgentTriggerServiceBuilder.buildEdits(form, null, channel("ballerina", "http"),
+                rootOf(ORDERS_SERVICE), "main.bal"));
+
+        Assert.assertFalse(src.contains("ordersListener"),
+                "naming a service names its listener too, so a stale listener choice must not split the "
+                        + "endpoint into a second service: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should join the selected service: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointDeclaresItsOwnServiceWhenCreatingNew() {
+        String src = generateForHttp("/triage", "Triage this issue.", ORDERS_SERVICE);
+
+        Assert.assertTrue(src.contains("service /triage on"),
+                "a path nothing serves yet should still get its own service: " + src);
+    }
+
+    @Test
+    public void testJoiningRefusesToDuplicateAResourceThatExists() {
+        String source = """
+                listener http:Listener httpListener = new (9090);
+
+                service /orders on httpListener {
+
+                    resource function post .(@http:Payload string payload) returns string|error {
+                        return "ok";
+                    }
+                }
+                """;
+
+        GenerationRefusedException thrown = Assert.expectThrows(GenerationRefusedException.class,
+                () -> AgentTriggerServiceBuilder.buildEdits(reuseForm("/orders"), null,
+                        channel("ballerina", "http"), rootOf(source), "main.bal"));
+
+        Assert.assertTrue(thrown.getMessage().contains("post ."),
+                "two resources with the same accessor and path do not compile, so the message has to name "
+                        + "the one that clashes: " + thrown.getMessage());
+        Assert.assertEquals(thrown.toValidationResult().propertyPath(), "existingService",
+                "the failure has to land on a field the user can see, or the form closes on a submit that "
+                        + "wrote nothing");
+        Assert.assertTrue(thrown.toValidationResult().isError(),
+                "a warning would not stop generation");
+    }
+
+    @Test
+    public void testJoiningAllowsADifferentMethodOnTheSamePath() {
+        String source = """
+                listener http:Listener httpListener = new (9090);
+
+                service /orders on httpListener {
+
+                    resource function get .() returns string|error {
+                        return "ok";
+                    }
+                }
+                """;
+
+        Assert.assertTrue(render(AgentTriggerServiceBuilder.buildEdits(reuseForm("/orders"), null,
+                        channel("ballerina", "http"), rootOf(source), "main.bal"))
+                        .contains("resource function post ."),
+                "only the accessor and path together identify a resource");
+    }
+
+    @Test
+    public void testHttpEndpointJoinsAKebabPathThroughItsEscape() {
+        String src = generateReusing("/order-tracker", """
+                listener http:Listener httpListener = new (9090);
+
+                service /order\\-tracker on httpListener {
+                }
+                """);
+
+        Assert.assertFalse(src.contains("service /order"),
+                "the escape is source syntax, so the typed URL and the declared path are the same "
+                        + "service: " + src);
+        Assert.assertTrue(src.contains("resource function post ."),
+                "the endpoint should join it: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointDoesNotJoinAServiceOfAnotherKind() {
+        String src = generateReusing("/orders", """
+                service graphql:Service /orders on httpListener {
+                }
+                """);
+
+        Assert.assertTrue(src.contains("service /ownService on"),
+                "a service that declares a type descriptor is not somewhere an HTTP resource can go, so "
+                        + "the endpoint falls back to declaring its own: " + src);
+    }
+
+    @Test
+    public void testAnEmptyProjectIsNotAskedToChoose() {
+        ServiceInitModel form = httpForm("/agent", "Triage this issue.");
+
+        Assert.assertNull(form.getProperties().get(ServiceInitModel.KEY_CONFIGURE_ENDPOINT),
+                "with nothing to reuse there is no choice to make, so the radio must not appear");
+        Assert.assertNull(HttpAgentTriggerChannel.pathField(List.of()).getTypes().getFirst().validations(),
+                "and the path carries no collision rule, because nothing can collide");
+    }
+
+    @Test
+    public void testATakenPathIsRefusedWhenCreatingNew() {
+        Value path = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), null)
+                .getChoices().getFirst().getProperties().get("basePath");
+        ValidationRule rule = path.getTypes().getFirst().validations().getFirst();
+
+        Assert.assertEquals(rule.getRule(), "common.validate.not.one.of");
+        Assert.assertEquals(rule.getArgs().get("values"), List.of("/orders"),
+                "the rule has to carry the paths that are actually taken");
+        Assert.assertNotNull(rule.getMessage(), "a generic rule message would not tell the user what to do");
+    }
+
+    @Test
+    public void testReusingAServiceIsNotAskedAboutListeners() {
+        Value chooser = new Value.ValueBuilder()
+                .metadata("Listener Configuration", "")
+                .types(List.of(PropertyType.types(Value.FieldType.CHOICE)))
+                .enabled(true).editable(true).build();
+        List<Value> branches = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), chooser).getChoices();
+
+        Assert.assertTrue(branches.getFirst().getProperties()
+                        .containsKey(ServiceInitModel.KEY_CONFIGURE_LISTENER),
+                "creating a service is where the listener is decided");
+        Assert.assertFalse(branches.get(1).getProperties()
+                        .containsKey(ServiceInitModel.KEY_CONFIGURE_LISTENER),
+                "the chosen service already has a listener, so the question does not apply");
+    }
+
+    @Test
+    public void testAnExistingServiceIsOfferedForReuse() {
+        List<Value> branches = HttpAgentTriggerChannel.endpointChoice(List.of("/orders"), null).getChoices();
+
+        Assert.assertTrue(branches.getFirst().isEnabled(), "creating a new service stays the default");
+        Assert.assertFalse(branches.get(1).isEnabled(), "reuse is opt-in");
+        Value selector = branches.get(1).getProperties().get(ServiceInitModel.KEY_EXISTING_SERVICE);
+        Assert.assertEquals(selector.getTypes().getFirst().fieldType(), Value.FieldType.SINGLE_SELECT,
+                "reuse is a plain select box, not a free-text field");
+        Assert.assertNull(selector.getTypes().getFirst().options(),
+                "options route a SINGLE_SELECT to the expression editor, which renders it as an enum with "
+                        + "a 'No Selection' entry instead of a plain dropdown");
+        Assert.assertEquals(selector.getItems(), List.of("/orders"));
+        Assert.assertEquals(selector.getValue(), "/orders", "the first service is preselected");
+    }
+
+    @Test
+    public void testOnlyJoinableServicesAreOfferedAsPaths() {
+        List<String> paths = HttpAgentTriggerChannel.servedPaths(rootOf("""
+                service /orders on httpListener {
+                }
+
+                service /order\\-tracker on httpListener {
+                }
+
+                service graphql:Service /graph on httpListener {
+                }
+
+                service telegram:TelegramService on telegramListener {
+                }
+                """));
+
+        Assert.assertEquals(paths, List.of("/orders", "/order-tracker"),
+                "the list must offer exactly what appendToExistingService can join, and offer it as a URL "
+                        + "rather than as source: " + paths);
+    }
+
+    @Test
+    public void testNoDocumentOffersNoPaths() {
+        Assert.assertTrue(HttpAgentTriggerChannel.servedPaths(null).isEmpty(),
+                "a missing document must degrade to 'declare a new service', not fail");
+    }
+
     @Test
     public void testHttpEndpointIsWiredToTheAgent() {
         String src = generateForHttp("/issue-triage", "Triage this issue.", "\n");
@@ -625,21 +847,34 @@ public class AgentTriggerGenerationTest {
                 "the user's path should be the service path, with '-' escaped: " + src);
         Assert.assertTrue(src.contains("resource function post ."),
                 "one endpoint should be one URL, so the resource sits on the base path: " + src);
-        Assert.assertTrue(src.contains("issueTriageAgent.run(prompt)"),
-                "the agent should be called with the assembled prompt: " + src);
+        Assert.assertTrue(src.contains("issueTriageAgent.run(string `Triage this issue."),
+                "the agent should be called with the assembled prompt, inline as the argument: " + src);
+        Assert.assertFalse(src.contains("string prompt ="),
+                "the prompt is not a separate declaration: " + src);
         Assert.assertTrue(src.contains("import ballerina/http;"),
                 "the endpoint needs ballerina/http: " + src);
     }
 
     private String generateForShapedHttp(String accessor, String path, List<Parameter> parameters,
-                                         String responseBodyType) {
+                                         String... responseBodyTypes) {
+        return generateForHttpResponding(accessor, path, parameters, "200", responseBodyTypes);
+    }
+
+    /** The status code the creation form seeds, so nothing is wrapped in a status-code record. */
+    private String generateForUnwrappedHttp(String accessor, String... responseBodyTypes) {
+        return generateForHttpResponding(accessor, ".", List.of(),
+                "post".equalsIgnoreCase(accessor) ? "201" : "200", responseBodyTypes);
+    }
+
+    private String generateForHttpResponding(String accessor, String path, List<Parameter> parameters,
+                                             String statusCode, String... responseBodyTypes) {
         ServiceInitModel form = httpForm("/triage", "Triage it.");
         FunctionReturnType returnType = new FunctionReturnType(
                 new Value.ValueBuilder().enabled(true).value("").build());
-        returnType.setResponses(List.of(new HttpResponse(
-                new Value.ValueBuilder().enabled(true).value("200").build(),
-                new Value.ValueBuilder().enabled(true).value(responseBodyType).build(),
-                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)));
+        returnType.setResponses(Arrays.stream(responseBodyTypes).map(body -> new HttpResponse(
+                new Value.ValueBuilder().enabled(true).value(statusCode).build(),
+                new Value.ValueBuilder().enabled(true).value(body).build(),
+                null, null, new Value.ValueBuilder().enabled(false).value("").build(), null, true, true)).toList());
         Function shaped = new Function.FunctionBuilder()
                 .kind("RESOURCE")
                 .accessor(new Value.ValueBuilder().enabled(true).value(accessor).build())
@@ -673,11 +908,115 @@ public class AgentTriggerGenerationTest {
     }
 
     @Test
-    public void testShapedHttpEndpointBindsTheAgentAnswerToTheDeclaredType() {
+    public void testShapedHttpEndpointLeavesAnUndeliverableAnswerToTheUser() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "xml");
+
+        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"),
+                "xml is not a subtype of json, so run cannot bind it: " + src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"),
+                "the mapping is the user's and has to be visible: " + src);
+        Assert.assertTrue(src.contains("return error(\"response mapping not implemented\", result = result);"),
+                "the placeholder still has to compile, so it returns an error rather than the answer: " + src);
+        Assert.assertFalse(src.contains("return {body: result};"),
+                "a body field the answer cannot fill must not be generated: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheAnswerToADeclaredRecordType() {
         String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary");
 
-        Assert.assertTrue(src.contains("IssueSummary|error response = issueTriageAgent.run(prompt);"),
-                "ai:Agent.run infers its return from the left-hand side, so the declared type binds: " + src);
+        Assert.assertTrue(src.contains("IssueSummary result = check issueTriageAgent.run(string `Triage it.`);"),
+                "run is dependently typed, so a json-compatible record binds the answer directly: " + src);
+        Assert.assertTrue(src.contains("return {body: result};"),
+                "the bound answer fills the status code record's body: " + src);
+        Assert.assertFalse(src.contains("// TODO:"),
+                "nothing is left for the user to map: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheAnswerToADeclaredArrayType() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "IssueSummary[]");
+
+        Assert.assertTrue(src.contains("IssueSummary[] result = check issueTriageAgent.run(string `Triage it.`);"),
+                "an array of a json-compatible type binds too: " + src);
+        Assert.assertFalse(src.contains("// TODO:"), src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointBindsTheUnionOfEverySuccessResponse() {
+        String src = generateForUnwrappedHttp("POST", "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains(
+                        "OpportunityRecord|AccountRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "run derives an anyOf schema from a union, so every declared response is reachable: " + src);
+        Assert.assertFalse(src.contains("// TODO:"), src);
+    }
+
+    @Test
+    public void testACatchAllResponseYieldsToTheSpecificOnesItWouldSubsume() {
+        String src = generateForUnwrappedHttp("POST", "json", "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains(
+                        "OpportunityRecord|AccountRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "json matches any payload first, so binding it would make the records unreachable: " + src);
+        Assert.assertTrue(src.contains("returns error|json|OpportunityRecord|AccountRecord"),
+                "the declared contract still offers every response the user added: " + src);
+    }
+
+    @Test
+    public void testACatchAllResponseIsStillBoundWhenItIsTheOnlyKind() {
+        String src = generateForUnwrappedHttp("POST", "json", "json");
+
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"),
+                "with nothing specific to yield to, the catch-all is the answer type: " + src);
+    }
+
+    @Test
+    public void testAnUnbindableSiblingLeavesTheUnionAlone() {
+        String src = generateForUnwrappedHttp("POST", "OpportunityRecord", "xml");
+
+        Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "one member run cannot bind would poison the whole union, so the first response wins: " + src);
+        Assert.assertFalse(src.contains("|xml result"), "xml must not reach the binding: " + src);
+    }
+
+    @Test
+    public void testStatusCodeWrappedSuccessResponsesAreNotUnioned() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "OpportunityRecord", "AccountRecord");
+
+        Assert.assertTrue(src.contains("OpportunityRecord result = check issueTriageAgent.run(string `Triage it.`);"),
+                "a status code record carries http:Status, an object, so run cannot bind it: " + src);
+        Assert.assertTrue(src.contains("return {body: result};"), src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointDoesNotBindAnydata() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "anydata");
+
+        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"),
+                "anydata admits xml and byte[], so it is not a json subtype and fails at request time: " + src);
+        Assert.assertTrue(src.contains("// TODO: map the agent's result to the declared response type"), src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointDeliversTheAnswerWhenTheDeclaredTypeAcceptsIt() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "string");
+
+        Assert.assertTrue(src.contains("string result = check issueTriageAgent.run(string `Triage it.`);"), src);
+        Assert.assertTrue(src.contains("return {body: result};"),
+                "a string body takes the answer directly, wrapped by the status code record: " + src);
+        Assert.assertFalse(src.contains("// TODO:"),
+                "nothing is left for the user to map: " + src);
+    }
+
+    @Test
+    public void testHttpEndpointHandlesTheAgentFailureInsteadOfReturningIt() {
+        String src = generateForShapedHttp("POST", ".", List.of(), "string");
+
+        Assert.assertTrue(src.contains("do {"), "the resource wraps its body like every other http resource: " + src);
+        Assert.assertTrue(src.contains("} on fail error err {"), src);
+        Assert.assertTrue(src.contains("return error(\"unhandled error\", err);"),
+                "the agent's own error must not reach the caller verbatim: " + src);
     }
 
     @Test
@@ -699,12 +1038,9 @@ public class AgentTriggerGenerationTest {
     public void testShapedHttpEndpointReturnsTheBodyWhenTheStatusCodeWrapsIt() {
         String src = generateForShapedHttp("POST", "process", List.of(), "json");
 
-        Assert.assertTrue(src.contains("json|error response = issueTriageAgent.run(prompt);"),
-                "the answer binds to the body type, not to the wrapping record: " + src);
-        Assert.assertTrue(src.contains("return {body: response};"),
-                "a wrapped return cannot take the answer directly: " + src);
-        Assert.assertTrue(src.contains("if response is error {"),
-                "the error has to be narrowed away before the record is built: " + src);
+        Assert.assertTrue(src.contains("json result = check issueTriageAgent.run(string `Triage it.`);"), src);
+        Assert.assertTrue(src.contains("return {body: result};"),
+                "a wrapped return puts the answer in the body field: " + src);
     }
 
     @Test
@@ -716,6 +1052,19 @@ public class AgentTriggerGenerationTest {
                 "a string parameter interpolates as itself: " + src);
         Assert.assertTrue(src.contains("issue:") && src.contains("${issue.toJsonString()}"),
                 "a non-string parameter is rendered as json: " + src);
+    }
+
+    @Test
+    public void testShapedHttpEndpointExcludesHeadersFromThePrompt() {
+        String src = generateForShapedHttp("POST", ".",
+                List.of(param("HEADER", "string", "authorization"), param("QUERY", "string", "region")), "string");
+
+        Assert.assertTrue(src.contains("@http:Header string authorization"),
+                "the header should still reach the resource signature: " + src);
+        Assert.assertFalse(src.contains("${authorization}"),
+                "a header is transport metadata, not agent input, and must not reach the prompt: " + src);
+        Assert.assertTrue(src.contains("${region}"),
+                "a query parameter should still reach the prompt: " + src);
     }
 
     @Test
@@ -732,7 +1081,7 @@ public class AgentTriggerGenerationTest {
     public void testHttpEndpointCarriesTheUsersInstructions() {
         String src = generateForHttp("/triage", "Suggest a priority label.", "\n");
 
-        Assert.assertTrue(src.contains("string prompt = string `Suggest a priority label."),
+        Assert.assertTrue(src.contains("issueTriageAgent.run(string `Suggest a priority label."),
                 "the instructions should open the prompt: " + src);
         Assert.assertTrue(src.contains("Request payload:"),
                 "a single carried parameter gets a heading rather than its own name: " + src);

@@ -24,9 +24,9 @@ import io.ballerina.flowmodelgenerator.core.UserFacingException;
 import io.ballerina.flowmodelgenerator.core.model.NodeKind;
 import io.ballerina.flowmodelgenerator.core.model.Property;
 import io.ballerina.flowmodelgenerator.core.model.SourceBuilder;
-import io.ballerina.flowmodelgenerator.core.utils.FileSystemUtils;
 import io.ballerina.flowmodelgenerator.core.utils.FlowNodeUtil;
 import io.ballerina.flowmodelgenerator.core.utils.WorkflowUtil;
+import io.ballerina.modelgenerator.commons.FileSystemUtils;
 import io.ballerina.modelgenerator.commons.ParameterData;
 import org.eclipse.lsp4j.TextEdit;
 

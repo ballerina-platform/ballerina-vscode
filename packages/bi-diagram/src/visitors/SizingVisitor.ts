@@ -35,6 +35,7 @@ import {
     NODE_WIDTH,
     PROMPT_NODE_HEIGHT,
     PROMPT_NODE_WIDTH,
+    HUMAN_TASK_ROLES_LABEL_WIDTH,
     WAIT_DATA_CORE_HEIGHT,
     WAIT_DATA_CORE_WIDTH,
     WAIT_DATA_ARROW_WIDTH,
@@ -52,7 +53,7 @@ import {
     hasAgentUsageColumn,
 } from "../components/nodes/AgentWidget/agentNodeLayout";
 import { isEvalTemplateCall, NodeMetadata } from "@wso2/ballerina-core";
-import { isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
+import { getHumanTaskUserRoles, isWaitingAgentCall, reverseCustomNodeId } from "../utils/node";
 import { Branch, FlowNode } from "../utils/types";
 
 export class SizingVisitor implements BaseVisitor {
@@ -130,10 +131,13 @@ export class SizingVisitor implements BaseVisitor {
         // The mirror of a send: same body, with the room for the source box and its arrow on the
         // left instead of the right.
         const halfNodeWidth = NODE_WIDTH / 2;
+        // A human task names the roles it waits on beside the person icon, so the strip they are
+        // drawn in has to be reserved out here — the widget places the icon after it.
+        const rolesLabelWidth = getHumanTaskUserRoles(node).length > 0 ? HUMAN_TASK_ROLES_LABEL_WIDTH : 0;
         // The widths are the node's own bounds, not an inner box's: passing the body's half-width
         // while the container reached further left put the body off the node's centre, and the
         // links bent sideways to meet it. LABEL_WIDTH keeps the source's name from being clipped.
-        const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT;
+        const containerLeftWidth = halfNodeWidth + NODE_GAP_X + NODE_HEIGHT + LABEL_HEIGHT + rolesLabelWidth;
         const containerRightWidth = halfNodeWidth;
         const containerHeight = NODE_HEIGHT + LABEL_HEIGHT;
         this.setNodeSize(node, containerLeftWidth, containerRightWidth, containerHeight);
@@ -580,6 +584,11 @@ export class SizingVisitor implements BaseVisitor {
     }
 
     endVisitWaitData(node: FlowNode, parent?: FlowNode): void {
+        if (!this.validateNode(node)) return;
+        this.createWaitDataNode(node);
+    }
+
+    endVisitHumanTask(node: FlowNode, parent?: FlowNode): void {
         if (!this.validateNode(node)) return;
         this.createWaitDataNode(node);
     }

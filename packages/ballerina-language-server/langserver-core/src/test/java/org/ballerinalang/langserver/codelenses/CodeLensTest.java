@@ -103,7 +103,9 @@ public class CodeLensTest {
                 {"main.json"},
                 {"functions.json"},
                 {"try_it.json"},
-                {"visualize.json"}
+                {"visualize.json"},
+                {"visualize_default_module.json"},
+                {"visualize_submodule.json"}
         };
     }
 

@@ -30,6 +30,7 @@ import {
     hasIncompleteRequiredFormFields,
     shouldRunExternalFormValidation,
 } from "../components/Form/utils";
+import { evaluateClientRules } from "../components/Form/validationRules";
 
 // The functions read a handful of FormField props; build partials without dragging
 // the full type into every fixture.
@@ -278,5 +279,37 @@ describe("groupHasBlockingIssue", () => {
 
     it("is clean for an empty group", () => {
         expect(groupHasBlockingIssue({ groupFields: [], values: {} })).toBe(false);
+    });
+});
+
+describe("common.validate.not.one.of", () => {
+    const failures = (value: string, values: string[]) => evaluateClientRules(field({
+        key: "basePath",
+        label: "Endpoint Path",
+        types: [{
+            fieldType: "SERVICE_PATH",
+            selected: true,
+            validations: [{
+                rule: "common.validate.not.one.of",
+                args: { values },
+                message: "A service already serves this path.",
+            }],
+        }],
+    }), value);
+
+    it("refuses a path that is already served", () => {
+        expect(failures("/orders", ["/orders"])[0]?.message).toBe("A service already serves this path.");
+    });
+
+    it("permits a path nothing serves", () => {
+        expect(failures("/triage", ["/orders"])).toEqual([]);
+    });
+
+    it("permits anything when nothing is served", () => {
+        expect(failures("/orders", [])).toEqual([]);
+    });
+
+    it("ignores an empty value, leaving that to the required rule", () => {
+        expect(failures("", ["/orders"])).toEqual([]);
     });
 });

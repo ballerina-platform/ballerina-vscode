@@ -18,7 +18,7 @@
     "metadata": {
       "label": "RabbitMQ",
       "description": "The Ballerina interface to provide AMQP Channel related functionality.",
-      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.3.1.png"
+      "icon": "https://bcentral-packageicons.azureedge.net/images/ballerinax_rabbitmq_3.6.0.png"
     },
     "codedata": {
       "node": "NEW_CONNECTION",
@@ -27,7 +27,7 @@
       "packageName": "rabbitmq",
       "object": "Client",
       "symbol": "init",
-      "version": "3.3.1",
+      "version": "3.6.0",
       "isNew": true
     },
     "returning": false,
@@ -322,7 +322,7 @@
             "typeMembers": [
               {
                 "type": "SecureSocket",
-                "packageInfo": "ballerinax:rabbitmq:3.3.1",
+                "packageInfo": "ballerinax:rabbitmq:3.6.0",
                 "packageName": "rabbitmq",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -359,7 +359,7 @@
             "typeMembers": [
               {
                 "type": "Credentials",
-                "packageInfo": "ballerinax:rabbitmq:3.3.1",
+                "packageInfo": "ballerinax:rabbitmq:3.6.0",
                 "packageName": "rabbitmq",
                 "kind": "RECORD_TYPE",
                 "selected": false
@@ -383,6 +383,61 @@
           "originalName": "auth"
         },
         "defaultValue": "{username: \"\", password: \"\"}"
+      },
+      "failoverAddresses": {
+        "metadata": {
+          "label": "Failover Addresses",
+          "description": "Additional RabbitMQ broker addresses for cluster and failover support. The primary `host` and\n`port` provided in `init()` are always tried first. If the primary connection fails, the addresses listed here are\ntried in order."
+        },
+        "types": [
+          {
+            "fieldType": "REPEATABLE_LIST",
+            "ballerinaType": "rabbitmq:Address[]",
+            "template": {
+              "types": [
+                {
+                  "fieldType": "RECORD_MAP_EXPRESSION",
+                  "ballerinaType": "rabbitmq:Address",
+                  "typeMembers": [
+                    {
+                      "type": "Address",
+                      "packageInfo": "ballerinax:rabbitmq:3.6.0",
+                      "packageName": "rabbitmq",
+                      "kind": "RECORD_TYPE",
+                      "selected": false
+                    }
+                  ],
+                  "selected": false
+                },
+                {
+                  "fieldType": "EXPRESSION",
+                  "ballerinaType": "rabbitmq:Address",
+                  "selected": false
+                }
+              ],
+              "optional": false,
+              "editable": false,
+              "advanced": false,
+              "hidden": false
+            },
+            "selected": false
+          },
+          {
+            "fieldType": "EXPRESSION",
+            "ballerinaType": "rabbitmq:Address[]?",
+            "selected": false
+          }
+        ],
+        "placeholder": "()",
+        "optional": true,
+        "editable": true,
+        "advanced": true,
+        "hidden": false,
+        "codedata": {
+          "kind": "INCLUDED_FIELD",
+          "originalName": "failoverAddresses"
+        },
+        "defaultValue": "()"
       },
       "type": {
         "metadata": {

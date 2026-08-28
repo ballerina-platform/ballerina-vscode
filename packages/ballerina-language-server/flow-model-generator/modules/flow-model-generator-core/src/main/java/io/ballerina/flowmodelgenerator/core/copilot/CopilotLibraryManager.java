@@ -19,19 +19,15 @@
 package io.ballerina.flowmodelgenerator.core.copilot;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.flowmodelgenerator.core.InstructionLoader;
 import io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessor;
 import io.ballerina.flowmodelgenerator.core.copilot.database.LibraryDatabaseAccessor;
-import io.ballerina.flowmodelgenerator.core.copilot.model.Annotation;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Client;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Library;
 import io.ballerina.flowmodelgenerator.core.copilot.model.Service;
-import io.ballerina.flowmodelgenerator.core.copilot.service.AnnotationLoader;
 import io.ballerina.flowmodelgenerator.core.copilot.service.CopilotDeprecationEnricher;
 import io.ballerina.flowmodelgenerator.core.copilot.service.CopilotListenerNameEnricher;
 import io.ballerina.flowmodelgenerator.core.copilot.service.ServiceLoader;
@@ -129,6 +125,22 @@ public class CopilotLibraryManager {
      * @return List of Library objects with complete information
      */
     public List<Library> loadFilteredLibraries(String[] libraryNames) {
+        return loadFilteredLibraries(libraryNames, Map.of());
+    }
+
+    /**
+     * {@link #loadFilteredLibraries(String[])} against explicitly pinned package versions.
+     *
+     * <p>The no-pin overload resolves whatever the local repository serves as latest, which is right at
+     * request time and wrong whenever two runs have to be compared: a release landing between them shows up
+     * as a catalog difference no code change caused. Pinning makes a render reproducible.
+     *
+     * @param libraryNames   the libraries to load, in {@code "org/package"} form
+     * @param pinnedVersions the version to resolve per library name; a library absent from the map resolves
+     *                       latest, exactly as before
+     * @return the loaded libraries
+     */
+    public List<Library> loadFilteredLibraries(String[] libraryNames, Map<String, String> pinnedVersions) {
         List<Library> libraries = new ArrayList<>();
 
         for (String libraryName : libraryNames) {
@@ -146,8 +158,10 @@ public class CopilotLibraryManager {
 
             // Resolve the package once; the README loader below reuses this same Package
             // to avoid a second (potentially network-bound) resolution.
-            Optional<Package> optPackage = PackageUtil.getModulePackage(
-                    PackageUtil.getSampleProject(), org, packageName);
+            String pinned = pinnedVersions == null ? null : pinnedVersions.get(libraryName);
+            Optional<Package> optPackage = pinned == null || pinned.isBlank()
+                    ? PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, packageName)
+                    : PackageUtil.getModulePackage(PackageUtil.getSampleProject(), org, packageName, pinned);
             if (optPackage.isEmpty()) {
                 continue;
             }
@@ -166,30 +180,28 @@ public class CopilotLibraryManager {
                     semanticModel,
                     moduleInfo,
                     org,
-                    packageName
+                    packageName,
+                    pkg
             );
 
             library.setClients(symbolResult.getClients());
             library.setFunctions(symbolResult.getFunctions());
             library.setTypeDefs(symbolResult.getTypeDefs());
 
-            JsonArray servicesJson = ServiceLoader.loadAllServices(libraryName);
+            List<Service> services = ServiceLoader.loadAllServices(libraryName, pkg, semanticModel);
             List<Symbol> moduleSymbols = semanticModel.moduleSymbols();
-            CopilotDeprecationEnricher.enrich(servicesJson, moduleSymbols);
-            CopilotListenerNameEnricher.enrich(servicesJson, moduleSymbols);
-            List<Service> services = new ArrayList<>();
-            for (JsonElement serviceElement : servicesJson) {
-                Service service = GSON.fromJson(serviceElement, Service.class);
-                services.add(service);
-            }
+            CopilotDeprecationEnricher.enrich(services, moduleSymbols);
+            CopilotListenerNameEnricher.enrich(services, moduleSymbols);
             library.setServices(services);
 
-            JsonArray annotationsJson = AnnotationLoader.loadFromServiceIndex(libraryName);
-            List<Annotation> annotations = new ArrayList<>();
-            for (JsonElement annotationElement : annotationsJson) {
-                annotations.add(GSON.fromJson(annotationElement, Annotation.class));
-            }
-            library.setAnnotations(annotations);
+            // Annotations come from the Semantic Model alone: the compiler is authoritative for
+            // attachment points and type constraints, and it reports every annotation the module
+            // declares at every point it declares them (service, object function, type, record
+            // field, parameter, return, listener, ...). The curated service-index catalog covered
+            // only SERVICE/OBJECT_METHOD for six packages, and every row it holds is either
+            // reproduced by the compiler or contradicted by it (ftp's FunctionConfig, filed as
+            // OBJECT_METHOD where the compiler reports RESOURCE), so it is no longer consulted.
+            library.setAnnotations(symbolResult.getAnnotations());
 
             if (DOC_WHITELIST_ORGS.contains(org)) {
                 readPackageDocumentation(pkg).ifPresent(library::setReadme);
@@ -434,8 +446,7 @@ public class CopilotLibraryManager {
 
     /**
      * Augments libraries with custom instructions loaded from resource files.
-     * Adds library-level instructions, service instructions for generic services,
-     * and test generation instructions for all services.
+     * Adds library-level instructions and service instructions for generic services.
      *
      * @param libraries the libraries to augment
      */
@@ -457,16 +468,23 @@ public class CopilotLibraryManager {
         }
     }
 
+    /**
+     * Attaches the curated {@code service.md} to a library's generic services.
+     *
+     * <p>The file is read <b>once per library</b>, not once per service. It used to be loaded inside the
+     * loop, which re-read the same classpath resource for every service a library declares — ten times for
+     * {@code ballerinax/trigger.github}. The {@code test.md} channel that shared that loop was retired: no
+     * instance had existed since the curated corpus was removed, and test conventions live in
+     * {@code ballerina/test}'s own {@code library.md}.
+     */
     private void augmentServicesWithInstructions(List<Service> services, String libraryName) {
+        Optional<String> serviceInstruction = InstructionLoader.loadServiceInstruction(libraryName);
+        if (serviceInstruction.isEmpty()) {
+            return;
+        }
         for (Service service : services) {
-            // Add test generation instruction to all services
-            InstructionLoader.loadTestInstruction(libraryName)
-                    .ifPresent(service::setTestGenerationInstruction);
-
-            // Add service instruction only to generic services
             if (TYPE_GENERIC.equals(service.getType())) {
-                InstructionLoader.loadServiceInstruction(libraryName)
-                        .ifPresent(service::setInstructions);
+                service.setInstructions(serviceInstruction.get());
             }
         }
     }

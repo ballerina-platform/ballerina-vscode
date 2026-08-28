@@ -98,7 +98,7 @@ jobs:
           rush-install: true
 
       - name: Build playwright-vscode-tester
-        run: rush build -t @wso2/playwright-vscode-tester
+        run: node common/scripts/install-run-rush.js build --to @wso2/playwright-vscode-tester
 
       - name: Install Ballerina distribution
         uses: ./.github/actions/setup-ballerina

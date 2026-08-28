@@ -82,6 +82,7 @@ public final class CommonRuleValidators {
         validators.put("common.validate.url", (node, args, ctx) -> url(node, args));
         validators.put("common.validate.service.path", (node, args, ctx) -> servicePath(node));
         validators.put("common.validate.enum", (node, args, ctx) -> enumValue(node, args));
+        validators.put("common.validate.not.one.of", (node, args, ctx) -> notOneOf(node, args));
         validators.put("common.validate.non.negative", (node, args, ctx) -> nonNegative(node));
         return validators;
     }
@@ -273,6 +274,15 @@ public final class CommonRuleValidators {
             return Optional.empty();
         }
         return values.contains(raw) ? Optional.empty() : Optional.of("{label} must be one of: {values}");
+    }
+
+    private static Optional<String> notOneOf(Value node, Map<String, Object> args) {
+        List<String> values = stringListArg(args, "values");
+        String raw = text(node);
+        if (values.isEmpty() || raw.isEmpty()) {
+            return Optional.empty();
+        }
+        return values.contains(raw) ? Optional.of("{label} must not be one of: {values}") : Optional.empty();
     }
 
     private static Optional<String> nonNegative(Value node) {

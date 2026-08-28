@@ -5,11 +5,14 @@
         <classes>
             <class name="io.ballerina.flowmodelgenerator.core.AiComponentDiskCacheTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.AiUtilsGroupingTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.AiUtilsReadRequiresApprovalTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.ConnectionActionProviderTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.ConnectorCategoryResolverTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.DiagnosticHandlerTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.copilot.CopilotUiSchemaIsolationTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.central.CentralLibrarySearchAccessorTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.service.ServiceIndexLoaderTest"/>
+            <class name="io.ballerina.flowmodelgenerator.core.copilot.service.SpecMajorGateTest"/>
             <class name="io.ballerina.flowmodelgenerator.core.copilot.util.LibraryModelConverterTest"/>
         </classes>
     </test>

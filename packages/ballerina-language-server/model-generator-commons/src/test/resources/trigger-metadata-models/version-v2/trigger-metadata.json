@@ -1,0 +1,30 @@
+{
+  "version": "v2.0",
+  "listeners": [
+    {
+      "type": {
+        "name": "Listener"
+      },
+      "services": [
+        "$service"
+      ],
+      "multipleServicesAllowed": false,
+      "id": "$listener",
+      "doc": "Listens for events."
+    }
+  ],
+  "serviceTypes": [
+    {
+      "id": "$service",
+      "type": {
+        "name": "Service"
+      },
+      "concrete": false,
+      "multipleListenersAllowed": false,
+      "handlers": {
+        "backedByConcreteType": true
+      },
+      "doc": "A service."
+    }
+  ]
+}

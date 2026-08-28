@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { CodeData, FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
+import { FunctionNode, LineRange, NodeKind, NodeProperties, NodePropertyKey, DIRECTORY_MAP, EVENT_TYPE, getPrimaryInputType, isTemplateType, RecordTypeField } from "@wso2/ballerina-core";
 import { Button, Codicon, Typography, View, ViewContent } from "@wso2/ui-toolkit";
 import styled from "@emotion/styled";
 import { useRpcContext } from "@wso2/ballerina-rpc-client";
@@ -27,21 +27,8 @@ import { TitleBar } from "../../../components/TitleBar";
 import { TopNavigationBar } from "../../../components/TopNavigationBar";
 import { FormHeader } from "../../../components/FormHeader";
 import { convertConfig, getImportsForProperty } from "../../../utils/bi";
-import { getNodeTemplate } from "../AIChatAgent/utils";
 import { BodyText, LoadingContainer, TopBar } from "../../styles";
 import { LoadingRing } from "../../../components/Loader";
-
-
-// Durable agents run their LLM calls through a module-level `ai:ModelProvider`. Creating a
-// durable agent ensures the shared WSO2 default provider exists (mirrors AIChatAgentWizard).
-const WSO2_MODEL_PROVIDER_CODEDATA: CodeData = {
-    node: "MODEL_PROVIDER",
-    org: "ballerina",
-    module: "ai",
-    packageName: "ai",
-    symbol: "getDefaultModelProvider",
-};
-const WSO2_MODEL_PROVIDER_VAR = "wso2ModelProvider";
 
 // Default (auto-numbered) name offered by the Durable Agentic Workflow creation form.
 const DURABLE_AGENT_DEFAULT_NAME = "durableAgenticWorkflow";
@@ -379,37 +366,34 @@ export function FunctionForm(props: FunctionFormProps) {
         console.log("Existing Function Node: ", flowNode);
     }
 
-    // Ensure the project has a model provider for the new durable agent. If ANY provider
-    // already exists, reuse it and create nothing (the generated run call references the
-    // existing provider). Only when the project has no provider at all do we create the
-    // shared WSO2 default provider and write its Config.toml entry. Failures are non-fatal:
-    // the agent function is already created and a provider can be configured from the model
-    // circle. */
-    const ensureWso2ModelProvider = async () => {
+    // Whether the project already declares a model provider. For a durable agent this MUST be
+    // probed BEFORE the agent is generated: the agent's own source generation declares the
+    // shared WSO2 default provider when the project has none, so probing afterwards always
+    // finds one — the Config.toml write was then skipped and running the agent failed with
+    // "ballerina.ai.wso2ProviderConfig is not configured correctly".
+    const projectHasModelProvider = async (): Promise<boolean> => {
         try {
             const existingModelProviders = await rpcClient.getBIDiagramRpcClient().searchNodes({
                 filePath: projectPath,
                 query: { kind: "MODEL_PROVIDER" as NodeKind }
             });
-            const hasAnyProvider = (existingModelProviders?.output?.length ?? 0) > 0;
-            if (hasAnyProvider) {
-                // A provider already exists — the agent's run call references it; nothing to create.
-                return;
-            }
-            const modelNodeTemplate = await getNodeTemplate(rpcClient, WSO2_MODEL_PROVIDER_CODEDATA, projectPath);
-            modelNodeTemplate.properties.variable.value = WSO2_MODEL_PROVIDER_VAR;
-            const response = await rpcClient
-                .getBIDiagramRpcClient()
-                .getSourceCode({ filePath: projectPath, flowNode: modelNodeTemplate });
-            if (response?.error) {
-                // `getSourceCode` reports LS failures as `{ artifacts: [], error }` rather than
-                // rejecting; the provider was never written, so don't configure it.
-                console.error("Failed to create the default model provider:", response.error);
-                return;
-            }
+            return (existingModelProviders?.output?.length ?? 0) > 0;
+        } catch (error) {
+            // Same failure mode as before the probe existed: skip the config write rather
+            // than prompting for sign-in on an unknown project state.
+            console.error("Failed to probe for model providers:", error);
+            return true;
+        }
+    };
+
+    // Writes the WSO2 default provider's Config.toml entry (service URL + token) after an
+    // agent creation that declared the provider. Failures are non-fatal: the agent is already
+    // created and the provider can be configured from the agent's model circle.
+    const configureWso2ModelProvider = async () => {
+        try {
             await rpcClient.getAIAgentRpcClient().configureDefaultModelProvider("model");
         } catch (error) {
-            console.error("Failed to ensure a default model provider:", error);
+            console.error("Failed to configure the default model provider:", error);
         }
     };
 
@@ -518,6 +502,9 @@ export function FunctionForm(props: FunctionFormProps) {
         }
 
         console.log("Updated function node: ", functionNodeCopy);
+        // Probed before generation on purpose — the durable agent's source generation declares
+        // the default provider itself, so an after-the-fact probe always finds one.
+        const hadModelProviderBeforeSave = isDurableAgent ? await projectHasModelProvider() : true;
         const sourceCode = await rpcClient
             .getBIDiagramRpcClient()
             .getSourceCode({ filePath, flowNode: functionNodeCopy, isFunctionNodeUpdate: true });
@@ -528,8 +515,8 @@ export function FunctionForm(props: FunctionFormProps) {
         } else {
             const newArtifact = sourceCode.artifacts.find(res => res.isNew);
             if (newArtifact) {
-                if (isDurableAgent) {
-                    await ensureWso2ModelProvider();
+                if (isDurableAgent && !hadModelProviderBeforeSave) {
+                    await configureWso2ModelProvider();
                 }
                 if (isPopup) {
                     handleClosePopup(functionNodeCopy.properties.functionName.value as string);

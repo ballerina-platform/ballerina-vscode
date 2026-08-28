@@ -26,6 +26,7 @@ import io.ballerina.servicemodelgenerator.extension.model.ServiceInitModel;
 import io.ballerina.servicemodelgenerator.extension.model.ValidationRule;
 import io.ballerina.servicemodelgenerator.extension.model.Value;
 import io.ballerina.servicemodelgenerator.extension.model.context.GetServiceInitModelContext;
+import org.eclipse.lsp4j.TextEdit;
 
 import java.util.List;
 import java.util.Map;
@@ -83,6 +84,11 @@ public interface AgentTriggerChannel {
     }
 
     String serviceBlock(AgentTriggerContext context);
+
+    default Optional<List<TextEdit>> appendToExistingService(ModulePartNode rootNode,
+                                                             AgentTriggerContext context) {
+        return Optional.empty();
+    }
 
     String INSTRUCTIONS = "instructions";
     String INDENT = "    ";
