@@ -35,6 +35,8 @@ Four **scope levels**, ordered by how much of the system each test actually runs
 | **L4** E2E smoke | full VSCode via Playwright | minutes | vscode | matrix | `ballerina-extension/e2e-test` |
 | _orthogonal_ · **Perf / QA** | latency baselines, visual/a11y | seconds | node | ❌ manual | `ballerina-extension/.../perf` |
 
+> The language server has its own **JVM (Gradle/TestNG)** suite that is not one of these levels — it lives inside `packages/ballerina-language-server` and starts a real LS in-process. See [LS_TEST_GUIDE.md](LS_TEST_GUIDE.md) (and [LS_FIXTURE_DEPENDENCIES.md](LS_FIXTURE_DEPENDENCIES.md) for the versions its fixtures compile against).
+
 Push tests **down** the pyramid: anything provable at a lower scope level never gets written higher. **Perf/QA is not a scope tier** — performance is a non-functional dimension that cuts across L1–L4 — so it's tracked as its own suite rather than a numbered level. The host↔LS/webview **rpc contract** likewise isn't its own tier — the request/response ride on captured fixtures (consumed at L2) and are re-checked by the L3 drift-check; see [L2 → captured data](#choice-2--the-data-source-by-intent).
 
 ---
