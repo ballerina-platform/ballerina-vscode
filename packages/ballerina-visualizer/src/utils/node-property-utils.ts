@@ -178,7 +178,7 @@ function applyExpressionToggle(
     };
 }
 
-function hasAiType(property: Property, aiType: string): boolean {
+export function hasAiType(property: Property, aiType: string): boolean {
     return property.types?.some((t) => t.ballerinaType?.replace(/\?$/, "") === aiType) ?? false;
 }
 
