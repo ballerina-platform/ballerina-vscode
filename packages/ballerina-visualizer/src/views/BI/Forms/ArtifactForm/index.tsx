@@ -239,6 +239,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
 
     const [isTypeEditorOpen, setIsTypeEditorOpen] = useState<boolean>(false);
     const [editingTypeName, setEditingTypeName] = useState<string>("");
+    const typeHelperOnChangeRef = useRef<(value: string, cursorPosition: number) => void>();
 
     const handleOpenFormTypeEditor = (open: boolean, typeName?: string, editingField?: FormField) => {
         setTypeEditorState((prevState) => ({
@@ -838,6 +839,7 @@ export function ArtifactForm(props: ArtifactFormProps) {
     ) => {
         const formField = fieldsValues.find(f => f.key === fieldKey);
         const handleCreateNewType = (typeName: string) => {
+            typeHelperOnChangeRef.current = onChange;
             onTypeCreate();
             setTypeEditorState({ isOpen: true, newTypeValue: typeName, field: formField });
             resetStack();
@@ -880,6 +882,8 @@ export function ArtifactForm(props: ArtifactFormProps) {
         setTypeEditorState({ ...typeEditorState, isOpen: true });
 
         if (typeEditorState.field) {
+            typeHelperOnChangeRef.current?.(type.name, type.name.length);
+            typeHelperOnChangeRef.current = undefined;
             const updatedFields = fieldsValues.map(field => {
                 if (field.key === typeEditorState.field.key) {
                     // Only handle parameter type if editingField is a parameter
