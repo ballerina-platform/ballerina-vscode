@@ -2122,6 +2122,10 @@ public class AiUtils {
     }
 
     private static boolean isAiInterfaceType(TypeSymbol typeSymbol, String interfaceName) {
+        if (typeSymbol instanceof UnionTypeSymbol union) {
+            return union.memberTypeDescriptors().stream()
+                    .anyMatch(member -> isAiInterfaceType(member, interfaceName));
+        }
         if (typeSymbol instanceof TypeReferenceTypeSymbol typeRef
                 && typeRef.definition().nameEquals(interfaceName)) {
             return typeRef.getModule()

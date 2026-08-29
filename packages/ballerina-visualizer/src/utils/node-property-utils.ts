@@ -221,7 +221,7 @@ function enrichClientConnectionField(formField: FormField, property: Property): 
 const AI_MEMORY_TYPE = "ai:Memory";
 
 function enrichMemoryField(formField: FormField, property: Property): void {
-    const isMemory = property.types?.some((t) => t.ballerinaType === AI_MEMORY_TYPE);
+    const isMemory = property.types?.some((t) => t.ballerinaType?.replace(/\?$/, "") === AI_MEMORY_TYPE);
     if (!isMemory || !formField.editable) {
         return;
     }
