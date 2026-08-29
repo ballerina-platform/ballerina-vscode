@@ -79,7 +79,6 @@ export function MemoryStoreConfig(props: MemoryStoreConfigProps): JSX.Element {
             disableSaveButton={isSaving}
             submitText={isSaving ? "Saving..." : "Save"}
             showProgressIndicator={isSaving}
-            // Renaming the variable would orphan the memory declaration that references it.
             fieldOverrides={{ variable: { hidden: true }, type: { hidden: true } }}
         />
     );

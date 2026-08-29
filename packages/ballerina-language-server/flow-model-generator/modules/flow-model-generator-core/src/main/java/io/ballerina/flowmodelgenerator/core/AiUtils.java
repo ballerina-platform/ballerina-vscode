@@ -2207,7 +2207,6 @@ public class AiUtils {
         }
         ModuleID id = optId.get();
         String type = typeDescriptor.getName().orElse("");
-        // A null generic name means the module identifies the component, the way codedata.module does.
         String iconType = genericTypeName == null || type.isEmpty() || type.equals(genericTypeName)
                 ? id.packageName() : type;
         return new ModelData(symbol.getName().orElse(""),

@@ -300,6 +300,11 @@ export namespace NodeStyles {
         & > vscode-button::part(control) {
             padding: 8px;
             border-radius: 4px;
+            border: 1px solid transparent;
+            transition: border-color 0.4s ease-out;
+        }
+        & > vscode-button:hover::part(control) {
+            border-color: ${ThemeColors.SECONDARY};
         }
     `;
 
@@ -317,6 +322,7 @@ export namespace NodeStyles {
         font-size: 14px;
         font-family: "GilmerRegular";
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
+        transition: border-color 0.4s ease-out;
         &:hover {
             background-color: ${ThemeColors.SURFACE_BRIGHT};
             border-color: ${(props: { readOnly: boolean }) =>
@@ -332,7 +338,8 @@ export namespace NodeStyles {
         background-color: transparent;
         color: ${ThemeColors.ON_SURFACE};
         cursor: ${(props: { readOnly: boolean }) => (props.readOnly ? "default" : "pointer")};
-        &:hover {
+        transition: border-color 0.4s ease-out;
+        &:hover:not(:has(vscode-button:hover)) {
             border-color: ${(props: { readOnly: boolean }) =>
             props.readOnly ? ThemeColors.OUTLINE_VARIANT : ThemeColors.SECONDARY};
         }
@@ -522,6 +529,11 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
         }
         agentNode?.onSelectMemoryManager && agentNode.onSelectMemoryManager(model.node);
         setMemoryMenuAnchorEl(null);
+    };
+
+    const releaseBoxHover = {
+        onMouseEnter: () => setIsBoxHovered(false),
+        onMouseLeave: () => setIsBoxHovered(true),
     };
 
     const onMemoryStoreClick = (event: React.MouseEvent) => {
@@ -886,6 +898,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     onClick={onMemoryManagerClick}
                                     title="Configure Memory"
                                     onContextMenu={!readOnly ? handleMemoryContextMenu : undefined}
+                                    {...releaseBoxHover}
                                 >
                                     <NodeStyles.Row readOnly={readOnly}>
                                         <div style={{ flex: 1 }}>
@@ -910,7 +923,7 @@ export function AgentNodeWidget(props: AgentNodeWidgetProps) {
                                     </NodeStyles.Row>
                                 </NodeStyles.MemoryCard>
                             ) : (
-                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory">
+                                <NodeStyles.MemoryButton readOnly={readOnly} onClick={onMemoryManagerClick} title="Add Memory" {...releaseBoxHover}>
                                     <Icon name="bi-plus" sx={{ fontSize: "16px", marginRight: "4px" }} />
                                     Add Memory
                                 </NodeStyles.MemoryButton>
