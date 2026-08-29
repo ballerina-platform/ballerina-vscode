@@ -198,12 +198,11 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             });
 
             if (response && isValidTestFunctionResponse(response) && response.function) {
-                dataProviderName = response.function.annotations
-                    ?.find((a: Annotation) => a.name === 'Config')?.fields
-                    ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string;
-                const isEvaluation = hasEvaluationGroup(response.function);
-                if (isEvaluation) {
+                if (hasEvaluationGroup(response.function)) {
                     testType = "AI evaluation test";
+                    dataProviderName = response.function.annotations
+                        ?.find((a: Annotation) => a.name === 'Config')?.fields
+                        ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string;
                 }
             }
         } catch (error) {
