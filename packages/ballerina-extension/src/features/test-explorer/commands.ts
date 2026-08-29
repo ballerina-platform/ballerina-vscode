@@ -190,6 +190,7 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
 
         // Determine test type for confirmation message
         let testType = "test function";
+        let dataProviderName: string | undefined;
         try {
             const response = await ballerinaExtInstance.langClient?.getTestFunction({
                 functionName: entry.label,
@@ -197,6 +198,9 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
             });
 
             if (response && isValidTestFunctionResponse(response) && response.function) {
+                dataProviderName = response.function.annotations
+                    ?.find((a: Annotation) => a.name === 'Config')?.fields
+                    ?.find((f: ValueProperty) => f.originalName === 'dataProvider')?.value as string;
                 const isEvaluation = hasEvaluationGroup(response.function);
                 if (isEvaluation) {
                     testType = "AI evaluation test";
@@ -263,6 +267,8 @@ export function activateEditBiTest(ballerinaExtInstance: BallerinaExtension) {
                 }
             }
 
+            await addDataProviderDeletion(edit, ballerinaExtInstance, fileUri, dataProviderName);
+
             const success = await workspace.applyEdit(edit);
 
             if (success) {
@@ -315,6 +321,32 @@ function hasEvaluationGroup(testFunction: any): boolean {
         return group.replace(/^"|"$/g, '') === EVALUATION_GROUP;
     });
     return hasEvaluation;
+}
+
+/** Adds the removal of the data provider generated alongside an evaluation. */
+async function addDataProviderDeletion(edit: WorkspaceEdit, ballerinaExtInstance: BallerinaExtension,
+    fileUri: string, name?: string) {
+    if (!name) { return; }
+    try {
+        const fn = await ballerinaExtInstance.langClient?.getTestFunction({ functionName: name, filePath: fileUri });
+        const range = isValidTestFunctionResponse(fn) ? fn.function?.codedata?.lineRange : undefined;
+        if (!range) { return; }
+
+        const res = await ballerinaExtInstance.langClient?.deleteByComponentInfo({
+            filePath: fileUri,
+            component: {
+                name, filePath: fileUri,
+                startLine: range.startLine.line, startColumn: range.startLine.offset,
+                endLine: range.endLine.line, endColumn: range.endLine.offset
+            }
+        });
+        for (const [file, edits] of Object.entries(res?.textEdits ?? {})) {
+            edits.forEach((e) => edit.replace(Uri.file(file), new Range(e.range.start.line,
+                e.range.start.character, e.range.end.line, e.range.end.character), e.newText));
+        }
+    } catch (error) {
+        console.warn('Failed to delete the evaluation data provider:', error);
+    }
 }
 
 async function ensureFileExists(filePath: string) {
